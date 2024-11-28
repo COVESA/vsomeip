@@ -2175,7 +2175,7 @@ service_discovery_impl::process_eventgroupentry(
                             VSOMEIP_ERROR << __func__
                                     << ": Multiple IPv6 endpoint options of same kind referenced! "
                                     << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setw(4) << std::setfill('0') << its_session
+                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
                                     << " is_second_reliable: " << is_second_reliable;
                             return;
                         }

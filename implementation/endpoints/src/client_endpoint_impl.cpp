@@ -778,7 +778,7 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::chec
             const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
             const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
             instance_t its_instance = this->get_instance(its_service);
-
+          
             if (its_instance != ANY_INSTANCE) {
                 if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;
@@ -827,7 +827,7 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
                 << endpoint_impl<Protocol>::queue_limit_
                 << ") reached. Dropping message ("
                 << std::hex << std::setfill('0')
-	            << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "] "

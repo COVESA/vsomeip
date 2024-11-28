@@ -2776,7 +2776,7 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
                 for (const auto &m : p.second) {
                     partitions_[p.first][m] = its_partition_id;
                     its_log << "<"
-                            << std::setfill('0') << std::hex
+                            << std::hex << std::setfill('0')
                             << std::setw(4) << p.first << "."
                             << std::setw(4) << m
                             << ">";
@@ -3018,8 +3018,9 @@ bool configuration_impl::get_client_port(
 
     // Configured ports do exist, but they are all in use
     VSOMEIP_ERROR << "Cannot find free client port for communication to service ["
-                  << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                  << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                  << std::hex << std::setfill('0')
+                  << std::setw(4) << _service << "."
+                  << std::setw(4) << _instance << "."
                   << std::dec << _remote_port << "."
                   << std::boolalpha <<_reliable << "]";
 

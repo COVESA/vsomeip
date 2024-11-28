@@ -117,9 +117,9 @@ void serializer::reset() {
 void serializer::show() {
     std::stringstream its_data;
     its_data << "SERIALIZED: "
-             << std::setfill('0') << std::hex;
+             << std::hex << std::setfill('0');
     for (const byte_t& e : data_)
-        its_data << std::setw(2) << (int)e;
+        its_data << std::setw(2) << static_cast<int>(e);
     VSOMEIP_INFO << its_data.str();
 }
 #endif

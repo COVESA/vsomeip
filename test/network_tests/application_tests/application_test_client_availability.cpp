@@ -54,7 +54,7 @@ public:
                             std::placeholders::_3, i),
                     its_major, its_minor);
             VSOMEIP_DEBUG << "Registering: "
-                    << std::setfill('0') << std::hex
+                    << std::hex << std::setfill('0')
                     << std::setw(4) << its_service << "."
                     << std::setw(4) << its_instance << "."
                     << std::setw(2) << (std::uint32_t)its_major << "."

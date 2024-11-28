@@ -1311,7 +1311,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                         }
                         catch (...) {
                             VSOMEIP_ERROR << "Eventgroup ["
-                                << std::hex << std::setw(4) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(4)
                                 << _service << "." << _instance << "." << _eventgroup
                                 << "] is configured as multicast, but no valid "
                                        "multicast address is configured!";

@@ -250,10 +250,11 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
             const session_t its_session =
                     bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
             VSOMEIP_WARNING << "server_endpoint::send: Service is stopping, ignoring message: ["
-                            << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_client << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_method << "."
+                    << std::setw(4) << its_client << "."
+                    << std::setw(4) << its_session << "]";
             return false;
         }
     }
@@ -525,13 +526,15 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec
-                      << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
-                      << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                      << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                      << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                      << std::hex << std::setw(4) << std::setfill('0') << its_session << "]"
-                      << " queue_size: " << std::dec << _endpoint_data.queue_size_
-                      << " data size: " << std::dec << _size;
+                << endpoint_impl<Protocol>::queue_limit_
+                << ") reached. Dropping message ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]"
+                << " queue_size: " << std::dec << _endpoint_data.queue_size_
+                << " data size: " << _size;
         return false;
     }
     return true;
@@ -795,10 +798,9 @@ void server_endpoint_impl<Protocol>::remove_stop_handler(service_t _service) {
     std::stringstream its_services_log;
     its_services_log << __func__ << ": ";
 
-    std::lock_guard<std::mutex> its_lock {mutex_};
-    for (const auto& its_service : prepare_stop_handlers_)
-        its_services_log << std::hex << std::setw(4) << std::setfill('0') << its_service.first
-                         << ' ';
+    std::lock_guard<std::mutex> its_lock{mutex_};
+    for (const auto &its_service : prepare_stop_handlers_)
+        its_services_log << std::hex << std::setfill('0') << std::setw(4) << its_service.first << ' ';
 
     VSOMEIP_INFO << its_services_log.str();
     prepare_stop_handlers_.erase(_service);
