@@ -41,8 +41,6 @@ typedef uint8_t interface_version_t;
 typedef uint8_t byte_t;
 typedef uint16_t diagnosis_t;
 
-typedef uint16_t port_t;
-
 // Addresses
 typedef std::array<byte_t, 4> ipv4_address_t;
 typedef std::array<byte_t, 16> ipv6_address_t;
