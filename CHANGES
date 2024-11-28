@@ -1,6 +1,36 @@
 Changes
 =======
 
+v3.5.3
+- Add timeout for detached threads
+- Update wireshark dissector
+- fix race condition on boost async operations
+- Enabled initial event tests
+- Add vsomeip config parsing
+- Whitelist initial events tests
+- Adds on_register_application_ack
+- Suspend resume tests fix
+- add service and method ids to the clients_ array
+- Fix capturing references to stack variables
+- Protects receiver_ and lock to routing stop function
+- Add include unordered map
+- Add remove local in deregistration(rmi)
+- protect deserialization from malicious input
+- Ignore send_cbk if the socket is not connected
+- Move suspend/resume of endpoints
+- Change handling of availabilities for wildcasts
+- Allow to configure the initial routing state
+- Enable subscription expiration
+- Fixed if-guard name
+- Remove redundant ostream manipulators sync update
+- Fix capturing references to stack variables
+- Log offers on first occurrence in routing manager
+
+v3.5.2
+- Revert fix compile issue with pthreads in android commit
+- Revert Force abort hanging detached threads commit
+- Remove dead code path
+
 v3.5.1
 - Restructure Network Tests CMakeLists
 - policy.cpp unit test
