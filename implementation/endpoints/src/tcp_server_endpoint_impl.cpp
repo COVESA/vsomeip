@@ -178,8 +178,9 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
                     auto found_cbk = prepare_stop_handlers_.find(its_service);
                     if (found_cbk != prepare_stop_handlers_.end()) {
                         VSOMEIP_INFO << "Calling prepare stop handler "
-                                     << "for service: 0x" << std::hex << std::setw(4)
-                                     << std::setfill('0') << its_service;
+                                << "for service: 0x"
+                                << std::hex << std::setfill('0') << std::setw(4)
+                                << its_service;
                         auto handler = found_cbk->second;
                         auto ptr = this->shared_from_this();
                         io_.post([ptr, handler]() { handler(ptr); });
@@ -511,8 +512,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
 #if 0
     std::stringstream msg;
     for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int) recv_buffer_[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>( recv_buffer_[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
@@ -649,9 +650,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                             != VSOMEIP_PROTOCOL_VERSION) {
                             {
                                 std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                                VSOMEIP_ERROR
-                                        << "tse: Wrong protocol version: 0x" << std::hex
-                                        << std::setw(2) << std::setfill('0')
+                                VSOMEIP_ERROR << "tse: Wrong protocol version: 0x"
+                                        << std::hex << std::setfill('0') << std::setw(2)
                                         << std::uint32_t(
                                                    recv_buffer_[its_iteration_gap
                                                                 + VSOMEIP_PROTOCOL_VERSION_POS])
@@ -669,26 +669,24 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                            recv_buffer_[its_iteration_gap
                                                         + VSOMEIP_MESSAGE_TYPE_POS]))) {
                             std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                            VSOMEIP_ERROR << "tse: Invalid message type: 0x" << std::hex
-                                          << std::setw(2) << std::setfill('0')
-                                          << std::uint32_t(recv_buffer_[its_iteration_gap
+                            VSOMEIP_ERROR << "tse: Invalid message type: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
+                                    << std::uint32_t(recv_buffer_[its_iteration_gap
                                                                         + VSOMEIP_MESSAGE_TYPE_POS])
-                                          << " local: " << get_address_port_local()
-                                          << " remote: " << get_address_port_remote()
-                                          << ". Closing connection due to missing/broken data TCP "
-                                             "stream.";
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << get_address_port_remote()
+                                    << ". Closing connection due to missing/broken data TCP stream.";
                         } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
                                            recv_buffer_[its_iteration_gap
                                                         + VSOMEIP_RETURN_CODE_POS]))) {
                             std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                            VSOMEIP_ERROR << "tse: Invalid return code: 0x" << std::hex
-                                          << std::setw(2) << std::setfill('0')
-                                          << std::uint32_t(recv_buffer_[its_iteration_gap
+                            VSOMEIP_ERROR << "tse: Invalid return code: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
+                                    << std::uint32_t(recv_buffer_[its_iteration_gap
                                                                         + VSOMEIP_RETURN_CODE_POS])
-                                          << " local: " << get_address_port_local()
-                                          << " remote: " << get_address_port_remote()
-                                          << ". Closing connection due to missing/broken data TCP "
-                                             "stream.";
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << get_address_port_remote()
+                                    << ". Closing connection due to missing/broken data TCP stream.";
                         }
                         wait_until_sent(boost::asio::error::operation_aborted);
                         return;
@@ -830,10 +828,11 @@ std::string tcp_server_endpoint_impl::connection::get_address_port_local() const
 
 void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const std::exception& _e) {
     std::stringstream its_message;
-    its_message << "tcp_server_endpoint_impl::connection catched exception" << _e.what()
-                << " local: " << get_address_port_local()
-                << " remote: " << get_address_port_remote()
-                << " shutting down connection. Start of buffer: ";
+    its_message << "tcp_server_endpoint_impl::connection catched exception"
+            << _e.what() << " local: " << get_address_port_local()
+            << " remote: " << get_address_port_remote()
+            << " shutting down connection. Start of buffer: "
+            << std::hex << std::setfill('0');
 
     for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
         its_message << std::setw(2) << static_cast<int>(recv_buffer_[i]) << " ";
@@ -866,41 +865,48 @@ std::size_t tcp_server_endpoint_impl::connection::write_completion_condition(
         std::size_t _bytes_to_send, service_t _service, method_t _method, client_t _client,
         session_t _session, const std::chrono::steady_clock::time_point _start) {
     if (_error) {
-        VSOMEIP_ERROR << "tse::write_completion_condition: " << _error.message() << "(" << std::dec
-                      << _error.value() << ") bytes transferred: " << std::dec << _bytes_transferred
-                      << " bytes to sent: " << std::dec << _bytes_to_send << " "
-                      << "remote:" << get_address_port_remote() << " (" << std::hex << std::setw(4)
-                      << std::setfill('0') << _client << "): [" << std::hex << std::setw(4)
-                      << std::setfill('0') << _service << "." << std::hex << std::setw(4)
-                      << std::setfill('0') << _method << "." << std::hex << std::setw(4)
-                      << std::setfill('0') << _session << "]";
+        VSOMEIP_ERROR << "tse::write_completion_condition: "
+                << _error.message() << "(" << std::dec << _error.value()
+                << ") bytes transferred: " << std::dec << _bytes_transferred
+                << " bytes to sent: " << std::dec << _bytes_to_send << " "
+                << "remote:" << get_address_port_remote() << " ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _client << "): ["
+                << std::setw(4) << _service << "."
+                << std::setw(4) << _method << "."
+                << std::setw(4) << _session << "]";
         stop_and_remove_connection();
         return 0;
     }
 
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     const std::chrono::milliseconds passed =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now - _start);    if (passed > send_timeout_warning_) {
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - _start);
+    if (passed > send_timeout_warning_) {
         if (passed > send_timeout_) {
-            VSOMEIP_ERROR << "tse::write_completion_condition: " << _error.message() << "("
-                          << std::dec << _error.value() << ") took longer than " << std::dec
-                          << send_timeout_.count() << "ms bytes transferred: " << std::dec
-                          << _bytes_transferred << " bytes to sent: " << std::dec << _bytes_to_send
-                          << " remote:" << get_address_port_remote() << " (" << std::hex
-                          << std::setw(4) << std::setfill('0') << _client << "): [" << std::hex
-                          << std::setw(4) << std::setfill('0') << _service << "." << std::hex
-                          << std::setw(4) << std::setfill('0') << _method << "." << std::hex
-                          << std::setw(4) << std::setfill('0') << _session << "]";
+            VSOMEIP_ERROR << "tse::write_completion_condition: "
+                    << _error.message() << "(" << std::dec << _error.value()
+                    << ") took longer than " << send_timeout_.count()
+                    << "ms bytes transferred: " << _bytes_transferred
+                    << " bytes to sent: " << _bytes_to_send
+                    << " remote:" << get_address_port_remote() << " ("
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client << "): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _method << "."
+                    << std::setw(4) << _session << "]";
         } else {
-            VSOMEIP_WARNING << "tse::write_completion_condition: " << _error.message() << "("
-                            << std::dec << _error.value() << ") took longer than " << std::dec
-                            << send_timeout_warning_.count() << "ms bytes transferred: " << std::dec
-                            << _bytes_transferred << " bytes to sent: " << std::dec
-                            << _bytes_to_send << " remote:" << get_address_port_remote() << " ("
-                            << std::hex << std::setw(4) << std::setfill('0') << _client << "): ["
-                            << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << _method << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << _session << "]";
+            VSOMEIP_WARNING << "tse::write_completion_condition: "
+                    << _error.message() << "(" << std::dec << _error.value()
+                    << ") took longer than " << send_timeout_warning_.count()
+                    << "ms bytes transferred: " <<_bytes_transferred
+                    << " bytes to sent: " << _bytes_to_send
+                    << " remote:" << get_address_port_remote() << " ("
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client << "): ["
+                    << std::setw(4) << _service << "."
+                    << std::setw(4) << _method << "."
+                    << std::setw(4) << _session << "]";
         }
     }
     return _bytes_to_send - _bytes_transferred;

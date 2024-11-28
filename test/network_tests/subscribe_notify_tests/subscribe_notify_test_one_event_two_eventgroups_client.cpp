@@ -115,7 +115,8 @@ public:
             vsomeip::instance_t _instance,
             bool _is_available) {
         VSOMEIP_DEBUG << "Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service
+                << std::hex << std::setfill('0') 
+                << std::setw(4) << _service
                 << "." << _instance << "] is "
                 << (_is_available ? "available." : "NOT available.");
         if (_service == info_.service_id && _instance == info_.instance_id && _is_available) {
@@ -128,23 +129,20 @@ public:
     void on_message(const std::shared_ptr<vsomeip::message> &_response) {
         std::stringstream its_message;
         its_message << "Received a message ["
-                << std::setw(4)    << std::setfill('0') << std::hex
-                << _response->get_service() << "."
-                << std::setw(4) << std::setfill('0') << std::hex
-                << _response->get_instance() << "."
-                << std::setw(4) << std::setfill('0') << std::hex
-                << _response->get_method() << "] from Client/Session ["
-                << std::setw(4) << std::setfill('0') << std::hex
-                << _response->get_client() << "/"
-                << std::setw(4) << std::setfill('0') << std::hex
-                << _response->get_session()
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _response->get_service() << "."
+                << std::setw(4) << _response->get_instance() << "."
+                << std::setw(4) << _response->get_method() << "] from Client/Session ["
+                << std::setw(4) << _response->get_client() << "/"
+                << std::setw(4) << _response->get_session()
                 << "] = ";
         std::shared_ptr<vsomeip::payload> its_payload =
                 _response->get_payload();
-        its_message << "(" << std::dec << its_payload->get_length() << ") ";
+        its_message << "(" << std::dec << its_payload->get_length() << ") "
+            << std::hex << std::setfill('0');
         for (uint32_t i = 0; i < its_payload->get_length(); ++i)
-            its_message << std::hex << std::setw(2) << std::setfill('0')
-                << (int) its_payload->get_data()[i] << " ";
+            its_message << std::setw(2) 
+            << static_cast<int>(its_payload->get_data()[i]) << " ";
         VSOMEIP_DEBUG << its_message.str();
         ASSERT_EQ(info_.service_id, _response->get_service());
 
@@ -171,8 +169,9 @@ public:
             number_received_events_[_response->get_method()]++;
             events_condition_.notify_one();
         } else {
-            ADD_FAILURE() << "Received unknown method id: " << std::setw(4)
-                << std::setfill('0') << std::hex << _response->get_method();
+            ADD_FAILURE() << "Received unknown method id: " 
+                 << std::hex << std::setfill('0')
+                 << std::setw(4) << _response->get_method();
         }
 
     }

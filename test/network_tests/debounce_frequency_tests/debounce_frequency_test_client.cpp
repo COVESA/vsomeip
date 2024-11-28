@@ -25,7 +25,7 @@ void test_client::on_message(const std::shared_ptr<vsomeip::message>& _message) 
     std::stringstream s;
     s << "RECV: ";
     for (uint32_t i = 0; i < _message->get_payload()->get_length(); i++) {
-        s << std::hex << std::setw(2) << std::setfill('0')
+        s << std::hex << std::setfill('0') << std::setw(2)
           << static_cast<int>(_message->get_payload()->get_data()[i]) << " ";
     }
     VSOMEIP_DEBUG << s.str();

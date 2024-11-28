@@ -225,8 +225,8 @@ utility::request_client_id(
             }
 
             VSOMEIP_WARNING << "Requested client identifier "
-                    << std::setw(4) << std::setfill('0')
-                    << std::hex << _client
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _client
                     << " is already used by application \""
                     << its_iterator->second
                     << "\".";

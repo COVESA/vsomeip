@@ -77,8 +77,9 @@ TEST_F(malicious_data, send_malicious_events)
             }
             #if 0
             std::stringstream str;
+                str << std::hex << std::setfill('0');
             for (size_t i = 0; i < bytes_transferred; i++) {
-                str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
             }
             std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
             #endif
@@ -543,8 +544,9 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                     if (!error) {
                         #if 0
                         std::stringstream str;
+                        str << std::hex << std::setfill('0');
                         for (size_t i = 0; i < bytes_transferred; i++) {
-                            str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                            str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                         }
                         std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                         #endif

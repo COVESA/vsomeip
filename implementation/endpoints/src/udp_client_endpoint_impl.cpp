@@ -220,8 +220,8 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     msg << "ucei<" << remote_.address() << ":"
         << std::dec << remote_.port()  << ">::sq: ";
     for (std::size_t i = 0; i < _buffer->size(); i++)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*_entry.first)[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>((*_entry.first)[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     {
@@ -364,8 +364,8 @@ void udp_client_endpoint_impl::receive_cbk(
         std::stringstream msg;
         msg << "ucei::rcb(" << _error.message() << "): ";
         for (std::size_t i = 0; i < _bytes; ++i)
-            msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int) (*_recv_buffer)[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>((*_recv_buffer)[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
         std::size_t remaining_bytes = _bytes;
@@ -392,7 +392,7 @@ void udp_client_endpoint_impl::receive_cbk(
                     )) {
                     if ((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
                         VSOMEIP_ERROR << "uce: Wrong protocol version: 0x"
-                                << std::hex << std::setw(2) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(2)
                                 << std::uint32_t((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS])
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
@@ -407,14 +407,14 @@ void udp_client_endpoint_impl::receive_cbk(
                     } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(
                             (*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
                         VSOMEIP_ERROR << "uce: Invalid message type: 0x"
-                                << std::hex << std::setw(2) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(2)
                                 << std::uint32_t((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
                     } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
                             (*_recv_buffer)[i + VSOMEIP_RETURN_CODE_POS]))) {
                         VSOMEIP_ERROR << "uce: Invalid return code: 0x"
-                                << std::hex << std::setw(2) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(2)
                                 << std::uint32_t((*_recv_buffer)[i + VSOMEIP_RETURN_CODE_POS])
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();

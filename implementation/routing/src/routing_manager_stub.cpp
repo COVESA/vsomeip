@@ -233,7 +233,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
     std::stringstream msg;
     msg << "rms::on_message: ";
     for (length_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
 
@@ -277,10 +277,10 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             && _bound_client != its_client) {
         VSOMEIP_WARNING << "vSomeIP Security: routing_manager_stub::on_message: "
                 << "Routing Manager received a message from client "
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << its_client << " with command " << (uint32_t)its_id
                 << " which doesn't match the bound client "
-                << std::setw(4) << std::setfill('0') << _bound_client
+                << std::setw(4) << _bound_client
                 << " ~> skip message!";
         return;
     }
@@ -326,7 +326,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             if (its_error == protocol::error_e::ERROR_OK) {
                 on_pong(its_client);
                 VSOMEIP_TRACE << "PONG("
-                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::hex << std::setfill('0') << std::setw(4)
                         << its_client << ")";
             } else
                 VSOMEIP_ERROR << __func__
@@ -694,9 +694,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_instance << "."
                         << std::setw(4) << register_event.get_event()
-                        << ":eventtype=" << std::dec << (int)register_event.get_event_type()
+                        << ":eventtype=" << std::dec << static_cast<int>(register_event.get_event_type())
                         << ":is_provided=" << std::boolalpha << register_event.is_provided()
-                        << ":reliable=" << (int)register_event.get_reliability() << "]";
+                        << ":reliable=" << static_cast<int>(register_event.get_reliability()) << "]";
                 }
 
 
@@ -736,7 +736,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             if (its_error == protocol::error_e::ERROR_OK) {
 
                 VSOMEIP_INFO << "REGISTERED_ACK("
-                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::hex << std::setfill('0') << std::setw(4)
                         << its_command.get_client() << ")";
 
                 on_register_application_ack(its_command.get_client());
@@ -767,7 +767,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             if (its_error == protocol::error_e::ERROR_OK) {
                 host_->on_resend_provided_events_response(its_command.get_remote_offer_id());
                 VSOMEIP_INFO << "RESEND_PROVIDED_EVENTS("
-                    << std::hex << std::setw(4) << std::setfill('0') << its_client << ")";
+                    << std::hex << std::setfill('0') << std::setw(4) << its_client << ")";
             } else
                 VSOMEIP_ERROR << __func__ << ": resend provided events deserialization failed ("
                         << std::dec << static_cast<int>(its_error) << ")";
@@ -972,7 +972,7 @@ void routing_manager_stub::client_registration_func(void) {
 #if defined(__linux__) || defined(ANDROID)
     {
         std::stringstream s;
-        s << std::hex << std::setw(4) << std::setfill('0')
+        s << std::hex << std::setfill('0') << std::setw(4)
             << host_->get_client() << "_client_reg";
         pthread_setname_np(pthread_self(),s.str().c_str());
     }
@@ -1184,7 +1184,7 @@ void routing_manager_stub::send_client_credentials(const client_t _target,
         std::stringstream msg;
         msg << "rms::send_credentials_info to (" << std::hex << _target << "): ";
         for (uint32_t i = 0; i < its_size; ++i)
-            msg << std::hex << std::setw(2) << std::setfill('0') << (int)its_command[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(its_command[i] << " ";
         VSOMEIP_INFO << msg.str();
 #endif
 
@@ -1208,7 +1208,7 @@ void routing_manager_stub::send_client_credentials(const client_t _target,
     } else
         VSOMEIP_ERROR << __func__
             << ": Sending credentials to client ["
-            << std::hex << std::setw(4) << std::setfill('0')
+            << std::hex << std::setfill('0') << std::setw(4)
             << _target
             << "] failed";
 }
@@ -1245,7 +1245,7 @@ void routing_manager_stub::send_client_routing_info(const client_t _target,
     } else
         VSOMEIP_ERROR << __func__
             << ": Sending routing info to client ["
-            << std::hex << std::setw(4) << std::setfill('0')
+            << std::hex << std::setfill('0') << std::setw(4)
             << _target
             << "] failed";
 }
@@ -1572,7 +1572,7 @@ void routing_manager_stub::on_pong(client_t _client) {
             found_info->second.first = 0;
         } else {
             VSOMEIP_ERROR << "Received PONG from unregistered application: "
-                    << std::hex << std::setw(4) << std::setfill('0') << _client;
+                    << std::hex << std::setfill('0') << std::setw(4) << _client;
         }
     }
     remove_from_pinged_clients(_client);
@@ -1615,7 +1615,7 @@ void routing_manager_stub::check_watchdog() {
                     for (const auto& i : routing_info_) {
                         if (i.first > 0 && i.first != host_->get_client()) {
                             if (i.second.first > configuration_->get_allowed_missing_pongs()) {
-                                VSOMEIP_WARNING << "Lost contact to application " << std::hex << (int)i.first;
+                                VSOMEIP_WARNING << "Lost contact to application " << std::hex << static_cast<int>(i.first);
                                 lost.push_back(i.first);
                             }
                         }
@@ -2053,7 +2053,7 @@ void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code 
     }
     for (auto client : erroneous_clients) {
         VSOMEIP_WARNING << "Releasing client identifier "
-                << std::hex << std::setw(4) << std::setfill('0') << client << ". "
+                << std::hex << std::setfill('0') << std::setw(4) << client << ". "
                 << "Its corresponding application went offline while no "
                 << "routing manager was running.";
         host_->handle_client_error(client);
@@ -2088,7 +2088,7 @@ bool routing_manager_stub::send_provided_event_resend_request(
     } else {
         VSOMEIP_WARNING << __func__ << " Couldn't send provided event resend "
                 "request to local client: 0x"
-                << std::hex << std::setw(4) << std::setfill('0') << _client;
+                << std::hex << std::setfill('0') << std::setw(4) << _client;
     }
 
     return false;
@@ -2198,7 +2198,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
     } else
         VSOMEIP_WARNING << __func__
             << ": could not send cached security policies to registering client: 0x"
-            << std::hex << std::setw(4) << std::setfill('0') << _client;
+            << std::hex << std::setfill('0') << std::setw(4) << _client;
 
     return false;
 }
@@ -2224,7 +2224,7 @@ bool routing_manager_stub::send_remove_security_policy_request(
         else
             VSOMEIP_ERROR << __func__
                 << ": cannot find local client endpoint for client "
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << _client;
     } else
         VSOMEIP_ERROR << __func__

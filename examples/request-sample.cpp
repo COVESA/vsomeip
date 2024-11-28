@@ -108,7 +108,7 @@ public:
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         std::cout << "Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
+                << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance
                 << "] is "
                 << (_is_available ? "available." : "NOT available.")
                 << std::endl;
@@ -125,7 +125,7 @@ public:
 
     void on_message(const std::shared_ptr< vsomeip::message > &_response) {
         std::cout << "Received a response from Service ["
-                << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0')
                 << std::setw(4) << _response->get_service()
                 << "."
                 << std::setw(4) << _response->get_instance()
@@ -156,7 +156,7 @@ public:
                 if (is_available_) {
                     app_->send(request_);
                     std::cout << "Client/Session ["
-                            << std::setfill('0') << std::hex
+                            << std::hex << std::setfill('0')
                             << std::setw(4) << request_->get_client()
                             << "/"
                             << std::setw(4) << request_->get_session()

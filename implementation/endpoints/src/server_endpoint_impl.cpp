@@ -154,7 +154,7 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
     std::stringstream msg;
     msg << "sei::send ";
     for (uint32_t i = 0; i < _size; i++)
-        msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     endpoint_type its_target;
@@ -250,10 +250,11 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
             const session_t its_session =
                     bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
             VSOMEIP_WARNING << "server_endpoint::send: Service is stopping, ignoring message: ["
-                            << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_client << "."
-                            << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_method << "."
+                    << std::setw(4) << its_client << "."
+                    << std::setw(4) << its_session << "]";
             return false;
         }
     }
@@ -268,7 +269,7 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
     std::stringstream msg;
     msg << "sei::send_intern: ";
     for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
     // STEP 1: Check queue limit
@@ -525,13 +526,15 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec
-                      << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
-                      << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                      << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                      << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                      << std::hex << std::setw(4) << std::setfill('0') << its_session << "]"
-                      << " queue_size: " << std::dec << _endpoint_data.queue_size_
-                      << " data size: " << std::dec << _size;
+                << endpoint_impl<Protocol>::queue_limit_
+                << ") reached. Dropping message ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]"
+                << " queue_size: " << std::dec << _endpoint_data.queue_size_
+                << " data size: " << _size;
         return false;
     }
     return true;
@@ -723,12 +726,12 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
         } else {
             parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
             VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: "
-                            << its_data.queue_size_ << " payload_size: " << payload_size
-                            << " payload: (" << std::hex << std::setw(4) << std::setfill('0')
-                            << its_client << "): [" << std::hex << std::setw(4) << std::setfill('0')
-                            << its_service << "." << std::hex << std::setw(4) << std::setfill('0')
-                            << its_method << "." << std::hex << std::setw(4) << std::setfill('0')
-                            << its_session << "]";
+                << its_data.queue_size_ << " payload_size: " << payload_size << " payload: ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client <<"): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]";
             its_data.queue_.pop_front();
             recalculate_queue_size(its_data);
         }
@@ -755,13 +758,16 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
         parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
-        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message() << " (" << std::dec
-                        << _error.value() << ") " << get_remote_information(it) << " " << std::dec
-                        << its_data.queue_.size() << " " << std::dec << its_data.queue_size_ << " ("
-                        << std::hex << std::setw(4) << std::setfill('0') << its_client << "): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message()
+                << " (" << std::dec << _error.value() << ") "
+                << get_remote_information(it) << " "
+                << its_data.queue_.size() << " "
+                << its_data.queue_size_ << " ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]";
         cancel_dispatch_timer(it);
         targets_.erase(it);
         if (!prepare_stop_handlers_.empty()) {
@@ -792,10 +798,9 @@ void server_endpoint_impl<Protocol>::remove_stop_handler(service_t _service) {
     std::stringstream its_services_log;
     its_services_log << __func__ << ": ";
 
-    std::lock_guard<std::mutex> its_lock {mutex_};
-    for (const auto& its_service : prepare_stop_handlers_)
-        its_services_log << std::hex << std::setw(4) << std::setfill('0') << its_service.first
-                         << ' ';
+    std::lock_guard<std::mutex> its_lock{mutex_};
+    for (const auto &its_service : prepare_stop_handlers_)
+        its_services_log << std::hex << std::setfill('0') << std::setw(4) << its_service.first << ' ';
 
     VSOMEIP_INFO << its_services_log.str();
     prepare_stop_handlers_.erase(_service);

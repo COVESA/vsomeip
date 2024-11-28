@@ -143,7 +143,7 @@ e2e_profile_04_test_service::on_message(
     ASSERT_EQ(PROFILE_04_INSTANCE, _request->get_instance());
 
     VSOMEIP_INFO << "Received a message with Client/Session ["
-            << std::setw(4) << std::setfill('0') << std::hex
+            << std::hex << std::setfill('0') << std::setw(4)
             << _request->get_client() << "/" << _request->get_session()
             << "] method: " << _request->get_method() ;
 

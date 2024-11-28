@@ -99,8 +99,10 @@ public:
     void on_availability(vsomeip::service_t _service,
             vsomeip::instance_t _instance, bool _is_available) {
         if(_is_available) {
-            VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0')
-            << std::hex << _service << "." << _instance << "] is available.";
+            VSOMEIP_INFO << "Service [" 
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "." << _instance 
+                    << "] is available.";
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_service_available_ = false;
             condition_.notify_one();
@@ -109,29 +111,28 @@ public:
 
     void on_message(const std::shared_ptr<vsomeip::message> &_response) {
         VSOMEIP_INFO << "Received a response from Service ["
-            << std::setfill('0') << std::hex
+            << std::hex << std::setfill('0')
             << std::setw(4) << _response->get_service() << "."
             << std::setw(4) << _response->get_instance() << "]:";
         VSOMEIP_INFO << "########## begin message";
-        VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
-                << _response->get_service()
-                << std::hex << std::setw(4) << std::setfill('0')
-                << _response->get_method()
+        VSOMEIP_INFO << std::hex << std::setfill('0')
+                << std::setw(4) << _response->get_service()
+                << std::setw(4) << _response->get_method()
                 << " # service id / instance id";
-        VSOMEIP_INFO << std::hex << std::setw(8)  << std::setfill('0')
-                << _response->get_length() << " # length";
-        VSOMEIP_INFO << std::hex << std::setw(4)  << std::setfill('0')
-                << _response->get_client()
-                << std::hex << std::setw(4) << std::setfill('0')
-                << _response->get_session()
+        VSOMEIP_INFO << std::hex << std::setfill('0')
+                << std::setw(8) << _response->get_length() << " # length";
+        VSOMEIP_INFO << std::hex << std::setfill('0')
+                << std::setw(4) << _response->get_client()
+                << std::setw(4) << _response->get_session()
                 << " # client id / session id";
-        VSOMEIP_INFO  << std::hex << std::setw(2)  << std::setfill('0')
+        VSOMEIP_INFO  << std::hex << std::setfill('0')
+                << std::setw(2) 
                 << static_cast<std::uint16_t>(_response->get_protocol_version())
-                << std::hex << std::setw(2) << std::setfill('0')
+                << std::setw(2)
                 << static_cast<std::uint16_t>(_response->get_interface_version())
-                << std::hex << std::setw(2) << std::setfill('0')
+                << std::setw(2)
                 << static_cast<std::uint16_t>(_response->get_message_type())
-                << std::hex << std::setw(2) << std::setfill('0')
+                << std::setw(2)
                 << static_cast<std::uint16_t>(_response->get_return_code())
                 << " # protocol version / interface version / "
                 << "message type / return code";
@@ -139,9 +140,10 @@ public:
 
         std::stringstream stream;
         std::string str;
+        stream << std::hex << std::setfill('0');
         for(unsigned int i = 0; i < _response->get_payload()->get_length(); i++) {
-            stream << std::hex << std::setw(2)  << std::setfill('0')
-                << static_cast<std::uint32_t>((_response->get_payload()->get_data())[i]);
+            stream << std::setw(2) 
+                    << static_cast<std::uint32_t>((_response->get_payload()->get_data())[i]);
             str.append(stream.str());
             stream.str("");
             stream.clear();
@@ -210,14 +212,14 @@ private:
     bool validate_message() {
         if (!check_message_type()) {
             VSOMEIP_ERROR << "Invalid message type 0x" << std::setw(2)
-                << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0')
                 << static_cast<std::uint8_t>(message_type_) << ", exiting.";
             stop(EXIT_FAILURE);
         }
 
         if(!check_return_code()) {
             VSOMEIP_ERROR << "Invalid return code 0x" << std::setw(2)
-                << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0')
                 << static_cast<std::uint8_t>(return_code_) << ", exiting.";
             stop(EXIT_FAILURE);
         }
@@ -231,7 +233,7 @@ private:
 
         if (user_message_.size() != length_ + 8) {
             VSOMEIP_ERROR << "Provided length 0x" << std::setw(8)
-                << std::setfill('0') << std::hex << length_
+                << std::hex << std::setfill('0') << length_
                 << " doesn't match message size.";
             VSOMEIP_ERROR << "Assuming the same payload the length field should"
                     " be set to 0x" << std::setw(8) << std::setfill('0')
@@ -276,16 +278,15 @@ private:
     bool check_return_code() {
         if (static_cast<std::uint8_t>(return_code_) > 0x3F) {
             VSOMEIP_ERROR << "Provided return code 0x" << std::setw(2)
-                << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0')
                 << static_cast<std::uint8_t>(return_code_) << " is out of range.";
             return false;
         }
         if (static_cast<std::uint8_t>(return_code_) >
             static_cast<std::uint8_t>(vsomeip::return_code_e::E_WRONG_MESSAGE_TYPE) &&
             static_cast<std::uint8_t>(return_code_) <= 0x3f) {
-            VSOMEIP_ERROR << "Provided return code 0x" << std::setw(2)
-                << std::setfill('0') << std::hex <<
-                static_cast<std::uint8_t>(return_code_) << "is reserved.";
+            VSOMEIP_ERROR << "Provided return code 0x" << std::hex << std::setfill('0') 
+                << std::setw(2) << static_cast<std::uint8_t>(return_code_) << "is reserved.";
             return false;
         }
         switch (message_type_) {
@@ -293,12 +294,11 @@ private:
             case vsomeip::message_type_e::MT_REQUEST_NO_RETURN:
             case vsomeip::message_type_e::MT_NOTIFICATION:
                 if(return_code_ != vsomeip::return_code_e::E_OK) {
-                    VSOMEIP_ERROR << "Provided return code 0x" << std::setw(2)
-                        << std::setfill('0') << std::hex
-                        << static_cast<std::uint8_t>(return_code_)
+                    VSOMEIP_ERROR << "Provided return code 0x"
+                        << std::hex << std::setfill('0')
+                        << std::setw(2) << static_cast<std::uint8_t>(return_code_)
                         << "is invalid in combination with message type 0x"
-                        << std::setw(2) << std::setfill('0') << std::hex
-                        << static_cast<std::uint8_t>(message_type_)
+                        << std::setw(2) << static_cast<std::uint8_t>(message_type_)
                         << " use 0x00 (E_OK).";
                     return false;
                 }

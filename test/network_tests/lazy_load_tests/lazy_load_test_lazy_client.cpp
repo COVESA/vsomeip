@@ -110,7 +110,7 @@ void lazy_load_lazy_client::on_availability(vsomeip::service_t _service,
 
     VSOMEIP_INFO << "CLIENT ON_AVAILABILITY...";
     VSOMEIP_INFO << std::hex << "Client 0x" << app_->get_client()
-            << " : Service [" << std::setw(4) << std::setfill('0') << std::hex
+            << " : Service [" << std::hex << std::setfill('0') << std::setw(4)
             << _service << '.' << _instance << "] is "
             << (_is_service_available ? "available." : "NOT available.");
 

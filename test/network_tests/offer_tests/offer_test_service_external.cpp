@@ -81,8 +81,8 @@ public:
 
     void on_availability(vsomeip::service_t _service,
                          vsomeip::instance_t _instance, bool _is_available) {
-            VSOMEIP_INFO << "Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _service << "." << _instance
+            VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') 
+            << std::setw(4) << _service << "." << _instance
             << "] is " << (_is_available ? "available":"not available") << ".";
             std::lock_guard<std::mutex> its_lock(mutex_);
             if(_is_available) {
@@ -95,7 +95,7 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Running";
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
@@ -103,7 +103,7 @@ public:
                 condition_.wait(its_lock);
             }
 
-            VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+            VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                     << service_info_.service_id << "] Offering";
             offer();
 
@@ -113,7 +113,7 @@ public:
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Calling stop method";
         std::shared_ptr<vsomeip::message> msg(vsomeip::runtime::get()->create_request());
         msg->set_service(service_info_.service_id);

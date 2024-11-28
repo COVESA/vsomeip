@@ -266,8 +266,9 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe)
             } else {
                 #if 0
                 std::stringstream str;
+                str << std::hex << std::setfill('0');
                 for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                 }
                 std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                 #endif
@@ -471,8 +472,9 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions)
             } else {
                 #if 0
                 std::stringstream str;
+                str << std::hex << std::setfill('0');
                 for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                 }
                 std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                 #endif
@@ -675,8 +677,9 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe)
             } else {
                 #if 0
                 std::stringstream str;
+                str << std::hex << std::setfill('0');
                 for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                 }
                 std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                 #endif
@@ -1332,8 +1335,9 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
                 while (bytes_transferred > 0) {
                     #if 0
                     std::stringstream str;
+                    str << std::hex << std::setfill('0');
                     for (size_t i = 0; i < bytes_transferred; i++) {
-                        str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                        str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                     }
                     std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                     #endif

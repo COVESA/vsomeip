@@ -114,7 +114,7 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
     std::stringstream s;
     s << "RECV: ";
     for (uint32_t i = 0; i < _message->get_payload()->get_length(); i++) {
-        s << std::hex << std::setw(3) << std::setfill('0')
+        s << std::hex << std::setfill('0') << std::setw(3)
           << static_cast<int>(_message->get_payload()->get_data()[i]) << " ";
     }
 

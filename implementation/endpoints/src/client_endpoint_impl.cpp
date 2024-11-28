@@ -182,7 +182,7 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
     std::stringstream msg;
     msg << "cei::send: ";
     for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
 
@@ -579,10 +579,11 @@ void client_endpoint_impl<Protocol>::send_cbk(
                         << _error.value() << ") " << get_remote_information()
                         << " " << std::dec << queue_.size()
                         << " " << std::dec << queue_size_ << " ("
-                        << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                        << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                        << std::hex << std::setw(4) << std::setfill('0') << its_session << "]"
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << its_client << "): ["
+                        << std::setw(4) << its_service << "."
+                        << std::setw(4) << its_method << "."
+                        << std::setw(4) << its_session << "]"
                         << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
             }
         }
@@ -645,12 +646,13 @@ void client_endpoint_impl<Protocol>::send_cbk(
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
                 << get_remote_information() << " "
-                << " " << std::dec << queue_.size()
-                << " " << std::dec << queue_size_ << " ("
-                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_session << "]"
+                << " " << queue_.size()
+                << " " << queue_size_ << " ("
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "]"
                 << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
         print_status();
     }
@@ -776,7 +778,7 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::chec
             const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
             const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
             instance_t its_instance = this->get_instance(its_service);
-
+          
             if (its_instance != ANY_INSTANCE) {
                 if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;
@@ -824,12 +826,13 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
         VSOMEIP_ERROR << "cei::check_queue_limit: queue size limit (" << std::dec
                 << endpoint_impl<Protocol>::queue_limit_
                 << ") reached. Dropping message ("
-                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
-                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
-                << std::hex << std::setw(4) << std::setfill('0') << its_session << "] "
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_method << "."
+                << std::setw(4) << its_session << "] "
                 << "queue_size: " << std::dec << queue_size_
-                << " data size: " << std::dec << _size;
+                << " data size: " << _size;
         return false;
     }
     return true;

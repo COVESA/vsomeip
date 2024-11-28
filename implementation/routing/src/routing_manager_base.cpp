@@ -470,12 +470,10 @@ void routing_manager_base::register_event(client_t _client,
 
                 VSOMEIP_WARNING << "Using debounce configuration for "
                         << " SOME/IP event "
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << _service << "."
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << _instance << "."
-                        << std::hex << std::setw(4) << std::setfill('0')
-                        << _notifier << "."
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _notifier << "."
                         << " Debounce parameters: "
                         << its_debounce_parameters.str();
 
@@ -1313,7 +1311,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                         }
                         catch (...) {
                             VSOMEIP_ERROR << "Eventgroup ["
-                                << std::hex << std::setw(4) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(4)
                                 << _service << "." << _instance << "." << _eventgroup
                                 << "] is configured as multicast, but no valid "
                                        "multicast address is configured!";

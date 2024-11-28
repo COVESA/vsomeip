@@ -406,7 +406,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
                 auto found_instance = found_service->second.find(its_service->instance_);
                 if (found_instance != found_service->second.end()) {
                     VSOMEIP_INFO << "Updating remote configuration for service ["
-                            << std::hex << std::setw(4) << std::setfill('0')
+                            << std::hex << std::setfill('0') << std::setw(4)
                             << its_service->service_ << "." << its_service->instance_ << "]";
                     if (_reliable) {
                         found_instance->second->reliable_ = its_service->reliable_;
@@ -451,7 +451,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 VSOMEIP_INFO << "Removing remote configuration for service ["
-                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::hex << std::setfill('0') << std::setw(4)
                         << _service << "." << _instance << "]";
                 if (_reliable) {
                     found_instance->second->reliable_ = ILLEGAL_PORT;
@@ -2776,7 +2776,7 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
                 for (const auto &m : p.second) {
                     partitions_[p.first][m] = its_partition_id;
                     its_log << "<"
-                            << std::setfill('0') << std::hex
+                            << std::hex << std::setfill('0')
                             << std::setw(4) << p.first << "."
                             << std::setw(4) << m
                             << ">";
@@ -3018,8 +3018,9 @@ bool configuration_impl::get_client_port(
 
     // Configured ports do exist, but they are all in use
     VSOMEIP_ERROR << "Cannot find free client port for communication to service ["
-                  << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                  << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                  << std::hex << std::setfill('0')
+                  << std::setw(4) << _service << "."
+                  << std::setw(4) << _instance << "."
                   << std::dec << _remote_port << "."
                   << std::boolalpha <<_reliable << "]";
 
@@ -4475,7 +4476,7 @@ void configuration_impl::load_someip_tp_for_service(
                                 << std::setw(4) << its_method << "]:"
                                 << " using (" << std::dec
                                 << its_entry->second.first << ", "
-                                << std::dec << its_entry->second.second << ")";
+                                << its_entry->second.second << ")";
                     }
                 }
             } else {

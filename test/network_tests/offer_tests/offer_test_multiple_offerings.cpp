@@ -131,13 +131,16 @@ private:
             received_payload_.clear();
             for (uint32_t i = 0; i < len; ++i) {
                 received_payload_.push_back(*(its_payload->get_data() + i));
-                msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*(its_payload->get_data() + i)) << " ";
+                msg << std::hex << std::setfill('0') 
+                    << std::setw(2) << static_cast<int>((*(its_payload->get_data() + i))) 
+                    << " ";
             }
         }
 
         VSOMEIP_INFO << "[TEST] Got message from "
-                     << std::hex << std::setw(4) << std::setfill('0') << _message->get_service() << "."
-                     << std::hex << std::setw(4) << std::setfill('0') << _message->get_instance()
+                     << std::hex << std::setfill('0') 
+                     << std::setw(4) << _message->get_service() << "."
+                     << std::setw(4) << _message->get_instance()
                      << " length " << std::dec << len << " and payload " << msg.str();
         {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -210,9 +213,10 @@ private:
         const vsomeip::length_t len = _message->get_payload()->get_length();
         std::vector<uint8_t> out_payload;
         std::stringstream msg;
+        msg << std::hex << std::setfill('0');
         for (uint32_t i = 0; i < len; ++i) {
             out_payload.push_back(*(_message->get_payload()->get_data() + i));
-            msg << std::hex << std::setw(2) << std::setfill('0') << (int)(*(_message->get_payload()->get_data() + i)) << " ";
+            msg << std::setw(2) << static_cast<int>((*(_message->get_payload()->get_data() + i))) << " ";
         }
         std::shared_ptr<vsomeip::message> response = runtime::get()->create_response(_message);
         response->set_payload(vsomeip::runtime::get()->create_payload(out_payload));

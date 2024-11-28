@@ -79,10 +79,11 @@ public:
             if(its_service != other_services_available_.end()) {
                 if(its_service->second != _is_available) {
                 its_service->second = true;
-                VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                        << client_number_ << "] Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
-                << "] is available.";
+                VSOMEIP_DEBUG << "[" 
+                        << std::hex << std::setfill('0') 
+                        << std::setw(4) << client_number_ << "] Service ["
+                        << std::setw(4) << _service << "." << _instance
+                        << "] is available.";
 
                 }
             }
@@ -105,7 +106,7 @@ public:
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << client_number_ << "] all services are available. Going down";
         app_->clear_all_handler();
         app_->stop();

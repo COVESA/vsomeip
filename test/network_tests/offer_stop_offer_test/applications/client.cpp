@@ -100,10 +100,10 @@ void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     if (message->get_payload()->get_data()) {
         VSOMEIP_INFO << "client_t::" << __func__ << ": "
                      << static_cast<int>(message->get_payload()->get_data()[0]) << " from 0x"
-                     << std::setw(4) << std::setfill('0') << std::hex << message->get_service();
+                     << std::hex << std::setfill('0') << std::setw(4) << message->get_service();
     } else {
         VSOMEIP_WARNING << "client_t::" << __func__ << ": Empty payload for service "
-                        << " from 0x" << std::setw(4) << std::setfill('0') << std::hex
+                        << " from 0x" << std::hex << std::setfill('0') << std::setw(4)
                         << message->get_service();
     }
 

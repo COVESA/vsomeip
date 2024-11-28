@@ -132,15 +132,15 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Running";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') 
+                << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Offering";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') 
+                << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 

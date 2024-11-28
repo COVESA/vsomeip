@@ -86,7 +86,7 @@ e2e_profile_04_test_client::on_availability(
         bool _is_available) {
 
     VSOMEIP_INFO << __func__ << ": Client "
-            << std::hex << std::setw(4) << std::setfill('0')
+            << std::hex << std::setfill('0') << std::setw(4)
             << app_->get_client()
             << " : Service [" << _service << "." << _instance
             << "] is " << (_is_available ? "available." : "NOT available.");
@@ -117,7 +117,7 @@ void
 e2e_profile_04_test_client::on_message(const std::shared_ptr<vsomeip::message> &_message) {
 
     VSOMEIP_INFO << __func__ << ": Received a message from Service ["
-            << std::setw(4) << std::setfill('0') << std::hex
+            << std::hex << std::setfill('0') << std::setw(4)
             << _message->get_service() << "." << _message->get_instance()
             << "] to Client/Session ["
             << _message->get_client() << "/" << _message->get_session()
@@ -165,7 +165,7 @@ e2e_profile_04_test_client::on_message(const std::shared_ptr<vsomeip::message> &
     received_++;
     if (received_ == PROFILE_O4_NUM_MESSAGES * 2) {
         VSOMEIP_WARNING << __func__ << ": Client"
-                << std::setw(4) << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0') << std::setw(4)
                 << app_->get_client()
                 << " received all messages ~> going down!";
     }

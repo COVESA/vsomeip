@@ -96,10 +96,10 @@ void header_factory_test_service::on_state(vsomeip::state_type_e _state)
 
 void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::message>& _request)
 {
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _request->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _request->get_session() << "]";
+    VSOMEIP_INFO << "Received a message with Client/Session [" 
+                 << std::hex << std::setfill('0')
+                 << std::setw(4) << _request->get_client() << "/"
+                 << std::setw(4) << _request->get_session() << "]";
 
     number_of_received_messages_++;
 

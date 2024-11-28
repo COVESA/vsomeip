@@ -103,10 +103,9 @@ public:
                          vsomeip::instance_t _instance, bool _is_available) {
         if(_is_available) {
             VSOMEIP_INFO
-            << "[" << std::setw(4) << std::setfill('0') << std::hex
-            << service_info_.service_id << "] Service ["
-            << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
-            << "] is "
+            << std::hex << std::setfill('0') << "[" 
+            << std::setw(4) << service_info_.service_id << "] Service ["
+            << std::setw(4) << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
             auto its_service = other_services_available_.find(std::make_pair(_service, _instance));
@@ -129,12 +128,11 @@ public:
     void on_request(const std::shared_ptr<vsomeip::message> &_message) {
         if(_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST) {
             VSOMEIP_DEBUG
-            << "[" << std::setw(4) << std::setfill('0') << std::hex
-                        << service_info_.service_id
-            << "] Received a request with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _message->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_session() << "]";
+            << std::hex << std::setfill('0') << "[" 
+            << std::setw(4) << service_info_.service_id
+            << "] Received a request with Client/Session [" 
+            << std::setw(4) << _message->get_client() << "/"
+            << std::setw(4) << _message->get_session() << "]";
             std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()
             ->create_response(_message);
             app_->send(its_response);
@@ -151,15 +149,13 @@ public:
     void on_response(const std::shared_ptr<vsomeip::message> &_message) {
         if(_message->get_message_type() == vsomeip::message_type_e::MT_RESPONSE) {
             VSOMEIP_DEBUG
-            << "[" << std::setw(4) << std::setfill('0') << std::hex
-                        << service_info_.service_id
-            << "] Received a response with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _message->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_session() << "] from Service/Method ["
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-            << std::hex << _message->get_method() << "]";
+            << std::hex << std::setfill('0') << "[" 
+            << std::setw(4) << service_info_.service_id
+            << "] Received a response with Client/Session [" 
+            << std::setw(4) << _message->get_client() << "/"
+            << std::setw(4) << _message->get_session() << "] from Service/Method ["
+            << std::setw(4) << _message->get_service() << "/" 
+            << std::setw(4) << _message->get_method() << "]";
             other_services_received_response_[std::make_pair(_message->get_service(),
                                                              _message->get_method())]++;
 
@@ -193,7 +189,7 @@ public:
         }
         blocked_ = false;
 
-        VSOMEIP_DEBUG  << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                     << service_info_.service_id << "] Offering";
         offer();
 
@@ -203,7 +199,7 @@ public:
         }
         blocked_ = false;
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Sending";
         // send a message to all other services
         for (int var = 0; var < client_id_test::messages_to_send; ++var) {
@@ -218,12 +214,12 @@ public:
                 msg->set_instance(i.instance_id);
                 msg->set_method(i.method_id);
                 app_->send(msg);
-                VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0')
-                        << std::hex << service_info_.service_id
+                VSOMEIP_DEBUG << "[" 
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << service_info_.service_id
                         << "] Sending a request to Service/Method ["
-                        << std::setw(4) << std::setfill('0') << std::hex
-                        << i.service_id << "/" << std::setw(4) << std::setfill('0')
-                        << std::hex << i.instance_id << "]";
+                        << std::setw(4) << i.service_id << "/" 
+                        << std::setw(4) << i.instance_id << "]";
             }
         }
 
@@ -238,7 +234,7 @@ public:
         while (!stopped_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id
                 << "] Received responses and requests from all other services, going down";
 

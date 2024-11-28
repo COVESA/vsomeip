@@ -53,7 +53,7 @@ private:
 private:
     static std::mutex mutex__;
     static std::string app_name__;
-
+    
     mutable std::mutex configuration_mutex_;
     std::atomic<level_e> cfg_level {level_e::LL_NONE};
     std::atomic_bool cfg_console_enabled {false};

@@ -124,9 +124,9 @@ public:
             vsomeip::instance_t _instance, bool _is_available) {
         bool notify(false);
         if(_is_available) {
-            VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                    << service_info_.service_id << "] Service ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _service
+            VSOMEIP_INFO << "[" << std::hex << std::setfill('0') 
+                    << std::setw(4) << service_info_.service_id << "] Service ["
+                    << std::setw(4) << _service
                     << "." << _instance << "] is available.";
             if(is_master_) {
                 if(_service == initial_event_test::stop_service_slave.service_id
@@ -149,10 +149,10 @@ public:
 
     void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
         if(_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST_NO_RETURN) {
-            VSOMEIP_DEBUG << "Received a request with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _message->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_session() << "] shutdown method called";
+            VSOMEIP_DEBUG << "Received a request with Client/Session [" 
+            << std::hex << std::setfill('0') 
+            << std::setw(4) << _message->get_client() << "/"
+            << std::setw(4) << _message->get_session() << "] shutdown method called";
 
             std::lock_guard<std::mutex> its_lock(stop_mutex_);
             wait_for_stop_ = false;
@@ -168,7 +168,7 @@ public:
             }
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
 
@@ -179,7 +179,7 @@ public:
             }
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Calling shutdown method on remote side";
 
         std::shared_ptr<vsomeip::message> msg(vsomeip::runtime::get()->create_request());
@@ -210,7 +210,8 @@ public:
                 stop_condition_.wait(its_lock);
             }
         }
-        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" 
+                << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id
                 << "] shutdown method was called, going down";
         while(!called_other_node_) {

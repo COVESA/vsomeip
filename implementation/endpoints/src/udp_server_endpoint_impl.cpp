@@ -276,8 +276,8 @@ bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
     msg << "usei::sq(" << _queue_iterator->first.address().to_string() << ":"
         << _queue_iterator->first.port() << "): ";
     for (std::size_t i = 0; i < its_buffer->size(); ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*its_entry.first)[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>((*its_entry.first)[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
 
@@ -494,8 +494,8 @@ void udp_server_endpoint_impl::on_message_received(boost::system::error_code con
     std::stringstream msg;
     msg << "usei::rcb(" << _error.message() << "): ";
     for (std::size_t i = 0; i < _bytes; ++i)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int) _buffer[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>(_buffer[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
@@ -529,9 +529,8 @@ void udp_server_endpoint_impl::on_message_received(boost::system::error_code con
                                    || (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
                                        && get_local_port() == configuration_->get_sd_port()))) {
                         if (_buffer[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
-                            VSOMEIP_ERROR
-                                    << "use: Wrong protocol version: 0x" << std::hex << std::setw(2)
-                                    << std::setfill('0')
+                            VSOMEIP_ERROR << "use: Wrong protocol version: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
                                     << std::uint32_t(_buffer[i + VSOMEIP_PROTOCOL_VERSION_POS])
                                     << " local: " << get_address_port_local()
                                     << " remote: " << its_remote_address << ":" << std::dec
@@ -541,21 +540,19 @@ void udp_server_endpoint_impl::on_message_received(boost::system::error_code con
                                                  _is_multicast, VSOMEIP_ROUTING_CLIENT, nullptr,
                                                  its_remote_address, its_remote_port);
                         } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(
-                                           _buffer[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
-                            VSOMEIP_ERROR << "use: Invalid message type: 0x" << std::hex
-                                          << std::setw(2) << std::setfill('0')
-                                          << std::uint32_t(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
-                                          << " local: " << get_address_port_local()
-                                          << " remote: " << its_remote_address << ":" << std::dec
-                                          << its_remote_port;
+                                _buffer[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
+                            VSOMEIP_ERROR << "use: Invalid message type: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
+                                    << std::uint32_t(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                         } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
-                                           _buffer[i + VSOMEIP_RETURN_CODE_POS]))) {
-                            VSOMEIP_ERROR << "use: Invalid return code: 0x" << std::hex
-                                          << std::setw(2) << std::setfill('0')
-                                          << std::uint32_t(_buffer[i + VSOMEIP_RETURN_CODE_POS])
-                                          << " local: " << get_address_port_local()
-                                          << " remote: " << its_remote_address << ":" << std::dec
-                                          << its_remote_port;
+                                _buffer[i + VSOMEIP_RETURN_CODE_POS]))) {
+                            VSOMEIP_ERROR << "use: Invalid return code: 0x"
+                                    << std::hex << std::setfill('0') << std::setw(2)
+                                    << std::uint32_t(_buffer[i + VSOMEIP_RETURN_CODE_POS])
+                                    << " local: " << get_address_port_local()
+                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                         } else if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
                                    && get_local_port() == configuration_->get_sd_port()) {
                             VSOMEIP_WARNING << "use: Received a SomeIP/TP message on SD port:"

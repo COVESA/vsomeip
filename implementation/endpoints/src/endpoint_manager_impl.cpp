@@ -648,10 +648,10 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
     if (configuration_->is_security_enabled() && get_client() != its_routing_host_id) {
         VSOMEIP_ERROR << "endpoint_manager_impl::" << __func__ << ": "
                 << "Client ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << get_client()
                 << "] does not match the configured routing manager client identifier ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << its_routing_host_id
                 << "]";
 
@@ -682,7 +682,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
                         its_root->init(its_endpoint, its_socket, its_error);
                         if (its_error) {
                             VSOMEIP_ERROR << "Routing endpoint creation failed. Client ID: "
-                                          << std::hex << std::setw(4) << std::setfill('0')
+                                          << std::hex << std::setfill('0') << std::setw(4)
                                           << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
 
                             its_root->deinit();
@@ -714,7 +714,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
                         its_root->init(its_endpoint, its_error);
                         if (its_error) {
                             VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "
-                                    << std::hex << std::setw(4) << std::setfill('0')
+                                    << std::hex << std::setfill('0') << std::setw(4)
                                     << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
 
                             its_root->deinit();
@@ -744,7 +744,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
                 its_root->init(its_endpoint, its_error);
                 if (its_error) {
                     VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: "
-                                  << std::hex << std::setw(4) << std::setfill('0')
+                                  << std::hex << std::setfill('0') << std::setw(4)
                                   << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
                     its_root->deinit();
                     return false;
@@ -778,7 +778,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
                     if (its_error) {
                         VSOMEIP_ERROR << "endpoint_manager_impl::create_routing_root: "
                             << "Remote routing root endpoint creation failed (" << its_retry << ") "
-                            << "Client: " << std::hex << std::setw(4) << std::setfill('0')
+                            << "Client: " << std::hex << std::setfill('0') << std::setw(4)
                             << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
 
                         its_root->deinit();
@@ -1274,7 +1274,7 @@ endpoint_manager_impl::log_client_states() const {
 
     size_t its_max(std::min(size_t(5), its_client_queue_sizes.size()));
     for (size_t i = 0; i < its_max; i++) {
-        its_log << std::hex << std::setw(4) << std::setfill('0')
+        its_log << std::hex << std::setfill('0') << std::setw(4)
                 << std::get<0>(its_client_queue_sizes[i].first).to_string()
                 << ":" << std::dec << std::get<1>(its_client_queue_sizes[i].first)
                 << "(" << (std::get<2>(its_client_queue_sizes[i].first) ? "tcp" : "udp") << "):"

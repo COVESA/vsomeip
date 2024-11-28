@@ -54,7 +54,7 @@ public:
                             std::placeholders::_3, i),
                     its_major, its_minor);
             VSOMEIP_DEBUG << "Registering: "
-                    << std::setfill('0') << std::hex
+                    << std::hex << std::setfill('0')
                     << std::setw(4) << its_service << "."
                     << std::setw(4) << its_instance << "."
                     << std::setw(2) << (std::uint32_t)its_major << "."
@@ -69,10 +69,11 @@ public:
                         std::placeholders::_3, 16),
                 service_info_.major_version, vsomeip::DEFAULT_MINOR);
         VSOMEIP_DEBUG << "Registering: "
-                << std::setw(4) << std::setfill('0') << std::hex << service_info_.service_id << "."
-                << std::setw(4) << std::setfill('0') << std::hex << service_info_.instance_id << "."
-                << std::setw(2) << std::setfill('0') << std::hex << (std::uint32_t)service_info_.service_id << "."
-                << std::setw(4) << std::setfill('0') << std::hex << vsomeip::DEFAULT_MINOR << "."
+                << std::hex << std::setfill('0')
+                << std::setw(4) << service_info_.service_id << "."
+                << std::setw(4) << service_info_.instance_id << "."
+                << std::setw(2) << (std::uint32_t)service_info_.service_id << "."
+                << std::setw(4) << vsomeip::DEFAULT_MINOR << "."
                 << 16;
         app_->request_service(service_info_.service_id,
                 service_info_.instance_id);
@@ -105,8 +106,10 @@ public:
             vsomeip::instance_t _instance, bool _is_available,
             std::uint32_t _handler_index)
     {
-        VSOMEIP_DEBUG<< "Service [" << std::setw(4) << std::setfill('0') << std::hex
-                << _service << "." << std::setw(4) << std::setfill('0') << _instance << "] is "
+        VSOMEIP_DEBUG<< "Service [" 
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "." 
+                << std::setw(4) << _instance << "] is "
                 << (_is_available ? "available." : "NOT available.") << ". "
                 << _handler_index;
         if(service_info_.service_id == _service
@@ -136,17 +139,19 @@ public:
             vsomeip::minor_version_t its_minor = (i & 0x1) ? service_info_.minor_version : vsomeip::ANY_MINOR;
 
             VSOMEIP_DEBUG << "Calling is_available: "
-                    << std::setw(4) << std::setfill('0') << std::hex << its_service << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << its_instance << "."
-                    << std::setw(2) << std::setfill('0') << std::hex << (std::uint32_t)its_major << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << its_minor;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(2) << static_cast<std::uint32_t>(its_major) << "."
+                    << std::setw(4) << its_minor;
             EXPECT_TRUE(app_->is_available(its_service, its_instance, its_major, its_minor));
 
             VSOMEIP_DEBUG << "Calling are_available: "
-                    << std::setw(4) << std::setfill('0') << std::hex << its_service << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << its_instance << "."
-                    << std::setw(2) << std::setfill('0') << std::hex << (std::uint32_t)its_major << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << its_minor;
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << its_service << "."
+                    << std::setw(4) << its_instance << "."
+                    << std::setw(2) << static_cast<std::uint32_t>(its_major) << "."
+                    << std::setw(4) << its_minor;
             vsomeip::application::available_t are_available;
             EXPECT_TRUE(app_->are_available(are_available, its_service, its_instance, its_major, its_minor));
             bool found(false);

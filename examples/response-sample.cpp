@@ -96,7 +96,7 @@ public:
 
     void on_message(const std::shared_ptr<vsomeip::message> &_request) {
         std::cout << "Received a message with Client/Session ["
-		  << std::setfill('0') << std::hex
+		  << std::hex << std::setfill('0')
 		  << std::setw(4) << _request->get_client() << "/"
 		  << std::setw(4) << _request->get_session() << "]"
 		  << std::endl;

@@ -234,12 +234,12 @@ void deserializer::reset() {
 void deserializer::show() const {
     std::stringstream its_message;
     its_message << "("
-            << std::hex << std::setw(2) << std::setfill('0')
-            << (int)*position_ << ", "
+            << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>(*position_ << ", "
             << std:: dec << remaining_ << ") "
             << std::hex << std::setfill('0');
     for (int i = 0; i < data_.size(); ++i)
-        its_message << std::setw(2) << (int)data_[i] << " ";
+        its_message << std::setw(2) << static_cast<int>(data_[i]) << " ";
     VSOMEIP_INFO << its_message;
 }
 #endif
