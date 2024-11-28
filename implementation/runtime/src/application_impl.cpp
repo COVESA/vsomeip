@@ -51,6 +51,9 @@ std::mutex application_impl::app_counter_mutex__;
 application_impl::application_impl(const std::string &_name, const std::string &_path) :
     runtime_(runtime::get()), client_(VSOMEIP_CLIENT_UNSET), session_(0), is_initialized_(false),
     name_(_name), path_(_path),
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+    plugin_manager_(plugin_manager::get()),
+#endif
     work_(std::make_shared<
             boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
             io_.get_executor())),
@@ -71,7 +74,7 @@ application_impl::~application_impl() {
 
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
     if(configuration_) {
-        auto its_plugin = plugin_manager::get()->get_plugin(
+        auto its_plugin = plugin_manager_->get_plugin(
                 plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
             auto its_configuration_plugin
@@ -142,7 +145,7 @@ bool application_impl::init() {
         // TODO: Add loading of custom configuration module
     } else { // load default module
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-        auto its_plugin = plugin_manager::get()->get_plugin(
+        auto its_plugin = plugin_manager_->get_plugin(
                 plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
             auto its_configuration_plugin
@@ -355,7 +358,7 @@ bool application_impl::init() {
         auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
         if (its_app_plugin_info != its_plugins.end()) {
             for (auto its_library : its_app_plugin_info->second) {
-                auto its_application_plugin = plugin_manager::get()->get_plugin(
+                auto its_application_plugin = plugin_manager_->get_plugin(
                         plugin_type_e::APPLICATION_PLUGIN, its_library);
                 if (its_application_plugin) {
                     VSOMEIP_INFO << "Client 0x" << std::hex << get_client()
@@ -481,7 +484,7 @@ void application_impl::start() {
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
         for (const auto& its_library : its_app_plugin_info->second) {
-            auto its_application_plugin = plugin_manager::get()->get_plugin(
+            auto its_application_plugin = plugin_manager_->get_plugin(
                     plugin_type_e::APPLICATION_PLUGIN, its_library);
             if (its_application_plugin) {
                 std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
@@ -557,7 +560,7 @@ void application_impl::stop() {
         auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
         if (its_app_plugin_info != its_plugins.end()) {
             for (const auto& its_library : its_app_plugin_info->second) {
-                auto its_application_plugin = plugin_manager::get()->get_plugin(
+                auto its_application_plugin = plugin_manager_->get_plugin(
                         plugin_type_e::APPLICATION_PLUGIN, its_library);
                 if (its_application_plugin) {
                     std::dynamic_pointer_cast<application_plugin>(its_application_plugin)->
@@ -2256,8 +2259,10 @@ void application_impl::shutdown() {
     }
 
     try {
-        if (routing_)
+        if (routing_) {
             routing_->stop();
+            routing_.reset();
+        }
     } catch (const std::exception &e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping routing, "
                 << " catched exception: " << e.what();
