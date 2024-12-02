@@ -976,7 +976,9 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 if (its_host) {
                     its_host->on_disconnect(shared_from_this());
                 }
-                restart(true);
+
+                if (!sending_blocked_)
+                    restart(true);
             }
             service_t its_service(0);
             method_t its_method(0);
@@ -1026,7 +1028,9 @@ void tcp_client_endpoint_impl::wait_until_sent(const boost::system::error_code &
 
         std::shared_ptr<endpoint_host> its_ep_host = endpoint_host_.lock();
         its_ep_host->on_disconnect(shared_from_this());
-        restart(true);
+
+        if (!sending_blocked_)
+            restart(true);
     } else {
         std::chrono::milliseconds its_timeout(VSOMEIP_MAX_TCP_SENT_WAIT_TIME);
         boost::system::error_code ec;
