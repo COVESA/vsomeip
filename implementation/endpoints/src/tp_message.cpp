@@ -67,17 +67,16 @@ tp_message::tp_message(const byte_t* const _data, std::uint32_t _data_length,
     }
 }
 
-bool tp_message::add_segment(const byte_t* const _data,
-                             std::uint32_t _data_length) {
+tp_status_e tp_message::add_segment(const byte_t* const _data, std::uint32_t _data_length) {
     if (_data_length < VSOMEIP_FULL_HEADER_SIZE + VSOMEIP_TP_HEADER_SIZE) {
         VSOMEIP_ERROR << __func__ << " received too short SOME/IP-TP message "
                 << get_message_id(_data, _data_length);
-        return false;
+        return tp_status_e::TPS_ERROR;
     }
-    bool ret = false;
+    tp_status_e ret {tp_status_e::TPS_INCOMPLETE};
 
-    const length_t its_segment_size = _data_length - VSOMEIP_FULL_HEADER_SIZE
-                                        - VSOMEIP_TP_HEADER_SIZE;
+    const length_t its_segment_size =
+            _data_length - VSOMEIP_FULL_HEADER_SIZE - VSOMEIP_TP_HEADER_SIZE;
     const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
 
     if (check_lengths(_data, _data_length, its_segment_size,
@@ -86,9 +85,7 @@ bool tp_message::add_segment(const byte_t* const _data,
         const auto emplace_res = segments_.emplace(
                 segment_t(its_offset, its_offset + its_segment_size - 1));
         if (!emplace_res.second) {
-            VSOMEIP_WARNING << __func__ << ":" << __LINE__
-                    << " received duplicate segment " << get_message_id(_data, _data_length)
-                    << "TP offset: 0x" << std::hex << its_offset;
+            ret = tp_status_e::TPS_DUPLICATE;
         } else {
             const auto& seg_current = emplace_res.first;
             const auto& seg_next = std::next(seg_current);
@@ -232,7 +229,9 @@ bool tp_message::add_segment(const byte_t* const _data,
                     *(reinterpret_cast<length_t*>(&message_[VSOMEIP_LENGTH_POS_MIN])) = htonl(its_length);
                     // all segments were received -> update return code field of message
                     message_[VSOMEIP_RETURN_CODE_POS] = _data[VSOMEIP_RETURN_CODE_POS];
-                    ret = true;
+                    ret = tp_status_e::TPS_COMPLETE;
+                } else {
+                    ret = tp_status_e::TPS_ERROR;                
                 }
             }
         }
@@ -256,10 +255,8 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
         const service_t its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
         const service_t its_client  = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
         const service_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-        const interface_version_t its_interface_version =
-                _data[VSOMEIP_INTERFACE_VERSION_POS];
-        const message_type_e its_msg_type = tp::tp_flag_unset(
-                _data[VSOMEIP_MESSAGE_TYPE_POS]);
+        const interface_version_t its_interface_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
+        const message_type_e its_msg_type = tp::tp_flag_unset(_data[VSOMEIP_MESSAGE_TYPE_POS]);
 
         ss << "("
            << std::hex << std::setfill('0')
@@ -273,7 +270,7 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
         if (_data_length > VSOMEIP_TP_HEADER_POS_MAX) {
             const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
             const length_t its_offset = tp::get_offset(its_tp_header);
-            ss << " TP offset: 0x" << std::hex << its_offset << " ";
+            ss << " TP offset: " << std::dec << its_offset << " ";        
         }
     }
     return ss.str();

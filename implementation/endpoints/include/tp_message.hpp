@@ -13,6 +13,7 @@
 #include <vsomeip/enumeration_types.hpp>
 
 #include "buffer.hpp"
+#include "tp.hpp"
 
 #if defined(__QNX__)
 #include "../../utility/include/qnx_helper.hpp"
@@ -25,8 +26,7 @@ public:
     tp_message(const byte_t* const _data, std::uint32_t _data_length,
                std::uint32_t _max_message_size);
 
-    bool add_segment(const byte_t* const _data, std::uint32_t _data_length);
-
+    tp_status_e add_segment(const byte_t* const _data, std::uint32_t _data_length);
     message_buffer_t get_message();
 
     std::chrono::steady_clock::time_point get_creation_time() const;
