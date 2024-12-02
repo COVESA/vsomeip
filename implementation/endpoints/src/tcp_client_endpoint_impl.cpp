@@ -115,6 +115,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
             }
             self->queue_.clear();
             self->queue_size_ = 0;
+            self->is_sending_ = false;
         }
         VSOMEIP_WARNING << "tce::restart: local: " << address_port_local
                 << " remote: " << self->get_address_port_remote();
