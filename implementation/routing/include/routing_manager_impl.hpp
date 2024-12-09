@@ -251,6 +251,7 @@ public:
     void handle_client_error(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
+    routing_state_e get_routing_state();
     void set_routing_state(routing_state_e _routing_state);
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
@@ -293,11 +294,11 @@ public:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool update_security_policy_configuration(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool remove_security_policy_configuration(uid_t _uid, gid_t _gid,
             const security_update_handler_t &_handler);
 #endif
 
@@ -309,6 +310,11 @@ public:
     void remove_subscriptions(port_t _local_port,
             const boost::asio::ip::address &_remote_address,
             port_t _remote_port);
+
+    std::vector<protocol::service> get_requested_services(client_t _client) const;
+
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const;
 
 private:
     bool offer_service(client_t _client,
@@ -385,7 +391,6 @@ private:
     void remove_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
                        minor_version_t _minor);
-    std::vector<std::pair<service_t, instance_t>> get_requested_services(client_t _client);
     std::set<client_t> get_requesters(service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
@@ -442,8 +447,6 @@ private:
                         client_t _client, major_version_t _major, minor_version_t _minor);
     bool erase_offer_command(service_t _service, instance_t _instance);
 
-    bool is_last_stop_callback(const uint32_t _callback_id);
-
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
 
@@ -465,11 +468,16 @@ private:
             service_t _service, instance_t _instance,
             const boost::asio::ip::address &_remote_address) const;
 
+#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+    bool has_subscribed_eventgroup(
+            service_t _service, instance_t _instance) const;
+#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+
 private:
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
-    std::mutex requested_services_mutex_;
+    mutable std::mutex requested_services_mutex_;
     std::map<service_t,
         std::map<instance_t,
             std::map<major_version_t,

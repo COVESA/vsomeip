@@ -6,16 +6,9 @@
 #ifndef VSOMEIP_V3_ROUTING_MANAGER_STUB_HOST_
 #define VSOMEIP_V3_ROUTING_MANAGER_STUB_HOST_
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/io_service.hpp>
-#    define io_context io_service
-#else
-#    include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/handler.hpp>
 #include <vsomeip/vsomeip_sec.h>
-
 #include "types.hpp"
 
 namespace vsomeip_v3 {
@@ -132,6 +125,13 @@ public:
     virtual void remove_guest(client_t _client) = 0;
 
     virtual void clear_local_services() = 0;
+
+    virtual routing_state_e get_routing_state() = 0;
+
+    virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
+
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const = 0;
 };
 
 } // namespace vsomeip_v3

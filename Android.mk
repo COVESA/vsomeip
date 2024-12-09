@@ -96,11 +96,11 @@ LOCAL_SHARED_LIBRARIES := \
     libboost_filesystem \
 
 LOCAL_CFLAGS :=  \
-    -std=c++14 \
+    -std=c++17 \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.4.10\" \
+    -DVSOMEIP_VERSION=\"3.5.3\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -143,11 +143,11 @@ LOCAL_SHARED_LIBRARIES := \
     libvsomeip3_dlt \
 
 LOCAL_CFLAGS := \
-    -std=c++14 \
+    -std=c++17 \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.4.10\" \
+    -DVSOMEIP_VERSION=\"3.5.3\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -194,8 +194,8 @@ LOCAL_CFLAGS :=  \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.4.10\" \
-    -DVSOMEIP_COMPAT_VERSION=\"3.4.10\" \
+    -DVSOMEIP_VERSION=\"3.5.3\" \
+    -DVSOMEIP_COMPAT_VERSION=\"3.5.3\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \

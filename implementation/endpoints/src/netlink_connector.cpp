@@ -425,7 +425,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
                     if (i > 95) {
                         netmask2[0] |= static_cast<std::uint32_t>(1 << (i-96));
                     } else if (i > 63) {
-                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i-63));
+                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i-64));
                     } else if (i > 31) {
                         netmask2[2] |= static_cast<std::uint32_t>(1 << (i-32));
                     } else {

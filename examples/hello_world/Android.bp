@@ -3,7 +3,7 @@ cc_defaults {
     vendor: true,
 
     cppflags: [
-        "-std=c++14",
+        "-std=c++17",
         "-Wno-unused-parameter",
     ],
 

@@ -96,11 +96,13 @@
 
 #define VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE     1703936
 
-#define VSOMEIP_IO_THREAD_COUNT                 2
-#define VSOMEIP_IO_THREAD_NICE_LEVEL            255
+#define VSOMEIP_DEFAULT_IO_THREAD_COUNT         2
+#define VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL    0
 
 #define VSOMEIP_MAX_DISPATCHERS                 10
 #define VSOMEIP_MAX_DISPATCH_TIME               100
+
+#define VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS  3
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
 #define VSOMEIP_DEFAULT_STATISTICS_MAX_MSG      50
@@ -118,6 +120,10 @@
 
 #define LOCAL_TCP_PORT_WAIT_TIME                @VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME@
 #define LOCAL_TCP_PORT_MAX_WAIT_TIME            @VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME@
+
+#define MIN_ENDPOINT_WAIT_INTERVAL              10
+#define MAX_ENDPOINT_WAIT_INTERVAL              160
+#define SUM_ENDPOINT_WAIT_INTERVAL              500
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <pthread.h>
@@ -151,9 +157,11 @@ inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::
 #define VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO  5 * 1000 * 1000
 
 inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_UDS = 13;
+inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_TCP = 5;
 
-const std::uint32_t ANY_UID = 0xFFFFFFFF;
-const std::uint32_t ANY_GID = 0xFFFFFFFF;
+const uid_t ANY_UID = 0xFFFFFFFF;
+const gid_t ANY_GID = 0xFFFFFFFF;
 
 enum class port_type_e {
     PT_OPTIONAL,

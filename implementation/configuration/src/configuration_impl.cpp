@@ -26,6 +26,7 @@
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 #include <vsomeip/internal/logger.hpp>
 #include <vsomeip/structured_types.hpp>
+#include <vsomeip/internal/plugin_manager.hpp>
 
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
@@ -37,116 +38,90 @@
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../plugin/include/plugin_manager.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
 namespace vsomeip_v3 {
 namespace cfg {
 
-configuration_impl::configuration_impl(const std::string &_path)
-    : default_unicast_("local"),
-      is_loaded_(false),
-      is_logging_loaded_(false),
-      prefix_(VSOMEIP_PREFIX),
-      diagnosis_(VSOMEIP_DIAGNOSIS_ADDRESS),
-      diagnosis_mask_(0xFF00),
-      has_console_log_(true),
-      has_file_log_(false),
-      has_dlt_log_(false),
-      logfile_("/tmp/vsomeip.log"),
-      loglevel_(vsomeip_v3::logger::level_e::LL_INFO),
-      is_sd_enabled_(VSOMEIP_SD_DEFAULT_ENABLED),
-      sd_protocol_(VSOMEIP_SD_DEFAULT_PROTOCOL),
-      sd_multicast_(VSOMEIP_SD_DEFAULT_MULTICAST),
-      sd_port_(VSOMEIP_SD_DEFAULT_PORT),
-      sd_initial_delay_min_(VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN),
-      sd_initial_delay_max_(VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX),
-      sd_repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
-      sd_repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
-      sd_ttl_(VSOMEIP_SD_DEFAULT_TTL),
-      sd_cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
-      sd_request_response_delay_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY),
-      sd_offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
-      max_configured_message_size_(0),
-      max_local_message_size_(0),
-      max_reliable_message_size_(0),
-      max_unreliable_message_size_(0),
-      buffer_shrink_threshold_(VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD),
-      trace_(std::make_shared<trace>()),
-      watchdog_(std::make_shared<watchdog>()),
-      log_version_(true),
-      log_version_interval_(10),
-      permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
-      network_("vsomeip"),
-      e2e_enabled_(false),
-      log_memory_(false),
-      log_memory_interval_(0),
-      log_status_(false),
-      log_status_interval_(0),
-      endpoint_queue_limit_external_(QUEUE_SIZE_UNLIMITED),
-      endpoint_queue_limit_local_(QUEUE_SIZE_UNLIMITED),
-      tcp_restart_aborts_max_(VSOMEIP_MAX_TCP_RESTART_ABORTS),
-      tcp_connect_time_max_(VSOMEIP_MAX_TCP_CONNECT_TIME),
-      has_issued_methods_warning_(false),
-      has_issued_clients_warning_(false),
-      udp_receive_buffer_size_(VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE),
-      npdu_default_debounce_requ_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
-      npdu_default_debounce_resp_(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO),
-      npdu_default_max_retention_requ_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
-      npdu_default_max_retention_resp_(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO),
-      shutdown_timeout_(VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT),
-      log_statistics_(true),
-      statistics_interval_(VSOMEIP_DEFAULT_STATISTICS_INTERVAL),
-      statistics_min_freq_(VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ),
-      statistics_max_messages_(VSOMEIP_DEFAULT_STATISTICS_MAX_MSG),
-      max_remote_subscribers_(VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS),
-      path_(_path),
-      is_security_enabled_(false),
-      is_security_external_(false),
-      is_security_audit_(false),
-      is_remote_access_allowed_(true) {
+configuration_impl::configuration_impl(const std::string& _path) :
+    default_unicast_ {"local"}, is_loaded_ {false}, is_logging_loaded_ {false},
+    prefix_ {VSOMEIP_PREFIX}, diagnosis_ {VSOMEIP_DIAGNOSIS_ADDRESS}, diagnosis_mask_ {0xFF00},
+    has_console_log_ {true}, has_file_log_ {false}, has_dlt_log_ {false},
+    logfile_ {"/tmp/vsomeip.log"}, loglevel_ {vsomeip_v3::logger::level_e::LL_INFO},
+    is_sd_enabled_ {VSOMEIP_SD_DEFAULT_ENABLED}, sd_protocol_ {VSOMEIP_SD_DEFAULT_PROTOCOL},
+    sd_multicast_ {VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_ {VSOMEIP_SD_DEFAULT_PORT},
+    sd_initial_delay_min_ {VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN},
+    sd_initial_delay_max_ {VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
+    sd_repetitions_base_delay_ {VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY},
+    sd_repetitions_max_ {VSOMEIP_SD_DEFAULT_REPETITIONS_MAX}, sd_ttl_ {VSOMEIP_SD_DEFAULT_TTL},
+    sd_cyclic_offer_delay_ {VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY},
+    sd_request_response_delay_ {VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY},
+    sd_offer_debounce_time_ {VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME},
+    sd_find_debounce_time_ {VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME},
+    max_configured_message_size_ {0}, max_local_message_size_ {0}, max_reliable_message_size_ {0},
+    max_unreliable_message_size_ {0},
+    buffer_shrink_threshold_ {VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD},
+    trace_ {std::make_shared<trace>()}, watchdog_ {std::make_shared<watchdog>()},
+    log_version_ {true}, log_version_interval_ {10},
+    permissions_uds_ {VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_ {"vsomeip"}, e2e_enabled_ {false},
+    log_memory_ {false}, log_memory_interval_ {0}, log_status_ {false}, log_status_interval_ {0},
+    endpoint_queue_limit_external_ {QUEUE_SIZE_UNLIMITED},
+    endpoint_queue_limit_local_ {QUEUE_SIZE_UNLIMITED},
+    tcp_restart_aborts_max_ {VSOMEIP_MAX_TCP_RESTART_ABORTS},
+    tcp_connect_time_max_ {VSOMEIP_MAX_TCP_CONNECT_TIME}, has_issued_methods_warning_ {false},
+    has_issued_clients_warning_ {false},
+    udp_receive_buffer_size_ {VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
+    npdu_default_debounce_requ_ {VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    npdu_default_debounce_resp_ {VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    npdu_default_max_retention_requ_ {VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
+    npdu_default_max_retention_resp_ {VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
+    shutdown_timeout_ {VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT}, log_statistics_ {true},
+    statistics_interval_ {VSOMEIP_DEFAULT_STATISTICS_INTERVAL},
+    statistics_min_freq_ {VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
+    statistics_max_messages_ {VSOMEIP_DEFAULT_STATISTICS_MAX_MSG},
+    max_remote_subscribers_ {VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS}, path_ {_path},
+    is_security_enabled_ {false}, is_security_external_ {false}, is_security_audit_ {false},
+    is_remote_access_allowed_ {true}, initial_routing_state_ {routing_state_e::RS_UNKNOWN} {
 
+    policy_manager_ = std::make_shared<policy_manager_impl>();
+    security_ = std::make_shared<security>(policy_manager_);
     unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
     netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = false;
 
 #ifdef _WIN32
-#if VSOMEIP_BOOST_VERSION < 106600
-    routing_.host_.unicast_ = boost::asio::ip::address::from_string("127.0.0.1");
-#else
     routing_.host_.unicast_ = boost::asio::ip::make_address("127.0.0.1");
-#endif
     routing_.host_.port_ = 31490;
     routing_.guests_.unicast_ = routing_.host_.unicast_;
     routing_.guests_.ports_[{ ANY_UID, ANY_GID }].emplace(31492, 31999);
 #endif
 }
 
-configuration_impl::configuration_impl(const configuration_impl &_other)
-    : std::enable_shared_from_this<configuration_impl>(_other),
-      default_unicast_(_other.default_unicast_),
-      is_loaded_(_other.is_loaded_),
-      is_logging_loaded_(_other.is_logging_loaded_),
-      mandatory_(_other.mandatory_),
-      max_configured_message_size_(_other.max_configured_message_size_),
-      max_local_message_size_(_other.max_local_message_size_),
-      max_reliable_message_size_(_other.max_reliable_message_size_),
-      max_unreliable_message_size_(_other.max_unreliable_message_size_),
-      buffer_shrink_threshold_(_other.buffer_shrink_threshold_),
-      permissions_uds_(VSOMEIP_DEFAULT_UDS_PERMISSIONS),
-      endpoint_queue_limit_external_(_other.endpoint_queue_limit_external_),
-      endpoint_queue_limit_local_(_other.endpoint_queue_limit_local_),
-      tcp_restart_aborts_max_(_other.tcp_restart_aborts_max_),
-      tcp_connect_time_max_(_other.tcp_connect_time_max_),
-      udp_receive_buffer_size_(_other.udp_receive_buffer_size_),
-      npdu_default_debounce_requ_(_other.npdu_default_debounce_requ_),
-      npdu_default_debounce_resp_(_other.npdu_default_debounce_resp_),
-      npdu_default_max_retention_requ_(_other.npdu_default_max_retention_requ_),
-      npdu_default_max_retention_resp_(_other.npdu_default_max_retention_resp_),
-      shutdown_timeout_(_other.shutdown_timeout_),
-      path_(_other.path_) {
+configuration_impl::configuration_impl(const configuration_impl& _other) :
+    std::enable_shared_from_this<configuration_impl>(_other),
+    default_unicast_ {_other.default_unicast_}, is_loaded_ {_other.is_loaded_},
+    is_logging_loaded_ {_other.is_logging_loaded_}, mandatory_ {_other.mandatory_},
+    has_console_log_ {_other.has_console_log_.load()}, has_file_log_ {_other.has_file_log_.load()},
+    has_dlt_log_ {_other.has_dlt_log_.load()},
+    max_configured_message_size_ {_other.max_configured_message_size_},
+    max_local_message_size_ {_other.max_local_message_size_},
+    max_reliable_message_size_ {_other.max_reliable_message_size_},
+    max_unreliable_message_size_ {_other.max_unreliable_message_size_},
+    buffer_shrink_threshold_ {_other.buffer_shrink_threshold_},
+    permissions_uds_ {VSOMEIP_DEFAULT_UDS_PERMISSIONS},
+    endpoint_queue_limit_external_ {_other.endpoint_queue_limit_external_},
+    endpoint_queue_limit_local_ {_other.endpoint_queue_limit_local_},
+    tcp_restart_aborts_max_ {_other.tcp_restart_aborts_max_},
+    tcp_connect_time_max_ {_other.tcp_connect_time_max_},
+    udp_receive_buffer_size_ {_other.udp_receive_buffer_size_},
+    npdu_default_debounce_requ_ {_other.npdu_default_debounce_requ_},
+    npdu_default_debounce_resp_ {_other.npdu_default_debounce_resp_},
+    npdu_default_max_retention_requ_ {_other.npdu_default_max_retention_requ_},
+    npdu_default_max_retention_resp_ {_other.npdu_default_max_retention_resp_},
+    shutdown_timeout_ {_other.shutdown_timeout_}, path_ {_other.path_},
+    initial_routing_state_ {_other.initial_routing_state_} {
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
     client_identifiers_ = _other.client_identifiers_;
@@ -159,9 +134,6 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     diagnosis_ = _other.diagnosis_;
     diagnosis_mask_ = _other.diagnosis_mask_;
 
-    has_console_log_ = _other.has_console_log_;
-    has_file_log_ = _other.has_file_log_;
-    has_dlt_log_ = _other.has_dlt_log_;
     logfile_ = _other.logfile_;
 
     loglevel_ = _other.loglevel_;
@@ -173,6 +145,8 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     sd_port_ = _other.sd_port_;
     sd_protocol_ = _other.sd_protocol_;
 
+    is_suppress_events_enabled_ = _other.is_suppress_events_enabled_;
+
     sd_initial_delay_min_ = _other.sd_initial_delay_min_;
     sd_initial_delay_max_ = _other.sd_initial_delay_max_;
     sd_repetitions_base_delay_= _other.sd_repetitions_base_delay_;
@@ -181,6 +155,7 @@ configuration_impl::configuration_impl(const configuration_impl &_other)
     sd_cyclic_offer_delay_= _other.sd_cyclic_offer_delay_;
     sd_request_response_delay_= _other.sd_request_response_delay_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
+    sd_find_debounce_time_ = _other.sd_find_debounce_time_;
 
     trace_ = std::make_shared<trace>(*_other.trace_.get());
     supported_selective_addresses = _other.supported_selective_addresses;
@@ -314,21 +289,22 @@ bool configuration_impl::load(const std::string &_name) {
     std::vector<configuration_element> its_mandatory_elements;
     std::vector<configuration_element> its_optional_elements;
 
-    // Dummy initialization; maybe we'll find no logging configuration
-    logger::logger_impl::init(shared_from_this());
-
     // Look for the standard configuration file
     read_data(its_input, its_mandatory_elements, its_failed, true);
     load_data(its_mandatory_elements, true, false);
 
     // If the configuration is incomplete, this is the routing manager configuration or
     // the routing is yet unknown, read the full set of configuration files
-    if (its_mandatory_elements.empty() ||
-            _name == get_routing_host_name() ||
-            "" == get_routing_host_name()) {
+    if (its_mandatory_elements.empty() || _name == get_routing_host_name()
+        || "" == get_routing_host_name()) {
         read_data(its_input, its_optional_elements, its_failed, false);
         load_data(its_mandatory_elements, false, true);
         load_data(its_optional_elements, true, true);
+    }
+
+    // Dummy initialization; if logger configs were not found use default
+    if (!is_logging_loaded_) {
+        logger::logger_impl::init(shared_from_this());
     }
 
     // Tell, if reading of configuration file(s) failed.
@@ -362,7 +338,7 @@ bool configuration_impl::load(const std::string &_name) {
 bool configuration_impl::lazy_load_security(const std::string &_client_host) {
     bool result(false);
 
-    std::string its_folder = policy_manager_impl::get()->get_policy_extension_path(_client_host);
+    std::string its_folder = policy_manager_->get_policy_extension_path(_client_host);
     if (!its_folder.empty()) {
         std::set<std::string> its_input;
         std::set<std::string> its_failed;
@@ -370,7 +346,7 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
 
         its_input.insert(its_folder);
         // load security configuration files from UID_GID sub folder if existing
-        std::string its_security_config_folder = policy_manager_impl::get()->get_security_config_folder(its_folder);
+        std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
 
         if (!its_security_config_folder.empty())
             its_input.insert(its_security_config_folder);
@@ -378,7 +354,7 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
         read_data(its_input, its_mandatory_elements, its_failed, true, true);
 
         for (const auto& e : its_mandatory_elements) {
-            policy_manager_impl::get()->load(e, true);
+            policy_manager_->load(e, true);
         }
 
         for (auto f : its_failed)
@@ -387,7 +363,7 @@ bool configuration_impl::lazy_load_security(const std::string &_client_host) {
 
         result = (its_failed.empty() && !its_mandatory_elements.empty());
         if (result)
-            policy_manager_impl::get()->set_is_policy_extension_loaded(_client_host, true);
+            policy_manager_->set_is_policy_extension_loaded(_client_host, true);
     }
 
     return result;
@@ -399,7 +375,7 @@ configuration_impl::check_routing_credentials(
         client_t _client, const vsomeip_sec_client_t *_sec_client) const {
 
     return (_client != get_id(routing_.host_.name_) ||
-            VSOMEIP_SEC_OK == security::authenticate_router(_sec_client));
+            VSOMEIP_SEC_OK == security_->authenticate_router(_sec_client));
 }
 
 bool configuration_impl::remote_offer_info_add(service_t _service,
@@ -412,7 +388,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
         VSOMEIP_ERROR << __func__ << " shall only be called after normal"
                 "configuration has been parsed";
     } else {
-        std::shared_ptr<service> its_service(std::make_shared<service>());
+        auto its_service = std::make_shared<service>();
         its_service->service_ = _service;
         its_service->instance_ = _instance;
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
@@ -432,7 +408,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
                 auto found_instance = found_service->second.find(its_service->instance_);
                 if (found_instance != found_service->second.end()) {
                     VSOMEIP_INFO << "Updating remote configuration for service ["
-                            << std::hex << std::setw(4) << std::setfill('0')
+                            << std::hex << std::setfill('0') << std::setw(4)
                             << its_service->service_ << "." << its_service->instance_ << "]";
                     if (_reliable) {
                         found_instance->second->reliable_ = its_service->reliable_;
@@ -477,7 +453,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 VSOMEIP_INFO << "Removing remote configuration for service ["
-                        << std::hex << std::setw(4) << std::setfill('0')
+                        << std::hex << std::setfill('0') << std::setw(4)
                         << _service << "." << _instance << "]";
                 if (_reliable) {
                     found_instance->second->reliable_ = ILLEGAL_PORT;
@@ -534,8 +510,8 @@ void configuration_impl::load_policy_data(const std::string &_input,
         bool _mandatory_only) {
         if (is_mandatory(_input) == _mandatory_only) {
 #ifndef VSOMEIP_DISABLE_SECURITY
-            if (policy_manager_impl::get()->is_policy_extension(_input)) {
-                policy_manager_impl::get()->set_policy_extension_base_path(_input);
+            if (policy_manager_->is_policy_extension(_input)) {
+                policy_manager_->set_policy_extension_base_path(_input);
             }
 #endif
             boost::property_tree::ptree its_tree;
@@ -583,6 +559,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_security(e);
             load_tracing(e);
             load_udp_receive_buffer_size(e);
+            load_services(e);
         }
     }
 
@@ -593,7 +570,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_device(e);
             load_service_discovery(e);
             load_npdu_default_timings(e);
-            load_services(e);
             load_internal_services(e);
             load_clients(e);
             load_watchdog(e);
@@ -828,13 +804,8 @@ configuration_impl::load_routing_host(const boost::property_tree::ptree &_tree,
                     has_gid = true;
                 }
             } else if (its_key == "unicast") {
-#if VSOMEIP_BOOST_VERSION < 106600
-                routing_.host_.unicast_
-                    = boost::asio::ip::address::from_string(its_value);
-#else
                 routing_.host_.unicast_
                     = boost::asio::ip::make_address(its_value);
-#endif
             } else if (its_key == "port") {
                 std::stringstream its_converter;
                 if (its_value.find("0x") == 0) {
@@ -847,7 +818,7 @@ configuration_impl::load_routing_host(const boost::property_tree::ptree &_tree,
         }
 
         if (has_uid && has_gid) {
-            policy_manager_impl::get()->set_routing_credentials(its_uid, its_gid, _name);
+            policy_manager_->set_routing_credentials(its_uid, its_gid, _name);
         }
 
     } catch (...) {
@@ -865,13 +836,8 @@ configuration_impl::load_routing_guests(const boost::property_tree::ptree &_tree
             std::string its_key(i->first);
             if (its_key == "unicast") {
                 std::string its_value(i->second.data());
-#if VSOMEIP_BOOST_VERSION < 106600
-                routing_.guests_.unicast_
-                    = boost::asio::ip::address::from_string(its_value);
-#else
                 routing_.guests_.unicast_
                     = boost::asio::ip::make_address(its_value);
-#endif
             } else if (its_key == "ports") {
                 load_routing_guest_ports(i->second);
             }
@@ -991,10 +957,11 @@ void configuration_impl::load_application_data(
     client_t its_id(VSOMEIP_CLIENT_UNSET);
     std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
-    std::size_t its_io_thread_count(VSOMEIP_IO_THREAD_COUNT);
+    std::size_t its_max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS);
+    std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
-    int its_io_thread_nice_level(VSOMEIP_IO_THREAD_NICE_LEVEL);
+    int its_io_thread_nice_level(VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL);
     debounce_configuration_t its_debounces;
     bool has_session_handling(true);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -1016,6 +983,9 @@ void configuration_impl::load_application_data(
         } else if (its_key == "max_dispatch_time") {
             its_converter << std::dec << its_value;
             its_converter >> its_max_dispatch_time;
+        } else if (its_key == "max_detached_thread_wait_time") {
+            its_converter << std::dec << its_value;
+            its_converter >> its_max_detached_thread_wait_time;
         } else if (its_key == "threads") {
             its_converter << std::dec << its_value;
             its_converter >> its_io_thread_count;
@@ -1046,8 +1016,7 @@ void configuration_impl::load_application_data(
             } catch (...) {
                 // intentionally empty
             }
-        }
-        else if (its_key == "has_session_handling") {
+        } else if (its_key == "has_session_handling") {
             has_session_handling = (its_value != "false");
         }
     }
@@ -1065,17 +1034,16 @@ void configuration_impl::load_application_data(
                 }
             }
 
-            applications_[its_name] = {
-                its_id,
-                its_max_dispatchers,
-                its_max_dispatch_time,
-                its_io_thread_count,
-                its_request_debounce_time,
-                plugins,
-                its_io_thread_nice_level,
-                its_debounces
-                , has_session_handling
-            };
+            applications_[its_name] = {its_id,
+                                       its_max_dispatchers,
+                                       its_max_dispatch_time,
+                                       its_max_detached_thread_wait_time,
+                                       its_io_thread_count,
+                                       its_request_debounce_time,
+                                       plugins,
+                                       its_io_thread_nice_level,
+                                       its_debounces,
+                                       has_session_handling};
         } else {
             VSOMEIP_WARNING << "Multiple configurations for application "
                     << its_name << ". Ignoring a configuration from "
@@ -1225,7 +1193,7 @@ void configuration_impl::load_trace_channels(
 
 void configuration_impl::load_trace_channel(
         const boost::property_tree::ptree &_tree) {
-    std::shared_ptr<trace_channel> its_channel = std::make_shared<trace_channel>();
+    auto its_channel = std::make_shared<trace_channel>();
     for(auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key = i->first;
         std::string its_value = i->second.data();
@@ -1251,7 +1219,7 @@ void configuration_impl::load_trace_filters(
 
 void configuration_impl::load_trace_filter(
         const boost::property_tree::ptree &_tree) {
-    std::shared_ptr<trace_filter> its_filter = std::make_shared<trace_filter>();
+    auto its_filter = std::make_shared<trace_filter>();
     bool has_channel(false);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key = i->first;
@@ -1841,6 +1809,15 @@ void configuration_impl::load_service_discovery(
                     its_converter >> sd_offer_debounce_time_;
                     is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME] = true;
                 }
+            } else if (its_key == "find_debounce_time") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_debounce."
+                    " Ignoring definition from " << _element.name_;
+                } else {
+                    its_converter << its_value;
+                    its_converter >> sd_find_debounce_time_;
+                    is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME] = true;
+                }
             } else if (its_key == "ttl_factor_offers") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS]) {
                     VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_offers."
@@ -1874,6 +1851,18 @@ void configuration_impl::load_service_discovery(
                         max_remote_subscribers_ = VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS;
                     }
                     is_configured_[ET_MAX_REMOTE_SUBSCRIBERS] = true;
+                }
+            } else if (its_key == "initial_state") {
+                if (is_configured_[ET_INITIAL_ROUTING_STATE]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_state."
+                                       " Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    if (its_value == "suspended") {
+                        initial_routing_state_ = routing_state_e::RS_SUSPENDED;
+                    } else if (its_value == "resumed") {
+                        initial_routing_state_ = routing_state_e::RS_RESUMED;
+                    }
                 }
             }
         }
@@ -2009,7 +1998,7 @@ void configuration_impl::load_service(
         bool is_loaded(true);
         bool use_magic_cookies(false);
 
-        std::shared_ptr<service> its_service(std::make_shared<service>());
+        auto its_service = std::make_shared<service>();
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         its_service->unicast_address_ = _unicast_address;
         its_service->multicast_address_ = "";
@@ -2206,7 +2195,7 @@ void configuration_impl::load_event(
                                 ? "RT_RELIABLE" : "RT_UNRELIABLE");
                 }
 
-                std::shared_ptr<event> its_event = std::make_shared<event>(
+                auto its_event = std::make_shared<event>(
                         its_event_id, its_is_field, its_reliability,
                         its_cycle, its_change_resets_cycle,
                         its_update_on_change);
@@ -2220,7 +2209,7 @@ void configuration_impl::load_eventgroup(
         std::shared_ptr<service> &_service,
         const boost::property_tree::ptree &_tree) {
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-        std::shared_ptr<eventgroup> its_eventgroup =
+        auto its_eventgroup =
                 std::make_shared<eventgroup>();
         for (auto j = i->second.begin(); j != i->second.end(); ++j) {
             std::stringstream its_converter;
@@ -2378,7 +2367,7 @@ void configuration_impl::load_clients(const configuration_element &_element) {
 
 void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
     try {
-        std::shared_ptr<client> its_client(std::make_shared<client>());
+        auto its_client = std::make_shared<client>();
         its_client->remote_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
         its_client->remote_ports_[false] = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
         its_client->client_ports_[true]  = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
@@ -2531,7 +2520,7 @@ void configuration_impl::load_payload_sizes(const configuration_element &_elemen
                 const std::string size_str(_element.tree_.get_child(s).data());
                 try {
                     // add 16 Byte for the SOME/IP header
-                    const std::uint32_t its_size = static_cast<std::uint32_t>(
+                    const auto its_size = static_cast<std::uint32_t>(
                             std::stoul(size_str.c_str(), NULL, 10) + 16);
                     if (s == max_local_payload_size) {
                         max_local_message_size_ = its_size;
@@ -2701,7 +2690,7 @@ void configuration_impl::load_security(const configuration_element &_element) {
 
 #ifndef VSOMEIP_DISABLE_SECURITY
     if (!is_security_external())
-        policy_manager_impl::get()->load(_element);
+        policy_manager_->load(_element);
 #endif // !VSOMEIP_DISABLE_SECURITY
 }
 
@@ -2789,7 +2778,7 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
                 for (const auto &m : p.second) {
                     partitions_[p.first][m] = its_partition_id;
                     its_log << "<"
-                            << std::setfill('0') << std::hex
+                            << std::hex << std::setfill('0')
                             << std::setw(4) << p.first << "."
                             << std::setw(4) << m
                             << ">";
@@ -3031,8 +3020,9 @@ bool configuration_impl::get_client_port(
 
     // Configured ports do exist, but they are all in use
     VSOMEIP_ERROR << "Cannot find free client port for communication to service ["
-                  << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-                  << std::hex << std::setw(4) << std::setfill('0') << _instance << "."
+                  << std::hex << std::setfill('0')
+                  << std::setw(4) << _service << "."
+                  << std::setw(4) << _instance << "."
                   << std::dec << _remote_port << "."
                   << std::boolalpha <<_reliable << "]";
 
@@ -3141,7 +3131,7 @@ std::size_t configuration_impl::get_request_debouncing(const std::string &_name)
 }
 
 std::size_t configuration_impl::get_io_thread_count(const std::string &_name) const {
-    std::size_t its_io_thread_count = VSOMEIP_IO_THREAD_COUNT;
+    std::size_t its_io_thread_count = VSOMEIP_DEFAULT_IO_THREAD_COUNT;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -3152,7 +3142,7 @@ std::size_t configuration_impl::get_io_thread_count(const std::string &_name) co
 }
 
 int configuration_impl::get_io_thread_nice_level(const std::string &_name) const {
-    int its_io_thread_nice_level = VSOMEIP_IO_THREAD_NICE_LEVEL;
+    int its_io_thread_nice_level = VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL;
 
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
@@ -3185,6 +3175,17 @@ std::size_t configuration_impl::get_max_dispatch_time(
     }
 
     return its_max_dispatch_time;
+}
+
+std::size_t configuration_impl::get_max_detached_thread_wait_time(const std::string& _name) const {
+    std::size_t its_max_detached_thread_wait_time = VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS;
+
+    if (auto found_application = applications_.find(_name);
+        found_application != applications_.end()) {
+        its_max_detached_thread_wait_time = found_application->second.max_detach_thread_wait_time_;
+    }
+
+    return its_max_detached_thread_wait_time;
 }
 
 bool configuration_impl::has_session_handling(const std::string &_name) const {
@@ -3678,6 +3679,10 @@ int32_t configuration_impl::get_sd_request_response_delay() const {
 
 std::uint32_t configuration_impl::get_sd_offer_debounce_time() const {
     return sd_offer_debounce_time_;
+}
+
+std::uint32_t configuration_impl::get_sd_find_debounce_time() const {
+    return sd_find_debounce_time_;
 }
 
 // Trace configuration
@@ -4416,7 +4421,7 @@ void configuration_impl::load_someip_tp_for_service(
 
                             // Segment length must be multiple of 16
                             // Ensure this by subtracting the rest
-                            std::uint16_t its_rest = std::uint16_t(its_max_segment_length % 16);
+                            auto its_rest = std::uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
                                 VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
                                     << std::dec << its_max_segment_length << " to "
@@ -4473,7 +4478,7 @@ void configuration_impl::load_someip_tp_for_service(
                                 << std::setw(4) << its_method << "]:"
                                 << " using (" << std::dec
                                 << its_entry->second.first << ", "
-                                << std::dec << its_entry->second.second << ")";
+                                << its_entry->second.second << ")";
                     }
                 }
             } else {
@@ -4879,13 +4884,13 @@ int configuration_impl::get_udp_receive_buffer_size() const {
 
 bool configuration_impl::is_tp_client(
         service_t _service,
-        const std::string &_address, std::uint16_t _port,
+        instance_t _instance,
         method_t _method) const {
 
     bool ret(false);
 
     const auto its_service
-        = find_service(_service, _address, _port);
+        = find_service(_service, _instance);
 
     if (its_service) {
         ret = (its_service->tp_client_config_.find(_method)
@@ -4897,12 +4902,12 @@ bool configuration_impl::is_tp_client(
 
 bool configuration_impl::is_tp_service(
         service_t _service,
-        const std::string &_address, std::uint16_t _port,
+        instance_t _instance,
         method_t _method) const {
 
     bool ret(false);
     const auto its_service
-        = find_service(_service, _address, _port);
+        = find_service(_service, _instance);
     if (its_service) {
         ret = (its_service->tp_service_config_.find(_method)
                 != its_service->tp_service_config_.end());
@@ -5038,6 +5043,18 @@ bool
 configuration_impl::is_remote_access_allowed() const {
 
     return is_remote_access_allowed_;
+}
+
+std::shared_ptr<policy_manager_impl> configuration_impl::get_policy_manager() const {
+    return policy_manager_;
+}
+
+std::shared_ptr<security> configuration_impl::get_security() const {
+    return security_;
+}
+
+routing_state_e configuration_impl::get_initial_routing_state() const {
+    return initial_routing_state_;
 }
 
 }  // namespace cfg

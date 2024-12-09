@@ -233,9 +233,9 @@ private:
         ST_ASSIGNED = 0x4
     };
 
-    std::atomic<bool> is_connected_;
-    std::atomic<bool> is_started_;
-    inner_state_type_e state_;
+    std::atomic_bool is_connected_;
+    std::atomic_bool is_started_;
+    std::atomic<inner_state_type_e> state_;
 
     std::shared_ptr<endpoint> sender_;  // --> stub
     std::shared_ptr<endpoint> receiver_;  // --> from everybody
@@ -268,6 +268,7 @@ private:
     std::recursive_mutex incoming_subscriptions_mutex_;
 
     std::mutex state_mutex_;
+    std::mutex routing_stop_mutex_;
     std::condition_variable state_condition_;
 
     std::map<service_t,
@@ -275,6 +276,7 @@ private:
     std::mutex remote_subscriber_count_mutex_;
 
     mutable std::mutex sender_mutex_;
+    mutable std::mutex receiver_mutex_;
 
     boost::asio::steady_timer register_application_timer_;
 

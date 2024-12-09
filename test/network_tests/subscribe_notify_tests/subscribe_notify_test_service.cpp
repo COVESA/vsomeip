@@ -129,8 +129,8 @@ public:
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_until_registered_ = false;
-            condition_.notify_one();
         }
+        condition_.notify_one();
     }
 
     void on_availability(vsomeip::service_t _service,
@@ -140,10 +140,12 @@ public:
             if(its_service != other_services_available_.end()) {
                 if(its_service->second != _is_available) {
                 its_service->second = true;
-                VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                        << service_info_.service_id << "] Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
-                << "] is available.";
+                VSOMEIP_INFO << "[" 
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << service_info_.service_id 
+                        << "] Service ["
+                        << std::setw(4) << _service << "." << _instance
+                        << "] is available.";
 
                 }
             }
@@ -155,8 +157,8 @@ public:
                                 return v.second;})) {
                 std::lock_guard<std::mutex> its_lock(mutex_);
                 wait_until_other_services_available_ = false;
-                condition_.notify_one();
             }
+            condition_.notify_one();
         }
     }
 
@@ -187,9 +189,11 @@ public:
             subscribers_.erase(_client);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] " << "Client: "
-                << std::setw(4) << std::setfill('0') << std::hex << _client
+        VSOMEIP_DEBUG << "[" 
+                << std::hex << std::setfill('0') 
+                << std::setw(4) << service_info_.service_id << "] " 
+                << "Client: " 
+                << std::setw(4) << _client
                 << (_subscribed ? " subscribed" : " unsubscribed")
                 << ", now have " << std::dec << subscribers_.size()
                 << " subscribers" ;
@@ -202,18 +206,18 @@ public:
             // notify the notify thread to start sending out notifications
             std::lock_guard<std::mutex> its_lock(notify_mutex_);
             wait_for_notify_ = false;
-            notify_condition_.notify_one();
             notified = true;
         }
+        notify_condition_.notify_one();
         return true;
     }
 
     void on_request(const std::shared_ptr<vsomeip::message> &_message) {
         if(_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST) {
-            VSOMEIP_DEBUG << "Received a request with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _message->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_session() << "]";
+            VSOMEIP_DEBUG << "Received a request with Client/Session [" 
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _message->get_client() << "/"
+            << std::setw(4) << _message->get_session() << "]";
             std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()
             ->create_response(_message);
             app_->send(its_response);
@@ -226,23 +230,23 @@ public:
             other_services_received_notification_[std::make_pair(_message->get_service(),
                                                              _message->get_method())]++;
 
-            VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-            << service_info_.service_id << "] "
-            << "Received a notification with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _message->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_session() << "] from Service/Method ["
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-            << std::hex << _message->get_method() << "/" << std::dec << _message->get_length() << "] (now have: "
-            << std::dec << other_services_received_notification_[std::make_pair(_message->get_service(),
+            VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') 
+            << std::setw(4) << service_info_.service_id << "] "
+            << "Received a notification with Client/Session [" 
+            << std::setw(4) << _message->get_client() << "/"
+            << std::setw(4) << _message->get_session() 
+            << "] from Service/Method ["
+            << std::setw(4) << _message->get_service() << "/" 
+            << std::setw(4) << _message->get_method() << "/" 
+            << std::dec << _message->get_length() << "] (now have: "
+            << other_services_received_notification_[std::make_pair(_message->get_service(),
                                                                     _message->get_method())] << ")";
 
             if(all_notifications_received()) {
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 wait_for_stop_ = false;
-                stop_condition_.notify_one();
             }
+            stop_condition_.notify_one();
         }
     }
 
@@ -274,7 +278,7 @@ public:
             // routing manager stub receives the notification
             // - twice from external nodes
             // - and normal from all internal nodes
-            VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+            VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                         << service_info_.service_id << "] "
                         << "Received notifications:"
                         << " Normal: " << received_normal
@@ -285,14 +289,14 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
 
@@ -301,7 +305,7 @@ public:
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Subscribing";
         // subscribe to events of other services
         uint32_t subscribe_count = 0;
@@ -316,9 +320,10 @@ public:
                             vsomeip::DEFAULT_MAJOR);
             VSOMEIP_DEBUG << "[" << std::hex << service_info_.service_id
             << "] subscribing to Service/Instance/Eventgroup ["
-            << std::setw(4) << std::setfill('0') << std::hex << i.service_id << "/"
-            << std::setw(4) << std::setfill('0') << std::hex << i.instance_id
-            << "/" << std::setw(4) << std::setfill('0') << std::hex << i.eventgroup_id << "]";
+            << std::hex <<  std::setfill('0')
+            << std::setw(4) << i.service_id << "/"
+            << std::setw(4) << i.instance_id << "/"
+            << std::setw(4) << i.eventgroup_id << "]";
         }
 
         while (wait_until_notified_from_other_services_) {
@@ -352,7 +357,7 @@ public:
         // on the remote node
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Starting to notify";
 
         for(uint32_t i = 0; i < subscribe_notify_test::notifications_to_send; i++) {
@@ -364,8 +369,10 @@ public:
                 its_data[j] = static_cast<uint8_t>(j);
             }
             its_payload->set_data(its_data, i+1);
-            VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Notifying: " << i+1;
+            VSOMEIP_DEBUG << "["
+                << std::hex << std::setfill('0') 
+                << std::setw(4) << service_info_.service_id 
+                << "] Notifying: " << i+1;
             app_->notify(service_info_.service_id, service_info_.instance_id,
                     service_info_.event_id, its_payload);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -381,7 +388,7 @@ public:
         // wait until all notifications have been sent out
         notify_thread_.join();
 
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id
                 << "] Received notifications from all other services, going down";
 
@@ -389,8 +396,8 @@ public:
         {
             std::lock_guard<std::mutex> its_lock(mutex_);
             wait_until_notified_from_other_services_ = false;
-            condition_.notify_one();
         }
+        condition_.notify_one();
 
         stop_offer();
 

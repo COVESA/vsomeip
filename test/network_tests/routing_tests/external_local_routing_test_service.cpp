@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "external_local_routing_test_service.hpp"
 
 external_local_routing_test_service::external_local_routing_test_service(bool _use_static_routing) :
@@ -96,10 +98,10 @@ void external_local_routing_test_service::on_state(vsomeip::state_type_e _state)
 void external_local_routing_test_service::on_message(
         const std::shared_ptr<vsomeip::message>& _request)
 {
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _request->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _request->get_session() << "]";
+    VSOMEIP_INFO << "Received a message with Client/Session [" 
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _request->get_client() << "/"
+            << std::setw(4) << _request->get_session() << "]";
 
     ASSERT_EQ(_request->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
     ASSERT_EQ(_request->get_method(), vsomeip_test::TEST_SERVICE_METHOD_ID);

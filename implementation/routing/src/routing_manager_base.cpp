@@ -16,20 +16,21 @@
 #ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
 #endif
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
 
-routing_manager_base::routing_manager_base(routing_manager_host *_host) :
-        host_(_host),
-        io_(host_->get_io()),
-        configuration_(host_->get_configuration()),
-        debounce_timer(host_->get_io())
+routing_manager_base::routing_manager_base(routing_manager_host* _host) :
+    host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()),
+    debounce_timer(host_->get_io())
 #ifdef USE_DLT
-        , tc_(trace::connector_impl::get())
+    ,
+    tc_(trace::connector_impl::get())
 #endif
 {
+    routing_state_ = configuration_->get_initial_routing_state();
+
     const std::size_t its_max = configuration_->get_io_thread_count(host_->get_name());
     const uint32_t its_buffer_shrink_threshold =
             configuration_->get_buffer_shrink_threshold();
@@ -50,52 +51,91 @@ routing_manager_base::routing_manager_base(routing_manager_host *_host) :
     }
 }
 
-void routing_manager_base::debounce_timeout_update_cbk(const boost::system::error_code &_error, const std::shared_ptr<vsomeip_v3::event> &_event, client_t _client, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
+void routing_manager_base::debounce_timeout_update_cbk(
+        const boost::system::error_code& _error, const std::shared_ptr<vsomeip_v3::event>& _event,
+        client_t _client, const std::shared_ptr<debounce_filter_impl_t>& _filter) {
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(debounce_mutex_);
-        if (_event && (_event->get_subscribers().find(_client) != _event->get_subscribers().end()) && _filter) {
-            bool is_elapsed{false};
-            auto its_current = std::chrono::steady_clock::now();
+        if (!_event) {
+            std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+            if (debounce_clients_.size() > 0) {
+                debounce_timer.expires_from_now(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                debounce_clients_.begin()->first
+                                - std::chrono::steady_clock::now()));
+                debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
+            }
+            return;
+        }
 
-            int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    its_current - _filter->last_forwarded_).count();
-            is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
-                    || elapsed >= _filter->interval_);
+        // _event->get_subscribers() cannot be locked by debounce_mutex_, because it can lead to
+        // Lock inversion with remove_subscribes and its eventgroup_mutex!
+        auto its_subscribers = _event->get_subscribers();
 
-            auto debounce_client = debounce_clients_.begin();
-            auto event_id = std::get<3>(debounce_client->second);
-            bool has_update = std::get<1>(debounce_client->second);
-            if (is_elapsed) {
-                if (std::get<0>(debounce_client->second) == _client && has_update) {
-                    _event->notify_one(_client, false);
-                    has_update = false;
+        bool notify_client {false};
+        {
+            std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+            if (its_subscribers.find(_client) != its_subscribers.end() && _filter) {
+                bool is_elapsed {false};
+                auto its_current = std::chrono::steady_clock::now();
+
+                int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                          its_current - _filter->last_forwarded_)
+                                          .count();
+                is_elapsed =
+                        (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
+                         || elapsed >= _filter->interval_);
+
+                auto debounce_client = debounce_clients_.begin();
+                auto event_id = std::get<3>(debounce_client->second);
+                bool has_update = std::get<1>(debounce_client->second);
+                if (is_elapsed) {
+                    if (std::get<0>(debounce_client->second) == _client && has_update) {
+                        notify_client = true;
+                        has_update = false;
+                    }
+                    elapsed = 0;
                 }
-                elapsed = 0;
+
+                debounce_clients_.erase(debounce_client);
+
+                auto timeout = std::chrono::steady_clock::now()
+                        + std::chrono::milliseconds(_filter->interval_ - elapsed);
+                debounce_clients_.emplace(
+                        timeout,
+                        std::make_tuple(
+                                _client, has_update,
+                                std::bind(&routing_manager_base::debounce_timeout_update_cbk,
+                                          shared_from_this(), std::placeholders::_1, _event,
+                                          _client, _filter),
+                                event_id));
             }
 
-            debounce_clients_.erase(debounce_client);
+            if (debounce_clients_.size() > 0) {
+                debounce_timer.expires_from_now(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                debounce_clients_.begin()->first
+                                - std::chrono::steady_clock::now()));
+                debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
+            }
+        } // its_lock(debounce_mutex_)
 
-            auto timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(_filter->interval_ - elapsed);
-            debounce_clients_.emplace(timeout, std::make_tuple(_client, has_update, std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                            std::placeholders::_1, _event, _client, _filter), event_id));
+        // _event->notify_one cannot be locked by debounce_mutex_, because it can lead to
+        // Lock inversion with update_and_get_filtered_subscribers and its mutex_!
+        if (notify_client) {
+            _event->notify_one(_client, false);
         }
-
-        if (debounce_clients_.size() > 0) {
-            debounce_timer.expires_from_now(std::chrono::duration_cast<std::chrono::milliseconds>(debounce_clients_.begin()->first - std::chrono::steady_clock::now()));
-            debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
-        }
-    } 
+    }
 }
 
 void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client, const  std::shared_ptr<vsomeip_v3::event> &_event) {
     if (_filter->send_current_value_after_ == true) {
         std::lock_guard<std::mutex> its_lock(debounce_mutex_);
         auto sec = std::chrono::milliseconds(_filter->interval_);
-        auto timeout = std::chrono::steady_clock::now() + sec;                    
+        auto timeout = std::chrono::steady_clock::now() + sec;
 
         auto elem = debounce_clients_.emplace(timeout, std::make_tuple(_client, false, std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                std::placeholders::_1, _event, _client, _filter), _event->get_event()));        
-                    
+                std::placeholders::_1, _event, _client, _filter), _event->get_event()));
+
         if (elem == debounce_clients_.begin()) {
             debounce_timer.cancel();
             debounce_timer.expires_from_now(sec);
@@ -158,7 +198,7 @@ const vsomeip_sec_client_t *routing_manager_base::get_sec_client() const {
 
 void routing_manager_base::set_sec_client_port(port_t _port) {
 
-	host_->set_sec_client_port(_port);
+    host_->set_sec_client_port(_port);
 }
 
 std::string routing_manager_base::get_client_host() const {
@@ -286,7 +326,7 @@ void routing_manager_base::release_service(client_t _client,
         its_info->remove_client(_client);
     }
     {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        std::lock_guard<std::mutex> its_service_guard(local_services_mutex_);
         auto found_service = local_services_history_.find(_service);
         if (found_service != local_services_history_.end()) {
            auto found_instance = found_service->second.find(_instance);
@@ -418,12 +458,6 @@ void routing_manager_base::register_event(client_t _client,
             std::shared_ptr<debounce_filter_impl_t> its_debounce
                 = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
             if (its_debounce) {
-                VSOMEIP_WARNING << "Using debounce configuration for "
-                        << " SOME/IP event "
-                        << std::hex << std::setfill('0')
-                        << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "."
-                        << std::setw(4) << _notifier << ".";
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change="
                         << (its_debounce->on_change_ ? "true" : "false")
@@ -433,8 +467,16 @@ void routing_manager_base::register_event(client_t _client,
                            << ", " << std::hex << (int)i.second << ") ";
                 its_debounce_parameters << "], interval="
                         << std::dec << its_debounce->interval_ << ")";
-                VSOMEIP_WARNING << "Debounce parameters: "
+
+                VSOMEIP_WARNING << "Using debounce configuration for "
+                        << " SOME/IP event "
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _notifier << "."
+                        << " Debounce parameters: "
                         << its_debounce_parameters.str();
+
                 _epsilon_change_func = [its_debounce](
                     const std::shared_ptr<payload> &_old,
                     const std::shared_ptr<payload> &_new) {
@@ -503,28 +545,12 @@ void routing_manager_base::register_event(client_t _client,
                 // Create a new callback for this client if filter interval is used
                 register_debounce(its_debounce, _client, its_event);
             } else {
-                if (!_is_shadow && is_routing_manager()) {
+                if (_is_shadow || !is_routing_manager()) {
                     _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
                                         const std::shared_ptr<payload> &_new) {
-                        bool is_change = (_old->get_length() != _new->get_length());
-                        if (!is_change) {
-                            std::size_t its_pos = 0;
-                            const byte_t *its_old_data = _old->get_data();
-                            const byte_t *its_new_data = _new->get_data();
-                            while (!is_change && its_pos < _old->get_length()) {
-                                is_change = (*its_old_data++ != *its_new_data++);
-                                its_pos++;
-                            }
-                        }
-                        return is_change;
-                    };
-                }
-                else {
-                    _epsilon_change_func = [](const std::shared_ptr<payload> &_old,
-                                        const std::shared_ptr<payload> &_new) {
-                    (void)_old;
-                    (void)_new;
-                    return true;
+                        (void)_old;
+                        (void)_new;
+                        return true;
                     };
                 }
             }
@@ -712,7 +738,7 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         for (const auto& e : its_eventgroup->get_events()) {
-            if (VSOMEIP_SEC_OK != security::is_client_allowed_to_access_member(
+            if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
                     _sec_client, _service, _instance, e->get_event())) {
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                     << _client << " : routing_manager_base::is_subscribe_to_any_event_allowed: "
@@ -734,7 +760,7 @@ void routing_manager_base::add_known_client(client_t _client, const std::string 
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         //Ignore if we have already loaded the policy extension
         policy_manager_impl::policy_loaded_e policy_loaded
-            = policy_manager_impl::get()->is_policy_extension_loaded(_client_host);
+            = configuration_->get_policy_manager()->is_policy_extension_loaded(_client_host);
 
         if (policy_loaded == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_NOT_LOADED)
         {
@@ -998,7 +1024,6 @@ void routing_manager_base::notify_one_current_value(
 
 bool routing_manager_base::send(client_t _client,
         std::shared_ptr<message> _message, bool _force) {
-
     bool is_sent(false);
     if (utility::is_request(_message->get_message_type())) {
         _message->set_client(_client);
@@ -1098,7 +1123,7 @@ services_t routing_manager_base::get_services_remote() const {
 }
 
 bool routing_manager_base::is_available(service_t _service, instance_t _instance,
-        major_version_t _major) {
+                                        major_version_t _major) const {
     bool available(false);
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
     auto its_service = local_services_.find(_service);
@@ -1166,10 +1191,10 @@ void routing_manager_base::remove_local(client_t _client,
                   bool _remove_sec_client) {
 
     vsomeip_sec_client_t its_sec_client;
-    policy_manager_impl::get()->get_client_to_sec_client_mapping(_client, its_sec_client);
+    configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
 
     if (_remove_sec_client) {
-        policy_manager_impl::get()->remove_client_to_sec_client_mapping(_client);
+        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     }
     for (auto its_subscription : _subscribed_eventgroups) {
         host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
@@ -1286,7 +1311,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                         }
                         catch (...) {
                             VSOMEIP_ERROR << "Eventgroup ["
-                                << std::hex << std::setw(4) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(4)
                                 << _service << "." << _instance << "." << _eventgroup
                                 << "] is configured as multicast, but no valid "
                                        "multicast address is configured!";
@@ -1323,11 +1348,10 @@ bool routing_manager_base::send_local_notification(client_t _client,
 #ifdef USE_DLT
     bool has_local(false);
 #endif
+    (void)_client;
     bool has_remote(false);
-    method_t its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-            _data[VSOMEIP_METHOD_POS_MAX]);
-    service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
+    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
     std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
     if (its_event && !its_event->is_shadow()) {
@@ -1346,8 +1370,8 @@ bool routing_manager_base::send_local_notification(client_t _client,
 
             std::shared_ptr<endpoint> its_local_target = ep_mgr_->find_local(its_client);
             if (its_local_target) {
-                send_local(its_local_target, _client, _data, _size,
-                           _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                send_local(its_local_target, its_client, _data, _size, _instance, _reliable,
+                           protocol::id_e::SEND_ID, _status_check);
             }
         }
     }
@@ -1576,6 +1600,19 @@ routing_manager_base::get_subscriptions(const client_t _client) {
         }
     }
     return result;
+}
+
+
+void routing_manager_base::clear_shadow_subscriptions(void) {
+    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    for (const auto& its_service : events_) {
+        for (const auto& its_instance : its_service.second) {
+            for (const auto& its_event : its_instance.second) {
+                if (its_event.second->is_shadow())
+                    its_event.second->clear_subscribers();
+            }
+        }
+    }
 }
 
 bool

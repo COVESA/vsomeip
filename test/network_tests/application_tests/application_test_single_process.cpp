@@ -24,12 +24,10 @@ TEST(someip_application_test_single_process, notify_increasing_counter)
     for (int var = 0; var < 10; ++var) {
         // every time the client is restarted it becomes the rm_stub again
         application_test_client its_client(application_test::service);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         if(var != 9) {
             its_client.stop(false);
         } else {
-            // for the last iteration we sleep to make sure the communication
-            // between the client and the service can be established
-            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
             its_client.stop(true);
         }
     }

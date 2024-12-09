@@ -7,7 +7,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 #include "../../../../include/e2e/profile/profile04/protector.hpp"
-#include "../../../../../utility/include/byteorder.hpp"
+#include "../../../../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace e2e {
@@ -27,20 +27,20 @@ protector::protect(e2e_buffer &_buffer, instance_t _instance) {
     if (verify_inputs(_buffer)) {
 
         /** @req [SWS_E2E_00364] */
-        write_16(_buffer, static_cast<uint16_t>(_buffer.size()), 0);
+        bithelper::write_uint16_be(static_cast<uint16_t>(_buffer.size()), &_buffer[config_.offset_]);
 
         /** @req [SWS_E2E_00365] */
-        write_16(_buffer, get_counter(_instance), 2);
+        bithelper::write_uint16_be(get_counter(_instance), &_buffer[config_.offset_ + 2]);
 
         /** @req [SWS_E2E_00366] */
         uint32_t its_data_id(uint32_t(_instance) << 24 | config_.data_id_);
-        write_32(_buffer, its_data_id, 4);
+        bithelper::write_uint32_be(its_data_id, &_buffer[config_.offset_ + 4]);
 
         /** @req [SWS_E2E_00367] */
         uint32_t its_crc = profile_04::compute_crc(config_, _buffer);
 
         /** @req [SWS_E2E_0368] */
-        write_32(_buffer, its_crc, 8);
+        bithelper::write_uint32_be(its_crc, &_buffer[config_.offset_ + 8]);
 
         /** @req [SWS_E2E_00369] */
         increment_counter(_instance);
@@ -52,22 +52,6 @@ protector::verify_inputs(e2e_buffer &_buffer) {
 
     return (_buffer.size() >= config_.min_data_length_
             && _buffer.size() <= config_.max_data_length_);
-}
-
-void
-protector::write_16(e2e_buffer &_buffer, uint16_t _data, size_t _index) {
-
-    _buffer[config_.offset_ + _index] = VSOMEIP_WORD_BYTE1(_data);
-    _buffer[config_.offset_ + _index + 1] = VSOMEIP_WORD_BYTE0(_data);
-}
-
-void
-protector::write_32(e2e_buffer &_buffer, uint32_t _data, size_t _index) {
-
-    _buffer[config_.offset_ + _index] = VSOMEIP_LONG_BYTE3(_data);
-    _buffer[config_.offset_ + _index + 1] = VSOMEIP_LONG_BYTE2(_data);
-    _buffer[config_.offset_ + _index + 2] = VSOMEIP_LONG_BYTE1(_data);
-    _buffer[config_.offset_ + _index + 3] = VSOMEIP_LONG_BYTE0(_data);
 }
 
 uint16_t

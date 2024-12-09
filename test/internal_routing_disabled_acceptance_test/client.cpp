@@ -10,6 +10,7 @@
 #include <vsomeip/payload.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/runtime.hpp>
+#include <vsomeip/internal/logger.hpp>
 
 #include "config.hpp"
 
@@ -37,22 +38,22 @@ client::init() {
                 switch(message->get_message_type())
                 {
                 case vsomeip_v3::message_type_e::MT_RESPONSE:
-                    std::cout
-                        << "received:\n"
-                        << "\tservice:  " << std::hex << message->get_service() << '\n'
-                        << "\tinstance: " << std::hex << message->get_instance() << '\n'
-                        << "\tmethod:   " << std::hex << message->get_method() << '\n'
-                        << "\tpayload:  " << payload->get_data() << '\n';
+                    VSOMEIP_INFO << "received:\n"
+                                 << "\tservice:  " << std::hex << message->get_service() << '\n'
+                                 << "\tinstance: " << std::hex << message->get_instance() << '\n'
+                                 << "\tmethod:   " << std::hex << message->get_method() << '\n'
+                                 << "\tpayload:  " << payload->get_data();
                     me->counter_method_response++;
                     break;
 
                 case vsomeip_v3::message_type_e::MT_NOTIFICATION:
-                    std::cout << "GOT NOTIFICATION\n";
+                    VSOMEIP_INFO << "GOT NOTIFICATION";
                     me->counter_event_received++;
                     [[fallthrough]];
 
                 default:
-                    std::cout << "unhandled message type: " << unsigned(message->get_message_type()) << '\n';
+                    VSOMEIP_ERROR << "unhandled message type: "
+                                  << unsigned(message->get_message_type());
                 }
             }
         }
@@ -64,11 +65,8 @@ client::init() {
         [its_me](vsomeip_v3::service_t service, vsomeip_v3::instance_t instance, bool available){
             auto me = its_me.lock();
             if (me) {
-                std::cout
-                    << __func__ << '('
-                    << std::hex << service << ", "
-                    << std::hex << instance << ", "
-                    << std::boolalpha << available << ")\n";
+                VSOMEIP_INFO << __func__ << '('<< std::hex << service << ", " << std::hex
+                             << instance << ", " << std::boolalpha << available << ")";
 
                 if(service != config::SERVICE_ID)
                     return;
@@ -91,7 +89,7 @@ client::init() {
 
                 for(int i = 0; i < 10; i++)
                 {
-                    std::cout << "sending: " << str << '\n';
+                    VSOMEIP_INFO << "sending: " << str;
                     me->application->send(request);
                     me->counter_method_request++;
 
@@ -174,5 +172,5 @@ void client::on_state_registered()
 
 void client::on_state_deregistered()
 {
-    std::cout << "Client is deregistered!!! Probably could not be registered!!!\n";
+    VSOMEIP_WARNING << "Client is deregistered!!! Probably could not be registered!!!";
 }

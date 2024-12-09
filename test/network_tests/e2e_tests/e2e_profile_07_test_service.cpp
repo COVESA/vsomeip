@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "e2e_profile_07_test_common.hpp"
 #include "e2e_profile_07_test_service.hpp"
 
@@ -141,7 +143,7 @@ e2e_profile_07_test_service::on_message(
     ASSERT_EQ(PROFILE_07_INSTANCE, _request->get_instance());
 
     VSOMEIP_INFO << "Received a message with Client/Session ["
-            << std::setw(4) << std::setfill('0') << std::hex
+            << std::hex << std::setfill('0') << std::setw(4)
             << _request->get_client() << "/" << _request->get_session()
             << "] method: " << _request->get_method() ;
 
