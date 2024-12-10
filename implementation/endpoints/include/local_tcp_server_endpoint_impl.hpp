@@ -154,7 +154,7 @@ private:
     bool add_connection(const client_t &_client,
             const std::shared_ptr<connection> &_connection);
     void remove_connection(const client_t &_client);
-    void accept_cbk(const connection::ptr& _connection,
+    void accept_cbk(connection::ptr _connection,
                     boost::system::error_code const &_error);
     std::string get_remote_information(
             const target_data_iterator_type _queue_iterator) const;

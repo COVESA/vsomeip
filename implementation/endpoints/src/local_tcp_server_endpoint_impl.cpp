@@ -230,7 +230,7 @@ void local_tcp_server_endpoint_impl::remove_connection(
 }
 
 void local_tcp_server_endpoint_impl::accept_cbk(
-        const connection::ptr& _connection, boost::system::error_code const &_error) {
+        connection::ptr _connection, boost::system::error_code const &_error) {
     if (!_error) {
         boost::system::error_code its_error;
         endpoint_type remote;
