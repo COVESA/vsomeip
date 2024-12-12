@@ -476,7 +476,6 @@ target_compile_definitions(
           $<$<BOOL:ENABLE_DEFAULT_EVENT_CACHING>:VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING>
 )
 target_include_directories(vsomeip3 SYSTEM PUBLIC $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>)
-target_link_libraries(vsomeip3 PRIVATE STACKTRACE_INTERFACE)
 set_target_properties(
   vsomeip3 PROPERTIES
   SOVERSION ${VSOMEIP_MAJOR_VERSION}
@@ -493,6 +492,7 @@ target_link_libraries(
   PRIVATE Boost::filesystem
           Boost::thread
           $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
+          STACKTRACE_INTERFACE
           RT_INTERFACE
           DL_INTERFACE
           OS_INTERFACE
