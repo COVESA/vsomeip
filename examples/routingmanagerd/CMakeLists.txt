@@ -11,16 +11,14 @@ option(VSOMEIP_INSTALL_ROUTINGMANAGERD "Whether or not to install the routing ma
 add_executable(routingmanagerd)
 target_sources(routingmanagerd PRIVATE routingmanagerd.cpp)
 
-if(TARGET Genivi::dlt)
-  target_compile_definitions(routingmanagerd PRIVATE USE_DLT)
-  target_link_libraries(routingmanagerd PRIVATE Genivi::dlt)
-endif()
+target_compile_definitions(routingmanagerd PRIVATE $<TARGET_NAME_IF_EXISTS:USE_DLT>)
 
 target_link_libraries(
   routingmanagerd
   PRIVATE vsomeip3
           Boost::system
           Boost::filesystem
+          $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
           STACKTRACE_INTERFACE
           OS_INTERFACE
           DL_INTERFACE
