@@ -22,7 +22,7 @@ class endpoint_definition {
 public:
     VSOMEIP_EXPORT static std::shared_ptr<endpoint_definition> get(
             const boost::asio::ip::address &_address,
-            uint16_t _port, bool _is_reliable, service_t _service, instance_t _instance);
+            uint16_t _port, bool _is_reliable, service_t _service, unique_version_t _unique);
 
     VSOMEIP_EXPORT const boost::asio::ip::address &get_address() const;
 
@@ -44,7 +44,7 @@ private:
 
     static std::mutex definitions_mutex_;
     static std::map<
-        std::tuple<service_t, instance_t, boost::asio::ip::address, uint16_t, bool>,
+        std::tuple<service_t, unique_version_t, boost::asio::ip::address, uint16_t, bool>,
         std::shared_ptr<endpoint_definition> > definitions_;
 };
 

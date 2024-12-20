@@ -32,7 +32,7 @@ VSOMEIP_DEPRECATED_UID_GID typedef std::function< void (client_t, uid_t, gid_t, 
 VSOMEIP_DEPRECATED_UID_GID typedef std::function< void (client_t, uid_t, gid_t, const std::string &, bool,
             std::function< void (const bool) > )> async_subscription_handler_ext_t;
 
-typedef std::function< void (const std::vector<std::pair<service_t, instance_t>> &_services) > offered_services_handler_t;
+typedef std::function< void (const std::vector<std::pair<service_t, unique_version_t>> &_services) > offered_services_handler_t;
 typedef std::function< void () > watchdog_handler_t;
 
 /*

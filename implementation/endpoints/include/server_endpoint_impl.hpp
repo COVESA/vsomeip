@@ -142,7 +142,7 @@ private:
     virtual std::string
     get_remote_information(const target_data_iterator_type _queue_iterator) const = 0;
     virtual std::string get_remote_information(const endpoint_type& _remote) const = 0;
-    virtual bool tp_segmentation_enabled(service_t _service, instance_t _instance,
+    virtual bool tp_segmentation_enabled(service_t _service, unique_version_t _unique,
                                          method_t _method) const;
 
     void schedule_train(endpoint_data_type& _target);

@@ -582,10 +582,10 @@ void udp_server_endpoint_impl::on_message_received(boost::system::error_code con
                     if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
                         const method_t its_method =
                                 bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
-                        instance_t its_instance = this->get_instance(its_service);
+                        unique_version_t its_unique = this->get_unique(its_service);
 
-                        if (its_instance != ANY_INSTANCE) {
-                            if (!tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                        if (get_instance_from_unique(its_unique) != ANY_INSTANCE) {
+                            if (!tp_segmentation_enabled(its_service, its_unique, its_method)) {
                                 VSOMEIP_WARNING
                                         << "use: Received a SomeIP/TP message for service: 0x"
                                         << std::hex << its_service << " method: 0x" << its_method
@@ -733,10 +733,10 @@ std::string udp_server_endpoint_impl::get_address_port_local() const {
     return its_address_port;
 }
 
-bool udp_server_endpoint_impl::tp_segmentation_enabled(service_t _service, instance_t _instance,
+bool udp_server_endpoint_impl::tp_segmentation_enabled(service_t _service, unique_version_t _unique,
                                                        method_t _method) const {
 
-    return configuration_->is_tp_service(_service, _instance, _method);
+    return configuration_->is_tp_service(_service, _unique, _method);
 }
 
 void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::address& _address,

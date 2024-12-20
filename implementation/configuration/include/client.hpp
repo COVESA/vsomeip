@@ -17,12 +17,12 @@ namespace cfg {
 
 struct client {
     client() : service_(ANY_SERVICE),
-            instance_(ANY_INSTANCE) {
+            unique_(ANY_INSTANCE) {
     }
 
     // ports for specific service / instance
     service_t service_;
-    instance_t instance_;
+    unique_version_t unique_;
     std::map<bool, std::set<uint16_t> > ports_;
     std::map<bool, uint16_t> last_used_specific_client_port_;
 

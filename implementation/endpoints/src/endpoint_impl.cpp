@@ -100,15 +100,15 @@ void endpoint_impl<Protocol>::register_error_handler(const error_handler_t &_err
 }
 
 template<typename Protocol>
-instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
+unique_version_t endpoint_impl<Protocol>::get_unique(service_t _service) {
 
-    instance_t its_instance(0xFFFF);
+    unique_version_t its_unique(0xFFFF);
 
     auto its_host = endpoint_host_.lock();
     if (its_host)
-        its_instance = its_host->find_instance(_service, this);
+        its_unique = its_host->find_unique(_service, this);
 
-    return its_instance;
+    return its_unique;
 }
 
 // Instantiate template

@@ -45,7 +45,7 @@ public:
     virtual void release_port(uint16_t _port, bool _reliable) = 0;
     virtual client_t get_client() const = 0;
     virtual std::string get_client_host() const = 0;
-    virtual instance_t find_instance(service_t _service,
+    virtual unique_version_t find_unique(service_t _service,
             endpoint * const _endpoint) const = 0;
     virtual void add_multicast_option(const multicast_option_t &_option) = 0;
 };

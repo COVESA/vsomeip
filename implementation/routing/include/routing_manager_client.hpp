@@ -50,31 +50,31 @@ public:
     std::string get_env_unlocked(client_t _client) const;
 
     bool offer_service(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     void stop_offer_service(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     void request_service(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     void release_service(client_t _client,
-            service_t _service, instance_t _instance);
+            service_t _service, unique_version_t _unique);
 
     void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major,
             event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _reliable,
+            unique_version_t _unique, bool _reliable,
             client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check, bool _sent_from_remote,
             bool _force);
@@ -84,10 +84,10 @@ public:
             std::shared_ptr<message> _message);
 
     bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size, instance_t _instance);
+            const byte_t *_data, uint32_t _size, unique_version_t _unique);
 
     void register_event(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups,
             const event_type_e _type,
@@ -98,7 +98,7 @@ public:
             bool _is_provided, bool _is_shadow, bool _is_cache_placeholder);
 
     void unregister_event(client_t _client, service_t _service,
-            instance_t _instance, event_t _notifier, bool _is_provided);
+            unique_version_t _unique, event_t _notifier, bool _is_provided);
 
     void on_connect(const std::shared_ptr<endpoint>& _endpoint);
     void on_disconnect(const std::shared_ptr<endpoint>& _endpoint);
@@ -132,54 +132,54 @@ private:
             minor_version_t _minor);
 
     void send_release_service(client_t _client,
-            service_t _service, instance_t _instance);
+            service_t _service, unique_version_t _unique);
 
     void send_pending_event_registrations(client_t _client);
 
     void send_register_event(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups,
             const event_type_e _type, reliability_type_e _reliability,
             bool _is_provided, bool _is_cyclic);
 
     void send_subscribe(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major,
             event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     void send_subscribe_nack(client_t _subscriber, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event,
             remote_subscription_id_t _id);
 
     void send_subscribe_ack(client_t _subscriber, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event,
             remote_subscription_id_t _id);
 
-    bool is_field(service_t _service, instance_t _instance,
+    bool is_field(service_t _service, unique_version_t _unique,
             event_t _event) const;
 
     void on_subscribe_nack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event);
 
     void on_subscribe_ack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event);
 
-    void cache_event_payload(const std::shared_ptr<message> &_message);
+    void cache_event_payload(const std::shared_ptr<message> &_message, major_version_t _major);
 
-    void on_stop_offer_service(service_t _service, instance_t _instance,
+    void on_stop_offer_service(service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     void send_pending_commands();
 
     void init_receiver();
 
-    void notify_remote_initially(service_t _service, instance_t _instance,
+    void notify_remote_initially(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, const std::set<event_t> &_events_to_exclude);
 
-    uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance,
+    uint32_t get_remote_subscriber_count(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, bool _increment);
-    void clear_remote_subscriber_count(service_t _service, instance_t _instance);
+    void clear_remote_subscriber_count(service_t _service, unique_version_t _unique);
 
     void assign_client_timeout_cbk(boost::system::error_code const &_error);
 
@@ -194,7 +194,7 @@ private:
     bool is_client_known(client_t _client);
 
     bool create_placeholder_event_and_subscribe(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
             event_t _notifier, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client);
 
@@ -202,7 +202,7 @@ private:
 
     void send_request_services(const std::set<protocol::service> &_requests);
 
-    void send_unsubscribe_ack(service_t _service, instance_t _instance,
+    void send_unsubscribe_ack(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, remote_subscription_id_t _id);
 
     void resend_provided_event_registrations();
@@ -246,7 +246,7 @@ private:
 
     struct event_data_t {
         service_t service_;
-        instance_t instance_;
+        unique_version_t unique_;
         event_t notifier_;
         event_type_e type_;
         reliability_type_e reliability_;
@@ -255,9 +255,9 @@ private:
         std::set<eventgroup_t> eventgroups_;
 
         bool operator<(const event_data_t &_other) const {
-            return std::tie(service_, instance_, notifier_,
+            return std::tie(service_, unique_, notifier_,
                     type_, reliability_, is_provided_, is_cyclic_, eventgroups_)
-                    < std::tie(_other.service_, _other.instance_,
+                    < std::tie(_other.service_, _other.unique_,
                             _other.notifier_, _other.type_, _other.reliability_,
                             _other.is_provided_, _other.is_cyclic_, _other.eventgroups_);
         }
@@ -272,7 +272,7 @@ private:
     std::condition_variable state_condition_;
 
     std::map<service_t,
-                std::map<instance_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
+                std::map<unique_version_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
     std::mutex remote_subscriber_count_mutex_;
 
     mutable std::mutex sender_mutex_;

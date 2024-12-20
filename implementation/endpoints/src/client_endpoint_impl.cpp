@@ -284,7 +284,7 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
 
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::tp_segmentation_enabled(
-        service_t /*_service*/, instance_t /*_instance*/, method_t /*_method*/) const {
+        service_t /*_service*/, unique_version_t /*_instance*/, method_t /*_method*/) const {
 
     return false;
 }
@@ -777,14 +777,14 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::chec
         if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
             const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
             const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-            instance_t its_instance = this->get_instance(its_service);
+            unique_version_t its_unique = this->get_unique(its_service);
           
-            if (its_instance != ANY_INSTANCE) {
-                if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
+            if (get_instance_from_unique(its_unique) != ANY_INSTANCE) {
+                if (tp_segmentation_enabled(its_service, its_unique, its_method)) {
                     std::uint16_t its_max_segment_length;
                     std::uint32_t its_separation_time;
                     this->configuration_->get_tp_configuration(
-                                its_service, its_instance, its_method, true,
+                                its_service, its_unique, its_method, true,
                                 its_max_segment_length, its_separation_time);
                     send_segments(tp::tp::tp_split_message(_data, _size,
                             its_max_segment_length), its_separation_time);

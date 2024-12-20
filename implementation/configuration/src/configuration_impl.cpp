@@ -379,7 +379,7 @@ configuration_impl::check_routing_credentials(
 }
 
 bool configuration_impl::remote_offer_info_add(service_t _service,
-                                               instance_t _instance,
+                                               unique_version_t _unique,
                                                std::uint16_t _port,
                                                bool _reliable,
                                                bool _magic_cookies_enabled) {
@@ -390,7 +390,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
     } else {
         auto its_service = std::make_shared<service>();
         its_service->service_ = _service;
-        its_service->instance_ = _instance;
+        its_service->unique_ = _unique;
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         _reliable ?
                 its_service->reliable_ = _port :
@@ -405,25 +405,25 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
             bool updated(false);
             auto found_service = services_.find(its_service->service_);
             if (found_service != services_.end()) {
-                auto found_instance = found_service->second.find(its_service->instance_);
-                if (found_instance != found_service->second.end()) {
+                auto found_unique = found_service->second.find(its_service->unique_);
+                if (found_unique != found_service->second.end()) {
                     VSOMEIP_INFO << "Updating remote configuration for service ["
                             << std::hex << std::setfill('0') << std::setw(4)
-                            << its_service->service_ << "." << its_service->instance_ << "]";
+                            << its_service->service_ << "." << its_service->unique_ << "]";
                     if (_reliable) {
-                        found_instance->second->reliable_ = its_service->reliable_;
+                        found_unique->second->reliable_ = its_service->reliable_;
                     } else {
-                        found_instance->second->unreliable_ = its_service->unreliable_;
+                        found_unique->second->unreliable_ = its_service->unreliable_;
                     }
                     updated = true;
                 }
             }
             if (!updated) {
-                services_[_service][_instance] = its_service;
+                services_[_service][_unique] = its_service;
                 VSOMEIP_INFO << "Added new remote configuration for service ["
                         << std::hex << std::setfill('0')
                         << std::setw(4) << its_service->service_ << "."
-                        << std::setw(4) << its_service->instance_ << "]";
+                        << std::setw(4) << its_service->unique_ << "]";
             }
             if (_magic_cookies_enabled) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
@@ -435,7 +435,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
 }
 
 bool configuration_impl::remote_offer_info_remove(service_t _service,
-                                                  instance_t _instance,
+                                                  unique_version_t _unique,
                                                   std::uint16_t _port,
                                                   bool _reliable,
                                                   bool _magic_cookies_enabled,
@@ -450,21 +450,21 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
         std::lock_guard<std::mutex> its_lock(services_mutex_);
         auto found_service = services_.find(_service);
         if (found_service != services_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
+            auto found_unique = found_service->second.find(_unique);
+            if (found_unique != found_service->second.end()) {
                 VSOMEIP_INFO << "Removing remote configuration for service ["
                         << std::hex << std::setfill('0') << std::setw(4)
-                        << _service << "." << _instance << "]";
+                        << _service << "." << get_instance_from_unique(_unique) << "]";
                 if (_reliable) {
-                    found_instance->second->reliable_ = ILLEGAL_PORT;
+                    found_unique->second->reliable_ = ILLEGAL_PORT;
                     // TODO delete from magic_cookies_map without overwriting
                     // configurations from other services offered on the same port
                 } else {
-                    found_instance->second->unreliable_ = ILLEGAL_PORT;
+                    found_unique->second->unreliable_ = ILLEGAL_PORT;
                 }
                 *_still_offered_remote = (
-                        found_instance->second->unreliable_ != ILLEGAL_PORT ||
-                        found_instance->second->reliable_ != ILLEGAL_PORT);
+                        found_unique->second->unreliable_ != ILLEGAL_PORT ||
+                        found_unique->second->reliable_ != ILLEGAL_PORT);
                 ret = true;
             }
         }
@@ -1342,6 +1342,15 @@ void configuration_impl::load_trace_filter_match(
                     }
                     its_converter >> its_instance;
                     std::get<1>(_match) = its_instance;
+                } else if (i->first == "major") {
+                    major_version_t its_major(DEFAULT_MAJOR);
+                    if (its_value.find("0x") == 0) {
+                        its_converter << std::hex << its_value;
+                    } else {
+                        its_converter << std::dec << its_value;
+                    }
+                    its_converter >> its_major;
+                    std::get<1>(_match) = get_unique_version(static_cast<instance_t>(std::get<1>(_match)), its_major);
                 } else if (i->first == "method") {
                     method_t its_method(ANY_METHOD);
                     if (its_value.find("0x") == 0) {
@@ -1384,6 +1393,8 @@ void configuration_impl::load_suppress_events_data(
     //Default everything to ANY, and change with the provided values
     service_t its_service(ANY_SERVICE);
     instance_t its_instance(ANY_INSTANCE);
+    unique_version_t its_unique(ANY_INSTANCE);
+    major_version_t its_major(DEFAULT_MAJOR);
     event_t its_event(ANY_EVENT);
     std::set<event_t> events;
 
@@ -1396,6 +1407,8 @@ void configuration_impl::load_suppress_events_data(
             its_service = load_suppress_data(its_value);
         } else if (its_key == "instance") {
             its_instance = load_suppress_data(its_value);
+        } else if (its_key == "major") {
+            its_major = static_cast<major_version_t>(load_suppress_data(its_value));
         } else if (its_key == "events") {
             if (i->second.empty()) {    //Single Event
                 its_event = load_suppress_data(its_value);
@@ -1406,12 +1419,14 @@ void configuration_impl::load_suppress_events_data(
         }
     }
 
+    its_unique = get_unique_version(its_instance, its_major);
+
     //If no event is present in the configuration, use ANY_EVENT!
     if(events.empty())
         events.insert(ANY_EVENT);
 
     for(const auto& event : events) {
-        insert_suppress_events(its_service, its_instance, event);
+        insert_suppress_events(its_service, its_unique, event);
     }
 }
 
@@ -1487,25 +1502,25 @@ std::set<event_t> configuration_impl::load_range_events(event_t _first_event,
 }
 
 void configuration_impl::insert_suppress_events(service_t  _service,
-    instance_t _instance, event_t _event) {
+    unique_version_t _unique, event_t _event) {
 
-    suppress_t new_event = {_service, _instance, _event};
+    suppress_t new_event = {_service, _unique, _event};
     suppress_events_.insert(new_event);
 }
 
-bool configuration_impl::check_suppress_events(service_t _service, instance_t _instance,
+bool configuration_impl::check_suppress_events(service_t _service, unique_version_t _unique,
         event_t _event) const {
 
     if (!is_suppress_events_enabled_)
         return false;
 
     std::set<suppress_t> event_combinations = {
-        {_service, _instance, _event},
-        {_service, _instance, ANY_EVENT},
+        {_service, _unique, _event},
+        {_service, _unique, ANY_EVENT},
         {_service, ANY_INSTANCE, _event},
         {_service, ANY_INSTANCE, ANY_EVENT},
-        {ANY_SERVICE, _instance, _event},
-        {ANY_SERVICE, _instance, ANY_EVENT},
+        {ANY_SERVICE, _unique, _event},
+        {ANY_SERVICE, _unique, ANY_EVENT},
         {ANY_SERVICE, ANY_INSTANCE, _event}
         };
 
@@ -1524,7 +1539,7 @@ void configuration_impl::print_suppress_events(void) const {
     for (const auto& its_log : suppress_events_) {
         VSOMEIP_INFO << std::hex << std::setfill('0')
                     << "+[" << std::setw(4) << its_log.service
-                    << "." << std::setw(4) << its_log.instance
+                    << "." << std::setw(4) << its_log.unique
                     << "." << its_log.event << "]";
     }
 }
@@ -2004,6 +2019,7 @@ void configuration_impl::load_service(
         its_service->multicast_address_ = "";
         its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
+        major_version_t its_major(DEFAULT_MAJOR);
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -2067,25 +2083,29 @@ void configuration_impl::load_service(
                 if (its_key == "service") {
                     its_converter >> its_service->service_;
                 } else if (its_key == "instance") {
-                    its_converter >> its_service->instance_;
+                    its_converter >> its_service->unique_;
+                } else if (its_key == "major") {
+                    its_converter >> its_major;
                 }
             }
         }
 
+        its_service->unique_ = get_unique_version(static_cast<instance_t>(its_service->unique_), its_major);
+
         auto found_service = services_.find(its_service->service_);
         if (found_service != services_.end()) {
-            auto found_instance = found_service->second.find(
-                    its_service->instance_);
-            if (found_instance != found_service->second.end()) {
+            auto found_unique = found_service->second.find(
+                    its_service->unique_);
+            if (found_unique != found_service->second.end()) {
                 VSOMEIP_WARNING << "Multiple configurations for service ["
                         << std::hex << its_service->service_ << "."
-                        << its_service->instance_ << "]";
+                        << get_instance_from_unique(its_service->unique_) << "]";
                 is_loaded = false;
             }
         }
 
         if (is_loaded) {
-            services_[its_service->service_][its_service->instance_] =
+            services_[its_service->service_][its_service->unique_] =
                     its_service;
             if (use_magic_cookies) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
@@ -2177,7 +2197,7 @@ void configuration_impl::load_event(
             if (found_event != _service->events_.end()) {
                 VSOMEIP_INFO << "Multiple configurations for event ["
                         << std::hex << _service->service_ << "."
-                        << _service->instance_ << "."
+                        << _service->unique_ << "."
                         << its_event_id << "].";
             } else {
                 // If event reliability type was not configured,
@@ -2189,7 +2209,7 @@ void configuration_impl::load_event(
                     }
                     VSOMEIP_WARNING << "Reliability type for event ["
                         << std::hex << _service->service_ << "."
-                        << _service->instance_ << "."
+                        << _service->unique_ << "."
                         << its_event_id << "] was not configured Using : "
                         << ((its_reliability == reliability_type_e::RT_RELIABLE)
                                 ? "RT_RELIABLE" : "RT_UNRELIABLE");
@@ -2376,6 +2396,7 @@ void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
         its_client->last_used_specific_client_port_[false] = ILLEGAL_PORT;
         its_client->last_used_client_port_[true]  = ILLEGAL_PORT;
         its_client->last_used_client_port_[false] = ILLEGAL_PORT;
+        major_version_t its_major(DEFAULT_MAJOR);
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -2405,10 +2426,13 @@ void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
                 if (its_key == "service") {
                     its_converter >> its_client->service_;
                 } else if (its_key == "instance") {
-                    its_converter >> its_client->instance_;
+                    its_converter >> its_client->unique_;
+                } else if (its_key == "major") {
+                    its_converter >> its_major;
                 }
             }
         }
+        its_client->unique_ = get_unique_version(static_cast<instance_t>(its_client->unique_), its_major);
         clients_.push_back(its_client);
     } catch (...) {
     }
@@ -2728,12 +2752,13 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
     try {
 
         std::stringstream its_converter;
-        std::map<service_t, std::set<instance_t> > its_partition_members;
+        std::map<service_t, std::set<unique_version_t> > its_partition_members;
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             service_t its_service(0x0);
-            instance_t its_instance(0x0);
-            std::string its_service_s, its_instance_s;
+            unique_version_t its_unique(0x0);
+            major_version_t its_major(DEFAULT_MAJOR);
+            std::string its_service_s, its_unique_s, its_major_s;
 
             for (auto j = i->second.begin(); j != i->second.end(); ++j) {
                 std::string its_key(j->first);
@@ -2752,16 +2777,21 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
                     its_converter >> its_service;
                     its_service_s = its_data;
                 } else if (its_key == "instance") {
-                    its_converter >> its_instance;
-                    its_instance_s = its_data;
+                    its_converter >> its_unique;
+                    its_unique_s = its_data;
+                } else if (its_key == "major") {
+                    its_converter >> its_major;
+                    its_major_s = its_data;
                 }
             }
 
-            if (its_service > 0 && its_instance > 0)
-                its_partition_members[its_service].insert(its_instance);
+            its_unique = get_unique_version(static_cast<instance_t>(its_unique), its_major);
+
+            if (its_service > 0 && its_unique > 0)
+                its_partition_members[its_service].insert(its_unique);
             else
-                VSOMEIP_ERROR << "P: <" << its_service_s << "."
-                    << its_instance_s << "> is no valid service instance.";
+                VSOMEIP_ERROR << "P: <" << its_unique_s << "."
+                    << its_unique_s << "> is no valid service instance.";
 
         }
 
@@ -2893,9 +2923,9 @@ vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
 }
 
 std::string configuration_impl::get_unicast_address(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::string its_unicast_address("");
-    auto its_service = find_service(_service, _instance);
+    auto its_service = find_service(_service, _unique);
     if (its_service) {
         its_unicast_address = its_service->unicast_address_;
     }
@@ -2907,10 +2937,10 @@ std::string configuration_impl::get_unicast_address(service_t _service,
 }
 
 uint16_t configuration_impl::get_reliable_port(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     uint16_t its_reliable(ILLEGAL_PORT);
-    auto its_service = find_service_unlocked(_service, _instance);
+    auto its_service = find_service_unlocked(_service, _unique);
     if (its_service)
         its_reliable = its_service->reliable_;
 
@@ -2918,10 +2948,10 @@ uint16_t configuration_impl::get_reliable_port(service_t _service,
 }
 
 uint16_t configuration_impl::get_unreliable_port(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     uint16_t its_unreliable = ILLEGAL_PORT;
-     auto its_service = find_service_unlocked(_service, _instance);
+     auto its_service = find_service_unlocked(_service, _unique);
     if (its_service)
         its_unreliable = its_service->unreliable_;
 
@@ -2976,8 +3006,8 @@ void configuration_impl::get_configured_timing_responses(
 }
 
 bool configuration_impl::is_someip(service_t _service,
-        instance_t _instance) const {
-    auto its_service = find_service(_service, _instance);
+        unique_version_t _unique) const {
+    auto its_service = find_service(_service, _unique);
     if (its_service)
         return (its_service->protocol_ == "someip");
     return true; // we need to explicitely configure a service to
@@ -2985,7 +3015,7 @@ bool configuration_impl::is_someip(service_t _service,
 }
 
 bool configuration_impl::get_client_port(
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         uint16_t _remote_port, bool _reliable,
         std::map<bool, std::set<uint16_t> > &_used_client_ports,
         uint16_t &_client_port) const {
@@ -2993,7 +3023,7 @@ bool configuration_impl::get_client_port(
     _client_port = ILLEGAL_PORT;
 
     uint16_t its_specific_port(ILLEGAL_PORT);
-    if (find_specific_port(its_specific_port, _service, _instance, _reliable, _used_client_ports)) {
+    if (find_specific_port(its_specific_port, _service, _unique, _reliable, _used_client_ports)) {
         is_configured = true;
         if (its_specific_port != ILLEGAL_PORT) {
             _client_port = its_specific_port;
@@ -3022,7 +3052,7 @@ bool configuration_impl::get_client_port(
     VSOMEIP_ERROR << "Cannot find free client port for communication to service ["
                   << std::hex << std::setfill('0')
                   << std::setw(4) << _service << "."
-                  << std::setw(4) << _instance << "."
+                  << std::setw(4) << get_instance_from_unique(_unique) << "."
                   << std::dec << _remote_port << "."
                   << std::boolalpha <<_reliable << "]";
 
@@ -3199,10 +3229,10 @@ bool configuration_impl::has_session_handling(const std::string &_name) const {
     return its_value;
 }
 
-std::set<std::pair<service_t, instance_t> >
+std::set<std::pair<service_t, unique_version_t> >
 configuration_impl::get_remote_services() const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
-    std::set<std::pair<service_t, instance_t> > its_remote_services;
+    std::set<std::pair<service_t, unique_version_t> > its_remote_services;
     for (const auto& i : services_) {
         for (const auto& j : i.second) {
             if (is_remote(j.second)) {
@@ -3278,11 +3308,11 @@ bool configuration_impl::is_remote(const std::shared_ptr<service>& _service) con
 }
 
 bool configuration_impl::get_multicast(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+            unique_version_t _unique, eventgroup_t _eventgroup,
             std::string &_address, uint16_t &_port) const
 {
     std::shared_ptr<eventgroup> its_eventgroup
-        = find_eventgroup(_service, _instance, _eventgroup);
+        = find_eventgroup(_service, _unique, _eventgroup);
     if (!its_eventgroup)
         return false;
 
@@ -3295,20 +3325,20 @@ bool configuration_impl::get_multicast(service_t _service,
 }
 
 uint8_t configuration_impl::get_threshold(service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup) const {
+        unique_version_t _unique, eventgroup_t _eventgroup) const {
     std::shared_ptr<eventgroup> its_eventgroup
-        = find_eventgroup(_service, _instance, _eventgroup);
+        = find_eventgroup(_service, _unique, _eventgroup);
     return (its_eventgroup ? its_eventgroup->threshold_ : 0);
 }
 
 std::shared_ptr<client> configuration_impl::find_client(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::list<std::shared_ptr<client>>::const_iterator it;
 
     for (it = clients_.begin(); it != clients_.end(); ++it){
         // client was configured for specific service / instance
         if ((*it)->service_ == _service
-                && (*it)->instance_ == _instance) {
+                && (*it)->unique_ == _unique) {
             return *it;
         }
     }
@@ -3316,15 +3346,15 @@ std::shared_ptr<client> configuration_impl::find_client(service_t _service,
 }
 
 void configuration_impl::get_event_update_properties(
-        service_t _service, instance_t _instance, event_t _event,
+        service_t _service, unique_version_t _unique, event_t _event,
         std::chrono::milliseconds &_cycle,
         bool &_change_resets_cycle, bool &_update_on_change) const {
 
     auto find_service = services_.find(_service);
     if (find_service != services_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            auto its_service = find_instance->second;
+        auto find_unique = find_service->second.find(_unique);
+        if (find_unique != find_service->second.end()) {
+            auto its_service = find_unique->second;
             auto find_event = its_service->events_.find(_event);
             if (find_event != its_service->events_.end()) {
                 _cycle = find_event->second->cycle_;
@@ -3406,12 +3436,12 @@ bool configuration_impl::find_port(uint16_t &_port, uint16_t _remote, bool _reli
 }
 
 bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
-        instance_t _instance, bool _reliable,
+        unique_version_t _unique, bool _reliable,
         std::map<bool, std::set<uint16_t> > &_used_client_ports) const {
     bool is_configured(false);
     bool check_all(false);
     std::list<std::shared_ptr<client>>::const_iterator it;
-    auto its_client = find_client(_service, _instance);
+    auto its_client = find_client(_service, _unique);
 
     // Check for service, instance specific port configuration
     if (its_client  && !its_client->ports_[_reliable].empty()) {
@@ -3437,7 +3467,7 @@ bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
                 its_client->last_used_specific_client_port_[_reliable] = *it;
                 VSOMEIP_INFO << "configuration_impl:find_specific_port #1:"
                         << " service: " << std::hex << _service
-                        << " instance: " << _instance
+                        << " instance: " << get_instance_from_unique(_unique)
                         << " reliable: " << std::dec << _reliable
                         << " return specific port: " << (uint32_t)_port;
                 return true;
@@ -3454,7 +3484,7 @@ bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
                     its_client->last_used_specific_client_port_[_reliable] = its_port;
                     VSOMEIP_INFO << "configuration_impl:find_specific_port #2:"
                             << " service: " << std::hex << _service
-                            << " instance: " << _instance
+                            << " instance: " << get_instance_from_unique(_unique)
                             << " reliable: " << std::dec << _reliable
                             << " return specific port: " << (uint32_t)_port;
                     return true;
@@ -3468,10 +3498,10 @@ bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
 
 reliability_type_e
 configuration_impl::get_event_reliability(service_t _service,
-        instance_t _instance, event_t _event) const {
+        unique_version_t _unique, event_t _event) const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
-    auto its_service = find_service_unlocked(_service, _instance);
+    auto its_service = find_service_unlocked(_service, _unique);
     if (its_service) {
         auto its_event = its_service->events_.find(_event);
         if (its_event != its_service->events_.end()) {
@@ -3483,10 +3513,10 @@ configuration_impl::get_event_reliability(service_t _service,
 
 reliability_type_e
 configuration_impl::get_service_reliability(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
-    auto its_service = find_service_unlocked(_service, _instance);
+    auto its_service = find_service_unlocked(_service, _unique);
     if (its_service) {
         if (its_service->reliable_ != ILLEGAL_PORT) {
             if (its_service->unreliable_ != ILLEGAL_PORT) {
@@ -3502,19 +3532,19 @@ configuration_impl::get_service_reliability(service_t _service,
 }
 
 std::shared_ptr<service> configuration_impl::find_service(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
-    return find_service_unlocked(_service, _instance);
+    return find_service_unlocked(_service, _unique);
 }
 
 std::shared_ptr<service> configuration_impl::find_service_unlocked(service_t _service,
-        instance_t _instance) const {
+        unique_version_t _unique) const {
     std::shared_ptr<service> its_service;
     auto find_service = services_.find(_service);
     if (find_service != services_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            its_service = find_instance->second;
+        auto find_unique = find_service->second.find(_unique);
+        if (find_unique != find_service->second.end()) {
+            its_service = find_unique->second;
         }
     }
     return its_service;
@@ -3541,10 +3571,10 @@ configuration_impl::find_service(service_t _service,
 }
 
 std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup) const {
     std::shared_ptr<eventgroup> its_eventgroup;
-    auto its_service = find_service(_service, _instance);
+    auto its_service = find_service(_service, _unique);
     if (its_service) {
         auto find_eventgroup = its_service->eventgroups_.find(_eventgroup);
         if (find_eventgroup != its_service->eventgroups_.end()) {
@@ -3614,18 +3644,18 @@ uint32_t configuration_impl::get_log_version_interval() const {
     return log_version_interval_;
 }
 
-bool configuration_impl::is_offered_remote(service_t _service, instance_t _instance) const {
-    uint16_t reliable_port = get_reliable_port(_service, _instance);
-    uint16_t unreliable_port = get_unreliable_port(_service, _instance);
+bool configuration_impl::is_offered_remote(service_t _service, unique_version_t _unique) const {
+    uint16_t reliable_port = get_reliable_port(_service, _unique);
+    uint16_t unreliable_port = get_unreliable_port(_service, _unique);
     return (reliable_port != ILLEGAL_PORT || unreliable_port != ILLEGAL_PORT);
 }
 
-bool configuration_impl::is_local_service(service_t _service, instance_t _instance) const {
-    std::shared_ptr<service> s = find_service(_service, _instance);
+bool configuration_impl::is_local_service(service_t _service, unique_version_t _unique) const {
+    std::shared_ptr<service> s = find_service(_service, _unique);
     if (s && !is_remote(s)) {
         return true;
     }
-    if (is_internal_service(_service, _instance)) {
+    if (is_internal_service(_service, get_instance_from_unique(_unique))) {
         return true;
     }
 
@@ -3836,6 +3866,8 @@ void configuration_impl::load_ttl_factors(
     for (const auto& i : _tree) {
         service_t its_service(ILLEGAL_VALUE);
         instance_t its_instance(ILLEGAL_VALUE);
+        unique_version_t its_unique(ILLEGAL_VALUE);
+        major_version_t its_major(DEFAULT_MAJOR);
         configuration::ttl_factor_t its_ttl_factor(0);
 
         for (const auto& j : i.second) {
@@ -3858,13 +3890,16 @@ void configuration_impl::load_ttl_factors(
                     its_converter >> its_service;
                 } else if (its_key == "instance") {
                     its_converter >> its_instance;
+                } else if (its_key == "major") {
+                    its_converter >> its_major;
                 }
             }
         }
         if (its_service != ILLEGAL_VALUE
             && its_instance != ILLEGAL_VALUE
             && its_ttl_factor > 0) {
-            (*_target)[its_service][its_instance] = its_ttl_factor;
+            its_unique = get_unique_version(its_instance, its_major);
+            (*_target)[its_service][its_unique] = its_ttl_factor;
         } else {
             VSOMEIP_ERROR << "Invalid ttl factor configuration";
         }
@@ -4014,6 +4049,8 @@ configuration_impl::load_service_debounce(
 
     service_t its_service(0);
     instance_t its_instance(0);
+    unique_version_t its_unique(0);
+    major_version_t its_major(DEFAULT_MAJOR);
     std::map<event_t, std::shared_ptr<debounce_filter_impl_t>> its_debounces;
 
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -4035,10 +4072,19 @@ configuration_impl::load_service_debounce(
                 its_converter << std::dec << its_value;
             }
             its_converter >> its_instance;
+        } else if (its_key == "major") {
+            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            its_converter >> its_major;
         } else if (its_key == "events") {
             load_events_debounce(i->second, its_debounces);
         }
     }
+
+    its_unique = get_unique_version(its_instance, its_major);
 
     // TODO: Improve error handling!
     if (its_service > 0 && its_instance > 0 && !its_debounces.empty()) {
@@ -4053,7 +4099,7 @@ configuration_impl::load_service_debounce(
                 return;
             }
         }
-        _debounces[its_service][its_instance] = its_debounces;
+        _debounces[its_service][its_unique] = its_debounces;
     }
 }
 
@@ -4459,7 +4505,7 @@ void configuration_impl::load_someip_tp_for_service(
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method ["
                                 << std::hex << std::setfill('0')
                                 << std::setw(4) << _service->service_ << "."
-                                << std::setw(4) << _service->instance_ << "."
+                                << std::setw(4) << get_instance_from_unique(_service->unique_) << "."
                                 << std::setw(4) << its_method << "]:"
                                 << " using (" << std::dec
                                 << its_entry->second.first << ", "
@@ -4474,7 +4520,7 @@ void configuration_impl::load_someip_tp_for_service(
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method ["
                                 << std::hex << std::setfill('0')
                                 << std::setw(4) << _service->service_ << "."
-                                << std::setw(4) << _service->instance_ << "."
+                                << std::setw(4) << get_instance_from_unique(_service->unique_) << "."
                                 << std::setw(4) << its_method << "]:"
                                 << " using (" << std::dec
                                 << its_entry->second.first << ", "
@@ -4528,6 +4574,8 @@ void configuration_impl::load_secure_service(const boost::property_tree::ptree &
     try {
         service_t its_service(0);
         instance_t its_instance(0);
+        major_version_t its_major(DEFAULT_MAJOR);
+        unique_version_t its_unique(0);
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
             std::string its_key(i->first);
@@ -4545,15 +4593,19 @@ void configuration_impl::load_secure_service(const boost::property_tree::ptree &
                 its_converter >> its_service;
             } else if (its_key == "instance") {
                 its_converter >> its_instance;
+            } else if (its_key == "major") {
+                its_converter >> its_major;
             }
         }
 
-        if (its_service != 0 && its_instance != 0) {
+        its_unique = get_unique_version(its_instance, its_major);
+
+        if (its_service != 0 && its_unique != 0) {
             auto find_service = secure_services_.find(its_service);
             if (find_service != secure_services_.end()) {
-                find_service->second.insert(its_instance);
+                find_service->second.insert(its_unique);
             } else {
-                secure_services_[its_service].insert(its_instance);
+                secure_services_[its_service].insert(its_unique);
             }
         }
 
@@ -4564,17 +4616,17 @@ void configuration_impl::load_secure_service(const boost::property_tree::ptree &
 
 std::shared_ptr<debounce_filter_impl_t>
 configuration_impl::get_debounce(const std::string &_name,
-        service_t _service, instance_t _instance, event_t _event) const {
+        service_t _service, unique_version_t _unique, event_t _event) const {
 
     // Try to find application (client) specific debounce configuration
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
         auto found_service = found_application->second.debounces_.find(_service);
         if (found_service != found_application->second.debounces_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_event = found_instance->second.find(_event);
-                if (found_event != found_instance->second.end()) {
+            auto found_unique = found_service->second.find(_unique);
+            if (found_unique != found_service->second.end()) {
+                auto found_event = found_unique->second.find(_event);
+                if (found_event != found_unique->second.end()) {
                     return found_event->second;
                 }
             }
@@ -4585,10 +4637,10 @@ configuration_impl::get_debounce(const std::string &_name,
     // generic
     auto found_service = debounces_.find(_service);
     if (found_service != debounces_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_event = found_instance->second.find(_event);
-            if (found_event != found_instance->second.end()) {
+        auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            auto found_event = found_unique->second.find(_event);
+            if (found_event != found_unique->second.end()) {
                 return found_event->second;
             }
         }
@@ -4869,11 +4921,11 @@ void configuration_impl::set_sd_acceptance_rules_active(
     }
 }
 
-bool configuration_impl::is_secure_service(service_t _service, instance_t _instance) const {
+bool configuration_impl::is_secure_service(service_t _service, unique_version_t _unique) const {
     std::lock_guard<std::mutex> its_lock(secure_services_mutex_);
     const auto its_service = secure_services_.find(_service);
     if (its_service != secure_services_.end())
-        return (its_service->second.find(_instance) != its_service->second.end());
+        return (its_service->second.find(_unique) != its_service->second.end());
     return false;
 }
 
@@ -4884,13 +4936,13 @@ int configuration_impl::get_udp_receive_buffer_size() const {
 
 bool configuration_impl::is_tp_client(
         service_t _service,
-        instance_t _instance,
+        unique_version_t _unique,
         method_t _method) const {
 
     bool ret(false);
 
     const auto its_service
-        = find_service(_service, _instance);
+        = find_service(_service, _unique);
 
     if (its_service) {
         ret = (its_service->tp_client_config_.find(_method)
@@ -4902,12 +4954,12 @@ bool configuration_impl::is_tp_client(
 
 bool configuration_impl::is_tp_service(
         service_t _service,
-        instance_t _instance,
+        unique_version_t _unique,
         method_t _method) const {
 
     bool ret(false);
     const auto its_service
-        = find_service(_service, _instance);
+        = find_service(_service, _unique);
     if (its_service) {
         ret = (its_service->tp_service_config_.find(_method)
                 != its_service->tp_service_config_.end());
@@ -4917,11 +4969,11 @@ bool configuration_impl::is_tp_service(
 }
 
 void configuration_impl::get_tp_configuration(
-        service_t _service, instance_t _instance, method_t _method,
+        service_t _service, unique_version_t _unique, method_t _method,
         bool _is_client,
         std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const {
 
-    const auto its_info = find_service(_service, _instance);
+    const auto its_info = find_service(_service, _unique);
     if (its_info) {
         if (_is_client) {
             auto its_method = its_info->tp_client_config_.find(_method);
@@ -4983,16 +5035,16 @@ uint8_t configuration_impl::get_max_remote_subscribers() const {
 
 partition_id_t
 configuration_impl::get_partition_id(
-        service_t _service, instance_t _instance) const {
+        service_t _service, unique_version_t _unique) const {
 
     partition_id_t its_id(VSOMEIP_DEFAULT_PARTITION_ID);
 
     std::lock_guard<std::mutex> its_lock(partitions_mutex_);
     auto find_service = partitions_.find(_service);
     if (find_service != partitions_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            its_id = find_instance->second;
+        auto find_unique = find_service->second.find(_unique);
+        if (find_unique != find_service->second.end()) {
+            its_id = find_unique->second;
         }
     }
 

@@ -168,7 +168,7 @@ public:
      * \param _minor Minor service version (Default: 0).
      *
      */
-    virtual void offer_service(service_t _service, instance_t _instance,
+    virtual void offer_service(service_t _service, unique_version_t _unique,
             major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
                     DEFAULT_MINOR) = 0;
 
@@ -184,7 +184,7 @@ public:
      * \param _minor Minor service version (Default: 0).
      *
      */
-    virtual void stop_offer_service(service_t _service, instance_t _instance,
+    virtual void stop_offer_service(service_t _service, unique_version_t _unique,
             major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
                     DEFAULT_MINOR) = 0;
 
@@ -220,7 +220,7 @@ public:
      * instance's reliability configuration. This parameter has no effect for
      * events of local services.
      */
-    virtual void offer_event(service_t _service, instance_t _instance,
+    virtual void offer_event(service_t _service, unique_version_t _unique,
             event_t _notifier, const std::set<eventgroup_t> &_eventgroups,
             event_type_e _type = event_type_e::ET_EVENT,
             std::chrono::milliseconds _cycle =std::chrono::milliseconds::zero(),
@@ -244,7 +244,7 @@ public:
      *
      */
     virtual void stop_offer_event(service_t _service,
-            instance_t _instance, event_t _event) = 0;
+            unique_version_t _unique, event_t _event) = 0;
 
     /**
      *
@@ -261,7 +261,7 @@ public:
      * \param _minor Minor service version (Default: 0xFFFFFF).
      *
      */
-    virtual void request_service(service_t _service, instance_t _instance,
+    virtual void request_service(service_t _service, unique_version_t _unique,
             major_version_t _major = ANY_MAJOR,
             minor_version_t _minor = ANY_MINOR) = 0;
 
@@ -281,7 +281,7 @@ public:
      * \param _instance Instance identifier of the offered service instance.
      *
      */
-    virtual void release_service(service_t _service, instance_t _instance) = 0;
+    virtual void release_service(service_t _service, unique_version_t _unique) = 0;
 
     /**
      *
@@ -313,7 +313,7 @@ public:
      * belong to the eventgroup. Otherwise, neither event type nor reliability
      * type are known which might result in missing events.
      */
-    virtual void request_event(service_t _service, instance_t _instance,
+    virtual void request_event(service_t _service, unique_version_t _unique,
             event_t _event, const std::set<eventgroup_t> &_eventgroups,
             event_type_e _type = event_type_e::ET_EVENT,
             reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
@@ -331,7 +331,7 @@ public:
      * \param _event Event identifier of the event or field.
      * .
      */
-    virtual void release_event(service_t _service, instance_t _instance,
+    virtual void release_event(service_t _service, unique_version_t _unique,
             event_t _event) = 0;
 
     /**
@@ -358,7 +358,7 @@ public:
      * \param _event All (Default) or a specific event.
      *
      */
-    virtual void subscribe(service_t _service, instance_t _instance,
+    virtual void subscribe(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
             event_t _event = ANY_EVENT) = 0;
 
@@ -373,7 +373,7 @@ public:
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      *
      */
-    virtual void unsubscribe(service_t _service, instance_t _instance,
+    virtual void unsubscribe(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup) = 0;
 
     /**
@@ -391,7 +391,7 @@ public:
      * minor version.
      *
      */
-    virtual bool is_available(service_t _service, instance_t _instance,
+    virtual bool is_available(service_t _service, unique_version_t _unique,
             major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
 
     typedef std::map<service_t,
@@ -399,7 +399,7 @@ public:
                     std::map<major_version_t, minor_version_t >>> available_t;
 
     virtual bool are_available(available_t &_available,
-            service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
+            service_t _service = ANY_SERVICE, unique_version_t _unique = ANY_INSTANCE,
             major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
 
     /**
@@ -436,7 +436,7 @@ public:
      * \param _payload Serialized payload of the event.
      *
      */
-    virtual void notify(service_t _service, instance_t _instance,
+    virtual void notify(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload,
             bool _force = false) const = 0;
 
@@ -461,7 +461,7 @@ public:
      * \param _client Target client.
      *
      */
-    virtual void notify_one(service_t _service, instance_t _instance,
+    virtual void notify_one(service_t _service, unique_version_t _unique,
                 event_t _event, std::shared_ptr<payload> _payload, client_t _client,
                 bool _force = false) const = 0;
 
@@ -518,7 +518,7 @@ public:
      *
      */
     virtual void register_message_handler(service_t _service,
-            instance_t _instance, method_t _method,
+            unique_version_t _unique, method_t _method,
             const message_handler_t &_handler) = 0;
     /**
      *
@@ -536,7 +536,7 @@ public:
      * all methods and events.
      */
     virtual void unregister_message_handler(service_t _service,
-            instance_t _instance, method_t _method) = 0;
+            unique_version_t _unique, method_t _method) = 0;
 
     /**
      *
@@ -561,7 +561,7 @@ public:
      *
      */
     virtual void register_availability_handler(service_t _service,
-            instance_t _instance, const availability_handler_t &_handler,
+            unique_version_t _unique, const availability_handler_t &_handler,
             major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
@@ -602,7 +602,7 @@ public:
      */
     VSOMEIP_DEPRECATED_UID_GID
     virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+            unique_version_t _unique, eventgroup_t _eventgroup,
             const subscription_handler_t &_handler) = 0;
 
     /**
@@ -629,7 +629,7 @@ public:
      */
     VSOMEIP_DEPRECATED_UID_GID
     virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
             const async_subscription_handler_t &_handler) = 0;
 
     /**
@@ -645,7 +645,7 @@ public:
      *
      */
     virtual void unregister_subscription_handler(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
+                unique_version_t _unique, eventgroup_t _eventgroup) = 0;
 
     /**
      *
@@ -691,7 +691,7 @@ public:
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      * \param _event Event to unsubscribe (pass ANY_EVENT for all events of the eventgroup)
      */
-    virtual void unsubscribe(service_t _service, instance_t _instance,
+    virtual void unsubscribe(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event) = 0;
 
     /**
@@ -715,7 +715,7 @@ public:
      * subscription is answered with a SUBSCRIBE_NACK.
      */
     virtual void register_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event,
             subscription_status_handler_t _handler, bool _is_selective = false) = 0;
 
     /**
@@ -732,7 +732,7 @@ public:
      * be removed.
      */
     virtual void unregister_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event) = 0;
 
     /**
      *
@@ -883,7 +883,7 @@ public:
      * \param _offer Offer the service or stop offering it remotely
      */
     virtual bool update_service_configuration(service_t _service,
-                                              instance_t _instance,
+                                              unique_version_t _unique,
                                               std::uint16_t _port,
                                               bool _reliable,
                                               bool _magic_cookies_enabled,
@@ -945,7 +945,7 @@ public:
      */
     VSOMEIP_DEPRECATED_UID_GID
     virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+            unique_version_t _unique, eventgroup_t _eventgroup,
             const subscription_handler_ext_t &_handler) = 0;
 
     /**
@@ -972,7 +972,7 @@ public:
      */
     VSOMEIP_DEPRECATED_UID_GID
     virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
             const async_subscription_handler_ext_t &_handler) = 0;
 
 
@@ -1001,7 +1001,7 @@ public:
      * \param _filter Filter configuration to decide whether or not an
      * incoming event will be forwarded to the application.
      */
-    virtual void subscribe_with_debounce(service_t _service, instance_t _instance,
+    virtual void subscribe_with_debounce(service_t _service, unique_version_t _unique,
                 eventgroup_t _eventgroup, major_version_t _major,
                 event_t _event, const debounce_filter_t &_filter) = 0;
 
@@ -1049,7 +1049,7 @@ public:
      *
      */
     virtual void register_availability_handler(service_t _service,
-            instance_t _instance, const availability_state_handler_t &_handler,
+            unique_version_t _unique, const availability_state_handler_t &_handler,
             major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
@@ -1073,7 +1073,7 @@ public:
      *
      */
     virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+            unique_version_t _unique, eventgroup_t _eventgroup,
             const subscription_handler_sec_t &_handler) = 0;
 
     /**
@@ -1100,7 +1100,7 @@ public:
      *
      */
     virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
             async_subscription_handler_sec_t _handler) = 0;
 
     /**

@@ -83,7 +83,7 @@ private:
             const std::chrono::steady_clock::time_point _start);
     std::string get_remote_information() const;
     std::shared_ptr<struct timing> get_timing(
-            const service_t& _service, const instance_t& _instance) const;
+            const service_t& _service, const unique_version_t& _unique) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();
 

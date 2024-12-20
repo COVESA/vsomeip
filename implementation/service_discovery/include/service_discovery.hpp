@@ -33,17 +33,17 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
 
-    virtual void request_service(service_t _service, instance_t _instance,
+    virtual void request_service(service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
-    virtual void release_service(service_t _service, instance_t _instance) = 0;
+    virtual void release_service(service_t _service, unique_version_t _unique) = 0;
 
-    virtual void subscribe(service_t _service, instance_t _instance,
+    virtual void subscribe(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major,
             ttl_t _ttl, client_t _client,
             const std::shared_ptr<eventgroupinfo>& _info) = 0;
-    virtual void unsubscribe(service_t _service, instance_t _instance,
+    virtual void unsubscribe(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, client_t _client) = 0;
-    virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;
+    virtual void unsubscribe_all(service_t _service, unique_version_t _unique) = 0;
     virtual void unsubscribe_all_on_suspend() = 0;
 
     virtual bool send(bool _is_announcing) = 0;
@@ -57,7 +57,7 @@ public:
                   const boost::asio::ip::address& _remote_address = boost::asio::ip::address()) = 0;
 
     virtual void on_endpoint_connected(
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
 
     virtual void offer_service(const std::shared_ptr<serviceinfo> &_info) = 0;
