@@ -5,18 +5,17 @@ Copyright (C) 2015-2024, Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 
 ##### License
 
-This Source Code Form is subject to the terms of the Mozilla Public
-License, v. 2.0. If a copy of the MPL was not distributed with this
-file, You can obtain one at http://mozilla.org/MPL/2.0/.
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ##### Contributing Guidelines
 
 For comprehensive details on how to contribute effectively to the project, please refer to our [CONTRIBUTING.md](./CONTRIBUTING.md) file.
 
-##### vsomeip Overview
+##### vSomeIP Overview
 ----------------
-The vSomeIP stack implements the http://some-ip.com/ (Scalable service-Oriented
-MiddlewarE over IP (SOME/IP)) protocol. The stack consists out of:
+The vSomeIP stack implements the http://some-ip.com/ (Scalable service-Oriented MiddlewarE over IP (SOME/IP)) Protocol.
+The stack consists out of:
 
 * a shared library for SOME/IP (`libvsomeip3.so`)
 * a shared library for SOME/IP's configuration module (`libvsomeip3-cfg.so`)
@@ -76,14 +75,14 @@ To change the default configuration folder, call cmake like:
 ```bash
 cmake -DDEFAULT_CONFIGURATION_FOLDER=<DEFAULT CONFIGURATION FOLDER> ..
 ```
-The default configuration folder is /etc/vsomeip.
+The default configuration folder is `/etc/vsomeip`.
 
 ###### Compilation with custom default configuration file
 To change the default configuration file, call cmake like:
 ```bash
 cmake -DDEFAULT_CONFIGURATION_FILE=<DEFAULT CONFIGURATION FILE> ..
 ```
-The default configuration file is /etc/vsomeip.json.
+The default configuration file is `/etc/vsomeip.json`.
 
 ###### Compilation with signal handling
 
