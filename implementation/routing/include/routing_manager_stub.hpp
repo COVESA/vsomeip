@@ -58,9 +58,9 @@ public:
             std::uint16_t _remote_port);
 
     void on_offer_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major, minor_version_t _minor);
+            unique_version_t _unique, major_version_t _major, minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service,
-            instance_t _instance,  major_version_t _major, minor_version_t _minor);
+            unique_version_t _unique,  major_version_t _major, minor_version_t _minor);
 
     bool send_subscribe(
             const std::shared_ptr<endpoint> &_target, client_t _client,
@@ -71,22 +71,22 @@ public:
 
     bool send_unsubscribe(const std::shared_ptr<endpoint>& _target,
             client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+            unique_version_t _unique, eventgroup_t _eventgroup,
             event_t _event, remote_subscription_id_t _id);
 
     bool send_expired_subscription(const std::shared_ptr<endpoint>& _target,
             client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
+            unique_version_t _unique, eventgroup_t _eventgroup,
             event_t _event, remote_subscription_id_t _id);
 
     void send_subscribe_nack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event);
 
     void send_subscribe_ack(client_t _client, service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event);
 
     bool contained_in_routing_info(client_t _client, service_t _service,
-                                   instance_t _instance, major_version_t _major,
+                                   unique_version_t _unique, major_version_t _major,
                                    minor_version_t _minor) const;
 
     void create_local_receiver();
@@ -150,10 +150,10 @@ private:
 
     void on_offered_service_request(client_t _client, offer_type_e _offer_type);
 
-    void distribute_credentials(client_t _hoster, service_t _service, instance_t _instance);
+    void distribute_credentials(client_t _hoster, service_t _service, unique_version_t _unique);
 
     void inform_requesters(client_t _hoster, service_t _service,
-            instance_t _instance, major_version_t _major,
+            unique_version_t _unique, major_version_t _major,
             minor_version_t _minor, protocol::routing_info_entry_type_e _entry,
             bool _inform_service);
 
@@ -250,7 +250,7 @@ private:
     std::mutex local_receiver_mutex_;
 
     std::map<client_t,
-            std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>> > > > routing_info_;
+            std::pair<uint8_t, std::map<service_t, std::map<unique_version_t, std::pair<major_version_t, minor_version_t>> > > > routing_info_;
     mutable std::mutex routing_info_mutex_;
     std::shared_ptr<configuration> configuration_;
 
@@ -268,7 +268,7 @@ private:
     std::mutex pinged_clients_mutex_;
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
 
-    std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t> > > > service_requests_;
+    std::map<client_t, std::map<service_t, std::map<unique_version_t, std::pair<major_version_t, minor_version_t> > > > service_requests_;
     std::map<client_t, std::set<client_t>> connection_matrix_;
 
     std::mutex pending_security_updates_mutex_;

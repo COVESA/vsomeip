@@ -221,12 +221,12 @@ void routing_manager_base::init(const std::shared_ptr<endpoint_manager_base>& _e
 }
 
 bool routing_manager_base::offer_service(client_t _client,
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         major_version_t _major, minor_version_t _minor) {
     (void)_client;
 
     // Remote route (incoming only)
-    auto its_info = find_service(_service, _instance);
+    auto its_info = find_service(_service, _unique);
     if (its_info) {
         if (!its_info->is_local()) {
             return false;
@@ -238,7 +238,7 @@ bool routing_manager_base::offer_service(client_t _client,
                     << std::hex << std::setfill('0')
                     << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
-                    << std::setw(4) << _instance << ":"
+                    << std::setw(4) << get_instance_from_unique(_unique) << ":"
                     << std::dec
                     << static_cast<std::uint32_t>(its_info->get_major()) << ":"
                     << its_info->get_minor() << "] passed: "
@@ -247,7 +247,7 @@ bool routing_manager_base::offer_service(client_t _client,
             return false;
         }
     } else {
-        its_info = create_service_info(_service, _instance, _major, _minor,
+        its_info = create_service_info(_service, _unique, _major, _minor,
                 DEFAULT_TTL, true);
     }
     {
@@ -255,9 +255,9 @@ bool routing_manager_base::offer_service(client_t _client,
         // Set major version for all registered events of this service and instance
         const auto found_service = events_.find(_service);
         if (found_service != events_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (const auto &j : found_instance->second) {
+            const auto found_unique = found_service->second.find(_unique);
+            if (found_unique != found_service->second.end()) {
+                for (const auto &j : found_unique->second) {
                     j.second->set_version(_major);
                 }
             }
@@ -267,7 +267,7 @@ bool routing_manager_base::offer_service(client_t _client,
 }
 
 void routing_manager_base::stop_offer_service(client_t _client,
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         major_version_t _major, minor_version_t _minor) {
     (void)_client;
     (void)_major;
@@ -278,9 +278,9 @@ void routing_manager_base::stop_offer_service(client_t _client,
         std::lock_guard<std::mutex> its_lock(events_mutex_);
         auto its_events_service = events_.find(_service);
         if (its_events_service != events_.end()) {
-            auto its_events_instance = its_events_service->second.find(_instance);
-            if (its_events_instance != its_events_service->second.end()) {
-                for (auto &e : its_events_instance->second)
+            auto its_events_unique = its_events_service->second.find(_unique);
+            if (its_events_unique != its_events_service->second.end()) {
+                for (auto &e : its_events_unique->second)
                     events[e.first] = e.second;
 
             }
@@ -293,9 +293,9 @@ void routing_manager_base::stop_offer_service(client_t _client,
 }
 
 void routing_manager_base::request_service(client_t _client,
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         major_version_t _major, minor_version_t _minor) {
-    auto its_info = find_service(_service, _instance);
+    auto its_info = find_service(_service, _unique);
     if (its_info) {
         if ((_major == its_info->get_major()
                 || DEFAULT_MAJOR == its_info->get_major()
@@ -309,7 +309,7 @@ void routing_manager_base::request_service(client_t _client,
                     << std::hex << std::setfill('0')
                     << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
-                    << std::setw(4) << _instance << ":"
+                    << std::setw(4) << get_instance_from_unique(_unique) << ":"
                     << std::dec
                     << static_cast<std::uint32_t>(its_info->get_major()) << ":"
                     << its_info->get_minor() << "] passed: "
@@ -320,8 +320,8 @@ void routing_manager_base::request_service(client_t _client,
 }
 
 void routing_manager_base::release_service(client_t _client,
-        service_t _service, instance_t _instance) {
-    auto its_info = find_service(_service, _instance);
+        service_t _service, unique_version_t _unique) {
+    auto its_info = find_service(_service, _unique);
     if (its_info) {
         its_info->remove_client(_client);
     }
@@ -329,9 +329,9 @@ void routing_manager_base::release_service(client_t _client,
         std::lock_guard<std::mutex> its_service_guard(local_services_mutex_);
         auto found_service = local_services_history_.find(_service);
         if (found_service != local_services_history_.end()) {
-           auto found_instance = found_service->second.find(_instance);
-           if (found_instance != found_service->second.end()) {
-               found_service->second.erase(_instance);
+           auto found_unique = found_service->second.find(_unique);
+           if (found_unique != found_service->second.end()) {
+               found_service->second.erase(_unique);
                if (found_service->second.empty()) {
                    local_services_history_.erase(_service);
                }
@@ -341,7 +341,7 @@ void routing_manager_base::release_service(client_t _client,
 }
 
 void routing_manager_base::register_event(client_t _client,
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         event_t _notifier,
         const std::set<eventgroup_t> &_eventgroups,
         const event_type_e _type,
@@ -352,10 +352,10 @@ void routing_manager_base::register_event(client_t _client,
         bool _is_provided, bool _is_shadow, bool _is_cache_placeholder) {
     std::lock_guard<std::mutex> its_registration_lock(event_registration_mutex_);
 
-    auto determine_event_reliability = [this, &_service, &_instance,
+    auto determine_event_reliability = [this, &_service, &_unique,
                                         &_notifier, &_reliability]() {
         reliability_type_e its_reliability =
-                configuration_->get_event_reliability(_service, _instance, _notifier);
+                configuration_->get_event_reliability(_service, _unique, _notifier);
         if (its_reliability != reliability_type_e::RT_UNKNOWN) {
             // event was explicitly configured -> overwrite value passed via API
             return its_reliability;
@@ -363,11 +363,11 @@ void routing_manager_base::register_event(client_t _client,
             // use value provided via API
             return _reliability;
         } else { // automatic mode, user service' reliability
-            return configuration_->get_service_reliability(_service, _instance);
+            return configuration_->get_service_reliability(_service, _unique);
         }
     };
 
-    std::shared_ptr<event> its_event = find_event(_service, _instance, _notifier);
+    std::shared_ptr<event> its_event = find_event(_service, _unique, _notifier);
     bool transfer_subscriptions_from_any_event(false);
     if (its_event) {
         if (!its_event->is_cache_placeholder()) {
@@ -414,7 +414,7 @@ void routing_manager_base::register_event(client_t _client,
             its_event->set_reliability(determine_event_reliability());
             its_event->set_provided(_is_provided);
             its_event->set_cache_placeholder(false);
-            std::shared_ptr<serviceinfo> its_service = find_service(_service, _instance);
+            std::shared_ptr<serviceinfo> its_service = find_service(_service, _unique);
             if (its_service) {
                 its_event->set_version(its_service->get_major());
             }
@@ -435,13 +435,13 @@ void routing_manager_base::register_event(client_t _client,
     } else {
         its_event = std::make_shared<event>(this, _is_shadow);
         its_event->set_service(_service);
-        its_event->set_instance(_instance);
+        its_event->set_instance(get_instance_from_unique(_unique));
         its_event->set_event(_notifier);
         its_event->set_type(_type);
         its_event->set_reliability(determine_event_reliability());
         its_event->set_provided(_is_provided);
         its_event->set_cache_placeholder(_is_cache_placeholder);
-        std::shared_ptr<serviceinfo> its_service = find_service(_service, _instance);
+        std::shared_ptr<serviceinfo> its_service = find_service(_service, _unique);
         if (its_service) {
             its_event->set_version(its_service->get_major());
         }
@@ -456,7 +456,7 @@ void routing_manager_base::register_event(client_t _client,
 
         if ((_is_shadow || is_routing_manager()) && !_epsilon_change_func) {
             std::shared_ptr<debounce_filter_impl_t> its_debounce
-                = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
+                = configuration_->get_debounce(host_->get_name(), _service, _unique, _notifier);
             if (its_debounce) {
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change="
@@ -472,7 +472,7 @@ void routing_manager_base::register_event(client_t _client,
                         << " SOME/IP event "
                         << std::hex << std::setfill('0')
                         << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << get_instance_from_unique(_unique) << "."
                         << std::setw(4) << _notifier << "."
                         << " Debounce parameters: "
                         << its_debounce_parameters.str();
@@ -571,7 +571,7 @@ void routing_manager_base::register_event(client_t _client,
         // was stored in the cache placeholder. Move the subscribers
         // into new event
         std::shared_ptr<event> its_any_event =
-                find_event(_service, _instance, ANY_EVENT);
+                find_event(_service, _unique, ANY_EVENT);
         if (its_any_event) {
             std::set<eventgroup_t> any_events_eventgroups =
                     its_any_event->get_eventgroups();
@@ -593,25 +593,25 @@ void routing_manager_base::register_event(client_t _client,
 
     for (auto eg : _eventgroups) {
         std::shared_ptr<eventgroupinfo> its_eventgroupinfo
-            = find_eventgroup(_service, _instance, eg);
+            = find_eventgroup(_service, _unique, eg);
         if (!its_eventgroupinfo) {
             its_eventgroupinfo = std::make_shared<eventgroupinfo>();
             its_eventgroupinfo->set_service(_service);
-            its_eventgroupinfo->set_instance(_instance);
+            its_eventgroupinfo->set_instance(get_instance_from_unique(_unique));
             its_eventgroupinfo->set_eventgroup(eg);
             its_eventgroupinfo->set_max_remote_subscribers(
                     configuration_->get_max_remote_subscribers());
             std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-            eventgroups_[_service][_instance][eg] = its_eventgroupinfo;
+            eventgroups_[_service][_unique][eg] = its_eventgroupinfo;
         }
         its_eventgroupinfo->add_event(its_event);
     }
 
     std::lock_guard<std::mutex> its_lock(events_mutex_);
-    events_[_service][_instance][_notifier] = its_event;
+    events_[_service][_unique][_notifier] = its_event;
 }
 
-void routing_manager_base::unregister_event(client_t _client, service_t _service, instance_t _instance,
+void routing_manager_base::unregister_event(client_t _client, service_t _service, unique_version_t _unique,
             event_t _event, bool _is_provided) {
     (void)_client;
     std::shared_ptr<event> its_unrefed_event;
@@ -619,15 +619,15 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
         std::lock_guard<std::mutex> its_lock(events_mutex_);
         auto found_service = events_.find(_service);
         if (found_service != events_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_event = found_instance->second.find(_event);
-                if (found_event != found_instance->second.end()) {
+            auto found_unique = found_service->second.find(_unique);
+            if (found_unique != found_service->second.end()) {
+                auto found_event = found_unique->second.find(_event);
+                if (found_event != found_unique->second.end()) {
                     auto its_event = found_event->second;
                     its_event->remove_ref(_client, _is_provided);
                     if (!its_event->has_ref()) {
                         its_unrefed_event = its_event;
-                        found_instance->second.erase(found_event);
+                        found_unique->second.erase(found_event);
                     } else if (_is_provided) {
                         its_event->set_provided(false);
                     }
@@ -639,11 +639,11 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
         auto its_eventgroups = its_unrefed_event->get_eventgroups();
         for (auto eg : its_eventgroups) {
             std::shared_ptr<eventgroupinfo> its_eventgroup_info
-                = find_eventgroup(_service, _instance, eg);
+                = find_eventgroup(_service, _unique, eg);
             if (its_eventgroup_info) {
                 its_eventgroup_info->remove_event(its_unrefed_event);
                 if (0 == its_eventgroup_info->get_events().size()) {
-                    remove_eventgroup_info(_service, _instance, eg);
+                    remove_eventgroup_info(_service, _unique, eg);
                 }
             }
         }
@@ -651,16 +651,16 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
 }
 
 std::set<std::shared_ptr<event>> routing_manager_base::find_events(
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup) const {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
     std::set<std::shared_ptr<event> > its_events;
     auto found_service = eventgroups_.find(_service);
     if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
+        auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            auto found_eventgroup = found_unique->second.find(_eventgroup);
+            if (found_eventgroup != found_unique->second.end()) {
                 return found_eventgroup->second->get_events();
             }
         }
@@ -669,14 +669,14 @@ std::set<std::shared_ptr<event>> routing_manager_base::find_events(
 }
 
 std::vector<event_t> routing_manager_base::find_events(
-        service_t _service, instance_t _instance) const {
+        service_t _service, unique_version_t _unique) const {
     std::vector<event_t> its_events;
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     const auto found_service = events_.find(_service);
     if (found_service != events_.end()) {
-        const auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto& e : found_instance->second) {
+        const auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            for (const auto& e : found_unique->second) {
                 its_events.push_back(e.first);
             }
         }
@@ -685,7 +685,7 @@ std::vector<event_t> routing_manager_base::find_events(
 }
 
 bool routing_manager_base::is_response_allowed(client_t _sender, service_t _service,
-        instance_t _instance, method_t _method) {
+        unique_version_t _unique, method_t _method) {
 
     if (!configuration_->is_security_enabled()
         || !configuration_->is_local_routing()) {
@@ -694,17 +694,17 @@ bool routing_manager_base::is_response_allowed(client_t _sender, service_t _serv
 
     {
         std::lock_guard<std::mutex> its_lock(local_services_mutex_);
-        if (_sender == find_local_client_unlocked(_service, _instance)) {
+        if (_sender == find_local_client_unlocked(_service, _unique)) {
             // sender is still offering the service
             return true;
         }
 
         auto found_service = local_services_history_.find(_service);
         if (found_service != local_services_history_.end()) {
-           auto found_instance = found_service->second.find(_instance);
-           if (found_instance != found_service->second.end()) {
-               auto found_client = found_instance->second.find(_sender);
-               if (found_client != found_instance->second.end()) {
+           auto found_unique = found_service->second.find(_unique);
+           if (found_unique != found_service->second.end()) {
+               auto found_client = found_unique->second.find(_sender);
+               if (found_client != found_unique->second.end()) {
                    // sender was offering the service and is still connected
                    return true;
                }
@@ -723,7 +723,7 @@ bool routing_manager_base::is_response_allowed(client_t _sender, service_t _serv
             << " : routing_manager_base::is_response_allowed: "
             << "received a response from client 0x" << _sender
             << " which does not offer service/instance/method "
-            << _service << "/" << _instance << "/" << _method
+            << _service << "/" << get_instance_from_unique(_unique) << "/" << _method
             << security_mode_text;
 
     return !configuration_->is_security_audit();
@@ -731,19 +731,19 @@ bool routing_manager_base::is_response_allowed(client_t _sender, service_t _serv
 
 bool routing_manager_base::is_subscribe_to_any_event_allowed(
         const vsomeip_sec_client_t *_sec_client, client_t _client,
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+        service_t _service, unique_version_t _unique, eventgroup_t _eventgroup) {
 
     bool is_allowed(true);
 
-    auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+    auto its_eventgroup = find_eventgroup(_service, _unique, _eventgroup);
     if (its_eventgroup) {
         for (const auto& e : its_eventgroup->get_events()) {
             if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_access_member(
-                    _sec_client, _service, _instance, e->get_event())) {
+                    _sec_client, _service, get_instance_from_unique(_unique), e->get_event())) {
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                     << _client << " : routing_manager_base::is_subscribe_to_any_event_allowed: "
                     << "subscribes to service/instance/event "
-                    << _service << "/" << _instance << "/" << e->get_event()
+                    << _service << "/" << get_instance_from_unique(_unique) << "/" << e->get_event()
                     << " which violates the security policy!";
                 is_allowed = false;
                 break;
@@ -789,7 +789,7 @@ void routing_manager_base::add_known_client(client_t _client, const std::string 
 
 void routing_manager_base::subscribe(client_t _client,
         const vsomeip_sec_client_t *_sec_client,
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup, major_version_t _major,
         event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) {
 
@@ -797,28 +797,28 @@ void routing_manager_base::subscribe(client_t _client,
     (void)_sec_client;
 
     std::set<event_t> its_already_subscribed_events;
-    bool inserted = insert_subscription(_service, _instance, _eventgroup,
+    bool inserted = insert_subscription(_service, _unique, _eventgroup,
             _event, _filter, _client, &its_already_subscribed_events);
     if (inserted) {
-        notify_one_current_value(_client, _service, _instance, _eventgroup,
+        notify_one_current_value(_client, _service, _unique, _eventgroup,
                 _event, its_already_subscribed_events);
     }
 }
 
 void routing_manager_base::unsubscribe(client_t _client,
         const vsomeip_sec_client_t *_sec_client,
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
         event_t _event) {
 
     (void)_sec_client;
 
     if (_event != ANY_EVENT) {
-        auto its_event = find_event(_service, _instance, _event);
+        auto its_event = find_event(_service, _unique, _event);
         if (its_event) {
             its_event->remove_subscriber(_eventgroup, _client);
         }
     } else {
-        auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+        auto its_eventgroup = find_eventgroup(_service, _unique, _eventgroup);
         if (its_eventgroup) {
             for (const auto &e : its_eventgroup->get_events()) {
                 if (e)
@@ -828,28 +828,28 @@ void routing_manager_base::unsubscribe(client_t _client,
     }
 }
 
-void routing_manager_base::notify(service_t _service, instance_t _instance,
+void routing_manager_base::notify(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload,
             bool _force) {
 
-    std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+    std::shared_ptr<event> its_event = find_event(_service, _unique, _event);
     if (its_event) {
         its_event->set_payload(_payload, _force);
     } else {
         VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
-            << std::hex << _service << "." << _instance << "." << _event
+            << std::hex << _service << "." << get_instance_from_unique(_unique) << "." << _event
             << "]";
     }
 }
 
-void routing_manager_base::notify_one(service_t _service, instance_t _instance,
+void routing_manager_base::notify_one(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload,
             client_t _client, bool _force
 #ifdef VSOMEIP_ENABLE_COMPAT
             , bool _remote_subscriber
 #endif
             ) {
-    std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+    std::shared_ptr<event> its_event = find_event(_service, _unique, _event);
     if (its_event) {
         // Event is valid for service/instance
         bool found_eventgroup(false);
@@ -861,14 +861,14 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance,
         // Iterate over all groups of the event to ensure at least
         // one valid eventgroup for service/instance exists.
         for (auto its_group : its_event->get_eventgroups()) {
-            auto its_eventgroup = find_eventgroup(_service, _instance, its_group);
+            auto its_eventgroup = find_eventgroup(_service, _unique, its_group);
             if (its_eventgroup) {
                 // Eventgroup is valid for service/instance
                 found_eventgroup = true;
 #ifdef VSOMEIP_ENABLE_COMPAT
                 valid_group = its_group;
                 its_subscription_state = get_incoming_subscription_state(_client, _service,
-                        _instance, valid_group, _event);
+                        _unique, valid_group, _event);
 #endif
                 if (ep_mgr_->find_local(_client)) {
                     already_subscribed = its_event->has_subscriber(its_group, _client);
@@ -897,23 +897,23 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance,
                         << std::hex << std::setfill('0')
                         << std::setw(4) << _client << "): ["
                         << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << get_instance_from_unique(_unique) << "."
                         << std::setw(4) << valid_group << "."
                         << std::setw(4) << _event << "]"
                         << " insert pending notification!";
                     std::shared_ptr<message> its_notification
                         = runtime::get()->create_notification();
                     its_notification->set_service(_service);
-                    its_notification->set_instance(_instance);
+                    its_notification->set_instance(get_instance_from_unique(_unique));
                     its_notification->set_method(_event);
                     its_notification->set_payload(_payload);
-                    auto service_info = find_service(_service, _instance);
+                    auto service_info = find_service(_service, _unique);
                     if (service_info) {
                         its_notification->set_interface_version(service_info->get_major());
                     }
                     {
                         std::lock_guard<std::recursive_mutex> its_lock(pending_notify_ones_mutex_);
-                        pending_notify_ones_[_service][_instance][valid_group] = its_notification;
+                        pending_notify_ones_[_service][_unique][valid_group] = its_notification;
                     }
                 }
             }
@@ -921,32 +921,32 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance,
         }
     } else {
         VSOMEIP_WARNING << "Attempt to update the undefined event/field ["
-            << std::hex << _service << "." << _instance << "." << _event
+            << std::hex << _service << "." << get_instance_from_unique(_unique) << "." << _event
             << "]";
     }
 }
 
 #ifdef VSOMEIP_ENABLE_COMPAT
-void routing_manager_base::send_pending_notify_ones(service_t _service, instance_t _instance,
+void routing_manager_base::send_pending_notify_ones(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, client_t _client, bool _remote_subscriber) {
     std::lock_guard<std::recursive_mutex> its_lock(pending_notify_ones_mutex_);
     auto its_service = pending_notify_ones_.find(_service);
     if (its_service != pending_notify_ones_.end()) {
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            auto its_group = its_instance->second.find(_eventgroup);
-            if (its_group != its_instance->second.end()) {
+        auto its_unique = its_service->second.find(_unique);
+        if (its_unique != its_service->second.end()) {
+            auto its_group = its_unique->second.find(_eventgroup);
+            if (its_group != its_unique->second.end()) {
                 VSOMEIP_INFO << "routing_manager_base::send_pending_notify_ones("
                     << std::hex << std::setfill('0')
                     << std::setw(4) << _client << "): ["
                     << std::setw(4) << _service << "."
-                    << std::setw(4) << _instance << "."
+                    << std::setw(4) << get_instance_from_unique(_unique) << "."
                     << std::setw(4) << _eventgroup << "."
                     << std::setw(4) << its_group->second->get_method() << "]";
 
-                notify_one(_service, _instance, its_group->second->get_method(),
+                notify_one(_service, _unique, its_group->second->get_method(),
                         its_group->second->get_payload(), _client, false, _remote_subscriber);
-                its_instance->second.erase(_eventgroup);
+                its_unique->second.erase(_eventgroup);
             }
         }
     }
@@ -954,15 +954,15 @@ void routing_manager_base::send_pending_notify_ones(service_t _service, instance
 #endif
 
 void routing_manager_base::unset_all_eventpayloads(service_t _service,
-                                                   instance_t _instance) {
+                                                   unique_version_t _unique) {
     std::set<std::shared_ptr<event>> its_events;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
         const auto found_service = eventgroups_.find(_service);
         if (found_service != eventgroups_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (const auto &eventgroupinfo : found_instance->second) {
+            const auto found_unique = found_service->second.find(_unique);
+            if (found_unique != found_service->second.end()) {
+                for (const auto &eventgroupinfo : found_unique->second) {
                     for (const auto &event : eventgroupinfo.second->get_events()) {
                         its_events.insert(event);
                     }
@@ -976,17 +976,17 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service,
 }
 
 void routing_manager_base::unset_all_eventpayloads(service_t _service,
-                                                   instance_t _instance,
+                                                   unique_version_t _unique,
                                                    eventgroup_t _eventgroup) {
     std::set<std::shared_ptr<event>> its_events;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
         const auto found_service = eventgroups_.find(_service);
         if (found_service != eventgroups_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                const auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
+            const auto found_unique = found_service->second.find(_unique);
+            if (found_unique != found_service->second.end()) {
+                const auto found_eventgroup = found_unique->second.find(_eventgroup);
+                if (found_eventgroup != found_unique->second.end()) {
                     for (const auto &event : found_eventgroup->second->get_events()) {
                         its_events.insert(event);
                     }
@@ -1000,15 +1000,15 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service,
 }
 
 void routing_manager_base::notify_one_current_value(
-        client_t _client, service_t _service, instance_t _instance,
+        client_t _client, service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup, event_t _event,
         const std::set<event_t> &_events_to_exclude) {
     if (_event != ANY_EVENT) {
-        std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+        std::shared_ptr<event> its_event = find_event(_service, _unique, _event);
         if (its_event && its_event->is_field())
             its_event->notify_one(_client, false);
     } else {
-        auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+        auto its_eventgroup = find_eventgroup(_service, _unique, _eventgroup);
         if (its_eventgroup) {
             std::set<std::shared_ptr<event> > its_events = its_eventgroup->get_events();
             for (const auto &e : its_events) {
@@ -1045,39 +1045,39 @@ bool routing_manager_base::send(client_t _client,
 
 // ********************************* PROTECTED **************************************
 std::shared_ptr<serviceinfo> routing_manager_base::create_service_info(
-        service_t _service, instance_t _instance, major_version_t _major,
+        service_t _service, unique_version_t _unique, major_version_t _major,
         minor_version_t _minor, ttl_t _ttl, bool _is_local_service) {
     std::shared_ptr<serviceinfo> its_info =
-            std::make_shared<serviceinfo>(_service, _instance,
+            std::make_shared<serviceinfo>(_service, _unique,
                     _major, _minor, _ttl, _is_local_service);
     {
         std::lock_guard<std::mutex> its_lock(services_mutex_);
-        services_[_service][_instance] = its_info;
+        services_[_service][_unique] = its_info;
     }
     if (!_is_local_service) {
         std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
-        services_remote_[_service][_instance] = its_info;
+        services_remote_[_service][_unique] = its_info;
     }
     return its_info;
 }
 
 std::shared_ptr<serviceinfo> routing_manager_base::find_service(
-        service_t _service, instance_t _instance) const {
+        service_t _service, unique_version_t _unique) const {
     std::shared_ptr<serviceinfo> its_info;
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     auto found_service = services_.find(_service);
     if (found_service != services_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            its_info = found_instance->second;
+        auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            its_info = found_unique->second;
         }
     }
     return its_info;
 }
 
-void routing_manager_base::clear_service_info(service_t _service, instance_t _instance,
+void routing_manager_base::clear_service_info(service_t _service, unique_version_t _unique,
         bool _reliable) {
-    std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
+    std::shared_ptr<serviceinfo> its_info(find_service(_service, _unique));
     if (!its_info) {
         return;
     }
@@ -1094,7 +1094,7 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
                 services_.erase(_service);
                 deleted_service = true;
             } else {
-                services_[_service].erase(_instance);
+                services_[_service].erase(_unique);
                 deleted_instance = true;
             }
         } else {
@@ -1107,7 +1107,7 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
         if (deleted_service) {
             services_remote_.erase(_service);
         } else if (deleted_instance) {
-            services_remote_[_service].erase(_instance);
+            services_remote_[_service].erase(_unique);
         }
     }
 }
@@ -1122,21 +1122,21 @@ services_t routing_manager_base::get_services_remote() const {
     return services_remote_;
 }
 
-bool routing_manager_base::is_available(service_t _service, instance_t _instance,
+bool routing_manager_base::is_available(service_t _service, unique_version_t _unique,
                                         major_version_t _major) const {
     bool available(false);
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
-        if (_instance == ANY_INSTANCE) {
+        if (get_instance_from_unique(_unique) == ANY_INSTANCE) {
             return true;
         }
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
+        auto its_unique = its_service->second.find(_unique);
+        if (its_unique != its_service->second.end()) {
             if (_major == ANY_MAJOR) {
                 return true;
             }
-            if (std::get<0>(its_instance->second) == _major) {
+            if (std::get<0>(its_unique->second) == _major) {
                 available = true;
             }
         }
@@ -1144,19 +1144,19 @@ bool routing_manager_base::is_available(service_t _service, instance_t _instance
     return available;
 }
 
-std::set<client_t> routing_manager_base::find_local_clients(service_t _service, instance_t _instance) {
+std::set<client_t> routing_manager_base::find_local_clients(service_t _service, unique_version_t _unique) {
     std::set<client_t> its_clients;
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
-        if (_instance == ANY_INSTANCE) {
-            for (auto its_instance : its_service->second) {
-                its_clients.insert(std::get<2>(its_instance.second));
+        if (get_instance_from_unique(_unique) == ANY_INSTANCE) {
+            for (auto its_unique : its_service->second) {
+                its_clients.insert(std::get<2>(its_unique.second));
            }
         } else {
-            auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                its_clients.insert(std::get<2>(its_instance->second));
+            auto its_unique = its_service->second.find(_unique);
+            if (its_unique != its_service->second.end()) {
+                its_clients.insert(std::get<2>(its_unique->second));
             }
         }
     }
@@ -1164,19 +1164,19 @@ std::set<client_t> routing_manager_base::find_local_clients(service_t _service, 
 }
 
 client_t routing_manager_base::find_local_client(service_t _service,
-                                                 instance_t _instance) const {
+                                                 unique_version_t _unique) const {
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
-    return find_local_client_unlocked(_service, _instance);
+    return find_local_client_unlocked(_service, _unique);
 }
 
 client_t routing_manager_base::find_local_client_unlocked(service_t _service,
-                                                 instance_t _instance) const {
+                                                 unique_version_t _unique) const {
     client_t its_client(VSOMEIP_ROUTING_CLIENT);
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            its_client = std::get<2>(its_instance->second);
+        auto its_unique = its_service->second.find(_unique);
+        if (its_unique != its_service->second.end()) {
+            its_client = std::get<2>(its_unique->second);
         }
     }
     return its_client;
@@ -1187,7 +1187,7 @@ void routing_manager_base::remove_local(client_t _client, bool _remove_uid) {
 }
 
 void routing_manager_base::remove_local(client_t _client,
-                  const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
+                  const std::set<std::tuple<service_t, unique_version_t, eventgroup_t>>& _subscribed_eventgroups,
                   bool _remove_sec_client) {
 
     vsomeip_sec_client_t its_sec_client;
@@ -1208,12 +1208,12 @@ void routing_manager_base::remove_local(client_t _client,
     {
         std::lock_guard<std::mutex> its_lock(local_services_mutex_);
         // Finally remove all services that are implemented by the client.
-        std::set<std::pair<service_t, instance_t>> its_services;
+        std::set<std::pair<service_t, unique_version_t>> its_services;
         for (const auto& s : local_services_) {
             for (const auto& i : s.second) {
                 if (std::get<2>(i.second) == _client) {
                     its_services.insert({ s.first, i.first });
-                    host_->on_availability(s.first, i.first, availability_state_e::AS_UNAVAILABLE,
+                    host_->on_availability(s.first, get_instance_from_unique(i.first), availability_state_e::AS_UNAVAILABLE,
                             std::get<0>(i.second), std::get<1>(i.second));
                 }
             }
@@ -1226,7 +1226,7 @@ void routing_manager_base::remove_local(client_t _client,
         }
 
         // remove disconnected client from offer service history
-        std::set<std::tuple<service_t, instance_t, client_t>> its_clients;
+        std::set<std::tuple<service_t, unique_version_t, client_t>> its_clients;
         for (const auto& s : local_services_history_) {
             for (const auto& i : s.second) {
                 for (const auto& c : i.second) {
@@ -1247,15 +1247,15 @@ void routing_manager_base::remove_local(client_t _client,
 }
 
 std::shared_ptr<event> routing_manager_base::find_event(service_t _service,
-        instance_t _instance, event_t _event) const {
+        unique_version_t _unique, event_t _event) const {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     std::shared_ptr<event> its_event;
     auto find_service = events_.find(_service);
     if (find_service != events_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            auto find_event = find_instance->second.find(_event);
-            if (find_event != find_instance->second.end()) {
+        auto find_unique = find_service->second.find(_unique);
+        if (find_unique != find_service->second.end()) {
+            auto find_event = find_unique->second.find(_event);
+            if (find_event != find_unique->second.end()) {
                 its_event = find_event->second;
             }
         }
@@ -1265,16 +1265,16 @@ std::shared_ptr<event> routing_manager_base::find_event(service_t _service,
 
 std::set<std::shared_ptr<eventgroupinfo> >
 routing_manager_base::find_eventgroups(
-        service_t _service, instance_t _instance) const {
+        service_t _service, unique_version_t _unique) const {
 
     std::set<std::shared_ptr<eventgroupinfo> > its_eventgroups;
 
     std::lock_guard<std::mutex> its_lock{eventgroups_mutex_};
     auto found_service = eventgroups_.find(_service);
     if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto &e : found_instance->second)
+        auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            for (const auto &e : found_unique->second)
                 its_eventgroups.insert(e.second);
         }
     }
@@ -1283,24 +1283,24 @@ routing_manager_base::find_eventgroups(
 }
 
 std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup) const {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
 
     std::shared_ptr<eventgroupinfo> its_info(nullptr);
     auto found_service = eventgroups_.find(_service);
     if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
+        auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            auto found_eventgroup = found_unique->second.find(_eventgroup);
+            if (found_eventgroup != found_unique->second.end()) {
                 its_info = found_eventgroup->second;
                 std::shared_ptr<serviceinfo> its_service_info
-                    = find_service(_service, _instance);
+                    = find_service(_service, _unique);
                 if (its_service_info) {
                     std::string its_multicast_address;
                     uint16_t its_multicast_port;
-                    if (configuration_->get_multicast(_service, _instance,
+                    if (configuration_->get_multicast(_service, _unique,
                             _eventgroup,
                             its_multicast_address, its_multicast_port)) {
                         try {
@@ -1312,7 +1312,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                         catch (...) {
                             VSOMEIP_ERROR << "Eventgroup ["
                                 << std::hex << std::setfill('0') << std::setw(4)
-                                << _service << "." << _instance << "." << _eventgroup
+                                << _service << "." << get_instance_from_unique(_unique) << "." << _eventgroup
                                 << "] is configured as multicast, but no valid "
                                        "multicast address is configured!";
                         }
@@ -1322,7 +1322,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                     its_info->set_major(its_service_info->get_major());
                     its_info->set_ttl(its_service_info->get_ttl());
                     its_info->set_threshold(configuration_->get_threshold(
-                            _service, _instance, _eventgroup));
+                            _service, get_instance_from_unique(_unique), _eventgroup));
                 }
             }
         }
@@ -1331,19 +1331,19 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
 }
 
 void routing_manager_base::remove_eventgroup_info(service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup) {
+        unique_version_t _unique, eventgroup_t _eventgroup) {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
     auto found_service = eventgroups_.find(_service);
     if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            found_instance->second.erase(_eventgroup);
+        auto found_unique = found_service->second.find(_unique);
+        if (found_unique != found_service->second.end()) {
+            found_unique->second.erase(_eventgroup);
         }
     }
 }
 
 bool routing_manager_base::send_local_notification(client_t _client,
-        const byte_t *_data, uint32_t _size, instance_t _instance,
+        const byte_t *_data, uint32_t _size, unique_version_t _unique,
         bool _reliable, uint8_t _status_check, bool _force) {
 #ifdef USE_DLT
     bool has_local(false);
@@ -1353,7 +1353,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
     method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
-    std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
+    std::shared_ptr<event> its_event = find_event(its_service, _unique, its_method);
     if (its_event && !its_event->is_shadow()) {
         for (auto its_client : its_event->get_filtered_subscribers(_force)) {
 
@@ -1370,7 +1370,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
 
             std::shared_ptr<endpoint> its_local_target = ep_mgr_->find_local(its_client);
             if (its_local_target) {
-                send_local(its_local_target, its_client, _data, _size, _instance, _reliable,
+                send_local(its_local_target, its_client, _data, _size, _unique, _reliable,
                            protocol::id_e::SEND_ID, _status_check);
             }
         }
@@ -1379,7 +1379,7 @@ bool routing_manager_base::send_local_notification(client_t _client,
     // Trace the message if a local client but will _not_ be forwarded to the routing manager
     if (has_local && !has_remote) {
         trace::header its_header;
-        if (its_header.prepare(nullptr, true, _instance))
+        if (its_header.prepare(nullptr, true, get_instance_from_unique(_unique)))
             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                     _data, _size);
     }
@@ -1389,18 +1389,19 @@ bool routing_manager_base::send_local_notification(client_t _client,
 
 bool routing_manager_base::send_local(
         std::shared_ptr<endpoint> &_target, client_t _client,
-        const byte_t *_data, uint32_t _size, instance_t _instance,
+        const byte_t *_data, uint32_t _size, unique_version_t _unique,
         bool _reliable, protocol::id_e _command, uint8_t _status_check) const {
 
     bool has_sent(false);
 
     protocol::send_command its_command(_command);
     its_command.set_client(get_client());
-    its_command.set_instance(_instance);
+    its_command.set_instance(get_instance_from_unique(_unique));
     its_command.set_reliable(_reliable);
     its_command.set_status(_status_check);
     its_command.set_target(_client);
     its_command.set_message(std::vector<byte_t>(_data, _data + _size));
+    its_command.set_version(get_major_from_unique(_unique));
 
     std::vector<byte_t> its_buffer;
     protocol::error_e its_error;
@@ -1413,13 +1414,13 @@ bool routing_manager_base::send_local(
 }
 
 bool routing_manager_base::insert_subscription(
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
         event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
         client_t _client, std::set<event_t> *_already_subscribed_events) {
 
     bool is_inserted(false);
     if (_event != ANY_EVENT) { // subscribe to specific event
-        std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
+        std::shared_ptr<event> its_event = find_event(_service, _unique, _event);
         if (its_event) {
             is_inserted = its_event->add_subscriber(_eventgroup, _filter, _client,
                     host_->is_routing());
@@ -1428,18 +1429,18 @@ bool routing_manager_base::insert_subscription(
                 << std::hex << std::setfill('0')
                 << std::setw(4) << _client << "): ["
                 << std::setw(4) << _service << "."
-                << std::setw(4) << _instance << "."
+                << std::setw(4) << get_instance_from_unique(_unique) << "."
                 << std::setw(4) << _eventgroup << "."
                 << std::setw(4) << _event << "]"
                 << " received subscription for unknown (unrequested / "
                 << "unoffered) event. Creating placeholder event holding "
                 << "subscription until event is requested/offered.";
             is_inserted = create_placeholder_event_and_subscribe(_service,
-                    _instance, _eventgroup, _event, _filter, _client);
+                    _unique, _eventgroup, _event, _filter, _client);
         }
     } else { // subscribe to all events of the eventgroup
         std::shared_ptr<eventgroupinfo> its_eventgroup
-            = find_eventgroup(_service, _instance, _eventgroup);
+            = find_eventgroup(_service, _unique, _eventgroup);
         bool create_place_holder(false);
         if (its_eventgroup) {
             std::set<std::shared_ptr<event>> its_events = its_eventgroup->get_events();
@@ -1465,14 +1466,14 @@ bool routing_manager_base::insert_subscription(
                 << std::hex << std::setfill('0')
                 << std::setw(4) << _client << "): ["
                 << std::setw(4) << _service << "."
-                << std::setw(4) << _instance << "."
+                << std::setw(4) << get_instance_from_unique(_unique) << "."
                 << std::setw(4) << _eventgroup << "."
                 << std::setw(4) << _event << "]"
                 << " received subscription for unknown (unrequested / "
                 << "unoffered) eventgroup. Creating placeholder event holding "
                 << "subscription until event is requested/offered.";
             is_inserted = create_placeholder_event_and_subscribe(_service,
-                    _instance, _eventgroup, _event, _filter, _client);
+                    _unique, _eventgroup, _event, _filter, _client);
         }
     }
     return is_inserted;
@@ -1544,12 +1545,13 @@ void routing_manager_base::send_pending_subscriptions(service_t _service,
 }
 
 void routing_manager_base::remove_pending_subscription(service_t _service,
-        instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
+        unique_version_t _unique, eventgroup_t _eventgroup, event_t _event) {
     if (_eventgroup == 0xFFFF) {
         for (auto it = pending_subscriptions_.begin();
                 it != pending_subscriptions_.end();) {
             if (it->service_ == _service
-                    && it->instance_ == _instance) {
+                    && it->instance_ == get_instance_from_unique(_unique)
+                    && it->major_ == get_major_from_unique(_unique)) {
                 it = pending_subscriptions_.erase(it);
             } else {
                 it++;
@@ -1559,7 +1561,8 @@ void routing_manager_base::remove_pending_subscription(service_t _service,
         for (auto it = pending_subscriptions_.begin();
                 it != pending_subscriptions_.end();) {
             if (it->service_ == _service
-                    && it->instance_ == _instance
+                    && it->instance_ == get_instance_from_unique(_unique)
+                    && it->major_ == get_major_from_unique(_unique)
                     && it->eventgroup_ == _eventgroup) {
                 it = pending_subscriptions_.erase(it);
             } else {
@@ -1570,7 +1573,8 @@ void routing_manager_base::remove_pending_subscription(service_t _service,
         for (auto it = pending_subscriptions_.begin();
                 it != pending_subscriptions_.end();) {
             if (it->service_ == _service
-                    && it->instance_ == _instance
+                    && it->instance_ == get_instance_from_unique(_unique)
+                    && it->major_ == get_major_from_unique(_unique)
                     && it->eventgroup_ == _eventgroup
                     && it->event_ == _event) {
                 it = pending_subscriptions_.erase(it);
@@ -1582,18 +1586,18 @@ void routing_manager_base::remove_pending_subscription(service_t _service,
     }
 }
 
-std::set<std::tuple<service_t, instance_t, eventgroup_t>>
+std::set<std::tuple<service_t, unique_version_t, eventgroup_t>>
 routing_manager_base::get_subscriptions(const client_t _client) {
-    std::set<std::tuple<service_t, instance_t, eventgroup_t>> result;
+    std::set<std::tuple<service_t, unique_version_t, eventgroup_t>> result;
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     for (const auto& its_service : events_) {
-        for (const auto& its_instance : its_service.second) {
-            for (const auto& its_event : its_instance.second) {
+        for (const auto& its_unique : its_service.second) {
+            for (const auto& its_event : its_unique.second) {
                 auto its_eventgroups = its_event.second->get_eventgroups(_client);
                 for (const auto& e : its_eventgroups) {
                     result.insert(std::make_tuple(
                                     its_service.first,
-                                    its_instance.first,
+                                    its_unique.first,
                                     e));
                 }
             }
@@ -1606,8 +1610,8 @@ routing_manager_base::get_subscriptions(const client_t _client) {
 void routing_manager_base::clear_shadow_subscriptions(void) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     for (const auto& its_service : events_) {
-        for (const auto& its_instance : its_service.second) {
-            for (const auto& its_event : its_instance.second) {
+        for (const auto& its_unique : its_service.second) {
+            for (const auto& its_event : its_unique.second) {
                 if (its_event.second->is_shadow())
                     its_event.second->clear_subscribers();
             }
@@ -1662,24 +1666,24 @@ routing_manager_base::get_routing_state() {
 }
 
 #ifdef VSOMEIP_ENABLE_COMPAT
-void routing_manager_base::set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+void routing_manager_base::set_incoming_subscription_state(client_t _client, service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup, event_t _event, subscription_state_e _state) {
     std::lock_guard<std::recursive_mutex> its_lock(incoming_subscription_state_mutex_);
-    incoming_subscription_state_[_client][_service][_instance][_eventgroup][_event] = _state;
+    incoming_subscription_state_[_client][_service][_unique][_eventgroup][_event] = _state;
 }
 
 subscription_state_e routing_manager_base::get_incoming_subscription_state(client_t _client,
-        service_t _service, instance_t _instance,
+        service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup, event_t _event) {
     std::lock_guard<std::recursive_mutex> its_lock(incoming_subscription_state_mutex_);
     const auto its_client = incoming_subscription_state_.find(_client);
     if (its_client != incoming_subscription_state_.end()) {
         const auto its_service = its_client->second.find(_service);
         if (its_service != its_client->second.end()) {
-            const auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                const auto its_group = its_instance->second.find(_eventgroup);
-                if (its_group != its_instance->second.end()) {
+            const auto its_unique = its_service->second.find(_unique);
+            if (its_unique != its_service->second.end()) {
+                const auto its_group = its_unique->second.find(_eventgroup);
+                if (its_group != its_unique->second.end()) {
                     const auto its_event = its_group->second.find(_event);
                     if (its_event != its_group->second.end()) {
                         return its_event->second;
@@ -1696,24 +1700,24 @@ subscription_state_e routing_manager_base::get_incoming_subscription_state(clien
     return subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
 }
 
-void routing_manager_base::erase_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+void routing_manager_base::erase_incoming_subscription_state(client_t _client, service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup, event_t _event) {
     std::lock_guard<std::recursive_mutex> its_lock(incoming_subscription_state_mutex_);
     const auto its_client = incoming_subscription_state_.find(_client);
     if (its_client != incoming_subscription_state_.end()) {
         const auto its_service = its_client->second.find(_service);
         if (its_service != its_client->second.end()) {
-            const auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                const auto its_group = its_instance->second.find(_eventgroup);
-                if (its_group != its_instance->second.end()) {
+            const auto its_unique = its_service->second.find(_unique);
+            if (its_unique != its_service->second.end()) {
+                const auto its_group = its_unique->second.find(_eventgroup);
+                if (its_group != its_unique->second.end()) {
                     const auto its_event = its_group->second.find(_event);
                     if (its_event != its_group->second.end()) {
                         its_group->second.erase(_event);
                         if (its_group->second.empty()) {
-                            its_instance->second.erase(its_group);
-                            if (its_instance->second.empty()) {
-                                its_service->second.erase(its_instance);
+                            its_unique->second.erase(its_group);
+                            if (its_unique->second.empty()) {
+                                its_service->second.erase(its_unique);
                                 if (its_service->second.empty()) {
                                     its_client->second.erase(its_service);
                                     if (its_client->second.empty()) {

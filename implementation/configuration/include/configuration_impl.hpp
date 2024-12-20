@@ -40,15 +40,15 @@ struct watchdog;
 
 struct suppress_t {
     service_t service;
-    instance_t instance;
+    unique_version_t unique;
     event_t event;
 
     inline bool operator<(const suppress_t& entry_) const {
         if(service != entry_.service) {
             return service < entry_.service;
         }
-        if(instance != entry_.instance) {
-            return instance < entry_.instance;
+        if(unique != entry_.unique) {
+            return unique < entry_.unique;
         }
         if(event != entry_.event) {
             return event < entry_.event;
@@ -70,12 +70,12 @@ public:
     VSOMEIP_EXPORT bool lazy_load_security(const std::string &_client_host);
 #endif // !VSOMEIP_DISABLE_SECURITY
     VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service,
-                                              instance_t _instance,
+                                              unique_version_t _unique,
                                               std::uint16_t _port,
                                               bool _reliable,
                                               bool _magic_cookies_enabled);
     VSOMEIP_EXPORT bool remote_offer_info_remove(service_t _service,
-                                                 instance_t _instance,
+                                                 unique_version_t _unique,
                                                  std::uint16_t _port,
                                                  bool _reliable,
                                                  bool _magic_cookies_enabled,
@@ -100,12 +100,12 @@ public:
     VSOMEIP_EXPORT const std::string & get_logfile() const;
     VSOMEIP_EXPORT vsomeip_v3::logger::level_e get_loglevel() const;
 
-    VSOMEIP_EXPORT std::string get_unicast_address(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT std::string get_unicast_address(service_t _service, unique_version_t _unique) const;
 
-    VSOMEIP_EXPORT uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT uint16_t get_reliable_port(service_t _service, unique_version_t _unique) const;
     VSOMEIP_EXPORT bool has_enabled_magic_cookies(const std::string &_address, uint16_t _port) const;
     VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service,
-            instance_t _instance) const;
+            unique_version_t _unique) const;
 
     VSOMEIP_EXPORT void get_configured_timing_requests(
             service_t _service, const std::string &_ip_target,
@@ -118,9 +118,9 @@ public:
             std::chrono::nanoseconds *_debounce_time,
             std::chrono::nanoseconds *_max_retention_time) const;
 
-    VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT bool is_someip(service_t _service, unique_version_t _unique) const;
 
-    VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance,
+    VSOMEIP_EXPORT bool get_client_port(service_t _service, unique_version_t _unique,
             uint16_t _remote_port, bool _reliable,
             std::map<bool, std::set<uint16_t> > &_used_client_ports, uint16_t &_client_port) const;
 
@@ -147,16 +147,16 @@ public:
     VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
 
-    VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
+    VSOMEIP_EXPORT std::set<std::pair<service_t, unique_version_t> > get_remote_services() const;
 
-    VSOMEIP_EXPORT bool get_multicast(service_t _service, instance_t _instance,
+    VSOMEIP_EXPORT bool get_multicast(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, std::string &_address, uint16_t &_port) const;
 
-    VSOMEIP_EXPORT uint8_t get_threshold(service_t _service, instance_t _instance,
+    VSOMEIP_EXPORT uint8_t get_threshold(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup) const;
 
     VSOMEIP_EXPORT void get_event_update_properties(
-            service_t _service, instance_t _instance, event_t _event,
+            service_t _service, unique_version_t _unique, event_t _event,
             std::chrono::milliseconds &_cycle,
             bool &_change_resets_cycle, bool &_update_on_change_) const;
 
@@ -168,18 +168,18 @@ public:
 
     VSOMEIP_EXPORT bool supports_selective_broadcasts(const boost::asio::ip::address &_address) const;
 
-    VSOMEIP_EXPORT bool is_offered_remote(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT bool is_offered_remote(service_t _service, unique_version_t _unique) const;
 
     VSOMEIP_EXPORT bool log_version() const;
     VSOMEIP_EXPORT uint32_t get_log_version_interval() const;
 
-    VSOMEIP_EXPORT bool is_local_service(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT bool is_local_service(service_t _service, unique_version_t _unique) const;
 
     VSOMEIP_EXPORT reliability_type_e get_event_reliability(
-            service_t _service, instance_t _instance, event_t _event) const;
+            service_t _service, unique_version_t _unique, event_t _event) const;
 
     VSOMEIP_EXPORT reliability_type_e get_service_reliability(
-            service_t _service, instance_t _instance) const;
+            service_t _service, unique_version_t _unique) const;
 
     // Service Discovery configuration
     VSOMEIP_EXPORT bool is_sd_enabled() const;
@@ -211,7 +211,7 @@ public:
             const vsomeip_sec_client_t *_sec_client) const;
 
     VSOMEIP_EXPORT bool check_suppress_events(service_t _service,
-            instance_t _instance, event_t _event) const;
+            unique_version_t _unique, event_t _event) const;
 
     VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(
             const std::string &_name) const;
@@ -230,7 +230,7 @@ public:
 
     VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(
             const std::string &_name,
-            service_t _service, instance_t _instance, event_t _event) const;
+            service_t _service, unique_version_t _unique, event_t _event) const;
 
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
             const std::string& _address, std::uint16_t _port) const;
@@ -258,18 +258,18 @@ public:
     VSOMEIP_EXPORT void set_sd_acceptance_rules_active(
             const boost::asio::ip::address& _address, bool _enable);
 
-    VSOMEIP_EXPORT bool is_secure_service(service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT bool is_secure_service(service_t _service, unique_version_t _unique) const;
 
     VSOMEIP_EXPORT int get_udp_receive_buffer_size() const;
 
     VSOMEIP_EXPORT bool is_tp_client(
             service_t _service,
-            instance_t _instance,
+            unique_version_t _unique,
             method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, instance_t _instance, method_t _method) const;
+            service_t _service, unique_version_t _unique, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(
-            service_t _service, instance_t _instance, method_t _method, bool _is_client,
+            service_t _service, unique_version_t _unique, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;
 
     VSOMEIP_EXPORT std::uint32_t get_shutdown_timeout() const;
@@ -282,7 +282,7 @@ public:
     VSOMEIP_EXPORT uint8_t get_max_remote_subscribers() const;
 
     VSOMEIP_EXPORT partition_id_t get_partition_id(
-            service_t _service, instance_t _instance) const;
+            service_t _service, unique_version_t _unique) const;
 
     VSOMEIP_EXPORT std::map<std::string, std::string> get_additional_data(
             const std::string &_application_name,
@@ -357,7 +357,7 @@ private:
             std::shared_ptr<trace_filter> &_filter);
     void load_trace_filter_match(
             const boost::property_tree::ptree &_data,
-            std::tuple<service_t, instance_t, method_t> &_match);
+            std::tuple<service_t, unique_version_t, method_t> &_match);
 
     void load_suppress_events(const configuration_element &_element);
     void load_suppress_events_data(
@@ -368,7 +368,7 @@ private:
     std::set<event_t> load_range_events(event_t _first_event,
             event_t _last_event) const ;
     void insert_suppress_events(service_t  _service,
-    instance_t _instance, event_t _event);
+    unique_version_t _unique, event_t _event);
     void print_suppress_events(void) const;
 
     void load_network(const configuration_element &_element);
@@ -435,17 +435,17 @@ private:
 
     servicegroup *find_servicegroup(const std::string &_name) const;
     std::shared_ptr<client> find_client(service_t _service,
-            instance_t _instance) const;
-    std::shared_ptr<service> find_service(service_t _service, instance_t _instance) const;
-    std::shared_ptr<service> find_service_unlocked(service_t _service, instance_t _instance) const;
+            unique_version_t _unique) const;
+    std::shared_ptr<service> find_service(service_t _service, unique_version_t _unique) const;
+    std::shared_ptr<service> find_service_unlocked(service_t _service, unique_version_t _unique) const;
     std::shared_ptr<service> find_service(service_t _service,
             const std::string &_address, std::uint16_t _port) const;
     std::shared_ptr<eventgroup> find_eventgroup(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup) const;
+            unique_version_t _unique, eventgroup_t _eventgroup) const;
     bool find_port(uint16_t &_port, uint16_t _remote, bool _reliable,
             std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
     bool find_specific_port(uint16_t &_port, service_t _service,
-            instance_t _instance, bool _reliable,
+            unique_version_t _unique, bool _reliable,
             std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
 
     void set_magic_cookies_unicast_address();
@@ -510,7 +510,7 @@ protected:
 
     mutable std::mutex services_mutex_;
     std::map<service_t,
-        std::map<instance_t,
+        std::map<unique_version_t,
             std::shared_ptr<service> > > services_;
 
     std::map<std::string, // IP
@@ -655,7 +655,7 @@ protected:
     std::uint32_t shutdown_timeout_;
 
     mutable std::mutex secure_services_mutex_;
-    std::map<service_t, std::set<instance_t> > secure_services_;
+    std::map<service_t, std::set<unique_version_t> > secure_services_;
 
     bool log_statistics_;
     uint32_t statistics_interval_;
@@ -666,7 +666,7 @@ protected:
 
     mutable std::mutex partitions_mutex_;
     std::map<service_t,
-        std::map<instance_t,
+        std::map<unique_version_t,
             partition_id_t
         >
     > partitions_;

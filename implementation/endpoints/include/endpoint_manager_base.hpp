@@ -38,7 +38,7 @@ public:
 
     std::shared_ptr<endpoint> find_or_create_local(client_t _client);
     std::shared_ptr<endpoint> find_local(client_t _client);
-    std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance);
+    std::shared_ptr<endpoint> find_local(service_t _service, unique_version_t _unique);
 
     std::unordered_set<client_t> get_connected_clients() const;
 
@@ -58,7 +58,7 @@ public:
     virtual void release_port(uint16_t _port, bool _reliable);
     client_t get_client() const;
     std::string get_client_host() const;
-    instance_t find_instance(service_t _service,
+    unique_version_t find_unique(service_t _service,
             endpoint* const _endpoint) const;
 
     // Statistics

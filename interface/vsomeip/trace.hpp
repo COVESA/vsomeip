@@ -39,7 +39,7 @@ extern const char *VSOMEIP_TC_DEFAULT_CHANNEL_ID;
  * \brief Filters contain at least one match that specified
  * which messages are filtered.
  */
-typedef std::tuple<service_t, instance_t, method_t> match_t;
+typedef std::tuple<service_t, unique_version_t, method_t> match_t;
 
 /**
  * \brief Representation of a DLT trace channel.

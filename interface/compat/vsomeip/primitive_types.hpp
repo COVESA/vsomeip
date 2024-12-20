@@ -20,7 +20,8 @@ typedef uint16_t service_t;
 typedef uint16_t method_t;
 typedef uint16_t event_t;
 
-typedef uint16_t instance_t;
+typedef uint32_t instance_t;
+typedef uint64_t unique_version_t;
 typedef uint16_t eventgroup_t;
 
 typedef uint8_t major_version_t;
@@ -52,6 +53,18 @@ typedef std::uint16_t pending_subscription_id_t;
 typedef std::uint32_t pending_remote_offer_id_t;
 
 typedef std::uint32_t pending_security_update_id_t;
+
+inline unique_version_t get_unique_version(instance_t _instance, major_version_t _major) {
+    return static_cast<unique_version_t>((static_cast<unique_version_t>(_major << sizeof(instance_t) * 8)) | _instance);
+}
+
+inline major_version_t get_major_from_unique(unique_version_t _unique) {
+    return static_cast<major_version_t>((_unique >> sizeof(instance_t) * 8));
+}
+
+inline instance_t get_instance_from_unique(unique_version_t _unique) {
+    return static_cast<instance_t>(_unique & ((1U << (sizeof(instance_t) * 8)) - 1));
+}
 
 #ifdef _WIN32
     typedef std::uint32_t uid_t;

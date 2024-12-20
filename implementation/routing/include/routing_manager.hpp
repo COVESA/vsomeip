@@ -51,34 +51,34 @@ public:
     virtual void stop() = 0;
 
     virtual bool offer_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major,
+            unique_version_t _unique, major_version_t _major,
             minor_version_t _minor) = 0;
 
     virtual void stop_offer_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major,
+            unique_version_t _unique, major_version_t _major,
             minor_version_t _minor) = 0;
 
     virtual void request_service(client_t _client, service_t _service,
-            instance_t _instance, major_version_t _major,
+            unique_version_t _unique, major_version_t _major,
             minor_version_t _minor) = 0;
 
     virtual void release_service(client_t _client, service_t _service,
-            instance_t _instance) = 0;
+            unique_version_t _unique) = 0;
 
     virtual void subscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major,
             event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
 
     virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t *_sec_client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message,
             bool _force) = 0;
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _reliable,
+            unique_version_t _unique, bool _reliable,
             client_t _bound_client = VSOMEIP_ROUTING_CLIENT,
             const vsomeip_sec_client_t *_sec_client = nullptr,
             uint8_t _status_check = 0,
@@ -90,10 +90,10 @@ public:
             std::shared_ptr<message> _message) = 0;
 
     virtual bool send_to(const std::shared_ptr<endpoint_definition> &_target,
-            const byte_t *_data, uint32_t _size, instance_t _instance) = 0;
+            const byte_t *_data, uint32_t _size, unique_version_t _unique) = 0;
 
     virtual void register_event(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups,
             const event_type_e _type,
@@ -105,19 +105,19 @@ public:
             bool _is_cache_placeholder = false) = 0;
 
     virtual void unregister_event(client_t _client, service_t _service,
-            instance_t _instance, event_t _event, bool _is_provided) = 0;
+            unique_version_t _unique, event_t _event, bool _is_provided) = 0;
 
     virtual std::shared_ptr<event> find_event(service_t _service,
-            instance_t _instance, event_t _event) const = 0;
+            unique_version_t _unique, event_t _event) const = 0;
 
     virtual std::set<std::shared_ptr<event>> find_events(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup) const = 0;
+            unique_version_t _unique, eventgroup_t _eventgroup) const = 0;
 
-    virtual void notify(service_t _service, instance_t _instance,
+    virtual void notify(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload,
             bool _force) = 0;
 
-    virtual void notify_one(service_t _service, instance_t _instance,
+    virtual void notify_one(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload,
             client_t _client, bool _force
 #ifdef VSOMEIP_ENABLE_COMPAT

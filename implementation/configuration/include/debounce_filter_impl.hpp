@@ -27,7 +27,7 @@ struct debounce_filter_impl_t : debounce_filter_t {
 
 using debounce_configuration_t =
     std::map<service_t,
-        std::map<instance_t,
+        std::map<unique_version_t,
             std::map<event_t,
                 std::shared_ptr<debounce_filter_impl_t>>>>;
 

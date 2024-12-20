@@ -151,7 +151,7 @@ private:
     virtual void set_local_port() = 0;
     virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
-                                         instance_t _instance,
+                                         unique_version_t _unique,
                                          method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;

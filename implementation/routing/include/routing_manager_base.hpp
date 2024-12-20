@@ -74,22 +74,22 @@ public:
     void init(const std::shared_ptr<endpoint_manager_base>& _endpoint_manager);
 
     virtual bool offer_service(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     virtual void stop_offer_service(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     virtual void request_service(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             major_version_t _major, minor_version_t _minor);
 
     virtual void release_service(client_t _client,
-            service_t _service, instance_t _instance);
+            service_t _service, unique_version_t _unique);
 
     virtual void register_event(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups,
             const event_type_e _type, reliability_type_e _reliability,
@@ -99,27 +99,27 @@ public:
             bool _is_cache_placeholder = false);
 
     virtual void unregister_event(client_t _client,
-            service_t _service, instance_t _instance, event_t _event,
+            service_t _service, unique_version_t _unique, event_t _event,
             bool _is_provided);
 
     virtual std::set<std::shared_ptr<event>> find_events(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) const;
+                unique_version_t _unique, eventgroup_t _eventgroup) const;
 
     virtual void subscribe(client_t _client,
             const vsomeip_sec_client_t *_sec_client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major,
             event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter);
 
     virtual void unsubscribe(client_t _client,
             const vsomeip_sec_client_t *_sec_client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event);
 
-    virtual void notify(service_t _service, instance_t _instance,
+    virtual void notify(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload, bool _force);
 
-    virtual void notify_one(service_t _service, instance_t _instance,
+    virtual void notify_one(service_t _service, unique_version_t _unique,
             event_t _event, std::shared_ptr<payload> _payload,
             client_t _client, bool _force
 #ifdef VSOMEIP_ENABLE_COMPAT
@@ -131,7 +131,7 @@ public:
             bool _force);
 
     virtual bool send(client_t _client, const byte_t *_data, uint32_t _size,
-            instance_t _instance, bool _reliable,
+            unique_version_t _unique, bool _reliable,
             client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check, bool _sent_from_remote,
             bool _force) = 0;
@@ -152,14 +152,14 @@ public:
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 
-    std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
+    std::set<client_t> find_local_clients(service_t _service, unique_version_t _unique);
 
-    std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
+    std::shared_ptr<serviceinfo> find_service(service_t _service, unique_version_t _unique) const;
 
-    client_t find_local_client(service_t _service, instance_t _instance) const;
-    client_t find_local_client_unlocked(service_t _service, instance_t _instance) const;
+    client_t find_local_client(service_t _service, unique_version_t _unique) const;
+    client_t find_local_client_unlocked(service_t _service, unique_version_t _unique) const;
 
-    std::shared_ptr<event> find_event(service_t _service, instance_t _instance,
+    std::shared_ptr<event> find_event(service_t _service, unique_version_t _unique,
             event_t _event) const;
 
     // address data for vsomeip routing via TCP
@@ -177,41 +177,41 @@ public:
     virtual void on_disconnect(const std::shared_ptr<endpoint>& _endpoint) = 0;
 protected:
     std::shared_ptr<serviceinfo> create_service_info(service_t _service,
-            instance_t _instance, major_version_t _major,
+            unique_version_t _unique, major_version_t _major,
             minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
 
-    void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
+    void clear_service_info(service_t _service, unique_version_t _unique, bool _reliable);
     services_t get_services() const;
     services_t get_services_remote() const;
-    virtual bool is_available(service_t _service, instance_t _instance,
+    virtual bool is_available(service_t _service, unique_version_t _unique,
                               major_version_t _major) const;
 
     void remove_local(client_t _client, bool _remove_sec_client);
     void remove_local(client_t _client,
             const std::set<
-                std::tuple<service_t, instance_t, eventgroup_t>
+                std::tuple<service_t, unique_version_t, eventgroup_t>
             > &_subscribed_eventgroups,
             bool _remove_sec_client);
 
     std::set<std::shared_ptr<eventgroupinfo> > find_eventgroups(service_t _service,
-            instance_t _instance) const;
+            unique_version_t _unique) const;
 
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup) const;
+            unique_version_t _unique, eventgroup_t _eventgroup) const;
 
-    void remove_eventgroup_info(service_t _service, instance_t _instance,
+    void remove_eventgroup_info(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup);
 
     bool send_local_notification(client_t _client,
-            const byte_t *_data, uint32_t _size, instance_t _instance,
+            const byte_t *_data, uint32_t _size, unique_version_t _unique,
             bool _reliable, uint8_t _status_check, bool _force);
 
     bool send_local(
             std::shared_ptr<endpoint> &_target, client_t _client,
-            const byte_t *_data, uint32_t _size, instance_t _instance,
+            const byte_t *_data, uint32_t _size, unique_version_t _unique,
             bool _reliable, protocol::id_e _command, uint8_t _status_check) const;
 
-    bool insert_subscription(service_t _service, instance_t _instance,
+    bool insert_subscription(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event,
             const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client,
             std::set<event_t> *_already_subscribed_events);
@@ -227,53 +227,53 @@ protected:
             instance_t _instance, major_version_t _major);
 
     virtual void send_subscribe(client_t _client,
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, major_version_t _major,
             event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter) = 0;
 
-    void remove_pending_subscription(service_t _service, instance_t _instance,
+    void remove_pending_subscription(service_t _service, unique_version_t _unique,
                                      eventgroup_t _eventgroup, event_t _event);
 #ifdef VSOMEIP_ENABLE_COMPAT
-    void send_pending_notify_ones(service_t _service, instance_t _instance,
+    void send_pending_notify_ones(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, client_t _client, bool _remote_subscriber = false);
 #endif
 
-    void unset_all_eventpayloads(service_t _service, instance_t _instance);
-    void unset_all_eventpayloads(service_t _service, instance_t _instance,
+    void unset_all_eventpayloads(service_t _service, unique_version_t _unique);
+    void unset_all_eventpayloads(service_t _service, unique_version_t _unique,
                                  eventgroup_t _eventgroup);
 
     void notify_one_current_value(client_t _client, service_t _service,
-                                  instance_t _instance,
+                                  unique_version_t _unique,
                                   eventgroup_t _eventgroup, event_t _event,
                                   const std::set<event_t> &_events_to_exclude);
 
-    std::set<std::tuple<service_t, instance_t, eventgroup_t>>
+    std::set<std::tuple<service_t, unique_version_t, eventgroup_t>>
         get_subscriptions(const client_t _client);
 
-    std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
+    std::vector<event_t> find_events(service_t _service, unique_version_t _unique) const;
 
     bool is_response_allowed(client_t _sender, service_t _service,
-            instance_t _instance, method_t _method);
+            unique_version_t _unique, method_t _method);
     bool is_subscribe_to_any_event_allowed(
             const vsomeip_sec_client_t *_sec_client, client_t _client,
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+            service_t _service, unique_version_t _unique, eventgroup_t _eventgroup);
 
     void add_known_client(client_t _client, const std::string &_client_host);
 
 #ifdef VSOMEIP_ENABLE_COMPAT
-    void set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+    void set_incoming_subscription_state(client_t _client, service_t _service, unique_version_t _unique _unique,
             eventgroup_t _eventgroup, event_t _event, subscription_state_e _state);
 
-    subscription_state_e get_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+    subscription_state_e get_incoming_subscription_state(client_t _client, service_t _service, unique_version_t _unique _unique,
             eventgroup_t _eventgroup, event_t _event);
 
-    void erase_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
+    void erase_incoming_subscription_state(client_t _client, service_t _service, unique_version_t _unique _unique,
             eventgroup_t _eventgroup, event_t _event);
 #endif
 
 private:
     virtual bool create_placeholder_event_and_subscribe(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+            service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
             event_t _event, const std::shared_ptr<debounce_filter_impl_t> &_filter,
             client_t _client) = 0;
 
@@ -292,20 +292,20 @@ protected:
     std::condition_variable deserializer_condition_;
 
     mutable std::mutex local_services_mutex_;
-    typedef std::map<service_t, std::map<instance_t,
+    typedef std::map<service_t, std::map<unique_version_t,
             std::tuple<major_version_t, minor_version_t, client_t>>> local_services_map_t;
     local_services_map_t local_services_;
-    std::map<service_t, std::map<instance_t, std::set<client_t> > > local_services_history_;
+    std::map<service_t, std::map<unique_version_t, std::set<client_t> > > local_services_history_;
 
     // Eventgroups
     mutable std::mutex eventgroups_mutex_;
     std::map<service_t,
-            std::map<instance_t,
+            std::map<unique_version_t,
                     std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
     // Events (part of one or more eventgroups)
     mutable std::mutex events_mutex_;
     std::map<service_t,
-        std::map<instance_t,
+        std::map<unique_version_t,
             std::map<event_t,
                 std::shared_ptr<event> > > > events_;
 
@@ -370,13 +370,13 @@ private:
 
 #ifdef VSOMEIP_ENABLE_COMPAT
     std::map<service_t,
-        std::map<instance_t,
+        std::map<unique_version_t,
             std::map<eventgroup_t,
                 std::shared_ptr<message> > > > pending_notify_ones_;
     std::recursive_mutex pending_notify_ones_mutex_;
     std::map<client_t,
         std::map<service_t,
-            std::map<instance_t,
+            std::map<unique_version_t,
                 std::map<eventgroup_t,
                     std::map<event_t,
                         subscription_state_e> > > > > incoming_subscription_state_;

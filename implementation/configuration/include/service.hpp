@@ -18,7 +18,7 @@ struct eventgroup;
 
 struct service {
     service_t service_;
-    instance_t instance_;
+    unique_version_t unique_;
 
     std::string unicast_address_;
 

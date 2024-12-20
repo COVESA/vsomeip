@@ -89,7 +89,7 @@ private:
     std::string get_address_port_local() const;
     bool tp_segmentation_enabled(
             service_t _service,
-            instance_t _instance,
+            unique_version_t _unique,
             method_t _method) const;
 
     void on_unicast_received(boost::system::error_code const &_error,
