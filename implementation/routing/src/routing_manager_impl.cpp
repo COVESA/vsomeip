@@ -1465,7 +1465,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service,
             // still offered
             its_copied_info->set_endpoint(std::shared_ptr<endpoint>(), !_reliable);
             discovery_->stop_offer_service(its_copied_info, true);
-            VSOMEIP_INFO << __func__ << std::hex << std::setfill('0') 
+            VSOMEIP_INFO << __func__ << std::hex << std::setfill('0')
                         << " only sending the StopOffer to ["
                         <<  std::setw(4) << _service << '.'
                         <<  std::setw(4) << _instance << ']'
@@ -2133,7 +2133,7 @@ bool routing_manager_impl::deliver_notification(
                 its_event->set_payload(its_payload, true);
             } else
                 VSOMEIP_ERROR << __func__ << ": Event registration failed ["
-                        << std::hex << std::setfill('0') 
+                        << std::hex << std::setfill('0')
                         << std::setw(4) << _service << "."
                         << std::setw(4) << _instance << "."
                         << std::setw(4) << its_event_id << "]";
@@ -3160,7 +3160,6 @@ std::shared_ptr<endpoint> routing_manager_impl::find_or_create_remote_client(
 void routing_manager_impl::on_subscribe_nack(client_t _client,
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
         bool _remove, remote_subscription_id_t _id) {
-
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         auto its_subscription = its_eventgroup->get_remote_subscription(_id);
