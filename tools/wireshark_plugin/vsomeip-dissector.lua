@@ -1,6 +1,7 @@
 --[[
     vsomeip-dissector.lua V0.0.2
     Wireshark Lua vsomeip protocol dissector
+    author: rui.graca@ctw.bmwgroup.com
 --]]
 
 protocol_name = 'vsomeip'
@@ -42,6 +43,16 @@ vsomeip_gid = ProtoField.uint32(protocol_name .. '.gid' , "GID", base.HEX)
 vsomeip_policy_count = ProtoField.uint32(protocol_name .. '.policy_count' , "PoliciesCount", base.HEX)
 vsomeip_policy = ProtoField.bytes(protocol_name .. '.policy' , "Policy", base_HEX)
 
+-- VSOMEIP_SEND
+vsomeip_method = ProtoField.uint16(protocol_name .. '.method' , "Method", base.HEX)
+vsomeip_payload_size = ProtoField.uint32(protocol_name .. '.payload_size' , "Payload Size", base.DEC)
+vsomeip_payload_client = ProtoField.uint16(protocol_name .. '.payload_client' , "Payload Client", base.HEX)
+vsomeip_session = ProtoField.uint16(protocol_name .. '.session' , "Session", base.HEX)
+vsomeip_protocol_version = ProtoField.uint8(protocol_name .. '.protocol_version' , "Protocol Version", base.HEX)
+vsomeip_interface_version = ProtoField.uint8(protocol_name .. '.interface_version' , "Interface Version", base.HEX)
+vsomeip_message_type = ProtoField.uint8(protocol_name .. '.message_type' , "Message Type", base.HEX)
+vsomeip_return_code = ProtoField.uint8(protocol_name .. '.return_code' , "Return Code", base.HEX)
+
 -- TODO Parse filter in VSOMEIP_SUBSCRIBE
 vsomeip_filter = ProtoField.bytes(protocol_name .. '.filter' , "Filter", base_HEX)
 
@@ -49,18 +60,7 @@ vsomeip_filter = ProtoField.bytes(protocol_name .. '.filter' , "Filter", base_HE
 vsomeip_offered_services = ProtoField.bytes(protocol_name .. '.offered_services' , "OfferedServices", base_HEX)
 
 -- TODO make this a subtree to list all configurations in VSOMEIP_CONFIG
--- vsomeip_configurations = ProtoField.bytes(protocol_name .. '.configurations' , "Configurations", base_HEX)
-vsomeip_configuration_name = 'vsomeip_config'
-vsomeip_configuration = Proto(vsomeip_configuration_name, vsomeip_configuration_name:upper())
-vsomeip_configuration_key_size = ProtoField.uint32(vsomeip_configuration_name  .. '.keySize' , "Key Size", base.DEC)
-vsomeip_configuration_key = ProtoField.string(vsomeip_configuration_name  .. '.key' , "Key")
-vsomeip_configuration_value_size = ProtoField.uint32(vsomeip_configuration_name  .. '.valueSize' , "Value Size", base.DEC)
-vsomeip_configuration_value = ProtoField.string(vsomeip_configuration_name  .. '.value' , "Value")
-
-vsomeip_configuration.fields = {
-    vsomeip_configuration_key_size, vsomeip_configuration_key
-    , vsomeip_configuration_value_size, vsomeip_configuration_value
-}
+vsomeip_configurations = ProtoField.bytes(protocol_name .. '.configurations' , "Configurations", base_HEX)
 
 -- TODO make this a subtree to list all configurations in VSOMEIP_UPDATE_SECURITY_CREDENTIALS
 vsomeip_credentials = ProtoField.bytes(protocol_name .. '.credentials' , "Credentials", base_HEX)
@@ -76,6 +76,8 @@ vsomeip_protocol.fields = {
     vsomeip_client, vsomeip_size,
     vsomeip_name, vsomeip_newclient,
     vsomeip_instance, vsomeip_reliable, vsomeip_crc, vsomeip_dstClient, vsomeip_payload,
+    vsomeip_method, vsomeip_payload_size, vsomeip_payload_client, vsomeip_session,
+    vsomeip_protocol_version, vsomeip_interface_version, vsomeip_message_type, vsomeip_return_code,
     vsomeip_service, vsomeip_eventgroup, vsomeip_subscriber, vsomeip_notifier, vsomeip_event, vsomeip_id,
     vsomeip_provided,
     vsomeip_major, vsomeip_minor,
@@ -181,15 +183,50 @@ function vsomeip_protocol.dissector(buffer, pinfo, tree)
         buffer_cursor = buffer_cursor + 1
         local command_dstClient = buffer(buffer_cursor, 2)
         buffer_cursor = buffer_cursor + 2
-        local command_payload = buffer(buffer_cursor, length - buffer_cursor - 4)
+
+        local payload_start_cursor = buffer_cursor
+
+        local command_service = buffer(buffer_cursor, 2)
+        buffer_cursor = buffer_cursor + 2
+        local command_method = buffer(buffer_cursor, 2)
+        buffer_cursor = buffer_cursor + 2
+        local command_payload_size = buffer(buffer_cursor, 4)
+        buffer_cursor = buffer_cursor + 4
+        local command_payload_client = buffer(buffer_cursor, 2)
+        buffer_cursor = buffer_cursor + 2
+        local command_session = buffer(buffer_cursor, 2)
+        buffer_cursor = buffer_cursor + 2
+        local command_protocol_version = buffer(buffer_cursor, 1)
+        buffer_cursor = buffer_cursor + 1
+        local command_interface_version = buffer(buffer_cursor, 1)
+        buffer_cursor = buffer_cursor + 1
+        local command_message_type = buffer(buffer_cursor, 1)
+        buffer_cursor = buffer_cursor + 1
+        local command_return_code = buffer(buffer_cursor, 1)
+        buffer_cursor = buffer_cursor + 1
+
+        local command_payload = buffer(payload_start_cursor, length - payload_start_cursor - 4)
+        buffer_cursor = buffer_cursor + 4
 
         subtree:add_le(vsomeip_instance, command_instance)
         subtree:add(vsomeip_reliable, command_reliable):append_text(" (" .. command_reliable_name .. ")")
         subtree:add(vsomeip_crc, command_crc)
         subtree:add_le(vsomeip_dstClient, command_dstClient)
+
+        subtree:add(vsomeip_service, command_service)
+        subtree:add(vsomeip_method, command_method)
+        subtree:add(vsomeip_payload_size, command_payload_size)
+        subtree:add(vsomeip_payload_client, command_payload_client)
+        subtree:add(vsomeip_session, command_session)
+        subtree:add(vsomeip_protocol_version, command_protocol_version)
+        subtree:add(vsomeip_interface_version, command_interface_version)
+        subtree:add(vsomeip_message_type, command_message_type)
+        subtree:add(vsomeip_return_code, command_return_code)
+
         subtree:add(vsomeip_payload, command_payload)
 
-        pinfo.cols.info:append(" --"..command_reliable_name.."--> (" ..command_dstClient(1,1)..command_dstClient(0,1).. ")")
+        pinfo.cols.info:append(" --"..command_reliable_name.."--> (" ..command_dstClient(1,1)..command_dstClient(0,1).. ") [" ..
+                            command_service(0,1)..command_service(1,1) .. "." .. command_method(0,1)..command_method(1,1) .. "]")
     elseif command_name == "VSOMEIP_ASSIGN_CLIENT" then
         local command_name = buffer(buffer_cursor, length - buffer_cursor - 4)
         subtree:add(vsomeip_name, command_name)
@@ -488,29 +525,9 @@ function vsomeip_protocol.dissector(buffer, pinfo, tree)
         subtree:add_le(vsomeip_policy_count, command_policy_count)
         subtree:add(vsomeip_policies, command_policies)
     elseif command_name == "VSOMEIP_CONFIG" then
-        local command_config = buffer(buffer_cursor, length - buffer_cursor - 4)
-        if command_config:len() > 0 then
-            config_tree = subtree:add("Config")
-            local config_cursor = 0
-            local key_size = command_config(config_cursor, 4)
-            config_cursor = config_cursor + 4
-            config_tree:add_le(vsomeip_configuration_key_size, key_size)
-            local key_size_uint = buffer_4_to_int(key_size)
-            if key_size_uint > 0 then
-                local key = command_config(config_cursor, key_size_uint)
-                config_tree:add(vsomeip_configuration_key, key)
-                config_cursor = config_cursor + key_size_uint
-            end
-            local value_size = command_config(config_cursor, 4)
-            config_cursor = config_cursor + 4
-            config_tree:add_le(vsomeip_configuration_value_size, value_size)
-            local value_size_uint = buffer_4_to_int(value_size)
-            if value_size_uint > 0 then
-                local value = command_config(config_cursor, value_size_uint)
-                config_tree:add(vsomeip_configuration_value, value)
-                config_cursor = config_cursor + value_size_uint
-            end
-        end
+        local command_configurations = buffer(buffer_cursor, length - buffer_cursor - 4)
+
+        subtree:add(vsomeip_configurations, command_configurations)
     end
 end
 
