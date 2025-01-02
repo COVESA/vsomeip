@@ -10,7 +10,6 @@
 lazy_load_lazy_client::lazy_load_lazy_client()
     : app_(vsomeip::runtime::get()->create_application()),
       current_service_availability_status_(false),
-      sender_(std::bind(&lazy_load_lazy_client::run, this)),
       received_responses_(0),
       received_allowed_events_(0) {}
 
@@ -51,6 +50,9 @@ bool lazy_load_lazy_client::init() {
             std::bind(&lazy_load_lazy_client::on_availability, this,
                     std::placeholders::_1, std::placeholders::_2,
                     std::placeholders::_3));
+
+    sender_ = std::thread(std::bind(&lazy_load_lazy_client::run, this));
+
     return true;
 }
 
@@ -109,10 +111,9 @@ void lazy_load_lazy_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_service_available) {
 
     VSOMEIP_INFO << "CLIENT ON_AVAILABILITY...";
-    VSOMEIP_INFO << std::hex << "Client 0x" << app_->get_client()
-            << " : Service [" << std::hex << std::setfill('0') << std::setw(4)
-            << _service << '.' << _instance << "] is "
-            << (_is_service_available ? "available." : "NOT available.");
+    VSOMEIP_INFO << std::hex << "Client 0x" << app_->get_client() << " : Service [" << std::hex
+                 << std::setfill('0') << std::setw(4) << _service << '.' << _instance << "] is "
+                 << (_is_service_available ? "available." : "NOT available.");
 
     // Check that only the allowed service is available
     if (_is_service_available) {
@@ -136,14 +137,10 @@ void lazy_load_lazy_client::on_availability(vsomeip::service_t _service,
 }
 
 void lazy_load_lazy_client::on_message(const std::shared_ptr<vsomeip::message> &_response) {
-    VSOMEIP_INFO << "Received a response from Service ["
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
-                 << '.'
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
-                 << "] to Client/Session ["
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
-                 << '/'
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
+    VSOMEIP_INFO << "Received a response from Service [" << std::hex << std::setfill('0')
+                 << std::setw(4) << _response->get_service() << '.' << std::setw(4)
+                 << _response->get_instance() << "] to Client/Session [" << std::setw(4)
+                 << _response->get_client() << '/' << std::setw(4) << _response->get_session()
                  << ']';
 
     if (_response->get_message_type() == vsomeip::message_type_e::MT_RESPONSE) {
