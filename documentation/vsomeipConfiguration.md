@@ -37,21 +37,21 @@
 ## 1. Logging
 
 - **logging** - Used to configure the log messages of vSomeIP
-    - **console** - Specifies whether logging via console is enabled (valid values: `true`, `false`).
+    - **console** - Specifies whether logging via console is enabled, valid values are `true` or `false`. The default value is `true`.
     - **file**:
-        - **enable** - Specifies whether a log file should be created (valid values: `true`, `false`).
-        - **path** - The absolute path of the log file.
-    - **dlt** - Specifies whether Diagnostic Log and Trace (DLT) is enabled (valid values: `true`, `false`).
-    - **level** - Specifies the log level (valid values: `trace`, `debug`, `info`, `warning`, `error`, `fatal`).
+        - **enable** - Specifies whether a log file should be created, valid values are `true` or `false`. The default value is `false`.
+        - **path** - The absolute path of the log file. The default value is `/tmp/vsomeip.log`.
+    - **dlt** - Specifies whether Diagnostic Log and Trace (DLT) is enabled, valid values are `true` or `false`. The default value is `false`.
+    - **level** - Specifies the log level, valid values are `trace`, `debug`, `info`, `warning`, `error`, `fatal`. The default value is `info`.
     - **version** - Configures logging of the vsomeip version
-        - **enable** - Enable or disable cyclic logging of vsomeip version, defaults to `true` (valid values: `true`, `false`)
-        - **interval** - Configures interval in seconds to log the vsomeip version. Default value is `10`.
-    - **memory_log_interval** - Configures interval in seconds in which the routing manager logs its used memory. Setting a value greater than zero enables the logging.
-    - **status_log_interval** - Configures interval in seconds in which the routing manager logs its internal status. Setting a value greater than zero enables the logging.
+        - **enable** - Enable or disable cyclic logging of vsomeip version, valid values are `true` or `false`. The default value is `true`.
+        - **interval** - Configures interval in seconds to log the vsomeip version. The default value is `10` sec.
+    - **memory_log_interval** - Configures interval in seconds in which the routing manager logs its used memory. Setting a value greater than zero enables the logging. The default value is `0` sec.
+    - **status_log_interval** - Configures interval in seconds in which the routing manager logs its internal status. Setting a value greater than zero enables the logging. The default value is `0` sec.
     - **statistics**
-        - **interval** - How often to report statistics data (received messages/events) in ms. Default is `10s`. The minimum possible interval is `1s`, for configured values below 1s, 1s will be used.
-        - **min-frequency** - Minimum frequency of reported events (default is `50Hz`)
-        - **max-messages** - Maximum number of different messages that are reported. Default is `0`.
+        - **interval** - How often to report statistics data (received messages/events) in ms. The minimum possible interval is `1000`, for configured values below, 1000 will be used. The default value is `10000` ms (10sec).
+        - **min-frequency** - Minimum frequency of reported events. The default value is `50` Hz.
+        - **max-messages** - Maximum number of different messages that are reported. The default value is `50`.
 
 <details><summary>Example of DLT logging</summary>
 
@@ -152,12 +152,12 @@
 - **applications** (array) - Contains the applications of the host system that use this config file.
     - **name** - The name of the application.
     - **id** - The id of the application. Usually its high byte is equal to the diagnosis address. In this case the low byte must be different from zero. Thus, if the diagnosis address is 0x63, valid values range from 0x6301 until 0x63FF. It is also possible to use id values with a high byte different from the diagnosis address.
-    - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. Default is `10`.
-    - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100ms`.
-    - **max_detached_thread_wait_time** (optional) - The maximum time in seconds that an application will wait for a detached dispatcher thread to finish executing. The default value if not specified is `5s`.
-    - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. Default is `2`.
-    - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation.
-    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is `10ms`.
+    - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. The default value is `10`.
+    - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100` ms.
+    - **max_detached_thread_wait_time** (optional) - The maximum time in seconds that an application will wait for a detached dispatcher thread to finish executing. The default value if not specified is `5` sec.
+    - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. The default value is `2`.
+    - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation. The default value is `0`.
+    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is `10` ms.
     - **plugins** (optional array) - Contains the plug-ins that should be loaded to extend the functionality of vsomeip.
         - **name** - The name of the plug-in.
         - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
@@ -198,8 +198,8 @@
 
 ## 4. Network
 
-- **network** (optional) - Network identifier used to support multiple routing managers on one host. This setting changes the name of the shared memory segment in `/dev/shm` and the name of the unix domain sockets in `/tmp/`. Defaults to vsomeip meaning the shared memory will be named `/dev/shm/vsomeip` and the unix domain sockets will be named `/tmp/vsomeip-$CLIENTID`
-- **diagnosis** - The diagnosis address (byte) that will be used to build client identifiers. The diagnosis address is assigned to the most significant byte in all client identifiers if not specified otherwise (for example through a predefined client ID).
+- **network** (optional) - Network identifier used to support multiple routing managers on one host. This setting changes the name of the shared memory segment in `/dev/shm` and the name of the unix domain sockets in `/tmp/`. The default value is `vsomeip`, meaning the shared memory will be named `/dev/shm/vsomeip` and the unix domain sockets will be named `/tmp/vsomeip-$CLIENTID`
+- **diagnosis** - The diagnosis address (byte) that will be used to build client identifiers. The diagnosis address is assigned to the most significant byte in all client identifiers if not specified otherwise (for example through a predefined client ID). The default value is `0x01`.
 - **diagnosis_mask** - The diagnosis mask (2 byte) is used to control the maximum amount of allowed concurrent vsomeip clients on an ECU and the start value of the client IDs.
 
     The default value is `0xFF00` meaning the most significant byte of the client ID is reserved for the diagnosis address and the client IDs will start with the diagnosis address as specified. The maximum number of clients is 255 as the Hamming weight of the inverted mask is 8 (2^8 = 256 - 1 (for the routing manager) = 255). The resulting client ID range with a diagnosis address of for example 0x45 would be 0x4501 to 0x45ff.
@@ -221,7 +221,7 @@
 
 ## 5. Shutdown
 
-- **shutdown_timeout** - Configures the time in milliseconds local clients wait for acknowledgement of their deregistration from the routing manager during shutdown. Defaults to `5000ms`.
+- **shutdown_timeout** - Configures the time in milliseconds local clients wait for acknowledgement of their deregistration from the routing manager during shutdown. The default value is `5000` ms.
 
 <details><summary>Example of Shutdown configuration</summary>
 
@@ -232,7 +232,7 @@
 
 ## 6. Payload Sizes
 
-- **payload-sizes** (array) - Array to limit the maximum allowed payload sizes per IP and port. If not specified otherwise the allowed payload sizes are unlimited. The settings in this array only affect communication over TCP. To limit the local payload size `max-payload-size-local` can be used.
+- **payload-sizes** (array) - Array to limit the maximum allowed payload sizes per IP and port. If not specified otherwise the allowed payload sizes are `unlimited`. The settings in this array only affect communication over TCP. To limit the local payload size `max-payload-size-local` can be used.
     - **unicast** - IP Address of:
         - `On client side`: the IP of the remote service for which the payload size should be limited.
         - `On service side`: the IP of the offered service for which the payload size for receiving and sending should be limited.
@@ -243,10 +243,10 @@
         - **max-payload-size** - The payload regarding:
             - `On client side`: the payload size limit in bytes of a message sent to the remote service hosted on beforehand specified IP and port.
             - `On service side`: the payload size limit in bytes of messages received and sent by the service offered on previously specified IP and port. If multiple services are hosted on the same port they all share the limit specified.
-- **max-payload-size-local** - The maximum allowed payload size for node internal communication in bytes. By default the payload size for node internal communication is unlimited. It can be limited via this setting.
-- **max-payload-size-reliable** - The maximum allowed payload size for TCP communication in bytes. By default the payload size for TCP communication is unlimited. It can be limited via this setting.
-- **max-payload-size-unreliable** - The maximum allowed payload size for UDP communication via SOME/IP-TP in bytes. By default the payload size for UDP via SOME/IP-TP communication is unlimited. It can be limited via this setting. This setting only applies for SOME/IP-TP enabled methods/events/fields (otherwise the UDP default of 1400 bytes applies). See SOME/IP-TP for an example configuration.
-- **buffer-shrink-threshold** - The number of processed messages which are half the size or smaller than the allocated buffer used to process them before the memory for the buffer is released and starts to grow dynamically again. This setting can be useful in scenarios where only a small number of the overall messages are a lot bigger then the rest and the memory allocated to process them should be released in a timely manner. If the value is set to zero the buffer sizes aren't reset and are as big as the biggest processed message. (default is 5)
+- **max-payload-size-local** - The maximum allowed payload size for node internal communication in bytes. By default the payload size for node internal communication is `unlimited`. It can be limited via this setting.
+- **max-payload-size-reliable** - The maximum allowed payload size for TCP communication in bytes. By default the payload size for TCP communication is `unlimited`. It can be limited via this setting.
+- **max-payload-size-unreliable** - The maximum allowed payload size for UDP communication via SOME/IP-TP in bytes. By default the payload size for UDP via SOME/IP-TP communication is `unlimited`. It can be limited via this setting. This setting only applies for SOME/IP-TP enabled methods/events/fields (otherwise the UDP default of 1400 bytes applies). See SOME/IP-TP for an example configuration.
+- **buffer-shrink-threshold** - The number of processed messages which are half the size or smaller than the allocated buffer used to process them before the memory for the buffer is released and starts to grow dynamically again. This setting can be useful in scenarios where only a small number of the overall messages are a lot bigger then the rest and the memory allocated to process them should be released in a timely manner. If the value is set to zero the buffer sizes aren't reset and are as big as the biggest processed message. The default value is `5`.
 
     - **Example**: `buffer-shrink-threshold` is set to `50`.
 
@@ -279,7 +279,7 @@
 
 ## 7. Endpoint Queue Sizes
 
-- **endpoint-queue-limits** (array) - Array to limit the maximum allowed size in bytes of cached outgoing messages per IP and port (message queue size per endpoint). If not specified otherwise the allowed queue size is unlimited. The settings in this array only affect external communication. To limit the local queue size `endpoint-queue-limit-local` can be used.
+- **endpoint-queue-limits** (array) - Array to limit the maximum allowed size in bytes of cached outgoing messages per IP and port (message queue size per endpoint). If not specified otherwise the allowed queue size is `unlimited`. The settings in this array only affect external communication. To limit the local queue size `endpoint-queue-limit-local` can be used.
     - **unicast**
         - `On client side`: The IP of the remote service for which the queue size of sent requests should be limited.
         - `On service side`: The IP of the offered service for which the queue size for sent responses should be limited. This IP address is therefore identical to the IP address specified via unicast setting on top level of the json file.
@@ -290,19 +290,19 @@
         - **queue-size-limit**
             - `On client side`: the queue size limit in bytes of messages sent to the remote service hosted on beforehand specified IP and port.
             - `On service side`: the queue size limit in bytes for responses sent by the service offered on previously specified IP and port. If multiple services are hosted on the same port they all share the limit specified.
-- **endpoint-queue-limit-external** - Setting to limit the maximum allowed size in bytes of cached outgoing messages for external communication (message queue size per endpoint). By default the queue size for external communication is unlimited. It can be limited via this setting. Settings done in the `endpoint-queue-limits` array override this setting.
-- **endpoint-queue-limit-local** - Setting to limit the maximum allowed size in bytes of cached outgoing messages for local communication (message queue size per endpoint). By default the queue size for node internal communication is unlimited. It can be limited via this setting.
+- **endpoint-queue-limit-external** - Setting to limit the maximum allowed size in bytes of cached outgoing messages for external communication (message queue size per endpoint). By default the queue size for external communication is `unlimited`. It can be limited via this setting. Settings done in the `endpoint-queue-limits` array override this setting.
+- **endpoint-queue-limit-local** - Setting to limit the maximum allowed size in bytes of cached outgoing messages for local communication (message queue size per endpoint). By default the queue size for node internal communication is `unlimited`. It can be limited via this setting.
 
 
 ## 8. TCP Restart Settings
 
-- **tcp-restart-aborts-max** - Setting to limit the number of TCP client endpoint restart aborts due to unfinished TCP handshake. After the limit is reached, a forced restart of the TCP client endpoint is done if the connection attempt is still pending.
-- **tcp-connect-time-max** - Setting to define the maximum time until the TCP client endpoint connection attempt should be finished. If tcp-connect-time-max is elapsed, the TCP client endpoint is forcefully restarted if the connection attempt is still pending.
+- **tcp-restart-aborts-max** - Setting to limit the number of TCP client endpoint restart aborts due to unfinished TCP handshake. After the limit is reached, a forced restart of the TCP client endpoint is done if the connection attempt is still pending. The default value is `5`.
+- **tcp-connect-time-max** - Setting to define the maximum time until the TCP client endpoint connection attempt should be finished. If tcp-connect-time-max is elapsed, the TCP client endpoint is forcefully restarted if the connection attempt is still pending. The default value is `5000` ms.
 
 ## 9. Permissions
 
 - **file-permissions**
-    - **permissions-uds** - If UDS is used, this configures the user file-creation mode mask (umask) for the permissions of the sockets.
+    - **permissions-uds** - If UDS is used, this configures the user file-creation mode mask (umask) for the permissions of the sockets. The default value is `0666`.
 
 ## 10. Security
 
@@ -332,8 +332,8 @@ The available configuration switches for the security feature are:
 - **security** (optional) - If specified the credential passing mechanism is activated. However no credential or security checks are done as long as `check_credentials` isn't set to `true`, but the routing manager client ID must be configured if security tag is specified and shall not be set to 0x6300.
 If `check_credentials` is set to `true`, the routing managers UID and GID needs to be specified using `routing-credentials` tag.
 - **NOTE**: As long as no `security` node exists, the security implementation is switched off. This also means, no external security library will be loaded and used.
-    - **check_credentials** (optional) - Specifies whether security checks are active or not. This includes credentials checks on connect as well as all policies checks configured in follow. (valid values: `true`, `false`), (default is `false`). **NOTE**: vsomeip's security implementation can be put in a so called `Audit Mode` where all security violations will be logged but allowed. This mode can be used to build a security configuration. To activate the `Audit Mode` the 'security' object has to be included in the json file but the `check_credentials` switch has to be set to `false`.
-    - **allow_remote_clients** (optional) - Specifies whether incoming remote requests / subscriptions are allowed to be sent to a local proxy / client. If not specified, all remote requests / subscriptions are allowed to be received by default. (valid values are `true` and `false`)
+    - **check_credentials** (optional) - Specifies whether security checks are active or not. This includes credentials checks on connect as well as all policies checks configured in follow, valid values are `true` or `false`. The default value is `false`. **NOTE**: vsomeip's security implementation can be put in a so called `Audit Mode` where all security violations will be logged but allowed. This mode can be used to build a security configuration. To activate the `Audit Mode` the 'security' object has to be included in the json file but the `check_credentials` switch has to be set to `false`.
+    - **allow_remote_clients** (optional) - Specifies whether incoming remote requests / subscriptions are allowed to be sent to a local proxy / client. If not specified, all remote requests / subscriptions are allowed to be received by default. Valid values are `true` and `false`. The default value is `true`.
     - **policies** (array) - Specifies the security policies. Each policy at least needs to specify `allow` or `deny`.
         - **credentials** - Specifies the credentials for which a security policy will be applied. If `check_credentials` is set to `true` the credentials of a local application needs to be specified correctly to ensure local socket authentication can succeed.
             - **uid** - Specifies the LINUX User ID of the client application as decimal number. As a wildcard "any" can be used.
@@ -494,8 +494,8 @@ The following configuration parameters are available and can be defined in a fil
 The Trace Connector is used to forward the internal messages that are sent over the Unix Domain Sockets (UDS) to DLT. Thus, it requires that DLT is installed and the DLT module can be found in the context of CMake.
 
 - **tracing** (optional)
-    - **enable** - Specifies whether the tracing of the SOME/IP messages is enabled (valid values: `true`, `false`). Default value is `false`. If tracing is enabled, the messages will be forwarded to DLT by the Trace Connector.
-    - **sd_enable** - Specifies whether the tracing of the SOME/IP service discovery messages is enabled (valid values: `true`, `false`). Default value is `false`.
+    - **enable** - Specifies whether the tracing of the SOME/IP messages is enabled, valid values are `true`, `false`. The default value is `false`. If tracing is enabled, the messages will be forwarded to DLT by the Trace Connector.
+    - **sd_enable** - Specifies whether the tracing of the SOME/IP service discovery messages is enabled, valid values are `true`, `false`. The default value is `false`.
     - **channels** (array)(optional) - Contains the channels to DLT.
     **NOTE**: You can set up multiple channels to DLT over that you can forward the messages.
         - **name** - The name of the channel.
@@ -505,7 +505,7 @@ The Trace Connector is used to forward the internal messages that are sent over 
         - **channel** (optional) - The id of the channel over that the filtered messages are forwarded to DLT. If no channel is specified the default channel (`TC`) is used. If you want to use a filter in several different channels, you can provide an array of channel ids.
         **NOTE**: If you use a positive filter with multiple channels, the same message will be forwarded multiple times to DLT.
         - **matches** (optional) - Specification of the criteria to include/exclude a message into/from the trace. You can either specify lists (array) or ranges of matching elements. A list may contain single identifiers which match all messages from/to all instances of the corresponding service or tuples consisting of service, instance and method-identifier. 'any' may be used as a wildcard for matching all services, instances or methods. A range is specified by two tuples "from" and "to", each consisting of service-, instance-and method-identifier. All messages with service-, instance-and method-identifiers that are greater than or equal to "from" and less than or equal to "to" are matched.
-        - **type** (optional) - Specifies the filter type (valid values: `positive`, `negative`, `header-only`). Default value is `positive`.
+        - **type** (optional) - Specifies the filter type (valid values: `positive`, `negative`, `header-only`). The default value is `positive`.
             - A **positive filter** is used and a message matches one of the filter rules, the message will be traced/forwarded to DLT.
             - A **negative filter** messages can be excluded. So when a message matches one of the filter rules, the message will not be traced/forwarded to DLT.
             - A **header-only filter** is a positive filter that does not trace the message payload.
@@ -596,22 +596,22 @@ The general filter rules are:
 
 ## 12. UDP Receive Buffer Size
 
-- **udp-receive-buffer-size** - Specifies the size of the socket receive buffer (SO_RCVBUF) used for UDP client and server endpoints in bytes. Requires CAP_NET_ADMIN to be successful. (default: `1703936`)
+- **udp-receive-buffer-size** - Specifies the size of the socket receive buffer (SO_RCVBUF) used for UDP client and server endpoints in bytes. Requires CAP_NET_ADMIN to be successful. The default value is: `1703936`.
 
 
 ## 13. Service Discovery
 
 - **service-discovery** - Contains settings related to the Service Discovery of the host application.
-    - **enable** - Specifies whether the Service Discovery is enabled (valid values: `true`, `false`). The default value is `true`.
-    - **initial_state** - Specifies the initial Service Discovery state after startup (valid values: `unknown`, `suspended`, `resumed`). The default value is `unknown`.
-    - **multicast** - The multicast address which the messages of the Service Discovery will be sent to. The default value is `224.0.0.1`.
-    - **port** - The port of the Service Discovery. The default setting is `30490`.
-    - **protocol** The protocol that is used for sending the Service Discovery messages (valid values: `tcp`, `udp`). The default setting is `udp`.
-    - **initial_delay_min** - Minimum delay before first offer message.
-    - **initial_delay_max** - Maximum delay before first offer message.
-    - **repetitions_base_delay** - Base delay sending offer messages within the repetition phase.
-    - **repetitions_max** - Maximum number of repetitions for provided services within the repetition phase.
-    - **ttl** - Lifetime of entries for provided services as well as consumed services and eventgroups.
+    - **enable** - Specifies whether the Service Discovery is enabled, valid values are `true`, `false`. The default value is `true`.
+    - **initial_state** - Specifies the initial Service Discovery state after startup. Valid values are `unknown`, `suspended` or `resumed`. The default value is `unknown`.
+    - **multicast** - The multicast address which the messages of the Service Discovery will be sent to. The default value is `224.224.224.0`.
+    - **port** - The port of the Service Discovery. The default value is `30490`.
+    - **protocol** The protocol that is used for sending the Service Discovery messages, valid values are `tcp`, `udp`. The default value is `udp`.
+    - **initial_delay_min** - Minimum delay before first offer message. The default value is `0` ms.
+    - **initial_delay_max** - Maximum delay before first offer message. The default value is `3000` ms.
+    - **repetitions_base_delay** - Base delay sending offer messages within the repetition phase. The default value is `10`.
+    - **repetitions_max** - Maximum number of repetitions for provided services within the repetition phase. The default value is `3`.
+    - **ttl** - Lifetime of entries for provided services as well as consumed services and eventgroups. The default value is `0xFFFFFF`, until next reboot.
     - **ttl_factor_offers** (optional array) - Array which holds correction factors for incoming remote offers. If a value greater than one is specified for a service instance, the TTL field of the corresponding service entry will be multiplied with the specified factor. **Example**: An offer of a service is received with a TTL of 3 sec and the TTL factor is set to 5. The remote node stops offering the service w/o sending a StopOffer message. The service will then expire (marked as unavailable) 15 seconds after the last offer has been received.
         - **service** - The id of the service.
         - **instance** - The id of the service instance.
@@ -620,12 +620,11 @@ The general filter rules are:
         - **service** - The id of the service.
         - **instance** - The id of the service instance.
         - **ttl_factor** - TTL correction factor
-    - **cyclic_offer_delay** - Cycle of the OfferService messages in the main phase.
-    - **request_response_delay** - Minimum delay of a unicast message to a multicast message for provided services and eventgroups. (ignored by vsomeip)
-    - **offer_debounce_time** - Time which the stack collects new service offers before they enter the repetition phase. This can be used to reduce the number of sent messages during startup. The default setting is `500ms`.
-    - **find_debounce_time** - Time which the stack collects non local service requests before sending find messages. The default setting is `500ms`.
-    - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote
-subscribers will not be acknowledged.
+    - **cyclic_offer_delay** - Cycle of the OfferService messages in the main phase. The default value is `1000` ms.
+    - **request_response_delay** - Minimum delay of a unicast message to a multicast message for provided services and eventgroups. The default value is `2000` ms.
+    - **offer_debounce_time** - Time which the stack collects new service offers before they enter the repetition phase. This can be used to reduce the number of sent messages during startup. The default value is `500` ms.
+    - **find_debounce_time** - Time which the stack collects non local service requests before sending find messages. The default value is `500` ms.
+    - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.
 
 <details><summary>Service Discovery configuration</summary>
 
@@ -957,21 +956,21 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 - **services** (array) - Contains the services of the service provider.
     - **service** - The id of the service.
     - **instance** - The id of the service instance.
-    - **protocol** (optional) - The protocol that is used to implement the service instance. The default setting is `someip`. If a different setting is provided, vsomeip does not open the specified port (server side) or does not connect to the specified port (client side). Thus, this option can be used to let the service discovery announce a service that is externally implemented.
+    - **protocol** (optional) - The protocol that is used to implement the service instance. The default value is `someip`. If a different setting is provided, vsomeip does not open the specified port (server side) or does not connect to the specified port (client side). Thus, this option can be used to let the service discovery announce a service that is externally implemented.
     - **unicast** (optional) - The unicast that hosts the service instance.
     **NOTE**: The unicast address is needed if external service instances shall be used, but service discovery is disabled. In this case, the provided unicast address is used to access the service instance.
     - **reliable** - Specifies that the communication with the service is reliable respectively the TCP protocol is used for communication.
         - **port** - The port of the TCP endpoint.
-        - **enable-magic-cookies** - Specifies whether magic cookies are enabled (valid values: `true`, `false`).
+        - **enable-magic-cookies** - Specifies whether magic cookies are enabled, valid values are `true`, `false`.
     - **unreliable** - Specifies that the communication with the service is unreliable respectively the UDP protocol is used for communication (valid values: the port of the UDP endpoint).
     - **events** (array) - Contains the events of the service.
         - **event** - The id of the event.
         - **is_field** - Specifies whether the event is of type field.
         **NOTE**: A field is a combination of getter, setter and notification event. It contains at least a `getter`, a `setter`, or a `notifier`. The notifier sends an event message that transports the current value of a field on change.
-        - **is_reliable** - Specifies whether the communication is reliable respectively whether the event is sent with the TCP protocol (valid values: `true`, `false`). If the value is false the UDP protocol will be used.
+        - **is_reliable** - Specifies whether the communication is reliable respectively whether the event is sent with the TCP protocol, valid values: `true`, `false`. If the value is false the UDP protocol will be used.
         - **cycle** - Defines the period for events to be sent. (values are defined in `ms`).
-        - **update_on_change** - Defines if the updates are sent right away if the event value changes (valid values: `true`, `false`).
-        - **change_resets_cycle** - When the `update_on_change` is set to `true`, and this parameter is also `true`, the defined cycle will be reset when the event value changes. (valid values: `true`, `false`)
+        - **update_on_change** - Defines if the updates are sent right away if the event value changes, valid values: `true`, `false`.
+        - **change_resets_cycle** - When the `update_on_change` is set to `true`, and this parameter is also `true`, the defined cycle will be reset when the event value changes. Valid values: `true`, `false`.
     - **eventgroups** (array) - Events can be grouped together into on event group. For a client it is thus possible to subscribe for an event group and to receive the appropriate events within the group.
         - **eventgroup** - The id of the event group.
         - **multicast** - Specifies the multicast that is used to publish the eventgroup.
@@ -1241,9 +1240,9 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ## 18. Watchdog
 
 - **watchdog** (optional) - The Watchdog sends periodically pings to all known local clients. If a client isn't responding within a configured time/amount of pongs the watchdog deregisters this application/client. If not configured the watchdog isn't activated.
-    - **enable** - Specifies whether the watchdog is enabled or disabled. (valid values: `true`, `false`), (default is `false`).
-    - **timeout** - Specifies the timeout in ms the watchdog gets activated if a ping isn't answered with a pong by a local client within that time. (valid values: 2 - 2^32), (default is `5000 ms`).
-    - **allowed_missing_pongs** - Specifies the amount of allowed missing pongs. (valid values: 1 - 2^32), (default is `3 pongs`).
+    - **enable** - Specifies whether the watchdog is enabled or disabled, valid values are `true`, `false`. The default value is `false`.
+    - **timeout** - Specifies the timeout in ms the watchdog gets activated if a ping isn't answered with a pong by a local client within that time. (valid values: 2 - 2^32). The default value is `5000` ms.
+    - **allowed_missing_pongs** - Specifies the amount of allowed missing pongs. (valid values: 1 - 2^32). The default value is `3`.
 
 
 ## 19. Selective Broadcasts Support
@@ -1468,13 +1467,13 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     - **instance** - Instance ID which hosts the events to be debounced.
     - **events** - Array of events which shall be debounced based on the following configuration options.
         - **event** - Event ID.
-        - **on_change** - Specifies whether the event is forwarded on payload change or not. (valid values: `true`, `false`). Default is `false`.
+        - **on_change** - Specifies whether the event is forwarded on payload change or not, valid values: `true`, `false`. The default value is `false`.
         - **ignore** - Array of payload indexes with given bit mask (optional) to be ignored in payload change evaluation. Instead of specifying an index / bitmask pair, one can only define the payload index which shall be ignored in the evaluation.
             - **index** - Payload index to be checked with given bitmask.
             - **mask** - 1 Byte bitmask applied to byte at given payload index. **Example mask**: 0x0f ignores payload changes in low nibble of the byte at given index.
-        - **interval** - Specifies if the event shall be debounced based on elapsed time interval. (valid values: `time in ms`, `never`). Default is `never`.
-        - **on_change_resets_interval** (optional) - Specifies if interval timer is reset when payload change was detected. (valid values: `false`, `true`). Defaults to `false`.
-        - **send_current_value_after** (optional) - Specifies if last message should be sent after interval timeout. (valid values: `false`, `true`). Defaults to `false`.
+        - **interval** - Specifies if the event shall be debounced based on elapsed time interval. (valid values: `time in ms`, `never`). The default value is  `never`.
+        - **on_change_resets_interval** (optional) - Specifies if interval timer is reset when payload change was detected, valid values are `false`, `true`. The default value is `false`.
+        - **send_current_value_after** (optional) - Specifies if last message should be sent after interval timeout, valid values are `false`, `true`. The default value is `false`.
 
 
 <details><summary>Debounce configuration</summary>
