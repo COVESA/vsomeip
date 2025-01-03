@@ -1070,7 +1070,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                         } else {
                             if ((utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS])
                                  || utility::is_error(_data[VSOMEIP_MESSAGE_TYPE_POS]))
-                                    && !its_info->is_local()) {
+                                    && its_info && !its_info->is_local()) {
                                 // We received a response/error but neither the hosting application
                                 // nor another local client could be found --> drop
                                 const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);

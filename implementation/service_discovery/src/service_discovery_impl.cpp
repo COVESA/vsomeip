@@ -2406,7 +2406,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
     std::shared_ptr<endpoint_definition> its_unreliable;
 
     // wrong major version
-    if (_major != _info->get_major()) {
+    if (_info && _major != _info->get_major()) {
         // Create a temporary info object with TTL=0 --> send NACK
         auto its_info = std::make_shared<eventgroupinfo>(_service, _instance,
                 _eventgroup, _major, 0, VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS);
