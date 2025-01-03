@@ -742,7 +742,7 @@ bool udp_server_endpoint_impl::tp_segmentation_enabled(service_t _service, insta
 void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::address& _address,
                                                     bool _is_join,
                                                     boost::system::error_code& _error) {
-    std::scoped_lock its_lock {multicast_mutex_};
+    std::unique_lock its_lock {multicast_mutex_};
     if (_is_join) {
         // If the multicast socket does not yet exist, create it.
         if (!multicast_socket_) {
@@ -862,10 +862,14 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                         static_cast<unsigned int>(local_.address().to_v6().scope_id()));
             }
         }
+
+        // This tends to block for a very long time (>15s), so we need to unlock
+        // the mutex, or the IO threads will also become blocked.
+        its_lock.unlock();
         multicast_socket_->set_option(its_join_option, _error);
+        its_lock.lock();
 
         if (!_error) {
-            std::lock_guard<std::recursive_mutex> its_guard(multicast_mutex_);
             joined_[_address.to_string()] = false;
             joined_group_ = true;
         }
