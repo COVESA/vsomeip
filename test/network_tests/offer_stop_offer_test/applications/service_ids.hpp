@@ -32,5 +32,4 @@ constexpr vsomeip::event_t EVENT_ID = 0x8778;
 /// @brief Both services eventgroup id
 constexpr vsomeip::eventgroup_t EVENTGROUP_ID = 0x4465;
 
-
 #endif // VSOMEIP_EXAMPLES_IDS_HPP

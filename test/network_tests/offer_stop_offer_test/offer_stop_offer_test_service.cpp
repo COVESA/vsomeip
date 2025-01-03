@@ -26,7 +26,12 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
     ASSERT_TRUE(service_provider.init());
     service_provider.start();
 
-    // Precondition 2: routingmanagerd is able to route
+    // Precondition 2: Wait for the routing host to be available and for the service app to register
+    while (!service_provider.is_registered()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    // Precondition 3: routingmanagerd is able to route
     auto routing_availability_check = service_provider.offer();
     ASSERT_TRUE(routing_availability_check.valid());
     routing_availability_check.wait();
@@ -41,7 +46,10 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
     // 4: validate that the services are available
     // Repeate above steps for SERVICE_UP_TIME
     while (!test_timer.has_elapsed()) {
+        // Check if we are still registered to the routing host
+        ASSERT_TRUE(service_provider.is_registered());
 
+        // Send STOP OFFER
         auto stop_offer_confirmation = service_provider.stop_offer();
         // Wait confirmation that all services have became unavailable
         ASSERT_TRUE(stop_offer_confirmation.valid());
@@ -50,6 +58,7 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
 
         std::this_thread::sleep_for(SERVICE_STOP_OFFER_TIME);
 
+        // Send OFFER
         auto offer_confirmation = service_provider.offer();
         // Wait confirmation that all services have became available
         ASSERT_TRUE(offer_confirmation.valid());

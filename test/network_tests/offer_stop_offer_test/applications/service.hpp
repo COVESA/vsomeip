@@ -50,6 +50,11 @@ public:
     /// @return returns a future that will notify that the availability to this service was changed
     std::future<bool> stop_offer();
 
+    /// @brief Getter for application registration state
+    ///
+    /// @return true if registered
+    bool is_registered() const;
+
 private:
     /// @brief handler for receiving requests. Will send a response back with a big payload and a
     ///        changing first byte
@@ -64,6 +69,11 @@ private:
     /// @param is_available New availability state
     void on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
                          bool is_available);
+
+    /// @brief handler for application registration state change.
+    ///
+    /// @param state Current registration state
+    void on_state(vsomeip::state_type_e state);
 
     /// @brief vsomeip app interface
     std::shared_ptr<vsomeip::application> vsomeip_app;
@@ -80,10 +90,12 @@ private:
     std::thread worker;
 
     /// @brief application offer state for both services.
-    bool is_offering;
+    std::atomic_bool is_offering;
 
     /// @brief promise which value shall be set once the availability is received
     std::promise<bool> promise_availability;
+
+    std::atomic<vsomeip::state_type_e> app_registration_state;
 };
 
 #endif // VSOMEIP_SERVICE_HPP

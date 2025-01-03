@@ -63,7 +63,7 @@ std::future<bool> client_t::request(bool is_tcp, vsomeip::service_t service,
     auto promise_response = std::promise<bool>();
     auto future_response = std::future<bool>(promise_response.get_future());
 
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
     if (availability_table[service]) {
         auto request = vsomeip::runtime::get()->create_request(is_tcp);
 
@@ -84,7 +84,7 @@ std::future<bool> client_t::request(bool is_tcp, vsomeip::service_t service,
 }
 
 bool client_t::is_available() {
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
 
     for (const auto& availability_entry : availability_table) {
         if (!availability_entry.second) {
@@ -95,7 +95,7 @@ bool client_t::is_available() {
 }
 
 void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
 
     if (message->get_payload()->get_data()) {
         VSOMEIP_INFO << "client_t::" << __func__ << ": "
@@ -120,7 +120,7 @@ void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
 
 void client_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
                                bool is_available) {
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
 
     VSOMEIP_INFO << "client_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0')
                  << std::hex << service << "." << instance << "] is "
