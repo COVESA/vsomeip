@@ -147,6 +147,8 @@ public:
 
     virtual routing_state_e get_routing_state();
 
+    virtual bool is_suspended() const;
+
     virtual void register_client_error_handler(client_t _client,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
 
@@ -259,6 +261,7 @@ protected:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
     void add_known_client(client_t _client, const std::string &_client_host);
+    void remove_known_client(client_t _client);
 
 #ifdef VSOMEIP_ENABLE_COMPAT
     void set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
@@ -338,6 +341,7 @@ protected:
         }
     };
     std::set<subscription_data_t> pending_subscriptions_;
+    std::mutex pending_subscription_mutex_;
 
     services_t services_remote_;
     mutable std::mutex services_remote_mutex_;
@@ -350,8 +354,7 @@ protected:
     mutable std::mutex env_mutex_;
     std::string env_;
 
-    std::mutex routing_state_mutex_;
-    routing_state_e routing_state_;
+    std::atomic<routing_state_e> routing_state_;
 
 #ifdef USE_DLT
     std::shared_ptr<trace::connector_impl> tc_;

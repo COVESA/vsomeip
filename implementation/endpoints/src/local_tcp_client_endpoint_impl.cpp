@@ -46,7 +46,6 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
     if (!_force && state_ == cei_state_e::CONNECTING) {
         return;
     }
-    state_ = cei_state_e::CONNECTING;
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = false;
@@ -57,6 +56,7 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         shutdown_and_close_socket_unlocked(true);
     }
+    state_ = cei_state_e::CONNECTING;
     was_not_connected_ = true;
     reconnect_counter_ = 0;
     start_connect_timer();
@@ -119,15 +119,15 @@ void local_tcp_client_endpoint_impl::connect() {
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't disable "
                             << "Nagle algorithm: " << its_error.message()
-                            << " remote:" << remote_.port()
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+                            << " remote: " << remote_.port() << " endpoint: " << this
+                            << " state_: " << static_cast<int>(state_.load());
         }
         socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
-                            << "keep_alive: " << its_error.message()
-                            << " remote:" << remote_.port()
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+                            << "keep_alive: " << its_error.message() << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
         }
         // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
         // Since this is endpoint for internal communication, setting the TIME_WAIT to 5 seconds
@@ -135,29 +135,29 @@ void local_tcp_client_endpoint_impl::connect() {
         socket_->set_option(boost::asio::socket_base::linger(true, 5), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
-                    << "SO_LINGER: " << its_error.message()
-                    << " remote:" << remote_.port()
-                    << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+                            << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
         }
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "ltcei::" << __func__
-                            << ": Cannot enable SO_REUSEADDR" << "(" << its_error.message() << ")"
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+            VSOMEIP_WARNING << "ltcei::" << __func__ << ": Cannot enable SO_REUSEADDR" << "("
+                            << its_error.message() << ")"
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
         }
         socket_->bind(local_, its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "ltcei::" << __func__
-                            << ": Cannot bind to client port " << local_.port() << "("
-                            << its_error.message() << ")"
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+            VSOMEIP_WARNING << "ltcei::" << __func__ << ": Cannot bind to client port "
+                            << local_.port() << "(" << its_error.message() << ")"
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
             try {
-                strand_.post(
-                    std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
-                            its_connect_error));
-            } catch (const std::exception &e) {
-                VSOMEIP_ERROR << "ltcei::connect: " << e.what()
-                              << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+                strand_.post(std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                                       its_connect_error));
+            } catch (const std::exception& e) {
+                VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this
+                              << " state_ > " << static_cast<int>(state_.load());
             }
             return;
         }

@@ -52,6 +52,7 @@ enum class routing_state_e : uint8_t {
     RS_RESUMED = 0x02,
     RS_SHUTDOWN = 0x03,
     RS_DIAGNOSIS = 0x04,
+    RS_DELAYED_RESUME = 0x05,
     RS_UNKNOWN = 0xFF
 };
 

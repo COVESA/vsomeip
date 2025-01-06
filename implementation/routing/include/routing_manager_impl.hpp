@@ -385,6 +385,8 @@ private:
 
     void start_ip_routing();
 
+    inline bool is_external_routing_ready() const;
+
     void add_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
                        minor_version_t _minor);
@@ -500,9 +502,9 @@ private:
     std::mutex version_log_timer_mutex_;
     boost::asio::steady_timer version_log_timer_;
 
-    bool if_state_running_;
-    bool sd_route_set_;
-    bool routing_running_;
+    std::atomic_bool if_state_running_;
+    std::atomic_bool sd_route_set_;
+    std::atomic_bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
 #if defined(__linux__) || defined(ANDROID)
@@ -517,8 +519,6 @@ private:
         std::map<instance_t,
                 std::tuple<major_version_t, minor_version_t,
                             client_t, client_t>>> pending_offers_;
-
-    std::mutex pending_subscription_mutex_;
 
     std::mutex remote_subscription_state_mutex_;
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
@@ -543,6 +543,7 @@ private:
     pending_remote_offer_id_t pending_remote_offer_id_;
     std::map<pending_remote_offer_id_t, std::pair<service_t, instance_t>> pending_remote_offers_;
 
+    std::mutex last_resume_mutex_;
     std::chrono::steady_clock::time_point last_resume_;
 
     std::mutex offer_serialization_mutex_;

@@ -87,7 +87,6 @@ void tcp_client_endpoint_impl::restart(bool _force) {
                         << its_connect_duration;
             }
         }
-        self->state_ = cei_state_e::CONNECTING;
         std::string address_port_local;
         {
             std::lock_guard<std::mutex> its_lock(self->socket_mutex_);
@@ -95,6 +94,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
             self->shutdown_and_close_socket_unlocked(true);
             self->recv_buffer_ = std::make_shared<message_buffer_t>(self->recv_buffer_size_initial_, 0);
         }
+        self->state_ = cei_state_e::CONNECTING;
         self->was_not_connected_ = true;
         self->reconnect_counter_ = 0;
         {
@@ -677,8 +677,8 @@ void tcp_client_endpoint_impl::receive_cbk(
                         }
 
                         if (invalid_parameter_detected) {
-                            state_ = cei_state_e::CONNECTING;
                             shutdown_and_close_socket_unlocked(false);
+                            state_ = cei_state_e::CONNECTING;
                             its_lock.unlock();
 
                             // wait_until_sent interprets "no error" as timeout.
@@ -708,8 +708,8 @@ void tcp_client_endpoint_impl::receive_cbk(
                                           << "Restarting connection. "
                                           << "local: " << get_address_port_local()
                                           << " remote: " << get_address_port_remote();
-                            state_ = cei_state_e::CONNECTING;
                             shutdown_and_close_socket_unlocked(false);
+                            state_ = cei_state_e::CONNECTING;
                             its_lock.unlock();
 
                             // wait_until_sent interprets "no error" as timeout.
@@ -746,8 +746,8 @@ void tcp_client_endpoint_impl::receive_cbk(
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote()
                                 << ". Restarting connection due to missing/broken data TCP stream.";
-                        state_ = cei_state_e::CONNECTING;
                         shutdown_and_close_socket_unlocked(false);
+                        state_ = cei_state_e::CONNECTING;
                         its_lock.unlock();
 
                         // wait_until_sent interprets "no error" as timeout.
@@ -787,8 +787,8 @@ void tcp_client_endpoint_impl::receive_cbk(
                             " restarting" << get_remote_information();
                 } else {
                     VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk restarting.";
-                    state_ = cei_state_e::CONNECTING;
                     shutdown_and_close_socket_unlocked(false);
+                    state_ = cei_state_e::CONNECTING;
                     its_lock.unlock();
 
                     // wait_until_sent interprets "no error" as timeout.
@@ -970,12 +970,12 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 VSOMEIP_WARNING << "tce::send_cbk endpoint is already restarting:"
                         << get_remote_information();
             } else {
-                state_ = cei_state_e::CONNECTING;
                 shutdown_and_close_socket(false);
                 std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
                 if (its_host) {
                     its_host->on_disconnect(shared_from_this());
                 }
+                state_ = cei_state_e::CONNECTING;
                 restart(true);
             }
             service_t its_service(0);

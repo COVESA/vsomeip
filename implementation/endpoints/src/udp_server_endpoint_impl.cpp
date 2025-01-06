@@ -146,6 +146,7 @@ void udp_server_endpoint_impl::start() {
 
 void udp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
+
     is_stopped_ = true;
 
     {

@@ -258,8 +258,16 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
 
             new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true), its_error);
             if (its_error) {
-                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable "
-                                << "keep_alive: " << its_error.message();
+                VSOMEIP_WARNING << "tsei::" << __func__
+                                << ": couldn't enable keep_alive: " << its_error.message();
+            }
+            // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
+            // The linger is needed to be set for suspend to RAM, since after resuming the
+            // connection could be lost and the socket could get stuck in TIME_WAIT for 120 seconds
+            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 5), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "tsei::" << __func__
+                                << ": setting SO_LINGER failed: " << its_error.message();
             }
         }
         if (!its_error) {
@@ -413,10 +421,12 @@ void tcp_server_endpoint_impl::connection::receive() {
 
 void tcp_server_endpoint_impl::connection::stop() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
+
     if (socket_.is_open()) {
         boost::system::error_code its_error;
 
         auto its_server {server_.lock()};
+
         if (its_server && its_server->is_suspended()) {
             socket_.set_option(boost::asio::socket_base::linger(true, 0), its_error);
             if (its_error) {
@@ -509,6 +519,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                          " couldn't lock server_";
         return;
     }
+
 #if 0
     std::stringstream msg;
     for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
@@ -979,6 +990,7 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(
         return;
 
     std::lock_guard<std::mutex> its_lock(its_server->mutex_);
+
     auto it = its_server->targets_.find(remote_);
     if (it != its_server->targets_.end()) {
         auto& its_data = it->second;

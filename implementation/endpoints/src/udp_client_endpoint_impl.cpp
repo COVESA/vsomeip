@@ -195,7 +195,6 @@ void udp_client_endpoint_impl::restart(bool _force) {
     if (!_force && state_ == cei_state_e::CONNECTING) {
         return;
     }
-    state_ = cei_state_e::CONNECTING;
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         queue_.clear();
@@ -205,11 +204,12 @@ void udp_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         local = get_address_port_local();
     }
-    shutdown_and_close_socket(false);
     was_not_connected_ = true;
     reconnect_counter_ = 0;
     VSOMEIP_WARNING << "uce::restart: local: " << local
             << " remote: " << get_address_port_remote();
+    shutdown_and_close_socket(false);
+    state_ = cei_state_e::CONNECTING;
     start_connect_timer();
 }
 
@@ -615,12 +615,12 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
             VSOMEIP_WARNING << "uce::send_cbk endpoint is already restarting:"
                     << get_remote_information();
         } else {
-            state_ = cei_state_e::CONNECTING;
             shutdown_and_close_socket(false);
             std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
             if (its_host) {
                 its_host->on_disconnect(shared_from_this());
             }
+            state_ = cei_state_e::CONNECTING;
             restart(true);
         }
         service_t its_service(0);

@@ -684,6 +684,10 @@ service_discovery_impl::is_reboot(
             && ((_is_multicast && !std::get<2>(its_received->second))
                 || (!_is_multicast && !std::get<3>(its_received->second)))) {
             result = true;
+            VSOMEIP_INFO << "sdi::" << __func__ << " Reboot detected, rbt flag: " << _reboot_flag
+                         << " Sender: " << _sender.to_string() << " is multicast: " << _is_multicast
+                         << " multicast old reboot flag: " << std::get<2>(its_received->second)
+                         << " unicast old reboot flag " << std::get<3>(its_received->second);
         } else {
             session_t its_old_session;
             bool its_old_reboot_flag;
@@ -699,6 +703,13 @@ service_discovery_impl::is_reboot(
             if (its_old_reboot_flag && _reboot_flag
                     && its_old_session >= _session) {
                 result = true;
+                VSOMEIP_INFO << "sdi::" << __func__
+                             << " Reboot detected, rbt flag: " << _reboot_flag
+                             << " Sender: " << _sender.to_string()
+                             << " is multicast: " << _is_multicast
+                             << " old reboot flag: " << its_old_reboot_flag
+                             << " current session: " << _session
+                             << " old session: " << its_old_session;
             }
         }
 

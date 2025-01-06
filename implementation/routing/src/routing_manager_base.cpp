@@ -787,6 +787,11 @@ void routing_manager_base::add_known_client(client_t _client, const std::string 
     known_clients_[_client] = _client_host;
 }
 
+void routing_manager_base::remove_known_client(client_t _client) {
+    std::scoped_lock its_lock(known_clients_mutex_);
+    known_clients_.erase(_client);
+}
+
 void routing_manager_base::subscribe(client_t _client,
         const vsomeip_sec_client_t *_sec_client,
         service_t _service, instance_t _instance,
@@ -1205,6 +1210,7 @@ void routing_manager_base::remove_local(client_t _client,
                 std::get<1>(its_subscription), std::get<2>(its_subscription), ANY_EVENT);
     }
     ep_mgr_->remove_local(_client);
+    remove_known_client(_client);
     {
         std::lock_guard<std::mutex> its_lock(local_services_mutex_);
         // Finally remove all services that are implemented by the client.
@@ -1534,6 +1540,7 @@ void routing_manager_base::put_deserializer(
 
 void routing_manager_base::send_pending_subscriptions(service_t _service,
         instance_t _instance, major_version_t _major) {
+    std::scoped_lock its_lock(pending_subscription_mutex_);
     for (auto &ps : pending_subscriptions_) {
         if (ps.service_ == _service &&
                 ps.instance_ == _instance && ps.major_ == _major) {
@@ -1545,6 +1552,7 @@ void routing_manager_base::send_pending_subscriptions(service_t _service,
 
 void routing_manager_base::remove_pending_subscription(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
+    std::scoped_lock its_lock(pending_subscription_mutex_);
     if (_eventgroup == 0xFFFF) {
         for (auto it = pending_subscriptions_.begin();
                 it != pending_subscriptions_.end();) {
@@ -1659,6 +1667,11 @@ routing_manager_base::remove_subscriptions(port_t _local_port,
 routing_state_e
 routing_manager_base::get_routing_state() {
     return routing_state_;
+}
+
+bool routing_manager_base::is_suspended() const {
+    return routing_state_ == routing_state_e::RS_SUSPENDED
+            || routing_state_ == routing_state_e::RS_DELAYED_RESUME;
 }
 
 #ifdef VSOMEIP_ENABLE_COMPAT

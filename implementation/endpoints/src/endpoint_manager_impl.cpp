@@ -71,7 +71,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_remote_client(
         }
     }
     if (start_endpoint && its_endpoint && configuration_->is_someip(_service, _instance)
-        && rm_->get_routing_state() != routing_state_e::RS_SUSPENDED) {
+        && !rm_->is_suspended()) {
         its_endpoint->start();
     }
     return its_endpoint;
@@ -97,7 +97,7 @@ void endpoint_manager_impl::find_or_create_remote_client(
         }
     }
     const bool is_someip {configuration_->is_someip(_service, _instance)};
-    const bool is_suspended {rm_->get_routing_state() == routing_state_e::RS_SUSPENDED};
+    const bool is_suspended {rm_->is_suspended()};
 
     if (start_reliable_endpoint && its_reliable_endpoint && is_someip && !is_suspended) {
         its_reliable_endpoint->start();
@@ -289,7 +289,7 @@ endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bo
 
     if (its_server_endpoint) {
         server_endpoints_[_port][_reliable] = its_server_endpoint;
-        if (rm_->get_routing_state() != routing_state_e::RS_SUSPENDED) {
+        if (!rm_->is_suspended()) {
             its_server_endpoint->start();
         }
     } else {
@@ -1395,137 +1395,24 @@ bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
 }
 
 void endpoint_manager_impl::suspend() {
-    client_endpoints_t its_client_endpoints;
-    server_endpoints_t its_server_endpoints;
-
-    {
-        std::scoped_lock its_lock {endpoint_mutex_};
-        its_client_endpoints = client_endpoints_;
-        its_server_endpoints = server_endpoints_;
-    }
-
-    // stop client endpoints
-    std::set<std::shared_ptr<client_endpoint>> its_suspended_client_endpoints;
-    for (const auto& [its_address, ports] : its_client_endpoints) {
-        for (const auto& [its_port, protocols] : ports) {
-            for (const auto& [its_protocol, partitions] : protocols) {
-                for (const auto& [its_partition, its_endpoint] : partitions) {
-                    its_endpoint->stop();
-                    auto its_client_endpoint {
-                            std::dynamic_pointer_cast<client_endpoint>(its_endpoint)};
-                    if (its_client_endpoint) {
-                        its_suspended_client_endpoints.insert(its_client_endpoint);
-                    }
-                }
-            }
-        }
-    }
-
-    // start server endpoints
-    for (const auto& [its_port, protocols] : its_server_endpoints) {
-        for (const auto& [its_protocol, its_endpoint] : protocols) {
-            its_endpoint->stop();
-        }
-    }
-    // check that the clients are established again
-    size_t its_interval {MIN_ENDPOINT_WAIT_INTERVAL};
-    size_t its_sum {0};
-    const size_t its_max {SUM_ENDPOINT_WAIT_INTERVAL};
-    bool is_done;
-    do {
-        is_done = true;
-        std::this_thread::sleep_for(std::chrono::milliseconds(its_interval));
-        for (auto& its_endpoint : its_suspended_client_endpoints) {
-            is_done = is_done && its_endpoint->is_closed();
-            if (!is_done)
-                break;
-        }
-        if (its_interval < MAX_ENDPOINT_WAIT_INTERVAL) {
-            its_interval <<= 1;
-        }
-        its_sum += its_interval;
-    } while (!is_done && its_sum < its_max);
-
-    if (!is_done) {
-        for (const auto& its_endpoint : its_suspended_client_endpoints) {
-            if (!its_endpoint->is_closed()) {
-                boost::asio::ip::address its_address;
-                (void)its_endpoint->get_remote_address(its_address);
-
-                VSOMEIP_WARNING << "endpoint_manager_impl::" << __func__
-                                << ": Suspending client port [" << std::dec
-                                << its_endpoint->get_local_port() << "] --> ["
-                                << its_address.to_string() << ":" << its_endpoint->get_remote_port()
-                                << "] failed.";
-            }
-        }
-    }
+    // do nothing
 }
 
 void endpoint_manager_impl::resume() {
     client_endpoints_t its_client_endpoints;
-    server_endpoints_t its_server_endpoints;
-
     {
         std::scoped_lock its_lock {endpoint_mutex_};
         its_client_endpoints = client_endpoints_;
-        its_server_endpoints = server_endpoints_;
     }
 
-    // start server endpoints
-    for (const auto& [its_port, protocols] : its_server_endpoints) {
-        for (const auto& [its_protocol, its_endpoint] : protocols) {
-            its_endpoint->restart();
-        }
-    }
-
-    // start client endpoints
+    // restart client endpoints
     std::set<std::shared_ptr<client_endpoint>> its_resumed_client_endpoints;
     for (const auto& [its_address, ports] : its_client_endpoints) {
         for (const auto& [its_port, protocols] : ports) {
             for (const auto& [its_protocol, partitions] : protocols) {
                 for (const auto& [its_partition, its_endpoint] : partitions) {
                     its_endpoint->restart();
-                    auto its_client_endpoint {
-                            std::dynamic_pointer_cast<client_endpoint>(its_endpoint)};
-                    if (its_client_endpoint) {
-                        its_resumed_client_endpoints.insert(its_client_endpoint);
-                    }
                 }
-            }
-        }
-    }
-
-    // check that the clients are established again
-    size_t its_interval {MIN_ENDPOINT_WAIT_INTERVAL};
-    size_t its_sum {0};
-    const size_t its_max {SUM_ENDPOINT_WAIT_INTERVAL};
-    bool is_done;
-    do {
-        is_done = true;
-        std::this_thread::sleep_for(std::chrono::milliseconds(its_interval));
-        for (const auto& its_endpoint : its_resumed_client_endpoints) {
-            is_done = is_done && its_endpoint->is_established();
-            if (!is_done)
-                break;
-        }
-        if (its_interval < MAX_ENDPOINT_WAIT_INTERVAL) {
-            its_interval <<= 1;
-        }
-        its_sum += its_interval;
-    } while (!is_done && its_sum < its_max);
-
-    if (!is_done) {
-        for (const auto& its_endpoint : its_resumed_client_endpoints) {
-            if (!its_endpoint->is_established()) {
-                boost::asio::ip::address its_address;
-                (void)its_endpoint->get_remote_address(its_address);
-
-                VSOMEIP_WARNING << "endpoint_manager_impl::" << __func__
-                                << ": Resuming client port [" << std::dec
-                                << its_endpoint->get_local_port() << "] --> ["
-                                << its_address.to_string() << ":" << its_endpoint->get_remote_port()
-                                << "] failed.";
             }
         }
     }

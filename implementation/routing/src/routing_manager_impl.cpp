@@ -235,10 +235,7 @@ void routing_manager_impl::start() {
             this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     netlink_connector_->start();
 #else
-    {
-        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
-        start_ip_routing();
-    }
+    start_ip_routing();
 #endif
 
     if (stub_)
@@ -448,11 +445,13 @@ bool routing_manager_impl::offer_service(client_t _client,
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
-        if (if_state_running_) {
+        if (is_external_routing_ready()) {
             init_service_info(_service, _instance, true);
         } else {
+            std::scoped_lock its_lock(pending_sd_offers_mutex_);
             pending_sd_offers_.push_back(std::make_pair(_service, _instance));
+            VSOMEIP_INFO << "rmi::" << __func__ << " added service: " << std::hex << _service
+                         << " to pending_sd_offers_.size = " << pending_sd_offers_.size();
         }
     }
 
@@ -464,22 +463,24 @@ bool routing_manager_impl::offer_service(client_t _client,
     }
 
     {
-        std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
         std::set<event_t> its_already_subscribed_events;
-        for (auto &ps : pending_subscriptions_) {
-            if (ps.service_ == _service
-                    && ps.instance_ == _instance
-                    && ps.major_ == _major) {
-                insert_subscription(ps.service_, ps.instance_,
-                        ps.eventgroup_, ps.event_, nullptr,
-                        get_client(), &its_already_subscribed_events);
+        {
+            std::scoped_lock ist_lock(pending_subscription_mutex_);
+            for (auto &ps : pending_subscriptions_) {
+                if (ps.service_ == _service
+                        && ps.instance_ == _instance
+                        && ps.major_ == _major) {
+                    insert_subscription(ps.service_, ps.instance_,
+                            ps.eventgroup_, ps.event_, nullptr,
+                            get_client(), &its_already_subscribed_events);
 #if 0
-                VSOMEIP_ERROR << __func__
-                        << ": event="
-                        << std::hex << ps.service_ << "."
-                        << std::hex << ps.instance_ << "."
-                        << std::hex << ps.event_;
+                    VSOMEIP_ERROR << __func__
+                            << ": event="
+                            << std::hex << ps.service_ << "."
+                            << std::hex << ps.instance_ << "."
+                            << std::hex << ps.event_;
 #endif
+                }
             }
         }
 
@@ -543,10 +544,13 @@ void routing_manager_impl::stop_offer_service(client_t _client,
     }
     if (is_local) {
         {
-            std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
+            std::scoped_lock its_lock(pending_sd_offers_mutex_);
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end(); ) {
                 if (it->first == _service && it->second == _instance) {
                     it = pending_sd_offers_.erase(it);
+                    VSOMEIP_INFO << "rmi::" << __func__ << " removed service: " << std::hex
+                                 << _service
+                                 << " to pending_sd_offers_.size = " << pending_sd_offers_.size();
                     break;
                 } else {
                     ++it;
@@ -642,7 +646,6 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
         << std::setw(4) << _instance << "]";
 
     if (host_->get_client() == _client) {
-        std::lock_guard<std::mutex> its_lock(pending_subscription_mutex_);
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
     }
     routing_manager_base::release_service(_client, _service, _instance);
@@ -789,13 +792,13 @@ void routing_manager_impl::subscribe(
                 }
             }
             if (subscriber_is_rm_host) {
-                std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
                 subscription_data_t subscription = {
                     _service, _instance,
                     _eventgroup, _major,
                     _event, _filter,
                     *_sec_client
                 };
+                std::scoped_lock ist_lock(pending_subscription_mutex_);
                 pending_subscriptions_.insert(subscription);
             }
         } else {
@@ -840,7 +843,6 @@ void routing_manager_impl::unsubscribe(
                 [](const bool _subscription_accepted){ (void)_subscription_accepted; });
         if (0 == find_local_client(_service, _instance)) {
             if (get_client() == _client) {
-                std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
                 remove_pending_subscription(_service, _instance, _eventgroup, _event);
             }
             if (last_subscriber_removed) {
@@ -860,7 +862,6 @@ void routing_manager_impl::unsubscribe(
             }
         } else {
             if (get_client() == _client) {
-                std::lock_guard<std::mutex> ist_lock(pending_subscription_mutex_);
                 remove_pending_subscription(_service, _instance, _eventgroup, _event);
                 if (stub_)
                     stub_->send_unsubscribe(
@@ -1336,8 +1337,8 @@ void routing_manager_impl::on_availability(service_t _service, instance_t _insta
             // remote service
             if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
                 static const ttl_t configured_ttl(configuration_->get_sd_ttl());
-                std::lock_guard<std::recursive_mutex> its_subscribed_lock(discovery_->get_subscribed_mutex());
-                std::lock_guard<std::mutex> its_lock(pending_subscription_mutex_);
+                std::scoped_lock its_lock {discovery_->get_subscribed_mutex(),
+                                           pending_subscription_mutex_};
                 for (auto &ps : pending_subscriptions_) {
                     if (ps.service_ == _service
                             && ps.instance_ == _instance
@@ -2377,8 +2378,7 @@ void routing_manager_impl::add_routing_info(
         const boost::asio::ip::address &_unreliable_address,
         uint16_t _unreliable_port) {
 
-    std::lock_guard<std::mutex> its_lock(routing_state_mutex_);
-    if (routing_state_ == routing_state_e::RS_SUSPENDED) {
+    if (is_suspended()) {
         VSOMEIP_INFO << "rmi::" << __func__ << " We are suspended --> do nothing.";
         return;
     }
@@ -3472,7 +3472,7 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
         }
         std::stringstream its_last_resume;
         {
-            std::lock_guard<std::mutex> its_lock(routing_state_mutex_);
+            std::scoped_lock its_lock(last_resume_mutex_);
             if (last_resume_ != std::chrono::steady_clock::time_point::min()) {
                 its_last_resume << " | " << std::dec
                         << std::chrono::duration_cast<std::chrono::seconds>(
@@ -3492,7 +3492,7 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
         }
 
         {
-            std::lock_guard<std::mutex> its_lock(version_log_timer_mutex_);
+            std::scoped_lock its_lock(version_log_timer_mutex_);
             version_log_timer_.expires_from_now(std::chrono::seconds(its_interval));
             version_log_timer_.async_wait(
                     std::bind(&routing_manager_impl::log_version_timer_cbk,
@@ -3700,7 +3700,7 @@ void routing_manager_impl::handle_client_error(client_t _client) {
     if (stub_)
         stub_->update_registration(_client, registration_type_e::DEREGISTER_ON_ERROR,
                 boost::asio::ip::address(), 0);
-    remove_local(_client, true);
+
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t,
                                         minor_version_t>> its_offers;
     {
@@ -3773,15 +3773,11 @@ routing_state_e routing_manager_impl::get_routing_state() {
 }
 
 void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
-    {
-        std::lock_guard<std::mutex> its_lock(routing_state_mutex_);
-        if (routing_state_ == _routing_state) {
-            VSOMEIP_INFO << "rmi::" << __func__ << " No routing state change --> do nothing.";
-            return;
-        }
-
-        routing_state_ = _routing_state;
+    if (routing_state_ == _routing_state) {
+        VSOMEIP_INFO << "rmi::" << __func__ << " No routing state change --> do nothing.";
+        return;
     }
+    routing_state_ = _routing_state;
 
     if (discovery_) {
         switch (_routing_state) {
@@ -3874,9 +3870,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     }
                 }
 
-                // suspend all endpoints
-                ep_mgr_->suspend();
-
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to suspend mode done, diagnosis mode is "
                     << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
@@ -3884,6 +3877,12 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             }
             case routing_state_e::RS_RESUMED:
             {
+                if (!is_external_routing_ready()) {
+                    VSOMEIP_INFO << "rmi::" << __func__ << " Network not running, delaying the resume of routing manager";
+                    routing_state_ = routing_state_e::RS_DELAYED_RESUME;
+                    return;
+                }
+
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to resume mode, diagnosis mode was "
                     << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
@@ -3891,7 +3890,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 ep_mgr_->resume();
 
                 {
-                    std::lock_guard<std::mutex> its_lock(routing_state_mutex_);
+                    std::scoped_lock its_lock(last_resume_mutex_);
                     last_resume_ = std::chrono::steady_clock::now();
                 }
 
@@ -3917,6 +3916,16 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     for (const auto &its_instance : its_service.second) {
                         discovery_->offer_service(its_instance.second);
                     }
+                }
+
+                {
+                    std::scoped_lock its_lock(pending_sd_offers_mutex_);
+                    // Trigger pending offers
+                    for (const auto& [its_service, its_instance] : pending_sd_offers_) {
+                        init_service_info(its_service, its_instance, true);
+                    }
+                    pending_sd_offers_.clear();
+                    VSOMEIP_INFO << "rmi::" << __func__ << ": clear pending_sd_offers_";
                 }
 
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to resume mode done, diagnosis mode was "
@@ -3971,6 +3980,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to running mode done, diagnosis mode was "
                     << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
                 break;
+            case routing_state_e::RS_DELAYED_RESUME:
+                // Do nothing
+                break;
             default:
                 break;
         }
@@ -3979,52 +3991,39 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
 void routing_manager_impl::on_net_interface_or_route_state_changed(
         bool _is_interface, const std::string &_if, bool _available) {
-    std::lock_guard<std::mutex> its_lock(pending_sd_offers_mutex_);
     auto log_change_message = [&_if, _available, _is_interface](bool _warning) {
         std::stringstream ss;
         ss << (_is_interface ? "Network interface" : "Route") << " \"" << _if
-                << "\" state changed: " << (_available ? "up" : "down");
+           << "\" state changed: " << (_available ? "up" : "down");
         if (_warning) {
             VSOMEIP_WARNING << ss.str();
         } else {
             VSOMEIP_INFO << ss.str();
         }
     };
+
     if (_is_interface) {
-        if (if_state_running_
-                || (_available && !if_state_running_ && routing_running_)) {
-            log_change_message(true);
-        } else if (!if_state_running_) {
-            log_change_message(false);
+        if (_available != if_state_running_) {
+            log_change_message(_available);
         }
-        if (_available && !if_state_running_) {
-            if_state_running_ = true;
-            if (!routing_running_) {
-                if(configuration_->is_sd_enabled()) {
-                    if (sd_route_set_) {
-                        start_ip_routing();
-                    }
-                } else {
-                    // Static routing, don't wait for route!
-                    start_ip_routing();
-                }
-            }
+        if_state_running_ = _available;
+        // When the interface goes down the sd route is also lost
+        if (!if_state_running_) {
+            sd_route_set_ = false;
         }
     } else {
-        if (sd_route_set_
-                || (_available && !sd_route_set_ && routing_running_)) {
-            log_change_message(true);
-        } else if (!sd_route_set_) {
-            log_change_message(false);
+        if (_available != sd_route_set_) {
+            log_change_message(_available);
         }
-        if (_available && !sd_route_set_) {
-            sd_route_set_ = true;
-            if (!routing_running_) {
-                if (if_state_running_) {
-                    start_ip_routing();
-                }
-            }
-        }
+        sd_route_set_ = _available;
+    }
+
+    if (!routing_running_ && is_external_routing_ready()) {
+        start_ip_routing();
+    }
+
+    if (get_routing_state() == routing_state_e::RS_DELAYED_RESUME && is_external_routing_ready()) {
+        set_routing_state(routing_state_e::RS_RESUMED);
     }
 }
 
@@ -4038,21 +4037,32 @@ void routing_manager_impl::start_ip_routing() {
     }
 
     if (discovery_) {
-        if (routing_state_ != routing_state_e::RS_SUSPENDED) {
+        if (!is_suspended()) {
             discovery_->start();
         }
     } else {
         init_routing_info();
     }
 
-    for (auto its_service : pending_sd_offers_) {
-        init_service_info(its_service.first, its_service.second, true);
+    {
+        std::scoped_lock its_lock(pending_sd_offers_mutex_);
+        for (auto its_service : pending_sd_offers_) {
+            init_service_info(its_service.first, its_service.second, true);
+        }
+        pending_sd_offers_.clear();
+        VSOMEIP_INFO << "rmi::" << __func__ << ": clear pending_sd_offers_";
     }
-    pending_sd_offers_.clear();
-
+    
     routing_running_ = true;
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
+
+inline bool routing_manager_impl::is_external_routing_ready() const {
+    return if_state_running_
+            && (!configuration_->is_sd_enabled()
+                || (configuration_->is_sd_enabled() && sd_route_set_));
+}
+
 
 bool routing_manager_impl::is_available(service_t _service, instance_t _instance,
                                         major_version_t _major) const {

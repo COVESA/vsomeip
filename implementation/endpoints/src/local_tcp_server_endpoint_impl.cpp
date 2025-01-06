@@ -241,15 +241,23 @@ void local_tcp_server_endpoint_impl::accept_cbk(
             // Nagle algorithm off
             new_connection_socket.set_option(boost::asio::ip::tcp::no_delay(true), its_error);
             if (its_error) {
-                VSOMEIP_WARNING << "ltsei::accept_cbk: couldn't disable "
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": couldn't disable "
                                 << "Nagle algorithm: " << its_error.message()
                                 << " endpoint > " << this;
             }
             new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true), its_error);
             if (its_error) {
-                VSOMEIP_WARNING << "ltsei::accept_cbk: couldn't enable "
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": couldn't enable "
                                 << "keep_alive: " << its_error.message()
                                 << " endpoint > " << this;
+            }
+            // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
+            // Since this is endpoint for internal communication, setting the TIME_WAIT to 5 seconds
+            // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
+            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 5), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": setting SO_LINGER failed ("
+                                << its_error.message() << ") " << this;
             }
         }
     }
@@ -258,10 +266,9 @@ void local_tcp_server_endpoint_impl::accept_cbk(
             && _error != boost::asio::error::no_descriptors) {
         start();
     } else if (_error == boost::asio::error::no_descriptors) {
-        VSOMEIP_ERROR << "ltsei::accept_cbk: "
-                << _error.message() << " (" << std::dec << _error.value()
-                << ") Will try to accept again in 1000ms"
-                << " endpoint > " << this;
+        VSOMEIP_ERROR << "ltsei::" << __func__ << ": " << _error.message() << " (" << std::dec
+                      << _error.value() << ") Will try to accept again in 1000ms"
+                      << " endpoint > " << this;
         auto its_timer =
                 std::make_shared<boost::asio::steady_timer>(io_,
                         std::chrono::milliseconds(1000));
@@ -723,10 +730,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
-    if (is_stopped_
-            || _error == boost::asio::error::eof
-            || _error == boost::asio::error::connection_reset
-            || is_error) {
+    if (is_stopped_ || _error == boost::asio::error::eof
+        || _error == boost::asio::error::connection_reset || is_error) {
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
         its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
