@@ -74,8 +74,8 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_local(client_t _client) {
 }
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_local(service_t _service,
-        instance_t _instance) {
-    return find_local(rm_->find_local_client(_service, _instance));
+        unique_version_t _unique) {
+    return find_local(rm_->find_local_client(_service, _unique));
 }
 
 
@@ -357,7 +357,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_local_unlocked(client_t _c
     return its_endpoint;
 }
 
-instance_t endpoint_manager_base::find_instance(
+unique_version_t endpoint_manager_base::find_unique(
         service_t _service, endpoint* const _endpoint) const {
 
     (void)_service;

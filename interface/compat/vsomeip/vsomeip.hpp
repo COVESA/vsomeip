@@ -18,4 +18,6 @@
 #include "../../compat/vsomeip/runtime.hpp"
 #include "../../compat/vsomeip/trace.hpp"
 
+#define VSOMEIP_MAKE_UNIQUE_SERVICE_VERSION (_instance_, _major) ((_major << 16) | _instance_)
+
 #endif // VSOMEIP_VSOMEIP_HPP

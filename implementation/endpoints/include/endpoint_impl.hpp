@@ -57,7 +57,7 @@ public:
 
 protected:
     uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
-    instance_t get_instance(service_t _service);
+    unique_version_t get_unique(service_t _service);
 
 protected:
     enum class cms_ret_e : uint8_t {

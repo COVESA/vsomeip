@@ -58,12 +58,12 @@ public:
     virtual bool lazy_load_security(const std::string &_client_host) = 0;
 #endif // !VSOMEIP_DISABLE_SECURITY
     virtual bool remote_offer_info_add(service_t _service,
-                                       instance_t _instance,
+                                       unique_version_t _unique,
                                        std::uint16_t _port,
                                        bool _reliable,
                                        bool _magic_cookies_enabled) = 0;
     virtual bool remote_offer_info_remove(service_t _service,
-                                          instance_t _instance,
+                                          unique_version_t _unique,
                                           std::uint16_t _port,
                                           bool _reliable,
                                           bool _magic_cookies_enabled,
@@ -99,13 +99,13 @@ public:
     virtual routing_state_e get_initial_routing_state() const = 0;
 
     virtual std::string get_unicast_address(service_t _service,
-            instance_t _instance) const = 0;
+            unique_version_t _unique) const = 0;
     virtual uint16_t get_reliable_port(service_t _service,
-            instance_t _instance) const = 0;
+            unique_version_t _unique) const = 0;
     virtual bool has_enabled_magic_cookies(const std::string &_address,
             uint16_t _port) const = 0;
     virtual uint16_t get_unreliable_port(service_t _service,
-            instance_t _instance) const = 0;
+            unique_version_t _unique) const = 0;
 
     virtual void get_configured_timing_requests(
             service_t _service, const std::string &_ip_target,
@@ -118,22 +118,22 @@ public:
             std::chrono::nanoseconds *_debounce_time,
             std::chrono::nanoseconds *_max_retention_time) const = 0;
 
-    virtual bool is_someip(service_t _service, instance_t _instance) const = 0;
+    virtual bool is_someip(service_t _service, unique_version_t _unique) const = 0;
 
-    virtual bool get_client_port(service_t _service, instance_t _instance,
+    virtual bool get_client_port(service_t _service, unique_version_t _unique,
             uint16_t _remote_port, bool _reliable,
             std::map<bool, std::set<uint16_t> > &_used_client_ports, uint16_t &_client_port) const = 0;
 
-    virtual std::set<std::pair<service_t, instance_t> > get_remote_services() const = 0;
+    virtual std::set<std::pair<service_t, unique_version_t> > get_remote_services() const = 0;
 
-    virtual bool get_multicast(service_t _service, instance_t _instance,
+    virtual bool get_multicast(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, std::string &_address, uint16_t &_port) const = 0;
 
-    virtual uint8_t get_threshold(service_t _service, instance_t _instance,
+    virtual uint8_t get_threshold(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup) const = 0;
 
     virtual void get_event_update_properties(
-            service_t _service, instance_t _instance, event_t _event,
+            service_t _service, unique_version_t _unique, event_t _event,
             std::chrono::milliseconds &_cycle,
             bool &_change_resets_cycle, bool &_update_on_change_) const = 0;
 
@@ -156,14 +156,14 @@ public:
 
     virtual bool supports_selective_broadcasts(const boost::asio::ip::address &_address) const = 0;
 
-    virtual bool is_offered_remote(service_t _service, instance_t _instance) const = 0;
+    virtual bool is_offered_remote(service_t _service, unique_version_t _unique) const = 0;
 
-    virtual bool is_local_service(service_t _service, instance_t _instance) const = 0;
+    virtual bool is_local_service(service_t _service, unique_version_t _unique) const = 0;
 
     virtual reliability_type_e get_event_reliability(
-            service_t _service, instance_t _instance, event_t _event) const = 0;
+            service_t _service, unique_version_t _unique, event_t _event) const = 0;
     virtual reliability_type_e get_service_reliability(
-            service_t _service, instance_t _instance) const = 0;
+            service_t _service, unique_version_t _unique) const = 0;
 
     // Service Discovery configuration
     virtual bool is_sd_enabled() const = 0;
@@ -218,14 +218,14 @@ public:
 
     // TTL factor
     typedef std::uint32_t ttl_factor_t;
-    typedef std::map<service_t, std::map<instance_t, ttl_factor_t>> ttl_map_t;
+    typedef std::map<service_t, std::map<unique_version_t, ttl_factor_t>> ttl_map_t;
     virtual ttl_map_t get_ttl_factor_offers() const = 0;
     virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
 
     // Debouncing
     virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(
             const std::string &_name,
-            service_t _service, instance_t _instance, event_t _event) const = 0;
+            service_t _service, unique_version_t _unique, event_t _event) const = 0;
 
     // Queue size limit endpoints
     typedef std::uint32_t endpoint_queue_limit_t;
@@ -269,7 +269,7 @@ public:
     virtual void set_sd_acceptance_rules_active(
             const boost::asio::ip::address& _address, bool _enable) = 0;
 
-    virtual bool is_secure_service(service_t _service, instance_t _instance) const = 0;
+    virtual bool is_secure_service(service_t _service, unique_version_t _unique) const = 0;
 
     virtual int get_udp_receive_buffer_size() const = 0;
 
@@ -277,17 +277,17 @@ public:
             const vsomeip_sec_client_t *_sec_client) const = 0;
 
     virtual bool check_suppress_events(service_t _service,
-            instance_t _instance, event_t _event) const = 0;
+            unique_version_t _unique, event_t _event) const = 0;
 
     // SOME/IP-TP
     virtual bool is_tp_client(
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             method_t _method) const = 0;
     virtual bool is_tp_service(
-            service_t _service, instance_t _instance,
+            service_t _service, unique_version_t _unique,
             method_t _method) const = 0;
     virtual void get_tp_configuration(
-            service_t _service, instance_t _instance, method_t _method, bool _is_client,
+            service_t _service, unique_version_t _unique, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const = 0;
 
     // routing shutdown timeout
@@ -301,7 +301,7 @@ public:
     virtual uint8_t get_max_remote_subscribers() const = 0;
 
     virtual partition_id_t get_partition_id(
-            service_t _service, instance_t _instance) const = 0;
+            service_t _service, unique_version_t _unique) const = 0;
 
     virtual reliability_type_e get_reliability_type(
             const boost::asio::ip::address &_reliable_address,

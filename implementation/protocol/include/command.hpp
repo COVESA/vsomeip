@@ -22,6 +22,7 @@ class command {
 public:
     inline id_e get_id() const  { return id_; }
     inline version_t get_version() const { return version_; }
+    inline void set_version(version_t _version) { version_ = _version; }
     inline client_t get_client() const { return client_; }
     inline void set_client(client_t _client) { client_ = _client; }
     inline command_size_t get_size() const { return size_; }

@@ -651,9 +651,9 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
 }
 
 bool udp_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, instance_t _instance, method_t _method) const {
+        service_t _service, unique_version_t _unique, method_t _method) const {
 
-    return configuration_->is_tp_client(_service, _instance, _method);
+    return configuration_->is_tp_client(_service, _unique, _method);
 }
 
 bool udp_client_endpoint_impl::is_reliable() const {

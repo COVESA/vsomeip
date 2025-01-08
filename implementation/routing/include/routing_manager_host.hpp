@@ -39,16 +39,16 @@ public:
             minor_version_t _minor = DEFAULT_MINOR) = 0;
     virtual void on_state(state_type_e _state) = 0;
     virtual void on_message(std::shared_ptr<message> &&_message) = 0;
-    virtual void on_subscription(service_t _service, instance_t _instance,
+    virtual void on_subscription(service_t _service, unique_version_t _unique,
         eventgroup_t _eventgroup,
         client_t _client, const vsomeip_sec_client_t *_sec_client,
         const std::string &_env, bool _subscribed,
         const std::function<void(bool)> &_accepted_cb) = 0;
-    virtual void on_subscription_status(service_t _service, instance_t _instance,
+    virtual void on_subscription_status(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event, uint16_t _error) = 0;
     virtual void send(std::shared_ptr<message> _message) = 0;
     virtual void on_offered_services_info(
-            std::vector<std::pair<service_t, instance_t>> &_services) = 0;
+            std::vector<std::pair<service_t, unique_version_t>> &_services) = 0;
     virtual bool is_routing() const = 0;
 };
 
