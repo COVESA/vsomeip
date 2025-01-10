@@ -170,6 +170,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
       -Wl,-z,relro,-z,now
       ${EXPORTSYMBOLS}
     )
+
+    # There appear to be complication issues without this flag
+    target_link_options(OS_INTERFACE INTERFACE -Wno-tsan)
   endif()
   target_link_options(OS_INTERFACE INTERFACE -Wl,--wrap=socket,--wrap=accept,--wrap=open)
 
