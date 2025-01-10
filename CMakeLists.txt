@@ -185,6 +185,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
   set(OS "FREEBSD")
   add_compile_options(-Wno-deprecated)
   target_link_libraries(OS_INTERFACE INTERFACE Threads::Threads)
+  target_link_options(OS_INTERFACE INTERFACE -Wl,--wrap=socket,--wrap=accept,--wrap=open)
 
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
   set(OS "QNX")
