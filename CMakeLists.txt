@@ -154,6 +154,14 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     -fno-omit-frame-pointer
   )
 
+  # Check if optimization level is set in CMAKE_CXX_FLAGS_RELWITHDEBINFO
+  string(REGEX MATCH "-O([0-3s]?)" OPTIMIZATION_SET "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+
+  if(NOT OPTIMIZATION_SET)
+      message(WARNING "No optimization level set in CMAKE_CXX_FLAGS_RELWITHDEBINFO, adding -O")
+      set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O")
+  endif()
+
   target_link_libraries(OS_INTERFACE INTERFACE Threads::Threads)
 
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
