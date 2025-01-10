@@ -462,7 +462,6 @@ target_include_directories(
   INTERFACE $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>
 )
 if(MSVC)
-  set_target_properties(vsomeip3 PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
   set_target_properties(
     vsomeip3
     PROPERTIES
