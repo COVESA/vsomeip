@@ -125,6 +125,11 @@ if(ENABLE_WERROR)
   add_compile_options(-Werror)
 endif()
 
+# Variable to store compiler options used to export settings.  These are stored
+# in a variable such that they can be easily removed in test apps (see
+# test/CMakeLists.txt)
+set(EXPORTSYMBOLS)
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   set(OS "LINUX")
   target_link_libraries(DL_INTERFACE INTERFACE dl)
@@ -153,12 +158,17 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # This is only relevant for GCC and causes warnings on Clang
+
+    set(EXPORTSYMBOLS
+      -Wl,-export-dynamic
+      -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc
+    )
+
     target_link_options(
       OS_INTERFACE
       INTERFACE
       -Wl,-z,relro,-z,now
-      -Wl,-export-dynamic
-      -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc
+      ${EXPORTSYMBOLS}
     )
   endif()
   target_link_options(OS_INTERFACE INTERFACE -Wl,--wrap=socket,--wrap=accept,--wrap=open)

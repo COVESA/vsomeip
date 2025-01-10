@@ -16,10 +16,8 @@ find_package(benchmark)
 
 # remove export symbols from the cxx flags.  This is messy, but there's no `remove_link_flags` function
 get_target_property(os_link_options OS_INTERFACE INTERFACE_LINK_OPTIONS)
-foreach(opt IN ITEMS ${os_link_options})
-  if(opt MATCHES ".*version.script.*.gcc")
-    list(REMOVE_ITEM os_link_options ${opt})
-  endif()
+foreach(opt IN ITEMS ${EXPORTSYMBOLS})
+  list(REMOVE_ITEM os_link_options ${opt})
 endforeach()
 unset(opt)
 if(os_link_options)
