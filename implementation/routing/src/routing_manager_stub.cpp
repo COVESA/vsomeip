@@ -349,7 +349,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
 
                 if (VSOMEIP_SEC_OK == configuration_->get_security()->is_client_allowed_to_offer(
                         _sec_client, its_service, its_instance)) {
-                    host_->offer_service(its_client, its_service, its_instance,
+                    host_->offer_service(its_client, its_service, get_unique_version(its_instance, its_major),
                             its_major, its_minor);
                 } else {
                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_client

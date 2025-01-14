@@ -21,11 +21,11 @@ class message;
 typedef std::function< void (state_type_e) > state_handler_t;
 typedef std::function< void (const std::shared_ptr< message > &) > message_handler_t;
 typedef std::function< void (service_t, instance_t, bool) > availability_handler_t;
-typedef std::function< void (service_t, instance_t, availability_state_e) > availability_state_handler_t;
+typedef std::function< void (service_t, unique_version_t, availability_state_e) > availability_state_handler_t;
 VSOMEIP_DEPRECATED_UID_GID typedef std::function< bool (client_t, uid_t, gid_t, bool) > subscription_handler_t;
 VSOMEIP_DEPRECATED_UID_GID typedef std::function< bool (client_t, uid_t, gid_t, const std::string &, bool) > subscription_handler_ext_t;
 typedef std::function< void (const uint16_t) > error_handler_t;
-typedef std::function< void (const service_t, const instance_t, const eventgroup_t,
+typedef std::function< void (const service_t, const unique_version_t, const eventgroup_t,
                              const event_t, const uint16_t) > subscription_status_handler_t;
 VSOMEIP_DEPRECATED_UID_GID typedef std::function< void (client_t, uid_t, gid_t, bool,
             std::function< void (const bool) > )> async_subscription_handler_t;

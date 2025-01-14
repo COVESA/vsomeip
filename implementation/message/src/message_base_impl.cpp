@@ -47,6 +47,14 @@ void message_base_impl::set_instance(instance_t _instance) {
     header_.instance_ = _instance;
 }
 
+major_version_t message_base_impl::get_major_version() const {
+    return major_;
+}
+
+void message_base_impl::set_major_version(major_version_t _major) {
+    major_ = _major;
+}
+
 method_t message_base_impl::get_method() const {
     return header_.method_;
 }

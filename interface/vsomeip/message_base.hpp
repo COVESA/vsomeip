@@ -85,6 +85,27 @@ public:
      */
     VSOMEIP_EXPORT virtual void set_instance(instance_t _instance) = 0;
 
+        /**
+     * \brief Returns the major version.
+     *
+     * The major version identifier is _not_ part of the SOME/IP header. It is
+     * either derived from the incoming message (local) or from the port
+     * that was used to send a message (external).
+     */
+    VSOMEIP_EXPORT virtual major_version_t get_major_version() const = 0;
+
+    /**
+     * \brief Set the major version identifier.
+     *
+     * To address the correct service instance, vsomeip uses the major version
+     * identifier. For external services it is mapped to a IP address and port
+     * combination before the message is sent. For internal messages is
+     * transferred as additional data appended to the SOME/IP messages.
+     * Therefore, before sending a message, a user application must set the
+     * major version identifier.
+     */
+    VSOMEIP_EXPORT virtual void set_major_version(major_version_t _major) = 0;
+
     /**
      * \brief Get the method/event identifier from the message header.
      */

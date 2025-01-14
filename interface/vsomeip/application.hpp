@@ -1136,7 +1136,7 @@ public:
      * any).
      */
     virtual void register_message_handler_ext(service_t _service,
-            instance_t _instance, method_t _method,
+            unique_version_t _unique, method_t _method,
             const message_handler_t &_handler,
 			handler_registration_type_e _type) = 0;
 

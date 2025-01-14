@@ -985,13 +985,14 @@ void application_impl::invoke_availability_handler(
                                                _major, _minor, its_state);
 
                         std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+                        unique_version_t its_unique = get_unique_version(_instance, _major);
                         auto its_sync_handler = std::make_shared<sync_handler>(
                                 [its_handler, _service, _instance, its_state]() {
                                     its_handler(_service, _instance, its_state);
                                 });
                         its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
                         its_sync_handler->service_id_ = _service;
-                        its_sync_handler->instance_id_ = _instance;
+                        its_sync_handler->unique_id_ = its_unique;
                         handlers_.push_back(its_sync_handler);
                         dispatcher_condition_.notify_one();
                     }
@@ -1013,27 +1014,31 @@ void application_impl::register_availability_handler_unlocked(service_t _service
     availability_[_service][_instance][_major][_minor] =
             std::make_pair(_handler, its_availability_state);
 
-    auto add_sync_handler = [&](service_t _srvc, instance_t _nstnc,
+    unique_version_t its_unique = get_unique_version(_instance, _major);
+
+    auto add_sync_handler = [&](service_t _srvc, unique_version_t _unique,
                                 const availability_state_handler_t& _hndlr,
                                 availability_state_e _stt) {
         auto its_sync_handler = std::make_shared<sync_handler>(
-                [_hndlr, _srvc, _nstnc, _stt]() { _hndlr(_srvc, _nstnc, _stt); });
+                [_hndlr, _srvc, _unique, _stt]() { _hndlr(_srvc, _unique, _stt); });
         its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
         its_sync_handler->service_id_ = _srvc;
-        its_sync_handler->instance_id_ = _nstnc;
+        its_sync_handler->unique_id_ = _unique;
         handlers_.push_back(its_sync_handler);
     };
 
     std::scoped_lock handlers_lock(handlers_mutex_);
     if (_service != ANY_SERVICE && _instance != ANY_INSTANCE) {
-        add_sync_handler(_service, _instance, _handler, its_state);
+        add_sync_handler(_service, its_unique, _handler, its_state);
     } else {
         // Additionally report the actual instances in case of wildcards
         available_t its_available;
         are_available_unlocked(its_available, _service, _instance, _major, _minor);
         for (const auto& [service, instances] : its_available) {
             for (const auto& [instance, versions] : instances) {
-                add_sync_handler(service, instance, _handler, availability_state_e::AS_AVAILABLE);
+                for (const auto& [major, minor] : versions) {
+                    add_sync_handler(service, get_unique_version(instance, major), _handler, availability_state_e::AS_AVAILABLE);
+                }
             }
         }
     }
@@ -1369,12 +1374,12 @@ void application_impl::deliver_subscription_state(service_t _service, unique_ver
             auto its_sync_handler = std::make_shared<sync_handler>([handler, _service,
                                                   _unique, _eventgroup,
                                                   _event, _error]() {
-                                handler(_service, get_instance_from_unique(_unique),
+                                handler(_service, _unique,
                                         _eventgroup, _event, _error);
                                                  });
             its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
             its_sync_handler->service_id_ = _service;
-            its_sync_handler->instance_id_ = get_instance_from_unique(_unique);
+            its_sync_handler->unique_id_ = _unique;
             its_sync_handler->method_id_ = _event;
             its_sync_handler->eventgroup_id_ = _eventgroup;
             handlers_.push_back(its_sync_handler);
@@ -1432,14 +1437,14 @@ void application_impl::unregister_subscription_status_handler(service_t _service
 void application_impl::register_message_handler(service_t _service,
         unique_version_t _unique, method_t _method, const message_handler_t &_handler) {
 
-    register_message_handler_ext(_service, get_instance_from_unique(_unique), _method, _handler,
+    register_message_handler_ext(_service, _unique, _method, _handler,
             handler_registration_type_e::HRT_REPLACE);
 }
 
 void application_impl::unregister_message_handler(service_t _service,
         unique_version_t _unique, method_t _method) {
     std::lock_guard<std::mutex> its_lock(members_mutex_);
-    members_.erase(to_members_key(_service, get_instance_from_unique(_unique), _method));
+    members_.erase(to_members_key(_service, _unique, _method));
 }
 
 void application_impl::offer_event(service_t _service, unique_version_t _unique,
@@ -1709,15 +1714,16 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         }
         {
             std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+            unique_version_t its_unique = get_unique_version(_instance, _major);
             for (const auto &handler : its_handlers) {
                 auto its_sync_handler = std::make_shared<sync_handler>(
-                                [handler, _service, _instance, _state]()
+                                [handler, _service, its_unique, _state]()
                                 {
-                                    handler(_service, _instance, _state);
+                                    handler(_service, its_unique, _state);
                                 });
                 its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
                 its_sync_handler->service_id_ = _service;
-                its_sync_handler->instance_id_ = _instance;
+                its_sync_handler->unique_id_ = its_unique;
                 handlers_.push_back(its_sync_handler);
             }
         }
@@ -1760,16 +1766,16 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 }
 
-const std::deque<message_handler_t>& application_impl::find_handlers(service_t _service, instance_t _instance, method_t _method) const {
+const std::deque<message_handler_t>& application_impl::find_handlers(service_t _service, unique_version_t _unique, method_t _method) const {
 
     // The (ordered!) sequence of queries to attempt
     const std::array<members_key_t, 8> queries {
-        to_members_key(_service, _instance, _method),
-        to_members_key(_service, _instance, ANY_METHOD),
+        to_members_key(_service, _unique, _method),
+        to_members_key(_service, _unique, ANY_METHOD),
         to_members_key(_service, ANY_INSTANCE, _method),
         to_members_key(_service, ANY_INSTANCE, ANY_METHOD),
-        to_members_key(ANY_SERVICE, _instance, _method),
-        to_members_key(ANY_SERVICE, _instance, ANY_METHOD),
+        to_members_key(ANY_SERVICE, _unique, _method),
+        to_members_key(ANY_SERVICE, _unique, ANY_METHOD),
         to_members_key(ANY_SERVICE, ANY_INSTANCE, _method),
         to_members_key(ANY_SERVICE, ANY_INSTANCE, ANY_METHOD)
     };
@@ -1788,10 +1794,13 @@ const std::deque<message_handler_t>& application_impl::find_handlers(service_t _
 void application_impl::on_message(std::shared_ptr<message> &&_message) {
     const service_t its_service = _message->get_service();
     const instance_t its_instance = _message->get_instance();
+    const major_version_t its_major = _message->get_major_version();
     const method_t its_method = _message->get_method();
 
+    const unique_version_t its_unique = get_unique_version(its_instance, its_major);
+
     if (_message->get_message_type() == message_type_e::MT_NOTIFICATION) {
-        if (!check_for_active_subscription(its_service, its_instance,
+        if (!check_for_active_subscription(its_service, its_unique,
                 static_cast<event_t>(its_method))) {
             VSOMEIP_INFO << "application_impl::on_message ["
                 << std::hex << std::setfill('0')
@@ -1806,7 +1815,7 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
     {
         std::lock_guard<std::mutex> its_lock(members_mutex_);
 
-        const auto its_handlers = find_handlers(its_service, its_instance, its_method);
+        const auto its_handlers = find_handlers(its_service, its_unique, its_method);
 
         if (!its_handlers.empty()) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
@@ -1817,7 +1826,7 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
                         });
                 its_sync_handler->handler_type_ = handler_type_e::MESSAGE;
                 its_sync_handler->service_id_ = _message->get_service();
-                its_sync_handler->instance_id_ = _message->get_instance();
+                its_sync_handler->unique_id_ = get_unique_version(_message->get_instance(), _message->get_major_version());
                 its_sync_handler->method_id_ = _message->get_method();
                 its_sync_handler->session_id_ = _message->get_session();
                 handlers_.push_back(its_sync_handler);
@@ -1950,7 +1959,7 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
         if (its_next_handler->handler_type_ == handler_type_e::AVAILABILITY) {
             const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
                     its_next_handler->service_id_,
-                    its_next_handler->instance_id_);
+                    its_next_handler->unique_id_);
             auto found_si = availability_handlers_.find(its_si_pair);
             if (found_si != availability_handlers_.end()
                     && !found_si->second.empty()
@@ -1965,7 +1974,7 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
         } else if (its_next_handler->handler_type_ == handler_type_e::MESSAGE) {
             const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
                     its_next_handler->service_id_,
-                    its_next_handler->instance_id_);
+                    its_next_handler->unique_id_);
             auto found_si = availability_handlers_.find(its_si_pair);
             if (found_si != availability_handlers_.end()
                     && found_si->second.size() > 1) {
@@ -1984,7 +1993,7 @@ void application_impl::reschedule_availability_handler(
         const std::shared_ptr<sync_handler> &_handler) {
     if (_handler->handler_type_ == handler_type_e::AVAILABILITY) {
         const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                _handler->service_id_, _handler->instance_id_);
+                _handler->service_id_, _handler->unique_id_);
         auto found_si = availability_handlers_.find(its_si_pair);
         if (found_si != availability_handlers_.end()) {
             if (!found_si->second.empty()
@@ -2010,7 +2019,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     const std::thread::id its_id = std::this_thread::get_id();
 
     auto its_sync_handler = std::make_shared<sync_handler>(_handler->service_id_,
-            _handler->instance_id_, _handler->method_id_,
+            _handler->unique_id_, _handler->method_id_,
             _handler->session_id_, _handler->eventgroup_id_,
             _handler->handler_type_);
 
@@ -2064,12 +2073,12 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
     if (client_side_logging_
         && (client_side_logging_filter_.empty()
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, ANY_INSTANCE)))
-            || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, its_sync_handler->instance_id_))))) {
+            || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, its_sync_handler->unique_id_))))) {
         VSOMEIP_INFO << "Invoking handler: ("
             << std::hex << std::setfill('0')
             << std::setw(4) << client_ << "): ["
             << std::setw(4) << its_sync_handler->service_id_ << "."
-            << std::setw(4) << its_sync_handler->instance_id_ << "."
+            << std::setw(4) << its_sync_handler->unique_id_ << "."
             << std::setw(4) << its_sync_handler->method_id_ << ":"
             << std::setw(4) << its_sync_handler->session_id_ << "] "
             << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_)
@@ -2567,14 +2576,14 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
                 << std::hex << std::setfill('0')
                 << std::setw(4) << get_client() << "): ["
                 << std::setw(4) << _handler->service_id_ << "."
-                << std::setw(4) << _handler->instance_id_ << "]";
+                << std::setw(4) << get_instance_from_unique(_handler->unique_id_) << "]";
             break;
         case handler_type_e::MESSAGE:
             VSOMEIP_WARNING << "BLOCKING CALL MESSAGE("
                 << std::hex << std::setfill('0')
                 << std::setw(4) << get_client() << "): ["
                 << std::setw(4) << _handler->service_id_ << "."
-                << std::setw(4) << _handler->instance_id_ << "."
+                << std::setw(4) << get_instance_from_unique(_handler->unique_id_) << "."
                 << std::setw(4) << _handler->method_id_ << ":"
                 << std::setw(4) << _handler->session_id_ << "]";
             break;
@@ -2587,7 +2596,7 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
                 << std::hex << std::setfill('0')
                 << std::setw(4) << get_client() << "): ["
                 << std::setw(4) << _handler->service_id_ << "."
-                << std::setw(4) << _handler->instance_id_ << "."
+                << std::setw(4) << get_instance_from_unique(_handler->unique_id_) << "."
                 << std::setw(4) << _handler->eventgroup_id_ << ":"
                 << std::setw(4) << _handler->method_id_ << "]";
             break;
@@ -3061,11 +3070,11 @@ application_impl::get_additional_data(const std::string &_plugin_name) {
 }
 
 void application_impl::register_message_handler_ext(
-        service_t _service, instance_t _instance, method_t _method,
+        service_t _service, unique_version_t _unique, method_t _method,
         const message_handler_t &_handler,
         handler_registration_type_e _type) {
 
-    const auto key = to_members_key(_service, _instance, _method);
+    const auto key = to_members_key(_service, _unique, _method);
 
     std::lock_guard<std::mutex> its_lock(members_mutex_);
     switch (_type) {

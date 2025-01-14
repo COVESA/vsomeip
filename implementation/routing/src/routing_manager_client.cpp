@@ -1121,6 +1121,7 @@ void routing_manager_client::on_message(
 
                 if (its_message) {
                     its_message->set_instance(its_send_command.get_instance());
+                    its_message->set_major_version(its_major);
                     its_message->set_reliable(its_send_command.is_reliable());
                     its_message->set_check_result(its_send_command.get_status());
                     if (_sec_client)
@@ -1154,7 +1155,7 @@ void routing_manager_client::on_message(
                                                     << " ~> Skip message!";
                                     return;
                                 }
-                                cache_event_payload(its_message, its_major);
+                                cache_event_payload(its_message);
                             }
                         } else if (utility::is_request(its_message->get_message_type())) {
                             if (configuration_->is_security_enabled()
@@ -1241,7 +1242,7 @@ void routing_manager_client::on_message(
                                                 << " ~> Skip message!";
                                 return;
                             }
-                            cache_event_payload(its_message, its_major);
+                            cache_event_payload(its_message);
                         }
                     }
     #ifdef USE_DLT
@@ -1347,7 +1348,7 @@ void routing_manager_client::on_message(
                                  its_major](const bool _subscription_accepted) {
                                     std::uint32_t its_count(0);
                                     if (_subscription_accepted) {
-                                        send_subscribe_ack(its_client, its_service, its_instance,
+                                        send_subscribe_ack(its_client, its_service, get_unique_version(its_instance, its_major),
                                                            its_eventgroup, its_event,
                                                            its_pending_id);
                                         std::set<event_t> its_already_subscribed_events;
@@ -1452,7 +1453,7 @@ void routing_manager_client::on_message(
                                                             its_eventgroup, its_event,
                                                             PENDING_SUBSCRIPTION_ID);
                                     } else {
-                                        send_subscribe_ack(its_client, its_service, its_instance,
+                                        send_subscribe_ack(its_client, its_service, get_unique_version(its_instance, its_major),
                                                            its_eventgroup, its_event,
                                                            PENDING_SUBSCRIPTION_ID);
                                         routing_manager_base::subscribe(
@@ -2075,12 +2076,12 @@ void routing_manager_client::on_routing_info(
                         [this, self, si](const bool _subscription_accepted) {
                     if (!_subscription_accepted) {
                         send_subscribe_nack(si.client_id_, si.service_id_,
-                                si.instance_id_, si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
+                                get_unique_version(si.instance_id_, si.major_), si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
                     } else {
                         send_subscribe_ack(si.client_id_, si.service_id_,
-                                si.instance_id_, si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
+                                get_unique_version(si.instance_id_, si.major_), si.eventgroup_id_, si.event_, PENDING_SUBSCRIPTION_ID);
                         routing_manager_base::subscribe(si.client_id_, &si.sec_client_,
-                                si.service_id_, si.instance_id_, si.eventgroup_id_,
+                                si.service_id_, get_unique_version(si.instance_id_, si.major_), si.eventgroup_id_,
                                 si.major_, si.event_, si.filter_);
 #ifdef VSOMEIP_ENABLE_COMPAT
                         send_pending_notify_ones(si.service_id_,
@@ -2485,11 +2486,12 @@ void routing_manager_client::on_subscribe_nack(client_t _client,
 }
 
 void routing_manager_client::cache_event_payload(
-        const std::shared_ptr<message> &_message, major_version_t _major) {
+        const std::shared_ptr<message> &_message) {
     const service_t its_service(_message->get_service());
     const instance_t its_instance(_message->get_instance());
+    const major_version_t its_major(_message->get_major_version());
     const method_t its_method(_message->get_method());
-    unique_version_t its_unique = get_unique_version(its_instance, _major);
+    unique_version_t its_unique = get_unique_version(its_instance, its_major);
 
     std::shared_ptr<event> its_event = find_event(its_service, its_unique, its_method);
     if (its_event) {

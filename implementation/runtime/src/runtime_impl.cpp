@@ -73,6 +73,7 @@ std::shared_ptr<message> runtime_impl::create_response(
     auto its_response = std::make_shared<message_impl>();
     its_response->set_service(_request->get_service());
     its_response->set_instance(_request->get_instance());
+    its_response->set_major_version(_request->get_major_version());
     its_response->set_method(_request->get_method());
     its_response->set_client(_request->get_client());
     its_response->set_session(_request->get_session());

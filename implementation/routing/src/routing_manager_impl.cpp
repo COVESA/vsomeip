@@ -916,7 +916,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                             _data, _size);
 #endif
-                deliver_message(_data, _size, get_instance_from_unique(_unique), _reliable,
+                deliver_message(_data, _size, _unique, _reliable,
                         _bound_client, _sec_client,
                         _status_check, _sent_from_remote);
                 return true;
@@ -946,7 +946,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     || (find_local_client(its_service, _unique)
                             == host_->get_client() && is_request)) {
                 // TODO: Find out how to handle session id here
-                is_sent = deliver_message(_data, _size, get_instance_from_unique(_unique), _reliable,
+                is_sent = deliver_message(_data, _size, _unique, _reliable,
                         VSOMEIP_ROUTING_CLIENT, _sec_client, _status_check);
             } else {
                 e2e_buffer its_buffer;
@@ -1680,7 +1680,7 @@ bool routing_manager_impl::on_message(service_t _service, unique_version_t _uniq
         is_forwarded = deliver_notification(_service, _unique, _data, _size,
                 _reliable, _bound_client, _sec_client, _check_status, _is_from_remote);
     } else if (its_client == host_->get_client()) {
-        deliver_message(_data, _size, get_instance_from_unique(_unique),
+        deliver_message(_data, _size, _unique,
                 _reliable, _bound_client, _sec_client, _check_status, _is_from_remote);
     } else {
         send(its_client, _data, _size, _unique, _reliable,
@@ -1866,7 +1866,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
 }
 
 bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
-        instance_t _instance, bool _reliable,
+        unique_version_t _unique, bool _reliable,
         client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
         uint8_t _status_check, bool _is_from_remote) {
 
@@ -1879,7 +1879,8 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
     put_deserializer(its_deserializer);
 
     if (its_message) {
-        its_message->set_instance(_instance);
+        its_message->set_instance(get_instance_from_unique(_unique));
+        its_message->set_major_version(get_major_from_unique(_unique));
         its_message->set_reliable(_reliable);
         its_message->set_check_result(_status_check);
         if (_sec_client)
@@ -2079,7 +2080,7 @@ bool routing_manager_impl::deliver_notification(
         if (its_event->get_type() != event_type_e::ET_SELECTIVE_EVENT) {
             for (const auto its_local_client : its_subscribers) {
                 if (its_local_client == host_->get_client()) {
-                    deliver_message(_data, _length, get_instance_from_unique(_unique), _reliable,
+                    deliver_message(_data, _length, _unique, _reliable,
                             _bound_client, _sec_client, _status_check, _is_from_remote);
                 } else {
                     std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
@@ -2098,7 +2099,7 @@ bool routing_manager_impl::deliver_notification(
 
             if (its_subscribers.find(its_client_id) != its_subscribers.end()) {
                 if (its_client_id == host_->get_client()) {
-                    deliver_message(_data, _length, get_instance_from_unique(_unique), _reliable,
+                    deliver_message(_data, _length, _unique, _reliable,
                             _bound_client, _sec_client, _status_check, _is_from_remote);
                 } else {
                     std::shared_ptr<endpoint> its_local_target = find_local(its_client_id);

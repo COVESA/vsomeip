@@ -234,7 +234,7 @@ public:
                 async_subscription_handler_sec_t _handler);
 
     VSOMEIP_EXPORT void register_message_handler_ext(
-            service_t _service, instance_t _instance, method_t _method,
+            service_t _service, unique_version_t _unique, method_t _method,
             const message_handler_t &_handler,
             handler_registration_type_e _type);
 
@@ -243,10 +243,10 @@ private:
     using members_key_t = std::uint64_t;
     using members_t = std::unordered_map<members_key_t, std::deque<message_handler_t>>;
 
-    static members_key_t to_members_key(service_t _service, instance_t _instance, method_t _method) {
+    static members_key_t to_members_key(service_t _service, unique_version_t _unique, method_t _method) {
         return (static_cast<members_key_t>(_service)  <<  0) |
-               (static_cast<members_key_t>(_instance) << 16) |
-               (static_cast<members_key_t>(_method)   << 32);
+               (static_cast<members_key_t>(_unique)   << 16) |
+               (static_cast<members_key_t>(_method)   << 48);
     }
 
     //
@@ -267,18 +267,18 @@ private:
         sync_handler(const std::function<void()> &_handler) :
                     handler_(_handler),
                     service_id_(ANY_SERVICE),
-                    instance_id_(ANY_INSTANCE),
+                    unique_id_(ANY_INSTANCE),
                     method_id_(ANY_METHOD),
                     session_id_(0),
                     eventgroup_id_(0),
                     handler_type_(handler_type_e::UNKNOWN) { }
 
-        sync_handler(service_t _service_id, instance_t _instance_id,
+        sync_handler(service_t _service_id, unique_version_t _unique_id,
                      method_t _method_id, session_t _session_id,
                      eventgroup_t _eventgroup_id, handler_type_e _handler_type) :
                     handler_(nullptr),
                     service_id_(_service_id),
-                    instance_id_(_instance_id),
+                    unique_id_(_unique_id),
                     method_id_(_method_id),
                     session_id_(_session_id),
                     eventgroup_id_(_eventgroup_id),
@@ -286,7 +286,7 @@ private:
 
         std::function<void()> handler_;
         service_t service_id_;
-        instance_t instance_id_;
+        unique_version_t unique_id_;
         method_t method_id_;
         session_t session_id_;
         eventgroup_t eventgroup_id_;
@@ -342,7 +342,7 @@ private:
 
     bool is_local_endpoint(const boost::asio::ip::address &_unicast, port_t _port);
 
-    const std::deque<message_handler_t>& find_handlers(service_t _service, instance_t _instance, method_t _method) const;
+    const std::deque<message_handler_t>& find_handlers(service_t _service, unique_version_t _unique, method_t _method) const;
 
     void invoke_availability_handler(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
@@ -509,7 +509,7 @@ private:
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
 
-    std::map<std::pair<service_t, instance_t>,
+    std::map<std::pair<service_t, unique_version_t>,
             std::deque<std::shared_ptr<sync_handler> > > availability_handlers_;
 
     vsomeip_sec_client_t sec_client_;

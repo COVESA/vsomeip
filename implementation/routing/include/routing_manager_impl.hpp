@@ -328,7 +328,7 @@ private:
             bool _must_queue);
 
     bool deliver_message(const byte_t *_data, length_t _size,
-            instance_t _instance, bool _reliable,
+            unique_version_t _unique, bool _reliable,
             client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
             uint8_t _status_check = 0, bool _is_from_remote = false);
     bool deliver_notification(service_t _service, unique_version_t _unique,

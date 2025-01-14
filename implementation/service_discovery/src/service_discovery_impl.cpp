@@ -2683,7 +2683,7 @@ service_discovery_impl::serialize_and_send(
                             reliable_, m->get_service(), m->get_instance()),
                             serializer_->get_data(), serializer_->get_size(),
                             port_)) {
-                        increment_session(_address); // TODO: Kareem should find a solution for this
+                        increment_session(_address);
                     }
                 } else {
                     VSOMEIP_ERROR << "service_discovery_impl::" << __func__
