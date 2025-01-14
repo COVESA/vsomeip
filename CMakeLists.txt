@@ -537,6 +537,8 @@ set_target_properties(
   vsomeip3-sd PROPERTIES
   VERSION ${VSOMEIP_VERSION}
   SOVERSION ${VSOMEIP_MAJOR_VERSION}
+  OUTPUT_NAME ${VSOMEIP_NAME}-sd
+  EXPORT_NAME vsomeip3-sd
 )
 target_compile_definitions(vsomeip3-sd PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
 target_link_libraries(
