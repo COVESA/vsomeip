@@ -1957,7 +1957,7 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
 
         // Check handler
         if (its_next_handler->handler_type_ == handler_type_e::AVAILABILITY) {
-            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
+            const std::pair<service_t, unique_version_t> its_si_pair = std::make_pair(
                     its_next_handler->service_id_,
                     its_next_handler->unique_id_);
             auto found_si = availability_handlers_.find(its_si_pair);
@@ -1972,7 +1972,7 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
                 availability_handlers_[its_si_pair].push_back(its_next_handler);
             }
         } else if (its_next_handler->handler_type_ == handler_type_e::MESSAGE) {
-            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
+            const std::pair<service_t, unique_version_t> its_si_pair = std::make_pair(
                     its_next_handler->service_id_,
                     its_next_handler->unique_id_);
             auto found_si = availability_handlers_.find(its_si_pair);
@@ -1992,7 +1992,7 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
 void application_impl::reschedule_availability_handler(
         const std::shared_ptr<sync_handler> &_handler) {
     if (_handler->handler_type_ == handler_type_e::AVAILABILITY) {
-        const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
+        const std::pair<service_t, unique_version_t> its_si_pair = std::make_pair(
                 _handler->service_id_, _handler->unique_id_);
         auto found_si = availability_handlers_.find(its_si_pair);
         if (found_si != availability_handlers_.end()) {
