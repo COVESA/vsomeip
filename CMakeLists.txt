@@ -103,13 +103,11 @@ find_package(Threads REQUIRED)
 add_library(OS_INTERFACE INTERFACE IMPORTED)
 add_library(RT_INTERFACE INTERFACE IMPORTED)
 add_library(DL_INTERFACE INTERFACE IMPORTED)
-add_library(STACKTRACE_INTERFACE INTERFACE IMPORTED)
 
 # Boost
 find_package(
-  Boost 1.65 REQUIRED
+  Boost 1.66 REQUIRED
   COMPONENTS system thread filesystem
-  OPTIONAL_COMPONENTS stacktrace_basic stacktrace_backtrace stacktrace_addr2line
 )
 
 include(CMakeDependentOption)
@@ -188,20 +186,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   # can be hooked to enable PI as needed
   add_definitions(-D_GTHREAD_USE_MUTEX_INIT_FUNC -D_GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC)
 
-  if(TARGET Boost::stacktrace_addr2line AND TARGET Boost::stacktrace_backtrace)
-    # For backtraces to work, define the following in your toolchain:
-    # -DBOOST_STACKTRACE_BACKTRACE_INCLUDE_FILE="/usr/lib/gcc/x86_64-linux-gnu/11/include/backtrace.h" (this is
-    # hardcoded here as it does not necessarily represent yours system)
-    target_compile_definitions(
-      STACKTRACE_INTERFACE INTERFACE -DBOOST_STACKTRACE_USE_BACKTRACE -DBOOST_STACKTRACE_USE_ADDR2LINE
-    )
-    target_link_libraries(
-      STACKTRACE_INTERFACE INTERFACE Boost::stacktrace_addr2line Boost::stacktrace_backtrace backtrace
-    )
-  else()
-    message(STATUS "Boost::stacktrace_addr2line and/or Boost::stacktrace_backtrace not found, stacktrace disabled")
-  endif()
-
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
   set(OS "FREEBSD")
   add_compile_options(-Wno-deprecated)
@@ -230,12 +214,6 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
   )
   target_link_libraries(RT_INTERFACE INTERFACE $<$<PLATFORM_ID:QNX>:${VSOMEIP_SOCKET_LIB}>)
 
-  if(TARGET Boost::stacktrace_basic)
-    # Boost::stacktrace_addr2line is not available on QNX libbacktrace.so is not installed on target by default
-    target_link_libraries(STACKTRACE_INTERFACE INTERFACE Boost::stacktrace_basic)
-  else()
-    message(STATUS "Boost::stacktrace_basic not found, stacktrace disabled")
-  endif()
 endif()
 
 if(${OS})
@@ -513,7 +491,6 @@ target_link_libraries(
   PRIVATE Boost::filesystem
           Boost::thread
           $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
-          STACKTRACE_INTERFACE
           RT_INTERFACE
           DL_INTERFACE
           OS_INTERFACE

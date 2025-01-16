@@ -19,7 +19,6 @@ target_link_libraries(
           Boost::system
           Boost::filesystem
           $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
-          STACKTRACE_INTERFACE
           OS_INTERFACE
           DL_INTERFACE
           RT_INTERFACE
