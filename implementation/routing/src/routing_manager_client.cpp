@@ -494,6 +494,7 @@ void routing_manager_client::release_service(client_t _client,
                 if (it->service_ == _service
                 && it->instance_ == _instance) {
                     pending = true;
+                    break;
                 }
                 it++;
             }
