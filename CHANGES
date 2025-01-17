@@ -1,5 +1,19 @@
 Changes
 =======
+v3.5.4
+- Update documentation
+- Fix possible dangling pointer
+- Add strand to send_cbk call to prevent data races on sockets
+- wireshark_plugin update send command
+- Documentation add some default values
+- Fix Find messages with Unicast Flag set to 0
+- fix max remote subscription limit
+- fix race condition on lazy_load_test
+- Avoid locking while joining multicast group
+- Add precondition to offer_stop_offer
+- Delete twice definition of port_t in primitive_types.hpp
+- Fixing dereference issues
+- Integration of Suspend/Resume related fixes
 
 v3.5.3
 - Add timeout for detached threads
