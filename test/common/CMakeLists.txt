@@ -40,7 +40,8 @@ target_include_directories (
     PUBLIC include
     PRIVATE src
 )
+target_compile_definitions(vsomeip_utilities PUBLIC SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 if (MSVC)
 	set_target_properties(vsomeip_utilities PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif ()
+endif()
