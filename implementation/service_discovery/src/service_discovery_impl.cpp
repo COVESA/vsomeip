@@ -1281,6 +1281,7 @@ service_discovery_impl::on_message(
                             its_acknowledgement, _sender, _is_multicast,
                             is_stop_subscribe_subscribe, force_initial_events,
                             accept_state);
+                    force_initial_events = false;
                 }
 
             }
