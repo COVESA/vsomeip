@@ -92,6 +92,9 @@ cmake -DENABLE_SIGNAL_HANDLING=1 ..
 ```
 In the default setting, the application has to take care of shutting down vSomeIP in case these signals are received.
 
+###### Note on Ubuntu 24.04 Build Issues
+
+If you encounter build issues on Ubuntu 24.04, consider using Ubuntu 22.04 as a temporary fix. This is due to the ongoing transition of the GitHub Actions runner to Ubuntu 24.04, which may cause compatibility issues.
 
 ##### Build Instructions for Android
 
