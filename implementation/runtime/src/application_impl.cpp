@@ -1794,7 +1794,7 @@ const std::deque<message_handler_t>& application_impl::find_handlers(service_t _
 void application_impl::on_message(std::shared_ptr<message> &&_message) {
     const service_t its_service = _message->get_service();
     const instance_t its_instance = _message->get_instance();
-    const major_version_t its_major = _message->get_major_version();
+    const major_version_t its_major = _message->get_interface_version();
     const method_t its_method = _message->get_method();
 
     const unique_version_t its_unique = get_unique_version(its_instance, its_major);
@@ -1826,7 +1826,7 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
                         });
                 its_sync_handler->handler_type_ = handler_type_e::MESSAGE;
                 its_sync_handler->service_id_ = _message->get_service();
-                its_sync_handler->unique_id_ = get_unique_version(_message->get_instance(), _message->get_major_version());
+                its_sync_handler->unique_id_ = get_unique_version(_message->get_instance(), _message->get_interface_version());
                 its_sync_handler->method_id_ = _message->get_method();
                 its_sync_handler->session_id_ = _message->get_session();
                 handlers_.push_back(its_sync_handler);

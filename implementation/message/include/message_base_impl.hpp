@@ -28,9 +28,6 @@ public:
     VSOMEIP_EXPORT instance_t get_instance() const;
     VSOMEIP_EXPORT void set_instance(instance_t _instance);
 
-    VSOMEIP_EXPORT major_version_t get_major_version() const;
-    VSOMEIP_EXPORT void set_major_version(major_version_t _major);
-
     VSOMEIP_EXPORT method_t get_method() const;
     VSOMEIP_EXPORT void set_method(method_t _method);
 
@@ -65,7 +62,6 @@ public:
 
 protected: // members
     message_header_impl header_;
-    major_version_t major_;
     bool is_reliable_;
     bool is_initial_;
 };

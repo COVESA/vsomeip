@@ -1880,7 +1880,7 @@ bool routing_manager_impl::deliver_message(const byte_t *_data, length_t _size,
 
     if (its_message) {
         its_message->set_instance(get_instance_from_unique(_unique));
-        its_message->set_major_version(get_major_from_unique(_unique));
+        its_message->set_interface_version(get_major_from_unique(_unique));
         its_message->set_reliable(_reliable);
         its_message->set_check_result(_status_check);
         if (_sec_client)

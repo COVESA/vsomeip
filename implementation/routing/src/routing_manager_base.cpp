@@ -1032,7 +1032,7 @@ bool routing_manager_base::send(client_t _client,
     std::shared_ptr<serializer> its_serializer(get_serializer());
     if (its_serializer->serialize(_message.get())) {
         is_sent = send(_client, its_serializer->get_data(),
-                its_serializer->get_size(), get_unique_version(_message->get_instance(), _message->get_major_version()),
+                its_serializer->get_size(), get_unique_version(_message->get_instance(), _message->get_interface_version()),
                 _message->is_reliable(), get_client(), get_sec_client(),
                 0, false, _force);
         its_serializer->reset();

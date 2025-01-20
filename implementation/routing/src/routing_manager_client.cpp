@@ -1121,7 +1121,7 @@ void routing_manager_client::on_message(
 
                 if (its_message) {
                     its_message->set_instance(its_send_command.get_instance());
-                    its_message->set_major_version(its_major);
+                    its_message->set_interface_version(its_major);
                     its_message->set_reliable(its_send_command.is_reliable());
                     its_message->set_check_result(its_send_command.get_status());
                     if (_sec_client)
@@ -2489,7 +2489,7 @@ void routing_manager_client::cache_event_payload(
         const std::shared_ptr<message> &_message) {
     const service_t its_service(_message->get_service());
     const instance_t its_instance(_message->get_instance());
-    const major_version_t its_major(_message->get_major_version());
+    const major_version_t its_major(_message->get_interface_version());
     const method_t its_method(_message->get_method());
     unique_version_t its_unique = get_unique_version(its_instance, its_major);
 
