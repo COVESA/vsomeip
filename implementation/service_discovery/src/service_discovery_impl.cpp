@@ -68,6 +68,8 @@ service_discovery_impl::service_discovery_impl(
       repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
       cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
       offer_debounce_timer_(_host->get_io()),
+      find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
+      remaining_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
       find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME),
       find_debounce_timer_(_host->get_io()),
       main_phase_timer_(_host->get_io()),
@@ -148,6 +150,9 @@ service_discovery_impl::init() {
     repetitions_max_ = configuration_->get_sd_repetitions_max();
     cyclic_offer_delay_ = std::chrono::milliseconds(
             configuration_->get_sd_cyclic_offer_delay());
+    remaining_find_initial_debounce_reps_ = configuration_->get_sd_find_initial_debounce_reps();
+    find_initial_debounce_time_ = std::chrono::milliseconds(
+            configuration_->get_sd_find_initial_debounce_time());
     offer_debounce_time_ = std::chrono::milliseconds(
             configuration_->get_sd_offer_debounce_time());
     ttl_timer_runtime_ = cyclic_offer_delay_ / 2;
@@ -2892,6 +2897,9 @@ service_discovery_impl::start_find_debounce_timer(bool _first_start) {
     boost::system::error_code ec;
     if (_first_start) {
         find_debounce_timer_.expires_from_now(initial_delay_, ec);
+    } else if (remaining_find_initial_debounce_reps_ > 0) {
+        find_debounce_timer_.expires_from_now(find_initial_debounce_time_, ec);
+        --remaining_find_initial_debounce_reps_;
     } else {
         find_debounce_timer_.expires_from_now(find_debounce_time_, ec);
     }
