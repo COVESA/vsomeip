@@ -9,7 +9,7 @@
 
 #include <boost/asio/write.hpp>
 #include <boost/asio/read.hpp>
-#include<sstream>
+#include <sstream>
 
 #include <vsomeip/internal/logger.hpp>
 

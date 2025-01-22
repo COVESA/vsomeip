@@ -33,6 +33,27 @@
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
 
+//
+// Defines related to using the "simple_connector" for network monitoring as
+// opposed to the netlink connector available on Linux systems.  This is not
+// available upstream. The original implementation allowed SD to start
+// asynchronously and hence the variables below were named to support that.  The
+// implementation has moved on to the simple_connector, but the environment
+// variable names remain.
+
+// Env var that if exists will allow the simple_connector to launch a thread to
+// wait for the network to be available and notify the routing manager.  If not
+// set, the simple_connector will assume the network is available and notify the
+// routing manager as such.
+#define VSOMEIP_ENV_USE_ASYNCHRONOUS_SD         "VSOMEIP_USE_ASYNCHRONOUS_SD"
+
+// The current waiting mechanism is to block until a file (specified by this
+// define)
+#define VSOMEIP_ENV_NETWORK_INT_READY_FILE          "@VSOMEIP_NETWORK_INT_READY_FILE@"
+
+// /end of async change
+//
+
 #ifdef _WIN32
 #define VSOMEIP_CFG_LIBRARY                      "vsomeip3-cfg.dll"
 #else
