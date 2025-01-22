@@ -2704,6 +2704,8 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
         for (const auto &i : s.second) {
             if (discovery_) {
                 discovery_->unsubscribe_all(s.first, i);
+                // go to Initial Wait Phase
+                discovery_->reset_request_sent_counter(s.first, i);
             }
             del_routing_info(s.first, i, true, true);
             VSOMEIP_INFO << "update_routing_info: elapsed=" << _elapsed.count()
