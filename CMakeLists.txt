@@ -60,6 +60,10 @@ if(NOT CMAKE_BUILD_TYPE)
   # Set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
+option(BUILD_SHARED_LIBS "Set to OFF to build static libraries" ON)
+if(NOT BUILD_SHARED_LIBS)
+  add_definitions(-DVSOMEIP_STATIC_PLUGINS)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -287,7 +291,7 @@ file(GLOB ${VSOMEIP_NAME}-cfg_SRC
 )
 list(SORT ${VSOMEIP_NAME}-cfg_SRC)
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
-    add_library(${VSOMEIP_NAME}-cfg SHARED ${${VSOMEIP_NAME}-cfg_SRC})
+    add_library(${VSOMEIP_NAME}-cfg ${${VSOMEIP_NAME}-cfg_SRC})
     set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
     target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
     if (MSVC)
@@ -322,7 +326,7 @@ endif()
 
 list(SORT ${VSOMEIP_NAME}_SRC)
 
-add_library(${VSOMEIP_NAME} SHARED ${${VSOMEIP_NAME}_SRC})
+add_library(${VSOMEIP_NAME} ${${VSOMEIP_NAME}_SRC})
 set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
@@ -354,7 +358,7 @@ file(GLOB ${VSOMEIP_NAME}-sd_SRC
 )
 list(SORT ${VSOMEIP_NAME}-sd_SRC)
 
-add_library(${VSOMEIP_NAME}-sd SHARED ${${VSOMEIP_NAME}-sd_SRC})
+add_library(${VSOMEIP_NAME}-sd ${${VSOMEIP_NAME}-sd_SRC})
 target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
@@ -372,7 +376,7 @@ file(GLOB_RECURSE ${VSOMEIP_NAME}-e2e_SRC
 )
 list(SORT ${VSOMEIP_NAME}-e2e_SRC)
 
-add_library(${VSOMEIP_NAME}-e2e SHARED ${${VSOMEIP_NAME}-e2e_SRC})
+add_library(${VSOMEIP_NAME}-e2e ${${VSOMEIP_NAME}-e2e_SRC})
 target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
@@ -404,7 +408,7 @@ file(GLOB_RECURSE ${VSOMEIP_COMPAT_NAME}_SRC
 )
 list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
 
-add_library(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
+add_library(${VSOMEIP_COMPAT_NAME} ${${VSOMEIP_COMPAT_NAME}_SRC})
 target_compile_features(${VSOMEIP_COMPAT_NAME} PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_COMPAT_NAME} PROPERTIES VERSION ${VSOMEIP_COMPAT_VERSION} SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION})
 if (MSVC)
