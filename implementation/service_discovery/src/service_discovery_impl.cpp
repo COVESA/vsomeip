@@ -2440,15 +2440,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
     } else {
         boost::asio::ip::address its_first_address, its_second_address;
         if (ILLEGAL_PORT != _first_port) {
-            uint16_t its_first_port(0);
             its_subscriber = endpoint_definition::get(
                     _first_address, _first_port, _is_first_reliable, _service, _instance);
-            if (!_is_first_reliable &&
-                _info->get_multicast(its_first_address, its_first_port) &&
-                _info->is_sending_multicast()) { // udp multicast
-                its_unreliable = endpoint_definition::get(
-                    its_first_address, its_first_port, false, _service, _instance);
-            } else if (_is_first_reliable) { // tcp unicast
+            if (_is_first_reliable) { // tcp unicast
                 its_reliable = its_subscriber;
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
@@ -2470,15 +2464,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
         }
 
         if (ILLEGAL_PORT != _second_port) {
-            uint16_t its_second_port(0);
             its_subscriber = endpoint_definition::get(
                     _second_address, _second_port, _is_second_reliable, _service, _instance);
-            if (!_is_second_reliable &&
-                _info->get_multicast(its_second_address, its_second_port) &&
-                _info->is_sending_multicast()) { // udp multicast
-                its_unreliable = endpoint_definition::get(
-                    its_second_address, its_second_port, false, _service, _instance);
-            } else if (_is_second_reliable) { // tcp unicast
+            if (_is_second_reliable) { // tcp unicast
                 its_reliable = its_subscriber;
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
