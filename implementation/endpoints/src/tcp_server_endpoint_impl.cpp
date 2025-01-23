@@ -5,7 +5,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
-
+#include <netinet/tcp.h>
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/constants.hpp>
@@ -269,6 +269,63 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
                 VSOMEIP_WARNING << "tsei::" << __func__
                                 << ": setting SO_LINGER failed: " << its_error.message();
             }
+
+            // Enable sending of keep-alive messages on connection-oriented sockets
+            // Enables (nonzero) or disables (zero) the periodic transmission of messages
+            // Should the connected party fail to respond to these messages, the connection is considered broken
+            int optval = 1;
+            int rc;
+            rc = setsockopt(new_connection_socket.native_handle(), SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
+            if (rc != 0) {
+                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable keep_alive(10)" ;
+            }
+#ifndef __QNX__
+            // Linux has 3 parameters configurable on a both a global and per-socket basis
+            //  TCP_KEEPIDLE  / tcp_keepalive_time
+            //  TCP_KEEPCNT   / tcp_keepalive_probes
+            //  TCP_KEEPINTVL / tcp_keepalive_intvl
+            //
+            // Adjust these on the vsomeip socket to detect breaks within IDLE + (CNT * INTVL) seconds
+
+            // The time (in seconds) the connection needs to remain idle before TCP starts sending keepalive probes
+            optval = 10;
+            rc = setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPIDLE, &optval, sizeof(optval));
+            if (rc != 0) {
+                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable keep_alive(TCP_KEEPIDLE)" ;
+            }
+
+            // The maximum count of keepalive probes TCP should send before dropping the connection
+            optval = 2;
+            rc = setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPCNT, &optval, sizeof(optval));
+            if (rc != 0) {
+                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable keep_alive(TCP_KEEPCNT)" ;
+            }
+
+            // The time (in seconds) between individual keepalive probes
+            optval = 2;
+            rc = setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPINTVL, &optval, sizeof(optval));
+            if (rc != 0) {
+                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable keep_alive(TCP_KEEPINTVL)" ;
+            }
+#else
+            // QNX has 1 parameter configurable on a per-socket basis
+            //  TCP_KEEPALIVE (documented full-seconds)
+            // and 3 parameters configurable on a global basis as defaults
+            //  sysctl net.inet.tcp.keepidle (half-seconds)
+            //  TCPCTL_KEEPINTVL / sysctl net.inet.tcp.keepintvl (half-seconds)
+            //  TCPCTL_KEEPCNT   / sysctl net.inet.tcp.keepcnt
+            //
+            // Adjust TCP_KEEPALIVE on the vsomeip socket
+            // Rely on reasonable global sysctl for CNT and INTVL
+            // Detect breaks within IDLE + (CNT * INTVL) seconds
+
+            // The time (in seconds) the connection needs to remain idle before TCP starts sending keepalive probes
+            optval = 10;
+            rc = setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPALIVE, &optval, sizeof(optval));
+            if (rc != 0) {
+                VSOMEIP_WARNING << "tcp_server_endpoint::connect: couldn't enable keep_alive(TCP_KEEPALIVE)" ;
+            }
+#endif
         }
         if (!its_error) {
             {
