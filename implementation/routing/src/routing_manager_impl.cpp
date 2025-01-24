@@ -228,7 +228,19 @@ void routing_manager_impl::start() {
             << ", "
             << its_netmask_or_prefix.str();
 
-    netlink_connector_ = std::make_shared<netlink_connector>(
+    boost::asio::ip::address temp {configuration_->get_unicast_address()};
+    
+    // PRECONDITION: netlink_connector_ has troubles to create a correct object,
+    // if network interface is part of unicast-address-string. So strip it!
+    char delimiter {'%'}; // "%" is a symbol for the device, e.g. "beef::1%7",
+        // where 7 is the network interface #7
+    if (its_unicast.to_string().find(delimiter) != std::string::npos) 
+    {
+        std::string temp_address = its_unicast.to_string().substr(0, (size_t)its_unicast.to_string().find(delimiter));
+        netlink_connector_ = std::make_shared<netlink_connector>(
+            host_->get_io(), boost::asio::ip::address::from_string(temp_address), its_multicast);
+    }
+    else netlink_connector_ = std::make_shared<netlink_connector>(
             host_->get_io(), configuration_->get_unicast_address(), its_multicast);
     netlink_connector_->register_net_if_changes_handler(
             std::bind(&routing_manager_impl::on_net_interface_or_route_state_changed,

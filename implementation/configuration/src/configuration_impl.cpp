@@ -41,6 +41,10 @@
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
+#if defined(__linux__)
+#include <ifaddrs.h>
+#endif
+
 namespace vsomeip_v3 {
 namespace cfg {
 
@@ -1359,6 +1363,58 @@ void configuration_impl::load_trace_filter_match(
     }
 }
 
+#if defined(__linux__)
+int configuration_impl::get_nic(const std::string& _local_address) {
+    // creating structures to browse through the available network interfaces
+    struct ifaddrs* ifaddr, *ifa;
+    int family, n;
+    sockaddr_in6* p_addrIP6;
+    std::vector<int> nic(0);    // the network interface card id. Vector in case 
+                    // more than one interface contains the searched IP address
+    struct sockaddr_in6 searched_address;
+    searched_address.sin6_family = AF_INET6;
+    searched_address.sin6_addr = in6addr_any;
+    searched_address.sin6_port = htons( 0xdead );
+    inet_pton( AF_INET6, _local_address.c_str(), &searched_address.sin6_addr ); // actually copying 
+
+    if (getifaddrs(&ifaddr) == -1) { // "-1" is an error value
+        VSOMEIP_WARNING << __func__ << ": " << strerror(errno);
+        return -1;
+    }
+
+    /* Walk through linked list of network interfaces*/
+    for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+        family = ifa->ifa_addr->sa_family;
+
+        /* For an AF_INET6 interface address, compare the address of the NIC
+        with the searched address */
+        if (family == AF_INET6) {
+            p_addrIP6 = reinterpret_cast<sockaddr_in6*>(ifa->ifa_addr);
+            if (::bcmp(p_addrIP6->sin6_addr.s6_addr, searched_address.sin6_addr.s6_addr, 16) == 0) {
+                nic.push_back(if_nametoindex(ifa->ifa_name));
+            }
+        }
+    }
+    if (nic.size() > 1) {
+        VSOMEIP_WARNING << __func__ << ": Found multiple network interfaces " <<
+            "with IP address " << _local_address << ". Please check your " <<
+            "network settings. In the meanwhile, using the first NIC.";
+            // message must be in sync with "return nic[0]"
+    }
+    else if (nic.size() == 0) {
+        VSOMEIP_WARNING << __func__ << ": NO network interfaces available" <<
+            "with IP address " << _local_address << ". Please check your " <<
+            "network settings.";
+        return -1;
+    } // the good case 'nic.size() == 1' needs no error handling
+    
+    freeifaddrs(ifaddr);
+    return nic[0];
+}
+#endif
+
 void configuration_impl::load_suppress_events(const configuration_element &_element) {
     try {
         auto its_missing_events = _element.tree_.get_child("suppress_missing_event_logs");
@@ -1536,7 +1592,22 @@ void configuration_impl::load_unicast_address(const configuration_element &_elem
             VSOMEIP_WARNING << "Multiple definitions for unicast."
                     "Ignoring definition from " << _element.name_;
         } else {
-            unicast_ = unicast_.from_string(its_value);
+            #if defined(__linux__)
+            boost::asio::ip::address temp = unicast_.from_string(its_value);
+            if (temp.is_v6()) {
+                int scope_id = get_nic(its_value);
+                if (scope_id >= 0) {
+                    // below: '%' is the delimiter to distinguish between IP-address and scope-id, e.g. "beef::1%7"
+                    unicast_ = boost::asio::ip::make_address(its_value + "%" + std::to_string(scope_id)); 
+                } // else, keep the default scope_id in local_
+                else unicast_ = unicast_.from_string(its_value);
+            }
+            else if (temp.is_v4()) { // IPv4 somehow "automatically" processes the network interface and does NOT require special treatment
+                unicast_ = unicast_.from_string(its_value);
+            }
+            #else
+            unicast_ = unicast_.from_string(its_value); 
+            #endif
             is_configured_[ET_UNICAST] = true;
         }
     } catch (...) {
@@ -2542,7 +2613,7 @@ void configuration_impl::load_payload_sizes(const configuration_element &_elemen
                 buffer_shrink_threshold_ = static_cast<std::uint32_t>(
                         std::stoul(s.c_str(), NULL, 10));
             } catch (const std::exception &e) {
-                VSOMEIP_ERROR<< __func__ << ": " << buffer_shrink_threshold
+                VSOMEIP_ERROR<<  << ": " << buffer_shrink_threshold
                 << " " << e.what();
             }
         }
