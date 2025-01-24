@@ -2579,13 +2579,6 @@ service_discovery_impl::handle_eventgroup_subscription_nack(
                             _service, _instance, _eventgroup, ANY_EVENT,
                             PENDING_SUBSCRIPTION_ID); // TODO: This is a dummy call...
                 }
-
-
-                if (!its_subscription->is_selective()) {
-                    auto its_reliable = its_subscription->get_endpoint(true);
-                    if (its_reliable)
-                        its_reliable->restart();
-                }
             }
         }
     }
