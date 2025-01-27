@@ -42,6 +42,11 @@ if (TEST_SECURITY)
     targets_link_default_libraries("${executables}")
     targets_add_default_dependencies("${executables}")
 
+# Skip valgrind
+    if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "" AND TEST_SKIP_VALGRIND_TRACKING)
+        set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/lazy_load_test_*,*/routingmanagerd)
+    endif()
+
     # Add custom test command.
     add_custom_test(
         NAME lazy_load_test

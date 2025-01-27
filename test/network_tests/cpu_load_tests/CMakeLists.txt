@@ -36,6 +36,11 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
+# Skip valgrind
+if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh)
+endif()
+
 # Add custom test command.
 add_custom_test(
     NAME cpu_load_test
