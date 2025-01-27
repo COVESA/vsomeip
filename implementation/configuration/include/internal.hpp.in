@@ -160,8 +160,8 @@ inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = (std::numeric_limits<s
 inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_UDS = 13;
 inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_TCP = 5;
 
-const uid_t ANY_UID = 0xFFFFFFFF;
-const gid_t ANY_GID = 0xFFFFFFFF;
+inline constexpr uid_t ANY_UID = (std::numeric_limits<uid_t>::max)();
+inline constexpr gid_t ANY_GID = (std::numeric_limits<uid_t>::max)();
 
 enum class port_type_e {
     PT_OPTIONAL,
@@ -171,7 +171,7 @@ enum class port_type_e {
 };
 
 using partition_id_t = std::uint8_t;
-const partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;
+inline constexpr partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;
 
 } // namespace vsomeip_v3
 
