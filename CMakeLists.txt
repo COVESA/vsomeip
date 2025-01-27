@@ -378,6 +378,8 @@ if(MSVC)
   )
   link_directories(${Boost_LIBRARY_DIR_DEBUG})
   add_compile_options(/MD$<$<CONFIG:Debug>:d>)
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+  # Do not apply rt on QNX
 else()
   target_link_libraries(RT_INTERFACE INTERFACE rt)
 endif()
