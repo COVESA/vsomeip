@@ -11,7 +11,6 @@ RUN export DEBIAN_FRONTEND=noninteractive;\
         iproute2\
         jq\
         lcov\
-        libboost-{log,system,thread}-dev\
         lsof\
         net-tools\
         ninja-build\
@@ -29,6 +28,17 @@ RUN export DEBIAN_FRONTEND=noninteractive;\
 ENV CC=gcc-12
 ENV CXX=g++-12
 ENV GCOV=gcov-12
+
+# Build boost
+ARG BOOST_MAJOR
+ARG BOOST_MINOR
+ARG BOOST_PATCH
+
+RUN wget https://archives.boost.io/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST_PATCH}/source/boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH}.tar.gz -O boost_sources.tar.gz;\
+    tar -zxvf boost_sources.tar.gz;\
+    cd boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH};\
+    ./bootstrap.sh --prefix=/usr;\
+    ./b2 install valgrind=on --with-system --with-log --with-filesystem --with-thread
 
 # Build dlt-daemon
 ADD dlt-daemon /home/source

@@ -19,6 +19,9 @@ x-common:
       - http_proxy
       - https_proxy
       - no_proxy
+      - BOOST_MAJOR=1
+      - BOOST_MINOR=74
+      - BOOST_PATCH=0
     context: ../../..
     dockerfile: vsomeip/zuul/network-tests/Dockerfile
   cap_add:

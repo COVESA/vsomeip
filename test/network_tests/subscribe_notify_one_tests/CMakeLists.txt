@@ -29,6 +29,14 @@ add_executable(subscribe_notify_one_test_service
 targets_add_default_dependencies(subscribe_notify_one_test_service)
 targets_link_default_libraries(subscribe_notify_one_test_service)
 
+# Skip valgrind
+if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+    if (TEST_SKIP_VALGRIND_TRACKING)
+        set(SUBPROCESSES ,*/subscribe_notify_one_test_service*)
+    endif()
+    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
+endif()
+
 # Add custom test command.
 add_custom_test(
     NAME subscribe_notify_one_test_diff_client_ids_diff_ports_udp
