@@ -600,7 +600,7 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
                         << "Avoid trigger SD find-service message"
                         << " for local service/instance/major/minor: "
                         << _service << "/" << _instance << std::dec
-                        << "/" << (uint32_t)_major << "/" << _minor;
+                        << "/" << static_cast<int>(_major) << "/" << _minor;
             }
         }
     } else {
@@ -718,7 +718,7 @@ void routing_manager_impl::subscribe(
         << std::setw(4) << _instance << "."
         << std::setw(4) << _eventgroup << ":"
         << std::setw(4) << _event << ":"
-        << std::dec << (uint16_t)_major << "]";
+        << std::dec << static_cast<int>(_major) << "]";
     const client_t its_local_client = find_local_client(_service, _instance);
     if (get_client() == its_local_client) {
 #ifdef VSOMEIP_ENABLE_COMPAT
@@ -954,17 +954,17 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
 
                 if (e2e_provider_) {
                     if ( !is_service_discovery) {
-                        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-                        method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+                        service_t its_service_inner = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+                        method_t its_method_inner   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 #ifndef ANDROID
-                        if (e2e_provider_->is_protected({its_service, its_method})) {
+                        if (e2e_provider_->is_protected({its_service_inner, its_method_inner})) {
                             // Find out where the protected area starts
-                            size_t its_base = e2e_provider_->get_protection_base({its_service, its_method});
+                            size_t its_base = e2e_provider_->get_protection_base({its_service_inner, its_method_inner});
 
                             // Build a corresponding buffer
                             its_buffer.assign(_data + its_base, _data + _size);
 
-                            e2e_provider_->protect({ its_service, its_method }, its_buffer, _instance);
+                            e2e_provider_->protect({ its_service_inner, its_method_inner }, its_buffer, _instance);
 
                             // Prepend header
                             its_buffer.insert(its_buffer.begin(), _data, _data + its_base);
@@ -999,10 +999,10 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     std::shared_ptr<serviceinfo> its_info(find_service(its_service, _instance));
                     if (its_info || is_service_discovery) {
                         if (is_notification && !is_service_discovery) {
-                            (void)send_local_notification(get_client(), _data, _size, _instance,
-                                        _reliable, _status_check, _force);
-                            method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-                            std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
+                            static_cast<void>(send_local_notification(get_client(), _data, _size, _instance,
+                                        _reliable, _status_check, _force));
+                            method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+                            std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method_inner);
                             if (its_event) {
 #ifdef USE_DLT
                                 bool has_sent(false);
@@ -2451,7 +2451,7 @@ void routing_manager_impl::add_routing_info(
         // check if service was requested and establish TCP connection if necessary
         {
             bool connected(false);
-            std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+            std::lock_guard<std::mutex> its_lock_inner(requested_services_mutex_);
             for (const client_t its_client : get_requesters_unlocked(
                     _service, _instance, _major, _minor)) {
                 // SWS_SD_00376 establish TCP connection to service
@@ -2471,7 +2471,7 @@ void routing_manager_impl::add_routing_info(
             }
         }
     } else if (_reliable_port != ILLEGAL_PORT && is_reliable_known) {
-        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(requested_services_mutex_);
         if (has_requester_unlocked(_service, _instance, _major, _minor)) {
             std::shared_ptr<endpoint> ep = its_info->get_endpoint(true);
             if (ep) {
@@ -2520,7 +2520,7 @@ void routing_manager_impl::add_routing_info(
             // check if service was requested and increase requester count if necessary
             {
                 bool connected(false);
-                std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+                std::lock_guard<std::mutex> its_lock_inner(requested_services_mutex_);
                 for (const client_t its_client : get_requesters_unlocked(
                         _service, _instance, _major, _minor)) {
                     if (!connected) {
@@ -2551,7 +2551,7 @@ void routing_manager_impl::add_routing_info(
             }
         }
     } else if (_unreliable_port != ILLEGAL_PORT && is_unreliable_known) {
-        std::lock_guard<std::mutex> its_lock(requested_services_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(requested_services_mutex_);
         if (has_requester_unlocked(_service, _instance, _major, _minor)) {
             if (_reliable_port == ILLEGAL_PORT && !is_reliable_known &&
                     stub_ &&
@@ -3002,14 +3002,14 @@ void routing_manager_impl::on_remote_subscribe(
             return;
         }
 
-        auto its_id
+        auto its_id_inner
             = its_eventgroupinfo->add_remote_subscription(_subscription);
 
         const client_t its_offering_client
             = find_local_client(its_service, its_instance);
         send_subscription(its_offering_client,
                 its_service, its_instance, its_eventgroup, its_major,
-                _subscription->get_clients(), its_id);
+                _subscription->get_clients(), its_id_inner);
     }
     _subscription->clear_destiny();
 }
@@ -3089,7 +3089,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
             }
 
             if (discovery_) {
-                std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+                std::lock_guard<std::mutex> its_lock_inner(remote_subscribers_mutex_);
                 remote_subscribers_[_service][_instance][VSOMEIP_ROUTING_CLIENT].insert(
                         its_subscription->get_subscriber());
                 discovery_->update_remote_subscription(its_subscription);
@@ -3403,15 +3403,15 @@ routing_manager_impl::expire_subscriptions(bool _force) {
                 if (its_subscription) {
                     its_info->remove_remote_subscription(its_id);
 
-                    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
+                    std::lock_guard<std::mutex> its_lock_inner(remote_subscribers_mutex_);
                     remote_subscribers_[its_service][its_instance].erase(its_offering_client);
 
                     if (its_info->get_remote_subscriptions().size() == 0) {
                         for (const auto &its_event : its_info->get_events()) {
                             bool has_remote_subscriber(false);
-                            for (const auto &its_eventgroup : its_event->get_eventgroups()) {
+                            for (const auto &its_eventgroup_inner : its_event->get_eventgroups()) {
                                const auto its_eventgroup_info
-                                   = find_eventgroup(its_service, its_instance, its_eventgroup);
+                                   = find_eventgroup(its_service, its_instance, its_eventgroup_inner);
                                 if (its_eventgroup_info
                                         && its_eventgroup_info->get_remote_subscriptions().size() > 0) {
                                     has_remote_subscriber = true;
@@ -3530,7 +3530,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     // check if previous offering application is still alive
                     bool already_pinged(false);
                     {
-                        std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+                        std::lock_guard<std::mutex> its_lock_inner(pending_offers_mutex_);
                         auto found_service2 = pending_offers_.find(_service);
                         if (found_service2 != pending_offers_.end()) {
                             auto found_instance2 = found_service2->second.find(_instance);
@@ -3563,7 +3563,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                         // find out endpoint of previously offering application
                         auto its_old_endpoint = find_local(its_stored_client);
                         if (its_old_endpoint) {
-                            std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
+                            std::lock_guard<std::mutex> its_lock_inner(pending_offers_mutex_);
                             if (stub_ && stub_->send_ping(its_stored_client)) {
                                 pending_offers_[_service][_instance] =
                                         std::make_tuple(_major, _minor, _client,
@@ -4320,7 +4320,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
 
                             client_t its_client = VSOMEIP_ROUTING_CLIENT; //is_specific_endpoint_client(its_subscriber, _service, _instance);
                             {
-                                std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                                std::lock_guard<std::mutex> its_lock_inner(remote_subscription_state_mutex_);
                                 const auto its_tuple =
                                     std::make_tuple(found_service->first, found_instance->first,
                                                     its_eventgroup.first, its_client);

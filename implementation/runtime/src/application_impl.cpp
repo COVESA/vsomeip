@@ -423,7 +423,7 @@ void application_impl::start() {
 
         start_caller_id_ = std::this_thread::get_id();
         {
-            std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+            std::lock_guard<std::mutex> its_lock_inner(dispatcher_mutex_);
             is_dispatching_ = true;
             std::packaged_task<void()> dispatcher_task_(
                     std::bind(&application_impl::main_dispatch, shared_from_this()));
@@ -686,12 +686,12 @@ application_impl::is_available_unlocked(
                 its_state = found_major->second.second;
             }
         } else if (_major == DEFAULT_MAJOR || _major == ANY_MAJOR) {
-            for (const auto &found_major : _found_instance->second) {
+            for (const auto &found_major_inner : _found_instance->second) {
                 if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
-                    its_state = found_major.second.second;
+                    its_state = found_major_inner.second.second;
                     break;
-                } else if (_minor <= found_major.second.first) {
-                    its_state = found_major.second.second;
+                } else if (_minor <= found_major_inner.second.first) {
+                    its_state = found_major_inner.second.second;
                     break;
                 }
             }
@@ -712,16 +712,16 @@ application_impl::is_available_unlocked(
             }
         }
     } else if (_service == ANY_SERVICE) {
-        for (const auto &found_service : available_) {
-            auto found_instance = found_service.second.find(_instance);
-            if (found_instance != found_service.second.end()) {
+        for (const auto &found_service_inner : available_) {
+            auto found_instance = found_service_inner.second.find(_instance);
+            if (found_instance != found_service_inner.second.end()) {
                 check_major_minor(found_instance);
                 if (its_state != availability_state_e::AS_UNKNOWN) {
                     break;
                 }
             } else if (_instance == ANY_INSTANCE) {
-                for (auto it = found_service.second.cbegin();
-                        it != found_service.second.cend(); it++) {
+                for (auto it = found_service_inner.second.cbegin();
+                        it != found_service_inner.second.cend(); it++) {
                     check_major_minor(it);
                     if (its_state != availability_state_e::AS_UNKNOWN) {
                         break;
@@ -937,9 +937,9 @@ void application_impl::register_availability_handler(service_t _service,
         major_version_t _major, minor_version_t _minor) {
 
     std::lock_guard<std::mutex> availability_lock(availability_mutex_);
-    auto its_handler_ext = [_handler](service_t _service, instance_t _instance,
+    auto its_handler_ext = [_handler](service_t _service_inner, instance_t _instance_inner,
             availability_state_e _state) {
-        _handler(_service, _instance,
+        _handler(_service_inner, _instance_inner,
                 (_state == availability_state_e::AS_AVAILABLE));
     };
 
@@ -1093,12 +1093,12 @@ void application_impl::on_subscription(
     }
 
     if (handler_found) {
-        if(auto its_handler = its_handlers.first) {
+        if(auto its_handler_inner1 = its_handlers.first) {
             // "normal" subscription handler exists
-            _accepted_cb(its_handler(_client, _sec_client, _env, _subscribed));
-        } else if(auto its_handler = its_handlers.second) {
+            _accepted_cb(its_handler_inner1(_client, _sec_client, _env, _subscribed));
+        } else if(auto its_handler_inner2 = its_handlers.second) {
             // async subscription handler exists
-            its_handler(_client, _sec_client, _env, _subscribed, _accepted_cb);
+            its_handler_inner2(_client, _sec_client, _env, _subscribed, _accepted_cb);
         }
     } else {
         _accepted_cb(true);
@@ -1808,8 +1808,8 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
 
         const auto its_handlers = find_handlers(its_service, its_instance, its_method);
 
-        if (!its_handlers.empty()) {
-            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        if (its_handlers.size()) {
+            std::lock_guard<std::mutex> its_lock_inner(handlers_mutex_);
             for (const auto &handler : its_handlers) {
                 auto its_sync_handler =
                         std::make_shared<sync_handler>([handler, _message]() {
@@ -1912,7 +1912,7 @@ void application_impl::dispatch() {
                  if (!is_dispatching_) {
                      return;
                  }
-                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+                 std::lock_guard<std::mutex> its_lock_inner(dispatcher_mutex_);
                  elapsed_dispatchers_.insert(its_id);
                  return;
              }
@@ -1934,7 +1934,7 @@ void application_impl::dispatch() {
         }
     }
     if (is_dispatching_) {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(dispatcher_mutex_);
         elapsed_dispatchers_.insert(its_id);
     }
     dispatcher_condition_.notify_all();
