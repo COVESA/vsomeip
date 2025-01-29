@@ -4,6 +4,10 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 cmake_minimum_required(VERSION 3.13)
+
+cmake_policy(SET CMP0177 OLD)
+cmake_policy(SET CMP0167 NEW)
+
 project(vsomeip)
 
 set(VSOMEIP_NAME vsomeip3)
@@ -108,6 +112,7 @@ add_library(DL_INTERFACE INTERFACE IMPORTED)
 find_package(
   Boost 1.66 REQUIRED
   COMPONENTS system thread filesystem
+  CONFIG
 )
 
 include(CMakeDependentOption)
@@ -210,7 +215,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
   # QNX specific socket lib
   set(VSOMEIP_SOCKET_LIB
       "socket"
-      CACHE "Default socket library for QNX" STRING
+      CACHE STRING "Default socket library for QNX"
   )
   target_link_libraries(RT_INTERFACE INTERFACE $<$<PLATFORM_ID:QNX>:${VSOMEIP_SOCKET_LIB}>)
 
@@ -673,6 +678,7 @@ message("Predefined wait times for internal communication ports (TCP):\
 # ######################################################################################################################
 # Installation
 # ######################################################################################################################
+
 set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
 
 file(
@@ -686,12 +692,19 @@ list(SORT vsomeip_INCLUDE)
 
 foreach(file ${vsomeip_INCLUDE})
   get_filename_component(dir ${file} DIRECTORY)
+  # The destination contains non-normalized paths, this is deprecated.  Until
+  # CMake 3.23 is the minimum version and FILE_SETs can be used, we're relying
+  # on using the old CMP0177 policy.
   install(
     FILES "${INCLUDE_PATH}/${file}"
           DESTINATION "${INSTALL_INCLUDE_DIR}/vsomeip/${dir}"
           COMPONENT dev
   )
 endforeach()
+
+unset(INCLUDE_PATH)
+unset(vsomeip_INCLUDE)
+unset(file)
 
 install(
   TARGETS vsomeip3
