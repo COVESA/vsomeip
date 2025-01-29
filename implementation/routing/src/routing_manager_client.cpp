@@ -205,7 +205,7 @@ void routing_manager_client::stop() {
 #endif
 
     {
-        std::scoped_lock its_lock(request_timer_mutex_);
+        std::scoped_lock its_lock(requests_to_debounce_mutex_);
         request_debounce_timer_.cancel();
     }
 
@@ -462,11 +462,8 @@ void routing_manager_client::request_service(client_t _client,
                 requests_.insert(request);
             }
         } else {
-            {
-                std::scoped_lock its_lock(requests_to_debounce_mutex_);
-                requests_to_debounce_.insert(request);
-            }
-            std::scoped_lock its_lock(request_timer_mutex_);
+            std::scoped_lock its_lock {requests_to_debounce_mutex_};
+            requests_to_debounce_.insert(request);
             if (!request_debounce_timer_running_) {
                 request_debounce_timer_running_ = true;
                 request_debounce_timer_.expires_from_now(std::chrono::milliseconds(request_debouncing_time));
@@ -2776,20 +2773,17 @@ bool routing_manager_client::create_placeholder_event_and_subscribe(
     return is_inserted;
 }
 
-void routing_manager_client::request_debounce_timeout_cbk(
-        boost::system::error_code const &_error) {
-
+void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_code const& _error) {
     if (!_error) {
-        std::scoped_lock its_lock(requests_to_debounce_mutex_, requests_mutex_);
+        std::scoped_lock its_lock {requests_to_debounce_mutex_, requests_mutex_};
         if (requests_to_debounce_.size()) {
             if (state_ == inner_state_type_e::ST_REGISTERED) {
                 send_request_services(requests_to_debounce_);
                 requests_.insert(requests_to_debounce_.begin(),
                            requests_to_debounce_.end());
                 requests_to_debounce_.clear();
+                request_debounce_timer_running_ = false;
             } else {
-                std::scoped_lock its_request_timer_lock(request_timer_mutex_);
-                request_debounce_timer_running_ = true;
                 request_debounce_timer_.expires_from_now(std::chrono::milliseconds(
                         configuration_->get_request_debouncing(host_->get_name())));
                 request_debounce_timer_.async_wait(
@@ -2797,13 +2791,8 @@ void routing_manager_client::request_debounce_timeout_cbk(
                                 &routing_manager_client::request_debounce_timeout_cbk,
                                 std::dynamic_pointer_cast<routing_manager_client>(shared_from_this()),
                                 std::placeholders::_1));
-                return;
             }
         }
-    }
-    {
-        std::scoped_lock its_request_timer_lock(request_timer_mutex_);
-        request_debounce_timer_running_ = false;
     }
 }
 

@@ -284,7 +284,6 @@ private:
     std::mutex register_application_timer_mutex_;
     boost::asio::steady_timer register_application_timer_;
 
-    std::mutex request_timer_mutex_;
     boost::asio::steady_timer request_debounce_timer_;
     bool request_debounce_timer_running_;
 
