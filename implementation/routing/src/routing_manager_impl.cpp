@@ -235,7 +235,13 @@ void routing_manager_impl::start() {
             this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     netlink_connector_->start();
 #else
-    start_ip_routing();
+    simple_connector_ = std::make_shared<simple_connector>();
+    simple_connector_->register_net_if_changes_handler(
+        [this](bool is_interface, std::string interface_name, bool available) {
+          on_net_interface_or_route_state_changed(is_interface, interface_name,
+                                                  available);
+        });
+    simple_connector_->start();
 #endif
 
     if (stub_)
@@ -4028,7 +4034,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(
 }
 
 void routing_manager_impl::start_ip_routing() {
-#if defined(_WIN32) || defined(__QNX__)
+#if defined(_WIN32)
     if_state_running_ = true;
 #endif
 
@@ -4052,12 +4058,13 @@ void routing_manager_impl::start_ip_routing() {
         pending_sd_offers_.clear();
         VSOMEIP_INFO << "rmi::" << __func__ << ": clear pending_sd_offers_";
     }
-    
+
     routing_running_ = true;
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
 inline bool routing_manager_impl::is_external_routing_ready() const {
+
     return if_state_running_
             && (!configuration_->is_sd_enabled()
                 || (configuration_->is_sd_enabled() && sd_route_set_));
