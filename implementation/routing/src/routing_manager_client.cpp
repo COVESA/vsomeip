@@ -2385,7 +2385,7 @@ void routing_manager_client::send_pending_event_registrations(client_t _client) 
         for(; it!=pending_event_registrations_.end(); it++) {
             protocol::register_event reg(it->service_, it->instance_, it->notifier_, it->type_,
                                 it->is_provided_, it->reliability_, it->is_cyclic_
-                                , (uint16_t)it->eventgroups_.size(), it->eventgroups_);
+                                , uint16_t(it->eventgroups_.size()), it->eventgroups_);
             if(!its_command.add_registration(reg)) {break;}
         }
 
@@ -2419,7 +2419,7 @@ void routing_manager_client::send_register_event(client_t _client,
 
     protocol::register_event reg(_service, _instance, _notifier, _type,
                                 _is_provided, _reliability, _is_cyclic,
-                                (uint16_t)_eventgroups.size(), _eventgroups);
+                                uint16_t(_eventgroups.size()), _eventgroups);
 
     if(!its_command.add_registration(reg)) {
         VSOMEIP_ERROR << __func__ << ": register event command is too long.";
@@ -2514,10 +2514,10 @@ void routing_manager_client::cache_event_payload(
                 std::chrono::milliseconds::zero(), false, true,
                 nullptr,
                 false, false, true);
-        std::shared_ptr<event> its_event = find_event(its_service, its_instance, its_method);
-        if (its_event) {
-            its_event->prepare_update_payload(_message->get_payload(), true);
-            its_event->update_payload();
+        std::shared_ptr<event> its_event_inner = find_event(its_service, its_instance, its_method);
+        if (its_event_inner) {
+            its_event_inner->prepare_update_payload(_message->get_payload(), true);
+            its_event_inner->update_payload();
         }
     }
 }

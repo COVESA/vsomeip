@@ -278,7 +278,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
         VSOMEIP_WARNING << "vSomeIP Security: routing_manager_stub::on_message: "
                 << "Routing Manager received a message from client "
                 << std::hex << std::setfill('0') << std::setw(4)
-                << its_client << " with command " << (uint32_t)its_id
+                << its_client << " with command " << uint32_t(its_id)
                 << " which doesn't match the bound client "
                 << std::setw(4) << _bound_client
                 << " ~> skip message!";
@@ -1879,7 +1879,7 @@ void routing_manager_stub::update_registration(client_t _client,
     client_registration_condition_.notify_one();
 
     if (_type != registration_type_e::REGISTER) {
-        std::lock_guard<std::mutex> its_lock(used_client_ids_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(used_client_ids_mutex_);
         used_client_ids_.erase(_client);
     }
 }

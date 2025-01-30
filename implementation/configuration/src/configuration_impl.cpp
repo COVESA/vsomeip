@@ -2223,40 +2223,40 @@ void configuration_impl::load_eventgroup(
                 }
                 its_converter >> its_eventgroup->id_;
             } else if (its_key == "is_multicast") {
-                std::string its_value(j->second.data());
-                if (its_value == "true") {
+                std::string its_value_inner(j->second.data());
+                if (its_value_inner == "true") {
                     its_eventgroup->multicast_address_ = _service->multicast_address_;
                     its_eventgroup->multicast_port_ = _service->multicast_port_;
                 }
             } else if (its_key == "multicast") {
                 try {
-                    std::string its_value = j->second.get_child("address").data();
-                    its_eventgroup->multicast_address_ = its_value;
-                    its_value = j->second.get_child("port").data();
-                    its_converter << its_value;
+                    std::string its_value_inner = j->second.get_child("address").data();
+                    its_eventgroup->multicast_address_ = its_value_inner;
+                    its_value_inner = j->second.get_child("port").data();
+                    its_converter << its_value_inner;
                     its_converter >> its_eventgroup->multicast_port_;
                 } catch (...) {
                 }
             } else if (its_key == "threshold") {
                 int its_threshold(0);
-                std::stringstream its_converter;
-                its_converter << std::dec << its_value;
-                its_converter >> std::dec >> its_threshold;
+                std::stringstream its_converter_inner;
+                its_converter_inner << std::dec << its_value;
+                its_converter_inner >> std::dec >> its_threshold;
                 its_eventgroup->threshold_ =
                         (its_threshold > std::numeric_limits<std::uint8_t>::max()) ?
                                 std::numeric_limits<std::uint8_t>::max() :
                                 static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
-                    std::stringstream its_converter;
-                    std::string its_value(k->second.data());
+                    std::stringstream its_converter_inner;
+                    std::string its_value_inner(k->second.data());
                     event_t its_event_id(0);
-                    if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
-                        its_converter << std::hex << its_value;
+                    if (its_value_inner.size() > 1 && its_value_inner[0] == '0' && its_value_inner[1] == 'x') {
+                        its_converter_inner << std::hex << its_value_inner;
                     } else {
-                        its_converter << std::dec << its_value;
+                        its_converter_inner << std::dec << its_value_inner;
                     }
-                    its_converter >> its_event_id;
+                    its_converter_inner >> its_event_id;
                     if (0 < its_event_id) {
                         std::shared_ptr<event> its_event(nullptr);
                         auto find_event = _service->events_.find(its_event_id);
@@ -3410,7 +3410,6 @@ bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
         std::map<bool, std::set<uint16_t> > &_used_client_ports) const {
     bool is_configured(false);
     bool check_all(false);
-    std::list<std::shared_ptr<client>>::const_iterator it;
     auto its_client = find_client(_service, _instance);
 
     // Check for service, instance specific port configuration
@@ -3439,7 +3438,7 @@ bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
                         << " service: " << std::hex << _service
                         << " instance: " << _instance
                         << " reliable: " << std::dec << _reliable
-                        << " return specific port: " << (uint32_t)_port;
+                        << " return specific port: " << static_cast<uint32_t>(_port);
                 return true;
             }
             ++it;
@@ -3456,7 +3455,7 @@ bool configuration_impl::find_specific_port(uint16_t &_port, service_t _service,
                             << " service: " << std::hex << _service
                             << " instance: " << _instance
                             << " reliable: " << std::dec << _reliable
-                            << " return specific port: " << (uint32_t)_port;
+                            << " return specific port: " << static_cast<uint32_t>(_port);
                     return true;
                 }
             }
@@ -4225,25 +4224,25 @@ configuration_impl::load_acceptance_data(
                         port_type_e its_type(port_type_e::PT_OPTIONAL);
 
                         for (const auto& range : p.second) {
-                            const std::string its_key(range.first);
-                            const std::string its_value(range.second.data());
-                            if (its_key == "first" || its_key == "last" || its_key == "port") {
-                                its_converter << std::dec << its_value;
+                            const std::string its_key_inner(range.first);
+                            const std::string its_value_inner(range.second.data());
+                            if (its_key_inner == "first" || its_key_inner == "last" || its_key_inner == "port") {
+                                its_converter << std::dec << its_value_inner;
                                 std::uint16_t its_port_value(0);
                                 its_converter >> its_port_value;
                                 its_converter.str("");
                                 its_converter.clear();
-                                if (its_key == "first") {
+                                if (its_key_inner == "first") {
                                     its_first = its_port_value;
-                                } else if (its_key == "last") {
+                                } else if (its_key_inner == "last") {
                                     its_last = its_port_value;
-                                } else if (its_key == "port") {
+                                } else if (its_key_inner == "port") {
                                     its_first = its_last = its_port_value;
                                 }
-                            } else if (its_key == "type") {
-                                if (its_value == "secure") {
+                            } else if (its_key_inner == "type") {
+                                if (its_value_inner == "secure") {
                                     its_type = port_type_e::PT_SECURE;
-                                } else if (its_value == "optional") {
+                                } else if (its_value_inner == "optional") {
                                     its_type = port_type_e::PT_OPTIONAL;
                                 } else {
                                     its_type = port_type_e::PT_UNKNOWN;
@@ -4406,17 +4405,17 @@ void configuration_impl::load_someip_tp_for_service(
             const std::string its_value(method.second.data());
             if (its_value.empty()) {
                 for (const auto &its_data : method.second) {
-                    const std::string its_value(its_data.second.data());
-                    if (!its_value.empty()) {
+                    const std::string its_value_inner(its_data.second.data());
+                    if (!its_value_inner.empty()) {
                         if (its_data.first == "method") {
-                            if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
-                                its_converter << std::hex << its_value;
+                            if (its_value_inner.size() > 1 && its_value_inner[0] == '0' && its_value_inner[1] == 'x') {
+                                its_converter << std::hex << its_value_inner;
                             } else {
-                                its_converter << std::dec << its_value;
+                                its_converter << std::dec << its_value_inner;
                             }
                             its_converter >> its_method;
                         } else if (its_data.first == "max-segment-length") {
-                            its_converter << std::dec << its_value;
+                            its_converter << std::dec << its_value_inner;
                             its_converter >> its_max_segment_length;
 
                             // Segment length must be multiple of 16
@@ -4430,7 +4429,7 @@ void configuration_impl::load_someip_tp_for_service(
                                 its_max_segment_length = std::uint16_t(its_max_segment_length - its_rest);
                             }
                         } else if (its_data.first == "separation-time") {
-                            its_converter << std::dec << its_value;
+                            its_converter << std::dec << its_value_inner;
                             its_converter >> its_separation_time;
                             its_separation_time *= std::uint32_t(1000);
                         }
@@ -4746,43 +4745,43 @@ void configuration_impl::set_sd_acceptance_rule(
         } else {
             found_address->second.first = _path;
         }
-        const auto found_reliability = found_address->second.second.find(_reliable);
-        if (found_reliability != found_address->second.second.end()) {
+        const auto found_reliability_inner = found_address->second.second.find(_reliable);
+        if (found_reliability_inner != found_address->second.second.end()) {
             if (_enable) {
                 // only insert full range interval if there are no other intervals
                 // configured
                 if (!_default ||
-                        (found_reliability->second.first.empty()
-                                && found_reliability->second.second.empty())) {
-                    found_reliability->second.first.add(its_optional_client);
-                    found_reliability->second.first.add(its_optional_client_spare);
-                    found_reliability->second.first.add(its_optional_server);
-                    found_reliability->second.second.add(its_secure_client);
-                    found_reliability->second.second.add(its_secure_client_spare);
-                    found_reliability->second.second.add(its_secure_server);
+                        (found_reliability_inner->second.first.empty()
+                                && found_reliability_inner->second.second.empty())) {
+                    found_reliability_inner->second.first.add(its_optional_client);
+                    found_reliability_inner->second.first.add(its_optional_client_spare);
+                    found_reliability_inner->second.first.add(its_optional_server);
+                    found_reliability_inner->second.second.add(its_secure_client);
+                    found_reliability_inner->second.second.add(its_secure_client_spare);
+                    found_reliability_inner->second.second.add(its_secure_server);
                     if (!rules_active) {
                         sd_acceptance_rules_active_.insert(_address);
                     }
                     VSOMEIP_INFO << "ipsec:acceptance:" << _address
                             << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
-                            << found_reliability->second.first << " "
-                            << found_reliability->second.second;
+                            << found_reliability_inner->second.first << " "
+                            << found_reliability_inner->second.second;
                 } else {
                     VSOMEIP_INFO << "ipsec:acceptance:" << _address
                             << ":" << (_reliable ? "tcp" : "udp") << ": using configured ranges "
-                            << found_reliability->second.first << " "
-                            << found_reliability->second.second;
+                            << found_reliability_inner->second.first << " "
+                            << found_reliability_inner->second.second;
                 }
             } else {
-                found_reliability->second.first.erase(its_optional_client);
-                found_reliability->second.first.erase(its_optional_client_spare);
-                found_reliability->second.first.erase(its_optional_server);
-                found_reliability->second.second.erase(its_secure_client);
-                found_reliability->second.second.erase(its_secure_client_spare);
-                found_reliability->second.second.erase(its_secure_server);
-                if (found_reliability->second.first.empty()
-                        && found_reliability->second.second.empty()) {
-                    found_address->second.second.erase(found_reliability);
+                found_reliability_inner->second.first.erase(its_optional_client);
+                found_reliability_inner->second.first.erase(its_optional_client_spare);
+                found_reliability_inner->second.first.erase(its_optional_server);
+                found_reliability_inner->second.second.erase(its_secure_client);
+                found_reliability_inner->second.second.erase(its_secure_client_spare);
+                found_reliability_inner->second.second.erase(its_secure_server);
+                if (found_reliability_inner->second.first.empty()
+                        && found_reliability_inner->second.second.empty()) {
+                    found_address->second.second.erase(found_reliability_inner);
                     if (found_address->second.second.empty()) {
                         sd_acceptance_rules_.erase(found_address);
                         if (rules_active) {// no more rules for IP present
@@ -4808,11 +4807,11 @@ void configuration_impl::set_sd_acceptance_rule(
                 sd_acceptance_rules_active_.insert(_address);
             }
 
-            const auto found_reliability = found_address->second.second.find(_reliable);
+            const auto found_reliability_inner2 = found_address->second.second.find(_reliable);
             VSOMEIP_INFO << "ipsec:acceptance:" << _address
                     << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
-                    << found_reliability->second.first << " "
-                    << found_reliability->second.second;
+                    << found_reliability_inner2->second.first << " "
+                    << found_reliability_inner2->second.second;
         }
     } else if (_enable) {
         boost::icl::interval_set<std::uint16_t> its_optional_default;
@@ -4841,14 +4840,14 @@ void configuration_impl::set_sd_acceptance_rule(
             sd_acceptance_rules_active_.insert(_address);
         }
 
-        const auto found_address = sd_acceptance_rules_.find(_address);
-        if (found_address != sd_acceptance_rules_.end()) {
-            const auto found_reliability = found_address->second.second.find(_reliable);
-            if (found_reliability != found_address->second.second.end()) {
+        const auto found_address_inner = sd_acceptance_rules_.find(_address);
+        if (found_address_inner != sd_acceptance_rules_.end()) {
+            const auto found_reliability_inner = found_address_inner->second.second.find(_reliable);
+            if (found_reliability_inner != found_address_inner->second.second.end()) {
                 VSOMEIP_INFO << "ipsec:acceptance:" << _address
                         << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
-                        << found_reliability->second.first << " "
-                        << found_reliability->second.second;
+                        << found_reliability_inner->second.first << " "
+                        << found_reliability_inner->second.second;
             }
         }
     }
