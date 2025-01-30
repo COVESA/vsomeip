@@ -9,7 +9,7 @@ if (${CMAKE_VERSION} VERSION_GREATER "3.31")
   cmake_policy(SET CMP0177 OLD)
 endif()
 if (${CMAKE_VERSION} VERSION_GREATER "3.30")
-  cmake_policy(SET CMP0167 NEW)
+  cmake_policy(SET CMP0167 OLD)
 endif()
 
 project(vsomeip)
@@ -112,11 +112,11 @@ add_library(OS_INTERFACE INTERFACE IMPORTED)
 add_library(RT_INTERFACE INTERFACE IMPORTED)
 add_library(DL_INTERFACE INTERFACE IMPORTED)
 
-# Boost
+# Boost, once this is pushed pased 1.70, it should be found using CONFIG rather
+# than CMake's FindBoost module, see policy CMP0167
 find_package(
   Boost 1.66 REQUIRED
   COMPONENTS system thread filesystem
-  CONFIG
 )
 
 include(CMakeDependentOption)
