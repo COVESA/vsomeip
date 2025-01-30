@@ -49,7 +49,7 @@ add_executable(malicious_data_test_msg_sender
 
 # Link the vsomeip-sd library to the executable.
 target_link_libraries(malicious_data_test_msg_sender
-    ${VSOMEIP_NAME}-sd
+    vsomeip3-sd
 )
 
 # Add build dependencies and link libraries to executables.

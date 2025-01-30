@@ -119,7 +119,7 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 
     # Link executables to vsomeip-cfg.
     foreach(target ${executables})
-        target_link_libraries(${target} ${VSOMEIP_NAME}-cfg)
+        target_link_libraries(${target} vsomeip3-cfg)
     endforeach()
 
     # Add custom test command.
