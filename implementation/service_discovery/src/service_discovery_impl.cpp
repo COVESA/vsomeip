@@ -1704,9 +1704,7 @@ service_discovery_impl::send_unicast_offer_service(
 
     insert_offer_service(its_messages, _info);
 
-    // send message as multicast offer service the same way it is sent
-    // on the repetition phase to preserve the session id
-    send(its_messages);
+    serialize_and_send(its_messages, current_remote_address_);
 }
 
 void
@@ -1718,7 +1716,9 @@ service_discovery_impl::send_multicast_offer_service(
 
     insert_offer_service(its_messages, _info);
 
-    serialize_and_send(its_messages, sd_multicast_address_);
+    // send message as multicast offer service the same way it is sent
+    // on the repetition phase to preserve the session id
+    send(its_messages);
 }
 
 void
