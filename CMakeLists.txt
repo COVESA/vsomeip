@@ -5,8 +5,12 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-cmake_policy(SET CMP0177 OLD)
-cmake_policy(SET CMP0167 NEW)
+if (${CMAKE_VERSION} VERSION_GREATER "3.31")
+  cmake_policy(SET CMP0177 OLD)
+endif()
+if (${CMAKE_VERSION} VERSION_GREATER "3.30")
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
 project(vsomeip)
 
