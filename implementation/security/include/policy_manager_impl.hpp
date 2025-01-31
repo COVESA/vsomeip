@@ -144,7 +144,7 @@ private:
     boost::icl::interval_set<service_t> service_interface_whitelist_;
 
     mutable std::mutex uid_whitelist_mutex_;
-    boost::icl::interval_set<uint32_t> uid_whitelist_;
+    boost::icl::interval_set<uid_t> uid_whitelist_;
 
     mutable std::mutex policy_base_path_mutex_;
     std::string policy_base_path_;
@@ -159,7 +159,7 @@ private:
     bool is_configured_;
 
     mutable std::mutex routing_credentials_mutex_;
-    std::pair<uint32_t, uint32_t> routing_credentials_;
+    std::pair<uid_t, gid_t> routing_credentials_;
 
     mutable std::mutex ids_mutex_;
     std::map<client_t, vsomeip_sec_client_t> ids_;

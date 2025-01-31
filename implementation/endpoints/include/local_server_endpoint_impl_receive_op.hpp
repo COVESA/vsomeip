@@ -26,8 +26,8 @@ struct storage :
     receive_handler_t handler_;
     byte_t *buffer_ = nullptr;
     size_t length_;
-    uid_t uid_;
-    gid_t gid_;
+    uid_t uid_ = ANY_UID;
+    gid_t gid_ = ANY_GID;
     size_t bytes_;
 
     storage(
