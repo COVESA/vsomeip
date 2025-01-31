@@ -334,7 +334,8 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
     if (!policy_enabled_)
         return true;
 
-    gid_t its_uid(ANY_UID), its_gid(ANY_GID);
+    uid_t its_uid(ANY_UID);
+    gid_t its_gid(ANY_GID);
     if (_sec_client) {
         if (_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
             its_uid = _sec_client->user;
