@@ -40,25 +40,28 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local(client_t _client) 
 }
 
 void endpoint_manager_base::remove_local(const client_t _client) {
-    std::scoped_lock its_lock(local_endpoint_mutex_);
     VSOMEIP_INFO << "emb::" << __func__ << ": client " << std::hex << _client;
-    std::shared_ptr<endpoint> its_endpoint(find_local_unlocked(_client));
+    std::shared_ptr<endpoint> its_endpoint {find_local(_client)};
     if (its_endpoint) {
         its_endpoint->register_error_handler(nullptr);
         its_endpoint->stop();
         VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client()
                      << "] is closing connection to [" << std::hex << _client << "]"
                      << " endpoint > " << its_endpoint;
+        std::scoped_lock its_lock(local_endpoint_mutex_);
         local_endpoints_.erase(_client);
     }
 }
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _client) {
-    std::scoped_lock its_lock {local_endpoint_mutex_};
-    std::shared_ptr<endpoint> its_endpoint {find_local_unlocked(_client)};
-    if (!its_endpoint) {
-        VSOMEIP_INFO << "emb::" << __func__ << ": create_client " << std::hex << _client;
-        its_endpoint = create_local_unlocked(_client);
+    std::shared_ptr<endpoint> its_endpoint {nullptr};
+    {
+        std::scoped_lock its_lock {local_endpoint_mutex_};
+        its_endpoint = find_local_unlocked(_client);
+        if (!its_endpoint) {
+            VSOMEIP_INFO << "emb::" << __func__ << ": create_client " << std::hex << _client;
+            its_endpoint = create_local_unlocked(_client);
+        }
     }
     if (its_endpoint) {
         its_endpoint->start();
