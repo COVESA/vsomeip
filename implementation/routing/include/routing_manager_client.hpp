@@ -250,6 +250,9 @@ private:
     std::mutex requests_to_debounce_mutex_;
     std::set<protocol::service> requests_to_debounce_;
 
+    // protects registration_state_ and ensures the register state
+    std::mutex registration_state_mutex_;
+
     struct event_data_t {
         service_t service_;
         instance_t instance_;

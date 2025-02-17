@@ -349,6 +349,7 @@ bool routing_manager_client::offer_service(client_t _client,
                 << "routing_manager_base::offer_service returned false";
     }
     {
+        std::scoped_lock its_registration_lock {registration_state_mutex_};
         if (state_ == inner_state_type_e::ST_REGISTERED) {
             send_offer_service(_client, _service, _instance, _major, _minor);
         }
@@ -407,6 +408,7 @@ void routing_manager_client::stop_offer_service(client_t _client,
     }
 
     {
+        std::scoped_lock its_registration_lock {registration_state_mutex_};
         if (state_ == inner_state_type_e::ST_REGISTERED) {
 
             protocol::stop_offer_service_command its_command;
@@ -452,6 +454,7 @@ void routing_manager_client::request_service(client_t _client,
         size_t request_debouncing_time = configuration_->get_request_debouncing(host_->get_name());
         protocol::service request = { _service, _instance, _major, _minor };
         if (!request_debouncing_time) {
+            std::scoped_lock its_registration_lock {registration_state_mutex_};
             if (state_ == inner_state_type_e::ST_REGISTERED) {
                 std::set<protocol::service> requests;
                 requests.insert(request);
@@ -497,7 +500,7 @@ void routing_manager_client::release_service(client_t _client,
             }
             if (it != requests_to_debounce_.end()) requests_to_debounce_.erase(it);
         }
-
+        std::scoped_lock its_registration_lock {registration_state_mutex_};
         if (!pending && state_ == inner_state_type_e::ST_REGISTERED) {
             send_release_service(_client, _service, _instance);
         }
@@ -587,6 +590,7 @@ void routing_manager_client::register_event(client_t _client,
                 _is_provided);
     }
     {
+        std::scoped_lock its_registration_lock {registration_state_mutex_};
         if (state_ == inner_state_type_e::ST_REGISTERED && is_first) {
             send_register_event(get_client(), _service, _instance,
                     _notifier, _eventgroups, _type, _reliability,
@@ -603,6 +607,7 @@ void routing_manager_client::unregister_event(client_t _client,
             _notifier, _is_provided);
 
     {
+        std::scoped_lock its_registration_lock {registration_state_mutex_};
         if (state_ == inner_state_type_e::ST_REGISTERED) {
 
             protocol::unregister_event_command its_command;
@@ -1888,15 +1893,16 @@ void routing_manager_client::on_routing_info(
                     }
 #endif
                     {
+                        std::scoped_lock its_registration_lock {registration_state_mutex_};
                         if (state_ == inner_state_type_e::ST_REGISTERING) {
                             {
                                 std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
                                 boost::system::error_code ec;
                                 register_application_timer_.cancel(ec);
                             }
+                            state_ = inner_state_type_e::ST_REGISTERED;
                             send_registered_ack();
                             send_pending_commands();
-                            state_ = inner_state_type_e::ST_REGISTERED;
                             // Notify stop() call about clean deregistration
                             std::scoped_lock its_lock(state_condition_mutex_);
                             state_condition_.notify_one();
@@ -2554,7 +2560,7 @@ void routing_manager_client::send_pending_commands() {
     }
 
     send_pending_event_registrations(get_client());
-
+    std::scoped_lock its_lock (requests_mutex_);
     send_request_services(requests_);
 }
 
