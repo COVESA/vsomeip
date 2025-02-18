@@ -823,38 +823,30 @@ void routing_manager_stub::add_known_client(client_t _client, const std::string 
 }
 
 void routing_manager_stub::on_register_application(client_t _client) {
-
-    auto endpoint = host_->find_local(_client);
-    if (endpoint) {
-        VSOMEIP_WARNING << "Reregistering application: " << std::hex << _client
-                << ". Last registration might have been taken too long.";
-        endpoint->stop();
-        endpoint->start();
-    } else {
-        endpoint = host_->find_or_create_local(_client);
-        {
-            std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
-            routing_info_[_client].first = 0;
-        }
-#ifndef VSOMEIP_DISABLE_SECURITY
-        if (configuration_->is_local_routing()) {
-            vsomeip_sec_client_t its_sec_client;
-            std::set<std::shared_ptr<policy> > its_policies;
-
-            bool has_mapping = configuration_->get_policy_manager()
-                    ->get_client_to_sec_client_mapping(_client, its_sec_client);
-            if (has_mapping) {
-                if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
-                    get_requester_policies(its_sec_client.user,
-                            its_sec_client.group, its_policies);
-                }
-
-                if (!its_policies.empty())
-                    send_requester_policies({ _client }, its_policies);
-            }
-        }
-#endif // !VSOMEIP_DISABLE_SECURITY
+    // Find or create a local endpoint.
+    (void)host_->find_or_create_local(_client);
+    {
+        std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
+        routing_info_[_client].first = 0;
     }
+#ifndef VSOMEIP_DISABLE_SECURITY
+    if (configuration_->is_local_routing()) {
+        vsomeip_sec_client_t its_sec_client;
+        std::set<std::shared_ptr<policy> > its_policies;
+
+        bool has_mapping = configuration_->get_policy_manager()
+                ->get_client_to_sec_client_mapping(_client, its_sec_client);
+        if (has_mapping) {
+            if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+                get_requester_policies(its_sec_client.user,
+                        its_sec_client.group, its_policies);
+            }
+
+            if (!its_policies.empty())
+                send_requester_policies({ _client }, its_policies);
+        }
+    }
+#endif // !VSOMEIP_DISABLE_SECURITY
 }
 
 void routing_manager_stub::on_deregister_application(client_t _client) {
@@ -990,10 +982,9 @@ void routing_manager_stub::client_registration_func(void) {
 
         for (const auto& r : its_registrations) {
             for (auto b : r.second) {
+                on_deregister_application(r.first);
                 if (b == registration_type_e::REGISTER) {
                     on_register_application(r.first);
-                } else {
-                    on_deregister_application(r.first);
                 }
                 // Inform (de)registered client. All others will be informed after
                 // the client acknowledged its registered state!
@@ -1129,7 +1120,7 @@ routing_manager_stub::on_net_state_change(
 void routing_manager_stub::on_offer_service(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
 
-    VSOMEIP_DEBUG << "routing_manager_stub::" << __func__ << ": ON_OFFER_SERVICE("
+    VSOMEIP_INFO << "routing_manager_stub::" << __func__ << ": ON_OFFER_SERVICE("
         << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
         << std::hex << std::setw(4) << std::setfill('0') << _service << "."
         << std::hex << std::setw(4) << std::setfill('0') << _instance
