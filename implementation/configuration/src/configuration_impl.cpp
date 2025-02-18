@@ -3214,22 +3214,13 @@ configuration_impl::get_remote_services() const {
 }
 
 bool configuration_impl::is_mandatory(const std::string &_name) const {
-    std::set<std::string> its_candidates;
+    // remove path from file name
+    std::string basename = _name.substr(_name.find_last_of("\\/") + 1);
     for (const auto& m : mandatory_) {
-        if (m.size() <= _name.size()) {
-            its_candidates.insert(m);
-        }
-    }
-
-    if (its_candidates.empty())
-        return false;
-
-    for (const auto& c : its_candidates) {
-        if (std::equal(c.rbegin(), c.rend(), _name.rbegin())) {
+        if (m == basename) {
             return true;
         }
     }
-
     return false;
 }
 
