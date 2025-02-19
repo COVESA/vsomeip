@@ -334,7 +334,8 @@ policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t *_sec_client,
     if (!policy_enabled_)
         return true;
 
-    uint32_t its_uid(ANY_UID), its_gid(ANY_GID);
+    uid_t its_uid(ANY_UID);
+    gid_t its_gid(ANY_GID);
     if (_sec_client) {
         if (_sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
             its_uid = _sec_client->user;
@@ -703,7 +704,7 @@ policy_manager_impl::load_policy(const boost::property_tree::ptree &_tree) {
                         has_uid_range = true;
                     } else {
                         if (its_value != "any") {
-                            uint32_t its_uid;
+                            uid_t its_uid;
                             read_data(its_value, its_uid);
                             its_uid_interval = boost::icl::construct<
                                 boost::icl::discrete_interval<uid_t> >(
@@ -724,7 +725,7 @@ policy_manager_impl::load_policy(const boost::property_tree::ptree &_tree) {
                         has_gid_range = true;
                     } else {
                         if (its_value != "any") {
-                            uint32_t its_gid;
+                            gid_t its_gid;
                             read_data(its_value, its_gid);
                             its_gid_interval = boost::icl::construct<
                                 boost::icl::discrete_interval<gid_t> >(
@@ -946,12 +947,12 @@ policy_manager_impl::load_routing_credentials(const configuration_element &_elem
                 std::string its_key(i->first);
                 std::string its_value(i->second.data());
                 if (its_key == "uid") {
-                    uint32_t its_uid(0);
+                    uid_t its_uid(0);
                     read_data(its_value, its_uid);
                     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
                     std::get<0>(routing_credentials_) = its_uid;
                 } else if (its_key == "gid") {
-                    uint32_t its_gid(0);
+                    gid_t its_gid(0);
                     read_data(its_value, its_gid);
                     std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
                     std::get<1>(routing_credentials_) = its_gid;

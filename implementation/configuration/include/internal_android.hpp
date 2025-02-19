@@ -150,8 +150,8 @@ inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = std::numeric_limits<st
 inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_UDS = 13;
 inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_TCP = 5;
 
-inline constexpr std::uint32_t ANY_UID = 0xFFFFFFFF;
-inline constexpr std::uint32_t ANY_GID = 0xFFFFFFFF;
+inline constexpr uid_t ANY_UID = (std::numeric_limits<uid_t>::max)();
+inline constexpr gid_t ANY_GID = (std::numeric_limits<gid_t>::max)();
 
 enum class port_type_e {
     PT_OPTIONAL,

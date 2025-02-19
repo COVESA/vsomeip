@@ -474,8 +474,8 @@ void local_uds_server_endpoint_impl::connection::start() {
             ),
             &recv_buffer_[recv_buffer_size_],
             left_buffer_size,
-            std::numeric_limits<std::uint32_t>::max(),
-            std::numeric_limits<std::uint32_t>::max(),
+            std::numeric_limits<uid_t>::max(),
+            std::numeric_limits<gid_t>::max(),
             std::numeric_limits<std::size_t>::min()
         );
 
@@ -580,7 +580,7 @@ void local_uds_server_endpoint_impl::connection::send_cbk(const message_buffer_p
 
 void local_uds_server_endpoint_impl::connection::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes,
-        std::uint32_t const &_uid, std::uint32_t const &_gid)
+        uid_t const &_uid, gid_t const &_gid)
 {
     std::shared_ptr<local_uds_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
