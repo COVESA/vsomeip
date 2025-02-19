@@ -65,6 +65,14 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
+# Skip valgrind
+if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+    if (TEST_SKIP_VALGRIND_TRACKING)
+        set(SUBPROCESSES ,*/initial_event_test_*)
+    endif()
+    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
+endif()
+
 # Initial Events Tests - Single Event
 
 # Add custom test command.
