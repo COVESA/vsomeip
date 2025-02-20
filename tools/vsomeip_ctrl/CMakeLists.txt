@@ -5,7 +5,8 @@
 cmake_minimum_required(VERSION 3.13)
 
 # vsomeip_ctrl
-add_executable(vsomeip_ctrl EXCLUDE_FROM_ALL vsomeip_ctrl.cpp)
+add_executable(vsomeip_ctrl EXCLUDE_FROM_ALL)
+target_sources(vsomeip_ctrl PRIVATE vsomeip_ctrl.cpp)
 target_link_libraries(
   vsomeip_ctrl
   PUBLIC ${VSOMEIP_NAME}
