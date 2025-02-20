@@ -127,13 +127,6 @@
 namespace vsomeip_v3 {
 
 typedef enum {
-    RIE_ADD_CLIENT = 0x0,
-    RIE_ADD_SERVICE_INSTANCE = 0x1,
-    RIE_DEL_SERVICE_INSTANCE = 0x2,
-    RIE_DEL_CLIENT = 0x3,
-} routing_info_entry_e;
-
-typedef enum {
     SUBSCRIPTION_ACKNOWLEDGED,
     SUBSCRIPTION_NOT_ACKNOWLEDGED,
     IS_SUBSCRIBING
