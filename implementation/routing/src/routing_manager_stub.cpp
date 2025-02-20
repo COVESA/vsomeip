@@ -1107,9 +1107,10 @@ routing_manager_stub::on_net_state_change(
                         << ": Stopping routing root.";
                 root_->stop();
 
+                std::scoped_lock its_lock(routing_info_mutex_);
                 routing_info_.clear();
                 host_->clear_local_services();
-
+                connection_matrix_.clear();
                 is_local_link_available_ = false;
             }
         }
