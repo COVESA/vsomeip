@@ -56,6 +56,10 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         shutdown_and_close_socket_unlocked(true);
     }
+    auto its_host = endpoint_host_.lock();
+    if (its_host) {
+        its_host->on_disconnect(shared_from_this());
+    }
     state_ = cei_state_e::CONNECTING;
     was_not_connected_ = true;
     reconnect_counter_ = 0;

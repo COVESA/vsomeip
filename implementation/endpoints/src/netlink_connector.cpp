@@ -178,6 +178,18 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                     }
                     break;
                 }
+                case RTM_DELADDR:
+                case RTM_DELLINK:
+                    {
+                        struct ifinfomsg *ifi = (ifinfomsg *)NLMSG_DATA(nlh);
+                        net_if_flags_[ifi->ifi_index] = ifi->ifi_flags;
+                        if (net_if_index_for_address_ == ifi->ifi_index) {
+                            if_indextoname(static_cast<unsigned int>(ifi->ifi_index),ifname);
+                            net_if_index_for_address_ = 0;
+                            handler_(true, ifname, false);
+                        }
+                    }
+                break;
                 case NLMSG_ERROR: {
                     struct nlmsgerr *errmsg = (nlmsgerr *)NLMSG_DATA(nlh);
                     if (errmsg->error != 0) {
