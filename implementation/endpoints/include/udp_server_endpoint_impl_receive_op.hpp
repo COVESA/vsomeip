@@ -73,11 +73,10 @@ struct storage :
 std::function<void(boost::system::error_code _error)>
 receive_cb (std::shared_ptr<storage> _data) {
     return [_data](boost::system::error_code _error) {
+        std::scoped_lock lock(_data->multicast_mutex_);
         _data->sender_ = endpoint_type_t(); // reset
 
         if (!_error) {
-
-            std::lock_guard<std::recursive_mutex> its_lock(_data->multicast_mutex_);
 
             auto multicast_socket = _data->socket_.lock();
             if (!multicast_socket) {
