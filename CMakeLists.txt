@@ -245,7 +245,7 @@ find_package(PkgConfig)
 # DLT
 option(DISABLE_DLT "Disable DLT support" OFF)
 if(NOT ${DISABLE_DLT})
-  pkg_check_modules(DLT "automotive-dlt >= 2.11" IMPORT_TARGET)
+  pkg_check_modules(DLT "automotive-dlt >= 2.11" IMPORTED_TARGET)
   if(DLT_FOUND)
     message(STATUS "automotive-dlt found and will be linked")
     add_compile_definitions(-DUSE_DLT)
