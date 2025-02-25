@@ -58,85 +58,86 @@ public:
     VSOMEIP_EXPORT security_mode_e get_security_mode() const;
 
     // Provide services / events
-    VSOMEIP_EXPORT void offer_service(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void offer_service(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
-    VSOMEIP_EXPORT void stop_offer_service(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void stop_offer_service(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
-    VSOMEIP_EXPORT void offer_event(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void offer_event(service_t _service, instance_t _instance,
             event_t _notifier,
             const std::set<eventgroup_t> &_eventgroups, event_type_e _type,
             std::chrono::milliseconds _cycle, bool _change_resets_cycle,
             bool _update_on_change,
             const epsilon_change_func_t &_epsilon_change_func,
-            reliability_type_e _reliability);
+            reliability_type_e _reliability,
+            major_version_t _major);
 
     VSOMEIP_EXPORT void stop_offer_event(service_t _service,
-            unique_version_t _unique, event_t _event);
+            instance_t _instance, event_t _event, major_version_t _major);
 
     // Consume services / events
     VSOMEIP_EXPORT void request_service(
-            service_t _service, unique_version_t _unique,
+            service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void release_service(
-            service_t _service, unique_version_t _unique);
+            service_t _service, instance_t _instance, major_version_t _major);
 
     VSOMEIP_EXPORT void request_event(service_t _service,
-            unique_version_t _unique, event_t _event,
+            instance_t _instance, event_t _event,
             const std::set<eventgroup_t> &_eventgroups,
-            event_type_e _type, reliability_type_e _reliability);
+            event_type_e _type, reliability_type_e _reliability, major_version_t _major);
     VSOMEIP_EXPORT void release_event(service_t _service,
-            unique_version_t _unique, event_t _event);
+            instance_t _instance, event_t _event, major_version_t _major);
 
-    VSOMEIP_EXPORT void subscribe(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void subscribe(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major, event_t _event);
-    VSOMEIP_EXPORT void subscribe_with_debounce(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void subscribe_with_debounce(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, major_version_t _major,
             event_t _event, const debounce_filter_t &_filter);
 
-    VSOMEIP_EXPORT void unsubscribe(service_t _service, unique_version_t _unique,
-            eventgroup_t _eventgroup);
-    VSOMEIP_EXPORT void unsubscribe(service_t _service, unique_version_t _unique,
-            eventgroup_t _eventgroup, event_t _event);
+    VSOMEIP_EXPORT void unsubscribe(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, major_version_t _major);
+    VSOMEIP_EXPORT void unsubscribe(service_t _service, instance_t _instance,
+            eventgroup_t _eventgroup, event_t _event, major_version_t _major);
 
-    VSOMEIP_EXPORT bool is_available(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT bool is_available(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor) const;
 
     VSOMEIP_EXPORT void send(std::shared_ptr<message> _message);
 
-    VSOMEIP_EXPORT void notify(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void notify(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload,
-            bool _force) const;
+            bool _force, major_version_t _major) const;
 
-    VSOMEIP_EXPORT void notify_one(service_t _service, unique_version_t _unique,
+    VSOMEIP_EXPORT void notify_one(service_t _service, instance_t _instance,
             event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-            bool _force) const;
+            bool _force, major_version_t _major) const;
 
     VSOMEIP_EXPORT void register_state_handler(const state_handler_t &_handler);
     VSOMEIP_EXPORT void unregister_state_handler();
 
     VSOMEIP_EXPORT void register_message_handler(service_t _service,
-            unique_version_t _unique, method_t _method, const message_handler_t &_handler);
+            instance_t _instance, method_t _method, const message_handler_t &_handler, major_version_t _major);
     VSOMEIP_EXPORT void unregister_message_handler(service_t _service,
-            unique_version_t _unique, method_t _method);
+            instance_t _instance, method_t _method, major_version_t _major);
 
     VSOMEIP_EXPORT void register_availability_handler(service_t _service,
-            unique_version_t _unique, const availability_handler_t &_handler,
+            instance_t _instance, const availability_handler_t &_handler,
             major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void register_availability_handler(service_t _service,
-            unique_version_t _unique, const availability_state_handler_t &_handler,
+            instance_t _instance, const availability_state_handler_t &_handler,
             major_version_t _major, minor_version_t _minor);
     VSOMEIP_EXPORT void unregister_availability_handler(service_t _service,
             instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
     VSOMEIP_EXPORT void register_subscription_handler(service_t _service,
-            unique_version_t _unique, eventgroup_t _eventgroup, const subscription_handler_t &_handler);
+            instance_t _instance, eventgroup_t _eventgroup, const subscription_handler_t &_handler, major_version_t _major);
     VSOMEIP_EXPORT void register_subscription_handler(service_t _service,
-            unique_version_t _unique, eventgroup_t _eventgroup, const subscription_handler_ext_t &_handler);
+            instance_t _instance, eventgroup_t _eventgroup, const subscription_handler_ext_t &_handler, major_version_t _major);
     VSOMEIP_EXPORT void unregister_subscription_handler(service_t _service,
-                unique_version_t _unique, eventgroup_t _eventgroup);
+                instance_t _instance, eventgroup_t _eventgroup, major_version_t _major);
 
     VSOMEIP_EXPORT bool is_routing() const;
 
@@ -163,16 +164,16 @@ public:
     VSOMEIP_EXPORT void on_subscription_status(service_t _service, unique_version_t _unique,
             eventgroup_t _eventgroup, event_t _event, uint16_t _error);
     VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service,
-            unique_version_t _unique, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler, bool _is_selective);
+            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+            subscription_status_handler_t _handler, bool _is_selective, major_version_t _major);
     VSOMEIP_EXPORT void unregister_subscription_status_handler(service_t _service,
-                unique_version_t _unique, eventgroup_t _eventgroup, event_t _event);
+                instance_t _instance, eventgroup_t _eventgroup, event_t _event, major_version_t _major);
 
     // service_discovery_host
     VSOMEIP_EXPORT routing_manager * get_routing_manager() const;
 
     VSOMEIP_EXPORT bool are_available(available_t &_available,
-                       service_t _service, unique_version_t _unique,
+                       service_t _service, instance_t _instance,
                        major_version_t _major, minor_version_t _minor) const;
     VSOMEIP_EXPORT void set_routing_state(routing_state_e _routing_state);
 
@@ -186,10 +187,10 @@ public:
     VSOMEIP_EXPORT void set_watchdog_handler(const watchdog_handler_t &_handler, std::chrono::seconds _interval);
 
     VSOMEIP_EXPORT void register_async_subscription_handler(service_t _service,
-            unique_version_t _unique, eventgroup_t _eventgroup, const async_subscription_handler_t &_handler);
+            instance_t _instance, eventgroup_t _eventgroup, const async_subscription_handler_t &_handler, major_version_t _major);
 
     VSOMEIP_EXPORT void register_async_subscription_handler(service_t _service,
-            unique_version_t _unique, eventgroup_t _eventgroup, const async_subscription_handler_ext_t &_handler);
+            instance_t _instance, eventgroup_t _eventgroup, const async_subscription_handler_ext_t &_handler, major_version_t _major);
 
     VSOMEIP_EXPORT void set_sd_acceptance_required(const remote_info_t& _remote,
                                                    const std::string& _path, bool _enable);
@@ -206,11 +207,12 @@ public:
     VSOMEIP_EXPORT void register_routing_state_handler(const routing_state_handler_t &_handler);
 
     VSOMEIP_EXPORT bool update_service_configuration(service_t _service,
-                                                     unique_version_t _unique,
+                                                     instance_t _instance,
                                                      std::uint16_t _port,
                                                      bool _reliable,
                                                      bool _magic_cookies_enabled,
-                                                     bool _offer);
+                                                     bool _offer,
+                                                     major_version_t _major);
 
     VSOMEIP_EXPORT void update_security_policy_configuration(uint32_t _uid,
                                                              uint32_t _gid,
@@ -227,16 +229,16 @@ public:
             get_additional_data(const std::string &_plugin_name);
 
     VSOMEIP_EXPORT void register_subscription_handler(service_t _service,
-                unique_version_t _unique, eventgroup_t _eventgroup,
-                const subscription_handler_sec_t &_handler);
+                instance_t _instance, eventgroup_t _eventgroup,
+                const subscription_handler_sec_t &_handler, major_version_t _major);
     VSOMEIP_EXPORT void register_async_subscription_handler(
-                service_t _service, unique_version_t _unique, eventgroup_t _eventgroup,
-                async_subscription_handler_sec_t _handler);
+                service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                async_subscription_handler_sec_t _handler, major_version_t _major);
 
     VSOMEIP_EXPORT void register_message_handler_ext(
-            service_t _service, unique_version_t _unique, method_t _method,
+            service_t _service, instance_t _instance, method_t _method,
             const message_handler_t &_handler,
-            handler_registration_type_e _type);
+            handler_registration_type_e _type, major_version_t _major);
 
 private:
 
