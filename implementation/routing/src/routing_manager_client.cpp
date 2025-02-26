@@ -1490,9 +1490,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                 its_command.deserialize(its_buffer, its_error);
                 if (its_error == protocol::error_e::ERROR_OK) {
                     auto its_policy = its_command.get_policy();
-                    uid_t its_uid;
-                    gid_t its_gid;
-                    if (its_policy->get_uid_gid(its_uid, its_gid)) {
+                    uint32_t its_uid;
+                    uint32_t its_gid;
+                    if (its_policy->get_uid_gid(reinterpret_cast<uid_t&>(its_uid), reinterpret_cast<gid_t&>(its_gid))) {
                         if (is_internal_policy_update || its_policy_manager->is_policy_update_allowed(its_uid, its_policy)) {
                             its_policy_manager->update_security_policy(its_uid, its_gid, its_policy);
                             send_update_security_policy_response(its_command.get_update_id());
