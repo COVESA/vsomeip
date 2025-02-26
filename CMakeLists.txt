@@ -347,7 +347,7 @@ target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
     set_target_properties(${VSOMEIP_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-elseif (NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "QNX")
+else()
     set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
 endif ()
 target_include_directories(${VSOMEIP_NAME} INTERFACE
