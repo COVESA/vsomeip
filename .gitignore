@@ -16,3 +16,8 @@
 /Testing
 /logs
 !build_qnx/*
+
+/.clwb/
+/bazel-*
+/MODULE.bazel
+/MODULE.bazel.lock

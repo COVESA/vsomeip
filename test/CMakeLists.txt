@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 ##############################################################################
 # google benchmark
-find_package(benchmark)
+find_package(benchmark QUIET)
 
 ##############################################################################
 # google test
