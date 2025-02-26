@@ -268,18 +268,22 @@ if(NOT MSVC)
 
   if(ENABLE_UNDEFINED_SANITIZER)
     add_compile_options(-fsanitize=undefined)
+    add_link_options(-fsanitize=undefined)
   endif()
 
   if(ENABLE_THREAD_SANITIZER)
     add_compile_options(-fsanitize=thread)
+    add_link_options(-fsanitize=thread)
   endif()
 
   if(ENABLE_LEAK_SANITIZER)
     add_compile_options(-fsanitize=leak)
+    add_link_options(-fsanitize=leak)
   endif()
 
   if(ENABLE_ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
   endif()
 
   if(ENABLE_PROFILING)
