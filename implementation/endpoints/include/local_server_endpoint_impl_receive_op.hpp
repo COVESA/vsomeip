@@ -46,6 +46,7 @@ inline std::function<void(boost::system::error_code _error)> receive_cb(std::sha
                 its_vec[0].iov_base = _data->buffer_;
                 its_vec[0].iov_len = _data->length_;
 
+#if !defined(__QNX__)
                 union {
                     struct cmsghdr cmh;
                     char control[CMSG_SPACE(sizeof(struct ucred))];
@@ -55,13 +56,16 @@ inline std::function<void(boost::system::error_code _error)> receive_cb(std::sha
                 control_un.cmh.cmsg_len = CMSG_LEN(sizeof(struct ucred));
                 control_un.cmh.cmsg_level = SOL_SOCKET;
                 control_un.cmh.cmsg_type = SCM_CREDENTIALS;
+#endif
 
                 // Build header with all informations to call ::recvmsg
                 auto its_header = msghdr();
                 its_header.msg_iov = its_vec;
                 its_header.msg_iovlen = 1;
+#if !defined(__QNX__)
                 its_header.msg_control = control_un.control;
                 its_header.msg_controllen = sizeof(control_un.control);
+#endif
 
                 // Call recvmsg and handle its result
                 errno = 0;
@@ -83,6 +87,7 @@ inline std::function<void(boost::system::error_code _error)> receive_cb(std::sha
                 if (_data->bytes_ == 0)
                     _error = boost::asio::error::eof;
 
+#if !defined(__QNX__)
                 // Extract credentials (UID/GID)
                 struct ucred* its_credentials;
                 for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&its_header); cmsg != NULL; cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
@@ -97,6 +102,7 @@ inline std::function<void(boost::system::error_code _error)> receive_cb(std::sha
                         }
                     }
                 }
+#endif
 
                 break;
             }

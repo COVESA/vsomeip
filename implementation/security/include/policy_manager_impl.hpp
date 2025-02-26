@@ -38,6 +38,7 @@ public:
     };
 
     policy_manager_impl();
+    virtual ~policy_manager_impl();
 
 #ifndef VSOMEIP_DISABLE_SECURITY
     // policy_manager interface
