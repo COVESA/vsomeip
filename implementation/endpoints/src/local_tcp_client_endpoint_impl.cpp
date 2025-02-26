@@ -218,26 +218,29 @@ void local_tcp_client_endpoint_impl::receive() {
 // for local communication
 bool local_tcp_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
     std::lock_guard<std::recursive_mutex> its_lock(mutex_);
-    bool ret(true);
-    if (endpoint_impl::sending_blocked_ ||
-        check_message_size(nullptr, _size) != cms_ret_e::MSG_OK ||
-        !check_packetizer_space(_size) ||
-        !check_queue_limit(_data, _size)) {
-        ret = false;
-    } else {
-#if 0
-        std::stringstream msg;
-        msg << "lce::send: ";
-        for (uint32_t i = 0; i < _size; i++)
-            msg << std::hex << std::setfill('0') << std::setw(2)
-                << static_cast<int>(_data[i]) << " ";
-        VSOMEIP_INFO << msg.str();
-#endif
-        train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
-        queue_train(train_);
-        train_->buffer_ = std::make_shared<message_buffer_t>();
+
+    if (endpoint_impl::sending_blocked_ || !check_queue_limit(_data, _size)) {
+        return false;
     }
-    return ret;
+    if (!check_message_size(_size)) {
+        return false;
+    }
+    if (!check_packetizer_space(_size)) {
+        return false;
+    }
+#if 0
+    std::stringstream msg;
+    msg << "lce::send: ";
+    for (uint32_t i = 0; i < _size; i++)
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>(_data[i]) << " ";
+    VSOMEIP_INFO << msg.str();
+#endif
+    queue_train_buffer(_size);
+    train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
+    queue_train(train_);
+    train_->buffer_ = std::make_shared<message_buffer_t>();
+    return true;
 }
 
 void local_tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t> &_entry) {
@@ -382,20 +385,24 @@ std::string local_tcp_client_endpoint_impl::get_remote_information() const {
             + std::to_string(remote_.port());
 }
 
-
-bool local_tcp_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) {
+bool local_tcp_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) const {
     if (train_->buffer_->size() + _size < train_->buffer_->size()) {
         VSOMEIP_ERROR << "ltcei: Overflow in packetizer addition ~> abort sending!"
                       << " endpoint > " << this;
         return false;
     }
+    return true;
+}
+
+bool local_tcp_client_endpoint_impl::queue_train_buffer(std::uint32_t _size) {
     if (train_->buffer_->size() + _size > max_message_size_
             && !train_->buffer_->empty()) {
         queue_.push_back(std::make_pair(train_->buffer_, 0));
         queue_size_ += train_->buffer_->size();
         train_->buffer_ = std::make_shared<message_buffer_t>();
+        return true;
     }
-    return true;
+    return false;
 }
 
 bool local_tcp_client_endpoint_impl::is_reliable() const {

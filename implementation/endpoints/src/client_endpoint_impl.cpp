@@ -190,16 +190,9 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
         !check_queue_limit(_data, _size)) {
         return false;
     }
-    switch (check_message_size(_data, _size)) {
-        case endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT:
-            return true;
-            break;
-        case endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG:
-            return false;
-            break;
-        case endpoint_impl<Protocol>::cms_ret_e::MSG_OK:
-        default:
-            break;
+
+    if (!check_message_size(_size)) {
+        return segment_message(_data, _size) == endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
     }
 
     // STEP 1: Cancel dispatch timer
@@ -785,36 +778,38 @@ void client_endpoint_impl<Protocol>::start_connecting_timer() {
 }
 
 template<typename Protocol>
-typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::check_message_size(
-        const std::uint8_t * const _data, std::uint32_t _size) {
+bool client_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+    return !(endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
+             && _size > endpoint_impl<Protocol>::max_message_size_);
+}
 
-    typename endpoint_impl<Protocol>::cms_ret_e ret(endpoint_impl<Protocol>::cms_ret_e::MSG_OK);
-    if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
-            && _size > endpoint_impl<Protocol>::max_message_size_) {
-        if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
-            const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-            const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-            instance_t its_instance = this->get_instance(its_service);
+template<typename Protocol>
+typename endpoint_impl<Protocol>::cms_ret_e
+client_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
+                                                std::uint32_t _size) {
 
-            if (its_instance != ANY_INSTANCE) {
-                if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
-                    std::uint16_t its_max_segment_length;
-                    std::uint32_t its_separation_time;
-                    this->configuration_->get_tp_configuration(
-                                its_service, its_instance, its_method, true,
-                                its_max_segment_length, its_separation_time);
-                    send_segments(tp::tp::tp_split_message(_data, _size,
-                            its_max_segment_length), its_separation_time);
-                    return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
-                }
+    if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+        instance_t its_instance = this->get_instance(its_service);
+
+        if (its_instance != ANY_INSTANCE) {
+            if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                std::uint16_t its_max_segment_length;
+                std::uint32_t its_separation_time;
+                this->configuration_->get_tp_configuration(its_service, its_instance, its_method,
+                                                           true, its_max_segment_length,
+                                                           its_separation_time);
+                send_segments(tp::tp::tp_split_message(_data, _size, its_max_segment_length),
+                              its_separation_time);
+                return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
             }
         }
-        VSOMEIP_ERROR << "cei::check_message_size: Dropping to big message ("
-                << std::dec << _size << " Bytes). Maximum allowed message size is: "
-                << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
-        ret = endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
     }
-    return ret;
+    VSOMEIP_ERROR << "cei::segment_message: Dropping to big message (" << std::dec << _size
+                  << " Bytes). Maximum allowed message size is: "
+                  << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
+    return endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
 }
 
 template<typename Protocol>

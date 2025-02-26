@@ -122,14 +122,12 @@ bool tcp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition
 
 bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target,
                                           const byte_t* _data, uint32_t _size) {
-    bool ret(false);
     std::lock_guard<std::mutex> its_lock(mutex_);
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto& its_data = its_target_iterator->second;
 
-    if (check_message_size(nullptr, _size, its_target) == endpoint_impl::cms_ret_e::MSG_OK
-        && check_queue_limit(_data, _size, its_data)) {
+    if (check_queue_limit(_data, _size, its_data) && check_message_size(_size)) {
         its_data.queue_.emplace_back(
                 std::make_pair(std::make_shared<message_buffer_t>(_data, _data + _size), 0));
         its_data.queue_size_ += _size;
@@ -137,9 +135,10 @@ bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
         if (!its_data.is_sending_) { // no writing in progress
             (void)send_queued(its_target_iterator);
         }
-        ret = true;
+        return true;
     }
-    return ret;
+
+    return false;
 }
 
 bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) {

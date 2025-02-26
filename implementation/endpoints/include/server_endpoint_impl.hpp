@@ -112,9 +112,10 @@ protected:
 
     virtual void print_status() = 0;
 
-    typename endpoint_impl<Protocol>::cms_ret_e check_message_size(const std::uint8_t* const _data,
-                                                                   std::uint32_t _size,
-                                                                   const endpoint_type& _target);
+    bool check_message_size(std::uint32_t _size) const;
+    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const std::uint8_t* const _data,
+                                                                std::uint32_t _size,
+                                                                const endpoint_type& _target);
     bool check_queue_limit(const uint8_t* _data, std::uint32_t _size,
                            endpoint_data_type& _endpoint_data) const;
     bool queue_train(const target_data_iterator_type _it, const std::shared_ptr<train>& _train);
