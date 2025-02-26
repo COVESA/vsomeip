@@ -380,8 +380,8 @@ endpoint_manager_base::get_local_server_port(port_t &_port,
     uid_t its_uid { ANY_UID };
     gid_t its_gid { ANY_GID };
 #else
-    uid_t its_uid { getuid() };
-    gid_t its_gid { getgid() };
+    uid_t its_uid { static_cast<uid_t>(getuid()) };
+    gid_t its_gid { static_cast<gid_t>(getgid()) };
 #endif
 
     auto its_port_ranges = configuration_->get_routing_guest_ports(

@@ -91,6 +91,7 @@ cc_library(
         ],
         exclude = [
             "utility/src/wrappers.cpp",
+            "utility/src/wrappers_qnx.cpp",
         ],
     ),
     hdrs = glob(

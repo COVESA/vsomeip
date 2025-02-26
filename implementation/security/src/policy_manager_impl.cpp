@@ -52,6 +52,8 @@ policy_manager_impl::policy_manager_impl()
 {
 }
 
+policy_manager_impl::~policy_manager_impl() = default;
+
 bool
 policy_manager_impl::is_enabled() const {
 #ifdef VSOMEIP_DISABLE_SECURITY
@@ -621,7 +623,7 @@ policy_manager_impl::parse_policy(const byte_t* &_buffer, uint32_t &_buffer_size
 
     bool is_valid = _policy->deserialize(_buffer, _buffer_size);
     if (is_valid)
-        is_valid = _policy->get_uid_gid(_uid, _gid);
+        is_valid = _policy->get_uid_gid(reinterpret_cast<uid_t&>(_uid), reinterpret_cast<gid_t&>(_gid));
     return is_valid;
 }
 
@@ -1313,7 +1315,7 @@ policy_manager_impl::parse_uid_gid(const byte_t* &_buffer,
 
    const auto its_policy = std::make_shared<policy>();
    return (its_policy
-           && its_policy->deserialize_uid_gid(_buffer, _buffer_size, _uid, _gid));
+           && its_policy->deserialize_uid_gid(_buffer, _buffer_size, reinterpret_cast<uid_t&>(_uid), reinterpret_cast<gid_t&>(_gid)));
 }
 
 #endif // !VSOMEIP_DISABLE_SECURITY

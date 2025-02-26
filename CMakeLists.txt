@@ -295,7 +295,6 @@ endif()
 
 if ("${CMAKE_SYSTEM_NAME}" STREQUAL "QNX")
     add_definitions(-DBOOST_ASIO_DISABLE_STRING_VIEW)
-    set (VSOMEIP_BASE_PATH "/var")
     set(USE_RT "")
 endif()
 

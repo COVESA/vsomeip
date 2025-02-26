@@ -1262,7 +1262,7 @@ void routing_manager_stub::send_client_credentials(const client_t _target,
     if (its_endpoint) {
         protocol::update_security_credentials_command its_command;
         its_command.set_client(_target);
-        its_command.set_credentials(_credentials);
+        its_command.set_credentials(reinterpret_cast<std::set<std::pair<uid_t, gid_t>> &>(_credentials));
 
 #if 0
         std::stringstream msg;
