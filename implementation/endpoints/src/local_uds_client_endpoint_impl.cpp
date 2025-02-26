@@ -96,7 +96,7 @@ void local_uds_client_endpoint_impl::stop() {
         bool send_queue_empty(false);
         std::uint32_t times_slept(0);
 
-        while (times_slept <= 50) {
+        while (times_slept <= LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP) {
             mutex_.lock();
             send_queue_empty = (queue_.size() == 0);
             mutex_.unlock();
@@ -113,6 +113,7 @@ void local_uds_client_endpoint_impl::stop() {
 
 void local_uds_client_endpoint_impl::connect() {
     start_connecting_timer();
+    connecting_timer_state_ = connecting_timer_state_e::IN_PROGRESS;
     boost::system::error_code its_connect_error;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -154,6 +155,11 @@ void local_uds_client_endpoint_impl::connect() {
     {
         std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
         operations_cancelled = connecting_timer_.cancel();
+        connecting_timer_state_ = connecting_timer_state_e::FINISH_ERROR;
+        if (operations_cancelled != 0) {
+            connecting_timer_state_ = connecting_timer_state_e::FINISH_SUCCESS;
+        }
+        connecting_timer_condition_.notify_all();
     }
     if (operations_cancelled != 0) {
         // call connect_cbk asynchronously
@@ -264,7 +270,7 @@ void local_uds_client_endpoint_impl::receive_cbk(
             queue_.clear();
             queue_size_ = 0;
         } else if (_error == boost::asio::error::connection_reset
-                || _error == boost::asio::error::bad_descriptor) {
+                   || _error == boost::asio::error::bad_descriptor) {
             restart(true);
             return;
         }

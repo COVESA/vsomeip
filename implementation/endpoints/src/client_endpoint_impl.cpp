@@ -479,7 +479,12 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
         /* Need this for TCP endpoints for now because we have no
          direct control about the point in time the connect has finished */
         std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        connecting_timer_state_ = connecting_timer_state_e::FINISH_ERROR;
         operations_cancelled = connecting_timer_.cancel();
+        if (operations_cancelled != 0) {
+            connecting_timer_state_ = connecting_timer_state_e::FINISH_SUCCESS;
+        }
+        connecting_timer_condition_.notify_all();
     }
     if (operations_cancelled != 0) {
         if (_error) {
@@ -490,9 +495,19 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
         }
         connect_cbk(_error);
     } else {
-        VSOMEIP_INFO << "cei::" << __func__ << " operations_cancelled is 0 endpoint > "
-                << this << " socket state > " << static_cast<int>(state_.load());
+        VSOMEIP_INFO << "cei::" << __func__ << " operations_cancelled is 0 endpoint > " << this
+                     << " socket state > " << static_cast<int>(state_.load());
     }
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::wait_connecting_timer() {
+    std::unique_lock its_lock(connecting_timer_mutex_);
+    connecting_timer_condition_.wait(its_lock, [this] {
+        return connecting_timer_state_ != connecting_timer_state_e::IN_PROGRESS;
+    });
+
+    return connecting_timer_state_ == connecting_timer_state_e::FINISH_SUCCESS;
 }
 
 template<typename Protocol>
@@ -712,10 +727,12 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
     if (_recreate_socket) {
         socket_.reset(new socket_type(endpoint_impl<Protocol>::io_));
         VSOMEIP_WARNING << "cei::" << __func__ << ": socket has been reset "
-                        << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+                        << " endpoint > " << this << " socket state > "
+                        << static_cast<int>(state_.load());
     } else {
         VSOMEIP_INFO << "cei::" << __func__ << ": not recreating socket "
-                        << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+                     << " endpoint > " << this << " socket state > "
+                     << static_cast<int>(state_.load());
     }
 }
 
@@ -778,7 +795,7 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::chec
             const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
             const method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
             instance_t its_instance = this->get_instance(its_service);
-          
+
             if (its_instance != ANY_INSTANCE) {
                 if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
                     std::uint16_t its_max_segment_length;

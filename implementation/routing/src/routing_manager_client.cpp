@@ -249,14 +249,16 @@ void routing_manager_client::stop() {
 }
 
 #if defined(__linux__) || defined(ANDROID)
-void
-routing_manager_client::on_net_state_change(
-        bool _is_interface, const std::string &_name, bool _is_available) {
+void routing_manager_client::on_net_state_change(bool _is_interface, const std::string& _name,
+                                                 bool _is_available) {
 
-    VSOMEIP_INFO << __func__
-        << ": " << std::boolalpha << _is_interface << " "
-        << _name << " "
-        << std::boolalpha << _is_available;
+    // No changes in the link availability
+    if (_is_available == is_local_link_available_)
+        return;
+
+    VSOMEIP_INFO << "rmc::" << __func__ << ": ThreadID: " << std::hex << std::this_thread::get_id()
+                 << " - " << std::boolalpha << _is_interface << " " << _name << " "
+                 << std::boolalpha << _is_available;
 
     if (_is_interface) {
         if (_is_available) {
@@ -274,7 +276,7 @@ routing_manager_client::on_net_state_change(
                         receiver_->start();
                         is_started_ = true;
 
-                        is_receiver = true;                     
+                        is_receiver = true;
                     }
                 }
                 if (is_receiver) {
@@ -285,11 +287,12 @@ routing_manager_client::on_net_state_change(
                     if (sender_) {
                         host_->set_sec_client_port(sender_->get_local_port());
                         sender_->start();
-                    }   
+                    }
                 }
             }
         } else {
             if (is_local_link_available_) {
+                is_local_link_available_ = false;
                 is_started_ = false;
 
                 VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
@@ -314,8 +317,6 @@ routing_manager_client::on_net_state_change(
                     std::scoped_lock its_lock(local_services_mutex_);
                     local_services_.clear();
                 }
-
-                is_local_link_available_ = false;
             }
         }
     }
@@ -1059,7 +1060,7 @@ void routing_manager_client::on_message(
     std::stringstream msg;
     msg << "rmp::on_message<" << std::hex << get_client() << ">: ";
     for (length_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     protocol::id_e its_id;
@@ -1108,14 +1109,11 @@ void routing_manager_client::on_message(
         if (configuration_->is_security_enabled()
                 && configuration_->is_local_routing()
                 && !is_from_routing && _bound_client != its_client) {
-            VSOMEIP_WARNING << "Client " 
-                            << std::hex << std::setfill('0')
-                            << std::setw(4) << get_client() 
-                            << " received a message with command " << static_cast<int>(its_id)
-                            << " from " << std::setw(4) << its_client 
-                            << " which doesn't match the bound client " 
-                            << std::setw(4)  << _bound_client
-                            << " ~> skip message!";
+            VSOMEIP_WARNING << "Client " << std::hex << std::setfill('0') << std::setw(4)
+                            << get_client() << " received a message with command "
+                            << static_cast<int>(its_id) << " from " << std::setw(4) << its_client
+                            << " which doesn't match the bound client " << std::setw(4)
+                            << _bound_client << " ~> skip message!";
             return;
         }
 
@@ -1850,7 +1848,7 @@ void routing_manager_client::on_routing_info(
     std::stringstream msg;
     msg << "rmp::on_routing_info(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ";
     for (uint32_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     auto its_policy_manager = configuration_->get_policy_manager();
@@ -2181,6 +2179,13 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
 
 void routing_manager_client::assign_client() {
 
+    if (state_ != inner_state_type_e::ST_DEREGISTERED) {
+        VSOMEIP_WARNING << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4)
+                        << get_client() << ") Non-Deregistered State Set ("
+                        << static_cast<int>(state_.load()) << "). Returning";
+        return;
+    }
+
     VSOMEIP_INFO << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4)
                  << get_client() << ":" << host_->get_name() << ")";
 
@@ -2202,19 +2207,13 @@ void routing_manager_client::assign_client() {
     if (is_connected_) {
         std::scoped_lock its_sender_lock {sender_mutex_};
         if (sender_) {
-            if (state_ != inner_state_type_e::ST_DEREGISTERED) {
-                VSOMEIP_WARNING << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4)
-                                << get_client() << ") Non-Deregistered State Set (" << static_cast<int>(state_.load()) << "). Returning";
-                return;
-            }
-
             VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
                          << static_cast<int>(state_.load()) << " -> "
                          << static_cast<int>(inner_state_type_e::ST_ASSIGNING);
             state_ = inner_state_type_e::ST_ASSIGNING;
 
             sender_->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
-            
+
             {
                 std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
                 boost::system::error_code ec;
@@ -2247,13 +2246,15 @@ void routing_manager_client::register_application() {
 
     auto its_configuration(get_configuration());
     if (its_configuration->is_local_routing()) {
-        VSOMEIP_INFO << "Registering to routing manager @ "
-                << its_configuration->get_network() << "-0";
+        VSOMEIP_INFO << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                     << " Registering to routing manager @ " << its_configuration->get_network()
+                     << "-0";
     } else {
         auto its_routing_address(its_configuration->get_routing_host_address());
         auto its_routing_port(its_configuration->get_routing_host_port());
-        VSOMEIP_INFO << "Registering to routing manager @ "
-                << its_routing_address.to_string() << ":" << its_routing_port;
+        VSOMEIP_INFO << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                     << " Registering to routing manager @ " << its_routing_address.to_string()
+                     << ":" << its_routing_port;
     }
 
     protocol::register_application_command its_command;
@@ -3019,7 +3020,7 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
                                  << std::hex << std::setw(4) << std::setfill('0') << get_client()
                                  << " (" << host_->get_name() << ") successfully connected to routing  ~> registering..";
                         register_application();
-                        
+
                         is_receiver = true;
                     }
                 }

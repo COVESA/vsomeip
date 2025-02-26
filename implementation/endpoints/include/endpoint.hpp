@@ -43,6 +43,8 @@ public:
     virtual void enable_magic_cookies() = 0;
     virtual void receive() = 0;
 
+    virtual bool wait_connecting_timer() { return true; };
+
     virtual void add_default_target(service_t _service,
             const std::string &_address, uint16_t _port) = 0;
     virtual void remove_default_target(service_t _service) = 0;
