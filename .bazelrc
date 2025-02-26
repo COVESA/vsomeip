@@ -1,0 +1,45 @@
+build --experimental_cc_shared_library
+build --experimental_cc_implementation_deps
+build --cxxopt "-std=c++17"
+
+# Enable new platform resolution for C/+++
+build --incompatible_enable_cc_toolchain_resolution
+
+# Be strict on environment variables passed
+build --incompatible_strict_action_env
+
+## Address sanitizer
+build:asan --define SANITIZERS_ASAN_ON=true
+build:asan --copt="-fsanitize=address"
+build:asan --copt="-no-canonical-prefixes"
+build:asan --copt="-fno-omit-frame-pointer"
+build:asan --copt="-fno-sanitize-recover"
+build:asan --copt="-DADDRESS_SANITIZER"
+build:asan --linkopt="-fsanitize=address"
+build:asan --strip=never
+build:asan --action_env=ASAN_OPTIONS=detect_leaks=1:color=always
+build:asan --action_env=LSAN_OPTIONS="report_objects=1"
+build:asan --cc_output_directory_tag=asan
+
+## Thread sanitizer
+build:tsan --define SANITIZERS_TSAN_ON=true
+build:tsan --copt="-fsanitize=thread"
+build:tsan --copt="-fno-omit-frame-pointer"
+build:tsan --copt="-fno-sanitize-recover"
+build:tsan --copt="-DTHREAD_SANITIZER"
+build:tsan --linkopt="-fsanitize=thread"
+build:tsan --strip=never
+build:tsan --action_env=TSAN_OPTIONS="report_objects=1"
+build:tsan --cc_output_directory_tag=tsan
+
+## UndefinedBehavior sanitizer
+build:ubsan --define SANITIZERS_UBSAN_ON=true
+build:ubsan --copt="-fsanitize=undefined"
+build:ubsan --copt="-fno-omit-frame-pointer"
+build:ubsan --copt="-fno-sanitize-recover"
+build:ubsan --copt="-DUNDEFINED_BEHAVIOR_SANITIZER"
+build:ubsan --linkopt="-fsanitize=undefined"
+build:ubsan --linkopt="-lubsan"
+build:ubsan --strip=never
+build:ubsan --action_env=UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1"
+build:ubsan --cc_output_directory_tag=ubsan
