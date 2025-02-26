@@ -1648,6 +1648,13 @@ void service_discovery_impl::process_offerservice_serviceentry(
                         for (const auto its_client : its_subscription->get_clients()) {
                             its_subscription->set_state(its_client,
                                                         subscription_state_e::ST_NOT_ACKNOWLEDGED);
+
+                            VSOMEIP_DEBUG << "RESUBSCRIPTION ("
+                                          << std::hex << std::setfill('0')
+                                          << std::setw(4) << its_client << "): ["
+                                          << std::setw(4) << _service << "."
+                                          << std::setw(4) << _instance << "."
+                                          << std::setw(4) << its_eventgroup.first << "]";
                         }
                     }
                 }
@@ -2620,6 +2627,14 @@ service_discovery_impl::handle_eventgroup_subscription_ack(
                             == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
                         found_eventgroup->second->set_state(its_client,
                             subscription_state_e::ST_ACKNOWLEDGED);
+
+                        VSOMEIP_DEBUG << "SUBSCRIPTION ACKNOWLEDGED ("
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << its_client << "): ["
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "."
+                            << std::setw(4) << _eventgroup << "]";
+
                         host_->on_subscribe_ack(its_client,
                                 _service, _instance, _eventgroup,
                                 ANY_EVENT, PENDING_SUBSCRIPTION_ID);
@@ -3885,8 +3900,22 @@ service_discovery_impl::send_subscription_ack(
                             if (its_subscription->get_client_state(its_client)
                                     == remote_subscription_state_e::SUBSCRIPTION_ACKED) {
                                 its_acked.insert(its_client);
+
+                                VSOMEIP_DEBUG << "SUBSCRIPTION ACK ("
+                                    << std::hex << std::setfill('0')
+                                    << std::setw(4) << its_client << "): ["
+                                    << std::setw(4) << its_info->get_service() << "."
+                                    << std::setw(4) << its_info->get_instance() << "."
+                                    << std::setw(4) << its_info->get_eventgroup() << "]";
                             } else {
                                 its_nacked.insert(its_client);
+
+                                VSOMEIP_DEBUG << "SUBSCRIPTION NACK ("
+                                    << std::hex << std::setfill('0')
+                                    << std::setw(4) << its_client << "): ["
+                                    << std::setw(4) << its_info->get_service() << "."
+                                    << std::setw(4) << its_info->get_instance() << "."
+                                    << std::setw(4) << its_info->get_eventgroup() << "]";
                             }
                         }
 
