@@ -12,6 +12,9 @@
 
 #include <iomanip>
 #include <memory>
+#ifdef __QNX__
+#include <vector>
+#endif
 
 #include <boost/asio/ip/udp.hpp>
 
@@ -38,6 +41,10 @@ struct storage : public std::enable_shared_from_this<storage> {
     bool is_v4_;
     boost::asio::ip::address destination_;
     size_t bytes_;
+#ifdef __QNX__
+    std::vector<char> control_v4_buf{CMSG_SPACE(sizeof(struct in_pktinfo)), 0};
+    std::vector<char> control_v6_buf{CMSG_SPACE(sizeof(struct in6_pktinfo)), 0};
+#endif
 
     storage(std::weak_ptr<socket_type_t> _socket, receive_handler_t _handler,
             std::shared_ptr<message_buffer_t> const& _multicast_recv_buffer, bool _is_v4, boost::asio::ip::address _destination,
@@ -200,21 +207,39 @@ struct storage : public std::enable_shared_from_this<storage> {
                 // Sender & destination address info
                 struct sockaddr_in addr_v4 = {};
                 struct sockaddr_in6 addr_v6 = {};
-                uint8_t control_data[CMSG_SPACE(std::max(sizeof(struct in_pktinfo), sizeof(struct in6_pktinfo)))];
+
+#ifdef __QNX__
+                void * control_v4_ptr = _data->control_v4_buf.data();
+                size_t control_v4_len = _data->control_v4_buf.size();
+                void * control_v6_ptr = _data->control_v6_buf.data();
+                size_t control_v6_len = _data->control_v6_buf.size();
+#else
+                union {
+                    struct cmsghdr cmh;
+                    union {
+                        char   v4[CMSG_SPACE(sizeof(struct in_pktinfo))];
+                        char   v6[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+                    } control;
+                } control_un;
+                void * control_v4_ptr = control_un.control.v4;
+                size_t control_v4_len = sizeof(control_un.control.v4);
+                void * control_v6_ptr = control_un.control.v6;
+                size_t control_v6_len = sizeof(control_un.control.v6);
+#endif
 
                 // Prepare
                 if (_data->is_v4_) {
                     its_header.msg_name = &addr_v4;
                     its_header.msg_namelen = sizeof(addr_v4);
 
-                    its_header.msg_control = control_data;
-                    its_header.msg_controllen = CMSG_SPACE(sizeof(struct in_pktinfo));
+                    its_header.msg_control = control_v4_ptr;
+                    its_header.msg_controllen = control_v4_len;
                 } else {
                     its_header.msg_name = &addr_v6;
                     its_header.msg_namelen = sizeof(addr_v6);
 
-                    its_header.msg_control = control_data;
-                    its_header.msg_controllen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+                    its_header.msg_control = control_v6_ptr;
+                    its_header.msg_controllen = control_v6_len;
                 }
 
                 // Call recvmsg and handle its result

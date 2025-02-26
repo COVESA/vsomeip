@@ -13,6 +13,10 @@
 
 #include <string>
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
+
 namespace vsomeip_v3 {
 
 class asio_tcp_acceptor;
