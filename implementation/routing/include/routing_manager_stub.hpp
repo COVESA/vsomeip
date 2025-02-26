@@ -7,6 +7,7 @@
 #define VSOMEIP_V3_ROUTING_MANAGER_STUB_
 
 #include <condition_variable>
+#include <deque>
 #include <list>
 #include <map>
 #include <memory>
@@ -42,9 +43,8 @@ struct policy;
 class routing_manager_stub: public routing_host,
         public std::enable_shared_from_this<routing_manager_stub> {
 public:
-    routing_manager_stub(
-            routing_manager_stub_host *_host,
-            const std::shared_ptr<configuration>& _configuration);
+    routing_manager_stub(routing_manager_stub_host* _host,
+                         const std::shared_ptr<configuration>& _configuration);
     virtual ~routing_manager_stub();
 
     void init();
@@ -144,7 +144,7 @@ public:
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 
-    void on_register_application(client_t _client);
+    void on_register_application(client_t _client, bool& continue_registration);
     void on_deregister_application(client_t _client);
     void on_register_application_ack(client_t _client);
 
@@ -163,6 +163,7 @@ private:
     void check_watchdog();
 
     void client_registration_func(void);
+    void registration_func(client_t client_id, std::vector<registration_type_e> registration_type);
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const &_error);
     void remove_from_pinged_clients(client_t _client);
@@ -193,6 +194,9 @@ private:
 
         connection_matrix_.erase(_source);
     }
+
+    void remove_client_connections(client_t _client);
+    bool new_client_to_process();
 
     void send_client_routing_info(const client_t _target,
             protocol::routing_info_entry &_entry);
@@ -235,7 +239,7 @@ private:
 #endif
 
 private:
-    routing_manager_stub_host *host_;
+    routing_manager_stub_host* host_;
     boost::asio::io_context &io_;
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
@@ -255,12 +259,15 @@ private:
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
+    std::map<std::thread::id, std::shared_ptr<std::thread>> client_registration_thread_pool_;
+    std::mutex client_registration_thread_pool_mutex_;
     std::atomic<bool> client_registration_running_;
-    std::shared_ptr<std::thread> client_registration_thread_;
     std::mutex client_registration_mutex_;
     std::condition_variable client_registration_condition_;
 
-    std::map<client_t, std::vector<registration_type_e>> pending_client_registrations_;
+    std::deque<std::pair<client_t, std::vector<registration_type_e>>>
+            pending_client_registrations_queue_;
+    std::set<client_t> clients_in_progress_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t> > internal_client_ports_;
     const std::uint32_t max_local_message_size_;
     const std::chrono::milliseconds configured_watchdog_timeout_;

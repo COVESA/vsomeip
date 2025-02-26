@@ -1666,7 +1666,7 @@ On startup of a vSomeIP application, the following environment variables are rea
 
 - **VSOMEIP_APPLICATION_NAME**: This environment variable is used to specify the name of the application. This name is later used to map a client id to the application in the configuration file. It is independent from the application's binary name.
 
-- **VSOMEIP_CONFIGURATION**: vsomeip uses the default configuration file `/etc/vsomeip.json` and/or the default configuration folder `/etc/vsomeip`. This can be overridden by a local configuration file `./vsomeip.json` and/or a local configuration folder `./vsomeip`. 
+- **VSOMEIP_CONFIGURATION**: vsomeip uses the default configuration file `/etc/vsomeip.json` and/or the default configuration folder `/etc/vsomeip`. This can be overridden by a local configuration file `./vsomeip.json` and/or a local configuration folder `./vsomeip`.
 
     If VSOMEIP_CONFIGURATION is set to a valid file or directory path, this is used instead of the standard configuration (thus neither default nor local file/folder will be parsed).
 
@@ -1677,7 +1677,7 @@ On startup of a vSomeIP application, the following environment variables are rea
 
 - **VSOMEIP_CONFIGURATION_\<application\>**: Application-specific version of `VSOMEIP_CONFIGURATION`. Please note that must be valid as part of an environment variable.
 
-- **VSOMEIP_MANDATORY_CONFIGURATION_FILES**: vsomeip allows to specify mandatory configuration files to speed-up application startup. While mandatory configuration files are read by all applications, all other configuration files are only read by the application that is responsible for connections to external devices. 
+- **VSOMEIP_MANDATORY_CONFIGURATION_FILES**: vsomeip allows to specify mandatory configuration files to speed-up application startup. While mandatory configuration files are read by all applications, all other configuration files are only read by the application that is responsible for connections to external devices.
 
     If this configuration variable is not set, the default mandatory files `vsomeip_std.json`, `vsomeip_app.json`, `vsomeip_events.json`, `vsomeip_plc.json`, `vsomeip_log.json`, `vsomeip_security.json`, `vsomeip_whitelist.json`, `vsomeip_policy_extensions.json` and `vsomeip_portcfg.json`are used.
 

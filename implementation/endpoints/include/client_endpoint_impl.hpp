@@ -81,6 +81,7 @@ public:
     virtual void send_cbk(boost::system::error_code const &_error,
                           std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
     void flush_cbk(boost::system::error_code const &_error);
+    bool wait_connecting_timer();
 
 public:
     virtual void connect() = 0;
@@ -94,6 +95,13 @@ protected:
         CONNECTED,
         ESTABLISHED
     };
+
+    enum class connecting_timer_state_e : std::uint8_t {
+        IN_PROGRESS,
+        FINISH_SUCCESS,
+        FINISH_ERROR
+    };
+
     std::pair<message_buffer_ptr_t, uint32_t> get_front();
     virtual void send_queued(std::pair<message_buffer_ptr_t, uint32_t> &_entry) = 0;
     virtual void get_configured_times_from_endpoint(
@@ -125,6 +133,8 @@ protected:
 
     std::mutex connecting_timer_mutex_;
     boost::asio::steady_timer connecting_timer_;
+    std::condition_variable connecting_timer_condition_;
+    std::atomic<connecting_timer_state_e> connecting_timer_state_;
     std::atomic<uint32_t> connecting_timeout_;
 
 

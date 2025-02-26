@@ -73,21 +73,13 @@ runtime::~runtime() {}
 }
 #endif
 
-routing_manager_impl::routing_manager_impl(routing_manager_host *_host) :
-        routing_manager_base(_host),
-        version_log_timer_(_host->get_io()),
-        if_state_running_(false),
-        sd_route_set_(false),
-        routing_running_(false),
-        status_log_timer_(_host->get_io()),
-        memory_log_timer_(_host->get_io()),
-        ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
-        pending_remote_offer_id_(0),
-        last_resume_(std::chrono::steady_clock::now().min()),
-        statistics_log_timer_(_host->get_io()),
-        ignored_statistics_counter_(0)
-{
-}
+routing_manager_impl::routing_manager_impl(routing_manager_host* _host) :
+    routing_manager_base(_host), version_log_timer_(_host->get_io()), if_state_running_(false),
+    sd_route_set_(false), routing_running_(false), status_log_timer_(_host->get_io()),
+    memory_log_timer_(_host->get_io()),
+    ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
+    pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()),
+    statistics_log_timer_(_host->get_io()), ignored_statistics_counter_(0) { }
 
 routing_manager_impl::~routing_manager_impl() {
     utility::reset_client_ids(configuration_->get_network());
@@ -4052,7 +4044,7 @@ void routing_manager_impl::start_ip_routing() {
         pending_sd_offers_.clear();
         VSOMEIP_INFO << "rmi::" << __func__ << ": clear pending_sd_offers_";
     }
-    
+
     routing_running_ = true;
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }

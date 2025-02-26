@@ -97,7 +97,7 @@ void local_tcp_client_endpoint_impl::stop() {
         bool send_queue_empty(false);
         std::uint32_t times_slept(0);
 
-        while (times_slept <= 50) {
+        while (times_slept <= LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP) {
             mutex_.lock();
             send_queue_empty = (queue_.size() == 0);
             mutex_.unlock();
@@ -109,6 +109,7 @@ void local_tcp_client_endpoint_impl::stop() {
             }
         }
     }
+
     shutdown_and_close_socket(false);
 }
 
@@ -167,6 +168,7 @@ void local_tcp_client_endpoint_impl::connect() {
         }
         state_ = cei_state_e::CONNECTING;
         start_connecting_timer();
+        connecting_timer_state_ = connecting_timer_state_e::IN_PROGRESS;
         socket_->async_connect(
             remote_,
             strand_.wrap(
@@ -294,7 +296,7 @@ void local_tcp_client_endpoint_impl::receive_cbk(
             // endpoint was stopped
             return;
         } else if (_error == boost::asio::error::eof) {
-            std::scoped_lock its_lock {mutex_};
+            std::scoped_lock its_lock(mutex_);
             sending_blocked_ = false;
             queue_.clear();
             queue_size_ = 0;

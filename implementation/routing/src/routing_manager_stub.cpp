@@ -62,24 +62,17 @@
 
 namespace vsomeip_v3 {
 
-routing_manager_stub::routing_manager_stub(
-        routing_manager_stub_host *_host,
-        const std::shared_ptr<configuration>& _configuration) :
-        host_(_host),
-        io_(_host->get_io()),
-        watchdog_timer_(_host->get_io()),
-        client_id_timer_(_host->get_io()),
-        root_(nullptr),
-        local_receiver_(nullptr),
-        configuration_(_configuration),
-        is_socket_activated_(false),
-        client_registration_running_(false),
-        max_local_message_size_(configuration_->get_max_message_size_local()),
-        configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
-        pinged_clients_timer_(io_),
-        pending_security_update_id_(0)
+routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host,
+                                           const std::shared_ptr<configuration>& _configuration) :
+    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()),
+    client_id_timer_(_host->get_io()), root_(nullptr), local_receiver_(nullptr),
+    configuration_(_configuration), is_socket_activated_(false),
+    client_registration_running_(false),
+    max_local_message_size_(configuration_->get_max_message_size_local()),
+    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
+    pinged_clients_timer_(io_), pending_security_update_id_(0)
 #if defined(__linux__) || defined(ANDROID)
-        , is_local_link_available_(false)
+    , is_local_link_available_(false)
 #endif
 {
 }
@@ -133,8 +126,14 @@ void routing_manager_stub::start() {
     }
 
     client_registration_running_ = true;
-    client_registration_thread_ = std::make_shared<std::thread>(
-            std::bind(&routing_manager_stub::client_registration_func, this));
+    {
+        std::scoped_lock its_thread_pool_lock(client_registration_thread_pool_mutex_);
+        for (size_t i = 0; i < VSOMEIP_DEFAULT_REGISTER_THREAD_COUNT; i++) {
+            auto its_thread = std::make_shared<std::thread>(
+                    std::bind(&routing_manager_stub::client_registration_func, this));
+            client_registration_thread_pool_[its_thread->get_id()] = its_thread;
+        }
+    }
 
     if (configuration_->is_watchdog_enabled()) {
         VSOMEIP_INFO << "Watchdog is enabled : Timeout in ms = "
@@ -157,10 +156,17 @@ void routing_manager_stub::stop() {
     {
         std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
         client_registration_running_ = false;
-        client_registration_condition_.notify_one();
+        client_registration_condition_.notify_all();
     }
-    if (client_registration_thread_->joinable()) {
-        client_registration_thread_->join();
+
+    {
+        std::scoped_lock its_thread_pool_lock(client_registration_thread_pool_mutex_);
+        for (const auto& [thread_id, its_thread] : client_registration_thread_pool_) {
+            if (its_thread->joinable()) {
+                its_thread->join();
+            }
+        }
+        client_registration_thread_pool_.clear();
     }
 
     {
@@ -233,7 +239,7 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
     std::stringstream msg;
     msg << "rms::on_message: ";
     for (length_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
 
@@ -822,9 +828,9 @@ void routing_manager_stub::add_known_client(client_t _client, const std::string 
     host_->add_known_client(_client, _client_host);
 }
 
-void routing_manager_stub::on_register_application(client_t _client) {
+void routing_manager_stub::on_register_application(client_t _client, bool& continue_registration) {
     // Find or create a local endpoint.
-    (void)host_->find_or_create_local(_client);
+    auto endpoint = host_->find_or_create_local(_client);
     {
         std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
         routing_info_[_client].first = 0;
@@ -832,21 +838,26 @@ void routing_manager_stub::on_register_application(client_t _client) {
 #ifndef VSOMEIP_DISABLE_SECURITY
     if (configuration_->is_local_routing()) {
         vsomeip_sec_client_t its_sec_client;
-        std::set<std::shared_ptr<policy> > its_policies;
+        std::set<std::shared_ptr<policy>> its_policies;
 
-        bool has_mapping = configuration_->get_policy_manager()
-                ->get_client_to_sec_client_mapping(_client, its_sec_client);
+        bool has_mapping = configuration_->get_policy_manager()->get_client_to_sec_client_mapping(
+                _client, its_sec_client);
         if (has_mapping) {
             if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
-                get_requester_policies(its_sec_client.user,
-                        its_sec_client.group, its_policies);
+                get_requester_policies(its_sec_client.user, its_sec_client.group, its_policies);
             }
 
             if (!its_policies.empty())
-                send_requester_policies({ _client }, its_policies);
+                send_requester_policies({_client}, its_policies);
         }
     }
 #endif // !VSOMEIP_DISABLE_SECURITY
+    if (!endpoint->wait_connecting_timer()) {
+        VSOMEIP_WARNING << "Application: " << std::hex << _client << " endpoint " << endpoint
+                        << " failed to start. Removing it.";
+        remove_client_connections(_client);
+        continue_registration = false;
+    }
 }
 
 void routing_manager_stub::on_deregister_application(client_t _client) {
@@ -866,8 +877,8 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
                                     its_version.second));
                 }
             }
+            routing_info_.erase(_client);
         }
-        routing_info_.erase(_client);
     }
     for (const auto &s : services_to_report) {
         host_->on_availability(std::get<0>(s), std::get<1>(s),
@@ -964,86 +975,140 @@ void routing_manager_stub::client_registration_func(void) {
 #if defined(__linux__) || defined(ANDROID)
     {
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4)
-            << host_->get_client() << "_client_reg";
-        pthread_setname_np(pthread_self(),s.str().c_str());
+        s << std::hex << std::setfill('0') << std::setw(4) << host_->get_client() << "_client_reg_"
+          << std::hex << std::this_thread::get_id();
+        pthread_setname_np(pthread_self(), s.str().c_str());
     }
 #endif
     std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
-        while (!pending_client_registrations_.size() && client_registration_running_) {
-            client_registration_condition_.wait(its_lock);
+        client_registration_condition_.wait(its_lock, [this] {
+            return (new_client_to_process() || !client_registration_running_);
+        });
+
+        if (!client_registration_running_) {
+            return;
         }
 
-        std::map<client_t, std::vector<registration_type_e>> its_registrations(
-                pending_client_registrations_);
-        pending_client_registrations_.clear();
-        its_lock.unlock();
+        if (!pending_client_registrations_queue_.empty()) {
+            // Access the first element using an iterator and remove it from the queue
+            auto [client_id, registration_type] = pending_client_registrations_queue_.front();
+            pending_client_registrations_queue_.pop_front();
+            clients_in_progress_.insert(client_id);
+            its_lock.unlock();
 
-        for (const auto& r : its_registrations) {
-            for (auto b : r.second) {
-                on_deregister_application(r.first);
-                if (b == registration_type_e::REGISTER) {
-                    on_register_application(r.first);
+            registration_func(client_id, registration_type);
+
+            its_lock.lock();
+            clients_in_progress_.erase(client_id);
+            client_registration_condition_.notify_one();
+        }
+    }
+}
+
+void routing_manager_stub::registration_func(client_t client_id,
+                                             std::vector<registration_type_e> registration_type) {
+    for (auto type : registration_type) {
+        bool continue_registration = true;
+        on_deregister_application(client_id);
+        if (type == registration_type_e::REGISTER) {
+            on_register_application(client_id, continue_registration);
+        }
+
+        if (!continue_registration) {
+            break;
+        }
+        // Inform (de)registered client. All others will be informed after
+        // the client acknowledged its registered state!
+        // Don't inform client if we deregister because of an client
+        // endpoint error to avoid writing in an already closed socket
+        if (type != registration_type_e::DEREGISTER_ON_ERROR) {
+            std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+            add_connection(client_id, client_id);
+            protocol::routing_info_entry its_entry;
+            its_entry.set_client(client_id);
+            if (type == registration_type_e::REGISTER) {
+                boost::asio::ip::address its_address;
+                port_t its_port;
+
+                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                if (host_->get_guest(client_id, its_address, its_port)) {
+                    its_entry.set_address(its_address);
+                    its_entry.set_port(its_port);
                 }
-                // Inform (de)registered client. All others will be informed after
-                // the client acknowledged its registered state!
-                // Don't inform client if we deregister because of an client
-                // endpoint error to avoid writing in an already closed socket
-                if (b != registration_type_e::DEREGISTER_ON_ERROR) {
-                    std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
-                    add_connection(r.first, r.first);
-                    protocol::routing_info_entry its_entry;
-                    its_entry.set_client(r.first);
-                    if (b == registration_type_e::REGISTER) {
-                        boost::asio::ip::address its_address;
-                        port_t its_port;
-
-                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                        if (host_->get_guest(r.first, its_address, its_port)) {
-                            its_entry.set_address(its_address);
-                            its_entry.set_port(its_port);
-                        }
 #ifndef VSOMEIP_DISABLE_SECURITY
-                        // distribute updated security config to new clients
-                        send_cached_security_policies(r.first);
+                // distribute updated security config to new clients
+                send_cached_security_policies(client_id);
 #endif // !VSOMEIP_DISABLE_SECURITY
-                    } else {
-                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
-                    }
-                    send_client_routing_info(r.first, its_entry);
-                }
-                if (b != registration_type_e::REGISTER) {
-                    {
-                        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
-                        auto find_connections = connection_matrix_.find(r.first);
-                        if (find_connections != connection_matrix_.end()) {
-                            for (auto its_client : find_connections->second) {
-                                if (its_client != r.first &&
-                                        its_client != VSOMEIP_ROUTING_CLIENT &&
-                                        its_client != get_client()) {
-                                    protocol::routing_info_entry its_entry;
-                                    its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
-                                    its_entry.set_client(r.first);
-                                    send_client_routing_info(its_client, its_entry);
-                                }
-                            }
-                            remove_source(r.first);
-                        }
-                        for (const auto &its_connections : connection_matrix_) {
-                            remove_connection(its_connections.first, r.first);
-                        }
-                        service_requests_.erase(r.first);
-                    }
-                    // Don't remove client ID to UID maping as same client
-                    // could have passed its credentials again
-                    host_->remove_local(r.first, false);
-                    utility::release_client_id(configuration_->get_network(), r.first);
+            } else {
+                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
+            }
+            send_client_routing_info(client_id, its_entry);
+        }
+        if (type != registration_type_e::REGISTER) {
+            // Don't remove client ID to UID maping as same client
+            // could have passed its credentials again
+            remove_client_connections(client_id);
+            utility::release_client_id(configuration_->get_network(), client_id);
+        }
+    }
+}
+
+void routing_manager_stub::remove_client_connections(client_t client_id) {
+    {
+        std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
+        auto find_connections = connection_matrix_.find(client_id);
+        if (find_connections != connection_matrix_.end()) {
+            for (auto its_client : find_connections->second) {
+                if (its_client != client_id && its_client != VSOMEIP_ROUTING_CLIENT
+                    && its_client != get_client()) {
+                    protocol::routing_info_entry its_entry;
+                    its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
+                    its_entry.set_client(client_id);
+                    send_client_routing_info(its_client, its_entry);
                 }
             }
+            remove_source(client_id);
         }
-        its_lock.lock();
+        for (const auto& its_connections : connection_matrix_) {
+            remove_connection(its_connections.first, client_id);
+        }
+        service_requests_.erase(client_id);
     }
+    host_->remove_local(client_id, false);
+}
+
+// Checks if the next client in the queue is already being processed by another thread.
+// Deals with edge cases where a DEREGISTER is being processed and a new registration
+// request arrives for the same client, later leading to a timeout on deregistration.
+bool routing_manager_stub::new_client_to_process() {
+    bool new_client = false;
+
+    if (!pending_client_registrations_queue_.empty()) {
+        new_client = true;
+
+        auto [client_id, registration_type] = pending_client_registrations_queue_.front();
+
+        if (pending_client_registrations_queue_.size() == 1) {
+            if (clients_in_progress_.find(client_id) != clients_in_progress_.end()) {
+                VSOMEIP_WARNING << __func__ << " Client 0x" << std::hex << client_id
+                                << " is the only client for registration -> already being "
+                                << "processed by thread " << std::this_thread::get_id();
+                new_client = false;
+            }
+        } else {
+            if (clients_in_progress_.find(client_id) != clients_in_progress_.end()) {
+                VSOMEIP_INFO << __func__ << " Client 0x" << std::hex << client_id
+                             << " is already being processed by thread "
+                             << std::this_thread::get_id() << " -> pushing it back in the queue";
+                pending_client_registrations_queue_.pop_front();
+                pending_client_registrations_queue_.push_back(
+                        std::make_pair(client_id, registration_type));
+            }
+        }
+    }
+
+    return new_client;
 }
 
 void routing_manager_stub::init_routing_endpoint() {
@@ -1075,15 +1140,16 @@ void routing_manager_stub::init_routing_endpoint() {
 }
 
 #if defined(__linux__) || defined(ANDROID)
-void
-routing_manager_stub::on_net_state_change(
-        bool _is_interface, const std::string &_name, bool _is_available) {
+void routing_manager_stub::on_net_state_change(bool _is_interface, const std::string& _name,
+                                               bool _is_available) {
 
-    VSOMEIP_INFO << __func__
-        << "("<< std::hex << std::this_thread::get_id() << "): "
-        << std::boolalpha << _is_interface << " "
-        << _name << " "
-        << std::boolalpha << _is_available;
+    // No changes in the link availability
+    if (_is_available == is_local_link_available_)
+        return;
+
+    VSOMEIP_INFO << "rms::" << __func__ << ": ThreadID: " << std::hex << std::this_thread::get_id()
+                 << " - " << std::boolalpha << _is_interface << " " << _name << " "
+                 << std::boolalpha << _is_available;
 
     if (_is_interface) {
         if (_is_available) {
@@ -1102,7 +1168,7 @@ routing_manager_stub::on_net_state_change(
             }
         } else {
             if (is_local_link_available_) {
-
+                is_local_link_available_ = false;
                 VSOMEIP_INFO << __func__
                         << ": Stopping routing root.";
                 root_->stop();
@@ -1111,7 +1177,6 @@ routing_manager_stub::on_net_state_change(
                 routing_info_.clear();
                 host_->clear_local_services();
                 connection_matrix_.clear();
-                is_local_link_available_ = false;
             }
         }
     }
@@ -1867,7 +1932,20 @@ void routing_manager_stub::update_registration(client_t _client,
     }
 
     std::lock_guard<std::mutex> its_lock(client_registration_mutex_);
-    pending_client_registrations_[_client].push_back(_type);
+    auto it = std::find_if(
+            pending_client_registrations_queue_.begin(), pending_client_registrations_queue_.end(),
+            [_client](const std::pair<short unsigned int,
+                                      std::vector<vsomeip_v3::registration_type_e>>& element) {
+                return element.first == _client;
+            });
+    if (it != pending_client_registrations_queue_.end()) {
+        if (_type != it->second.back()) {
+            it->second.emplace_back(_type);
+        }
+    } else {
+        pending_client_registrations_queue_.emplace_back(_client,
+                                                         std::vector<registration_type_e> {_type});
+    }
     client_registration_condition_.notify_one();
 
     if (_type != registration_type_e::REGISTER) {
