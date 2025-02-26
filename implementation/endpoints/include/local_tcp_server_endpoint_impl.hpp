@@ -161,9 +161,9 @@ private:
     std::string get_remote_information(
             const endpoint_type& _remote) const;
 
-    bool check_packetizer_space(target_data_iterator_type _queue_iterator,
-                                message_buffer_ptr_t* _packetizer,
-                                std::uint32_t _size);
+    bool check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const;
+    bool queue_train_buffer(target_data_iterator_type _it, message_buffer_ptr_t* _packetizer,
+                            std::uint32_t _size) const;
     void send_client_identifier(const client_t &_client);
 };
 

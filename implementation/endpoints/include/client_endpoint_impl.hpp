@@ -112,8 +112,9 @@ protected:
     void shutdown_and_close_socket_unlocked(bool _recreate_socket);
     void start_connect_timer();
     void start_connecting_timer();
-    typename endpoint_impl<Protocol>::cms_ret_e check_message_size(
-            const std::uint8_t * const _data, std::uint32_t _size);
+    bool check_message_size(uint32_t _size) const;
+    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const std::uint8_t* const _data,
+                                                                std::uint32_t _size);
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size) const;
     void queue_train(const std::shared_ptr<train> &_train);
     void update_last_departure();

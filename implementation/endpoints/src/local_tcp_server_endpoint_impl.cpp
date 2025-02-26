@@ -898,14 +898,18 @@ void local_tcp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
     // Intentionally left empty
 }
 
-bool local_tcp_server_endpoint_impl::check_packetizer_space(
-        target_data_iterator_type _it, message_buffer_ptr_t* _packetizer,
-        std::uint32_t _size) {
-
+bool local_tcp_server_endpoint_impl::check_packetizer_space(message_buffer_ptr_t* _packetizer,
+                                                            std::uint32_t _size) const {
     if ((*_packetizer)->size() + _size < (*_packetizer)->size()) {
         VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
         return false;
     }
+    return true;
+}
+
+bool local_tcp_server_endpoint_impl::queue_train_buffer(target_data_iterator_type _it,
+                                                        message_buffer_ptr_t* _packetizer,
+                                                        std::uint32_t _size) const {
     if ((*_packetizer)->size() + _size > max_message_size_
             && !(*_packetizer)->empty()) {
         _it->second.queue_.push_back(std::make_pair(*_packetizer, 0));
