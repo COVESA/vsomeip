@@ -35,6 +35,7 @@ public:
     std::condition_variable condition_availability_;
     std::atomic_bool availability_;
     std::atomic_bool msg_sent_;
+    std::mutex mutex_;
 };
 
 void common::on_availability(service_t _service_id, instance_t _instance_id, bool _is_available) {
@@ -42,6 +43,7 @@ void common::on_availability(service_t _service_id, instance_t _instance_id, boo
         if (_is_available) {
             // NOTE: Using the most strict memory ordering operation.
             // Refer to https://en.cppreference.com/w/cpp/atomic/memory_order for possible options
+            std::lock_guard<std::mutex> lock(mutex_);
             availability_.store(true);
             condition_availability_.notify_one();
         } else {
@@ -160,7 +162,6 @@ private:
 private:
     std::condition_variable condition_message_received_;
     std::condition_variable condition_message_sent_;
-    std::mutex mutex_;
 
     std::atomic_bool message_received_;
 
@@ -228,9 +229,6 @@ private:
     void on_availability(service_t _service_id, instance_t _instance_id, bool _is_available) {
         common::on_availability(_service_id, _instance_id, _is_available);
     }
-
-private:
-    std::mutex mutex_;
 };
 
 class vsomeip_daemon {

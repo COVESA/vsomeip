@@ -57,7 +57,10 @@ private:
     void stop() {
 
         is_running_ = false;
-        sr_cv_.notify_one();
+        {
+            std::lock_guard<std::mutex> its_lock(sr_mutex_);
+            sr_cv_.notify_one();
+        }
 
         app_->stop();
 
@@ -143,10 +146,16 @@ private:
 
                 switch (its_control_byte) {
                 case TEST_SUSPEND:
-                    sr_cv_.notify_one();
+                    {
+                        std::lock_guard<std::mutex> its_lock(sr_mutex_);
+                        sr_cv_.notify_one();
+                    }
                     break;
                 case TEST_STOP:
-                    cv_.notify_one();
+                    {
+                        std::lock_guard<std::mutex> its_lock(mutex_);
+                        cv_.notify_one();
+                    }
                     break;
                 default:;
                 }
