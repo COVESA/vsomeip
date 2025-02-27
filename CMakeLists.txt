@@ -145,7 +145,7 @@ if (NOT MSVC)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "helgrind")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --suppressions=${VALGRIND_SUPPRESS_FILE} --gen-suppressions=all --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --show-error-list=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --gen-suppressions=all --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "massif")
