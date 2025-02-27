@@ -50,93 +50,121 @@ bool udp_server_endpoint_impl::is_local() const {
 
 void udp_server_endpoint_impl::init(const endpoint_type& _local,
                                     boost::system::error_code& _error) {
+    // In case of a restart, _local and local_ are the exact same endpoint
+    // so the rest of this function is unecessary
+    if (this->local_ == _local) {
+        return;
+    }
+    {
+        std::scoped_lock its_lock {unicast_mutex_};
 
-    if (!unicast_socket_) {
-        unicast_socket_ = std::make_shared<socket_type>(io_, _local.protocol());
         if (!unicast_socket_) {
-            _error = boost::system::errc::make_error_code(boost::system::errc::not_enough_memory);
+            unicast_socket_ = std::make_shared<socket_type>(io_, _local.protocol());
+            if (!unicast_socket_) {
+                _error = boost::system::errc::make_error_code(
+                        boost::system::errc::not_enough_memory);
+                VSOMEIP_WARNING << "usei::" << __func__ << ": " << _error;
+                return;
+            }
+        }
+
+        if (!unicast_socket_->is_open()) {
+            unicast_socket_->open(_local.protocol(), _error);
+            if (_error) {
+                VSOMEIP_WARNING << "usei::" << __func__ << ": Could not open socket: " << _error;
+                return;
+            }
+        }
+        boost::asio::socket_base::reuse_address optionReuseAddress(true);
+        unicast_socket_->set_option(optionReuseAddress, _error);
+        if (_error) {
+            VSOMEIP_WARNING << "usei::" << __func__
+                            << ": Error setting reuse address option: " << _error;
             return;
         }
-    }
-
-    if (!unicast_socket_->is_open()) {
-        unicast_socket_->open(_local.protocol(), _error);
-        if (_error)
-            return;
-    }
-
-    boost::asio::socket_base::reuse_address optionReuseAddress(true);
-    unicast_socket_->set_option(optionReuseAddress, _error);
-    if (_error)
-        return;
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    // If specified, bind to device
-    std::string its_device(configuration_->get_device());
-    if (its_device != "") {
-        if (setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_BINDTODEVICE,
-                       its_device.c_str(), static_cast<socklen_t>(its_device.size()))
-            == -1) {
-            VSOMEIP_WARNING << "UDP Server: Could not bind to device \"" << its_device << "\"";
+        // If specified, bind to device
+        std::string its_device(configuration_->get_device());
+        if (its_device != "") {
+            if (setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_BINDTODEVICE,
+                           its_device.c_str(), static_cast<socklen_t>(its_device.size()))
+                == -1) {
+                VSOMEIP_WARNING << "UDP Server: Could not bind to device \"" << its_device << "\"";
+            }
         }
-    }
 #endif
 
-    unicast_socket_->bind(_local, _error);
-    if (_error)
-        return;
-
-    if (_local.address().is_v4()) {
-        is_v4_ = true;
-        boost::asio::ip::multicast::outbound_interface option(_local.address().to_v4());
-        unicast_socket_->set_option(option, _error);
-        if (_error)
+        unicast_socket_->bind(_local, _error);
+        if (_error) {
+            VSOMEIP_WARNING << "usei::" << __func__ << ": Error binding socket: " << _error;
             return;
-    } else {
-        boost::asio::ip::multicast::outbound_interface option(
-                static_cast<unsigned int>(_local.address().to_v6().scope_id()));
-        unicast_socket_->set_option(option, _error);
-        if (_error)
-            return;
-    }
-
-    boost::asio::socket_base::broadcast option(true);
-    unicast_socket_->set_option(option, _error);
-    if (_error)
-        return;
-
-    const int its_udp_recv_buffer_size = configuration_->get_udp_receive_buffer_size();
-    unicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(
-                                        static_cast<int>(its_udp_recv_buffer_size)),
-                                _error);
-
-    if (_error)
-        return;
-
-    boost::asio::socket_base::receive_buffer_size its_option;
-    unicast_socket_->get_option(its_option, _error);
-#ifdef __linux__
-    // If regular setting of the buffer size did not work, try to force
-    // (requires CAP_NET_ADMIN to be successful)
-    if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
-        _error.assign(setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE,
-                                 &its_udp_recv_buffer_size, sizeof(its_udp_recv_buffer_size)),
-                      boost::system::generic_category());
-        if (!_error) {
-            VSOMEIP_INFO << "udp_server_endpoint_impl: SO_RCVBUFFORCE successful.";
         }
+        if (_local.address().is_v4()) {
+            is_v4_ = true;
+            boost::asio::ip::multicast::outbound_interface option(_local.address().to_v4());
+            unicast_socket_->set_option(option, _error);
+            if (_error) {
+                VSOMEIP_WARNING << "usei::" << __func__
+                                << ": Error setting interface option: " << _error;
+                return;
+            }
+        } else {
+            boost::asio::ip::multicast::outbound_interface option(
+                    static_cast<unsigned int>(_local.address().to_v6().scope_id()));
+            unicast_socket_->set_option(option, _error);
+            if (_error) {
+                VSOMEIP_WARNING << "usei::" << __func__
+                                << ": Error setting interface option: " << _error;
+                return;
+            }
+        }
+        boost::asio::socket_base::broadcast option(true);
+        unicast_socket_->set_option(option, _error);
+        if (_error) {
+            VSOMEIP_WARNING << "usei::" << __func__
+                            << ": Error setting broadcast option: " << _error;
+            return;
+        }
+        const int its_udp_recv_buffer_size = configuration_->get_udp_receive_buffer_size();
+        unicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(
+                                            static_cast<int>(its_udp_recv_buffer_size)),
+                                    _error);
+
+        if (_error) {
+            VSOMEIP_WARNING << "usei::" << __func__
+                            << ": Error setting buffer size option: " << _error;
+            return;
+        }
+        boost::asio::socket_base::receive_buffer_size its_option;
         unicast_socket_->get_option(its_option, _error);
-    }
+
+#ifdef __linux__
+        // If regular setting of the buffer size did not work, try to force
+        // (requires CAP_NET_ADMIN to be successful)
+        if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
+            _error.assign(setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE,
+                                     &its_udp_recv_buffer_size, sizeof(its_udp_recv_buffer_size)),
+                          boost::system::generic_category());
+            if (!_error) {
+                VSOMEIP_INFO << "udp_server_endpoint_impl: SO_RCVBUFFORCE successful.";
+            }
+            unicast_socket_->get_option(its_option, _error);
+        }
 #endif
-    if (_error)
-        return;
+        if (_error) {
+            VSOMEIP_WARNING << "usei::" << __func__
+                            << ": Error force setting buffer size: " << _error;
+            return;
+        }
 
-    local_ = _local;
-    local_port_ = _local.port();
+        local_ = _local;
+        local_port_ = _local.port();
 
-    this->max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
-    this->queue_limit_ = configuration_->get_endpoint_queue_limit(
-            configuration_->get_unicast_address().to_string(), local_port_);
+        this->max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
+        this->queue_limit_ = configuration_->get_endpoint_queue_limit(
+                configuration_->get_unicast_address().to_string(), local_port_);
+    }
 }
 
 void udp_server_endpoint_impl::start() {
@@ -164,6 +192,7 @@ void udp_server_endpoint_impl::stop() {
             boost::system::error_code its_error;
             multicast_socket_->cancel(its_error);
         }
+        multicast_id_ = 0;
 
         for (auto& its_joined_address : joined_)
             its_joined_address.second = false;
@@ -207,7 +236,7 @@ void udp_server_endpoint_impl::receive_unicast() {
 
     std::lock_guard<std::mutex> its_lock(unicast_mutex_);
 
-    if (unicast_socket_->is_open()) {
+    if (!is_stopped_ && unicast_socket_->is_open()) {
         unicast_socket_->async_receive_from(
                 boost::asio::buffer(&unicast_recv_buffer_[0], max_message_size_), unicast_remote_,
                 std::bind(&udp_server_endpoint_impl::on_unicast_received,
@@ -221,7 +250,8 @@ void udp_server_endpoint_impl::receive_unicast() {
 //
 void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
 
-    if (_multicast_id == multicast_id_ && multicast_socket_ && multicast_socket_->is_open()) {
+    if (!is_stopped_ && _multicast_id == multicast_id_ && multicast_socket_
+        && multicast_socket_->is_open()) {
         auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
                 multicast_mutex_, multicast_socket_, multicast_remote_,
                 std::bind(&udp_server_endpoint_impl::on_multicast_received,
@@ -444,8 +474,10 @@ void udp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
 void udp_server_endpoint_impl::on_unicast_received(boost::system::error_code const& _error,
                                                    std::size_t _bytes) {
 
-    if (is_stopped_ || _error == boost::asio::error::eof
-        || _error == boost::asio::error::connection_reset) {
+    if (_error == boost::asio::error::operation_aborted) {
+        return;
+    } else if (is_stopped_ || _error == boost::asio::error::eof
+               || _error == boost::asio::error::connection_reset) {
         shutdown_and_close();
     } else if (_error != boost::asio::error::operation_aborted) {
         {
@@ -464,8 +496,11 @@ void udp_server_endpoint_impl::on_multicast_received(boost::system::error_code c
                                                      const boost::asio::ip::address& _destination) {
 
     std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
-    if (is_stopped_ || _error == boost::asio::error::eof
-        || _error == boost::asio::error::connection_reset) {
+
+    if (_error == boost::asio::error::operation_aborted) {
+        return;
+    } else if (is_stopped_ || _error == boost::asio::error::eof
+               || _error == boost::asio::error::connection_reset) {
         shutdown_and_close();
     } else if (_error != boost::asio::error::operation_aborted) {
 

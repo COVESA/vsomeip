@@ -119,6 +119,7 @@ void server_endpoint_impl<Protocol>::restart(bool _force) {
     (void)_force;
 
     boost::system::error_code its_error;
+    this->stop();
     this->init(server_endpoint_impl<Protocol>::local_, its_error);
     this->start();
 }

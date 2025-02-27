@@ -1400,13 +1400,15 @@ void endpoint_manager_impl::suspend() {
 
 void endpoint_manager_impl::resume() {
     client_endpoints_t its_client_endpoints;
+    server_endpoints_t its_server_endpoints;
+
     {
         std::scoped_lock its_lock {endpoint_mutex_};
         its_client_endpoints = client_endpoints_;
+        its_server_endpoints = server_endpoints_;
     }
 
     // restart client endpoints
-    std::set<std::shared_ptr<client_endpoint>> its_resumed_client_endpoints;
     for (const auto& [its_address, ports] : its_client_endpoints) {
         for (const auto& [its_port, protocols] : ports) {
             for (const auto& [its_protocol, partitions] : protocols) {
@@ -1414,6 +1416,13 @@ void endpoint_manager_impl::resume() {
                     its_endpoint->restart();
                 }
             }
+        }
+    }
+
+    // restart server endpoints
+    for (const auto& [its_port, protocols] : its_server_endpoints) {
+        for (const auto& [its_protocol, its_endpoint] : protocols) {
+            its_endpoint->restart();
         }
     }
 }
