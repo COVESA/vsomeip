@@ -2,6 +2,7 @@
 /build*/*
 /examples/hello_world/build
 /.idea/
+/.vs/
 /.vscode/
 /.settings
 /.project
