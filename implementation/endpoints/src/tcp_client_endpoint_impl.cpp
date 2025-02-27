@@ -206,7 +206,7 @@ void tcp_client_endpoint_impl::connect() {
                 }
                 std::size_t operations_cancelled;
                 {
-                    std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+                    std::lock_guard<std::mutex> its_lock_inner(connecting_timer_mutex_);
                     operations_cancelled = connecting_timer_.cancel();
                 }
                 if (operations_cancelled != 0) {
@@ -249,7 +249,7 @@ void tcp_client_endpoint_impl::connect() {
                         << "(" << its_error.value() << "): " << its_error.message();
         std::size_t operations_cancelled;
         {
-            std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+            std::lock_guard<std::mutex> its_lock_inner(connecting_timer_mutex_);
             operations_cancelled = connecting_timer_.cancel();
         }
         if (operations_cancelled != 0) {
@@ -577,7 +577,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                     } else {
                         if (has_enabled_magic_cookies_) {
                             uint32_t its_offset = find_magic_cookie(&(*_recv_buffer)[its_iteration_gap],
-                                    (uint32_t) _recv_buffer_size);
+                                    uint32_t(_recv_buffer_size));
                             if (its_offset < current_message_size) {
                                 VSOMEIP_ERROR << "Message includes Magic Cookie. Ignoring it.";
                                 current_message_size = its_offset;

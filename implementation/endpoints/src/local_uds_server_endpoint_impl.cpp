@@ -106,7 +106,7 @@ void local_uds_server_endpoint_impl::start() {
                         io_);
 
         {
-            std::unique_lock<std::mutex> its_lock(new_connection->get_socket_lock());
+            std::unique_lock<std::mutex> its_lock_inner(new_connection->get_socket_lock());
             acceptor_.async_accept(
                 new_connection->get_socket(),
                 std::bind(
@@ -163,7 +163,7 @@ bool local_uds_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
 
     connection::ptr its_connection;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(connections_mutex_);
         const auto its_iterator = connections_.find(its_client);
         if (its_iterator == connections_.end()) {
             return false;
@@ -257,8 +257,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
         auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(
                 shared_from_this());
         its_timer->async_wait([its_timer, its_ep]
-                               (const boost::system::error_code& _error) {
-            if (!_error) {
+                               (const boost::system::error_code& _error_inner) {
+            if (!_error_inner) {
                 its_ep->start();
             }
         });
@@ -950,7 +950,7 @@ void local_uds_server_endpoint_impl::print_status() {
     std::lock_guard<std::mutex> its_lock(mutex_);
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(connections_mutex_);
         its_connections = connections_;
     }
 
