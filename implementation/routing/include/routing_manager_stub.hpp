@@ -158,6 +158,7 @@ private:
             bool _inform_service);
 
     void broadcast_ping() const;
+    void on_ping(client_t _client);
     void on_pong(client_t _client);
     void start_watchdog();
     void check_watchdog();

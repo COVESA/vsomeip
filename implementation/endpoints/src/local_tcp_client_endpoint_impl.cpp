@@ -135,9 +135,9 @@ void local_tcp_client_endpoint_impl::connect() {
                             << static_cast<int>(state_.load());
         }
         // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
-        // Since this is endpoint for internal communication, setting the TIME_WAIT to 5 seconds
+        // Since this is endpoint for internal communication, setting the TIME_WAIT to 1 seconds
         // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
-        socket_->set_option(boost::asio::socket_base::linger(true, 5), its_error);
+        socket_->set_option(boost::asio::socket_base::linger(true, 1), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
                             << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port()
@@ -303,10 +303,6 @@ void local_tcp_client_endpoint_impl::receive_cbk(
             sending_blocked_ = false;
             queue_.clear();
             queue_size_ = 0;
-        } else if (_error == boost::asio::error::connection_reset
-                   || _error == boost::asio::error::bad_descriptor) {
-            restart(true);
-            return;
         }
         error_handler_t handler;
         {

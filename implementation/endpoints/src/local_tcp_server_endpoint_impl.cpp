@@ -251,10 +251,7 @@ void local_tcp_server_endpoint_impl::accept_cbk(
                                 << "keep_alive: " << its_error.message()
                                 << " endpoint > " << this;
             }
-            // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
-            // Since this is endpoint for internal communication, setting the TIME_WAIT to 5 seconds
-            // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
-            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 5), its_error);
+            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 0), its_error);
             if (its_error) {
                 VSOMEIP_WARNING << "ltsei::" << __func__ << ": setting SO_LINGER failed ("
                                 << its_error.message() << ") " << this;

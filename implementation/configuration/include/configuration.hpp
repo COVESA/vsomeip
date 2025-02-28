@@ -192,6 +192,9 @@ public:
     virtual uint32_t get_watchdog_timeout() const = 0;
     virtual uint32_t get_allowed_missing_pongs() const = 0;
 
+    virtual bool is_local_clients_keepalive_enabled() const = 0;
+    virtual std::chrono::milliseconds get_local_clients_keepalive_time() const = 0;
+
     // File permissions
     virtual std::uint32_t get_permissions_uds() const = 0;
 

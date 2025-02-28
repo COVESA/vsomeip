@@ -86,6 +86,9 @@ routing_manager_client::routing_manager_client(routing_manager_host *_host,
         is_connected_(false),
         is_started_(false),
         state_(inner_state_type_e::ST_DEREGISTERED),
+        keepalive_timer_(io_),
+        keepalive_active_(false),
+        keepalive_is_alive_(false),
         sender_(nullptr),
         receiver_(nullptr),
         register_application_timer_(io_),
@@ -159,6 +162,7 @@ void routing_manager_client::start() {
                 sender_->start();
             }
         }
+
 #if defined(__linux__) || defined(ANDROID)
     } else {
         if (local_link_connector_)
@@ -172,6 +176,8 @@ void routing_manager_client::stop() {
         std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
         register_application_timer_.cancel();
     }
+
+    cancel_keepalive();
 
     const std::chrono::milliseconds its_timeout(configuration_->get_shutdown_timeout());
     while (state_ == inner_state_type_e::ST_REGISTERING) {
@@ -340,6 +346,80 @@ std::string routing_manager_client::get_env_unlocked(client_t _client) const {
        return find_client->second;
    }
    return "";
+}
+
+void routing_manager_client::start_keepalive() {
+    std::scoped_lock lk {keepalive_mutex_};
+    if (!keepalive_active_ && configuration_->is_local_clients_keepalive_enabled()) {
+        VSOMEIP_INFO << "Local Clients Keepalive is enabled : Time in ms = "
+                     << configuration_->get_local_clients_keepalive_time().count() << ".";
+
+        keepalive_active_ = true;
+        keepalive_is_alive_ = true;
+        keepalive_timer_.expires_after(configuration_->get_local_clients_keepalive_time());
+        keepalive_timer_.async_wait(
+                [this](boost::system::error_code const&) { this->check_keepalive(); });
+    }
+}
+
+void routing_manager_client::check_keepalive() {
+    bool send_probe { false };
+    {
+        std::scoped_lock lk {keepalive_mutex_};
+        if (keepalive_active_) {
+            if (keepalive_is_alive_) {
+                keepalive_is_alive_ = false;
+                send_probe = true;
+                keepalive_timer_.expires_after(configuration_->get_local_clients_keepalive_time());
+                keepalive_timer_.async_wait(
+                    [this](boost::system::error_code const&) { this->check_keepalive(); });
+                } else {
+                    VSOMEIP_WARNING << "rmc::" << __func__ << ": client " << get_client()
+                    << " didn't receive keepalive confirmation from HOST.";
+                    io_.post([this] { this->handle_client_error(VSOMEIP_ROUTING_CLIENT); });
+                }
+            }
+    }
+    // Can't send with keepalive_mutex_ due to lock inversion
+    if (send_probe) {
+        ping_host();
+    }
+}
+
+void routing_manager_client::cancel_keepalive() {
+    std::scoped_lock lk {keepalive_mutex_};
+    if (keepalive_active_ && configuration_->is_local_clients_keepalive_enabled()) {
+        VSOMEIP_INFO << "rmc::" << __func__;
+        keepalive_active_ = false;
+        keepalive_timer_.cancel();
+    }
+}
+
+void routing_manager_client::ping_host() {
+    protocol::ping_command its_command;
+    its_command.set_client(get_client());
+
+    std::vector<byte_t> its_buffer;
+    protocol::error_e its_error;
+    its_command.serialize(its_buffer, its_error);
+
+    if (its_error == protocol::error_e::ERROR_OK) {
+
+        std::scoped_lock its_sender_lock {sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        }
+    } else {
+        VSOMEIP_ERROR << __func__ << ": ping command serialization failed (" << std::dec
+                      << int(its_error) << ")";
+    }
+}
+
+void routing_manager_client::on_pong(client_t _client) {
+    if (_client == VSOMEIP_ROUTING_CLIENT) {
+        std::scoped_lock lk {keepalive_mutex_};
+        keepalive_is_alive_ = true;
+    }
 }
 
 bool routing_manager_client::offer_service(client_t _client,
@@ -1035,6 +1115,8 @@ void routing_manager_client::on_disconnect(const std::shared_ptr<endpoint>& _end
     }
     is_connected_ = false;
 
+    cancel_keepalive();
+
     VSOMEIP_WARNING << __func__ << ": Resetting state to ST_DEREGISTERED";
     state_ = inner_state_type_e::ST_DEREGISTERED;
 
@@ -1316,11 +1398,28 @@ void routing_manager_client::on_message(
             if (its_error == protocol::error_e::ERROR_OK) {
                 send_pong();
                 VSOMEIP_TRACE << "PING("
-                        << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
-            } else
+                << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
+            } else {
                 VSOMEIP_ERROR << __func__
-                    << ": ping command deserialization failed ("
-                    << std::dec << int(its_error) << ")";
+                << ": pong command deserialization failed ("
+                << std::dec << static_cast<int>(its_error) << ")";
+            }
+            break;
+        }
+
+        case protocol::id_e::PONG_ID:
+        {
+            protocol::pong_command its_command;
+            its_command.deserialize(its_buffer, its_error);
+
+            if (its_error == protocol::error_e::ERROR_OK) {
+                on_pong(its_client);
+            } else {
+                VSOMEIP_ERROR << __func__
+                << ": pong command deserialization failed ("
+                << std::dec << static_cast<int>(its_error) << ")";
+            }
+
             break;
         }
 
@@ -1901,17 +2000,20 @@ void routing_manager_client::on_routing_info(
                                 boost::system::error_code ec;
                                 register_application_timer_.cancel(ec);
                             }
+
+                            VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
+                                            << static_cast<int>(state_.load()) << " -> "
+                                            << static_cast<int>(inner_state_type_e::ST_REGISTERED);
                             state_ = inner_state_type_e::ST_REGISTERED;
                             send_registered_ack();
                             send_pending_commands();
 
-                            VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
-                                         << static_cast<int>(state_.load()) << " -> "
-                                         << static_cast<int>(inner_state_type_e::ST_REGISTERED);
-                            state_ = inner_state_type_e::ST_REGISTERED;
+                            start_keepalive();
+
                             // Notify stop() call about clean deregistration
                             std::scoped_lock its_lock(state_condition_mutex_);
                             state_condition_.notify_one();
+
                         }
                     }
 
@@ -2826,7 +2928,29 @@ void routing_manager_client::handle_client_error(client_t _client) {
         VSOMEIP_INFO << "rmc::handle_client_error:" << " Client 0x" << std::hex << std::setw(4)
                      << std::setfill('0') << get_client() << " handles a client error(" << std::hex
                      << std::setw(4) << std::setfill('0') << _client << ") not reconnecting";
+
+        // Save the services that were subscribed to this client, before cleaning up
+        auto its_subsciptions = get_subscriptions(_client);
+
+        // remove the client from the local connections
         remove_local(_client, true);
+
+        // Request the host these services again
+        if ( state_ == inner_state_type_e::ST_REGISTERED ) {
+
+            std::set<protocol::service> its_subscription_requests;
+            {
+                std::scoped_lock lk { requests_mutex_ };
+                for(const auto &[its_service, its_instance, its_eventgroup] : its_subsciptions) {
+                    auto it = requests_.find({ its_service, its_instance });
+                    if (it != requests_.end()) {
+                        its_subscription_requests.emplace(*it);
+                    }
+                }
+            }
+            send_request_services(its_subscription_requests);
+        }
+
     } else {
         VSOMEIP_INFO << "rmc::handle_client_error:" << " Client 0x" << std::hex << std::setw(4)
                      << std::setfill('0') << get_client() << " handles a client error(" << std::hex
@@ -2838,6 +2962,7 @@ void routing_manager_client::handle_client_error(client_t _client) {
                 std::scoped_lock its_lock(known_clients_mutex_);
                 its_known_clients = known_clients_;
             }
+           cancel_keepalive();
            reconnect(its_known_clients);
         }
     }
