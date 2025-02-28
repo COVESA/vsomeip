@@ -3910,15 +3910,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     }
                 }
 
-                {
-                    std::scoped_lock its_lock(pending_sd_offers_mutex_);
-                    // Trigger pending offers
-                    for (const auto& [its_service, its_instance] : pending_sd_offers_) {
-                        init_service_info(its_service, its_instance, true);
-                    }
-                    pending_sd_offers_.clear();
-                    VSOMEIP_INFO << "rmi::" << __func__ << ": clear pending_sd_offers_";
-                }
+                init_pending_services();
 
                 VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to resume mode done, diagnosis mode was "
                     << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
@@ -4010,12 +4002,17 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(
         sd_route_set_ = _available;
     }
 
-    if (!routing_running_ && is_external_routing_ready()) {
-        start_ip_routing();
-    }
+    if (is_external_routing_ready()) {
+        if (!routing_running_) {
+            start_ip_routing();
+        }
 
-    if (get_routing_state() == routing_state_e::RS_DELAYED_RESUME && is_external_routing_ready()) {
-        set_routing_state(routing_state_e::RS_RESUMED);
+        auto its_routing_state {get_routing_state()};
+        if (its_routing_state == routing_state_e::RS_DELAYED_RESUME) {
+            set_routing_state(routing_state_e::RS_RESUMED);
+        } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
+            init_pending_services();
+        }
     }
 }
 
@@ -4036,25 +4033,25 @@ void routing_manager_impl::start_ip_routing() {
         init_routing_info();
     }
 
-    {
-        std::scoped_lock its_lock(pending_sd_offers_mutex_);
-        for (auto its_service : pending_sd_offers_) {
-            init_service_info(its_service.first, its_service.second, true);
-        }
-        pending_sd_offers_.clear();
-        VSOMEIP_INFO << "rmi::" << __func__ << ": clear pending_sd_offers_";
-    }
-
     routing_running_ = true;
     VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
-inline bool routing_manager_impl::is_external_routing_ready() const {
+void routing_manager_impl::init_pending_services() {
+    std::scoped_lock its_lock(pending_sd_offers_mutex_);
+    for (auto its_service : pending_sd_offers_) {
+        init_service_info(its_service.first, its_service.second, true);
+    }
+    pending_sd_offers_.clear();
+
+    VSOMEIP_INFO << __func__ << ": pending services cleared.";
+}
+
+bool routing_manager_impl::is_external_routing_ready() const {
     return if_state_running_
             && (!configuration_->is_sd_enabled()
                 || (configuration_->is_sd_enabled() && sd_route_set_));
 }
-
 
 bool routing_manager_impl::is_available(service_t _service, instance_t _instance,
                                         major_version_t _major) const {

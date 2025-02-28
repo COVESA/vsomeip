@@ -385,7 +385,9 @@ private:
 
     void start_ip_routing();
 
-    inline bool is_external_routing_ready() const;
+    bool is_external_routing_ready() const;
+
+    void init_pending_services();
 
     void add_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
