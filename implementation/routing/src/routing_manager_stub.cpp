@@ -62,15 +62,22 @@
 
 namespace vsomeip_v3 {
 
-routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host,
-                                           const std::shared_ptr<configuration>& _configuration) :
-    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()),
-    client_id_timer_(_host->get_io()), root_(nullptr), local_receiver_(nullptr),
-    configuration_(_configuration), is_socket_activated_(false),
-    client_registration_running_(false),
-    max_local_message_size_(configuration_->get_max_message_size_local()),
-    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
-    pinged_clients_timer_(io_), pending_security_update_id_(0)
+routing_manager_stub::routing_manager_stub(
+        routing_manager_stub_host *_host,
+        const std::shared_ptr<configuration>& _configuration) :
+        host_(_host),
+        io_(_host->get_io()),
+        watchdog_timer_(_host->get_io()),
+        client_id_timer_(_host->get_io()),
+        root_(nullptr),
+        local_receiver_(nullptr),
+        configuration_(_configuration),
+        is_socket_activated_(false),
+        client_registration_running_(false),
+        max_local_message_size_(configuration_->get_max_message_size_local()),
+        configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
+        pinged_clients_timer_(io_),
+        pending_security_update_id_(0)
 #if defined(__linux__) || defined(ANDROID)
     , is_local_link_available_(false)
 #endif
@@ -137,10 +144,10 @@ void routing_manager_stub::start() {
 
     if (configuration_->is_watchdog_enabled()) {
         VSOMEIP_INFO << "Watchdog is enabled : Timeout in ms = "
-                     << configuration_->get_watchdog_timeout()
-                     << " : Allowed missing pongs = "
-                     << configuration_->get_allowed_missing_pongs()
-                     << ".";
+                        << configuration_->get_watchdog_timeout()
+                        << " : Allowed missing pongs = "
+                        << configuration_->get_allowed_missing_pongs()
+                        << ".";
         start_watchdog();
     } else {
         VSOMEIP_INFO << "Watchdog is disabled!";
@@ -325,19 +332,29 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             break;
         }
 
-        case protocol::id_e::PONG_ID:
-        {
+        case protocol::id_e::PING_ID: {
+            protocol::ping_command its_command;
+            its_command.deserialize(its_buffer, its_error);
+            if (its_error == protocol::error_e::ERROR_OK) {
+                on_ping(its_client);
+            } else {
+                VSOMEIP_ERROR << __func__ << ": deserializing ping failed (" << std::dec
+                              << static_cast<int>(its_error) << ")";
+            }
+            break;
+        }
+
+        case protocol::id_e::PONG_ID: {
             protocol::pong_command its_command;
             its_command.deserialize(its_buffer, its_error);
             if (its_error == protocol::error_e::ERROR_OK) {
                 on_pong(its_client);
-                VSOMEIP_TRACE << "PONG("
-                        << std::hex << std::setfill('0') << std::setw(4)
-                        << its_client << ")";
-            } else
-                VSOMEIP_ERROR << __func__
-                    << ": deserializing pong failed ("
-                    << std::dec << static_cast<int>(its_error) << ")";
+                VSOMEIP_TRACE << "PONG(" << std::hex << std::setfill('0') << std::setw(4)
+                              << its_client << ")";
+            } else {
+                VSOMEIP_ERROR << __func__ << ": deserializing pong failed (" << std::dec
+                              << static_cast<int>(its_error) << ")";
+            }
             break;
         }
 
@@ -818,6 +835,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             }
             break;
         }
+        case protocol::id_e::UNKNOWN_ID:
+            // Do/Log nothing
+        break;
         default:
             VSOMEIP_WARNING << __func__ << ": Received an unhandled command ("
                 << std::dec << static_cast<int>(its_id) << ")";
@@ -1628,6 +1648,28 @@ void routing_manager_stub::broadcast_ping() const {
             << std::dec << int(its_error) << ")";
 }
 
+void routing_manager_stub::on_ping(client_t _client) {
+
+    auto its_endpoint = host_->find_local(_client);
+    if (its_endpoint) {
+        protocol::pong_command its_command;
+
+        std::vector<byte_t> its_buffer;
+        protocol::error_e its_error;
+        its_command.serialize(its_buffer, its_error);
+
+        if (its_error == protocol::error_e::ERROR_OK) {
+            its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << __func__ << ": pong command serialization failed (" << std::dec
+                          << int(its_error) << ")";
+        }
+    } else {
+        VSOMEIP_WARNING << "rms::" << __func__ << ": couldn't find endpoint for client " << std::hex
+                        << _client;
+    }
+}
+
 void routing_manager_stub::on_pong(client_t _client) {
     {
         std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
@@ -1635,8 +1677,8 @@ void routing_manager_stub::on_pong(client_t _client) {
         if (found_info != routing_info_.end()) {
             found_info->second.first = 0;
         } else {
-            VSOMEIP_ERROR << "Received PONG from unregistered application: "
-                    << std::hex << std::setfill('0') << std::setw(4) << _client;
+            VSOMEIP_ERROR << "Received PONG from unregistered application: " << std::hex
+                          << std::setfill('0') << std::setw(4) << _client;
         }
     }
     remove_from_pinged_clients(_client);

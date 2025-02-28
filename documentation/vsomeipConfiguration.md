@@ -24,14 +24,15 @@
 16. [Internal Services](#16-internal-services)
 17. [Clients](#17-clients)
 18. [Watchdog](#18-watchdog)
-19. [Selective Broadcasts Support](#19-selective-broadcasts-support)
-20. [E2E](#20-e2e)
-21. [Debounce](#21-debounce)
-22. [Acceptances](#22-acceptances)
-23. [Secure Services](#23-secure-services)
-24. [Partitions](#24-partitions)
-25. [Suppress Events](#25-suppress-events)
-26. [Environment Variables](#26-environment-variables)
+19. [Local Clients Keepalive](#19-local-clients-keepalives)
+20. [Selective Broadcasts Support](#20-selective-broadcasts-support)
+21. [E2E](#21-e2e)
+22. [Debounce](#22-debounce)
+23. [Acceptances](#23-acceptances)
+24. [Secure Services](#24-secure-services)
+25. [Partitions](#25-partitions)
+26. [Suppress Events](#26-suppress-events)
+27. [Environment Variables](#27-environment-variables)
 ---
 
 ## 1. Logging
@@ -1246,8 +1247,13 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     - **timeout** - Specifies the timeout in ms the watchdog gets activated if a ping isn't answered with a pong by a local client within that time. (valid values: 2 - 2^32). The default value is `5000` ms.
     - **allowed_missing_pongs** - Specifies the amount of allowed missing pongs. (valid values: 1 - 2^32). The default value is `3`.
 
+## 19. Local Clients Keepalive
 
-## 19. Selective Broadcasts Support
+- **local-clients-keepalive** (optional) - The Local Clients Keepalive option activates the sending of periodic ping messages from the routing manager clients to the routing host. The routing manager host shall reply to the ping with a pong. The idea is to have a simpler alternetive to the TCP_KEEPALIVE, particularly for systems where this option can not be configured.
+    - **enable** - Specifies whether the Local Clients Keepalive is enabled or disabled, valid values are `true`, `false`. The default value is `false`.
+    - **time** - Specifies the time in ms the Local Clients Keepalive messages are sent. The default value is `5000` ms.
+
+## 20. Selective Broadcasts Support
 
 - **supports_selective_broadcasts** (optional array) - This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported. If not specified the feature can't be used and the subscription behavior of the stack is same as with normal events.
     - **address** - Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported. Multiple addresses can be configured.
@@ -1262,7 +1268,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ```
 </details>
 
-## 20. E2E
+## 21. E2E
 
 - **e2e** - Used to configure the E2E protection for the specified events
     - **e2e_enabled** - Specifies if E2E protection should be enabled or disabled. Use `true` to enable.
@@ -1462,7 +1468,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 </details>
 
 
-## 21. Debounce
+## 22. Debounce
 
 - **debounce** (optional array) - Events/fields sent by external devices will be forwarded to the applications only if a configurable function evaluates to true. The function checks whether the event/field payload has changed and whether a specified interval has been elapsed since the last forwarding.
     - **service** - Service ID which hosts the events to be debounced.
@@ -1520,7 +1526,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 </details>
 
 
-## 22. Acceptances
+## 23. Acceptances
 
 - **acceptances** - Can be used to modify the assignment of ports to the unsecure, optional and secure ranges.
     - **address** - The IP Address of the device where the ports should be modified.
@@ -1564,14 +1570,14 @@ Configuration used to specify the port group 30xy from the IP 10.3.0.10 should b
 ```
 </details>
 
-## 23. Secure Services
+## 24. Secure Services
 
 - **secure-services** - List of service instances that are only accepted, if being offered on a secure port.
     - **service** - The id of the service
     - **instance** - The id of the instance
 
 
-## 24. Partitions
+## 25. Partitions
 
 - **partitions** - Allows to group service instances that are offered on the same port into partitions. For each partition, a separate client port will be used. The goal is to enable faster processing of specific
 events if a single server port is used to offer many services that send many messages, especially at startup.
@@ -1606,7 +1612,7 @@ events if a single server port is used to offer many services that send many mes
 </details>
 
 
-## 25. Suppress Events
+## 26. Suppress Events
 
 - **suppress_missing_event_logs**  - Used to filter the log message `deliver_notification: Event [1234.5678.80f3]
 is not registered. The message is dropped.` that occurs whenever vSomeIP
@@ -1660,7 +1666,7 @@ receives an event without having a corresponding object being registered.
 </details>
 
 
-# 26. Environment Variables
+# 27. Environment Variables
 
 On startup of a vSomeIP application, the following environment variables are read:
 
