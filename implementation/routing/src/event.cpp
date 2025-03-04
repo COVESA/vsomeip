@@ -800,7 +800,7 @@ event::start_cycle() {
             && std::chrono::milliseconds::zero() != cycle_) {
         cycle_timer_.expires_from_now(cycle_);
         auto its_handler =
-                std::bind(&event::update_cbk, shared_from_this(),
+                std::bind(&event::update_cbk, this,
                         std::placeholders::_1);
         cycle_timer_.async_wait(its_handler);
     }
