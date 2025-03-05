@@ -567,6 +567,8 @@ private:
     std::mutex update_remote_subscription_mutex_;
 
     message_acceptance_handler_t message_acceptance_handler_;
+
+    std::mutex on_state_change_mutex_;
 };
 
 }  // namespace vsomeip_v3
