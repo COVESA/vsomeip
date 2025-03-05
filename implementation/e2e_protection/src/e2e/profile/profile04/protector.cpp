@@ -33,7 +33,7 @@ protector::protect(e2e_buffer &_buffer, instance_t _instance) {
         bithelper::write_uint16_be(get_counter(_instance), &_buffer[config_.offset_ + 2]);
 
         /** @req [SWS_E2E_00366] */
-        uint32_t its_data_id(uint32_t(_instance) << 24 | config_.data_id_);
+        uint32_t its_data_id(config_.data_id_);
         bithelper::write_uint32_be(its_data_id, &_buffer[config_.offset_ + 4]);
 
         /** @req [SWS_E2E_00367] */

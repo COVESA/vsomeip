@@ -54,7 +54,7 @@
 #include "../../tracing/include/connector_impl.hpp"
 #endif
 
-#ifndef ANDROID
+#ifdef ENABLE_E2E_FEATURE
 #include "../../e2e_protection/include/buffer/buffer.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 
@@ -170,7 +170,7 @@ void routing_manager_impl::init() {
         }
     }
 
-#ifndef ANDROID
+#ifdef ENABLE_E2E_FEATURE
     if( configuration_->is_e2e_enabled()) {
         VSOMEIP_INFO << "E2E protection enabled.";
 
@@ -942,30 +942,21 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                 is_sent = deliver_message(_data, _size, _instance, _reliable,
                         VSOMEIP_ROUTING_CLIENT, _sec_client, _status_check);
             } else {
+#ifdef ENABLE_E2E_FEATURE
                 e2e_buffer its_buffer;
-
                 if (e2e_provider_) {
                     if ( !is_service_discovery) {
                         service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
                         method_t its_method   = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-#ifndef ANDROID
+
                         if (e2e_provider_->is_protected({its_service, its_method})) {
-                            // Find out where the protected area starts
-                            size_t its_base = e2e_provider_->get_protection_base({its_service, its_method});
-
-                            // Build a corresponding buffer
-                            its_buffer.assign(_data + its_base, _data + _size);
-
-                            e2e_provider_->protect({ its_service, its_method }, its_buffer, _instance);
-
-                            // Prepend header
-                            its_buffer.insert(its_buffer.begin(), _data, _data + its_base);
-
-                            _data = its_buffer.data();
-                       }
-#endif
+                            if (!apply_e2e_protection(&_data, _size, its_service, its_method, _instance, its_buffer)) {
+                                VSOMEIP_ERROR << __func__ << ":" << __LINE__ << ": apply_e2e_protection failed";
+                            }
+                        }
                     }
                 }
+#endif
                 if (is_request) {
                     its_target = ep_mgr_impl_->find_or_create_remote_client(
                             its_service, _instance, _reliable);
@@ -1130,21 +1121,19 @@ bool routing_manager_impl::send_to(
     if (its_serializer->serialize(_message.get())) {
         const byte_t *its_data = its_serializer->get_data();
         length_t its_size = its_serializer->get_size();
+#ifdef ENABLE_E2E_FEATURE
         e2e_buffer its_buffer;
         if (e2e_provider_) {
             service_t its_service = bithelper::read_uint16_be(&its_data[VSOMEIP_SERVICE_POS_MIN]);
             method_t its_method   = bithelper::read_uint16_be(&its_data[VSOMEIP_METHOD_POS_MIN]);
-#ifndef ANDROID
-            if (e2e_provider_->is_protected({its_service, its_method})) {
-                auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
-                its_buffer.assign(its_data + its_base, its_data + its_size);
-                e2e_provider_->protect({its_service, its_method}, its_buffer, _message->get_instance());
-                its_buffer.insert(its_buffer.begin(), its_data, its_data + its_base);
-                its_data = its_buffer.data();
-           }
-#endif
-        }
 
+            if (e2e_provider_->is_protected({its_service, its_method})) {
+                if (!apply_e2e_protection(&its_data, its_size, its_service, its_method, _message->get_instance(), its_buffer)) {
+                        VSOMEIP_ERROR << __func__ << ":" << __LINE__ << ": apply_e2e_protection failed";
+                }
+            }
+        }
+#endif
         uint8_t its_client[2] = {0};
         bithelper::write_uint16_le(_client, its_client);
         const_cast<byte_t*>(its_data)[VSOMEIP_CLIENT_POS_MIN] = its_client[1];
@@ -1581,22 +1570,50 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                     }
                 }
             }
+#ifdef ENABLE_E2E_FEATURE
             if (e2e_provider_) {
                 its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-#ifndef ANDROID
+                const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                 if (e2e_provider_->is_checked({its_service, its_method})) {
                     auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
-                    e2e_buffer its_buffer(_data + its_base, _data + _size);
+                    e2e_buffer its_buffer;
+                    its_buffer.assign(_data + its_base, _data + _size);
                     e2e_provider_->check({its_service, its_method},
                             its_buffer, its_instance, its_check_status);
 
                     if (its_check_status != e2e::profile_interface::generic_check_status::E2E_OK) {
-                        VSOMEIP_INFO << "E2E protection: CRC check failed for service: "
+                        boost::system::error_code ec;
+                        VSOMEIP_ERROR
+                            << "E2E protection: CRC check failed for service: ["
+                            << std::hex << std::setfill('0') << std::setw(4)
+                            << its_service << "." << std::setw(4)
+                            << its_instance << "." << std::setw(4) << its_method
+                            << "." << std::setw(4) << its_client << "."
+                            << std::setw(4) << its_session
+                            << "] from: " << _remote_address.to_string(ec)
+                            << ":" << std::dec << _remote_port;
+                        return;
+                    }
+                    else {
+                         VSOMEIP_INFO << "E2E protection: CRC check passed for service: "
                                 << std::hex << its_service << " method: " << its_method;
+                         if (e2e_provider_->should_remove_e2e_header({its_service, its_method}))
+                         {
+                             length_t header_len_ = 0, crc_offset_ = 0;
+                             e2e_provider_->get_header_offset_and_length({its_service, its_method}, crc_offset_, header_len_);
+                             if (header_len_)
+                             {
+                                 if (erase_bytes(const_cast<byte_t *>(_data), _size, its_base + crc_offset_, header_len_))
+                                 {
+                                     reduce_msg_length(const_cast<byte_t *>(_data), _size, header_len_);
+                                 }
+                             }
+                         }
                     }
                 }
-#endif
             }
+#endif
 
             // ACL check message
             if(!is_acl_message_allowed(_receiver, its_service, its_instance, _remote_address)) {
@@ -5083,6 +5100,71 @@ routing_manager_impl::remove_subscriptions(port_t _local_port,
             }
         }
     }
+}
+
+bool routing_manager_impl::erase_bytes(byte_t *buffer, size_t bufferSize,
+                                       size_t startIndex, size_t length) {
+    if (bufferSize < (startIndex + length)) {
+        return false;
+    }
+    if (bufferSize == (startIndex + length )) {
+        memset(&buffer[startIndex], 0, length );
+        return true;
+    }
+    memmove(&buffer[startIndex], &buffer[startIndex + length ], bufferSize - startIndex - length );
+    memset(&buffer[bufferSize - length ], 0, length );
+    return true;
+}
+
+void routing_manager_impl::reduce_msg_length(byte_t *buffer, length_t& bufferSize,
+                                             length_t reduceBy) {
+    if(!reduceBy){
+        return;
+    }
+    length_t its_length = bithelper::read_uint32_be(&buffer[VSOMEIP_LENGTH_POS_MIN]);
+    if (its_length > reduceBy) {
+        *(reinterpret_cast<length_t *>(&(buffer)[VSOMEIP_LENGTH_POS_MIN])) =
+            htonl(static_cast<uint32_t>(its_length - reduceBy));
+        bufferSize -= reduceBy;
+    }
+}
+
+bool routing_manager_impl::apply_e2e_protection(const byte_t **_data, length_t &_size,
+                                                service_t _service, method_t _method,
+                                                instance_t _instance, e2e_buffer& its_buffer) {
+    length_t crc_offset_ = 0;
+    length_t e2e_header_len_ = 0;
+
+    e2e_provider_->get_header_offset_and_length ({_service, _method}, crc_offset_, e2e_header_len_);
+
+    if (!e2e_header_len_) {
+        VSOMEIP_ERROR << __func__ << ":" << __LINE__ << ": No E2E header available";
+        return false; // No header available
+    }
+
+    length_t payload_length = bithelper::read_uint32_be(*_data + VSOMEIP_LENGTH_POS_MIN);
+    length_t payload_msg_length = static_cast<length_t>(_size - VSOMEIP_PAYLOAD_POS);
+    size_t protection_base = e2e_provider_->get_protection_base({_service, _method});
+
+    //Resizing to hold the message data (CRC,E2E header,payload) and initializing it with zeros
+    its_buffer.assign(crc_offset_ + e2e_header_len_ + payload_msg_length, 0);
+    // Copy data before E2E header (CRC etc.) to the beginning of the buffer
+    std::copy (*_data + protection_base, *_data + protection_base + crc_offset_, its_buffer.begin());
+    // Copy payload data after E2E header to the new buffer
+    std::copy (*_data + protection_base + crc_offset_, *_data + _size, its_buffer.begin() + crc_offset_ + e2e_header_len_);
+
+    e2e_provider_->protect({_service, _method}, its_buffer, _instance);
+
+    //Prepend header
+    its_buffer.insert(its_buffer.begin(), *_data, *_data + protection_base);
+
+    // Update Message Length
+    payload_length += e2e_header_len_;
+    *(reinterpret_cast<length_t*>(&its_buffer[VSOMEIP_LENGTH_POS_MIN])) = htonl(payload_length);
+
+    _size = static_cast<length_t> (its_buffer.size());
+    *_data = its_buffer.data();
+    return true;
 }
 
 } // namespace vsomeip_v3

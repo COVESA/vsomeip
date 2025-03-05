@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include <memory>
 #include <sstream>
 
 #include <vsomeip/internal/logger.hpp>
@@ -17,6 +18,7 @@
 #include "../../../../e2e_protection/include/e2e/profile/profile04/checker.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile04/profile_04.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile04/protector.hpp"
+#include "../../../../e2e_protection/include/e2e/profile/profile04/header_info.hpp"
 
 #include "../../../../e2e_protection/include/e2e/profile/profile05/checker.hpp"
 #include "../../../../e2e_protection/include/e2e/profile/profile05/profile_05.hpp"
@@ -141,9 +143,30 @@ void e2e_provider_impl::check(e2exf::data_identifier_t id,
     }
 }
 
+bool e2e_provider_impl::should_remove_e2e_header(e2exf::data_identifier_t id)
+{
+    auto header_info = header_infos_.find(id);
+    if (header_info != header_infos_.end())
+    {
+        return header_info->second->should_remove_header();
+    }
+    return false;
+}
+
+bool e2e_provider_impl::get_header_offset_and_length(e2exf::data_identifier_t id,length_t& offset, length_t& length)
+{
+    auto header_info = header_infos_.find(id);
+    if(header_info != header_infos_.end()) {
+        length= header_info->second->get_e2e_header_length();
+        offset= header_info->second->get_e2e_header_offset();
+        return true;
+    }
+    return false;
+}
+
 template<>
 vsomeip_v3::e2e::profile01::profile_config
-e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_config) {
+e2e_provider_impl::make_e2e_profile_config(const e2exf::data_identifier_t, const std::shared_ptr<cfg::e2e> &_config) {
     uint16_t data_id = read_value_from_config<uint16_t>(_config, "data_id");
     uint16_t crc_offset = read_value_from_config<uint16_t>(_config, "crc_offset");
     uint16_t data_length = read_value_from_config<uint16_t>(_config, "data_length");
@@ -164,7 +187,7 @@ e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_con
 
 template<>
 vsomeip_v3::e2e::profile04::profile_config
-e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_config) {
+e2e_provider_impl::make_e2e_profile_config(const e2exf::data_identifier_t data_identifier, const std::shared_ptr<cfg::e2e> &_config) {
 
     uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
 
@@ -183,13 +206,16 @@ e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_con
     uint16_t max_delta_counter = read_value_from_config<uint16_t>(_config,
             "max_delta_counter", uint16_t(0xffff));
 
-    return e2e::profile04::profile_config(data_id, offset,
+    e2e::profile04::profile_config profile04_config = e2e::profile04::profile_config(data_id, offset,
             min_data_length, max_data_length, max_delta_counter);
+    header_infos_[data_identifier] = std::make_shared<profile04::profile_04_header_info>(static_cast<length_t>(offset));
+
+    return profile04_config;
 }
 
 template<>
 vsomeip_v3::e2e::profile05::profile_config
-e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_config) {
+e2e_provider_impl::make_e2e_profile_config(const e2exf::data_identifier_t, const std::shared_ptr<cfg::e2e> &_config) {
 
     uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
     uint16_t data_length = read_value_from_config<uint16_t>(_config, "data_length");
@@ -209,14 +235,14 @@ e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_con
 
 template<>
 e2e::profile_custom::profile_config
-e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e>& config) {
+e2e_provider_impl::make_e2e_profile_config(const e2exf::data_identifier_t, const std::shared_ptr<cfg::e2e>& config) {
     uint16_t crc_offset = read_value_from_config<uint16_t>(config, "crc_offset");
     return e2e::profile_custom::profile_config(crc_offset);
 }
 
 template<>
 vsomeip_v3::e2e::profile07::profile_config
-e2e_provider_impl::make_e2e_profile_config(const std::shared_ptr<cfg::e2e> &_config) {
+e2e_provider_impl::make_e2e_profile_config(const e2exf::data_identifier_t, const std::shared_ptr<cfg::e2e> &_config) {
 
     uint32_t data_id = read_value_from_config<uint32_t>(_config, "data_id");
 
