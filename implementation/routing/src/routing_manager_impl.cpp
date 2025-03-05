@@ -437,6 +437,7 @@ bool routing_manager_impl::offer_service(client_t _client,
     }
 
     {
+        std::scoped_lock its_lock(on_state_change_mutex_);
         if (is_external_routing_ready()) {
             init_service_info(_service, _instance, true);
         } else {
@@ -496,7 +497,6 @@ bool routing_manager_impl::offer_service(client_t _client,
 void routing_manager_impl::stop_offer_service(client_t _client,
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) {
-
     stop_offer_service(_client, _service, _instance, _major, _minor, true);
 }
 
@@ -3986,6 +3986,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(
         }
     };
 
+    std::scoped_lock its_lock(on_state_change_mutex_);
     if (_is_interface) {
         if (_available != if_state_running_) {
             log_change_message(_available);
