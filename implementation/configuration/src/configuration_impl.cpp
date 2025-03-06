@@ -567,6 +567,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_tracing(e);
             load_udp_receive_buffer_size(e);
             load_services(e);
+            load_local_clients_keepalive(e);
         }
     }
 
@@ -580,7 +581,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_internal_services(e);
             load_clients(e);
             load_watchdog(e);
-            load_local_clients_keepalive(e);
             load_selective_broadcasts_support(e);
             load_e2e(e);
             load_debounce(e);
