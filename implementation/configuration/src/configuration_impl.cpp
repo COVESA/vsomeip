@@ -56,7 +56,9 @@ configuration_impl::configuration_impl(const std::string& _path) :
     sd_repetitions_base_delay_ {VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY},
     sd_repetitions_max_ {VSOMEIP_SD_DEFAULT_REPETITIONS_MAX}, sd_ttl_ {VSOMEIP_SD_DEFAULT_TTL},
     sd_cyclic_offer_delay_ {VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY},
-    sd_request_response_delay_ {VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY},
+    sd_cyclic_request_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_REQUEST_DELAY),
+    sd_request_response_delay_min_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY_MIN),
+    sd_request_response_delay_max_(VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY_MAX),
     sd_offer_debounce_time_ {VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME},
     sd_find_debounce_time_ {VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME},
     sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
@@ -155,7 +157,9 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     sd_repetitions_max_ = _other.sd_repetitions_max_;
     sd_ttl_ = _other.sd_ttl_;
     sd_cyclic_offer_delay_= _other.sd_cyclic_offer_delay_;
-    sd_request_response_delay_= _other.sd_request_response_delay_;
+    sd_cyclic_request_delay_= _other.sd_cyclic_request_delay_;
+    sd_request_response_delay_min_= _other.sd_request_response_delay_min_;
+    sd_request_response_delay_max_= _other.sd_request_response_delay_max_;
     sd_find_initial_debounce_reps_ = _other.sd_find_initial_debounce_reps_;
     sd_find_initial_debounce_time_ = _other.sd_find_initial_debounce_time_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
@@ -1795,14 +1799,23 @@ void configuration_impl::load_service_discovery(
                     its_converter >> sd_cyclic_offer_delay_;
                     is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY] = true;
                 }
-            } else if (its_key == "request_response_delay") {
-                if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay."
+            } else if (its_key == "request_response_delay_min") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY_MIN]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay_min."
                             " Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << its_value;
-                    its_converter >> sd_request_response_delay_;
-                    is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY] = true;
+                    its_converter >> sd_request_response_delay_min_;
+                    is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY_MIN] = true;
+                }
+            } else if (its_key == "request_response_delay_max") {
+                if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY_MAX]) {
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay_max."
+                            " Ignoring definition from " << _element.name_;
+                } else {
+                    its_converter << its_value;
+                    its_converter >> sd_request_response_delay_max_;
+                    is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY_MAX] = true;
                 }
             } else if (its_key == "find_initial_debounce_reps") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS]) {
@@ -1926,7 +1939,7 @@ void configuration_impl::load_delays(
                 its_converter >> sd_cyclic_offer_delay_;
             } else if (its_key == "cyclic-request") {
                 its_converter << std::dec << i->second.data();
-                its_converter >> sd_request_response_delay_;
+                its_converter >> sd_cyclic_request_delay_;
             } else if (its_key == "ttl") {
                 its_converter << std::dec << i->second.data();
                 its_converter >> sd_ttl_;
@@ -3694,8 +3707,16 @@ int32_t configuration_impl::get_sd_cyclic_offer_delay() const {
     return sd_cyclic_offer_delay_;
 }
 
-int32_t configuration_impl::get_sd_request_response_delay() const {
-    return sd_request_response_delay_;
+int32_t configuration_impl::get_sd_cyclic_request_delay() const {
+    return sd_cyclic_request_delay_;
+}
+
+int32_t configuration_impl::get_sd_request_response_delay_min() const {
+    return sd_request_response_delay_min_;
+}
+
+int32_t configuration_impl::get_sd_request_response_delay_max() const {
+    return sd_request_response_delay_max_;
 }
 
 uint8_t configuration_impl::get_sd_find_initial_debounce_reps() const {
