@@ -188,6 +188,7 @@ add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 find_package(Threads REQUIRED)
 
 # Boost
+cmake_policy(SET CMP0167 NEW) #to adapt for CMake 3.30+ as built-in FindBoost module has been deprecated and removed
 find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     include_directories(${Boost_INCLUDE_DIR} )
