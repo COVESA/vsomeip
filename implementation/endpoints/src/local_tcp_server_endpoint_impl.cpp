@@ -251,7 +251,11 @@ void local_tcp_server_endpoint_impl::accept_cbk(
                                 << "keep_alive: " << its_error.message()
                                 << " endpoint > " << this;
             }
-            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 0), its_error);
+            // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
+            // Since this is endpoint for internal communication, setting the TIME_WAIT to 5 seconds
+            // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
+            const auto linger_duration = configuration_->is_local_clients_keepalive_enabled() ? 0 : 5;
+            new_connection_socket.set_option(boost::asio::socket_base::linger(true, linger_duration), its_error);
             if (its_error) {
                 VSOMEIP_WARNING << "ltsei::" << __func__ << ": setting SO_LINGER failed ("
                                 << its_error.message() << ") " << this;
@@ -685,7 +689,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                                             its_address, its_port);
                     } else {
                         VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                            << " endpoint encountered an error[" << ec.value() << "]: " 
+                            << " endpoint encountered an error[" << ec.value() << "]: "
                             << ec.message() << " endpoint > " << this;
                     }
                 } else {
