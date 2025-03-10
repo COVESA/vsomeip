@@ -2203,28 +2203,37 @@ void configuration_impl::load_event(
         }
 
         if (its_event_id > 0) {
+            // If event reliability type was not configured,
+            if (its_reliability == reliability_type_e::RT_UNKNOWN) {
+                if (_service->unreliable_ != ILLEGAL_PORT) {
+                    its_reliability = reliability_type_e::RT_UNRELIABLE;
+                } else if (_service->reliable_ != ILLEGAL_PORT) {
+                    its_reliability = reliability_type_e::RT_RELIABLE;
+                }
+                VSOMEIP_WARNING << "Reliability type for event ["
+                    << std::hex << _service->service_ << "."
+                    << _service->instance_ << "."
+                    << its_event_id << "] was not configured Using : "
+                    << ((its_reliability == reliability_type_e::RT_RELIABLE)
+                            ? "RT_RELIABLE" : "RT_UNRELIABLE");
+            }
+
             auto found_event = _service->events_.find(its_event_id);
             if (found_event != _service->events_.end()) {
-                VSOMEIP_INFO << "Multiple configurations for event ["
+                if (found_event->second->reliability_ == reliability_type_e::RT_UNKNOWN) {
+                    auto its_event = found_event->second;
+                    its_event->reliability_ = its_reliability;
+                    its_event->is_field_ = its_is_field;
+                    its_event->cycle_ = its_cycle;
+                    its_event->update_on_change_ = its_update_on_change;
+                    its_event->change_resets_cycle_ = its_change_resets_cycle;
+                } else {
+                    VSOMEIP_WARNING << "Multiple configurations for event ["
                         << std::hex << _service->service_ << "."
                         << _service->instance_ << "."
                         << its_event_id << "].";
-            } else {
-                // If event reliability type was not configured,
-                if (its_reliability == reliability_type_e::RT_UNKNOWN) {
-                    if (_service->unreliable_ != ILLEGAL_PORT) {
-                        its_reliability = reliability_type_e::RT_UNRELIABLE;
-                    } else if (_service->reliable_ != ILLEGAL_PORT) {
-                        its_reliability = reliability_type_e::RT_RELIABLE;
-                    }
-                    VSOMEIP_WARNING << "Reliability type for event ["
-                        << std::hex << _service->service_ << "."
-                        << _service->instance_ << "."
-                        << its_event_id << "] was not configured Using : "
-                        << ((its_reliability == reliability_type_e::RT_RELIABLE)
-                                ? "RT_RELIABLE" : "RT_UNRELIABLE");
                 }
-
+            } else {
                 auto its_event = std::make_shared<event>(
                         its_event_id, its_is_field, its_reliability,
                         its_cycle, its_change_resets_cycle,
@@ -2294,7 +2303,7 @@ void configuration_impl::load_eventgroup(
                             its_event = find_event->second;
                         } else {
                             its_event = std::make_shared<event>(its_event_id,
-                                            false, reliability_type_e::RT_UNRELIABLE,
+                                            false, reliability_type_e::RT_UNKNOWN,
                                             std::chrono::milliseconds::zero(),
                                             false, true);
                         }
