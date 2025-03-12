@@ -2356,7 +2356,7 @@ void routing_manager_client::register_application() {
         auto its_routing_port(its_configuration->get_routing_host_port());
         VSOMEIP_INFO << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                      << " Registering to routing manager @ " << its_routing_address.to_string()
-                     << ":" << its_routing_port;
+                     << ":" << std::dec << its_routing_port;
     }
 
     protocol::register_application_command its_command;
