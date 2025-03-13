@@ -1685,7 +1685,7 @@ On startup of a vSomeIP application, the following environment variables are rea
 
 - **VSOMEIP_MANDATORY_CONFIGURATION_FILES**: vsomeip allows to specify mandatory configuration files to speed-up application startup. While mandatory configuration files are read by all applications, all other configuration files are only read by the application that is responsible for connections to external devices.
 
-    If this configuration variable is not set, the default mandatory files `vsomeip_std.json`, `vsomeip_app.json`, `vsomeip_events.json`, `vsomeip_plc.json`, `vsomeip_log.json`, `vsomeip_security.json`, `vsomeip_whitelist.json`, `vsomeip_policy_extensions.json` and `vsomeip_portcfg.json`are used.
+    If this configuration variable is not set, the default mandatory files `vsomeip_std.json`, `vsomeip_app.json`, `vsomeip_events.json`, `vsomeip_plc.json`, `vsomeip_log.json`, `vsomeip_security.json`, `vsomeip_whitelist.json`, `vsomeip_policy_extensions.json`, `vsomeip_portcfg.json` and `vsomeip_device.json` are used.
 
 
 - **VSOMEIP_CLIENTSIDELOGGING**: Set this variable to an empty string to enable logging of any received messages to DLT in all applications acting as routing manager proxies. For example add the following line to the applications systemd service file:
