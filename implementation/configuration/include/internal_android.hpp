@@ -25,8 +25,8 @@
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
 #define VSOMEIP_MANDATORY_CONFIGURATION_FILES                                                      \
     "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,"     \
-    "vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg." \
-    "json"
+    "vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,"                 \
+    "vsomeip_portcfg.json,vsomeip_device.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/vendor/run/etc/vsomeip"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
