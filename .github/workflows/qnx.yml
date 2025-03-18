@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout vsomeip repository
         uses: actions/checkout@v4
+        with:
+          path: vsomeip
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -44,3 +46,23 @@ jobs:
           ref: qnx_v1.13.0
           cache: true
 
+      - name: Pull build environment
+        run: |
+          docker pull ghcr.io/qnx-ports/sdp800-build-env:latest
+
+      - name: Build vsomeip
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ghcr.io/qnx-ports/sdp800-build-env:latest
+          options: -v ${{ github.workspace }}:/home/runner/workspace -e MAKEFLAGS=${{ env.MAKEFLAGS }}
+          shell: bash
+          run: |
+            source ~/qnx/800/qnxsdp-env.sh
+            cd ~/workspace
+            WORKSPACE=$PWD
+            export GTEST_ROOT=/home/runner/workspace/googletest
+            cd $WORKSPACE/boost/libs/interprocess && git apply $WORKSPACE/build-files/ports/boost/interprocess_1.78.0_qnx_7.1.patch
+            cd $WORKSPACE/boost/tools/build && git apply $WORKSPACE/build-files/ports/boost/tools_qnx.patch
+            cd $WORKSPACE
+            BOOST_CPP_VERSION_FLAG="-std=c++17" QNX_PROJECT_ROOT="$(pwd)/boost" make -C build-files/ports/boost install -j$(nproc)
+            GTEST_ROOT=$GTEST_ROOT QNX_PROJECT_ROOT="$(pwd)/vsomeip" make -C build-files/ports/vsomeip install -j$(nproc)
