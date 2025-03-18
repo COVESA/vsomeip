@@ -25,6 +25,7 @@ jobs:
         with:
           repository: qnx-ports/build-files
           path: build-files
+          cache: true
 
       - name: Checkout boost
         uses: actions/checkout@v4
@@ -33,6 +34,7 @@ jobs:
           path: boost
           ref: boost-1.78.0
           submodules: recursive
+          cache: true
   
       - name: Checkout googletest
         uses: actions/checkout@v4
@@ -40,3 +42,5 @@ jobs:
           repository: qnx-ports/googletest
           path: googletest
           ref: qnx_v1.13.0
+          cache: true
+
