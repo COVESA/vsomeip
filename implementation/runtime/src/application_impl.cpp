@@ -1473,7 +1473,7 @@ void application_impl::offer_event(service_t _service, instance_t _instance,
                    && _update_on_change == true) {
 
                configuration_->get_event_update_properties(
-                       _service, _instance, _notifier,
+                       _service, its_unique, _notifier,
                        _cycle, _change_resets_cycle, _update_on_change);
 
                VSOMEIP_INFO << __func__

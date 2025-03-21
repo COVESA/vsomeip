@@ -405,6 +405,7 @@ bool routing_manager_impl::offer_service(client_t _client,
         bool _must_queue) {
 
     // only queue commands if method was NOT called via erase_offer_command()
+    
     if (_must_queue) {
         if (!insert_offer_command(_service, _unique,
                 uint8_t(protocol::id_e::OFFER_SERVICE_ID),
@@ -579,7 +580,7 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
         << std::setw(4) << _service << "."
         << std::setw(4) << get_instance_from_unique(_unique) << ":"
         << std::dec << int(_major) << "." << _minor << "]";
-
+    
     routing_manager_base::request_service(_client,
             _service, _unique, _major, _minor);
 

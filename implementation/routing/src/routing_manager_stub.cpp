@@ -873,11 +873,11 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
         auto its_info = routing_info_.find(_client);
         if (its_info != routing_info_.end()) {
             for (const auto &its_service : its_info->second.second) {
-                for (const auto &its_instance : its_service.second) {
-                    const auto its_version = its_instance.second;
+                for (const auto &its_unique : its_service.second) {
+                    const auto its_version = its_unique.second;
                     services_to_report.push_back(
                             std::make_tuple(its_service.first,
-                                    its_instance.first, its_version.first,
+                                    get_instance_from_unique(its_unique.first), its_version.first,
                                     its_version.second));
                 }
             }
@@ -1951,10 +1951,10 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
     std::lock_guard<std::mutex> its_guard(routing_info_mutex_);
 
     for (auto request : _requests) {
-        service_requests_[_client][request.service_][request.instance_]
+        service_requests_[_client][request.service_][get_unique_version(request.instance_, request.major_)]
             = std::make_pair(request.major_, request.minor_);
         if (request.instance_ == ANY_INSTANCE) {
-            std::set<client_t> its_clients = host_->find_local_clients(request.service_, request.instance_);
+            std::set<client_t> its_clients = host_->find_local_clients(request.service_, get_unique_version(request.instance_, request.major_));
             // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
             its_clients.insert(VSOMEIP_ROUTING_CLIENT);
             for (const client_t c : its_clients) {
@@ -2001,13 +2001,13 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                 }
             }
         } else {
-            const client_t c = host_->find_local_client(request.service_, request.instance_);
+            const client_t c = host_->find_local_client(request.service_, get_unique_version(request.instance_, request.major_));
             const auto found_client = routing_info_.find(c);
             if (found_client != routing_info_.end()) {
                 const auto found_service = found_client->second.second.find(request.service_);
                 if (found_service != found_client->second.second.end()) {
-                    const auto found_instance = found_service->second.find(request.instance_);
-                    if (found_instance != found_service->second.end()) {
+                    const auto found_unique = found_service->second.find(get_unique_version(request.instance_, request.major_));
+                    if (found_unique != found_service->second.end()) {
                         if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
                             if (!is_connected(c, _client)) {
                                 add_connection(c, _client);
@@ -2037,7 +2037,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                                 its_entry.set_port(its_port);
                             }
                             its_entry.add_service({ request.service_, request.instance_,
-                                    found_instance->second.first, found_instance->second.second });
+                                    found_unique->second.first, found_unique->second.second });
                             its_entries.emplace_back(its_entry);
                         }
                     }
