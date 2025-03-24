@@ -393,6 +393,8 @@ void application_impl::start() {
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
+    // Amount of time to run the IO context.
+    const size_t event_loop_periodicity = configuration_->get_event_loop_periodicity(name_);
     {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
         if (io_.stopped()) {
@@ -419,7 +421,7 @@ void application_impl::start() {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                 << " I/O nice " << io_thread_nice_level
 #endif
-        ;
+                << " boost event loop period " << event_loop_periodicity;
 
         start_caller_id_ = std::this_thread::get_id();
         {
@@ -445,7 +447,7 @@ void application_impl::start() {
             routing_->start();
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
-            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
+            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level, event_loop_periodicity] {
                     VSOMEIP_INFO << "io thread id from application: "
                             << std::hex << std::setfill('0') << std::setw(4)
                             << client_ << " (" << name_ << ") is: " << std::hex
@@ -465,8 +467,14 @@ void application_impl::start() {
 #endif
                     while(true) {
                         try {
-                            io_.run();
-                            break;
+                            if (event_loop_periodicity) {
+                                io_.run_for(std::chrono::seconds(event_loop_periodicity));
+                            } else {
+                                io_.run();
+                            }
+                            if (stopped_) {
+                                break;
+                            }
                         } catch (const std::exception &e) {
                             VSOMEIP_ERROR << "application_impl::start() "
                                     "caught exception: " << e.what();
@@ -503,11 +511,17 @@ void application_impl::start() {
     utility::set_thread_niceness(io_thread_nice_level);
     while(true) {
         try {
-            io_.run();
-            if (stop_thread_.joinable()) {
-                stop_thread_.join();
+            if (event_loop_periodicity) {
+                io_.run_for(std::chrono::seconds(event_loop_periodicity));
+            } else {
+                io_.run();
             }
-            break;
+            if (stopped_) {
+                if (stop_thread_.joinable()) {
+                    stop_thread_.join();
+                }
+                break;
+            }
         } catch (const std::exception &e) {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }

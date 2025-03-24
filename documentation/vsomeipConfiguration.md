@@ -164,6 +164,7 @@
         - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
         - **additional** - Generic way to define configuration data for plugins.
     - **debounce** <`TBD`> - Client/Application specific configuration of debouncing, not fully connected yet.
+    - **event_loop_periodicity** (optional) - If set to a positive value, it enables the io_context object's event processing run_for implementation to run the loop based on duration instead of running it until the work queue has work to be done. The default value is `0`, which uses the io_context run interface.
 
 <details><summary>Example of Applications configuration</summary>
 
