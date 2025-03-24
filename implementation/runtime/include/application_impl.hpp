@@ -466,7 +466,7 @@ private:
 
     std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;
-    bool stopped_;
+    std::atomic_bool stopped_;
     std::thread stop_thread_;
 
     std::condition_variable block_stop_cv_;

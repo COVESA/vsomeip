@@ -148,6 +148,15 @@ public:
     virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
     virtual bool has_session_handling(const std::string &_name) const = 0;
 
+    /**
+     * @brief Get the boost asio context event loop periodicity.
+     * If set to a value greather than 0, run for is used with the defined period.
+     *
+     * @param _name Application name
+     * @return std::size_t event loop period.
+     */
+    virtual std::size_t get_event_loop_periodicity(const std::string &_name) const = 0;
+
     virtual std::uint32_t get_max_message_size_local() const = 0;
     virtual std::uint32_t get_max_message_size_reliable(const std::string& _address,
                                                     std::uint16_t _port) const = 0;
