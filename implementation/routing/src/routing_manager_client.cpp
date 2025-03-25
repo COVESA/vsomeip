@@ -2080,17 +2080,8 @@ void routing_manager_client::on_routing_info(
 
                     {
                         std::scoped_lock its_lock(local_services_mutex_);
-
-                        // Check whether the service instance is already known. If yes,
-                        // continue with the next service within the routing info.
-                        auto found_service = local_services_.find(its_service);
-                        if (found_service != local_services_.end()) {
-                            if (found_service->second.find(its_instance) != found_service->second.end())
-                                continue;
-                        }
-
-                        local_services_[its_service][its_instance]
-                            = std::make_tuple(its_major, its_minor, its_client);
+                        local_services_[its_service][its_instance] =
+                                std::make_tuple(its_major, its_minor, its_client);
                     }
                     {
                         send_pending_subscriptions(its_service, its_instance, its_major);
