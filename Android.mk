@@ -83,6 +83,7 @@ LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/routing)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/runtime)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/utility)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/plugin)
+LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/protocol)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/security)
 
 LOCAL_C_INCLUDES := \
@@ -114,6 +115,12 @@ LOCAL_CFLAGS :=  \
     -Wno-format \
     -Wno-header-guard \
     -Wno-overloaded-virtual \
+    -Wno-deprecated-declarations \
+
+LOCAL_LDFLAGS := \
+    -Wl,-wrap,socket \
+    -Wl,-wrap,accept \
+    -Wl,-wrap,open \
 
 include $(BUILD_SHARED_LIBRARY)
 
