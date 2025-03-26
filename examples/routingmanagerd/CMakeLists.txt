@@ -9,6 +9,9 @@ target_link_libraries(routingmanagerd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LI
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     target_link_libraries(routingmanagerd socket)
 endif()
+if(NOT BUILD_SHARED_LIBS)
+    target_link_libraries(routingmanagerd ${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME}-sd)
+endif()
 add_dependencies(routingmanagerd ${VSOMEIP_NAME})
 
 option(VSOMEIP_INSTALL_ROUTINGMANAGERD "Whether or not to install the routing manager daemon.")
