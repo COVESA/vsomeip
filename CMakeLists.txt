@@ -655,9 +655,10 @@ if(NOT WIN32)
 endif()
 
 ##############################################################################
-# build routing manager daemon (Non-Windows only)
+# build routing manager daemon and hello world examples (Non-Windows only)
 if (NOT MSVC)
 add_subdirectory( examples/routingmanagerd )
+add_subdirectory( examples/hello_world )
 endif()
 
 # build tools
