@@ -19,6 +19,7 @@ RUN export DEBIAN_FRONTEND=noninteractive;\
         python3-pip\
         tcpdump\
         valgrind\
+        socat \
         ;\
     apt-get autoremove --purge --yes;\
     apt-get clean;\
@@ -56,6 +57,10 @@ RUN echo 'ECUId = M' > /etc/dlt-master.conf;\
 RUN ssh-keygen -q -b 1024 -f ~/.ssh/id_rsa -t rsa -N '';\
     install -DTm0400 ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys;\
     install -DTm0400 ~/.ssh/id_rsa /commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub
+
+# Add ssh_config to the container
+COPY vsomeip-lib/zuul/network-tests/ssh_config /root/.ssh/config
+RUN chown root:root /root/.ssh/config && chmod 600 /root/.ssh/config
 
 # Hard-coded path used in the tests' scripts
 RUN ln -s /home/build /vsomeip_lib

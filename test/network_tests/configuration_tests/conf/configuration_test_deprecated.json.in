@@ -309,8 +309,8 @@
         {
             "service" : "8888",
             "instance" : "1",
-            "unreliable" : [ 40000, 40001 ],
-            "reliable" : [ 40000, 40001 ]
+            "unreliable" : [ 34510, 34511 ],
+            "reliable" : [ 34510, 34511 ]
         }
     ],
     "tcp-restart-aborts-max" : "15",

@@ -630,15 +630,18 @@ bool configuration_impl::load_logging(
                     }
                     is_configured_[ET_LOGGING_FILE] = true;
                 }
+#ifdef USE_DLT
             } else if (its_key == "dlt") {
                 if (is_configured_[ET_LOGGING_DLT]) {
                     _warnings.insert("Multiple definitions for logging.dlt."
-                            " Ignoring definition from " + _element.name_);
+                                     " Ignoring definition from "
+                                     + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
                     has_dlt_log_ = (its_value == "true");
                     is_configured_[ET_LOGGING_DLT] = true;
                 }
+#endif
             } else if (its_key == "level") {
                 if (is_configured_[ET_LOGGING_LEVEL]) {
                     _warnings.insert("Multiple definitions for logging.level."
