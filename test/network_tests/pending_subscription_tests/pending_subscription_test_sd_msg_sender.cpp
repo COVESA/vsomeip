@@ -882,7 +882,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(
-                boost::asio::ip::address::from_string(remote_address), 40001), ec);
+                boost::asio::ip::address::from_string(remote_address), 34511), ec);
         ASSERT_EQ(0, ec.value());
         tcp_connected.set_value();
 
@@ -1313,7 +1313,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(
-                boost::asio::ip::address::from_string(remote_address), 40001), ec);
+                boost::asio::ip::address::from_string(remote_address), 34511), ec);
         ASSERT_EQ(0, ec.value());
         tcp_connected.set_value();
 

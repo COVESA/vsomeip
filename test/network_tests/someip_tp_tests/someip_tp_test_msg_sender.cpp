@@ -106,7 +106,7 @@ protected:
             0x00, 0x00, 0x00, 0x0c, // length options array
             0x00, 0x09, 0x04, 0x00,
             0xff, 0xff, 0xff, 0xff, // slave address
-            0x00, 0x11, 0x9c, 0x41,
+            0x00, 0x11, 0x86, 0xcf,
         };
         std::memcpy(&its_offer_service_message[48], &address_local_.to_v4().to_bytes()[0], 4);
         std::uint16_t its_session = htons(++sd_session_);
@@ -392,7 +392,7 @@ TEST_P(someip_tp, send_in_mode)
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30001));
 
     boost::asio::ip::udp::socket udp_server_socket(io_,
-            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 40001));
+            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 34511));
 
     std::thread sd_receive_thread([&](){
         std::atomic<bool> keep_receiving(true);

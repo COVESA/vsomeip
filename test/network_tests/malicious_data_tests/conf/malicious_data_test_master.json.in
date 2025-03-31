@@ -27,7 +27,7 @@
             "unreliable":"30001",
             "reliable":
             {
-                "port":"40001",
+                "port":"34511",
                 "enable-magic-cookies":"false"
             }
         }
