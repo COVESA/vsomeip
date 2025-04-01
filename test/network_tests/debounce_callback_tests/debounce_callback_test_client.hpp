@@ -44,9 +44,11 @@ private:
 private:
     int64_t interval;
 
-    size_t index_;
+    std::atomic<std::size_t> index_;
 
     bool is_available_;
+
+    bool messagesReceived_;
 
     std::mutex run_mutex_;
     std::condition_variable run_condition_;
