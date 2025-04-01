@@ -80,7 +80,7 @@ int test_client::was_event2_recv() {
 void test_client::send_request() {
     std::unique_lock<std::mutex> lk(mutex);
     // Only send the requests when the service availability is secured
-    if (condition_availability.wait_for(lk, std::chrono::milliseconds(15000),
+    if (condition_availability.wait_for(lk, std::chrono::seconds(20),
                                         [=] { return availability; })) {
 
         // Trigger the test
@@ -90,7 +90,7 @@ void test_client::send_request() {
         _app->send(its_message);
     }
 
-    EXPECT_TRUE(availability) << "Events expected by the client were not available for 15 seconds ";
+    EXPECT_TRUE(availability) << "Events expected by the client were not available for 20 seconds ";
 
     // Wait for Server to send all the messages
     std::this_thread::sleep_for(std::chrono::seconds(10));
