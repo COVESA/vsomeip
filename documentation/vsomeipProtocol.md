@@ -3,44 +3,44 @@
 The vsomeip protocol payload will contain a start and end tag with the following value: 0x67376d07 (the end tag is reversed).
 
 - [vSomeIP Protocol Documentation](#vsomeip-protocol-documentation)
-  - [VSOMEIP_ASSIGN_CLIENT (0x00)](#vsomeip_assign_client-0x00)
-  - [VSOMEIP_ASSIGN_CLIENT_ACK (0x01)](#vsomeip_assign_client_ack-0x01)
-  - [VSOMEIP_REGISTER_APPLICATION (0x02)](#vsomeip_register_application-0x02)
-  - [VSOMEIP_DEREGISTER_APPLICATION (0x03)](#vsomeip_deregister_application-0x03)
-  - [VSOMEIP_APPLICATION_LOST (0x04)](#vsomeip_application_lost-0x04)
-  - [VSOMEIP_ROUTING_INFO (0x05)](#vsomeip_routing_info-0x05)
-  - [VSOMEIP_REGISTERED_ACK (0x06)](#vsomeip_registered_ack-0x06)
-  - [VSOMEIP_PING (0x07)](#vsomeip_ping-0x07)
-  - [VSOMEIP_PONG (0x08)](#vsomeip_pong-0x08)
-  - [VSOMEIP_OFFER_SERVICE (0x10)](#vsomeip_offer_service-0x10)
-  - [VSOMEIP_STOP_OFFER_SERVICE (0x11)](#vsomeip_stop_offer_service-0x11)
-  - [VSOMEIP_SUBSCRIBE (0x12)](#vsomeip_subscribe-0x12)
-  - [VSOMEIP_UNSUBSCRIBE (0x13)](#vsomeip_unsubscribe-0x13)
-  - [VSOMEIP_EXPIRE (0x2A)](#vsomeip_expire-0x2a)
-  - [VSOMEIP_REQUEST_SERVICE (0x14)](#vsomeip_request_service-0x14)
-  - [VSOMEIP_RELEASE_SERVICE (0x15)](#vsomeip_release_service-0x15)
-  - [VSOMEIP_SUBSCRIBE_NACK (0x16)](#vsomeip_subscribe_nack-0x16)
-  - [VSOMEIP_SUBSCRIBE_ACK (0x17)](#vsomeip_subscribe_ack-0x17)
-  - [VSOMEIP_SEND (0x18)](#vsomeip_send-0x18)
-  - [VSOMEIP_NOTIFY (0x19)](#vsomeip_notify-0x19)
-  - [VSOMEIP_NOTIFY_ONE (0x1A)](#vsomeip_notify_one-0x1a)
-  - [VSOMEIP_REGISTER_EVENT (0x1B)](#vsomeip_register_event-0x1b)
-  - [VSOMEIP_UNREGISTER_EVENT (0x1C)](#vsomeip_unregister_event-0x1c)
-  - [VSOMEIP_ID_RESPONSE (0x1D)](#vsomeip_id_response-0x1d)
-  - [VSOMEIP_ID_REQUEST (0x1E)](#vsomeip_id_request-0x1e)
-  - [VSOMEIP_OFFERED_SERVICES_REQUEST (0x1F)](#vsomeip_offered_services_request-0x1f)
-  - [VSOMEIP_OFFERED_SERVICES_RESPONSE (0x20)](#vsomeip_offered_services_response-0x20)
-  - [VSOMEIP_UNSUBSCRIBE_ACK (0x21)](#vsomeip_unsubscribe_ack-0x21)
-  - [VSOMEIP_RESEND_PROVIDED_EVENTS (0x22)](#vsomeip_resend_provided_events-0x22)
-  - [VSOMEIP_UPDATE_SECURITY_POLICY (0x23)](#vsomeip_update_security_policy-0x23)
-  - [VSOMEIP_UPDATE_SECURITY_POLICY_INT (0x29)](#vsomeip_update_security_policy_int-0x29)
-  - [VSOMEIP_UPDATE_SECURITY_POLICY_RESPONSE (0x24)](#vsomeip_update_security_policy_response-0x24)
-  - [VSOMEIP_REMOVE_SECURITY_POLICY (0x25)](#vsomeip_remove_security_policy-0x25)
-  - [VSOMEIP_REMOVE_SECURITY_POLICY_RESPONSE    (0x26)](#vsomeip_remove_security_policy_response-0x26)
-  - [VSOMEIP_UPDATE_SECURITY_CREDENTIALS (0x27)](#vsomeip_update_security_credentials-0x27)
-  - [VSOMEIP_DISTRIBUTE_SECURITY_POLICIES (0x28)](#vsomeip_distribute_security_policies-0x28)
-  - [VSOMEIP_SUSPEND (0x30)](#vsomeip_suspend-0x30)
-  - [VSOMEIP_CONFIG (0x31)](#vsomeip_config-0x31)
+  - [VSOMEIP\_ASSIGN\_CLIENT (0x00)](#vsomeip_assign_client-0x00)
+  - [VSOMEIP\_ASSIGN\_CLIENT\_ACK (0x01)](#vsomeip_assign_client_ack-0x01)
+  - [VSOMEIP\_REGISTER\_APPLICATION (0x02)](#vsomeip_register_application-0x02)
+  - [VSOMEIP\_DEREGISTER\_APPLICATION (0x03)](#vsomeip_deregister_application-0x03)
+  - [VSOMEIP\_APPLICATION\_LOST (0x04)](#vsomeip_application_lost-0x04)
+  - [VSOMEIP\_ROUTING\_INFO (0x05)](#vsomeip_routing_info-0x05)
+  - [VSOMEIP\_REGISTERED\_ACK (0x06)](#vsomeip_registered_ack-0x06)
+  - [VSOMEIP\_PING (0x07)](#vsomeip_ping-0x07)
+  - [VSOMEIP\_PONG (0x08)](#vsomeip_pong-0x08)
+  - [VSOMEIP\_OFFER\_SERVICE (0x10)](#vsomeip_offer_service-0x10)
+  - [VSOMEIP\_STOP\_OFFER\_SERVICE (0x11)](#vsomeip_stop_offer_service-0x11)
+  - [VSOMEIP\_SUBSCRIBE (0x12)](#vsomeip_subscribe-0x12)
+  - [VSOMEIP\_UNSUBSCRIBE (0x13)](#vsomeip_unsubscribe-0x13)
+  - [VSOMEIP\_EXPIRE (0x2A)](#vsomeip_expire-0x2a)
+  - [VSOMEIP\_REQUEST\_SERVICE (0x14)](#vsomeip_request_service-0x14)
+  - [VSOMEIP\_RELEASE\_SERVICE (0x15)](#vsomeip_release_service-0x15)
+  - [VSOMEIP\_SUBSCRIBE\_NACK (0x16)](#vsomeip_subscribe_nack-0x16)
+  - [VSOMEIP\_SUBSCRIBE\_ACK (0x17)](#vsomeip_subscribe_ack-0x17)
+  - [VSOMEIP\_SEND (0x18)](#vsomeip_send-0x18)
+  - [VSOMEIP\_NOTIFY (0x19)](#vsomeip_notify-0x19)
+  - [VSOMEIP\_NOTIFY\_ONE (0x1A)](#vsomeip_notify_one-0x1a)
+  - [VSOMEIP\_REGISTER\_EVENT (0x1B)](#vsomeip_register_event-0x1b)
+  - [VSOMEIP\_UNREGISTER\_EVENT (0x1C)](#vsomeip_unregister_event-0x1c)
+  - [VSOMEIP\_ID\_RESPONSE (0x1D)](#vsomeip_id_response-0x1d)
+  - [VSOMEIP\_ID\_REQUEST (0x1E)](#vsomeip_id_request-0x1e)
+  - [VSOMEIP\_OFFERED\_SERVICES\_REQUEST (0x1F)](#vsomeip_offered_services_request-0x1f)
+  - [VSOMEIP\_OFFERED\_SERVICES\_RESPONSE (0x20)](#vsomeip_offered_services_response-0x20)
+  - [VSOMEIP\_UNSUBSCRIBE\_ACK (0x21)](#vsomeip_unsubscribe_ack-0x21)
+  - [VSOMEIP\_RESEND\_PROVIDED\_EVENTS (0x22)](#vsomeip_resend_provided_events-0x22)
+  - [VSOMEIP\_UPDATE\_SECURITY\_POLICY (0x23)](#vsomeip_update_security_policy-0x23)
+  - [VSOMEIP\_UPDATE\_SECURITY\_POLICY\_INT (0x29)](#vsomeip_update_security_policy_int-0x29)
+  - [VSOMEIP\_UPDATE\_SECURITY\_POLICY\_RESPONSE (0x24)](#vsomeip_update_security_policy_response-0x24)
+  - [VSOMEIP\_REMOVE\_SECURITY\_POLICY (0x25)](#vsomeip_remove_security_policy-0x25)
+  - [VSOMEIP\_REMOVE\_SECURITY\_POLICY\_RESPONSE    (0x26)](#vsomeip_remove_security_policy_response----0x26)
+  - [VSOMEIP\_UPDATE\_SECURITY\_CREDENTIALS (0x27)](#vsomeip_update_security_credentials-0x27)
+  - [VSOMEIP\_DISTRIBUTE\_SECURITY\_POLICIES (0x28)](#vsomeip_distribute_security_policies-0x28)
+  - [VSOMEIP\_SUSPEND (0x30)](#vsomeip_suspend-0x30)
+  - [VSOMEIP\_CONFIG (0x31)](#vsomeip_config-0x31)
 
 
 Vsomeip protocol payload will contain a start and end tag with the following value: 0x67376d07 (the end tag is reversed).
@@ -66,7 +66,8 @@ Vsomeip protocol payload will contain a start and end tag with the following val
     Command            02
     Version            xx xx
     Client             xx xx
-    Size               00 00 00 00
+    Size               02 00 00 00
+    Port               xx xx
 
 ## VSOMEIP_DEREGISTER_APPLICATION (0x03)
 
@@ -414,7 +415,8 @@ Vsomeip protocol payload will contain a start and end tag with the following val
 
     Command            30
     Version            xx xx
-    Size               xx xx xx xx
+    Client             00 00
+    Size               00 00 00 00
 
 
 ## VSOMEIP_CONFIG (0x31)
