@@ -140,7 +140,7 @@ TEST_F(malicious_data, send_malicious_events)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -377,7 +377,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -764,7 +764,7 @@ TEST_F(malicious_data, send_wrong_message_type)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -1062,7 +1062,7 @@ TEST_F(malicious_data, send_wrong_return_code)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
