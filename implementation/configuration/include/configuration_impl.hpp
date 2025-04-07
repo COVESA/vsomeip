@@ -22,6 +22,7 @@
 #include "e2e.hpp"
 #include "routing.hpp"
 #include "watchdog.hpp"
+#include "local_clients_keepalive.hpp"
 #include "service_instance_range.hpp"
 #include "trace.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
@@ -37,6 +38,7 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
+struct local_clients_keepalive;
 
 struct suppress_t {
     service_t service;
@@ -126,6 +128,7 @@ public:
 
     VSOMEIP_EXPORT bool is_routing_enabled() const;
     VSOMEIP_EXPORT bool is_local_routing() const;
+    VSOMEIP_EXPORT routing_state_e get_initial_routing_state() const;
 
     VSOMEIP_EXPORT const std::string &get_routing_host_name() const;
     VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_host_address() const;
@@ -140,8 +143,9 @@ public:
 
     VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
-    VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string &_name) const;
+    VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
 
@@ -193,7 +197,10 @@ public:
     VSOMEIP_EXPORT ttl_t get_sd_ttl() const;
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
+    VSOMEIP_EXPORT uint8_t get_sd_find_initial_debounce_reps() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -201,6 +208,9 @@ public:
     VSOMEIP_EXPORT bool is_watchdog_enabled() const;
     VSOMEIP_EXPORT uint32_t get_watchdog_timeout() const;
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
+
+    VSOMEIP_EXPORT bool is_local_clients_keepalive_enabled() const;
+    VSOMEIP_EXPORT std::chrono::milliseconds get_local_clients_keepalive_time() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
 
@@ -261,11 +271,10 @@ public:
 
     VSOMEIP_EXPORT bool is_tp_client(
             service_t _service,
-            const std::string &_address, std::uint16_t _port,
+            instance_t _instance,
             method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, const std::string &_ip_service,
-            std::uint16_t _port_service, method_t _method) const;
+            service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;
@@ -297,6 +306,8 @@ public:
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<configuration_element> &_elements,
@@ -397,6 +408,7 @@ private:
     std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree &_tree);
 
     void load_watchdog(const configuration_element &_element);
+    void load_local_clients_keepalive(const configuration_element &_element);
 
     void load_payload_sizes(const configuration_element &_element);
     void load_permissions(const configuration_element &_element);
@@ -479,6 +491,9 @@ private:
 
     std::set<std::string> mandatory_;
 
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
+
 protected:
     // Configuration data
     boost::asio::ip::address unicast_;
@@ -488,9 +503,9 @@ protected:
     diagnosis_t diagnosis_;
     diagnosis_t diagnosis_mask_;
 
-    bool has_console_log_;
-    bool has_file_log_;
-    bool has_dlt_log_;
+    std::atomic_bool has_console_log_;
+    std::atomic_bool has_file_log_;
+    std::atomic_bool has_dlt_log_;
     std::string logfile_;
     mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
@@ -531,6 +546,9 @@ protected:
     int32_t sd_cyclic_offer_delay_;
     int32_t sd_request_response_delay_;
     std::uint32_t sd_offer_debounce_time_;
+    std::uint32_t sd_find_debounce_time_;
+    uint8_t sd_find_initial_debounce_reps_;
+    std::uint32_t sd_find_initial_debounce_time_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -546,6 +564,7 @@ protected:
     std::unordered_set<std::string> supported_selective_addresses;
 
     std::shared_ptr<watchdog> watchdog_;
+    std::shared_ptr<local_clients_keepalive> local_clients_keepalive_;
 
     std::vector<service_instance_range> internal_service_ranges_;
 
@@ -577,9 +596,14 @@ protected:
         ET_WATCHDOG_ENABLE,
         ET_WATCHDOG_TIMEOUT,
         ET_WATCHDOG_ALLOWED_MISSING_PONGS,
+        ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE,
+        ET_LOCAL_CLIENTS_KEEPALIVE_TIME,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
+        ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS,
+        ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
+        ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS,
         ET_ENDPOINT_QUEUE_LIMITS,
@@ -598,7 +622,8 @@ protected:
         ET_PARTITIONS,
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
-        ET_MAX = 45
+        ET_INITIAL_ROUTING_STATE,
+        ET_MAX = 51
     };
 
     bool is_configured_[ET_MAX];
@@ -675,6 +700,8 @@ protected:
     std::atomic_bool is_security_external_;
     std::atomic_bool is_security_audit_;
     std::atomic_bool is_remote_access_allowed_;
+
+    routing_state_e initial_routing_state_;
 };
 
 } // namespace cfg

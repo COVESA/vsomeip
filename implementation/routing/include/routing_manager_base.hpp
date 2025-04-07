@@ -28,6 +28,10 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_manager_base.hpp"
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
+
 namespace vsomeip_v3 {
 
 #ifdef USE_DLT
@@ -143,6 +147,8 @@ public:
 
     virtual routing_state_e get_routing_state();
 
+    virtual bool is_suspended() const;
+
     virtual void register_client_error_handler(client_t _client,
             const std::shared_ptr<endpoint> &_endpoint) = 0;
 
@@ -179,7 +185,8 @@ protected:
     void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
     services_t get_services() const;
     services_t get_services_remote() const;
-    bool is_available(service_t _service, instance_t _instance, major_version_t _major);
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const;
 
     void remove_local(client_t _client, bool _remove_sec_client);
     void remove_local(client_t _client,
@@ -210,6 +217,8 @@ protected:
             eventgroup_t _eventgroup, event_t _event,
             const std::shared_ptr<debounce_filter_impl_t> &_filter, client_t _client,
             std::set<event_t> *_already_subscribed_events);
+
+    void clear_shadow_subscriptions(void);
 
     std::shared_ptr<serializer> get_serializer();
     void put_serializer(const std::shared_ptr<serializer> &_serializer);
@@ -252,6 +261,7 @@ protected:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
     void add_known_client(client_t _client, const std::string &_client_host);
+    void remove_known_client(client_t _client);
 
 #ifdef VSOMEIP_ENABLE_COMPAT
     void set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
@@ -308,10 +318,6 @@ protected:
 
     std::mutex event_registration_mutex_;
 
-#ifdef USE_DLT
-    std::shared_ptr<trace::connector_impl> tc_;
-#endif
-
     struct subscription_data_t {
         service_t service_;
         instance_t instance_;
@@ -335,6 +341,7 @@ protected:
         }
     };
     std::set<subscription_data_t> pending_subscriptions_;
+    std::mutex pending_subscription_mutex_;
 
     services_t services_remote_;
     mutable std::mutex services_remote_mutex_;
@@ -347,8 +354,11 @@ protected:
     mutable std::mutex env_mutex_;
     std::string env_;
 
-    std::mutex routing_state_mutex_;
-    routing_state_e routing_state_;
+    std::atomic<routing_state_e> routing_state_;
+
+#ifdef USE_DLT
+    std::shared_ptr<trace::connector_impl> tc_;
+#endif
 
 private:
     services_t services_;

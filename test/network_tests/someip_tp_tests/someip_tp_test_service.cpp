@@ -150,15 +150,17 @@ public:
             wait_for_slave_service_available_ = false;
             condition_.notify_one();
             VSOMEIP_INFO << "Service available Service/Instance ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _service << "/"
-                    << std::setw(4) << std::setfill('0') << std::hex << _instance << "]";
+                    << std::hex << std::setfill('0')
+                    << std::setw(4) << _service << "/"
+                    << std::setw(4) << _instance << "]";
         }
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         VSOMEIP_INFO << "Received a message with Client/Session ["
-                << std::setw(4) << std::setfill('0') << std::hex << _message->get_client() << "/"
-                << std::setw(4) << std::setfill('0') << std::hex << _message->get_session()
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _message->get_client() << "/"
+                << std::setw(4) << _message->get_session()
                 << "] size: " << std::dec << _message->get_payload()->get_length();
         auto response = vsomeip::runtime::get()->create_response(_message);
         auto payload = vsomeip::runtime::get()->create_payload(_message->get_payload()->get_data(), _message->get_payload()->get_length());
@@ -173,8 +175,9 @@ public:
 
     void on_notification(const std::shared_ptr<vsomeip::message>& _message) {
         VSOMEIP_INFO << "Received a notification with Client/Session ["
-                << std::setw(4) << std::setfill('0') << std::hex << _message->get_client() << "/"
-                << std::setw(4) << std::setfill('0') << std::hex << _message->get_session()
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _message->get_client() << "/"
+                << std::setw(4) << _message->get_session()
                 << "] size: " << std::dec << _message->get_payload()->get_length();
         EXPECT_EQ(someip_tp_test::service_slave.service_id, _message->get_service());
         EXPECT_EQ(someip_tp_test::service_slave.event_id, _message->get_method());
@@ -253,8 +256,9 @@ public:
 
     void on_response_from_slave(const std::shared_ptr<vsomeip::message> &_message) {
         VSOMEIP_INFO << "Received a response from the slave with Client/Session ["
-                << std::setw(4) << std::setfill('0') << std::hex << _message->get_client() << "/"
-                << std::setw(4) << std::setfill('0') << std::hex << _message->get_session()
+                << std::hex << std::setfill('0')
+                << std::setw(4) << _message->get_client() << "/"
+                << std::setw(4) << _message->get_session()
                 << "] size: " << std::dec << _message->get_payload()->get_length();
         EXPECT_EQ(someip_tp_test::service_slave.service_id, _message->get_service());
         EXPECT_EQ(someip_tp_test::service_slave.instance_id, _message->get_instance());
@@ -301,14 +305,14 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
 

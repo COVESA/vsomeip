@@ -53,6 +53,7 @@ enum class id_e : uint8_t {
     UPDATE_SECURITY_POLICY_INT_ID = 0x29,
     EXPIRE_ID = 0x2A,
     SUSPEND_ID = 0x30,
+    CONFIG_ID = 0x31,
     UNKNOWN_ID = 0xFF
 };
 
@@ -90,7 +91,7 @@ struct service {
     }
 
     service(service_t _service, instance_t _instance,
-            major_version_t _major, minor_version_t _minor)
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR)
         : service_(_service),
           instance_(_instance),
           major_(_major),

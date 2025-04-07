@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <iomanip>
 #include <sstream>
 
@@ -26,22 +27,17 @@ local_tcp_client_endpoint_impl::local_tcp_client_endpoint_impl(
         const endpoint_type &_remote,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration> &_configuration)
-    : local_tcp_client_endpoint_base_impl(_endpoint_host, _routing_host,
-            _local, _remote, _io,
-            _configuration->get_max_message_size_local(),
-            _configuration->get_endpoint_queue_limit_local(),
-            _configuration),
+    : local_tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io,
+                                          _configuration),
             recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
     is_supporting_magic_cookies_ = false;
-}
 
-local_tcp_client_endpoint_impl::~local_tcp_client_endpoint_impl() {
-
+    this->max_message_size_ = _configuration->get_max_message_size_local();
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
 
 bool local_tcp_client_endpoint_impl::is_local() const {
-
     return true;
 }
 
@@ -50,7 +46,6 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
     if (!_force && state_ == cei_state_e::CONNECTING) {
         return;
     }
-    state_ = cei_state_e::CONNECTING;
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = false;
@@ -61,18 +56,24 @@ void local_tcp_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         shutdown_and_close_socket_unlocked(true);
     }
+    auto its_host = endpoint_host_.lock();
+    if (its_host) {
+        its_host->on_disconnect(shared_from_this());
+    }
+    state_ = cei_state_e::CONNECTING;
     was_not_connected_ = true;
     reconnect_counter_ = 0;
     start_connect_timer();
 }
 
 void local_tcp_client_endpoint_impl::start() {
-
-    {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
-        sending_blocked_ = false;
+    if (state_ == cei_state_e::CLOSED) {
+        {
+            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            sending_blocked_ = false;
+        }
+        connect();
     }
-    connect();
 }
 
 void local_tcp_client_endpoint_impl::stop() {
@@ -96,7 +97,7 @@ void local_tcp_client_endpoint_impl::stop() {
         bool send_queue_empty(false);
         std::uint32_t times_slept(0);
 
-        while (times_slept <= 50) {
+        while (times_slept <= LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP) {
             mutex_.lock();
             send_queue_empty = (queue_.size() == 0);
             mutex_.unlock();
@@ -108,29 +109,69 @@ void local_tcp_client_endpoint_impl::stop() {
             }
         }
     }
+
     shutdown_and_close_socket(false);
 }
 
 void local_tcp_client_endpoint_impl::connect() {
     boost::system::error_code its_connect_error;
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
+        // Nagle algorithm off
+        socket_->set_option(boost::asio::ip::tcp::no_delay(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltcei::connect: couldn't disable "
+                            << "Nagle algorithm: " << its_error.message()
+                            << " remote: " << remote_.port() << " endpoint: " << this
+                            << " state_: " << static_cast<int>(state_.load());
+        }
+        socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
+                            << "keep_alive: " << its_error.message() << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
+        }
+        // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
+        // Since this is endpoint for internal communication, setting the TIME_WAIT to 1-5 seconds
+        // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
+        //
+        // A longer linger is only necessary if the local client keepalive is not enabled.
+        const auto linger_duration = configuration_->is_local_clients_keepalive_enabled() ? 1 : 5;
+        socket_->set_option(boost::asio::socket_base::linger(true, linger_duration), its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
+                            << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port()
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
+        }
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
-                    << ": Cannot enable SO_REUSEADDR"
-                    << "(" << its_error.message() << ")";
+            VSOMEIP_WARNING << "ltcei::" << __func__ << ": Cannot enable SO_REUSEADDR" << "("
+                            << its_error.message() << ")"
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
         }
         socket_->bind(local_, its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "local_tcp_client_endpoint_impl::" << __func__
-                    << ": Cannot bind to client port " << local_.port()
-                    << "(" << its_error.message() << ")";
+            VSOMEIP_WARNING << "ltcei::" << __func__ << ": Cannot bind to client port "
+                            << local_.port() << "(" << its_error.message() << ")"
+                            << " endpoint > " << this << " state_ > "
+                            << static_cast<int>(state_.load());
+            try {
+                strand_.post(std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                                       its_connect_error));
+            } catch (const std::exception& e) {
+                VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this
+                              << " state_ > " << static_cast<int>(state_.load());
+            }
+            return;
         }
         state_ = cei_state_e::CONNECTING;
         start_connecting_timer();
+        connecting_timer_state_ = connecting_timer_state_e::IN_PROGRESS;
         socket_->async_connect(
             remote_,
             strand_.wrap(
@@ -142,15 +183,17 @@ void local_tcp_client_endpoint_impl::connect() {
             )
         );
     } else {
-        VSOMEIP_WARNING << "local_client_endpoint::connect: Error opening socket: "
-                << its_error.message() << " (" << std::dec << its_error.value() << ")";
+        VSOMEIP_WARNING << "ltcei::connect: Error opening socket: "
+                << its_error.message() << " (" << std::dec << its_error.value() << ")"
+                << " endpoint > " << this;
         its_connect_error = its_error;
         try {
             strand_.post(
                 std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
                         its_connect_error));
         } catch (const std::exception &e) {
-            VSOMEIP_ERROR << "local_client_endpoint_impl::connect: " << e.what();
+            VSOMEIP_ERROR << "ltcei::connect: " << e.what()
+                          << " endpoint > " << this;
         }
     }
 }
@@ -178,26 +221,29 @@ void local_tcp_client_endpoint_impl::receive() {
 // for local communication
 bool local_tcp_client_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
     std::lock_guard<std::recursive_mutex> its_lock(mutex_);
-    bool ret(true);
-    if (endpoint_impl::sending_blocked_ ||
-        check_message_size(nullptr, _size) != cms_ret_e::MSG_OK ||
-        !check_packetizer_space(_size) ||
-        !check_queue_limit(_data, _size)) {
-        ret = false;
-    } else {
-#if 0
-        std::stringstream msg;
-        msg << "lce::send: ";
-        for (uint32_t i = 0; i < _size; i++)
-            msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int)_data[i] << " ";
-        VSOMEIP_INFO << msg.str();
-#endif
-        train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
-        queue_train(train_);
-        train_->buffer_ = std::make_shared<message_buffer_t>();
+
+    if (endpoint_impl::sending_blocked_ || !check_queue_limit(_data, _size)) {
+        return false;
     }
-    return ret;
+    if (!check_message_size(_size)) {
+        return false;
+    }
+    if (!check_packetizer_space(_size)) {
+        return false;
+    }
+#if 0
+    std::stringstream msg;
+    msg << "lce::send: ";
+    for (uint32_t i = 0; i < _size; i++)
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>(_data[i]) << " ";
+    VSOMEIP_INFO << msg.str();
+#endif
+    queue_train_buffer(_size);
+    train_->buffer_->insert(train_->buffer_->end(), _data, _data + _size);
+    queue_train(train_);
+    train_->buffer_ = std::make_shared<message_buffer_t>();
+    return true;
 }
 
 void local_tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t> &_entry) {
@@ -215,14 +261,16 @@ void local_tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
         boost::asio::async_write(
             *socket_,
             bufs,
-            std::bind(
-                &client_endpoint_impl::send_cbk,
-                std::dynamic_pointer_cast<
-                    local_tcp_client_endpoint_impl
-                >(shared_from_this()),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                _entry.first
+            strand_.wrap(
+                std::bind(
+                    &client_endpoint_impl::send_cbk,
+                    std::dynamic_pointer_cast<
+                        local_tcp_client_endpoint_impl
+                    >(shared_from_this()),
+                    std::placeholders::_1,
+                    std::placeholders::_2,
+                    _entry.first
+                )
             )
         );
     }
@@ -237,7 +285,7 @@ void local_tcp_client_endpoint_impl::get_configured_times_from_endpoint(
     (void)_method;
     (void)_debouncing;
     (void)_maximum_retention;
-    VSOMEIP_ERROR << "local_client_endpoint_impl::get_configured_times_from_endpoint called.";
+    VSOMEIP_ERROR << "ltcei::get_configured_times_from_endpoint called." << " endpoint > " << this;
 }
 
 void local_tcp_client_endpoint_impl::send_magic_cookie() {
@@ -248,10 +296,16 @@ void local_tcp_client_endpoint_impl::receive_cbk(
         boost::system::error_code const &_error, std::size_t _bytes) {
 
     if (_error) {
-        VSOMEIP_INFO << "local_tcp_client_endpoint_impl::" << __func__ << " Error: " << _error.message();
+        VSOMEIP_INFO << "ltcei::" << __func__ << " Error: " << _error.message()
+                     << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
+        } else if (_error == boost::asio::error::eof) {
+            std::scoped_lock its_lock(mutex_);
+            sending_blocked_ = false;
+            queue_.clear();
+            queue_size_ = 0;
         }
         error_handler_t handler;
         {
@@ -266,8 +320,8 @@ void local_tcp_client_endpoint_impl::receive_cbk(
         std::stringstream msg;
         msg << "lce<" << this << ">::recv: ";
         for (std::size_t i = 0; i < recv_buffer_.size(); i++)
-            msg << std::setw(2) << std::setfill('0') << std::hex
-                << (int)recv_buffer_[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>(recv_buffer_[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
 
@@ -330,19 +384,24 @@ std::string local_tcp_client_endpoint_impl::get_remote_information() const {
             + std::to_string(remote_.port());
 }
 
-
-bool local_tcp_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) {
+bool local_tcp_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) const {
     if (train_->buffer_->size() + _size < train_->buffer_->size()) {
-        VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
+        VSOMEIP_ERROR << "ltcei: Overflow in packetizer addition ~> abort sending!"
+                      << " endpoint > " << this;
         return false;
     }
+    return true;
+}
+
+bool local_tcp_client_endpoint_impl::queue_train_buffer(std::uint32_t _size) {
     if (train_->buffer_->size() + _size > max_message_size_
             && !train_->buffer_->empty()) {
         queue_.push_back(std::make_pair(train_->buffer_, 0));
         queue_size_ += train_->buffer_->size();
         train_->buffer_ = std::make_shared<message_buffer_t>();
+        return true;
     }
-    return true;
+    return false;
 }
 
 bool local_tcp_client_endpoint_impl::is_reliable() const {
@@ -352,21 +411,14 @@ bool local_tcp_client_endpoint_impl::is_reliable() const {
 
 std::uint32_t local_tcp_client_endpoint_impl::get_max_allowed_reconnects() const {
 
-    return MAX_RECONNECTS_UNLIMITED;
-}
-
-bool local_tcp_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
-
-    (void)_service;
-    (void)_method;
-    return false;
+    return MAX_RECONNECTS_LOCAL_TCP;
 }
 
 void local_tcp_client_endpoint_impl::max_allowed_reconnects_reached() {
 
-    VSOMEIP_ERROR << "local_client_endpoint::max_allowed_reconnects_reached: "
-            << get_remote_information();
+    VSOMEIP_ERROR << "ltcei::max_allowed_reconnects_reached: "
+            << get_remote_information()
+            << " endpoint > " << this;
     error_handler_t handler;
     {
         std::lock_guard<std::mutex> its_lock(error_handler_mutex_);

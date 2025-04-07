@@ -13,7 +13,7 @@ namespace sd {
 bool sd::unknown_option_impl::deserialize(deserializer * _from)
 {
     // Deserialize the header.
-    if (!option_impl::deserialize(_from)) {
+    if (!option_impl::deserialize(_from) || length_ == 0 || (_from->get_remaining() < length_)) {
         return false;
     }
     payload_ = std::vector<uint8_t>(length_ - 1);

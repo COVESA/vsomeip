@@ -251,6 +251,7 @@ public:
     void handle_client_error(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
+    routing_state_e get_routing_state();
     void set_routing_state(routing_state_e _routing_state);
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
@@ -293,11 +294,11 @@ public:
             service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool update_security_policy_configuration(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool remove_security_policy_configuration(uid_t _uid, gid_t _gid,
             const security_update_handler_t &_handler);
 #endif
 
@@ -309,6 +310,11 @@ public:
     void remove_subscriptions(port_t _local_port,
             const boost::asio::ip::address &_remote_address,
             port_t _remote_port);
+
+    std::vector<protocol::service> get_requested_services(client_t _client) const;
+
+    virtual bool is_available(service_t _service, instance_t _instance,
+                              major_version_t _major) const;
 
 private:
     bool offer_service(client_t _client,
@@ -379,13 +385,16 @@ private:
 
     void start_ip_routing();
 
+    bool is_external_routing_ready() const;
+
+    void init_pending_services();
+
     void add_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
                        minor_version_t _minor);
     void remove_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
                        minor_version_t _minor);
-    std::vector<std::pair<service_t, instance_t>> get_requested_services(client_t _client);
     std::set<client_t> get_requesters(service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
@@ -442,8 +451,6 @@ private:
                         client_t _client, major_version_t _major, minor_version_t _minor);
     bool erase_offer_command(service_t _service, instance_t _instance);
 
-    bool is_last_stop_callback(const uint32_t _callback_id);
-
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
 
@@ -465,11 +472,16 @@ private:
             service_t _service, instance_t _instance,
             const boost::asio::ip::address &_remote_address) const;
 
+#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+    bool has_subscribed_eventgroup(
+            service_t _service, instance_t _instance) const;
+#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
+
 private:
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
 
-    std::mutex requested_services_mutex_;
+    mutable std::mutex requested_services_mutex_;
     std::map<service_t,
         std::map<instance_t,
             std::map<major_version_t,
@@ -492,9 +504,9 @@ private:
     std::mutex version_log_timer_mutex_;
     boost::asio::steady_timer version_log_timer_;
 
-    bool if_state_running_;
-    bool sd_route_set_;
-    bool routing_running_;
+    std::atomic_bool if_state_running_;
+    std::atomic_bool sd_route_set_;
+    std::atomic_bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
     std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
 #if defined(__linux__) || defined(ANDROID)
@@ -509,8 +521,6 @@ private:
         std::map<instance_t,
                 std::tuple<major_version_t, minor_version_t,
                             client_t, client_t>>> pending_offers_;
-
-    std::mutex pending_subscription_mutex_;
 
     std::mutex remote_subscription_state_mutex_;
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>,
@@ -535,6 +545,7 @@ private:
     pending_remote_offer_id_t pending_remote_offer_id_;
     std::map<pending_remote_offer_id_t, std::pair<service_t, instance_t>> pending_remote_offers_;
 
+    std::mutex last_resume_mutex_;
     std::chrono::steady_clock::time_point last_resume_;
 
     std::mutex offer_serialization_mutex_;
@@ -556,6 +567,8 @@ private:
     std::mutex update_remote_subscription_mutex_;
 
     message_acceptance_handler_t message_acceptance_handler_;
+
+    std::mutex on_state_change_mutex_;
 };
 
 }  // namespace vsomeip_v3

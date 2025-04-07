@@ -13,7 +13,7 @@
 #include <vsomeip/internal/serializable.hpp>
 
 #include "../include/serializer.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 #include <vsomeip/internal/logger.hpp>
 
 namespace vsomeip_v3 {
@@ -37,18 +37,23 @@ bool serializer::serialize(const uint8_t _value) {
 }
 
 bool serializer::serialize(const uint16_t _value) {
-    data_.push_back(VSOMEIP_WORD_BYTE1(_value));
-    data_.push_back(VSOMEIP_WORD_BYTE0(_value));
+    uint8_t nvalue[2] = {0};
+    bithelper::write_uint16_le(_value, nvalue);
+    data_.push_back(nvalue[1]);
+    data_.push_back(nvalue[0]);
     return true;
 }
 
 bool serializer::serialize(const uint32_t _value, bool _omit_last_byte) {
+    uint8_t nvalue[4] = {0};
+    bithelper::write_uint32_le(_value, nvalue);
+
     if (!_omit_last_byte) {
-        data_.push_back(VSOMEIP_LONG_BYTE3(_value));
+        data_.push_back(nvalue[3]);
     }
-    data_.push_back(VSOMEIP_LONG_BYTE2(_value));
-    data_.push_back(VSOMEIP_LONG_BYTE1(_value));
-    data_.push_back(VSOMEIP_LONG_BYTE0(_value));
+    data_.push_back(nvalue[2]);
+    data_.push_back(nvalue[1]);
+    data_.push_back(nvalue[0]);
     return true;
 }
 
@@ -112,9 +117,9 @@ void serializer::reset() {
 void serializer::show() {
     std::stringstream its_data;
     its_data << "SERIALIZED: "
-             << std::setfill('0') << std::hex;
+             << std::hex << std::setfill('0');
     for (const byte_t& e : data_)
-        its_data << std::setw(2) << (int)e;
+        its_data << std::setw(2) << static_cast<int>(e);
     VSOMEIP_INFO << its_data.str();
 }
 #endif

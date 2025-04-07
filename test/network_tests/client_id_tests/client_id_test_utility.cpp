@@ -152,7 +152,7 @@ private:
     std::shared_ptr<vsomeip::application> app_;
     std::promise<void> registered_;
     std::thread app_thread_;
-    vsomeip::client_t client_;
+    std::atomic<vsomeip::client_t> client_;
 };
 
 TEST_F(client_id_utility_test, request_release_client_id) {

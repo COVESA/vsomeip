@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "payload_test_client.hpp"
 
 enum class payloadsize
@@ -106,8 +108,8 @@ void payload_test_client::on_state(vsomeip::state_type_e _state)
 void payload_test_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_available)
 {
-    VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex
-            << _service << "." << _instance << "] is "
+    VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0')
+            << std::setw(4) << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
     if(vsomeip_test::TEST_SERVICE_SERVICE_ID == _service
@@ -302,12 +304,18 @@ void payload_test_client::print_throughput()
             / (static_cast<double>(time_needed) / usec_per_sec)) / (1024*1024);
 
     VSOMEIP_INFO<< "[ Payload Test ] : :"
-    << "Payload size [byte]: " << std::dec << std::setw(8) << std::setfill('0') << current_payload_size_
-    << " Messages sent: " << std::dec << std::setw(8) << std::setfill('0') << number_of_sent_messages_
-    << " Meantime/message [usec]: " << std::dec << std::setw(8) << std::setfill('0') << time_per_message
-    << " Calls/sec: " << std::dec << std::setw(8) << std::setfill('0') << calls_per_sec
-    << " MiB/sec: " << std::dec << std::setw(8) << std::setfill('0') << mbyte_per_sec;
-}
+            << std::dec << std::setfill('0')
+            << "Payload size [byte]: " 
+            << std::setw(8) << current_payload_size_
+            << " Messages sent: " 
+            << std::setw(8) << number_of_sent_messages_
+            << " Meantime/message [usec]: " 
+            << std::setw(8) << time_per_message
+            << " Calls/sec: " 
+            << std::setw(8) << calls_per_sec
+            << " MiB/sec: " 
+            << std::setw(8) << mbyte_per_sec;
+        }
 
 TEST(someip_payload_test, send_different_payloads)
 {

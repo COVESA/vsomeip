@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "security_test_service.hpp"
 
 static bool is_remote_test = false;
@@ -123,10 +125,10 @@ void security_test_service::on_message(const std::shared_ptr<vsomeip::message>& 
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_SERVICE_ID, _request->get_service());
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_INSTANCE_ID, _request->get_instance());
 
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-        << std::setfill('0') << std::hex << _request->get_client() << "/"
-        << std::setw(4) << std::setfill('0') << std::hex
-        << _request->get_session() << "] method: " << _request->get_method() ;
+    VSOMEIP_INFO << "Received a message with Client/Session [" 
+        << std::hex << std::setfill('0')
+        << std::setw(4) << _request->get_client() << "/"
+        << std::setw(4) << _request->get_session() << "] method: " << _request->get_method() ;
 
     // send response
     std::shared_ptr<vsomeip::message> its_response =

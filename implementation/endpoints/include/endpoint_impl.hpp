@@ -28,13 +28,11 @@ public:
     typedef typename Protocol::endpoint endpoint_type;
 
     endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-                  const std::shared_ptr<routing_host>& _routing_host,
-                  const endpoint_type& _local,
-                  boost::asio::io_context &_io,
-                  std::uint32_t _max_message_size,
-                  configuration::endpoint_queue_limit_t _queue_limit,
+                  const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                   const std::shared_ptr<configuration>& _configuration);
-    virtual ~endpoint_impl();
+    endpoint_impl(endpoint_impl<Protocol> const&) = delete;
+    endpoint_impl(endpoint_impl<Protocol> const&&) = delete;
+    virtual ~endpoint_impl() = default;
 
     void enable_magic_cookies();
 
@@ -45,10 +43,6 @@ public:
     virtual std::uint16_t get_local_port() const = 0;
     virtual void set_local_port(uint16_t _port) = 0;
     virtual bool is_reliable() const = 0;
-
-    void increment_use_count();
-    void decrement_use_count();
-    uint32_t get_use_count();
 
     void register_error_handler(const error_handler_t &_error_handler);
     virtual void print_status() = 0;
@@ -97,7 +91,7 @@ protected:
     error_handler_t error_handler_;
     std::mutex error_handler_mutex_;
 
-    const configuration::endpoint_queue_limit_t queue_limit_;
+    configuration::endpoint_queue_limit_t queue_limit_;
 
     std::shared_ptr<configuration> configuration_;
 

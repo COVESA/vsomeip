@@ -90,6 +90,9 @@ SET(TEST_GID "${TEST_GID_DEFAULT_VALUE}" CACHE STRING
 SET(TEST_SECURITY "ON" CACHE BOOL
 "Controls whether security tests should run or not")
 
+SET(TEST_SKIP_VALGRIND_TRACKING "ON" CACHE BOOL
+"Controls if valgrind subprocesses tracking skipping is enabled or not for dedicated network tests")
+
 if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
    (${TEST_GID}  STREQUAL ${TEST_GID_DEFAULT_VALUE}) OR
    DISABLE_SECURITY)
@@ -127,13 +130,13 @@ add_dependencies(build_tests build_benchmark_tests)
 ##############################################################################
 
 add_subdirectory(common EXCLUDE_FROM_ALL)
-add_subdirectory( network_tests EXCLUDE_FROM_ALL )
+add_subdirectory(network_tests EXCLUDE_FROM_ALL)
 
 if (NOT DISABLE_SECURITY)
-    add_subdirectory( unit_tests EXCLUDE_FROM_ALL )
+    add_subdirectory(unit_tests EXCLUDE_FROM_ALL)
 
     if(benchmark_FOUND)
-        add_subdirectory( benchmark_tests EXCLUDE_FROM_ALL )
+        add_subdirectory(benchmark_tests EXCLUDE_FROM_ALL)
     endif()
 endif()
 

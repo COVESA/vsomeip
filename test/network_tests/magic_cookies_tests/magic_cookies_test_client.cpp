@@ -80,7 +80,7 @@ public:
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         VSOMEIP_INFO << "Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
+                << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance
                 << "] is "
                 << (_is_available ? "available." : "NOT available.");
 
@@ -99,25 +99,23 @@ public:
     void on_message(const std::shared_ptr< vsomeip::message > &_response) {
         if (_response->get_return_code() == vsomeip::return_code_e::E_OK) {
             VSOMEIP_INFO << "Received a response from Service ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
-                    << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                    << std::hex << std::setfill('0') 
+                    << std::setw(4) << _response->get_service() << '.'
+                    << std::setw(4) << _response->get_instance()
                     << "] to Client/Session ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
-                    << "/"
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
-                    << "]";
+                    << std::setw(4) << _response->get_client() << '/'
+                    << std::setw(4) << _response->get_session()
+                    << ']';
             received_responses_++;
         } else if (_response->get_return_code() == vsomeip::return_code_e::E_MALFORMED_MESSAGE) {
             VSOMEIP_INFO << "Received an error message from Service ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
-                    << "."
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                    << std::hex << std::setfill('0') 
+                    << std::setw(4) << _response->get_service() << '.'
+                    << std::setw(4) << _response->get_instance()
                     << "] to Client/Session ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
-                    << "/"
-                    << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
-                    << "]";
+                    << std::setw(4) << _response->get_client() << '/'
+                    << std::setw(4) << _response->get_session()
+                    << ']';
             received_errors_++;
         }
         if (received_errors_ == sent_messages_bad_

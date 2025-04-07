@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "big_payload_test_service.hpp"
 
 #include "big_payload_test_globals.hpp"
@@ -69,13 +71,13 @@ bool big_payload_test_service::init()
 
 void big_payload_test_service::start()
 {
-    VSOMEIP_INFO << "Starting...";
+    VSOMEIP_INFO << "Starting Service...";
     app_->start();
 }
 
 void big_payload_test_service::stop()
 {
-    VSOMEIP_INFO << "Stopping...";
+    VSOMEIP_INFO << "Stopping Service...";
     stop_offer();
     app_->clear_all_handler();
     app_->stop();
@@ -126,10 +128,9 @@ void big_payload_test_service::on_state(vsomeip::state_type_e _state)
 
 void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _request)
 {
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _request->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _request->get_session() << "] size: " << std::dec
+    VSOMEIP_INFO << "Received a message with Client/Session [" << std::hex
+            << std::setfill('0') << std::setw(4) << _request->get_client() << "/"
+            << std::setw(4) << _request->get_session() << "] size: " << std::dec
             << _request->get_payload()->get_length();
     {
         std::lock_guard<std::mutex> its_lock(mutex_);

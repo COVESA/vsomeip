@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "payload_test_service.hpp"
 
 // this variables are changed via cmdline parameters
@@ -99,10 +101,10 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
     number_of_received_messages_++;
     if(number_of_received_messages_ % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS == 0)
     {
-        VSOMEIP_INFO << "Received a message with Client/Session [" << std::setw(4)
-                << std::setfill('0') << std::hex << _request->get_client() << "/"
-                << std::setw(4) << std::setfill('0') << std::hex
-                << _request->get_session() << "] payload size [byte]:"
+        VSOMEIP_INFO << "Received a message with Client/Session [" 
+                << std::hex << std::setfill('0') 
+                << std::setw(4) << _request->get_client() << "/"
+                << std::setw(4) << _request->get_session() << "] payload size [byte]:"
                 << std::dec << _request->get_payload()->get_length();
     }
 

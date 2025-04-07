@@ -11,12 +11,7 @@
 #include <condition_variable>
 #include <memory>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/local/stream_protocol_ext.hpp>
-#else
-#    include <boost/asio/local/stream_protocol.hpp>
-#endif
-
+#include <boost/asio/local/stream_protocol.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
@@ -25,32 +20,21 @@
 
 namespace vsomeip_v3 {
 
-typedef server_endpoint_impl<
-#if VSOMEIP_BOOST_VERSION < 106600
-            boost::asio::local::stream_protocol_ext
-#else
-            boost::asio::local::stream_protocol
-#endif
-        > local_uds_server_endpoint_base_impl;
+typedef server_endpoint_impl<boost::asio::local::stream_protocol>
+        local_uds_server_endpoint_base_impl;
 
 class local_uds_server_endpoint_impl: public local_uds_server_endpoint_base_impl {
 public:
     local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
             const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
             boost::asio::io_context &_io,
             const std::shared_ptr<configuration>& _configuration,
             bool _is_routing_endpoint);
+    virtual ~local_uds_server_endpoint_impl() = default;
 
-    local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-            const std::shared_ptr<routing_host>& _routing_host,
-            const endpoint_type& _local,
-            boost::asio::io_context &_io,
-            int native_socket,
-            const std::shared_ptr<configuration>& _configuration,
-            bool _is_routing_endpoint);
-
-    virtual ~local_uds_server_endpoint_impl();
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
+    void init(const endpoint_type& _local, const int _socket, boost::system::error_code& _error);
+    void deinit();
 
     void start();
     void stop();
@@ -125,7 +109,7 @@ private:
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-                         , std::uint32_t const &_uid, std::uint32_t const &_gid
+                         , uid_t const &_uid, gid_t const &_gid
 #endif
         );
         void calculate_shrink_count();
@@ -158,11 +142,7 @@ private:
     };
 
     std::mutex acceptor_mutex_;
-#if VSOMEIP_BOOST_VERSION < 106600
-    boost::asio::local::stream_protocol_ext::acceptor acceptor_;
-#else
     boost::asio::local::stream_protocol::acceptor acceptor_;
-#endif
     typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;
     connections_t connections_;
@@ -172,20 +152,20 @@ private:
     const bool is_routing_endpoint_;
 
 private:
+    void init_helper(const endpoint_type& _local, boost::system::error_code& _error);
     bool add_connection(const client_t &_client,
             const std::shared_ptr<connection> &_connection);
     void remove_connection(const client_t &_client);
-    void accept_cbk(const connection::ptr& _connection,
+    void accept_cbk(connection::ptr _connection,
                     boost::system::error_code const &_error);
     std::string get_remote_information(
             const target_data_iterator_type _queue_iterator) const;
     std::string get_remote_information(
             const endpoint_type& _remote) const;
 
-    bool check_packetizer_space(target_data_iterator_type _queue_iterator,
-                                message_buffer_ptr_t* _packetizer,
-                                std::uint32_t _size);
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
+    bool check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const;
+    bool queue_train_buffer(target_data_iterator_type _it, message_buffer_ptr_t* _packetizer,
+                            std::uint32_t _size) const;
     void send_client_identifier(const client_t &_client);
 };
 

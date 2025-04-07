@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "restart_routing_test_client.hpp"
 
 routing_restart_test_client::routing_restart_test_client()
@@ -64,7 +66,7 @@ void routing_restart_test_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_available) {
 
     VSOMEIP_INFO << std::hex << "Client 0x" << app_->get_client()
-            << " : Service [" << std::setw(4) << std::setfill('0') << std::hex
+            << " : Service [" << std::hex << std::setfill('0') << std::setw(4)
             << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
@@ -83,17 +85,16 @@ void routing_restart_test_client::on_availability(vsomeip::service_t _service,
 
 void routing_restart_test_client::on_message(const std::shared_ptr<vsomeip::message> &_response) {
     VSOMEIP_INFO << "Received a response from Service ["
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_service()
-                 << "."
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_instance()
+                 << std::hex << std::setfill('0') 
+                 << std::setw(4) << _response->get_service() << "."
+                 << std::setw(4) << _response->get_instance()
                  << "] to Client/Session ["
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_client()
-                 << "/"
-                 << std::setw(4) << std::setfill('0') << std::hex << _response->get_session()
-                 << "]";
+                 << std::setw(4) << _response->get_client() << "/"
+                 << std::setw(4) << _response->get_session() << "]";
 
     if (_response->get_service() == vsomeip_test::TEST_SERVICE_SERVICE_ID &&
             _response->get_instance()  == vsomeip_test::TEST_SERVICE_INSTANCE_ID) {
+
         received_responses_++;
         if (received_responses_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
             VSOMEIP_WARNING << std::hex << app_->get_client()
@@ -104,21 +105,40 @@ void routing_restart_test_client::on_message(const std::shared_ptr<vsomeip::mess
 }
 
 void routing_restart_test_client::run() {
-    for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS; ++i) {
+    std::uint32_t its_sent_requests(0);
+    bool its_availability_timeout = false;
+    while (its_sent_requests < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
             while (!is_available_)
             {
-                condition_.wait(its_lock);
+                if (!condition_.wait_for(its_lock, std::chrono::milliseconds(10000),
+                                         [this] { return is_available_; })) {
+                    VSOMEIP_WARNING << "Service not available for 10s. Quit waiting";
+                    its_availability_timeout = true;
+                    break;
+                }
+                if (its_sent_requests > 0 && received_responses_ > 0
+                    && its_sent_requests > received_responses_) {
+                    VSOMEIP_WARNING << "Sent/Recv messages mismatch (" << its_sent_requests << "/"
+                                    << received_responses_
+                                    << ") : Resending non-responded requests";
+                    its_sent_requests = received_responses_;
+                }
             }
         }
 
+        if (its_availability_timeout) {
+            break;
+        }
         auto request = vsomeip::runtime::get()->create_request(false);
         request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
         request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
         request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
         app_->send(request);
 
+        its_sent_requests++;
+        VSOMEIP_INFO << "Sent request " << its_sent_requests;
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 

@@ -25,7 +25,6 @@
 #include "client_endpoint.hpp"
 #include "tp.hpp"
 
-
 namespace vsomeip_v3 {
 
 class endpoint;
@@ -42,8 +41,6 @@ public:
                          const std::shared_ptr<routing_host>& _routing_host,
                          const endpoint_type& _local, const endpoint_type& _remote,
                          boost::asio::io_context &_io,
-                         std::uint32_t _max_message_size,
-                         configuration::endpoint_queue_limit_t _queue_limit,
                          const std::shared_ptr<configuration>& _configuration);
     virtual ~client_endpoint_impl();
 
@@ -64,6 +61,7 @@ public:
 
     bool is_established() const;
     bool is_established_or_connected() const;
+    bool is_closed() const;
     void set_established(bool _established);
     void set_connected(bool _connected);
     virtual bool get_remote_address(boost::asio::ip::address &_address) const;
@@ -83,6 +81,7 @@ public:
     virtual void send_cbk(boost::system::error_code const &_error,
                           std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
     void flush_cbk(boost::system::error_code const &_error);
+    bool wait_connecting_timer();
 
 public:
     virtual void connect() = 0;
@@ -96,6 +95,13 @@ protected:
         CONNECTED,
         ESTABLISHED
     };
+
+    enum class connecting_timer_state_e : std::uint8_t {
+        IN_PROGRESS,
+        FINISH_SUCCESS,
+        FINISH_ERROR
+    };
+
     std::pair<message_buffer_ptr_t, uint32_t> get_front();
     virtual void send_queued(std::pair<message_buffer_ptr_t, uint32_t> &_entry) = 0;
     virtual void get_configured_times_from_endpoint(
@@ -106,8 +112,9 @@ protected:
     void shutdown_and_close_socket_unlocked(bool _recreate_socket);
     void start_connect_timer();
     void start_connecting_timer();
-    typename endpoint_impl<Protocol>::cms_ret_e check_message_size(
-            const std::uint8_t * const _data, std::uint32_t _size);
+    bool check_message_size(uint32_t _size) const;
+    typename endpoint_impl<Protocol>::cms_ret_e segment_message(const std::uint8_t* const _data,
+                                                                std::uint32_t _size);
     bool check_queue_limit(const uint8_t *_data, std::uint32_t _size) const;
     void queue_train(const std::shared_ptr<train> &_train);
     void update_last_departure();
@@ -127,6 +134,8 @@ protected:
 
     std::mutex connecting_timer_mutex_;
     boost::asio::steady_timer connecting_timer_;
+    std::condition_variable connecting_timer_condition_;
+    std::atomic<connecting_timer_state_e> connecting_timer_state_;
     std::atomic<uint32_t> connecting_timeout_;
 
 
@@ -153,7 +162,8 @@ private:
     virtual void set_local_port() = 0;
     virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_t _service,
-                                         method_t _method) const = 0;
+                                         instance_t _instance,
+                                         method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;
     void send_segments(const tp::tp_split_messages_t &_segments,

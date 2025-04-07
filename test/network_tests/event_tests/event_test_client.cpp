@@ -99,8 +99,8 @@ public:
 
     void on_availability(vsomeip::service_t _service,
                          vsomeip::instance_t _instance, bool _is_available) {
-            VSOMEIP_INFO << "Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _service << "." << _instance
+            VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0')
+            << std::setw(4) << _service << "." << _instance
             << "] is " << (_is_available ? "available":"not available") << ".";
             if (_is_available) {
                 std::lock_guard<std::mutex> its_lock(mutex_);
@@ -136,13 +136,12 @@ public:
         }
 
         VSOMEIP_DEBUG
-        << "Received a notification with Client/Session [" << std::setw(4)
-        << std::setfill('0') << std::hex << _message->get_client() << "/"
-        << std::setw(4) << std::setfill('0') << std::hex
-        << _message->get_session() << "] from Service/Method ["
-        << std::setw(4) << std::setfill('0') << std::hex
-        << _message->get_service() << "/" << std::setw(4) << std::setfill('0')
-        << std::hex << _message->get_method() << "]";
+        << "Received a notification with Client/Session ["
+        << std::hex << std::setfill('0')
+        << std::setw(4) << _message->get_client() << "/"
+        << std::setw(4) << _message->get_session() << "] from Service/Method ["
+        << std::setw(4) << _message->get_service() << "/"
+        << std::setw(4) << _message->get_method() << "]";
 
     }
 

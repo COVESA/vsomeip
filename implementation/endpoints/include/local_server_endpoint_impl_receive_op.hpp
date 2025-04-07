@@ -6,7 +6,6 @@
 #ifndef VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 #define VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 
-#if VSOMEIP_BOOST_VERSION >= 106600
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 
 #include <boost/asio/local/stream_protocol.hpp>
@@ -25,10 +24,10 @@ struct storage :
 {
     socket_type_t &socket_;
     receive_handler_t handler_;
-    byte_t *buffer_;
-    std::size_t length_;
-    uid_t uid_;
-    gid_t gid_;
+    byte_t *buffer_ = nullptr;
+    size_t length_;
+    uid_t uid_ = ANY_UID;
+    gid_t gid_ = ANY_GID;
     size_t bytes_;
 
     storage(
@@ -50,13 +49,13 @@ struct storage :
 };
 
 inline
-std::function<void(boost::system::error_code _error)> 
+std::function<void(boost::system::error_code _error)>
 receive_cb (std::shared_ptr<storage> _data) {
     return [_data](boost::system::error_code _error) {
         if (!_error) {
             if (!_data->socket_.native_non_blocking())
                 _data->socket_.native_non_blocking(true, _error);
-
+            #if defined(__linux__)
             for (;;) {
                 ssize_t its_result;
                 int its_flags(0);
@@ -77,7 +76,7 @@ receive_cb (std::shared_ptr<storage> _data) {
                 control_un.cmh.cmsg_type = SCM_CREDENTIALS;
 
                 // Build header with all informations to call ::recvmsg
-                msghdr its_header = msghdr();
+                auto its_header = msghdr();
                 its_header.msg_iov = its_vec;
                 its_header.msg_iovlen = 1;
                 its_header.msg_control = control_un.control;
@@ -126,6 +125,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 break;
             }
+            #endif
         }
 
         // Call the handler
@@ -137,6 +137,5 @@ receive_cb (std::shared_ptr<storage> _data) {
 } // namespace vsomeip
 
 #endif // __linux__ || ANDROID
-#endif // VSOMEIP_BOOST_VERSION >= 106600
 
 #endif // VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
