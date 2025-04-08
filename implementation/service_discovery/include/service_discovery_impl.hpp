@@ -27,6 +27,7 @@
 #include "ipv6_option_impl.hpp"
 #include "deserializer.hpp"
 #include "message_impl.hpp"
+#include "async_sender.hpp"
 
 namespace vsomeip_v3 {
 
@@ -34,6 +35,11 @@ class endpoint;
 class serializer;
 
 namespace sd {
+
+using time_point_clock = std::chrono::steady_clock;
+using time_point = time_point_clock::time_point;
+using service_instance_timepoint = std::map<service_t, std::map<instance_t,time_point>>;
+using service_instance_entry_type = std::map<service_t, std::map<instance_t,std::map<entry_type_e,std::atomic<bool>>>>;
 
 class entry_impl;
 class eventgroupentry_impl;
@@ -56,8 +62,10 @@ struct entry_data_t {
     std::shared_ptr<entry_impl> other_;
 };
 
-class service_discovery_impl: public service_discovery,
-        public std::enable_shared_from_this<service_discovery_impl> {
+class service_discovery_impl :
+    public service_discovery,
+    public async::sender::async_packet_send_callback,
+    public std::enable_shared_from_this<service_discovery_impl> {
 public:
     service_discovery_impl(service_discovery_host *_host,
                            const std::shared_ptr<configuration>& _configuration);
@@ -111,6 +119,10 @@ public:
     void register_sd_acceptance_handler(const sd_acceptance_handler_t &_handler);
     void register_reboot_notification_handler(
              const reboot_notification_handler_t &_handler);
+
+    void on_async_send_pkt(std::shared_ptr<async::sender::async_packet_data>) override;
+
+    std::chrono::milliseconds get_request_response_delay_random() const;
 private:
     std::pair<session_t, bool> get_session(const boost::asio::ip::address &_address);
     void increment_session(const boost::asio::ip::address &_address);
@@ -176,7 +188,8 @@ private:
             instance_t _instance,
             major_version_t _major,
             minor_version_t _minor,
-            bool _unicast_flag);
+            bool _unicast_flag,
+            bool _received_via_multicast);
     void process_eventgroupentry(
             std::shared_ptr<eventgroupentry_impl> &_entry,
             const std::vector<std::shared_ptr<option_impl> > &_options,
@@ -272,10 +285,11 @@ private:
 
     void send_uni_or_multicast_offerservice(
             const std::shared_ptr<const serviceinfo> &_info,
-            bool _unicast_flag);
+            bool _unicast_flag,
+            bool _received_via_multicast);
     bool last_offer_shorter_half_offer_delay_ago();
     void send_unicast_offer_service(
-            const std::shared_ptr<const serviceinfo> &_info);
+        const std::shared_ptr<const serviceinfo> &_info, bool _received_via_multicast);
     void send_multicast_offer_service(
             const std::shared_ptr<const serviceinfo>& _info);
 
@@ -371,6 +385,15 @@ private:
     reliability_type_e get_eventgroup_reliability(
             service_t _service, instance_t _instance, eventgroup_t _eventgroup,
             const std::shared_ptr<subscription>& _subscription);
+
+    void prepare_async_send(time_point _ts,
+                            std::vector<std::shared_ptr<message_impl>> &_messages,
+                            const boost::asio::ip::address &_address);
+    time_point get_time_point_for_subs_offer(bool _is_subscribe, service_t _service, instance_t _instance);
+    void set_async_msg_pending(std::vector<std::shared_ptr<message_impl>>& _msgs);
+    void reset_async_msg_pending(std::vector<std::shared_ptr<message_impl>>& _msgs);
+    bool check_if_async_msg_pending(service_t _s, instance_t _i, entry_type_e _e);
+
     void deserialize_data(const byte_t* _data, const length_t& _size,
                           std::shared_ptr<message_impl>& _message);
 
@@ -514,6 +537,12 @@ private:
 
     std::mutex offer_mutex_;
     std::mutex check_ttl_mutex_;
+    service_instance_timepoint last_offer_ts_;
+    service_instance_timepoint last_find_ts_;
+    async::sender::async_sender async_sender_;
+    service_instance_entry_type service_instance_entry_type_;
+    int32_t request_response_delay_min_;
+    int32_t request_response_delay_max_;
 };
 
 }  // namespace sd

@@ -163,6 +163,16 @@ service_discovery_impl::init() {
     ttl_factor_subscriptions_ = configuration_->get_ttl_factor_subscribes();
     last_msg_received_timer_timeout_ = cyclic_offer_delay_
             + (cyclic_offer_delay_ / 10);
+    request_response_delay_min_ = configuration_->get_sd_request_response_delay_min();
+    request_response_delay_max_ = configuration_->get_sd_request_response_delay_max();
+    if (request_response_delay_min_ > request_response_delay_max_) {
+        VSOMEIP_ERROR << "Configuration error: "
+                << "request_response_delay_min (" << request_response_delay_min_<< ")"
+                <<" > request_response_delay_max (" << request_response_delay_max_ << ")"
+                <<". Using default values.";
+        request_response_delay_min_ = VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY_MIN;
+        request_response_delay_max_ = VSOMEIP_SD_DEFAULT_REQUEST_RESPONSE_DELAY_MAX;
+    }
 }
 
 void
@@ -206,6 +216,8 @@ service_discovery_impl::start() {
     start_offer_debounce_timer(true);
     start_find_debounce_timer(true);
     start_ttl_timer();
+    async_sender_.set_packet_sender_callback(shared_from_this());
+    async_sender_.start();
 }
 
 void
@@ -214,6 +226,7 @@ service_discovery_impl::stop() {
     stop_ttl_timer();
     stop_last_msg_received_timer();
     stop_main_phase_timer();
+    async_sender_.stop();
 }
 
 void
@@ -395,7 +408,8 @@ service_discovery_impl::send_subscription(
                     << std::setw(4) << _eventgroup << "] ";
         }
 
-        if (its_data.entry_) {
+        if (its_data.entry_ &&
+            !check_if_async_msg_pending(_service, _instance, its_data.entry_->get_type())) {
             // TODO: Implement a simple path, that sends a single message
             auto its_current_message = std::make_shared<message_impl>();
             std::vector<std::shared_ptr<message_impl> > its_messages;
@@ -403,7 +417,7 @@ service_discovery_impl::send_subscription(
 
             add_entry_data(its_messages, its_data);
 
-            serialize_and_send(its_messages, its_address);
+            prepare_async_send(get_time_point_for_subs_offer(true,_service,_instance),its_messages,its_address);
         }
     }
 }
@@ -1308,14 +1322,43 @@ service_discovery_impl::on_message(
 
         // check resubscriptions for validity
         for (auto iter = its_resubscribes.begin(); iter != its_resubscribes.end();) {
-            if ((*iter)->get_entries().empty() || (*iter)->get_options().empty()) {
+            bool shouldErase = false;
+            if ((*iter)->get_entries().empty() || (*iter)->get_options().empty()){
+                shouldErase = true;
+            }
+            else {
+                std::vector<std::shared_ptr<entry_impl>> entris = (*iter)->get_entries();
+                for (auto entry : entris)
+                {
+                    // if subscription request already added in async sender queue
+                    // we do not want to add RE-subscrition request to async sender queue
+                    // seen in case repetitions_base_delay is less than request resonse delay
+                    if (check_if_async_msg_pending(
+                            entry->get_service(),
+                            entry->get_instance(),
+                            entry->get_type())) {
+                        VSOMEIP_WARNING << "sd::" << __func__ << ": Async send pendng for subscribe. Ignoring this ["
+                                        << std::hex << std::setfill('0')
+                                        << std::setw(4) << entry->get_service() << "."
+                                        << std::setw(4) << entry->get_instance() << "] "
+                                        << std::setw(4) << "entry_type_e::SUBSCRIBE_EVENTGROUP";
+                        shouldErase = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldErase) {
                 iter = its_resubscribes.erase(iter);
             } else {
                 iter++;
             }
         }
         if (!its_resubscribes.empty()) {
-            serialize_and_send(its_resubscribes, _sender);
+            if(_is_multicast){
+                prepare_async_send(time_point_clock::now(),its_resubscribes,_sender);
+            } else{
+                serialize_and_send(its_resubscribes, _sender);
+            }
         }
     } else {
         VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Deserialization error.";
@@ -1447,7 +1490,7 @@ void service_discovery_impl::process_serviceentry(
         switch (its_type) {
         case entry_type_e::FIND_SERVICE:
             process_findservice_serviceentry(its_service, its_instance, its_major, its_minor,
-                                             _unicast_flag);
+                                             _unicast_flag, _received_via_multicast);
             break;
         case entry_type_e::OFFER_SERVICE:
             process_offerservice_serviceentry(its_service, its_instance, its_major, its_minor,
@@ -1608,6 +1651,7 @@ void service_discovery_impl::process_offerservice_serviceentry(
 
     // No need to resubscribe for unicast offers
     if (_received_via_multicast) {
+        last_offer_ts_[_service][_instance] = time_point_clock::now();
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -1653,6 +1697,9 @@ void service_discovery_impl::process_offerservice_serviceentry(
                 }
             }
         }
+    } else{
+        // offer received via unicast, assign zero
+        last_offer_ts_[_service][_instance] = time_point();
     }
 
     host_->add_routing_info(_service, _instance, _major, _minor,
@@ -1661,12 +1708,12 @@ void service_discovery_impl::process_offerservice_serviceentry(
                             _unreliable_port);
 }
 
-void
-service_discovery_impl::process_findservice_serviceentry(
-        service_t _service, instance_t _instance,
-        major_version_t _major, minor_version_t _minor,
-        bool _unicast_flag) {
+void service_discovery_impl::process_findservice_serviceentry(
+    service_t _service, instance_t _instance,
+    major_version_t _major, minor_version_t _minor,
+    bool _unicast_flag, bool _received_via_multicast) {
 
+    last_find_ts_[_service][_instance] = time_point_clock::now();
     if (_instance != ANY_INSTANCE) {
         std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(
                 _service, _instance);
@@ -1674,7 +1721,7 @@ service_discovery_impl::process_findservice_serviceentry(
             if (_major == ANY_MAJOR || _major == its_info->get_major()) {
                 if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
                     if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
-                        send_uni_or_multicast_offerservice(its_info, _unicast_flag);
+                        send_uni_or_multicast_offerservice(its_info, _unicast_flag,_received_via_multicast);
                     }
                 }
             }
@@ -1688,7 +1735,7 @@ service_discovery_impl::process_findservice_serviceentry(
             if (_major == ANY_MAJOR || _major == its_info->get_major()) {
                 if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
                     if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
-                        send_uni_or_multicast_offerservice(its_info, _unicast_flag);
+                        send_uni_or_multicast_offerservice(its_info, _unicast_flag,_received_via_multicast);
                     }
                 }
             }
@@ -1696,9 +1743,9 @@ service_discovery_impl::process_findservice_serviceentry(
     }
 }
 
-void
-service_discovery_impl::send_unicast_offer_service(
-        const std::shared_ptr<const serviceinfo> &_info) {
+void service_discovery_impl::send_unicast_offer_service(
+    const std::shared_ptr<const serviceinfo> &_info,
+    bool _received_via_multicast) {
     std::shared_ptr<runtime> its_runtime = runtime_.lock();
     if (!its_runtime) {
         return;
@@ -1710,21 +1757,43 @@ service_discovery_impl::send_unicast_offer_service(
 
     insert_offer_service(its_messages, _info);
 
-    serialize_and_send(its_messages, current_remote_address_);
+    if (_received_via_multicast) {
+        service_t _service = _info->get_service();
+        instance_t _instance = _info->get_instance();
+        if (check_if_async_msg_pending(_service, _instance, entry_type_e::OFFER_SERVICE)) {
+            VSOMEIP_WARNING << "sd::" << __func__ << ": Async send pendng for offer. Ignoring this ["
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << _service << "."
+                            << std::setw(4) << _instance << "] "
+                            << std::setw(4) << "entry_type_e::OFFER_SERVICE";
+            return;
+        }
+        prepare_async_send(get_time_point_for_subs_offer(false,_service,_instance),its_messages,current_remote_address_);
+    } else{
+        serialize_and_send(its_messages,current_remote_address_);
+    }
 }
 
 void
 service_discovery_impl::send_multicast_offer_service(
         const std::shared_ptr<const serviceinfo> &_info) {
+    service_t _service = _info->get_service();
+    instance_t _instance = _info->get_instance();
+    if (check_if_async_msg_pending(_service, _instance, entry_type_e::OFFER_SERVICE)) {
+        VSOMEIP_WARNING << "sd::" << __func__ << ": Async send pendng for offer. Ignoring this ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "] "
+                        << std::setw(4) << "entry_type_e::OFFER_SERVICE";
+        return;
+    }
     auto its_offer_message(std::make_shared<message_impl>());
     std::vector<std::shared_ptr<message_impl> > its_messages;
     its_messages.push_back(its_offer_message);
 
     insert_offer_service(its_messages, _info);
 
-    // send message as multicast offer service the same way it is sent
-    // on the repetition phase to preserve the session id
-    send(its_messages);
+    prepare_async_send(get_time_point_for_subs_offer(false,_service,_instance),its_messages,sd_multicast_address_);
 }
 
 void
@@ -1816,7 +1885,7 @@ service_discovery_impl::on_endpoint_connected(
         }
     }
 
-    serialize_and_send(its_messages, its_address);
+    prepare_async_send(get_time_point_for_subs_offer(true,_service,_instance),its_messages,its_address);
 }
 
 std::shared_ptr<option_impl>
@@ -3322,12 +3391,12 @@ service_discovery_impl::on_main_phase_timer_expired(
     start_main_phase_timer();
 }
 
-void
-service_discovery_impl::send_uni_or_multicast_offerservice(
-        const std::shared_ptr<const serviceinfo> &_info, bool _unicast_flag) {
+void service_discovery_impl::send_uni_or_multicast_offerservice(
+    const std::shared_ptr<const serviceinfo> &_info, bool _unicast_flag,
+    bool _received_via_multicast) {
     if (_unicast_flag) { // SID_SD_826
         if (last_offer_shorter_half_offer_delay_ago()) { // SIP_SD_89
-            send_unicast_offer_service(_info);
+            send_unicast_offer_service(_info,_received_via_multicast);
         } else { // SIP_SD_90
             send_multicast_offer_service(_info);
         }
@@ -4014,6 +4083,114 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(
                     << std::setw(4) << _eventgroup << "]";
     }
     return its_reliability;
+}
+
+void service_discovery_impl::prepare_async_send(time_point _ts,
+                                                std::vector<std::shared_ptr<message_impl>> &_messages,
+                                                const boost::asio::ip::address &_address)
+{
+    if (0 == _ts.time_since_epoch().count()) {
+        VSOMEIP_INFO << "sd::" << __func__ << ": ts not set for async, sending packet now.";
+        serialize_and_send(_messages, _address);
+        return;
+    }
+    time_point ts = _ts + get_request_response_delay_random();
+    std::shared_ptr<async::sender::async_packet_data> _pkt = std::make_shared<async::sender::async_packet_data>();
+    _pkt->messages_ =_messages;
+    _pkt->address_ = _address;
+    _pkt->timeout_ = ts;
+    set_async_msg_pending(_messages);
+    async_sender_.add_queue(std::move(_pkt));
+}
+
+time_point service_discovery_impl::get_time_point_for_subs_offer(bool _is_subscribe, service_t _service, instance_t _instance){
+    if(_is_subscribe){
+        auto serviceMap = last_offer_ts_.find(_service);
+        if(serviceMap != last_offer_ts_.end()){
+            auto instanceMap = serviceMap->second.find(_instance);
+            if(instanceMap != serviceMap->second.end()){
+                return instanceMap->second;
+            }
+        }
+    } else{
+        auto serviceMap = last_find_ts_.find(_service);
+        if(serviceMap != last_find_ts_.end()){
+            auto instanceMap = serviceMap->second.find(_instance);
+            if(instanceMap != serviceMap->second.end()){
+                return instanceMap->second;
+            }
+        }
+    }
+    return time_point();
+}
+
+void service_discovery_impl::on_async_send_pkt(std::shared_ptr<async::sender::async_packet_data> _pkt) {
+    reset_async_msg_pending(_pkt->messages_);
+    serialize_and_send(_pkt->messages_,_pkt->address_);
+}
+
+void service_discovery_impl::reset_async_msg_pending(std::vector<std::shared_ptr<message_impl>>& _msgs){
+    std::vector<std::shared_ptr<entry_impl>> entris;
+    for(auto msg : _msgs){
+        entris = msg->get_entries();
+        for(auto entry : entris){
+            service_instance_entry_type_[entry->get_service()][entry->get_instance()][entry->get_type()] = false;
+        }
+    }
+}
+
+void service_discovery_impl::set_async_msg_pending(std::vector<std::shared_ptr<message_impl>>& _msgs){
+    std::vector<std::shared_ptr<entry_impl>> entris;
+    for(auto msg : _msgs){
+        entris = msg->get_entries();
+        for(auto entry : entris){
+            service_instance_entry_type_[entry->get_service()][entry->get_instance()][entry->get_type()] = true;
+        }
+    }
+}
+
+bool service_discovery_impl::check_if_async_msg_pending(service_t _s, instance_t _i, entry_type_e _e) {
+    bool ret = false;
+    auto hasService = service_instance_entry_type_.find(_s);
+    if(hasService != service_instance_entry_type_.end()){
+        auto hasInstance = hasService->second.find(_i);
+        if(hasInstance != hasService->second.end()){
+            auto hasType = hasInstance->second.find(_e);
+            if(hasType != hasInstance->second.end()){
+                ret = hasType->second;
+            }
+        }
+    }
+    return ret;
+}
+
+std::chrono::milliseconds service_discovery_impl::get_request_response_delay_random() const {
+    try {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_int_distribution<std::int32_t> distribution(
+            request_response_delay_min_, request_response_delay_max_);
+        return std::chrono::milliseconds(distribution(gen));
+    }
+    catch (const std::exception &e) {
+        VSOMEIP_ERROR << "Failed to generate random request response delay" << e.what();
+
+        // Fallback to the Mersenne Twister engine
+        const auto seed = static_cast<std::mt19937::result_type>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now().time_since_epoch())
+                .count());
+
+        static std::mt19937 mtwister{seed};
+
+        // Interpolate between request_response_delay bounds
+        return std::chrono::milliseconds(
+            (request_response_delay_min_ +
+             (static_cast<std::int64_t>(mtwister()) *
+              static_cast<std::int64_t>(request_response_delay_max_ - request_response_delay_min_) /
+              static_cast<std::int64_t>(std::mt19937::max() -
+                                        std::mt19937::min()))));
+    }
 }
 
 void service_discovery_impl::deserialize_data(const byte_t* _data, const length_t& _size,
