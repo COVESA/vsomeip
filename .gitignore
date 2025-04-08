@@ -1,4 +1,5 @@
 /CMakeFiles
+/CMakeUserPresets.json
 /build*/*
 /examples/hello_world/build
 /.idea/
