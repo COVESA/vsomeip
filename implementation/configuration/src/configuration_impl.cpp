@@ -4678,26 +4678,8 @@ void configuration_impl::load_secure_service(const boost::property_tree::ptree &
 }
 
 std::shared_ptr<debounce_filter_impl_t>
-configuration_impl::get_debounce(const std::string &_name,
-        service_t _service, instance_t _instance, event_t _event) const {
-
-    // Try to find application (client) specific debounce configuration
-    auto found_application = applications_.find(_name);
-    if (found_application != applications_.end()) {
-        auto found_service = found_application->second.debounces_.find(_service);
-        if (found_service != found_application->second.debounces_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_event = found_instance->second.find(_event);
-                if (found_event != found_instance->second.end()) {
-                    return found_event->second;
-                }
-            }
-        }
-    }
-
-    // If no application specific configuration was found, search for a
-    // generic
+configuration_impl::get_default_debounce(service_t _service, instance_t _instance,
+                                         event_t _event) const {
     auto found_service = debounces_.find(_service);
     if (found_service != debounces_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -4706,6 +4688,28 @@ configuration_impl::get_debounce(const std::string &_name,
             if (found_event != found_instance->second.end()) {
                 return found_event->second;
             }
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<debounce_filter_impl_t>
+configuration_impl::get_debounce(client_t _client, service_t _service, instance_t _instance,
+                                 event_t _event) const {
+    // Try to find application (client) specific debounce configuration
+    for (auto& [its_name, its_application] : applications_) {
+        if (its_application.client_ == _client) {
+            auto found_service = its_application.debounces_.find(_service);
+            if (found_service != its_application.debounces_.end()) {
+                auto found_instance = found_service->second.find(_instance);
+                if (found_instance != found_service->second.end()) {
+                    auto found_event = found_instance->second.find(_event);
+                    if (found_event != found_instance->second.end()) {
+                        return found_event->second;
+                    }
+                }
+            }
+            break;
         }
     }
     return nullptr;
