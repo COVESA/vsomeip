@@ -119,7 +119,7 @@ message::~message() try {
 #else
         localtime_r(&its_time_t, &its_time);
 #endif
-        auto its_ms = (when_.time_since_epoch().count() / 100) % 1000000;
+        auto its_ms = std::chrono::duration_cast<std::chrono::microseconds>(when_.time_since_epoch()).count() % 1000000;
 
         if (its_logger->has_console_log()) {
 #ifndef ANDROID
