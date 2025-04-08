@@ -31,6 +31,8 @@ public:
     virtual void check(e2exf::data_identifier_t id,
             const e2e_buffer &_buffer, instance_t _instance,
             e2e::profile_interface::check_status_t &_generic_check_status) = 0;
+    virtual bool should_remove_e2e_header(e2exf::data_identifier_t id) = 0;
+    virtual bool get_header_offset_and_length(e2exf::data_identifier_t id,length_t& offset, length_t& length) = 0;
 };
 
 } // namespace e2e
