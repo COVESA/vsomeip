@@ -95,11 +95,14 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
     if (!_error) {
         size_t len = _bytes;
 
-        unsigned int address(0);
+        in6_addr address;
+        size_t address_size{};
         if (address_.is_v4()) {
             inet_pton(AF_INET, address_.to_string().c_str(), &address);
+            address_size = sizeof(in_addr);
         } else {
             inet_pton(AF_INET6, address_.to_string().c_str(), &address);
+            address_size = sizeof(in6_addr);
         }
 
         struct nlmsghdr *nlh = (struct nlmsghdr *)&recv_buffer_[0];
@@ -110,7 +113,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
                 case RTM_NEWADDR: {
                     // New Address information
                     struct ifaddrmsg *ifa = (ifaddrmsg *)NLMSG_DATA(nlh);
-                    if (has_address(ifa, IFA_PAYLOAD(nlh), address)) {
+                    if (has_address(ifa, IFA_PAYLOAD(nlh), address, address_size)) {
                         net_if_index_for_address_ = static_cast<int>(ifa->ifa_index);
                         auto its_if = net_if_flags_.find(static_cast<int>(ifa->ifa_index));
                         if (its_if != net_if_flags_.end()) {
@@ -382,20 +385,14 @@ void netlink_connector::handle_netlink_error(struct nlmsgerr *_error_msg) {
 
 bool netlink_connector::has_address(struct ifaddrmsg * ifa_struct,
         size_t length,
-        const unsigned int address) {
+        const in6_addr & address, size_t address_size) {
 
     struct rtattr *retrta;
     retrta = static_cast<struct rtattr *>(IFA_RTA(ifa_struct));
     while RTA_OK(retrta, length) {
         if (retrta->rta_type == IFA_ADDRESS) {
-            char pradd[128];
             unsigned int * tmp_address = (unsigned int *)RTA_DATA(retrta);
-            if (address_.is_v4()) {
-                inet_ntop(AF_INET, tmp_address, pradd, sizeof(pradd));
-            } else {
-                inet_ntop(AF_INET6, tmp_address, pradd, sizeof(pradd));
-            }
-            if (address == *tmp_address) {
+            if (std::memcmp(tmp_address, &address, address_size) == 0) {
                 return true;
             }
         }

@@ -166,7 +166,7 @@ public:
 private:
     bool has_address(struct ifaddrmsg * ifa_struct,
             size_t length,
-            const unsigned int address);
+            const in6_addr & address, size_t address_size);
     void send_ifa_request(std::uint32_t _retry = 0);
     void send_ifi_request(std::uint32_t _retry = 0);
     void send_rt_request(std::uint32_t _retry = 0);
