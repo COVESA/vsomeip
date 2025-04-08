@@ -190,7 +190,7 @@ enum class port_type_e {
 };
 
 using partition_id_t = std::uint8_t;
-const partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;
+inline constexpr partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;
 
 } // namespace vsomeip_v3
 
