@@ -456,7 +456,7 @@ void routing_manager_base::register_event(client_t _client,
 
         if ((_is_shadow || is_routing_manager()) && !_epsilon_change_func) {
             std::shared_ptr<debounce_filter_impl_t> its_debounce
-                = configuration_->get_debounce(host_->get_name(), _service, _instance, _notifier);
+                = configuration_->get_default_debounce(_service, _instance, _notifier);
             if (its_debounce) {
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change="

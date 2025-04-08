@@ -237,8 +237,9 @@ public:
     virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
 
     // Debouncing
-    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(
-            const std::string &_name,
+    virtual std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
+            service_t _service, instance_t _instance, event_t _event) const = 0;
+    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
             service_t _service, instance_t _instance, event_t _event) const = 0;
 
     // Queue size limit endpoints
