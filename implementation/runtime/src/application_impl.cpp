@@ -49,22 +49,21 @@ uint32_t application_impl::app_counter__ = 0;
 std::mutex application_impl::app_counter_mutex__;
 
 application_impl::application_impl(const std::string &_name, const std::string &_path) :
-    runtime_(runtime::get()), client_(VSOMEIP_CLIENT_UNSET), session_(0), is_initialized_(false),
-    name_(_name), path_(_path),
-    work_(std::make_shared<
+    runtime_ {runtime::get()}, client_ {VSOMEIP_CLIENT_UNSET}, session_ {0},
+    is_initialized_ {false}, name_ {_name}, path_ {_path},
+    work_ {std::make_shared<
             boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
-            io_.get_executor())),
-    routing_(nullptr), state_(state_type_e::ST_DEREGISTERED), security_mode_(security_mode_e::SM_ON),
+            io_.get_executor())},
+    routing_ {nullptr}, state_ {state_type_e::ST_DEREGISTERED},
+    security_mode_ {security_mode_e::SM_ON},
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    signals_(io_, SIGINT, SIGTERM), catched_signal_(false),
+    signals_ {io_, SIGINT, SIGTERM}, catched_signal_ {false},
 #endif
-    is_dispatching_(false), max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
-    max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME), dispatcher_counter_(0),
-    max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS), stopped_(false),
-    block_stopping_(false), is_routing_manager_host_(false), stopped_called_(false),
-    watchdog_timer_(io_), client_side_logging_(false), has_session_handling_(true)
-{
-}
+    is_dispatching_ {false}, max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS},
+    max_dispatch_time_ {VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, dispatcher_counter_ {0},
+    max_detached_thread_wait_time {VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS}, stopped_ {false},
+    block_stopping_ {false}, is_routing_manager_host_ {false}, stopped_called_ {false},
+    watchdog_timer_ {io_}, client_side_logging_ {false}, has_session_handling_ {true} { }
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);

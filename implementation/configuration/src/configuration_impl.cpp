@@ -85,7 +85,9 @@ configuration_impl::configuration_impl(const std::string& _path) :
     statistics_max_messages_ {VSOMEIP_DEFAULT_STATISTICS_MAX_MSG},
     max_remote_subscribers_ {VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS}, path_ {_path},
     is_security_enabled_ {false}, is_security_external_ {false}, is_security_audit_ {false},
-    is_remote_access_allowed_ {true}, initial_routing_state_ {routing_state_e::RS_UNKNOWN} {
+    is_remote_access_allowed_ {true}, initial_routing_state_ {routing_state_e::RS_UNKNOWN},
+    default_max_dispatch_time_ {VSOMEIP_DEFAULT_MAX_DISPATCH_TIME},
+    default_max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS}  {
 
     policy_manager_ = std::make_shared<policy_manager_impl>();
     security_ = std::make_shared<security>(policy_manager_);
@@ -124,7 +126,9 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     npdu_default_max_retention_requ_ {_other.npdu_default_max_retention_requ_},
     npdu_default_max_retention_resp_ {_other.npdu_default_max_retention_resp_},
     shutdown_timeout_ {_other.shutdown_timeout_}, path_ {_other.path_},
-    initial_routing_state_ {_other.initial_routing_state_} {
+    initial_routing_state_ {_other.initial_routing_state_},
+    default_max_dispatch_time_ {_other.default_max_dispatch_time_},
+    default_max_dispatchers_ {_other.default_max_dispatchers_} {
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
     client_identifiers_ = _other.client_identifiers_;
@@ -568,6 +572,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_udp_receive_buffer_size(e);
             load_services(e);
             load_local_clients_keepalive(e);
+            load_dispatch_defaults(e);
         }
     }
 
@@ -967,8 +972,8 @@ void configuration_impl::load_application_data(
         const boost::property_tree::ptree &_tree, const std::string &_file_name) {
     std::string its_name("");
     client_t its_id(VSOMEIP_CLIENT_UNSET);
-    std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
-    std::size_t its_max_dispatch_time(VSOMEIP_MAX_DISPATCH_TIME);
+    std::size_t its_max_dispatchers(VSOMEIP_DEFAULT_MAX_DISPATCHERS);
+    std::size_t its_max_dispatch_time(VSOMEIP_DEFAULT_MAX_DISPATCH_TIME);
     std::size_t its_max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS);
     std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
@@ -2593,6 +2598,45 @@ void configuration_impl::load_local_clients_keepalive(const configuration_elemen
     }
 }
 
+void configuration_impl::load_dispatch_defaults(const configuration_element& _element) {
+    const std::string its_dispatching_key {"dispatching"};
+    const std::string its_default_max_dispatch_time_key {"max_dispatch_time"};
+    const std::string its_default_max_dispatchers_key {"max_dispatchers"};
+
+    try {
+        auto its_dispatching {_element.tree_.get_child(its_dispatching_key)};
+        for (auto i = its_dispatching.begin(); i != its_dispatching.end(); ++i) {
+            std::string its_key {i->first};
+            std::string its_value {i->second.data()};
+            std::stringstream its_converter;
+
+            if (its_key == its_default_max_dispatch_time_key) {
+                if (is_configured_[ET_DEFAULT_MAX_DISPATCH_TIME]) {
+                    VSOMEIP_WARNING << "Multiple definitions of dispatching.max_dispatch_time."
+                                       " Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    its_converter << std::dec << its_value;
+                    its_converter >> default_max_dispatch_time_;
+                    is_configured_[ET_DEFAULT_MAX_DISPATCH_TIME] = true;
+                }
+            } else if (its_key == its_default_max_dispatchers_key) {
+                if (is_configured_[ET_DEFAULT_MAX_DISPATCHERS]) {
+                    VSOMEIP_WARNING << "Multiple definitions of dispatching.max_dispatchers."
+                                       " Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    its_converter << std::dec << its_value;
+                    its_converter >> default_max_dispatchers_;
+                    is_configured_[ET_DEFAULT_MAX_DISPATCHERS] = true;
+                }
+            }
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
 void configuration_impl::load_payload_sizes(const configuration_element &_element) {
     const std::string payload_sizes("payload-sizes");
     const std::string max_local_payload_size("max-payload-size-local");
@@ -3245,28 +3289,21 @@ int configuration_impl::get_io_thread_nice_level(const std::string &_name) const
     return its_io_thread_nice_level;
 }
 
-std::size_t configuration_impl::get_max_dispatchers(
-        const std::string &_name) const {
-
-    std::size_t its_max_dispatchers(VSOMEIP_MAX_DISPATCHERS);
-
+std::size_t configuration_impl::get_max_dispatchers(const std::string& _name) const {
+    size_t its_max_dispatchers {default_max_dispatchers_};
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
         its_max_dispatchers = found_application->second.max_dispatchers_;
     }
-
     return its_max_dispatchers;
 }
 
-std::size_t configuration_impl::get_max_dispatch_time(
-        const std::string &_name) const {
-    std::size_t its_max_dispatch_time = VSOMEIP_MAX_DISPATCH_TIME;
-
+std::size_t configuration_impl::get_max_dispatch_time(const std::string& _name) const {
+    size_t its_max_dispatch_time {default_max_dispatch_time_};
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
         its_max_dispatch_time = found_application->second.max_dispatch_time_;
     }
-
     return its_max_dispatch_time;
 }
 
