@@ -412,6 +412,8 @@ private:
     void load_watchdog(const configuration_element &_element);
     void load_local_clients_keepalive(const configuration_element &_element);
 
+    void load_dispatch_defaults(const configuration_element& _element);
+
     void load_payload_sizes(const configuration_element &_element);
     void load_permissions(const configuration_element &_element);
 
@@ -625,7 +627,9 @@ protected:
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
         ET_INITIAL_ROUTING_STATE,
-        ET_MAX = 51
+        ET_DEFAULT_MAX_DISPATCH_TIME,
+        ET_DEFAULT_MAX_DISPATCHERS,
+        ET_MAX = 53
     };
 
     bool is_configured_[ET_MAX];
@@ -704,6 +708,9 @@ protected:
     std::atomic_bool is_remote_access_allowed_;
 
     routing_state_e initial_routing_state_;
+
+    std::size_t default_max_dispatch_time_;
+    std::size_t default_max_dispatchers_;
 };
 
 } // namespace cfg
