@@ -67,18 +67,20 @@ set(CMAKE_CXX_STANDARD 17)
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(DL_LIBRARY "dl")
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # This is only relevant for GCC and causes warnings on Clang
     set(EXPORTSYMBOLS "-Wl,-export-dynamic -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exportmap.gcc")
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -pie -Wno-tsan -Wl,-z,relro,-z,now")
-endif()
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -fPIC -pie -Wno-tsan -Wl,-z,relro,-z,now")
+  else()
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -fPIE")
+  endif()
 
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
   if(NOT DEFINED _FORTIFY_SOURCE)
       set(_FORTIFY_SOURCE 2)
   endif()
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror")
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
