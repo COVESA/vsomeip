@@ -28,6 +28,10 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/application.hpp>
 
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+#include <vsomeip/internal/plugin_manager.hpp>
+#endif
+
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
 #else
@@ -376,6 +380,10 @@ private:
 
     std::string path_;
     std::shared_ptr<configuration> configuration_;
+
+#ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+    std::shared_ptr<plugin_manager> plugin_manager_;
+#endif
 
     boost::asio::io_context io_;
     std::set<std::shared_ptr<std::thread> > io_threads_;
