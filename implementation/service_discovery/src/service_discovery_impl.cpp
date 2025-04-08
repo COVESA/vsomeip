@@ -176,17 +176,17 @@ service_discovery_impl::start() {
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(sessions_received_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(sessions_received_mutex_);
         sessions_received_.clear();
     }
     {
-        std::lock_guard<std::mutex> its_lock(serialize_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(serialize_mutex_);
         sessions_sent_.clear();
     }
 
     if (is_suspended_) {
         // make sure to sent out FindService messages after resume
-        std::lock_guard<std::mutex> its_lock(requested_mutex_);
+        std::lock_guard<std::mutex> its_lock_inner(requested_mutex_);
         for (const auto &s : requested_) {
             for (const auto &i : s.second) {
                 i.second->set_sent_counter(0);
