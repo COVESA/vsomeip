@@ -1,25 +1,36 @@
-# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG) This Source Code Form is subject to the
+# terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain
+# one at http://mozilla.org/MPL/2.0/.
 
-# Daemon
-add_executable(routingmanagerd routingmanagerd.cpp)
-target_link_libraries(routingmanagerd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LIBRARY} ${DLT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    target_link_libraries(routingmanagerd socket)
-endif()
-add_dependencies(routingmanagerd ${VSOMEIP_NAME})
+cmake_minimum_required(VERSION 3.13)
+
 
 option(VSOMEIP_INSTALL_ROUTINGMANAGERD "Whether or not to install the routing manager daemon.")
 
-if (VSOMEIP_INSTALL_ROUTINGMANAGERD)
-    install (
-        TARGETS routingmanagerd
-        RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
-    )
+# Daemon
+add_executable(routingmanagerd)
+target_sources(routingmanagerd PRIVATE routingmanagerd.cpp)
+
+target_compile_definitions(routingmanagerd PRIVATE $<TARGET_NAME_IF_EXISTS:USE_DLT>)
+
+target_link_libraries(
+  routingmanagerd
+  PRIVATE ${VSOMEIP_NAME}
+          Boost::system
+          Boost::filesystem
+          $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
+          OS_INTERFACE
+          DL_INTERFACE
+          RT_INTERFACE
+          Threads::Threads
+)
+
+if(VSOMEIP_INSTALL_ROUTINGMANAGERD)
+  install(
+    TARGETS routingmanagerd RUNTIME
+            DESTINATION "${INSTALL_BIN_DIR}"
+            COMPONENT bin
+  )
 endif()
 
-
-
-###################################################################################################
+# ######################################################################################################################
