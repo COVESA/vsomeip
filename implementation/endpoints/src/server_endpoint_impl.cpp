@@ -185,14 +185,14 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
                     is_valid_target = true;
                     found_client->second.erase(its_session);
                 } else {
-                    VSOMEIP_WARNING << "server_endpoint_impl::send: Cannot find session ["
-                                    << std::hex << std::setfill('0') << its_session
-                                    << "for client [" << std::setw(4) << its_client
-                                    << " and method [" << std::setw(4) << its_service
+                    VSOMEIP_WARNING << "server_endpoint_impl::send: Cannot find sessionid ("
+                                    << std::setw(4) << std::hex << std::setfill('0') << its_session
+                                    << ") for client " << std::setw(4) << its_client
+                                    << " and method [" << std::setw(4) << its_service << "."
                                     << std::setw(4) << its_method << "]";
                     if (its_service == VSOMEIP_SD_SERVICE && its_method == VSOMEIP_SD_METHOD) {
                         VSOMEIP_ERROR << "server_endpoint_impl::send: Clearing clients map as a"
-                                         " request was reeived on SD port";
+                                         " request was received on SD port";
                         clients_.clear();
                         is_valid_target = get_default_target(its_service, its_target);
                     }

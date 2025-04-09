@@ -1206,11 +1206,9 @@ void routing_manager_stub::on_net_state_change(bool _is_interface, const std::st
 void routing_manager_stub::on_offer_service(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
 
-    VSOMEIP_INFO << "routing_manager_stub::" << __func__ << ": ON_OFFER_SERVICE("
-        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-        << std::hex << std::setw(4) << std::setfill('0') << _instance
-        << ":" << std::dec << int(_major) << "." << std::dec << _minor << "]";
+    VSOMEIP_DEBUG << "ON_OFFER_SERVICE(" << std::hex << std::setfill('0') << std::setw(4) << _client
+                  << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << ":"
+                  << std::dec << static_cast<int>(_major) << "." << _minor << "]";
 
     if (_client == host_->get_client()) {
         create_local_receiver();

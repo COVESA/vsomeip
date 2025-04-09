@@ -429,7 +429,7 @@ void tcp_server_endpoint_impl::connection::stop() {
         if (its_server && its_server->is_suspended()) {
             socket_.set_option(boost::asio::socket_base::linger(true, 0), its_error);
             if (its_error) {
-                VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop< "
+                VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop<"
                                 << get_address_port_remote() << ">:setting SO_LINGER failed ("
                                 << its_error.message() << ")";
             }
@@ -437,14 +437,14 @@ void tcp_server_endpoint_impl::connection::stop() {
 
         socket_.shutdown(socket_.shutdown_both, its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop< "
+            VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop<"
                             << get_address_port_remote() << ">:shutting down socket failed ("
                             << its_error.message() << ")";
         }
 
         socket_.close(its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop< "
+            VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop<"
                             << get_address_port_remote() << ">:closing socket failed ("
                             << its_error.message() << ")";
         }

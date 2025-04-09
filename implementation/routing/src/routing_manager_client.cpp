@@ -2932,9 +2932,10 @@ void routing_manager_client::register_client_error_handler(client_t _client,
 void routing_manager_client::handle_client_error(client_t _client) {
 
     if (_client != VSOMEIP_ROUTING_CLIENT) {
-        VSOMEIP_INFO << "rmc::handle_client_error:" << " Client 0x" << std::hex << std::setw(4)
-                     << std::setfill('0') << get_client() << " handles a client error(" << std::hex
-                     << std::setw(4) << std::setfill('0') << _client << ") not reconnecting";
+        VSOMEIP_INFO << "rmc::handle_client_error:"
+                     << " Client 0x" << std::hex << std::setw(4) << std::setfill('0')
+                     << get_client() << " handles a client error 0x" << std::hex << std::setw(4)
+                     << _client << " not reconnecting";
 
         // Save the services that were subscribed to this client, before cleaning up
         auto its_subsciptions = get_subscriptions(_client);
@@ -2959,10 +2960,10 @@ void routing_manager_client::handle_client_error(client_t _client) {
         }
 
     } else {
-        VSOMEIP_INFO << "rmc::handle_client_error:" << " Client 0x" << std::hex << std::setw(4)
-                     << std::setfill('0') << get_client() << " handles a client error(" << std::hex
-                     << std::setw(4) << std::setfill('0') << _client
-                     << ") with host, will reconnect";
+        VSOMEIP_INFO << "rmc::handle_client_error:"
+                     << " Client 0x" << std::hex << std::setw(4) << std::setfill('0')
+                     << get_client() << " handles a client error 0x" << std::hex << std::setw(4)
+                     << _client << " with host, will reconnect";
         if (is_started_) {
             std::map<client_t, std::string> its_known_clients;
             {
