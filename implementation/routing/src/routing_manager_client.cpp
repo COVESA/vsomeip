@@ -1437,7 +1437,7 @@ void routing_manager_client::on_message(
                 its_pending_id = its_subscribe_command.get_pending_id();
                 auto its_filter = its_subscribe_command.get_filter();
 
-                std::unique_lock<std::recursive_mutex> its_lock(incoming_subscriptions_mutex_);
+                std::unique_lock<std::mutex> its_lock(incoming_subscriptions_mutex_);
                 if (its_pending_id != PENDING_SUBSCRIPTION_ID) {
                     its_lock.unlock();
 #ifdef VSOMEIP_ENABLE_COMPAT
@@ -2201,11 +2201,8 @@ void routing_manager_client::on_routing_info(
                     routing_manager_base::erase_incoming_subscription_state(si.client_id_, si.service_id_,
                             si.instance_id_, si.eventgroup_id_, si.event_);
 #endif
-                    {
-                        std::scoped_lock its_lk(incoming_subscriptions_mutex_);
-                        pending_incoming_subscriptions_.erase(si.client_id_);
-                    }
                 });
+                pending_incoming_subscriptions_.erase(si.client_id_);
             }
         }
     }
