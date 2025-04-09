@@ -312,16 +312,20 @@ void routing_manager_client::on_net_state_change(bool _is_interface, const std::
                         on_disconnect(sender_);
                         host_->set_sec_client_port(VSOMEIP_SEC_PORT_UNSET);
                         sender_->stop();
+                        sender_.reset();
                     }
                 }
                 {
                     std::scoped_lock its_receiver_lock(receiver_mutex_);
-                    if (receiver_)
+                    if (receiver_) {
                         receiver_->stop();
+                        receiver_.reset();
+                    }
                 }
-                {
-                    std::scoped_lock its_lock(local_services_mutex_);
-                    local_services_.clear();
+                for (const auto client : ep_mgr_->get_connected_clients()) {
+                    if (client != VSOMEIP_ROUTING_CLIENT) {
+                        remove_local(client, true);
+                    }
                 }
             }
         }
