@@ -2226,10 +2226,10 @@ void configuration_impl::load_event(
         if (its_event_id > 0) {
             auto found_event = _service->events_.find(its_event_id);
             if (found_event != _service->events_.end()) {
-                VSOMEIP_INFO << "Multiple configurations for event ["
-                        << std::hex << _service->service_ << "."
-                        << _service->instance_ << "."
-                        << its_event_id << "].";
+                VSOMEIP_INFO << "Multiple configurations for event [" << std::hex
+                             << std::setfill('0') << std::setw(4) << _service->service_ << "."
+                             << std::setw(4) << _service->instance_ << "." << std::setw(4)
+                             << its_event_id << "].";
             } else {
                 // If event reliability type was not configured,
                 if (its_reliability == reliability_type_e::RT_UNKNOWN) {
@@ -2238,12 +2238,14 @@ void configuration_impl::load_event(
                     } else if (_service->reliable_ != ILLEGAL_PORT) {
                         its_reliability = reliability_type_e::RT_RELIABLE;
                     }
-                    VSOMEIP_WARNING << "Reliability type for event ["
-                        << std::hex << _service->service_ << "."
-                        << _service->instance_ << "."
-                        << its_event_id << "] was not configured Using : "
-                        << ((its_reliability == reliability_type_e::RT_RELIABLE)
-                                ? "RT_RELIABLE" : "RT_UNRELIABLE");
+                    VSOMEIP_WARNING << "Reliability type for event [" << std::hex
+                                    << std::setfill('0') << std::setw(4) << _service->service_
+                                    << "." << std::setw(4) << _service->instance_ << "."
+                                    << std::setw(4) << its_event_id
+                                    << "] was not configured Using : "
+                                    << ((its_reliability == reliability_type_e::RT_RELIABLE)
+                                                ? "RT_RELIABLE"
+                                                : "RT_UNRELIABLE");
                 }
 
                 auto its_event = std::make_shared<event>(

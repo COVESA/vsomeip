@@ -443,8 +443,10 @@ bool routing_manager_impl::offer_service(client_t _client,
         } else {
             std::scoped_lock its_lock(pending_sd_offers_mutex_);
             pending_sd_offers_.push_back(std::make_pair(_service, _instance));
-            VSOMEIP_INFO << "rmi::" << __func__ << " added service: " << std::hex << _service
-                         << " to pending_sd_offers_.size = " << pending_sd_offers_.size();
+            VSOMEIP_INFO << "rmi::" << __func__ << " added service: " << std::setw(4)
+                         << std::setfill('0') << std::hex << _service
+                         << " to pending_sd_offers_.size = " << std::dec
+                         << pending_sd_offers_.size();
         }
     }
 
@@ -540,9 +542,10 @@ void routing_manager_impl::stop_offer_service(client_t _client,
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end(); ) {
                 if (it->first == _service && it->second == _instance) {
                     it = pending_sd_offers_.erase(it);
-                    VSOMEIP_INFO << "rmi::" << __func__ << " removed service: " << std::hex
-                                 << _service
-                                 << " to pending_sd_offers_.size = " << pending_sd_offers_.size();
+                    VSOMEIP_INFO << "rmi::" << __func__ << " removed service: " << std::setw(4)
+                                 << std::setfill('0') << std::hex << _service
+                                 << " to pending_sd_offers_.size = " << std::dec
+                                 << pending_sd_offers_.size();
                     break;
                 } else {
                     ++it;
@@ -2903,7 +2906,7 @@ void routing_manager_impl::on_remote_subscribe(
 
     auto its_eventgroupinfo = _subscription->get_eventgroupinfo();
     if (!its_eventgroupinfo) {
-        VSOMEIP_ERROR << __func__ << " eventgroupinfo is invalid";
+        VSOMEIP_ERROR << __func__ << ": Eventgroupinfo is invalid";
         return;
     }
 
@@ -2939,7 +2942,7 @@ void routing_manager_impl::on_remote_subscribe(
     std::set<client_t> its_added;
     std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
     if (_subscription->is_expired()) {
-        VSOMEIP_WARNING << __func__ << ": remote subscription already expired";
+        VSOMEIP_WARNING << __func__ << ": Remote subscription already expired";
         return;
     } else {
         _subscription->set_forwarded();
@@ -2959,12 +2962,10 @@ void routing_manager_impl::on_remote_subscribe(
                     its_added, _subscription->get_id());
         } else { // identical subscription is not yet processed
             std::stringstream its_warning;
-            its_warning << __func__ << " a remote subscription is already pending ["
-                << std::hex << std::setfill('0')
-                << std::setw(4) << its_service << "."
-                << std::setw(4) << its_instance << "."
-                << std::setw(4) << its_eventgroup << "]"
-                << " from ";
+            its_warning << __func__ << ": A remote subscription is already pending [" << std::hex
+                        << std::setfill('0') << std::setw(4) << its_service << "." << std::setw(4)
+                        << its_instance << "." << std::setw(4) << its_eventgroup << "]"
+                        << " from ";
             if (its_reliable && its_unreliable)
                 its_warning << "[";
             if (its_reliable)
@@ -3687,8 +3688,9 @@ void routing_manager_impl::register_client_error_handler(client_t _client,
 }
 
 void routing_manager_impl::handle_client_error(client_t _client) {
-    VSOMEIP_INFO << "rmi::" << __func__ << " Client 0x" << std::hex << get_client()
-            << " handles a client error(" << std::hex << _client << ")";
+    VSOMEIP_INFO << "rmi::" << __func__ << " Client 0x" << std::hex << std::setw(4)
+                 << std::setfill('0') << get_client() << " handles a client error 0x"
+                 << std::setw(4) << std::hex << _client;
     if (stub_)
         stub_->update_registration(_client, registration_type_e::DEREGISTER_ON_ERROR,
                 boost::asio::ip::address(), 0);
