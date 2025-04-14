@@ -6,14 +6,9 @@
 cmake_minimum_required (VERSION 3.13)
 project (vSomeIPHelloWorld)
 
-include(GNUInstallDirs)
-
 find_package(Threads REQUIRED)
 
-# This will get us acces to
-#   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
-#   VSOMEIP_LIBRARIES    - libraries to link against
-find_package(vsomeip3 REQUIRED)
+include(GNUInstallDirs)
 
 # create_target("executable")
 function(create_target executable)
@@ -42,6 +37,13 @@ create_target("service")
 create_target("client")
 
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
+    # This will get us acces to
+    #   VSOMEIP_INCLUDE_DIRS - include directories for vSomeIP
+    #   VSOMEIP_LIBRARIES    - libraries to link against
+    find_package(${VSOMEIP_NAME})
+    if (NOT ${VSOMEIP_NAME}_FOUND)
+        message("${VSOMEIP_NAME} was not found. Please specify vsomeip_DIR")
+    endif()
 
     link_target("client")
     link_target("service")
