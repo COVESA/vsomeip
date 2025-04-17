@@ -258,21 +258,23 @@ void local_tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        boost::asio::async_write(
-            *socket_,
-            bufs,
-            strand_.wrap(
-                std::bind(
-                    &client_endpoint_impl::send_cbk,
-                    std::dynamic_pointer_cast<
+        if(socket_->is_open()) {
+            boost::asio::async_write(
+                *socket_,
+                bufs,
+                strand_.wrap(
+                    std::bind(
+                        &client_endpoint_impl::send_cbk,
+                        std::dynamic_pointer_cast<
                         local_tcp_client_endpoint_impl
-                    >(shared_from_this()),
-                    std::placeholders::_1,
-                    std::placeholders::_2,
-                    _entry.first
+                        >(shared_from_this()),
+                        std::placeholders::_1,
+                        std::placeholders::_2,
+                        _entry.first
+                    )
                 )
-            )
-        );
+            );
+        }
     }
 }
 
