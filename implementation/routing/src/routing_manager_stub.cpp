@@ -658,6 +658,14 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                             r.service_, r.instance_, r.major_, r.minor_);
                         its_allowed_requests.insert(r);
                     }
+                    else {
+                        VSOMEIP_WARNING << std::hex << std::setfill('0')
+                                    << "vSomeIP Security: Client 0x" << std::setw(4) << get_client()
+                                    << " received a request from client 0x" << std::setw(4) << its_client
+                                    << " to service/instance "
+                                    << r.service_ << "/" << r.instance_
+                                    << " ~> skip message!";
+                    }
                 }
                 if (configuration_->is_security_enabled()) {
                     handle_credentials(its_client, its_allowed_requests);
