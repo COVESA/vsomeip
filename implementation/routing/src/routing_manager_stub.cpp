@@ -1200,6 +1200,19 @@ void routing_manager_stub::on_net_state_change(bool _is_interface, const std::st
                 VSOMEIP_INFO << __func__
                         << ": Stopping routing root.";
                 root_->stop();
+                root_.reset();
+
+                std::unordered_set<client_t> its_clients_to_inform;
+                auto its_epm = host_->get_endpoint_manager();
+                if (its_epm) {
+                    its_clients_to_inform = its_epm->get_connected_clients();
+                }
+
+                for (const auto client : its_clients_to_inform) {
+                    if (client != VSOMEIP_ROUTING_CLIENT) {
+                        host_->remove_local(client, false);
+                    }
+                }
 
                 std::scoped_lock its_lock(routing_info_mutex_);
                 routing_info_.clear();
