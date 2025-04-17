@@ -326,17 +326,18 @@ bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
         last_sent_ = std::chrono::steady_clock::time_point();
     }
 
-    _it->second.is_sending_ = true;
-    auto its_me {std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this())};
-    unicast_socket_->async_send_to(
-            boost::asio::buffer(*its_entry.first), _it->first,
-            [its_me, _it, its_entry](boost::system::error_code const& _error, std::size_t _bytes) {
-                if (!_error && its_me->on_unicast_sent_ && !_it->first.address().is_multicast()) {
-                    its_me->on_unicast_sent_(&(its_entry.first)->at(0), static_cast<uint32_t>(_bytes),
-                                             _it->first.address());
-                }
-                its_me->send_cbk(_it->first, _error, _bytes);
-            });
+    if (auto its_me {std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this())}) {
+        _it->second.is_sending_ = true;
+        unicast_socket_->async_send_to(
+                boost::asio::buffer(*its_entry.first), _it->first,
+                [its_me, _it, its_entry](boost::system::error_code const& _error, std::size_t _bytes) {
+                    if (!_error && its_me->on_unicast_sent_ && !_it->first.address().is_multicast()) {
+                        its_me->on_unicast_sent_(&(its_entry.first)->at(0),
+                                             static_cast<uint32_t>(_bytes), _it->first.address());
+                    }
+                    its_me->send_cbk(_it->first, _error, _bytes);
+                });
+    }
     return false;
 }
 
