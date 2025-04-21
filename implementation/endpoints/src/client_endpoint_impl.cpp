@@ -526,6 +526,9 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(
                         << "sending_blocked_: " << client_endpoint_impl<Protocol>::sending_blocked_
                         << " (" << _error.value() << "):" << _error.message()
                         << " endpoint > " << this  << " socket state > " << static_cast<int>(state_.load());
+    } else {
+        VSOMEIP_INFO << "cei::wait_connecting_cbk: endpoint > " << this << " socket state > "
+                     << static_cast<int>(state_.load());
     }
 }
 
@@ -559,8 +562,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
             // Do not interfer with the queue nor with the socket state if the endpoint is closed or
             // currently reconnecting
             VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << "(" << _error.message() << ")"
                             << " endpoint > " << this << " socket state > "
                             << static_cast<int>(state_.load());
+            is_sending_ = false;
             return;
         }
 
@@ -625,8 +630,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
             // Do not interfer with the queue nor with the socket state if the endpoint is closed or
             // currently reconnecting
             VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << "(" << _error.message() << ")"
                             << " endpoint > " << this << " socket state > "
                             << static_cast<int>(state_.load());
+            is_sending_ = false;
             return;
         }
 

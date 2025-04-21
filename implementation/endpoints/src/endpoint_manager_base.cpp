@@ -61,13 +61,15 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _
         if (!its_endpoint) {
             VSOMEIP_INFO << "emb::" << __func__ << ": create_client " << std::hex << _client;
             its_endpoint = create_local_unlocked(_client);
+
+            if (its_endpoint) {
+                its_endpoint->start();
+            } else {
+                VSOMEIP_ERROR << "emb::" << __func__
+                              << ": couldn't find or create endpoint for client " << std::hex
+                              << _client;
+            }
         }
-    }
-    if (its_endpoint) {
-        its_endpoint->start();
-    } else {
-        VSOMEIP_ERROR << "emb::" << __func__ << ": couldn't find or create endpoint for client "
-                      << std::hex << _client;
     }
     return its_endpoint;
 }
