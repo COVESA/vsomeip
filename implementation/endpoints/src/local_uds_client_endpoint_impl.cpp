@@ -112,8 +112,8 @@ void local_uds_client_endpoint_impl::stop() {
 }
 
 void local_uds_client_endpoint_impl::connect() {
-    start_connecting_timer();
     connecting_timer_state_ = connecting_timer_state_e::IN_PROGRESS;
+    start_connecting_timer();
     boost::system::error_code its_connect_error;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
