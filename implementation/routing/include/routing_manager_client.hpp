@@ -299,7 +299,7 @@ private:
     boost::asio::steady_timer register_application_timer_;
 
     boost::asio::steady_timer request_debounce_timer_;
-    bool request_debounce_timer_running_;
+    std::atomic<bool> request_debounce_timer_running_;
 
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;

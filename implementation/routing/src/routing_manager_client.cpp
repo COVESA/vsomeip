@@ -2906,14 +2906,14 @@ bool routing_manager_client::create_placeholder_event_and_subscribe(
 
 void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_code const& _error) {
     if (!_error) {
-        std::scoped_lock its_lock {requests_to_debounce_mutex_, requests_mutex_};
+        std::scoped_lock its_lock {requests_to_debounce_mutex_, requests_mutex_,
+                                   registration_state_mutex_};
         if (requests_to_debounce_.size()) {
             if (state_ == inner_state_type_e::ST_REGISTERED) {
                 send_request_services(requests_to_debounce_);
                 requests_.insert(requests_to_debounce_.begin(),
                            requests_to_debounce_.end());
                 requests_to_debounce_.clear();
-                request_debounce_timer_running_ = false;
             } else {
                 request_debounce_timer_.expires_from_now(std::chrono::milliseconds(
                         configuration_->get_request_debouncing(host_->get_name())));
@@ -2922,9 +2922,11 @@ void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_c
                                 &routing_manager_client::request_debounce_timeout_cbk,
                                 std::dynamic_pointer_cast<routing_manager_client>(shared_from_this()),
                                 std::placeholders::_1));
+                return;
             }
         }
     }
+    request_debounce_timer_running_ = false;
 }
 
 void routing_manager_client::register_client_error_handler(client_t _client,
