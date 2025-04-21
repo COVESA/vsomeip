@@ -170,8 +170,8 @@ void local_tcp_client_endpoint_impl::connect() {
             return;
         }
         state_ = cei_state_e::CONNECTING;
-        start_connecting_timer();
         connecting_timer_state_ = connecting_timer_state_e::IN_PROGRESS;
+        start_connecting_timer();
         socket_->async_connect(
             remote_,
             strand_.wrap(
