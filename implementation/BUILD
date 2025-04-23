@@ -12,8 +12,8 @@ cmake_like_configure_file(
         "VSOMEIP_ROUTING_READY_MESSAGE": "SOME/IP routing ready.",
         "VSOMEIP_HOTFIX_VERSION": "0",
         "VSOMEIP_MAJOR_VERSION": "3",
-        "VSOMEIP_MINOR_VERSION": "3",
-        "VSOMEIP_PATCH_VERSION": "0",
+        "VSOMEIP_MINOR_VERSION": "5",
+        "VSOMEIP_PATCH_VERSION": "5",
         "VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME": "100",
         "VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME": "10000",
     } | select({
