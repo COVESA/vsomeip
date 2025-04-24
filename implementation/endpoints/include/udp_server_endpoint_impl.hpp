@@ -118,6 +118,7 @@ private:
     mutable std::mutex unicast_mutex_;
 
     bool is_v4_;
+    unsigned int scope_id_;
 
     std::shared_ptr<socket_type> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
