@@ -995,12 +995,13 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         // If regular setting of the buffer size did not work, try to force
         // (requires CAP_NET_ADMIN to be successful)
         if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
-            _error.assign(setsockopt(multicast_socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE,
-                                     &its_udp_recv_buffer_size, sizeof(its_udp_recv_buffer_size)),
-                          boost::system::generic_category());
-            if (!_error) {
-                VSOMEIP_INFO << "udp_server_endpoint_impl<multicast>: "
-                             << "SO_RCVBUFFORCE: successful.";
+            if (setsockopt(multicast_socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE,
+                           &its_udp_recv_buffer_size, sizeof(its_udp_recv_buffer_size)) == -1) {
+                _error.assign(errno, boost::system::generic_category());
+                VSOMEIP_WARNING << "setsockopt SO_RCVBUFFORCE fail: " << _error.message();
+
+                // TODO: ek: return from there? or it is not a critical error/warning
+
             }
             multicast_socket_->get_option(its_option, _error);
             if (_error) {
@@ -1032,6 +1033,9 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         // the mutex, or the IO threads will also become blocked.
         its_lock.unlock();
         multicast_socket_->set_option(its_join_option, _error);
+        if (_error) {
+            return;
+        }
         its_lock.lock();
 
         if (!_error) {
@@ -1050,6 +1054,14 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                 multicast_socket_.reset();
                 multicast_local_.reset(nullptr);
             }
+        } else {
+            VSOMEIP_INFO << "udp_server_endpoint_impl::" << __func__ << " clear it all on error: " << _error.message();
+
+            joined_.clear();
+            joined_group_ = false;
+            multicast_socket_->cancel(_error);
+            multicast_socket_.reset();
+            multicast_local_.reset(nullptr);
         }
     }
 }
