@@ -112,6 +112,7 @@ private:
 
     std::shared_ptr<socket_type> unicast_socket_;
     endpoint_type unicast_remote_;
+    unsigned int scope_id_;
 
     std::shared_ptr<socket_type> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;

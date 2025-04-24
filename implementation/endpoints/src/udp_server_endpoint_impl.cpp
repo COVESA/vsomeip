@@ -7,6 +7,8 @@
 #include <sstream>
 #include <thread>
 
+#include <ifaddrs.h>
+
 #include <boost/asio/ip/multicast.hpp>
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/ip/network_v6.hpp>
@@ -27,12 +29,62 @@
 
 namespace ip = boost::asio::ip;
 
+namespace {
+
+unsigned int find_scope_id(const std::string& _local_address) {
+    std::vector<unsigned int> indices(0);
+
+    struct sockaddr_in6 searched_address;
+    searched_address.sin6_family = AF_INET6;
+    searched_address.sin6_addr = in6addr_any;
+    searched_address.sin6_port = htons( 0xdead );
+    if (!inet_pton(AF_INET6, _local_address.c_str(), &searched_address.sin6_addr)) {
+        return -1;
+    }
+
+    struct ifaddrs* ifaddr;
+    if (getifaddrs(&ifaddr) == -1) {
+        VSOMEIP_WARNING << __func__ << ": " << strerror(errno);
+        return -1;
+    }
+
+    for (ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+
+        if (ifa->ifa_addr->sa_family == AF_INET6) {
+            sockaddr_in6* address = reinterpret_cast<sockaddr_in6*>(ifa->ifa_addr);
+            if (std::memcmp(address->sin6_addr.s6_addr, searched_address.sin6_addr.s6_addr, 16) == 0) {
+                indices.push_back(if_nametoindex(ifa->ifa_name));
+            }
+        }
+    }
+    freeifaddrs(ifaddr);
+
+    if (indices.size() > 1) {
+        VSOMEIP_WARNING << __func__ << ": Found multiple network interfaces " <<
+            "with IP address " << _local_address << ". Please check your " <<
+            "network settings. In the meanwhile, using the first index.";
+    }
+    else if (indices.size() == 0) {
+        VSOMEIP_WARNING << __func__ << ": No network interfaces available" <<
+            "with IP address " << _local_address << ". Please check your " <<
+            "network settings.";
+        return -1;
+    }
+
+    return indices[0];
+}
+
+}
+
 namespace vsomeip_v3 {
 
 udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
-    server_endpoint_impl<ip::udp>(_endpoint_host, _routing_host, _io, _configuration), lifecycle_idx_(0),
+    server_endpoint_impl<ip::udp>(_endpoint_host, _routing_host, _io, _configuration), scope_id_(0), lifecycle_idx_(0),
     netmask_(_configuration->get_netmask()), prefix_(_configuration->get_prefix()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)), tp_cleanup_timer_(_io) {
     is_supporting_someip_tp_ = true;
@@ -130,7 +182,13 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     } else {
         is_v4_ = false;
         // TODO(): an interface index is expected not a scope_id
-        boost::asio::ip::multicast::outbound_interface option(static_cast<unsigned int>(_local.address().to_v6().scope_id()));
+
+        scope_id_ = find_scope_id(_local.address().to_string());
+        if (scope_id_ < 0) {
+            scope_id_ = static_cast<unsigned int>(_local.address().to_v6().scope_id());
+        }
+
+        boost::asio::ip::multicast::outbound_interface option(scope_id_);
         std::ignore = unicast_socket_->set_option(option, _error);
         if (_error) {
             VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure IPv6 outbound interface, " << _error.message();
@@ -974,8 +1032,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             its_join_option = boost::asio::ip::multicast::join_group(_address.to_v4(), local_.address().to_v4());
         } else {
             // TODO(): an interface index is expected not a scope_id
-            its_join_option = boost::asio::ip::multicast::join_group(_address.to_v6(),
-                                                                     static_cast<unsigned int>(local_.address().to_v6().scope_id()));
+            its_join_option = boost::asio::ip::multicast::join_group(_address.to_v6(), scope_id_);
         }
 
         // "Both ADD_MEMBERSHIP and DROP_MEMBERSHIP are nonblocking operations. They
