@@ -111,7 +111,7 @@ void
 register_event::set_eventgroups(const std::set<eventgroup_t> &_eventgroups) {
 
     eventgroups_ = _eventgroups;
-    num_eventg_ = (uint16_t)eventgroups_.size();
+    num_eventg_ = static_cast<uint16_t>(eventgroups_.size());
 }
 
 } // namespace protocol
