@@ -50,11 +50,6 @@ bool udp_server_endpoint_impl::is_local() const {
 
 void udp_server_endpoint_impl::init(const endpoint_type& _local,
                                     boost::system::error_code& _error) {
-    // In case of a restart, _local and local_ are the exact same endpoint
-    // so the rest of this function is unecessary
-    if (this->local_ == _local) {
-        return;
-    }
     {
         std::scoped_lock its_lock {unicast_mutex_};
 
@@ -169,6 +164,7 @@ void udp_server_endpoint_impl::init(const endpoint_type& _local,
 
 void udp_server_endpoint_impl::start() {
     is_stopped_ = false;
+        
     receive();
 }
 
@@ -176,6 +172,10 @@ void udp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
 
     is_stopped_ = true;
+    {
+        std::scoped_lock its_lock { shutdown_state_mutex_ };
+        shutdown_state_ = shutdown_state_e::WAITING_FIRST_CANCEL;
+    }
 
     {
         std::scoped_lock its_lock {unicast_mutex_};
@@ -199,17 +199,101 @@ void udp_server_endpoint_impl::stop() {
     }
 
     tp_reassembler_->stop();
+
 }
 
-void udp_server_endpoint_impl::shutdown_and_close() {
+void udp_server_endpoint_impl::restart(bool _force) {
+    (void)_force;
+
+    is_restarting_ = true;
+
+    this->stop();
+}
+
+bool udp_server_endpoint_impl::is_closed() const {
+    return is_stopped_;
+}
+
+void udp_server_endpoint_impl::shutdown_and_close(bool _is_unicast) {
+
+    bool call_shutdown_sockets { false };
+    bool has_multicast = false;
     {
-        std::lock_guard<std::mutex> its_lock(unicast_mutex_);
-        unicast_shutdown_and_close_unlocked();
+        std::scoped_lock its_lock(multicast_mutex_);
+        has_multicast = multicast_socket_ != nullptr;
     }
 
     {
-        std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
-        multicast_shutdown_and_close_unlocked();
+        std::scoped_lock its_lock {shutdown_state_mutex_};
+        if (!has_multicast) {
+            if (_is_unicast && shutdown_state_ == shutdown_state_e::WAITING_FIRST_CANCEL) {
+                call_shutdown_sockets = true;
+                shutdown_state_ = shutdown_state_e::IDLE;
+            }
+        } else {
+            switch (shutdown_state_) {
+            case shutdown_state_e::WAITING_FIRST_CANCEL: {
+
+                shutdown_state_ = _is_unicast ? shutdown_state_e::WAITING_MULTICAST_CANCEL
+                                              : shutdown_state_e::WAITING_UNICAST_CANCEL;
+                break;
+            }
+            case shutdown_state_e::WAITING_UNICAST_CANCEL: {
+
+                if (_is_unicast) {
+                    call_shutdown_sockets = true;
+                    shutdown_state_ = shutdown_state_e::IDLE;
+                }
+                break;
+            }
+            case shutdown_state_e::WAITING_MULTICAST_CANCEL: {
+
+                if (!_is_unicast) {
+                    call_shutdown_sockets = true;
+                    shutdown_state_ = shutdown_state_e::IDLE;
+                }
+                break;
+            }
+            case shutdown_state_e::IDLE:
+            default:
+                VSOMEIP_WARNING << "use::" << __func__
+                                << " wrong call of shutdown_and_close | state: "
+                                << (int)shutdown_state_ << " endpoint -> " << this;
+                // do nothing
+                break;
+            }
+        }
+    }
+
+    if (call_shutdown_sockets) {
+        {
+            std::scoped_lock its_lock(unicast_mutex_);
+            unicast_shutdown_and_close_unlocked();
+        }
+
+        {
+            std::scoped_lock its_lock(multicast_mutex_);
+            multicast_shutdown_and_close_unlocked();
+        }
+        
+        if (is_restarting_) {
+            boost::system::error_code its_error;
+            init(local_, its_error);
+ 
+            auto its_endpoint_host = endpoint_host_.lock();
+            if (its_endpoint_host) {
+                std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+                for (const auto& [its_address, its_joined] : joined_) {
+                    multicast_option_t its_join_option {shared_from_this(), true,
+                                                        boost::asio::ip::make_address(its_address)};
+                    its_endpoint_host->add_multicast_option(its_join_option);
+                }
+            }
+
+            start();
+
+            is_restarting_ = false;
+        }
     }
 }
 
@@ -303,9 +387,9 @@ bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
     const auto its_entry = _it->second.queue_.front();
 #if 0
     std::stringstream msg;
-    msg << "usei::sq(" << _queue_iterator->first.address().to_string() << ":"
-        << _queue_iterator->first.port() << "): ";
-    for (std::size_t i = 0; i < its_buffer->size(); ++i)
+    msg << "usei::sq(" << _it->first.address().to_string() << ":"
+        << _it->first.port() << ") endpoint " << this << " : ";
+    for (std::size_t i = 0; i < its_entry.first->size(); ++i)
         msg << std::hex << std::setfill('0') << std::setw(2)
             << static_cast<int>((*its_entry.first)[i]) << " ";
     VSOMEIP_INFO << msg.str();
@@ -371,7 +455,13 @@ bool udp_server_endpoint_impl::is_joined(const std::string& _address, bool& _rec
 
 void udp_server_endpoint_impl::join(const std::string& _address) {
 
-    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+    if(is_restarting_) {
+        // If service discovery calls for join while we restarting ignore
+        // rejoin will happen after restart
+        return;
+    }
+
+    std::scoped_lock its_lock(multicast_mutex_);
     join_unlocked(_address);
 }
 
@@ -412,7 +502,7 @@ void udp_server_endpoint_impl::join_unlocked(const std::string& _address) {
 
 void udp_server_endpoint_impl::leave(const std::string& _address) {
 
-    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+    std::scoped_lock its_lock(multicast_mutex_);
     leave_unlocked(_address);
 }
 
@@ -474,17 +564,17 @@ void udp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
 void udp_server_endpoint_impl::on_unicast_received(boost::system::error_code const& _error,
                                                    std::size_t _bytes) {
 
-    if (_error == boost::asio::error::operation_aborted) {
-        return;
-    } else if (is_stopped_ || _error == boost::asio::error::eof
-               || _error == boost::asio::error::connection_reset) {
-        shutdown_and_close();
+    if (is_stopped_ || _error == boost::asio::error::eof
+                || _error == boost::asio::error::connection_reset) {
+        VSOMEIP_INFO << "usei::" << __func__ << ": is_stopped_ = " << is_stopped_ << " endpoint -> " << this;
+        
+        shutdown_and_close(true);
     } else if (_error != boost::asio::error::operation_aborted) {
         {
             // By locking the multicast mutex here it is ensured that unicast
             // & multicast messages are not processed in parallel. This aligns
             // the behavior of endpoints with one and two active sockets.
-            std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+            std::scoped_lock its_lock(multicast_mutex_);
             on_message_received(_error, _bytes, false, unicast_remote_, unicast_recv_buffer_);
         }
         receive_unicast();
@@ -495,13 +585,13 @@ void udp_server_endpoint_impl::on_multicast_received(boost::system::error_code c
                                                      std::size_t _bytes, uint8_t _multicast_id,
                                                      const boost::asio::ip::address& _destination) {
 
-    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+    std::scoped_lock its_lock(multicast_mutex_);
 
-    if (_error == boost::asio::error::operation_aborted) {
-        return;
-    } else if (is_stopped_ || _error == boost::asio::error::eof
+    if (is_stopped_ || _error == boost::asio::error::eof
                || _error == boost::asio::error::connection_reset) {
-        shutdown_and_close();
+        VSOMEIP_INFO << "usei::" << __func__ << ": is_stopped_ = " << is_stopped_ << " endpoint -> " << this;
+
+        shutdown_and_close(false);
     } else if (_error != boost::asio::error::operation_aborted) {
 
         if (multicast_remote_.address() != local_.address()) {
@@ -943,7 +1033,7 @@ void udp_server_endpoint_impl::set_receive_own_multicast_messages(bool value) {
 
 bool udp_server_endpoint_impl::is_joining() const {
 
-    std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
+    std::scoped_lock its_lock(multicast_mutex_);
     return !joined_.empty();
 }
 

@@ -36,6 +36,9 @@ public:
     void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
     void stop();
+    void restart(bool _force);
+
+    bool is_closed() const;
 
     void receive();
 
@@ -107,7 +110,7 @@ private:
 
     bool is_same_subnet(const boost::asio::ip::address &_address) const;
 
-    void shutdown_and_close();
+    void shutdown_and_close(bool _is_unicast);
     void unicast_shutdown_and_close_unlocked();
     void multicast_shutdown_and_close_unlocked();
 
@@ -143,6 +146,18 @@ private:
     std::chrono::steady_clock::time_point last_sent_;
 
     std::atomic<bool> is_stopped_;
+
+    enum class shutdown_state_e {
+        IDLE,
+        WAITING_FIRST_CANCEL,
+        WAITING_UNICAST_CANCEL,
+        WAITING_MULTICAST_CANCEL,
+    };
+    
+    shutdown_state_e shutdown_state_ { shutdown_state_e::IDLE };
+    std::mutex shutdown_state_mutex_;
+
+    std::atomic<bool> is_restarting_ { false };
 
     // to tracking sent messages
     on_unicast_sent_cbk_t on_unicast_sent_;
