@@ -53,7 +53,17 @@ private:
         std::recursive_mutex plugins_mutex_;
 
         static std::shared_ptr<plugin_manager_impl> the_plugin_manager__;
+
+#ifdef VSOMEIP_STATIC_PLUGINS
+        plugin_init_func get_static_init_func(const std::string &library_);
+#endif
 };
+
+#ifdef VSOMEIP_STATIC_PLUGINS
+vsomeip_v3::create_plugin_func plugin_manager_impl_init_hook_cfg();
+vsomeip_v3::create_plugin_func plugin_manager_impl_init_hook_sd();
+vsomeip_v3::create_plugin_func plugin_manager_impl_init_hook_e2e();
+#endif
 
 } // namespace vsomeip_v3
 
