@@ -24,6 +24,7 @@ add_executable(
 target_link_libraries(
     ${PROJECT_NAME}
     gtest
+    ${VSOMEIP_NAME}
 )
 
 add_dependencies(build_unit_tests ${PROJECT_NAME})
