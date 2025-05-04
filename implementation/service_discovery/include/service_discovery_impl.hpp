@@ -82,6 +82,7 @@ public:
     void unsubscribe_all(service_t _service, instance_t _instance);
     void unsubscribe_all_on_suspend();
     void remove_subscriptions(service_t _service, instance_t _instance);
+    void reset_request_sent_counter(service_t _service, instance_t _instance);
 
     bool send(bool _is_announcing);
 
