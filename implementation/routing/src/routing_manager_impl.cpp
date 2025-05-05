@@ -841,7 +841,7 @@ void routing_manager_impl::unsubscribe(
                 unset_all_eventpayloads(_service, _instance, _eventgroup);
                 {
                     auto tuple = std::make_tuple(_service, _instance, _eventgroup, _client);
-                    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                    std::scoped_lock its_lock {remote_subscription_state_mutex_};
                     remote_subscription_state_.erase(tuple);
                 }
             }
@@ -1442,7 +1442,6 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service,
                     its_event_id, true);
         }
         clear_targets_and_pending_sub_from_eventgroups(_service, _instance);
-        clear_remote_subscriber(_service, _instance);
 
         if (discovery_ && its_info) {
             discovery_->stop_offer_service(its_info, true);
@@ -2334,7 +2333,7 @@ void routing_manager_impl::init_service_info(
 void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
     auto clients_subscriptions = get_subscriptions(_client);
     {
-        std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+        std::scoped_lock its_lock {remote_subscription_state_mutex_};
         for (const auto& s : clients_subscriptions) {
             remote_subscription_state_.erase(std::tuple_cat(s, std::make_tuple(_client)));
         }
@@ -2619,7 +2618,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+        std::scoped_lock its_lock {remote_subscription_state_mutex_};
         std::set<std::tuple<
             service_t, instance_t, eventgroup_t, client_t> > its_invalid;
 
@@ -2632,17 +2631,6 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
 
         for (const auto &its_key : its_invalid)
             remote_subscription_state_.erase(its_key);
-    }
-
-    {
-        std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-        auto found_service = remote_subscribers_.find(_service);
-        if (found_service != remote_subscribers_.end()) {
-            if (found_service->second.erase(_instance) > 0 &&
-                    !found_service->second.size()) {
-                remote_subscribers_.erase(found_service);
-            }
-        }
     }
 
     if (_has_reliable) {
@@ -3063,7 +3051,7 @@ void routing_manager_impl::on_subscribe_ack_with_multicast(
 void routing_manager_impl::on_subscribe_ack(client_t _client,
         service_t _service, instance_t _instance, eventgroup_t _eventgroup,
         event_t _event, remote_subscription_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+    std::scoped_lock its_lock {remote_subscription_state_mutex_};
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         auto its_subscription = its_eventgroup->get_remote_subscription(_id);
@@ -3081,9 +3069,6 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
             }
 
             if (discovery_) {
-                std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-                remote_subscribers_[_service][_instance][VSOMEIP_ROUTING_CLIENT].insert(
-                        its_subscription->get_subscriber());
                 discovery_->update_remote_subscription(its_subscription);
 
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE("
@@ -3296,26 +3281,6 @@ void routing_manager_impl::send_error(return_code_e _return_code,
     }
 }
 
-void routing_manager_impl::clear_remote_subscriber(
-        service_t _service, instance_t _instance, client_t _client,
-        const std::shared_ptr<endpoint_definition> &_target) {
-    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-    auto its_service = remote_subscribers_.find(_service);
-    if (its_service != remote_subscribers_.end()) {
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            auto its_client = its_instance->second.find(_client);
-            if (its_client != its_instance->second.end()) {
-                if (its_client->second.erase(_target)) {
-                    if (!its_client->second.size()) {
-                        its_instance->second.erase(_client);
-                    }
-                }
-            }
-        }
-    }
-}
-
 std::chrono::steady_clock::time_point
 routing_manager_impl::expire_subscriptions(bool _force) {
     std::map<service_t,
@@ -3394,9 +3359,6 @@ routing_manager_impl::expire_subscriptions(bool _force) {
                 const auto its_subscription = its_info->get_remote_subscription(its_id);
                 if (its_subscription) {
                     its_info->remove_remote_subscription(its_id);
-
-                    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-                    remote_subscribers_[its_service][its_instance].erase(its_offering_client);
 
                     if (its_info->get_remote_subscriptions().size() == 0) {
                         for (const auto &its_event : its_info->get_events()) {
@@ -3838,7 +3800,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 _service_infos.clear();
 
                 {
-                    std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                    std::scoped_lock its_lock {remote_subscription_state_mutex_};
                     remote_subscription_state_.clear();
                 }
 
@@ -4323,7 +4285,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
 
                             client_t its_client = VSOMEIP_ROUTING_CLIENT; //is_specific_endpoint_client(its_subscriber, _service, _instance);
                             {
-                                std::lock_guard<std::mutex> its_lock(remote_subscription_state_mutex_);
+                                std::scoped_lock its_lock {remote_subscription_state_mutex_};
                                 const auto its_tuple =
                                     std::make_tuple(found_service->first, found_instance->first,
                                                     its_eventgroup.first, its_client);
@@ -4341,18 +4303,6 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
     }
     for (const auto& e : its_events) {
         e->unset_payload(true);
-    }
-}
-
-void routing_manager_impl::clear_remote_subscriber(service_t _service,
-                                                   instance_t _instance) {
-    std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-    auto found_service = remote_subscribers_.find(_service);
-    if (found_service != remote_subscribers_.end()) {
-        if (found_service->second.erase(_instance) > 0 &&
-                !found_service->second.size()) {
-            remote_subscribers_.erase(found_service);
-        }
     }
 }
 
@@ -4607,9 +4557,6 @@ routing_manager_impl::on_unsubscribe_ack(client_t _client,
         const auto its_subscription = its_info->get_remote_subscription(_id);
         if (its_subscription) {
             its_info->remove_remote_subscription(_id);
-
-            std::lock_guard<std::mutex> its_lock(remote_subscribers_mutex_);
-            remote_subscribers_[_service][_instance].erase(_client);
 
             if (its_info->get_remote_subscriptions().size() == 0) {
                 for (const auto &its_event : its_info->get_events()) {
