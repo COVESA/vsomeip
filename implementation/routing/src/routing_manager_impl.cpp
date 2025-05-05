@@ -4040,12 +4040,14 @@ void routing_manager_impl::start_ip_routing() {
 
 void routing_manager_impl::init_pending_services() {
     std::scoped_lock its_lock(pending_sd_offers_mutex_);
-    for (auto its_service : pending_sd_offers_) {
-        init_service_info(its_service.first, its_service.second, true);
-    }
-    pending_sd_offers_.clear();
+    if (!pending_sd_offers_.empty()) {
+        for (auto its_service : pending_sd_offers_) {
+            init_service_info(its_service.first, its_service.second, true);
+        }
+        pending_sd_offers_.clear();
 
-    VSOMEIP_INFO << __func__ << ": pending services cleared.";
+        VSOMEIP_INFO << __func__ << ": pending services cleared.";
+    }
 }
 
 bool routing_manager_impl::is_external_routing_ready() const {
