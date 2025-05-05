@@ -3781,12 +3781,15 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 // stop processing of incoming SD messages
                 discovery_->stop();
 
-                VSOMEIP_INFO << "rmi::" << __func__ << " Inform all applications that we are going to suspend";
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Inform all applications that we are going to suspend.";
                 send_suspend();
 
+
                 // remove all remote subscriptions to remotely offered services on this node
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Expire subscription.";
                 expire_subscriptions(true);
 
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Stop offered services.";
                 std::vector<std::shared_ptr<serviceinfo>> _service_infos;
                 // send StopOffer messages for remotely offered services on this node
                 for (const auto &its_service : get_offered_services()) {
@@ -3839,12 +3842,15 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     remote_subscription_state_.clear();
                 }
 
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Clear subscriptions to shadow events.";
                 // Remove all subscribers to shadow events
                 clear_shadow_subscriptions();
 
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Unsubscribe external eventgroups.";
                 // send StopSubscribes and clear subscribed_ map
                 discovery_->unsubscribe_all_on_suspend();
 
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Mark external service as offline.";
                 // mark all external services as offline
                 services_t its_remote_services;
                 {
@@ -3887,13 +3893,16 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
 
                 // Reset relevant in service info
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Reset service info.";
                 for (const auto &its_service : get_offered_services()) {
                     for (const auto &its_instance : its_service.second) {
                         its_instance.second->set_ttl(DEFAULT_TTL);
                         its_instance.second->set_is_in_mainphase(false);
                     }
                 }
+
                 // Switch SD back to normal operation
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Go to normal operation.";
                 discovery_->set_diagnosis_mode(false);
 
                 if (routing_state_handler_) {
@@ -3901,9 +3910,11 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
 
                 // start processing of SD messages (incoming remote offers should lead to new subscribe messages)
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Start service discovery.";
                 discovery_->start();
 
                 // Trigger initial offer phase for relevant services
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Offer services.";
                 for (const auto &its_service : get_offered_services()) {
                     for (const auto &its_instance : its_service.second) {
                         discovery_->offer_service(its_instance.second);
