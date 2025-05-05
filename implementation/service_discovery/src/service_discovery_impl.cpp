@@ -167,9 +167,13 @@ service_discovery_impl::init() {
 
 void
 service_discovery_impl::start() {
+    bool was_endpoint_created { false };
     if (!endpoint_) {
         endpoint_ = host_->create_service_discovery_endpoint(
                 sd_multicast_, port_, reliable_);
+        
+        was_endpoint_created = true;
+        
         if (!endpoint_) {
             VSOMEIP_ERROR << "Couldn't start service discovery";
             return;
@@ -197,7 +201,7 @@ service_discovery_impl::start() {
         if (endpoint_ && !reliable_) {
             auto its_server_endpoint
                 = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
-            if (its_server_endpoint)
+            if (its_server_endpoint && was_endpoint_created)
                 its_server_endpoint->join(sd_multicast_);
         }
     }

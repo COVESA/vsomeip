@@ -280,19 +280,19 @@ void udp_server_endpoint_impl::shutdown_and_close(bool _is_unicast) {
             boost::system::error_code its_error;
             init(local_, its_error);
  
-            auto its_endpoint_host = endpoint_host_.lock();
-            if (its_endpoint_host) {
+            {
                 std::lock_guard<std::recursive_mutex> its_lock(multicast_mutex_);
-                for (const auto& [its_address, its_joined] : joined_) {
-                    multicast_option_t its_join_option {shared_from_this(), true,
-                                                        boost::asio::ip::make_address(its_address)};
-                    its_endpoint_host->add_multicast_option(its_join_option);
+                // leave_unlock erases joined_ map, so we need a copy to avoid heap-use-after-free
+                auto joined_copy = joined_; 
+                for (auto& its_joined_address : joined_copy) {
+                    join_unlocked(its_joined_address.first);
                 }
             }
 
             start();
 
             is_restarting_ = false;
+
         }
     }
 }
@@ -454,13 +454,7 @@ bool udp_server_endpoint_impl::is_joined(const std::string& _address, bool& _rec
 }
 
 void udp_server_endpoint_impl::join(const std::string& _address) {
-
-    if(is_restarting_) {
-        // If service discovery calls for join while we restarting ignore
-        // rejoin will happen after restart
-        return;
-    }
-
+    
     std::scoped_lock its_lock(multicast_mutex_);
     join_unlocked(_address);
 }
