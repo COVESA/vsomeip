@@ -1516,14 +1516,18 @@ void service_discovery_impl::process_offerservice_serviceentry(
 
     if (_sd_ac_state.sd_acceptance_required_) {
 
-        auto expire_subscriptions_and_services =
-                [this, &_sd_ac_state](const boost::asio::ip::address& _address,
-                                      std::uint16_t _port, bool _reliable) {
+        auto expire_subscriptions_and_services = [this, &_sd_ac_state, _service, _instance](
+                                                         const boost::asio::ip::address& _address,
+                                                         std::uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.find(its_port_pair) ==
                     _sd_ac_state.expired_ports_.end()) {
-                VSOMEIP_WARNING << "service_discovery_impl::" << __func__
-                        << ": Do not accept offer from "
+                VSOMEIP_WARNING << "service_discovery_impl::process_offerservice_serviceentry"
+                        << ": Do not accept offer ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "]"
+                        << " from "
                         << _address.to_string() << ":"
                         << std::dec << _port << " reliable=" << _reliable;
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
