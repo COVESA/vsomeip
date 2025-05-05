@@ -358,16 +358,11 @@ private:
             instance_t _instance);
 
     void clear_targets_and_pending_sub_from_eventgroups(service_t _service, instance_t _instance);
-    void clear_remote_subscriber(service_t _service, instance_t _instance);
 
     return_code_e check_error(const byte_t *_data, length_t _size,
             instance_t _instance);
 
     bool supports_selective(service_t _service, instance_t _instance);
-
-    void clear_remote_subscriber(service_t _service, instance_t _instance,
-            client_t _client,
-            const std::shared_ptr<endpoint_definition> &_target);
 
     void log_version_timer_cbk(boost::system::error_code const & _error);
 
@@ -489,15 +484,6 @@ private:
             >
         >
     > requested_services_;
-
-    std::mutex remote_subscribers_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<client_t,
-                std::set<std::shared_ptr<endpoint_definition> >
-            >
-        >
-    > remote_subscribers_;
 
     std::shared_ptr<serviceinfo> sd_info_;
 
