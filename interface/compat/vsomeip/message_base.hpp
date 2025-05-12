@@ -6,11 +6,11 @@
 #ifndef VSOMEIP_MESSAGE_BASE_HPP
 #define VSOMEIP_MESSAGE_BASE_HPP
 
-#include "../../compat/vsomeip/enumeration_types.hpp"
-#include "../../compat/vsomeip/export.hpp"
-#include "../../compat/vsomeip/internal/deserializable.hpp"
-#include "../../compat/vsomeip/internal/serializable.hpp"
-#include "../../compat/vsomeip/primitive_types.hpp"
+#include <compat/vsomeip/enumeration_types.hpp>
+#include <compat/vsomeip/export.hpp>
+#include <compat/vsomeip/internal/deserializable.hpp>
+#include <compat/vsomeip/internal/serializable.hpp>
+#include <compat/vsomeip/primitive_types.hpp>
 
 namespace vsomeip {
 

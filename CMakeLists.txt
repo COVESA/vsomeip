@@ -319,7 +319,7 @@ if(NOT MSVC)
 endif()
 
 # Compatibility
-option(VSOMEIP_ENABLE_COMPAT "Enable compatibility layer" OFF)
+option(ENABLE_COMPAT "Enable compatibility layer" OFF)
 
 # Multiple routing managers
 option(ENABLE_MULTIPLE_ROUTING_MANAGERS "Enable multiple routing managers" OFF)
@@ -587,11 +587,12 @@ if(ENABLE_COMPAT)
     VERSION ${VSOMEIP_COMPAT_VERSION}
     SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION}
     OUTPUT_NAME ${VSOMEIP_COMPAT_NAME}
-    EXPORT_NAME vsomeip3-compat
+    EXPORT_NAME vsomeip-compat
   )
   target_include_directories(
     ${VSOMEIP_NAME}-compat
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface/compat>
+    PUBLIC $<INSTALL_INTERFACE:include> # Access to vsomeip3 includes
+           $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface/compat>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/implementation/configuration/include>
            $<INSTALL_INTERFACE:include/compat> # for clients in install mode
