@@ -2905,9 +2905,9 @@ bool routing_manager_client::create_placeholder_event_and_subscribe(
 }
 
 void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_code const& _error) {
+    std::scoped_lock its_lock {requests_to_debounce_mutex_, requests_mutex_,
+                               registration_state_mutex_};
     if (!_error) {
-        std::scoped_lock its_lock {requests_to_debounce_mutex_, requests_mutex_,
-                                   registration_state_mutex_};
         if (requests_to_debounce_.size()) {
             if (state_ == inner_state_type_e::ST_REGISTERED) {
                 send_request_services(requests_to_debounce_);
