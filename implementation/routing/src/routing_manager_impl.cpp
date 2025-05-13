@@ -442,7 +442,7 @@ bool routing_manager_impl::offer_service(client_t _client,
             init_service_info(_service, _instance, true);
         } else {
             std::scoped_lock its_lock(pending_sd_offers_mutex_);
-            pending_sd_offers_.push_back(std::make_pair(_service, _instance));
+            pending_sd_offers_.emplace(_service, _instance);
             VSOMEIP_INFO << "rmi::" << __func__ << " added service: " << std::setw(4)
                          << std::setfill('0') << std::hex << _service
                          << " to pending_sd_offers_.size = " << std::dec
