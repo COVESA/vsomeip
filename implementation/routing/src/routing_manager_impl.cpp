@@ -3063,9 +3063,6 @@ void routing_manager_impl::on_subscribe_ack(client_t _client,
             }
 
             if (discovery_) {
-                std::lock_guard<std::mutex> its_lock_inner(remote_subscribers_mutex_);
-                remote_subscribers_[_service][_instance][VSOMEIP_ROUTING_CLIENT].insert(
-                        its_subscription->get_subscriber());
                 discovery_->update_remote_subscription(its_subscription);
 
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE("
@@ -3357,15 +3354,12 @@ routing_manager_impl::expire_subscriptions(bool _force) {
                 if (its_subscription) {
                     its_info->remove_remote_subscription(its_id);
 
-                    std::lock_guard<std::mutex> its_lock_inner(remote_subscribers_mutex_);
-                    remote_subscribers_[its_service][its_instance].erase(its_offering_client);
-
                     if (its_info->get_remote_subscriptions().size() == 0) {
                         for (const auto &its_event : its_info->get_events()) {
                             bool has_remote_subscriber(false);
-                            for (const auto &its_eventgroup_inner : its_event->get_eventgroups()) {
+                            for (const auto &its_eventgroup : its_event->get_eventgroups()) {
                                const auto its_eventgroup_info
-                                   = find_eventgroup(its_service, its_instance, its_eventgroup_inner);
+                                   = find_eventgroup(its_service, its_instance, its_eventgroup);
                                 if (its_eventgroup_info
                                         && its_eventgroup_info->get_remote_subscriptions().size() > 0) {
                                     has_remote_subscriber = true;
