@@ -591,7 +591,9 @@ if(ENABLE_COMPAT)
   )
   target_include_directories(
     ${VSOMEIP_NAME}-compat
-    PUBLIC $<INSTALL_INTERFACE:include> # Access to vsomeip3 includes
+    PUBLIC # Access to vsomeip3 includes
+           $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface> # Access to vsomeip3 includes
+           $<INSTALL_INTERFACE:include>
            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface/compat>
            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/implementation/configuration/include>
