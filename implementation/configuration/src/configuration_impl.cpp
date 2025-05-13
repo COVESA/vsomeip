@@ -28,6 +28,7 @@
 #include <vsomeip/structured_types.hpp>
 #include <vsomeip/internal/plugin_manager.hpp>
 
+#include "internal.hpp"
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
 #include "../include/event.hpp"
