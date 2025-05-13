@@ -558,6 +558,11 @@ void client_endpoint_impl<Protocol>::send_cbk(
         }
         return;
     } else if (_error == boost::asio::error::broken_pipe) {
+
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << get_remote_information() << " endpoint > "
+                        << this << " socket state > " << static_cast<int>(state_.load());
+
         if(!is_established_or_connected()) {
             // Do not interfer with the queue nor with the socket state if the endpoint is closed or
             // currently reconnecting
@@ -611,12 +616,23 @@ void client_endpoint_impl<Protocol>::send_cbk(
     } else if (_error == boost::asio::error::not_connected
             || _error == boost::asio::error::bad_descriptor
             || _error == boost::asio::error::no_permission) {
+
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << get_remote_information() << " endpoint > "
+                        << this << " socket state > " << static_cast<int>(state_.load());
+
+        if(!is_established_or_connected()) {
+            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
+            // currently reconnecting
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+
+            is_sending_ = false;
+            return;
+        }
         state_ = cei_state_e::CLOSED;
         if (_error == boost::asio::error::no_permission) {
-            VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
-                    << " (" << std::dec << _error.value() << ") "
-                    << get_remote_information()
-                    << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
@@ -626,6 +642,11 @@ void client_endpoint_impl<Protocol>::send_cbk(
         strand_.dispatch(std::bind(&client_endpoint_impl::connect,
                 this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
+
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << get_remote_information() << " endpoint > "
+                        << this << " socket state > " << static_cast<int>(state_.load());
+
         if(!is_established_or_connected()) {
             // Do not interfer with the queue nor with the socket state if the endpoint is closed or
             // currently reconnecting
@@ -637,8 +658,6 @@ void client_endpoint_impl<Protocol>::send_cbk(
             return;
         }
 
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
-                        << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
         // endpoint was stopped
         endpoint_impl<Protocol>::sending_blocked_ = true;
         shutdown_and_close_socket(false);
