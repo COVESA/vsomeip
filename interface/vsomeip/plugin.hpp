@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <stdint.h>
 
 #if _WIN32
     #if VSOMEIP_DLL_COMPILATION_PLUGIN
