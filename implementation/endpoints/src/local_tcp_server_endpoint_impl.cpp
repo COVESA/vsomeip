@@ -395,6 +395,8 @@ void local_tcp_server_endpoint_impl::connection::start() {
                 std::placeholders::_2
             )
         );
+    } else {
+        VSOMEIP_WARNING << "ltsei::" << __func__ << ": socket was closed | endpoint > " << this;
     }
 }
 
@@ -502,13 +504,15 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
 {
     std::shared_ptr<local_tcp_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
-        VSOMEIP_TRACE << "ltsei::connection::receive_cbk couldn't lock server_"
+        VSOMEIP_WARNING << "ltsei::connection::receive_cbk couldn't lock server_"
                       << " endpoint > " << this;
         return;
     }
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
-    if (!its_host)
+    if (!its_host) {
+        VSOMEIP_WARNING << "ltsei::" << __func__ << ": no host! " << " endpoint > " << this;
         return;
+    }
 
     if (_error == boost::asio::error::operation_aborted) {
         if (its_server->is_routing_endpoint_ && its_server->configuration_ &&
@@ -733,9 +737,11 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
 
     if (is_stopped_ || _error == boost::asio::error::eof
         || _error == boost::asio::error::connection_reset || is_error) {
+
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
         its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
+
     } else if (_error != boost::asio::error::bad_descriptor) {
         start();
     }

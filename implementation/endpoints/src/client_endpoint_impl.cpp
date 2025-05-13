@@ -439,22 +439,24 @@ void client_endpoint_impl<Protocol>::connect_cbk(
                                 << static_cast<int>(state_.load());
             }
             {
-                std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+                std::scoped_lock its_lock(connect_timer_mutex_);
                 connect_timer_.cancel();
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
             reconnect_counter_ = 0;
-            if (was_not_connected_) {
-                was_not_connected_ = false;
-                std::lock_guard<std::recursive_mutex> its_lock(mutex_);
-                auto its_entry = get_front();
-                if (its_entry.first) {
-                    is_sending_ = true;
-                    strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
+            {
+                std::scoped_lock its_lock(mutex_);
+                if (was_not_connected_) {
+                    was_not_connected_ = false;
+                    auto its_entry = get_front();
+                    if (its_entry.first) {
+                        is_sending_ = true;
+                        strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
                             this->shared_from_this(), its_entry));
-                    VSOMEIP_WARNING
+                            VSOMEIP_WARNING
                             << __func__ << ": resume sending to: " << get_remote_information()
                             << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+                    }
                 }
             }
             if (state_ != cei_state_e::ESTABLISHED) {
@@ -553,6 +555,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     send_queued(its_entry);
+                } else {
+                    VSOMEIP_INFO << "cei::" << __func__ << ": not calling send_queued | endpoint > "
+                                 << this << " socket state > " << static_cast<int>(state_.load());
+                    is_sending_ = false;
                 }
             }
         }
@@ -627,7 +633,6 @@ void client_endpoint_impl<Protocol>::send_cbk(
             VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
                             << " endpoint > " << this << " socket state > "
                             << static_cast<int>(state_.load());
-
             is_sending_ = false;
             return;
         }

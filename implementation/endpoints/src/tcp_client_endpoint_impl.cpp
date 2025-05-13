@@ -377,6 +377,9 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
                     _entry.first
                 ))
             );
+        } else {
+            VSOMEIP_WARNING << "tcei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
+            was_not_connected_ = true;
         }
     }
 }
