@@ -747,6 +747,7 @@ void routing_manager_client::subscribe(
 
     (void)_client;
 
+    std::scoped_lock its_lock {registration_state_mutex_, pending_subscription_mutex_};
     if (state_ == inner_state_type_e::ST_REGISTERED && is_available(_service, _instance, _major)) {
         send_subscribe(get_client(), _service, _instance, _eventgroup, _major, _event, _filter );
     }
@@ -756,7 +757,7 @@ void routing_manager_client::subscribe(
             _event, _filter,
             *_sec_client
     };
-    std::scoped_lock its_lock(pending_subscription_mutex_);
+
     pending_subscriptions_.insert(subscription);
 }
 
@@ -912,6 +913,7 @@ void routing_manager_client::unsubscribe(client_t _client,
     {
         remove_pending_subscription(_service, _instance, _eventgroup, _event);
 
+        std::scoped_lock its_registration_lock(registration_state_mutex_);
         if (state_ == inner_state_type_e::ST_REGISTERED) {
 
             protocol::unsubscribe_command its_command;
