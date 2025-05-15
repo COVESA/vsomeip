@@ -383,22 +383,22 @@ void udp_server_endpoint_impl::join_unlocked(const std::string& _address) {
     //
     // join_func must be called with multicast_mutex_ being hold!
     //
-    auto join_func = [this](const std::string& __address) {
+    auto join_func = [this](const std::string& inner_address) {
         try {
-            VSOMEIP_DEBUG << "Joining to multicast group " << __address << " from "
+            VSOMEIP_DEBUG << "Joining to multicast group " << inner_address << " from "
                           << local_.address().to_string();
 
             auto its_endpoint_host = endpoint_host_.lock();
             if (its_endpoint_host) {
                 multicast_option_t its_join_option {shared_from_this(), true,
-                                                    boost::asio::ip::make_address(__address)};
+                                                    boost::asio::ip::make_address(inner_address)};
                 its_endpoint_host->add_multicast_option(its_join_option);
             }
 
-            joined_[__address] = false;
+            joined_[inner_address] = false;
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "udp_server_endpoint_impl::join" << ":" << e.what()
-                          << " address: " << __address;
+                          << " address: " << inner_address;
         }
     };
 
