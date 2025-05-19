@@ -81,6 +81,7 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_TTL                                                        13
 #define EXPECTED_CYCLIC_OFFER_DELAY                                         2132
 #define EXPECTED_REQUEST_RESPONSE_DELAY                                     1111
+#define EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION                             true
 
 #define EXPECTED_DEPRECATED_INITIAL_DELAY_MIN                               10
 #define EXPECTED_DEPRECATED_INITIAL_DELAY_MAX                               100
@@ -88,6 +89,7 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_DEPRECATED_REPETITIONS_MAX                                 7
 #define EXPECTED_DEPRECATED_TTL                                             5
 #define EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY                          2001
+
 
 template<class T>
 ::testing::AssertionResult check(const T &_is, const T &_expected, const std::string &_test) {
@@ -157,7 +159,8 @@ void check_file(const std::string &_config_file,
                 uint8_t _expected_repetitions_max,
                 vsomeip::ttl_t _expected_ttl,
                 vsomeip::ttl_t _expected_cyclic_offer_delay,
-                vsomeip::ttl_t _expected_request_response_delay) {
+                vsomeip::ttl_t _expected_request_response_delay,
+                bool _expected_wait_route_netlink_notification) {
 
 
     // 0. Set environment variable to config file and load it
@@ -744,6 +747,7 @@ void check_file(const std::string &_config_file,
     vsomeip::ttl_t ttl = its_configuration->get_sd_ttl();
     int32_t cyclic_offer_delay = its_configuration->get_sd_cyclic_offer_delay();
     int32_t request_response_delay = its_configuration->get_sd_request_response_delay();
+    bool wait_route_netlink_notification = its_configuration->get_sd_wait_route_netlink_notification();
 
     EXPECT_TRUE(check<bool>(enabled, _expected_enabled, "SD ENABLED"));
     EXPECT_TRUE(check<std::string>(protocol, _expected_protocol, "SD PROTOCOL"));
@@ -757,6 +761,7 @@ void check_file(const std::string &_config_file,
     EXPECT_TRUE(check<vsomeip::ttl_t>(ttl, _expected_ttl, "SD TTL"));
     EXPECT_TRUE(check<int32_t>(cyclic_offer_delay, static_cast<int32_t>(_expected_cyclic_offer_delay), "SD CYCLIC OFFER DELAY"));
     EXPECT_TRUE(check<int32_t>(request_response_delay, static_cast<int32_t>(_expected_request_response_delay), "SD RESPONSE REQUEST DELAY"));
+    EXPECT_TRUE(check<bool>(wait_route_netlink_notification, _expected_wait_route_netlink_notification, "SD WAIT ROUTE NETLINK NOTIFICATION"));
     EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
 
     ASSERT_TRUE(vsomeip::plugin_manager::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
@@ -803,7 +808,8 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_REPETITIONS_MAX,
                EXPECTED_TTL,
                EXPECTED_CYCLIC_OFFER_DELAY,
-               EXPECTED_REQUEST_RESPONSE_DELAY);
+               EXPECTED_REQUEST_RESPONSE_DELAY,
+               EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 TEST(configuration_test, check_deprecated_config_file) {
@@ -847,7 +853,8 @@ TEST(configuration_test, check_deprecated_config_file) {
                EXPECTED_DEPRECATED_REPETITIONS_MAX,
                EXPECTED_DEPRECATED_TTL,
                EXPECTED_CYCLIC_OFFER_DELAY,
-               EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY);
+               EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY,
+               EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 int main(int argc, char** argv) {

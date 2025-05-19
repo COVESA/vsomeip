@@ -528,6 +528,7 @@
         "ttl" : "13",
         "cyclic_offer_delay" : "2132",
         "request_response_delay" : "1111",
-        "offer_debounce_time" : "1000"
+        "offer_debounce_time" : "1000",
+        "wait_route_netlink_notification" : "true"
     }
 }

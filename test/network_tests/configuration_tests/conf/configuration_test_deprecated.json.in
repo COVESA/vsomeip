@@ -532,6 +532,7 @@
         "protocol" : "udp",
         "multicast" : "224.212.244.223",
         "port" : "30666",
-        "offer_debounce_time" : "1000"
+        "offer_debounce_time" : "1000",
+        "wait_route_netlink_notification" : "true"
     }
 }

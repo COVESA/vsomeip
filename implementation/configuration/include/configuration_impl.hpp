@@ -203,6 +203,7 @@ public:
     VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
+    VSOMEIP_EXPORT bool get_sd_wait_route_netlink_notification() const;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -552,6 +553,7 @@ protected:
     std::uint32_t sd_find_debounce_time_;
     uint8_t sd_find_initial_debounce_reps_;
     std::uint32_t sd_find_initial_debounce_time_;
+    bool sd_wait_route_netlink_notification_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -575,7 +577,7 @@ protected:
     uint32_t log_version_interval_;
 
     enum element_type_e {
-        ET_NETWORK,
+        ET_NETWORK = 0,
         ET_UNICAST,
         ET_DEVICE,
         ET_DIAGNOSIS,
@@ -628,7 +630,8 @@ protected:
         ET_INITIAL_ROUTING_STATE,
         ET_DEFAULT_MAX_DISPATCH_TIME,
         ET_DEFAULT_MAX_DISPATCHERS,
-        ET_MAX = 53
+        ET_WAIT_ROUTE_NETLINK_NOTFICATION,
+        ET_MAX
     };
 
     bool is_configured_[ET_MAX];

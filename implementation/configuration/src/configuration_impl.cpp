@@ -62,14 +62,15 @@ configuration_impl::configuration_impl(const std::string& _path) :
     sd_find_debounce_time_ {VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME},
     sd_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     sd_find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
+    sd_wait_route_netlink_notification_ {VSOMEIP_SD_WAIT_ROUTE_NETLINK_NOTIFICATION},
     max_configured_message_size_ {0}, max_local_message_size_ {0}, max_reliable_message_size_ {0},
     max_unreliable_message_size_ {0},
     buffer_shrink_threshold_ {VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD},
     trace_ {std::make_shared<trace>()}, watchdog_ {std::make_shared<watchdog>()},
-    local_clients_keepalive_ {std::make_shared<local_clients_keepalive>()},
-    log_version_ {true}, log_version_interval_ {10},
-    permissions_uds_ {VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_ {"vsomeip"}, e2e_enabled_ {false},
-    log_memory_ {false}, log_memory_interval_ {0}, log_status_ {false}, log_status_interval_ {0},
+    local_clients_keepalive_ {std::make_shared<local_clients_keepalive>()}, log_version_ {true},
+    log_version_interval_ {10}, permissions_uds_ {VSOMEIP_DEFAULT_UDS_PERMISSIONS},
+    network_ {"vsomeip"}, e2e_enabled_ {false}, log_memory_ {false}, log_memory_interval_ {0},
+    log_status_ {false}, log_status_interval_ {0},
     endpoint_queue_limit_external_ {QUEUE_SIZE_UNLIMITED},
     endpoint_queue_limit_local_ {QUEUE_SIZE_UNLIMITED},
     tcp_restart_aborts_max_ {VSOMEIP_MAX_TCP_RESTART_ABORTS},
@@ -88,7 +89,7 @@ configuration_impl::configuration_impl(const std::string& _path) :
     is_security_enabled_ {false}, is_security_external_ {false}, is_security_audit_ {false},
     is_remote_access_allowed_ {true}, initial_routing_state_ {routing_state_e::RS_UNKNOWN},
     default_max_dispatch_time_ {VSOMEIP_DEFAULT_MAX_DISPATCH_TIME},
-    default_max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS}  {
+    default_max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS} {
 
     policy_manager_ = std::make_shared<policy_manager_impl>();
     security_ = std::make_shared<security>(policy_manager_);
@@ -166,6 +167,7 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     sd_find_initial_debounce_time_ = _other.sd_find_initial_debounce_time_;
     sd_offer_debounce_time_ = _other.sd_offer_debounce_time_;
     sd_find_debounce_time_ = _other.sd_find_debounce_time_;
+    sd_wait_route_netlink_notification_ = _other.sd_wait_route_netlink_notification_;
 
     trace_ = std::make_shared<trace>(*_other.trace_);
     supported_selective_addresses = _other.supported_selective_addresses;
@@ -1906,6 +1908,19 @@ void configuration_impl::load_service_discovery(
                         initial_routing_state_ = routing_state_e::RS_SUSPENDED;
                     } else if (its_value == "resumed") {
                         initial_routing_state_ = routing_state_e::RS_RESUMED;
+                    }
+                }
+            } else if (its_key == "wait_route_netlink_notification") {
+                if (is_configured_[ET_WAIT_ROUTE_NETLINK_NOTFICATION]) {
+                    VSOMEIP_WARNING << "Multiple definitions for "
+                                       "service_discovery.wait_route_netlink_notification."
+                                       " Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    sd_wait_route_netlink_notification_ = (its_value == "true");
+                    is_configured_[ET_WAIT_ROUTE_NETLINK_NOTFICATION] = true;
+                    if (!sd_wait_route_netlink_notification_) {
+                        VSOMEIP_INFO << "Route state tracking is disabled!";
                     }
                 }
             }
@@ -3811,6 +3826,10 @@ std::uint32_t configuration_impl::get_sd_offer_debounce_time() const {
 
 std::uint32_t configuration_impl::get_sd_find_debounce_time() const {
     return sd_find_debounce_time_;
+}
+
+bool configuration_impl::get_sd_wait_route_netlink_notification() const {
+    return sd_wait_route_netlink_notification_;
 }
 
 // Trace configuration
