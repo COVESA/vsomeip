@@ -245,12 +245,12 @@ private:
     void update_request(service_t _service, instance_t _instance);
 
     void start_offer_debounce_timer(bool _first_start);
+    void stop_offer_debounce_timer();
     void on_offer_debounce_timer_expired(const boost::system::error_code &_error);
 
-
     void start_find_debounce_timer(bool _first_start);
+    void stop_find_debounce_timer();
     void on_find_debounce_timer_expired(const boost::system::error_code &_error);
-
 
     void on_repetition_phase_timer_expired(
             const boost::system::error_code &_error,

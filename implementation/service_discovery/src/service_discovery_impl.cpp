@@ -211,8 +211,11 @@ service_discovery_impl::start() {
 void
 service_discovery_impl::stop() {
     is_suspended_ = true;
-    stop_ttl_timer();
     stop_last_msg_received_timer();
+
+    stop_ttl_timer();
+    stop_find_debounce_timer();
+    stop_offer_debounce_timer();
     stop_main_phase_timer();
 }
 
@@ -2846,8 +2849,7 @@ service_discovery_impl::check_ipv4_address(
     return is_valid;
 }
 
-void
-service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo> &_info) {
+void service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo>& _info) {
     service_t its_service = _info->get_service();
     service_t its_instance = _info->get_instance();
 
@@ -2866,27 +2868,8 @@ service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo> &_info)
     }
 }
 
-void
-service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
-    std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
-    boost::system::error_code ec;
-    if (_first_start) {
-        offer_debounce_timer_.expires_from_now(initial_delay_, ec);
-    } else {
-        offer_debounce_timer_.expires_from_now(offer_debounce_time_, ec);
-    }
-    if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::start_offer_debounce_timer "
-        "setting expiry time of timer failed: " << ec.message();
-    }
-    offer_debounce_timer_.async_wait(
-            std::bind(&service_discovery_impl::on_offer_debounce_timer_expired,
-                      this, std::placeholders::_1));
-}
-
-void
-service_discovery_impl::start_find_debounce_timer(bool _first_start) {
-    std::lock_guard<std::mutex> its_lock(find_debounce_timer_mutex_);
+void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
     boost::system::error_code ec;
     if (_first_start) {
         find_debounce_timer_.expires_from_now(initial_delay_, ec);
@@ -2897,19 +2880,26 @@ service_discovery_impl::start_find_debounce_timer(bool _first_start) {
         find_debounce_timer_.expires_from_now(find_debounce_time_, ec);
     }
     if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::start_find_debounce_timer "
-        "setting expiry time of timer failed: " << ec.message();
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                      << " setting expiry time of timer failed: "
+                      << ec.message();
     }
-    find_debounce_timer_.async_wait(
-            std::bind(
-                    &service_discovery_impl::on_find_debounce_timer_expired,
-                    this, std::placeholders::_1));
+    find_debounce_timer_.async_wait(std::bind(
+            &service_discovery_impl::on_find_debounce_timer_expired, this, std::placeholders::_1));
+}
+
+void service_discovery_impl::stop_find_debounce_timer() {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
+    try {
+        find_debounce_timer_.cancel();
+    } catch (boost::system::system_error&) {
+        // ignore
+    }
 }
 
 // initial delay
-void
-service_discovery_impl::on_find_debounce_timer_expired(
-        const boost::system::error_code &_error) {
+void service_discovery_impl::on_find_debounce_timer_expired(
+        const boost::system::error_code& _error) {
     if(_error) { // timer was canceled
         return;
     }
@@ -2956,15 +2946,40 @@ service_discovery_impl::on_find_debounce_timer_expired(
     boost::system::error_code ec;
     its_timer->expires_from_now(its_delay, ec);
     if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::on_find_debounce_timer_expired "
-        "setting expiry time of timer failed: " << ec.message();
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                      << " setting expiry time of timer failed: "
+                      << ec.message();
     }
-    its_timer->async_wait(
-            std::bind(
-                    &service_discovery_impl::on_find_repetition_phase_timer_expired,
-                    this, std::placeholders::_1, its_timer, its_repetitions,
-                    its_delay.count()));
+    its_timer->async_wait(std::bind(&service_discovery_impl::on_find_repetition_phase_timer_expired,
+                                    this, std::placeholders::_1, its_timer, its_repetitions,
+                                    its_delay.count()));
     start_find_debounce_timer(false);
+}
+
+void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
+    boost::system::error_code ec;
+    if (_first_start) {
+        offer_debounce_timer_.expires_from_now(initial_delay_, ec);
+    } else {
+        offer_debounce_timer_.expires_from_now(offer_debounce_time_, ec);
+    }
+    if (ec) {
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                      << " setting expiry time of timer failed: "
+                      << ec.message();
+    }
+    offer_debounce_timer_.async_wait(std::bind(
+            &service_discovery_impl::on_offer_debounce_timer_expired, this, std::placeholders::_1));
+}
+
+void service_discovery_impl::stop_offer_debounce_timer() {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
+    try {
+        offer_debounce_timer_.cancel();
+    } catch (boost::system::system_error&) {
+        // ignore
+    }
 }
 
 void
