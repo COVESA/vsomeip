@@ -7,11 +7,7 @@
 
 #include "../include/runtime_impl.hpp"
 
-#include <mutex>
-
 namespace vsomeip_v3 {
-
-static std::mutex get_mutex_;
 
 std::string runtime::get_property(const std::string &_name) {
     return runtime_impl::get_property(_name);
@@ -22,7 +18,6 @@ void runtime::set_property(const std::string &_name, const std::string &_value) 
 }
 
 std::shared_ptr<runtime> runtime::get() {
-    std::scoped_lock lk {get_mutex_};
     return runtime_impl::get();
 }
 
