@@ -1353,6 +1353,33 @@ void routing_manager_stub::send_client_routing_info(const client_t _target,
             << "] failed";
 }
 
+void routing_manager_stub::send_client_config_command(const client_t _client,
+    const client_t _target) {
+
+    // Send a `config_command` to share the _client hostname with the _target application.
+    auto its_target_endpoint = host_->find_local(_target);
+    if (its_target_endpoint) {
+        protocol::config_command its_command;
+        its_command.set_client(_client);
+        its_command.insert("hostname", get_env(_client));
+
+        std::vector<byte_t> its_buffer;
+        protocol::error_e its_error;
+        its_command.serialize(its_buffer, its_error);
+
+        if (its_error == protocol::error_e::ERROR_OK) {
+            its_target_endpoint->send(&its_buffer[0],
+                    static_cast<uint32_t>(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << __func__ << ": config command serialization failed("
+                        << std::dec << int(its_error) << ")";
+        }
+    } else {
+        VSOMEIP_WARNING << __func__ << " Couldn't send config command to local client: "
+                        << std::hex << std::setfill('0') << std::setw(4) << _client;
+    }
+}
+
 void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _service, instance_t _instance) {
     std::set<std::pair<uid_t, gid_t>> its_credentials;
     std::set<client_t> its_requesting_clients;
@@ -1410,6 +1437,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                                 its_entry.set_port(its_port);
                             }
                             send_client_routing_info(_hoster, its_entry);
+                            send_client_config_command(its_client.first, _hoster);
                         }
                     }
                 }
@@ -2094,6 +2122,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                             its_entries.emplace_back(its_entry);
                         } else {
                             send_client_routing_info(c, its_entry);
+                            send_client_config_command(_client, c);
                         }
                     }
                 }
@@ -2143,6 +2172,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                                     its_entries.emplace_back(its_entry);
                                 } else {
                                     send_client_routing_info(c, its_entry);
+                                    send_client_config_command(_client, c);
                                 }
                             }
                         }
@@ -2782,6 +2812,10 @@ void routing_manager_stub::on_security_update_response(
     }
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
+
+std::string routing_manager_stub::get_env(client_t _client) const {
+    return host_->get_env(_client);
+}
 
 void routing_manager_stub::send_suspend() const {
 

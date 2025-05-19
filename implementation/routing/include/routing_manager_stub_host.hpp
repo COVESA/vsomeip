@@ -116,6 +116,8 @@ public:
     virtual void add_known_client(client_t _client,
             const std::string &_client_host) = 0;
 
+    virtual std::string get_env(client_t _client) const = 0;
+
     virtual void set_client_host(const std::string &_client_host) = 0;
 
     virtual bool get_guest(client_t _client,
