@@ -7,6 +7,7 @@
 #define VSOMEIP_V3_DEBOUNCE_HPP
 
 #include <vsomeip/structured_types.hpp>
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -25,11 +26,8 @@ struct debounce_filter_impl_t : debounce_filter_t {
     std::chrono::steady_clock::time_point last_forwarded_;
 };
 
-using debounce_configuration_t =
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<event_t,
-                std::shared_ptr<debounce_filter_impl_t>>>>;
+using debounce_configuration_t = service_instance_map<
+    std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>>;
 
 } // namespace vsomeip_v3
 

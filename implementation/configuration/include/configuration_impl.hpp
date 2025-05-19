@@ -27,6 +27,7 @@
 #include "trace.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "../../security/include/policy.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -425,9 +426,9 @@ private:
     void load_service_debounce(const boost::property_tree::ptree &_tree,
             debounce_configuration_t &_debounces);
     void load_events_debounce(const boost::property_tree::ptree &_tree,
-            std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
+            std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce(const boost::property_tree::ptree &_tree,
-                std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
+                std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
             std::map<std::size_t, byte_t> &_ignore);
     void load_acceptances(const configuration_element &_element);
@@ -521,9 +522,7 @@ protected:
     std::set<client_t> client_identifiers_;
 
     mutable std::mutex services_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            std::shared_ptr<service> > > services_;
+    service_instance_map<std::shared_ptr<service>> services_;
 
     std::map<std::string, // IP
         std::map<std::uint16_t, // port
@@ -686,11 +685,7 @@ protected:
     uint8_t max_remote_subscribers_;
 
     mutable std::mutex partitions_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            partition_id_t
-        >
-    > partitions_;
+    service_instance_map<partition_id_t> partitions_;
 
     std::string path_;
 

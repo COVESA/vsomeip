@@ -34,6 +34,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 #include "../../routing/include/routing_manager_host.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -426,10 +427,6 @@ private:
                             std::pair<subscription_handler_sec_t,
                                 async_subscription_handler_sec_t> > > > subscription_;
     mutable std::mutex subscription_mutex_;
-    std::map<service_t,
-        std::map<instance_t, std::map<eventgroup_t,
-        std::map<client_t, error_handler_t > > > > eventgroup_error_handlers_;
-    mutable std::mutex subscription_error_mutex_;
 
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Signals
@@ -509,8 +506,7 @@ private:
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
 
-    std::map<std::pair<service_t, instance_t>,
-            std::deque<std::shared_ptr<sync_handler> > > availability_handlers_;
+    service_instance_map<std::deque<std::shared_ptr<sync_handler>>> availability_handlers_;
 
     vsomeip_sec_client_t sec_client_;
 
