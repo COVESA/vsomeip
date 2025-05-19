@@ -642,6 +642,7 @@ The general filter rules are:
     - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.
     - **find_initial_debounce_reps** - Number of initial debounces using find_initial_debounce_time. This can be used to modify the number of sent messages during initial part of startup (valid values: `0 - 2^8-1`). The default setting is `0`.
     - **find_initial_debounce_time** - Time which the stack collects new service requests before they enter the repetition phase. This can be used to modify the number of sent messages during initial part of startup. The default setting is `200` ms.
+    - **wait_route_netlink_notification** - Enables the tracking of the route state `on_net_interface_or_route_state_changed`. The default setting is `true`.
 
 <details><summary>Service Discovery configuration</summary>
 

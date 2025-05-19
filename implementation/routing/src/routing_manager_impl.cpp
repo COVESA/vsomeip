@@ -3948,7 +3948,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(
         }
         if_state_running_ = _available;
         // When the interface goes down the sd route is also lost
-        if (!if_state_running_) {
+        if (!if_state_running_ && configuration_->get_sd_wait_route_netlink_notification()) {
             sd_route_set_ = false;
         }
     } else {
