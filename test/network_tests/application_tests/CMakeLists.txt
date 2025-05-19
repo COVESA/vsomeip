@@ -14,6 +14,7 @@ set(configuration_files
     application_test_no_dispatch_threads.json
     application_test_no_dispatch_threads_daemon.json
     application_test_starter.sh
+    application_test_multiple_init.sh
 )
 configure_files("${configuration_files}")
 
@@ -50,7 +51,7 @@ add_custom_test(
 # Add custom test command.
 add_custom_test(
     NAME application_test_multiple_init
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init.sh
     TIMEOUT 180
 )
 
