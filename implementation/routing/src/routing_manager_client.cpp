@@ -68,6 +68,7 @@
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 #include "../../utility/include/utility.hpp"
 #ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
@@ -2655,13 +2656,12 @@ void routing_manager_client::on_stop_offer_service(service_t _service,
     (void) _minor;
     std::map<event_t, std::shared_ptr<event> > events;
     {
-        std::scoped_lock its_lock(events_mutex_);
-        auto its_events_service = events_.find(_service);
-        if (its_events_service != events_.end()) {
-            auto its_events_instance = its_events_service->second.find(_instance);
-            if (its_events_instance != its_events_service->second.end()) {
-                for (auto &e : its_events_instance->second)
-                    events[e.first] = e.second;
+        std::scoped_lock its_lock {events_mutex_};
+        const auto search = events_.find(service_instance_t{_service, _instance});
+
+        if (search != events_.end()) {
+            for (const auto &[event_id, event_ptr] : search->second) {
+               events[event_id] = event_ptr;
             }
         }
     }

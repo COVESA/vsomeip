@@ -37,6 +37,7 @@
 #include "../../protocol/include/protocol.hpp"
 #include "../../routing/include/event.hpp"
 #include "../../service_discovery/include/defines.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
@@ -414,23 +415,21 @@ bool configuration_impl::remote_offer_info_add(service_t _service,
         {
             std::lock_guard<std::mutex> its_lock(services_mutex_);
             bool updated(false);
-            auto found_service = services_.find(its_service->service_);
-            if (found_service != services_.end()) {
-                auto found_instance = found_service->second.find(its_service->instance_);
-                if (found_instance != found_service->second.end()) {
-                    VSOMEIP_INFO << "Updating remote configuration for service ["
-                            << std::hex << std::setfill('0') << std::setw(4)
-                            << its_service->service_ << "." << its_service->instance_ << "]";
-                    if (_reliable) {
-                        found_instance->second->reliable_ = its_service->reliable_;
-                    } else {
-                        found_instance->second->unreliable_ = its_service->unreliable_;
-                    }
-                    updated = true;
+            const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
+            if (search != services_.end()) {
+                VSOMEIP_INFO << "Updating remote configuration for service ["
+                        << std::hex << std::setfill('0') << std::setw(4)
+                        << its_service->service_ << "." << its_service->instance_ << "]";
+                if (_reliable) {
+                    search->second->reliable_ = its_service->reliable_;
+                } else {
+                    search->second->unreliable_ = its_service->unreliable_;
                 }
+                updated = true;
             }
+
             if (!updated) {
-                services_[_service][_instance] = its_service;
+                services_[service_instance_t{_service, _instance}] = its_service;
                 VSOMEIP_INFO << "Added new remote configuration for service ["
                         << std::hex << std::setfill('0')
                         << std::setw(4) << its_service->service_ << "."
@@ -459,25 +458,22 @@ bool configuration_impl::remote_offer_info_remove(service_t _service,
                 "configuration has been parsed";
     } else {
         std::lock_guard<std::mutex> its_lock(services_mutex_);
-        auto found_service = services_.find(_service);
-        if (found_service != services_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                VSOMEIP_INFO << "Removing remote configuration for service ["
-                        << std::hex << std::setfill('0') << std::setw(4)
-                        << _service << "." << _instance << "]";
-                if (_reliable) {
-                    found_instance->second->reliable_ = ILLEGAL_PORT;
-                    // TODO delete from magic_cookies_map without overwriting
-                    // configurations from other services offered on the same port
-                } else {
-                    found_instance->second->unreliable_ = ILLEGAL_PORT;
-                }
-                *_still_offered_remote = (
-                        found_instance->second->unreliable_ != ILLEGAL_PORT ||
-                        found_instance->second->reliable_ != ILLEGAL_PORT);
-                ret = true;
+        const auto search = services_.find(service_instance_t{_service, _instance});
+        if (search != services_.end()) {
+            VSOMEIP_INFO << "Removing remote configuration for service ["
+                    << std::hex << std::setfill('0') << std::setw(4)
+                    << _service << "." << _instance << "]";
+            if (_reliable) {
+                search->second->reliable_ = ILLEGAL_PORT;
+                // TODO delete from magic_cookies_map without overwriting
+                // configurations from other services offered on the same port
+            } else {
+                search->second->unreliable_ = ILLEGAL_PORT;
             }
+            *_still_offered_remote = (
+                    search->second->unreliable_ != ILLEGAL_PORT ||
+                    search->second->reliable_ != ILLEGAL_PORT);
+            ret = true;
         }
     }
     return ret;
@@ -2123,20 +2119,16 @@ void configuration_impl::load_service(
             }
         }
 
-        auto found_service = services_.find(its_service->service_);
-        if (found_service != services_.end()) {
-            auto found_instance = found_service->second.find(
-                    its_service->instance_);
-            if (found_instance != found_service->second.end()) {
-                VSOMEIP_WARNING << "Multiple configurations for service ["
-                        << std::hex << its_service->service_ << "."
-                        << its_service->instance_ << "]";
-                is_loaded = false;
-            }
+        const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
+        if (search != services_.end()) {
+            VSOMEIP_WARNING << "Multiple configurations for service ["
+                    << std::hex << its_service->service_ << "."
+                    << its_service->instance_ << "]";
+            is_loaded = false;
         }
 
         if (is_loaded) {
-            services_[its_service->service_][its_service->instance_] =
+            services_[service_instance_t{its_service->service_, its_service->instance_}] =
                     its_service;
             if (use_magic_cookies) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
@@ -2913,7 +2905,7 @@ configuration_impl::load_partition(const boost::property_tree::ptree &_tree) {
 
             for (const auto &p : its_partition_members) {
                 for (const auto &m : p.second) {
-                    partitions_[p.first][m] = its_partition_id;
+                    partitions_[service_instance_t{p.first, m}] = its_partition_id;
                     its_log << "<"
                             << std::hex << std::setfill('0')
                             << std::setw(4) << p.first << "."
@@ -3346,11 +3338,10 @@ std::set<std::pair<service_t, instance_t> >
 configuration_impl::get_remote_services() const {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
     std::set<std::pair<service_t, instance_t> > its_remote_services;
-    for (const auto& i : services_) {
-        for (const auto& j : i.second) {
-            if (is_remote(j.second)) {
-                its_remote_services.insert(std::make_pair(i.first, j.first));
-            }
+
+    for (const auto& [key, service] : services_) {
+        if (is_remote(service)) {
+            its_remote_services.insert(std::make_pair(key.service(), key.instance()));
         }
     }
     return its_remote_services;
@@ -3454,18 +3445,15 @@ void configuration_impl::get_event_update_properties(
         std::chrono::milliseconds &_cycle,
         bool &_change_resets_cycle, bool &_update_on_change) const {
 
-    auto find_service = services_.find(_service);
-    if (find_service != services_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            auto its_service = find_instance->second;
-            auto find_event = its_service->events_.find(_event);
-            if (find_event != its_service->events_.end()) {
-                _cycle = find_event->second->cycle_;
-                _change_resets_cycle = find_event->second->change_resets_cycle_;
-                _update_on_change = find_event->second->update_on_change_;
-                return;
-            }
+    const auto search = services_.find(service_instance_t{_service, _instance});
+    if (search != services_.end()) {
+        const auto its_events = search->second->events_;
+        const auto find_event = its_events.find(_event);
+        if (find_event != its_events.end()) {
+            _cycle = find_event->second->cycle_;
+            _change_resets_cycle = find_event->second->change_resets_cycle_;
+            _update_on_change = find_event->second->update_on_change_;
+            return;
         }
     }
 
@@ -3643,15 +3631,13 @@ std::shared_ptr<service> configuration_impl::find_service(service_t _service,
 
 std::shared_ptr<service> configuration_impl::find_service_unlocked(service_t _service,
         instance_t _instance) const {
-    std::shared_ptr<service> its_service;
-    auto find_service = services_.find(_service);
-    if (find_service != services_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            its_service = find_instance->second;
-        }
+
+    const auto search = services_.find(service_instance_t{_service, _instance});
+    if (search != services_.end()) {
+        return search->second;
     }
-    return its_service;
+
+    return std::shared_ptr<service>();
 }
 
 std::shared_ptr<service>
@@ -4168,7 +4154,7 @@ configuration_impl::load_service_debounce(
 
     service_t its_service(0);
     instance_t its_instance(0);
-    std::map<event_t, std::shared_ptr<debounce_filter_impl_t>> its_debounces;
+    std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>> its_debounces;
 
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
@@ -4196,25 +4182,24 @@ configuration_impl::load_service_debounce(
 
     // TODO: Improve error handling!
     if (its_service > 0 && its_instance > 0 && !its_debounces.empty()) {
-        auto find_service = debounces_.find(its_service);
-        if (find_service != debounces_.end()) {
-            auto find_instance = find_service->second.find(its_instance);
-            if (find_instance != find_service->second.end()) {
-                VSOMEIP_ERROR << "Multiple debounce configurations for service "
-                    << std::hex << std::setfill('0')
-                    << std::setw(4) << its_service << "."
-                    << std::setw(4) << its_instance;
-                return;
-            }
+        const auto search = debounces_.find(service_instance_t{its_service, its_instance});
+
+        if (search != debounces_.end()) {
+            VSOMEIP_ERROR << "Multiple debounce configurations for service "
+                << std::hex << std::setfill('0')
+                << std::setw(4) << its_service << "."
+                << std::setw(4) << its_instance;
+            return;
         }
-        _debounces[its_service][its_instance] = its_debounces;
+
+        _debounces[service_instance_t{its_service, its_instance}] = its_debounces;
     }
 }
 
 void
 configuration_impl::load_events_debounce(
         const boost::property_tree::ptree &_tree,
-        std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces) {
+        std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces) {
 
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         load_event_debounce(i->second, _debounces);
@@ -4224,7 +4209,7 @@ configuration_impl::load_events_debounce(
 void
 configuration_impl::load_event_debounce(
         const boost::property_tree::ptree &_tree,
-        std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces) {
+        std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces) {
 
     event_t its_event(0);
     auto its_debounce = std::make_shared<debounce_filter_impl_t>();
@@ -4719,33 +4704,29 @@ void configuration_impl::load_secure_service(const boost::property_tree::ptree &
 std::shared_ptr<debounce_filter_impl_t>
 configuration_impl::get_default_debounce(service_t _service, instance_t _instance,
                                          event_t _event) const {
-    auto found_service = debounces_.find(_service);
-    if (found_service != debounces_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_event = found_instance->second.find(_event);
-            if (found_event != found_instance->second.end()) {
-                return found_event->second;
-            }
+    const auto generic_search = debounces_.find(service_instance_t {_service, _instance});
+    if (generic_search != debounces_.end()) {
+        const auto found_event = generic_search->second.find(_event);
+        if (found_event != generic_search->second.end()) {
+            return found_event->second;
         }
     }
     return nullptr;
 }
 
-std::shared_ptr<debounce_filter_impl_t>
-configuration_impl::get_debounce(client_t _client, service_t _service, instance_t _instance,
-                                 event_t _event) const {
+std::shared_ptr<debounce_filter_impl_t> configuration_impl::get_debounce(client_t _client,
+                                                                         service_t _service,
+                                                                         instance_t _instance,
+                                                                         event_t _event) const {
     // Try to find application (client) specific debounce configuration
     for (auto& [its_name, its_application] : applications_) {
         if (its_application.client_ == _client) {
-            auto found_service = its_application.debounces_.find(_service);
-            if (found_service != its_application.debounces_.end()) {
-                auto found_instance = found_service->second.find(_instance);
-                if (found_instance != found_service->second.end()) {
-                    auto found_event = found_instance->second.find(_event);
-                    if (found_event != found_instance->second.end()) {
-                        return found_event->second;
-                    }
+            const auto search =
+                    its_application.debounces_.find(service_instance_t {_service, _instance});
+            if (search != its_application.debounces_.end()) {
+                const auto found_event = search->second.find(_event);
+                if (found_event != search->second.end()) {
+                    return found_event->second;
                 }
             }
             break;
@@ -5147,12 +5128,9 @@ configuration_impl::get_partition_id(
     partition_id_t its_id(VSOMEIP_DEFAULT_PARTITION_ID);
 
     std::lock_guard<std::mutex> its_lock(partitions_mutex_);
-    auto find_service = partitions_.find(_service);
-    if (find_service != partitions_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            its_id = find_instance->second;
-        }
+    const auto search = partitions_.find(service_instance_t{_service, _instance});
+    if (search != partitions_.end()) {
+        its_id = search->second;
     }
 
     return its_id;

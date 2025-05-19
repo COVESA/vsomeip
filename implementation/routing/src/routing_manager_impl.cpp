@@ -1837,13 +1837,11 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         std::set<std::shared_ptr<eventgroupinfo> > its_eventgroup_info_set;
         {
             std::lock_guard<std::mutex> its_eventgroups_lock(eventgroups_mutex_);
-            auto find_service = eventgroups_.find(_service);
-            if (find_service != eventgroups_.end()) {
-                auto find_instance = find_service->second.find(_instance);
-                if (find_instance != find_service->second.end()) {
-                    for (auto e : find_instance->second) {
-                        its_eventgroup_info_set.insert(e.second);
-                    }
+            const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+            if (search != eventgroups_.end()) {
+                for (const auto& [eventgroup_id, eventgroup_info] : search->second) {
+                    its_eventgroup_info_set.insert(eventgroup_info);
                 }
             }
         }
@@ -1992,14 +1990,15 @@ routing_manager_impl::has_subscribed_eventgroup(
         service_t _service, instance_t _instance) const {
 
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    auto found_service = eventgroups_.find(_service);
-    if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end())
-            for (const auto &its_eventgroup : found_instance->second)
-                for (const auto &e : its_eventgroup.second->get_events())
-                    if (!e->get_subscribers().empty())
-                        return true;
+    const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+    if (search != eventgroups_.end()) {
+        for (const auto& e : search->second) {
+            for (const auto& its_event : e.second->get_events()) {
+                if (!its_event->get_subscribers().empty()) {
+                    return true;
+                }
+            }
+        }
     }
 
     return false;
@@ -2344,15 +2343,15 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
 bool routing_manager_impl::is_field(service_t _service, instance_t _instance,
         event_t _event) const {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
-    auto find_service = events_.find(_service);
-    if (find_service != events_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            auto find_event = find_instance->second.find(_event);
-            if (find_event != find_instance->second.end())
-                return find_event->second->is_field();
+    const auto search = events_.find(service_instance_t{_service, _instance});
+
+    if (search != events_.end()) {
+        const auto find_event = search->second.find(_event);
+        if (find_event != search->second.end()) {
+            return find_event->second->is_field();
         }
     }
+
     return false;
 }
 
@@ -2587,28 +2586,27 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
     std::vector<std::shared_ptr<event>> its_events;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-        auto found_service = eventgroups_.find(_service);
-        if (found_service != eventgroups_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (auto &its_eventgroup : found_instance->second) {
-                    // As the service is gone, all subscriptions to its events
-                    // do no longer exist and the last received payload is no
-                    // longer valid.
-                    for (auto &its_event : its_eventgroup.second->get_events()) {
-                        const auto its_subscribers = its_event->get_subscribers();
-                        for (const auto its_subscriber : its_subscribers) {
-                            if (its_subscriber != get_client()) {
-                                its_event->remove_subscriber(
-                                        its_eventgroup.first, its_subscriber);
-                            }
+        const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+        if (search != eventgroups_.end()) {
+            for (const auto& [eventgroup_id, eventgroup_info] : search->second) {
+                // As the service is gone, all subscriptions to its events
+                // do no longer exist and the last received payload is no
+                // longer valid.
+                for (auto &its_event : eventgroup_info->get_events()) {
+                    const auto its_subscribers = its_event->get_subscribers();
+                    for (const auto its_subscriber : its_subscribers) {
+                        if (its_subscriber != get_client()) {
+                            its_event->remove_subscriber(
+                                eventgroup_id, its_subscriber);
                         }
-                        its_events.push_back(its_event);
                     }
+                    its_events.push_back(its_event);
                 }
             }
         }
     }
+
     for (const auto& e : its_events) {
         e->unset_payload(true);
     }
@@ -2770,80 +2768,75 @@ routing_manager_impl::expire_subscriptions(
     const bool expire_all = (_range.first == ANY_PORT
             && _range.second == ANY_PORT);
 
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<eventgroup_t,
-                std::shared_ptr<eventgroupinfo> > > >its_eventgroups;
+    eventgroups_t its_eventgroups;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
         its_eventgroups = eventgroups_;
     }
-    for (const auto &its_service : its_eventgroups) {
-        for (const auto &its_instance : its_service.second) {
-            for (const auto &its_eventgroup : its_instance.second) {
-                const auto its_info = its_eventgroup.second;
-                for (auto its_subscription
-                        : its_info->get_remote_subscriptions()) {
-                    if (its_subscription->is_forwarded()) {
-                        VSOMEIP_WARNING << __func__ << ": New remote subscription replaced expired ["
-                            << std::hex << std::setfill('0')
-                            << std::setw(4) << its_service.first << "."
-                            << std::setw(4) << its_instance.first << "."
-                            << std::setw(4) << its_eventgroup.first << "]";
-                        continue;
-                    }
 
-                    // Note: get_remote_subscription delivers a copied
-                    // set of subscriptions. Thus, its is possible to
-                    // to remove them within the loop.
-                    auto its_ep_definition = _reliable ?
-                                    its_subscription->get_reliable() :
-                                    its_subscription->get_unreliable();
+    for (const auto& [key, its_eventgroup] : its_eventgroups) {
+        for (auto& [eventgroup_id, its_info] : its_eventgroup) {
+            for (auto its_subscription : its_info->get_remote_subscriptions()) {
 
-                    if (!its_ep_definition && expire_all)
-                        its_ep_definition = (!_reliable) ?
+                if (its_subscription->is_forwarded()) {
+                    VSOMEIP_WARNING << __func__ << ": New remote subscription replaced expired ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << key.service() << "."
+                        << std::setw(4) << key.instance() << "."
+                        << std::setw(4) << eventgroup_id << "]";
+                    continue;
+                }
+
+                // Note: get_remote_subscription delivers a copied
+                // set of subscriptions. Thus, its is possible to
+                // to remove them within the loop.
+                auto its_ep_definition = _reliable ?
                                 its_subscription->get_reliable() :
                                 its_subscription->get_unreliable();
 
-                    if (its_ep_definition
-                            && its_ep_definition->get_address() == _address
-                            && (expire_all ||
-                                    (its_ep_definition->get_remote_port() >= _range.first
-                                    && its_ep_definition->get_remote_port() <= _range.second))) {
+                if (!its_ep_definition && expire_all)
+                    its_ep_definition = (!_reliable) ?
+                            its_subscription->get_reliable() :
+                            its_subscription->get_unreliable();
 
-                        // TODO: Check whether subscriptions to different hosts are valid.
-                        // IF yes, we probably need to simply reset the corresponding
-                        // endpoint instead of removing the subscription...
-                        VSOMEIP_INFO << __func__
-                                << ": removing subscription to "
-                                << std::hex << its_info->get_service() << "."
-                                << std::hex << its_info->get_instance() << "."
-                                << std::hex << its_info->get_eventgroup()
-                                << " from target "
-                                << its_ep_definition->get_address() << ":"
-                                << std::dec << its_ep_definition->get_port()
-                                << " reliable="
-                                << std::boolalpha << its_ep_definition->is_reliable();
-                        if (expire_all) {
-                            its_ep_definition = (!its_ep_definition->is_reliable()) ?
-                                    its_subscription->get_reliable() :
-                                    its_subscription->get_unreliable();
-                            if (its_ep_definition) {
-                                VSOMEIP_INFO << __func__
-                                        << ": removing subscription to "
-                                        << std::hex << its_info->get_service() << "."
-                                        << std::hex << its_info->get_instance() << "."
-                                        << std::hex << its_info->get_eventgroup()
-                                        << " from target "
-                                        << its_ep_definition->get_address() << ":"
-                                        << std::dec << its_ep_definition->get_port()
-                                        << " reliable="
-                                        << std::boolalpha << its_ep_definition->is_reliable();
-                            }
+                if (its_ep_definition
+                        && its_ep_definition->get_address() == _address
+                        && (expire_all ||
+                                (its_ep_definition->get_remote_port() >= _range.first
+                                && its_ep_definition->get_remote_port() <= _range.second))) {
+
+                    // TODO: Check whether subscriptions to different hosts are valid.
+                    // IF yes, we probably need to simply reset the corresponding
+                    // endpoint instead of removing the subscription...
+                    VSOMEIP_INFO << __func__
+                            << ": removing subscription to "
+                            << std::hex << its_info->get_service() << "."
+                            << std::hex << its_info->get_instance() << "."
+                            << std::hex << its_info->get_eventgroup()
+                            << " from target "
+                            << its_ep_definition->get_address() << ":"
+                            << std::dec << its_ep_definition->get_port()
+                            << " reliable="
+                            << std::boolalpha << its_ep_definition->is_reliable();
+                    if (expire_all) {
+                        its_ep_definition = (!its_ep_definition->is_reliable()) ?
+                                its_subscription->get_reliable() :
+                                its_subscription->get_unreliable();
+                        if (its_ep_definition) {
+                            VSOMEIP_INFO << __func__
+                                    << ": removing subscription to "
+                                    << std::hex << its_info->get_service() << "."
+                                    << std::hex << its_info->get_instance() << "."
+                                    << std::hex << its_info->get_eventgroup()
+                                    << " from target "
+                                    << its_ep_definition->get_address() << ":"
+                                    << std::dec << its_ep_definition->get_port()
+                                    << " reliable="
+                                    << std::boolalpha << its_ep_definition->is_reliable();
                         }
-                        its_subscription->set_expired();
-                        on_remote_unsubscribe(its_subscription);
                     }
+                    its_subscription->set_expired();
+                    on_remote_unsubscribe(its_subscription);
                 }
             }
         }
@@ -3277,10 +3270,8 @@ void routing_manager_impl::send_error(return_code_e _return_code,
 
 std::chrono::steady_clock::time_point
 routing_manager_impl::expire_subscriptions(bool _force) {
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<eventgroup_t,
-                std::shared_ptr<eventgroupinfo> > > >its_eventgroups;
+
+    eventgroups_t its_eventgroups;
     std::map<std::shared_ptr<remote_subscription>,
         std::set<client_t> > its_expired_subscriptions;
 
@@ -3293,39 +3284,35 @@ routing_manager_impl::expire_subscriptions(bool _force) {
         its_eventgroups = eventgroups_;
     }
 
-    for (auto &its_service : its_eventgroups) {
-        for (auto &its_instance : its_service.second) {
-            for (auto &its_eventgroup : its_instance.second) {
-                auto its_subscriptions
-                    = its_eventgroup.second->get_remote_subscriptions();
-                for (auto &s : its_subscriptions) {
-                    if(!s) {
-                        VSOMEIP_ERROR << __func__
-                            << ": Remote subscription is NULL for eventgroup ["
-                            << std::hex << std::setfill('0')
-                            << std::setw(4) << its_service.first << "."
-                            << std::setw(4) << its_instance.first << "."
-                            << std::setw(4) << its_eventgroup.first << "]";
-                        continue;
-                    } else if (s->is_forwarded()) {
-                        VSOMEIP_WARNING << __func__ << ": New remote subscription replaced expired ["
-                            << std::hex << std::setfill('0')
-                            << std::setw(4) << its_service.first << "."
-                            << std::setw(4) << its_instance.first << "."
-                            << std::setw(4) << its_eventgroup.first << "]";
-                        continue;
-                    }
-                    for (auto its_client : s->get_clients()) {
-                        if (_force) {
-                            its_expired_subscriptions[s].insert(its_client);
-                        } else {
-                            auto its_expiration = s->get_expiration(its_client);
-                            if (its_expiration != std::chrono::steady_clock::time_point()) {
-                                if (its_expiration < now) {
-                                    its_expired_subscriptions[s].insert(its_client);
-                                } else if (its_expiration < its_next_expiration) {
-                                    its_next_expiration = its_expiration;
-                                }
+    for (const auto& [key, its_eventgroup] : its_eventgroups) {
+        for (const auto& [eventgroup_id, its_info] : its_eventgroup) {
+            for (auto s : its_info->get_remote_subscriptions()) {
+                if(!s) {
+                    VSOMEIP_ERROR << __func__
+                        << ": Remote subscription is NULL for eventgroup ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << key.service() << "."
+                        << std::setw(4) << key.instance() << "."
+                        << std::setw(4) << eventgroup_id << "]";
+                    continue;
+                } else if (s->is_forwarded()) {
+                    VSOMEIP_WARNING << __func__ << ": New remote subscription replaced expired ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << key.service() << "."
+                        << std::setw(4) << key.instance() << "."
+                        << std::setw(4) << eventgroup_id << "]";
+                    continue;
+                }
+                for (auto its_client : s->get_clients()) {
+                    if (_force) {
+                        its_expired_subscriptions[s].insert(its_client);
+                    } else {
+                        auto its_expiration = s->get_expiration(its_client);
+                        if (its_expiration != std::chrono::steady_clock::time_point()) {
+                            if (its_expiration < now) {
+                                its_expired_subscriptions[s].insert(its_client);
+                            } else if (its_expiration < its_next_expiration) {
+                                its_next_expiration = its_expiration;
                             }
                         }
                     }
@@ -4240,15 +4227,12 @@ routing_manager_impl::get_subscribed_eventgroups(
     std::set<eventgroup_t> its_eventgroups;
 
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    auto found_service = eventgroups_.find(_service);
-    if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto& its_group : found_instance->second) {
-                for (const auto& its_event : its_group.second->get_events()) {
-                    if (its_event->has_subscriber(its_group.first, ANY_CLIENT)) {
-                        its_eventgroups.insert(its_group.first);
-                    }
+    const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+    if (search != eventgroups_.end()) {
+        for (const auto& [eventgroup_id, eventgroup_info] : search->second) {
+            for (const auto& its_event : eventgroup_info->get_events()) {
+                if (its_event->has_subscriber(eventgroup_id, ANY_CLIENT)) {
+                    its_eventgroups.insert(eventgroup_id);
                 }
             }
         }
@@ -4262,36 +4246,33 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(
     std::vector<std::shared_ptr<event>> its_events;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-        auto found_service = eventgroups_.find(_service);
-        if (found_service != eventgroups_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (const auto &its_eventgroup : found_instance->second) {
-                    // As the service is gone, all subscriptions to its events
-                    // do no longer exist and the last received payload is no
-                    // longer valid.
-                    for (auto &its_event : its_eventgroup.second->get_events()) {
-                        const auto its_subscribers = its_event->get_subscribers();
-                        for (const auto its_subscriber : its_subscribers) {
-                            if (its_subscriber != get_client()) {
-                                its_event->remove_subscriber(
-                                        its_eventgroup.first, its_subscriber);
-                            }
+        const auto search = eventgroups_.find(service_instance_t{_service, _instance});
 
-                            client_t its_client = VSOMEIP_ROUTING_CLIENT; //is_specific_endpoint_client(its_subscriber, _service, _instance);
-                            {
-                                std::scoped_lock its_lock {remote_subscription_state_mutex_};
-                                const auto its_tuple =
-                                    std::make_tuple(found_service->first, found_instance->first,
-                                                    its_eventgroup.first, its_client);
-                                remote_subscription_state_.erase(its_tuple);
-                            }
+        if (search != eventgroups_.end()) {
+            for (const auto& [eventgroup_id, eventgroup_info] : search->second) {
+                // As the service is gone, all subscriptions to its events
+                // do no longer exist and the last received payload is no
+                // longer valid.
+                for (auto &its_event : eventgroup_info->get_events()) {
+                    const auto its_subscribers = its_event->get_subscribers();
+                    for (const auto its_subscriber : its_subscribers) {
+                        if (its_subscriber != get_client()) {
+                            its_event->remove_subscriber(
+                                    eventgroup_id, its_subscriber);
+                        }
+
+                        client_t its_client = VSOMEIP_ROUTING_CLIENT; //is_specific_endpoint_client(its_subscriber, _service, _instance);
+                        {
+                            std::scoped_lock its_lock {remote_subscription_state_mutex_};
+                            const auto its_tuple = std::make_tuple(
+                                    _service, _instance, eventgroup_id, its_client);
+                            remote_subscription_state_.erase(its_tuple);
                         }
                         its_events.push_back(its_event);
                     }
                     // TODO dn: find out why this was commented out
-                    //its_eventgroup.second->clear_targets();
-                    //its_eventgroup.second->clear_pending_subscriptions();
+                    //eventgroup_info->clear_targets();
+                    //eventgroup_info->clear_pending_subscriptions();
                 }
             }
         }
@@ -4999,39 +4980,34 @@ routing_manager_impl::remove_subscriptions(port_t _local_port,
         const boost::asio::ip::address &_remote_address,
         port_t _remote_port) {
 
-    std::map<service_t,
-            std::map<instance_t,
-                std::map<eventgroup_t,
-                    std::shared_ptr<eventgroupinfo> > > >its_eventgroups;
+
+    eventgroups_t its_eventgroups;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
         its_eventgroups = eventgroups_;
     }
-    for (const auto &its_service : its_eventgroups) {
-        for (const auto &its_instance : its_service.second) {
-            for (const auto &its_eventgroup : its_instance.second) {
-                const auto its_info = its_eventgroup.second;
-                for (auto its_subscription
-                        : its_info->get_remote_subscriptions()) {
-                    auto its_definition = its_subscription->get_reliable();
-                    if (its_definition
-                            && its_definition->get_address() == _remote_address
-                            && its_definition->get_port() == _remote_port
-                            && its_definition->get_remote_port() == _local_port) {
 
-                        VSOMEIP_INFO << __func__
-                                << ": Removing subscription to ["
-                                << std::hex << std::setfill('0')
-                                << std::setw(4) << its_info->get_service() << "."
-                                << std::setw(4) << its_info->get_instance() << "."
-                                << std::setw(4) << its_info->get_eventgroup()
-                                << "] from target "
-                                << its_definition->get_address() << ":"
-                                << std::dec << its_definition->get_port()
-                                << " reliable=true";
+    for (const auto& [key, its_eventgroup] : its_eventgroups) {
+        for (const auto& [eventgroup_id, its_info] : its_eventgroup) {
+            for (auto its_subscription : its_info->get_remote_subscriptions()) {
+                auto its_definition = its_subscription->get_reliable();
+                if (its_definition
+                        && its_definition->get_address() == _remote_address
+                        && its_definition->get_port() == _remote_port
+                        && its_definition->get_remote_port() == _local_port) {
 
-                        on_remote_unsubscribe(its_subscription);
-                    }
+                    VSOMEIP_INFO << __func__
+                            << ": Removing subscription to ["
+                            << std::hex << std::setfill('0')
+                            << std::setw(4) << its_info->get_service() << "."
+                            << std::setw(4) << its_info->get_instance() << "."
+                            << std::setw(4) << its_info->get_eventgroup()
+                            << "] from target "
+                            << its_definition->get_address() << ":"
+                            << std::dec << its_definition->get_port()
+                            << " reliable=true";
+
+                    on_remote_unsubscribe(its_subscription);
                 }
             }
         }

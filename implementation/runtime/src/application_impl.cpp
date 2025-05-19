@@ -1965,9 +1965,11 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
 
         // Check handler
         if (its_next_handler->handler_type_ == handler_type_e::AVAILABILITY) {
-            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                    its_next_handler->service_id_,
-                    its_next_handler->instance_id_);
+            const service_instance_t its_si_pair{
+                its_next_handler->service_id_,
+                its_next_handler->instance_id_
+            };
+
             auto found_si = availability_handlers_.find(its_si_pair);
             if (found_si != availability_handlers_.end()
                     && !found_si->second.empty()
@@ -1980,9 +1982,11 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
                 availability_handlers_[its_si_pair].push_back(its_next_handler);
             }
         } else if (its_next_handler->handler_type_ == handler_type_e::MESSAGE) {
-            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                    its_next_handler->service_id_,
-                    its_next_handler->instance_id_);
+            const service_instance_t its_si_pair{
+                its_next_handler->service_id_,
+                its_next_handler->instance_id_
+            };
+
             auto found_si = availability_handlers_.find(its_si_pair);
             if (found_si != availability_handlers_.end()
                     && found_si->second.size() > 1) {
@@ -2000,8 +2004,11 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
 void application_impl::reschedule_availability_handler(
         const std::shared_ptr<sync_handler> &_handler) {
     if (_handler->handler_type_ == handler_type_e::AVAILABILITY) {
-        const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                _handler->service_id_, _handler->instance_id_);
+        const service_instance_t its_si_pair{
+            _handler->service_id_,
+            _handler->instance_id_
+        };
+
         auto found_si = availability_handlers_.find(its_si_pair);
         if (found_si != availability_handlers_.end()) {
             if (!found_si->second.empty()
@@ -2192,11 +2199,6 @@ void application_impl::clear_all_handler() {
     {
         std::lock_guard<std::mutex> its_lock(subscription_mutex_);
         subscription_.clear();
-    }
-
-    {
-        std::lock_guard<std::mutex> its_lock(subscription_error_mutex_);
-        eventgroup_error_handlers_.clear();
     }
 
     {

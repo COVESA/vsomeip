@@ -253,13 +253,11 @@ bool routing_manager_base::offer_service(client_t _client,
     {
         std::lock_guard<std::mutex> its_lock(events_mutex_);
         // Set major version for all registered events of this service and instance
-        const auto found_service = events_.find(_service);
-        if (found_service != events_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (const auto &j : found_instance->second) {
-                    j.second->set_version(_major);
-                }
+        const auto search = events_.find(service_instance_t{_service, _instance});
+
+        if (search != events_.end()) {
+            for (const auto &[event_id, event_ptr] : search->second) {
+                event_ptr->set_version(_major);
             }
         }
     }
@@ -276,13 +274,10 @@ void routing_manager_base::stop_offer_service(client_t _client,
     std::map<event_t, std::shared_ptr<event> > events;
     {
         std::lock_guard<std::mutex> its_lock(events_mutex_);
-        auto its_events_service = events_.find(_service);
-        if (its_events_service != events_.end()) {
-            auto its_events_instance = its_events_service->second.find(_instance);
-            if (its_events_instance != its_events_service->second.end()) {
-                for (auto &e : its_events_instance->second)
-                    events[e.first] = e.second;
-
+        const auto search = events_.find(service_instance_t{_service, _instance});
+        if (search != events_.end()) {
+            for (const auto &[event_id, event_ptr] : search->second) {
+                events[event_id] = event_ptr;
             }
         }
     }
@@ -602,13 +597,13 @@ void routing_manager_base::register_event(client_t _client,
             its_eventgroupinfo->set_max_remote_subscribers(
                     configuration_->get_max_remote_subscribers());
             std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-            eventgroups_[_service][_instance][eg] = its_eventgroupinfo;
+            eventgroups_[service_instance_t{_service, _instance}][eg] = its_eventgroupinfo;
         }
         its_eventgroupinfo->add_event(its_event);
     }
 
     std::lock_guard<std::mutex> its_lock(events_mutex_);
-    events_[_service][_instance][_notifier] = its_event;
+    events_[service_instance_t{_service, _instance}][_notifier] = its_event;
 }
 
 void routing_manager_base::unregister_event(client_t _client, service_t _service, instance_t _instance,
@@ -617,20 +612,17 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
     std::shared_ptr<event> its_unrefed_event;
     {
         std::lock_guard<std::mutex> its_lock(events_mutex_);
-        auto found_service = events_.find(_service);
-        if (found_service != events_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_event = found_instance->second.find(_event);
-                if (found_event != found_instance->second.end()) {
-                    auto its_event = found_event->second;
-                    its_event->remove_ref(_client, _is_provided);
-                    if (!its_event->has_ref()) {
-                        its_unrefed_event = its_event;
-                        found_instance->second.erase(found_event);
-                    } else if (_is_provided) {
-                        its_event->set_provided(false);
-                    }
+        const auto search = events_.find(service_instance_t{_service, _instance});
+        if (search != events_.end()) {
+            const auto found_event = search->second.find(_event);
+            if (found_event != search->second.end()) {
+                auto its_event = found_event->second;
+                its_event->remove_ref(_client, _is_provided);
+                if (!its_event->has_ref()) {
+                    its_unrefed_event = its_event;
+                    search->second.erase(found_event);
+                } else if (_is_provided) {
+                    its_event->set_provided(false);
                 }
             }
         }
@@ -654,33 +646,30 @@ std::set<std::shared_ptr<event>> routing_manager_base::find_events(
         service_t _service, instance_t _instance,
         eventgroup_t _eventgroup) const {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    std::set<std::shared_ptr<event> > its_events;
-    auto found_service = eventgroups_.find(_service);
-    if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                return found_eventgroup->second->get_events();
-            }
+
+    const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+    if (search != eventgroups_.end()) {
+        const auto found_eventgroup = search->second.find(_eventgroup);
+        if (found_eventgroup != search->second.end()) {
+            return found_eventgroup->second->get_events();
         }
     }
-    return its_events;
+
+    return std::set<std::shared_ptr<event> >();
 }
 
 std::vector<event_t> routing_manager_base::find_events(
         service_t _service, instance_t _instance) const {
     std::vector<event_t> its_events;
     std::lock_guard<std::mutex> its_lock(events_mutex_);
-    const auto found_service = events_.find(_service);
-    if (found_service != events_.end()) {
-        const auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto& e : found_instance->second) {
-                its_events.push_back(e.first);
-            }
+    const auto search = events_.find(service_instance_t{_service, _instance});
+
+    if (search != events_.end()) {
+        for (const auto& [event_id, event_ptr] : search->second) {
+            its_events.push_back(event_id);
         }
     }
+
     return its_events;
 }
 
@@ -963,18 +952,17 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service,
     std::set<std::shared_ptr<event>> its_events;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-        const auto found_service = eventgroups_.find(_service);
-        if (found_service != eventgroups_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (const auto &eventgroupinfo : found_instance->second) {
-                    for (const auto &event : eventgroupinfo.second->get_events()) {
-                        its_events.insert(event);
-                    }
+        const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+        if (search != eventgroups_.end()) {
+            for (const auto &[eventgroup_id, eventgroup_info] : search->second) {
+                for (const auto &event : eventgroup_info->get_events()) {
+                    its_events.insert(event);
                 }
             }
         }
     }
+
     for (const auto &e : its_events) {
         e->unset_payload(true);
     }
@@ -986,19 +974,18 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service,
     std::set<std::shared_ptr<event>> its_events;
     {
         std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-        const auto found_service = eventgroups_.find(_service);
-        if (found_service != eventgroups_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                const auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    for (const auto &event : found_eventgroup->second->get_events()) {
-                        its_events.insert(event);
-                    }
+        const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+        if (search != eventgroups_.end()) {
+            const auto found_eventgroup = search->second.find(_eventgroup);
+            if (found_eventgroup != search->second.end()) {
+                for (const auto &event : found_eventgroup->second->get_events()) {
+                    its_events.insert(event);
                 }
             }
         }
     }
+
     for (const auto &e : its_events) {
         e->unset_payload(true);
     }
@@ -1256,16 +1243,16 @@ std::shared_ptr<event> routing_manager_base::find_event(service_t _service,
         instance_t _instance, event_t _event) const {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
     std::shared_ptr<event> its_event;
-    auto find_service = events_.find(_service);
-    if (find_service != events_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            auto find_event = find_instance->second.find(_event);
-            if (find_event != find_instance->second.end()) {
-                its_event = find_event->second;
-            }
+
+    const auto search = events_.find(service_instance_t{_service, _instance});
+
+    if (search != events_.end()) {
+        const auto found_event = search->second.find(_event);
+        if (found_event != search->second.end()) {
+            its_event = found_event->second;
         }
     }
+
     return its_event;
 }
 
@@ -1276,12 +1263,11 @@ routing_manager_base::find_eventgroups(
     std::set<std::shared_ptr<eventgroupinfo> > its_eventgroups;
 
     std::lock_guard<std::mutex> its_lock{eventgroups_mutex_};
-    auto found_service = eventgroups_.find(_service);
-    if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            for (const auto &e : found_instance->second)
-                its_eventgroups.insert(e.second);
+    const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+    if (search != eventgroups_.end()) {
+        for (const auto &[eventgroup_id, eventgroup_info] : search->second) {
+            its_eventgroups.insert(eventgroup_info);
         }
     }
 
@@ -1294,56 +1280,57 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
 
     std::shared_ptr<eventgroupinfo> its_info(nullptr);
-    auto found_service = eventgroups_.find(_service);
-    if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                its_info = found_eventgroup->second;
-                std::shared_ptr<serviceinfo> its_service_info
-                    = find_service(_service, _instance);
-                if (its_service_info) {
-                    std::string its_multicast_address;
-                    uint16_t its_multicast_port;
-                    if (configuration_->get_multicast(_service, _instance,
-                            _eventgroup,
-                            its_multicast_address, its_multicast_port)) {
-                        try {
-                            its_info->set_multicast(
-                                    boost::asio::ip::address::from_string(
-                                            its_multicast_address),
-                                    its_multicast_port);
-                        }
-                        catch (...) {
-                            VSOMEIP_ERROR << "Eventgroup ["
-                                << std::hex << std::setfill('0') << std::setw(4)
-                                << _service << "." << _instance << "." << _eventgroup
-                                << "] is configured as multicast, but no valid "
-                                       "multicast address is configured!";
-                        }
-                    }
 
-                    // LB: THIS IS STRANGE. A "FIND" - METHOD SHOULD NOT ADD INFORMATION...
-                    its_info->set_major(its_service_info->get_major());
-                    its_info->set_ttl(its_service_info->get_ttl());
-                    its_info->set_threshold(configuration_->get_threshold(
-                            _service, _instance, _eventgroup));
+    const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+    if (search != eventgroups_.end()) {
+        const auto found_eventgroup = search->second.find(_eventgroup);
+        if (found_eventgroup != search->second.end()) {
+            its_info = found_eventgroup->second;
+            std::shared_ptr<serviceinfo> its_service_info
+                = find_service(_service, _instance);
+            if (its_service_info) {
+                std::string its_multicast_address;
+                uint16_t its_multicast_port;
+                if (configuration_->get_multicast(_service, _instance,
+                        _eventgroup,
+                        its_multicast_address, its_multicast_port)) {
+                    try {
+                        its_info->set_multicast(
+                                boost::asio::ip::address::from_string(
+                                        its_multicast_address),
+                                its_multicast_port);
+                    }
+                    catch (...) {
+                        VSOMEIP_ERROR << "Eventgroup ["
+                            << std::hex << std::setfill('0') << std::setw(4)
+                            << _service << "." << _instance << "." << _eventgroup
+                            << "] is configured as multicast, but no valid "
+                                    "multicast address is configured!";
+                    }
                 }
+
+                // LB: THIS IS STRANGE. A "FIND" - METHOD SHOULD NOT ADD INFORMATION...
+                its_info->set_major(its_service_info->get_major());
+                its_info->set_ttl(its_service_info->get_ttl());
+                its_info->set_threshold(configuration_->get_threshold(
+                        _service, _instance, _eventgroup));
             }
         }
     }
+
     return its_info;
 }
 
 void routing_manager_base::remove_eventgroup_info(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup) {
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
-    auto found_service = eventgroups_.find(_service);
-    if (found_service != eventgroups_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            found_instance->second.erase(_eventgroup);
+    const auto search = eventgroups_.find(service_instance_t{_service, _instance});
+
+    if (search != eventgroups_.end()) {
+        const auto found_eventgroup = search->second.find(_eventgroup);
+        if (found_eventgroup != search->second.end()) {
+            search->second.erase(found_eventgroup);
         }
     }
 }
@@ -1594,30 +1581,30 @@ std::set<std::tuple<service_t, instance_t, eventgroup_t>>
 routing_manager_base::get_subscriptions(const client_t _client) {
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> result;
     std::lock_guard<std::mutex> its_lock(events_mutex_);
-    for (const auto& its_service : events_) {
-        for (const auto& its_instance : its_service.second) {
-            for (const auto& its_event : its_instance.second) {
-                auto its_eventgroups = its_event.second->get_eventgroups(_client);
-                for (const auto& e : its_eventgroups) {
-                    result.insert(std::make_tuple(
-                                    its_service.first,
-                                    its_instance.first,
-                                    e));
-                }
+
+    for (const auto& [key, eventmap] : events_) {
+        for (auto [event_id, event] : eventmap) {
+            auto its_eventgroups = event->get_eventgroups(_client);
+            for (const auto& e : its_eventgroups) {
+                result.insert(std::make_tuple(
+                                key.service(),
+                                key.instance(),
+                                e));
             }
         }
     }
+
     return result;
 }
 
 
 void routing_manager_base::clear_shadow_subscriptions(void) {
     std::lock_guard<std::mutex> its_lock(events_mutex_);
-    for (const auto& its_service : events_) {
-        for (const auto& its_instance : its_service.second) {
-            for (const auto& its_event : its_instance.second) {
-                if (its_event.second->is_shadow())
-                    its_event.second->clear_subscribers();
+
+    for (const auto& [service_instance_key, eventmap] : events_) {
+        for (auto [event_id, event] : eventmap) {
+            if (event->is_shadow()) {
+                event->clear_subscribers();
             }
         }
     }
