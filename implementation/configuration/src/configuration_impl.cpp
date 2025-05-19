@@ -88,6 +88,7 @@ configuration_impl::configuration_impl(const std::string& _path) :
     max_remote_subscribers_ {VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS}, path_ {_path},
     is_security_enabled_ {false}, is_security_external_ {false}, is_security_audit_ {false},
     is_remote_access_allowed_ {true}, initial_routing_state_ {routing_state_e::RS_UNKNOWN},
+    request_debounce_time_ {VSOMEIP_REQUEST_DEBOUNCE_TIME},
     default_max_dispatch_time_ {VSOMEIP_DEFAULT_MAX_DISPATCH_TIME},
     default_max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS} {
 
@@ -129,6 +130,7 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     npdu_default_max_retention_resp_ {_other.npdu_default_max_retention_resp_},
     shutdown_timeout_ {_other.shutdown_timeout_}, path_ {_other.path_},
     initial_routing_state_ {_other.initial_routing_state_},
+    request_debounce_time_ {_other.request_debounce_time_},
     default_max_dispatch_time_ {_other.default_max_dispatch_time_},
     default_max_dispatchers_ {_other.default_max_dispatchers_} {
 
@@ -570,6 +572,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_udp_receive_buffer_size(e);
             load_services(e);
             load_local_clients_keepalive(e);
+            load_request_debounce_time(e);
             load_dispatch_defaults(e);
         }
     }
@@ -2646,6 +2649,23 @@ void configuration_impl::load_dispatch_defaults(const configuration_element& _el
     }
 }
 
+void configuration_impl::load_request_debounce_time(const configuration_element& _element) {
+    try {
+        std::string its_value = _element.tree_.get<std::string>("request_debounce_time");
+        if (is_configured_[ET_REQUEST_DEBOUNCE_TIME]) {
+            VSOMEIP_WARNING << "Multiple definitions for request_debounce_time."
+                    "Ignoring definition from " << _element.name_;
+        } else {
+            std::stringstream its_converter;
+            its_converter << std::dec << its_value;
+            its_converter >> request_debounce_time_;
+            is_configured_[ET_REQUEST_DEBOUNCE_TIME] = true;
+        }
+    } catch (...) {
+        // intentionally left empty!
+    }
+}
+
 void configuration_impl::load_payload_sizes(const configuration_element &_element) {
     const std::string payload_sizes("payload-sizes");
     const std::string max_local_payload_size("max-payload-size-local");
@@ -3266,14 +3286,15 @@ bool configuration_impl::is_configured_client_id(client_t _id) const {
     return (client_identifiers_.find(_id) != client_identifiers_.end());
 }
 
-std::size_t configuration_impl::get_request_debouncing(const std::string &_name) const {
-    size_t its_request_debouncing(VSOMEIP_REQUEST_DEBOUNCE_TIME);
+std::size_t configuration_impl::get_request_debounce_time(const std::string &_name) const {
+    size_t its_request_debounce_time {request_debounce_time_};
+
     auto found_application = applications_.find(_name);
     if (found_application != applications_.end()) {
-        its_request_debouncing = found_application->second.request_debouncing_;
+        its_request_debounce_time = found_application->second.request_debounce_time_;
     }
 
-    return its_request_debouncing;
+    return its_request_debounce_time;
 }
 
 std::size_t configuration_impl::get_io_thread_count(const std::string &_name) const {
