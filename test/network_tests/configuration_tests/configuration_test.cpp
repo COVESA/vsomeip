@@ -40,6 +40,10 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_VERSION_LOGGING_ENABLED                                    false
 #define EXPECTED_VERSION_LOGGING_INTERVAL                                   15
 
+// Request debounce time
+#define EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME                              10
+#define EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME                               33
+
 // Application
 #define EXPECTED_APPLICATION_MAX_DISPATCHERS                                25
 #define EXPECTED_APPLICATION_MAX_DISPATCH_TIME                              1234
@@ -127,6 +131,7 @@ void check_file(const std::string &_config_file,
                 bool _expected_has_dlt,
                 bool _expected_version_logging_enabled,
                 uint32_t _expected_version_logging_interval,
+                std::size_t _expected_global_request_debounce_time,
                 uint32_t _expected_application_max_dispatcher,
                 uint32_t _expected_application_max_dispatch_time,
                 uint32_t _expected_application_max_detached_thread_wait_time,
@@ -332,6 +337,12 @@ void check_file(const std::string &_config_file,
         }
     }
 
+    // Request debounce time (global)
+    std::size_t its_global_request_debounce_time = its_configuration->get_request_debounce_time(
+        "AN UNKNOWN APPLICATION");
+    EXPECT_TRUE(check<std::size_t>(its_global_request_debounce_time,
+        _expected_global_request_debounce_time, "GLOBAL REQUEST DEBOUNCE TIME"));
+
     // Applications
     std::size_t max_dispatchers = its_configuration->get_max_dispatchers(
             EXPECTED_ROUTING_MANAGER_HOST);
@@ -341,7 +352,7 @@ void check_file(const std::string &_config_file,
             EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t io_threads = its_configuration->get_io_thread_count(
             EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t request_time = its_configuration->get_request_debouncing(
+    std::size_t request_time = its_configuration->get_request_debounce_time(
             EXPECTED_ROUTING_MANAGER_HOST);
 
     EXPECT_TRUE(check<std::size_t>(max_dispatchers,
@@ -776,6 +787,7 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_HAS_DLT,
                EXPECTED_VERSION_LOGGING_ENABLED,
                EXPECTED_VERSION_LOGGING_INTERVAL,
+               EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME,
                EXPECTED_APPLICATION_MAX_DISPATCHERS,
                EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
                EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME,
@@ -821,6 +833,7 @@ TEST(configuration_test, check_deprecated_config_file) {
                EXPECTED_HAS_DLT,
                EXPECTED_VERSION_LOGGING_ENABLED,
                EXPECTED_VERSION_LOGGING_INTERVAL,
+               EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME,
                EXPECTED_APPLICATION_MAX_DISPATCHERS,
                EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
                EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME,

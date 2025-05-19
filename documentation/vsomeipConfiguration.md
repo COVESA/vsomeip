@@ -159,7 +159,7 @@
     - **max_detached_thread_wait_time** (optional) - The maximum time in seconds that an application will wait for a detached dispatcher thread to finish executing. The default value if not specified is `5` sec.
     - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. The default value is `2`.
     - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation. The default value is `0`.
-    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is `10` ms.
+    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is set by the global configuration variable of the same name.
     - **plugins** (optional array) - Contains the plug-ins that should be loaded to extend the functionality of vsomeip.
         - **name** - The name of the plug-in.
         - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
@@ -1540,6 +1540,10 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ```
 </details>
 
+
+- **request_debounce_time** - Service requests done by an application can be debounced to be more efficient
+  if many services are requested simultaneously (e.g. at startup). This configuration variable specified the
+  maximum request debounce time in milliseconds. The default time is 10ms.
 
 ## Acceptances
 

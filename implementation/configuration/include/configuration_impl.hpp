@@ -147,7 +147,7 @@ public:
     VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_request_debounce_time(const std::string& _name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_event_loop_periodicity(const std::string &_name) const;
 
@@ -414,6 +414,8 @@ private:
     void load_watchdog(const configuration_element &_element);
     void load_local_clients_keepalive(const configuration_element &_element);
 
+    void load_request_debounce_time(const configuration_element& _element);
+
     void load_dispatch_defaults(const configuration_element& _element);
 
     void load_payload_sizes(const configuration_element &_element);
@@ -631,6 +633,7 @@ protected:
         ET_DEFAULT_MAX_DISPATCH_TIME,
         ET_DEFAULT_MAX_DISPATCHERS,
         ET_WAIT_ROUTE_NETLINK_NOTFICATION,
+        ET_REQUEST_DEBOUNCE_TIME,
         ET_MAX
     };
 
@@ -706,6 +709,8 @@ protected:
     std::atomic_bool is_remote_access_allowed_;
 
     routing_state_e initial_routing_state_;
+
+    std::size_t request_debounce_time_;
 
     std::size_t default_max_dispatch_time_;
     std::size_t default_max_dispatchers_;

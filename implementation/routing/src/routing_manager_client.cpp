@@ -538,7 +538,7 @@ void routing_manager_client::request_service(client_t _client,
     routing_manager_base::request_service(_client,
             _service, _instance, _major, _minor);
     {
-        size_t request_debouncing_time = configuration_->get_request_debouncing(host_->get_name());
+        size_t request_debouncing_time = configuration_->get_request_debounce_time(host_->get_name());
         protocol::service request = { _service, _instance, _major, _minor };
         if (!request_debouncing_time) {
             std::scoped_lock its_registration_lock {registration_state_mutex_};
@@ -2918,7 +2918,7 @@ void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_c
                 requests_to_debounce_.clear();
             } else {
                 request_debounce_timer_.expires_from_now(std::chrono::milliseconds(
-                        configuration_->get_request_debouncing(host_->get_name())));
+                        configuration_->get_request_debounce_time(host_->get_name())));
                 request_debounce_timer_.async_wait(
                         std::bind(
                                 &routing_manager_client::request_debounce_timeout_cbk,
