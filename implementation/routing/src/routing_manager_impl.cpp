@@ -720,32 +720,32 @@ void routing_manager_impl::subscribe(
         routing_manager_base::set_incoming_subscription_state(_client, _service, _instance,
                 _eventgroup, _event, subscription_state_e::IS_SUBSCRIBING);
 #endif
-        auto self = shared_from_this();
-        host_->on_subscription(_service, _instance, _eventgroup, _client,
-                _sec_client, get_env(_client), true,
-            [this, self, _client, _sec_client, _service, _instance, _eventgroup,
-                _major, _event, _filter]
-                    (const bool _subscription_accepted) {
-            (void) ep_mgr_->find_or_create_local(_client);
-            if (!_subscription_accepted) {
-                if (stub_)
-                    stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
-                VSOMEIP_INFO << "Subscription request from client: 0x" << std::hex
-                             << _client << std::dec << " for eventgroup: 0x" << _eventgroup
-                             << " rejected from application handler.";
-                return;
-            } else if (stub_) {
-                stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
-            }
-            routing_manager_base::subscribe(_client, _sec_client,
-                    _service, _instance, _eventgroup, _major,
-                    _event, _filter);
+        auto self {shared_from_this()};
+        host_->on_subscription(
+                _service, _instance, _eventgroup, _client, _sec_client, get_env(_client), true,
+                [self, this, _client, _sec_client, _service, _instance, _eventgroup, _major, _event,
+                 _filter](const bool _subscription_accepted) {
+                    (void)ep_mgr_->find_or_create_local(_client);
+                    if (!_subscription_accepted) {
+                        if (stub_)
+                            stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup,
+                                                       _event);
+                        VSOMEIP_INFO << "Subscription request from client: 0x" << std::hex
+                                     << _client << std::dec << " for eventgroup: 0x" << _eventgroup
+                                     << " rejected from application handler.";
+                        return;
+                    } else if (stub_) {
+                        stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup,
+                                                  _event);
+                    }
+                    routing_manager_base::subscribe(_client, _sec_client, _service, _instance,
+                                                    _eventgroup, _major, _event, _filter);
 #ifdef VSOMEIP_ENABLE_COMPAT
-            send_pending_notify_ones(_service, _instance, _eventgroup, _client);
-            routing_manager_base::erase_incoming_subscription_state(_client, _service, _instance,
-                    _eventgroup, _event);
+                    send_pending_notify_ones(_service, _instance, _eventgroup, _client);
+                    routing_manager_base::erase_incoming_subscription_state(
+                            _client, _service, _instance, _eventgroup, _event);
 #endif
-        });
+                });
     } else {
         if (discovery_) {
             std::set<event_t> its_already_subscribed_events;
@@ -833,6 +833,7 @@ void routing_manager_impl::unsubscribe(
     }
 
     if (discovery_) {
+        VSOMEIP_ERROR << __func__ << ": CALLING on_subscription (2)";
         host_->on_subscription(_service, _instance, _eventgroup, _client,
                 _sec_client, get_env(_client), false,
                 [](const bool _subscription_accepted){ (void)_subscription_accepted; });
@@ -4583,32 +4584,34 @@ void routing_manager_impl::send_subscription(
         const std::set<client_t> &_clients,
         const remote_subscription_id_t _id) {
     if (host_->get_client() == _offering_client) {
-        auto self = shared_from_this();
+        auto self {shared_from_this()};
         for (const auto its_client : _clients) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client,
-                get_sec_client(), get_env(its_client), true,
-                [this, self, _service, _instance, _eventgroup, its_client, _id]
-                        (const bool _is_accepted) {
-                try {
-                    if (!_is_accepted) {
-                        const auto its_callback = std::bind(
-                                &routing_manager_stub_host::on_subscribe_nack,
-                                std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                its_client, _service, _instance,
-                                _eventgroup, false, _id);
-                        io_.post(its_callback);
-                    } else {
-                        const auto its_callback = std::bind(
-                                &routing_manager_stub_host::on_subscribe_ack,
-                                std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                its_client, _service, _instance,
-                                _eventgroup, ANY_EVENT, _id);
-                        io_.post(its_callback);
-                    }
-                } catch (const std::exception &e) {
-                    VSOMEIP_ERROR << __func__ << e.what();
-                }
-            });
+            host_->on_subscription(
+                    _service, _instance, _eventgroup, its_client, get_sec_client(),
+                    get_env(its_client), true,
+                    [self, this, _service, _instance, _eventgroup, its_client,
+                     _id](const bool _is_accepted) {
+                        try {
+                            if (!_is_accepted) {
+                                const auto its_callback = std::bind(
+                                        &routing_manager_stub_host::on_subscribe_nack,
+                                        std::dynamic_pointer_cast<routing_manager_stub_host>(
+                                                shared_from_this()),
+                                        its_client, _service, _instance, _eventgroup, false, _id);
+                                io_.post(its_callback);
+                            } else {
+                                const auto its_callback = std::bind(
+                                        &routing_manager_stub_host::on_subscribe_ack,
+                                        std::dynamic_pointer_cast<routing_manager_stub_host>(
+                                                shared_from_this()),
+                                        its_client, _service, _instance, _eventgroup, ANY_EVENT,
+                                        _id);
+                                io_.post(its_callback);
+                            }
+                        } catch (const std::exception& e) {
+                            VSOMEIP_ERROR << __func__ << e.what();
+                        }
+                    });
         }
     } else { // service hosted by local client
         for (const auto its_client : _clients) {
@@ -4746,25 +4749,25 @@ routing_manager_impl::send_unsubscription(client_t _offering_client,
     (void)_major; // TODO: Remove completely?
 
     if (host_->get_client() == _offering_client) {
-        auto self = shared_from_this();
+        auto self {shared_from_this()};
         for (const auto its_client : _removed) {
-            host_->on_subscription(_service, _instance, _eventgroup,
-                its_client, get_sec_client(), get_env(its_client),false,
-                [this, self, _service, _instance, _eventgroup,
-                 its_client, _id]
-                 (const bool _is_accepted) {
-                    (void)_is_accepted;
-                    try {
-                        const auto its_callback = std::bind(
-                            &routing_manager_stub_host::on_unsubscribe_ack,
-                            std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                            its_client, _service, _instance, _eventgroup, _id);
-                        io_.post(its_callback);
-                    } catch (const std::exception &e) {
-                        VSOMEIP_ERROR << __func__ << e.what();
-                    }
-                }
-            );
+            host_->on_subscription(
+                    _service, _instance, _eventgroup, its_client, get_sec_client(),
+                    get_env(its_client), false,
+                    [self, this, _service, _instance, _eventgroup, its_client,
+                     _id](const bool _is_accepted) {
+                        (void)_is_accepted;
+                        try {
+                            const auto its_callback =
+                                    std::bind(&routing_manager_stub_host::on_unsubscribe_ack,
+                                              std::dynamic_pointer_cast<routing_manager_stub_host>(
+                                                      shared_from_this()),
+                                              its_client, _service, _instance, _eventgroup, _id);
+                            io_.post(its_callback);
+                        } catch (const std::exception& e) {
+                            VSOMEIP_ERROR << __func__ << ": " << e.what();
+                        }
+                    });
         }
     } else {
         for (const auto its_client : _removed) {
@@ -4792,7 +4795,6 @@ routing_manager_impl::send_expired_subscription(client_t _offering_client,
         remote_subscription_id_t _id) {
 
     if (host_->get_client() == _offering_client) {
-        auto self = shared_from_this();
         for (const auto its_client : _removed) {
             host_->on_subscription(_service, _instance,
                     _eventgroup, its_client, get_sec_client(), get_env(its_client), false,

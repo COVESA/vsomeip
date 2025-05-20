@@ -1188,13 +1188,20 @@ void routing_manager_base::remove_local(client_t _client,
     if (_remove_sec_client) {
         configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     }
+
+    auto self {shared_from_this()};
     for (auto its_subscription : _subscribed_eventgroups) {
-        host_->on_subscription(std::get<0>(its_subscription), std::get<1>(its_subscription),
-                std::get<2>(its_subscription), _client,
-                &its_sec_client, get_env(_client),
-                false, [](const bool _subscription_accepted){ (void)_subscription_accepted; });
-        routing_manager_base::unsubscribe(_client, &its_sec_client, std::get<0>(its_subscription),
-                std::get<1>(its_subscription), std::get<2>(its_subscription), ANY_EVENT);
+        auto its_service = std::get<0>(its_subscription);
+        auto its_instance = std::get<1>(its_subscription);
+        auto its_eventgroup = std::get<2>(its_subscription);
+        host_->on_subscription(its_service, its_instance, its_eventgroup, _client, &its_sec_client,
+                               get_env(_client), false,
+                               [self, this, _client, its_sec_client, its_service, its_instance,
+                                its_eventgroup](const bool _subscription_accepted) {
+                                   (void)_subscription_accepted;
+                                   unsubscribe(_client, &its_sec_client, its_service, its_instance,
+                                               its_eventgroup, ANY_EVENT);
+                               });
     }
     ep_mgr_->remove_local(_client);
     remove_known_client(_client);
