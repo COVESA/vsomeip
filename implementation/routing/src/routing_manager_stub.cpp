@@ -1427,18 +1427,16 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                 if (_inform_service) {
                     if (_hoster != VSOMEIP_ROUTING_CLIENT &&
                             _hoster != host_->get_client()) {
-                        if (!is_connected(_hoster, its_client.first)) {
-                            add_connection(_hoster, its_client.first);
-                            protocol::routing_info_entry its_entry;
-                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                            its_entry.set_client(its_client.first);
-                            if (host_->get_guest(its_client.first, its_address, its_port)) {
-                                its_entry.set_address(its_address);
-                                its_entry.set_port(its_port);
-                            }
-                            send_client_routing_info(_hoster, its_entry);
-                            send_client_config_command(its_client.first, _hoster);
+                        add_connection(_hoster, its_client.first);
+                        protocol::routing_info_entry its_entry;
+                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                        its_entry.set_client(its_client.first);
+                        if (host_->get_guest(its_client.first, its_address, its_port)) {
+                            its_entry.set_address(its_address);
+                            its_entry.set_port(its_port);
                         }
+                        send_client_routing_info(_hoster, its_entry);
+                        send_client_config_command(its_client.first, _hoster);
                     }
                 }
                 if (its_client.first != VSOMEIP_ROUTING_CLIENT &&
@@ -2106,24 +2104,21 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
             // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
             its_clients.insert(VSOMEIP_ROUTING_CLIENT);
             for (const client_t c : its_clients) {
-                if (c != VSOMEIP_ROUTING_CLIENT &&
-                        c != host_->get_client()) {
-                    if (!is_connected(c, _client)) {
-                        add_connection(c, _client);
+                if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
+                    add_connection(c, _client);
 
-                        protocol::routing_info_entry its_entry;
-                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                        its_entry.set_client(_client);
-                        if (host_->get_guest(_client, its_address, its_port)) {
-                            its_entry.set_address(its_address);
-                            its_entry.set_port(its_port);
-                        }
-                        if (_client == c) {
-                            its_entries.emplace_back(its_entry);
-                        } else {
-                            send_client_routing_info(c, its_entry);
-                            send_client_config_command(_client, c);
-                        }
+                    protocol::routing_info_entry its_entry;
+                    its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                    its_entry.set_client(_client);
+                    if (host_->get_guest(_client, its_address, its_port)) {
+                        its_entry.set_address(its_address);
+                        its_entry.set_port(its_port);
+                    }
+                    if (_client == c) {
+                        its_entries.emplace_back(its_entry);
+                    } else {
+                        send_client_routing_info(c, its_entry);
+                        send_client_config_command(_client, c);
                     }
                 }
                 if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
@@ -2158,22 +2153,20 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                     const auto found_instance = found_service->second.find(request.instance_);
                     if (found_instance != found_service->second.end()) {
                         if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
-                            if (!is_connected(c, _client)) {
-                                add_connection(c, _client);
+                            add_connection(c, _client);
 
-                                protocol::routing_info_entry its_entry;
-                                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                                its_entry.set_client(_client);
-                                if (host_->get_guest(_client, its_address, its_port)) {
-                                    its_entry.set_address(its_address);
-                                    its_entry.set_port(its_port);
-                                }
-                                if (_client == c) {
-                                    its_entries.emplace_back(its_entry);
-                                } else {
-                                    send_client_routing_info(c, its_entry);
-                                    send_client_config_command(_client, c);
-                                }
+                            protocol::routing_info_entry its_entry;
+                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                            its_entry.set_client(_client);
+                            if (host_->get_guest(_client, its_address, its_port)) {
+                                its_entry.set_address(its_address);
+                                its_entry.set_port(its_port);
+                            }
+                            if (_client == c) {
+                                its_entries.emplace_back(its_entry);
+                            } else {
+                                send_client_routing_info(c, its_entry);
+                                send_client_config_command(_client, c);
                             }
                         }
                         if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
