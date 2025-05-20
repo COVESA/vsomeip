@@ -11,7 +11,7 @@
 #ifdef ANDROID
 #    include "../../../configuration/include/internal_android.hpp"
 #else
-#    include "../../../configuration/include/internal.hpp"
+#    include "internal.hpp"
 #endif
 
 namespace vsomeip {
