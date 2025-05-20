@@ -36,6 +36,9 @@ public:
     void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
     void stop();
+    void restart(bool _force);
+
+    bool is_closed() const;
 
     void receive();
 
@@ -74,14 +77,16 @@ public:
     void set_receive_own_multicast_messages(bool value);
 
     bool is_joining() const;
+    bool is_joined(const std::string &_address) const;
+    bool is_joined(const std::string &_address, bool& _received) const;
 
 private:
     void leave_unlocked(const std::string &_address);
     void set_broadcast();
     void receive_unicast();
     void receive_multicast(uint8_t _id);
-    bool is_joined(const std::string &_address) const;
-    bool is_joined(const std::string &_address, bool& _received) const;
+    bool is_joined_unlocked(const std::string &_address) const;
+    bool is_joined_unlocked(const std::string &_address, bool& _received) const;
     std::string get_remote_information(
             const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;
@@ -107,7 +112,7 @@ private:
 
     bool is_same_subnet(const boost::asio::ip::address &_address) const;
 
-    void shutdown_and_close();
+    void shutdown_and_close(bool _is_unicast);
     void unicast_shutdown_and_close_unlocked();
     void multicast_shutdown_and_close_unlocked();
 
@@ -126,7 +131,6 @@ private:
     mutable std::recursive_mutex multicast_mutex_;
     uint8_t multicast_id_;
     std::map<std::string, bool> joined_;
-    std::atomic<bool> joined_group_;
 
     mutable std::mutex default_targets_mutex_;
     std::map<service_t, endpoint_type> default_targets_;
@@ -143,6 +147,18 @@ private:
     std::chrono::steady_clock::time_point last_sent_;
 
     std::atomic<bool> is_stopped_;
+
+    enum class shutdown_state_e {
+        IDLE,
+        WAITING_FIRST_CANCEL,
+        WAITING_UNICAST_CANCEL,
+        WAITING_MULTICAST_CANCEL,
+    };
+
+    shutdown_state_e shutdown_state_ { shutdown_state_e::IDLE };
+    std::mutex shutdown_state_mutex_;
+
+    std::atomic<bool> is_restarting_ { false };
 
     // to tracking sent messages
     on_unicast_sent_cbk_t on_unicast_sent_;

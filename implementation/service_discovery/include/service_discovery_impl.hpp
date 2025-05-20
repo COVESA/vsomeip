@@ -311,6 +311,7 @@ private:
             service_t _service, instance_t _instance,
             const configuration::ttl_map_t& _ttl_map) const;
     void on_last_msg_received_timer_expired(const boost::system::error_code &_error);
+    void start_last_msg_received_timer();
     void stop_last_msg_received_timer();
 
     reliability_type_e get_remote_offer_type(

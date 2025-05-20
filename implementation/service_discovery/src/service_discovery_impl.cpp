@@ -170,6 +170,7 @@ service_discovery_impl::start() {
     if (!endpoint_) {
         endpoint_ = host_->create_service_discovery_endpoint(
                 sd_multicast_, port_, reliable_);
+
         if (!endpoint_) {
             VSOMEIP_ERROR << "Couldn't start service discovery";
             return;
@@ -197,8 +198,11 @@ service_discovery_impl::start() {
         if (endpoint_ && !reliable_) {
             auto its_server_endpoint
                 = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
-            if (its_server_endpoint)
+            if (its_server_endpoint && !its_server_endpoint->is_joined(sd_multicast_)) {
+                VSOMEIP_INFO << "sd::" << __func__ << ": calling its_server_endpoint->join("
+                             << sd_multicast_ << ")  its_server_endpoint = " << its_server_endpoint;
                 its_server_endpoint->join(sd_multicast_);
+            }
         }
     }
     is_suspended_ = false;
@@ -206,6 +210,7 @@ service_discovery_impl::start() {
     start_offer_debounce_timer(true);
     start_find_debounce_timer(true);
     start_ttl_timer();
+    start_last_msg_received_timer();
 }
 
 void
@@ -1160,7 +1165,7 @@ service_discovery_impl::on_message(
         static bool must_start_last_msg_received_timer(true);
         boost::system::error_code ec;
 
-        std::lock_guard<std::mutex> its_lock_inner(last_msg_received_timer_mutex_);
+        std::scoped_lock its_last_msg_lock { last_msg_received_timer_mutex_ };
         if (0 < last_msg_received_timer_.cancel(ec) || must_start_last_msg_received_timer) {
             must_start_last_msg_received_timer = false;
             last_msg_received_timer_.expires_from_now(
@@ -3601,21 +3606,24 @@ service_discovery_impl::on_last_msg_received_timer_expired(
                 its_server_endpoint->join(sd_multicast_);
             }
         }
-        {
-            boost::system::error_code ec;
-            std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
-            last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
-            last_msg_received_timer_.async_wait(
-                    std::bind(
-                            &service_discovery_impl::on_last_msg_received_timer_expired,
-                            shared_from_this(), std::placeholders::_1));
-        }
+        start_last_msg_received_timer();
     }
 }
 
 void
+service_discovery_impl::start_last_msg_received_timer() {
+    boost::system::error_code ec;
+    std::scoped_lock its_lock { last_msg_received_timer_mutex_ };
+    last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
+    last_msg_received_timer_.async_wait(
+            std::bind(
+                    &service_discovery_impl::on_last_msg_received_timer_expired,
+                    shared_from_this(), std::placeholders::_1));
+}
+
+void
 service_discovery_impl::stop_last_msg_received_timer() {
-    std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
+    std::scoped_lock its_lock { last_msg_received_timer_mutex_ };
     boost::system::error_code ec;
     last_msg_received_timer_.cancel(ec);
 }
