@@ -436,6 +436,8 @@ private:
             std::map<std::size_t, byte_t> &_ignore);
     void load_acceptances(const configuration_element &_element);
     void load_acceptance_data(const boost::property_tree::ptree &_tree);
+    void load_activation_file_path(std::set<std::string>& _path,
+                                   const boost::property_tree::ptree& _tree);
     void load_udp_receive_buffer_size(const configuration_element &_element);
     bool load_npdu_debounce_times_configuration(
             const std::shared_ptr<service>& _service,

@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <iostream>
 
+#include <boost/algorithm/string/join.hpp>
 #include <boost/asio/ip/host_name.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/exception/diagnostic_information.hpp>
@@ -2924,7 +2925,7 @@ application_impl::get_sd_acceptance_required() {
                         its_remote_info.last_ = port_range.upper();
                         its_remote_info.is_range_ = true;
                     }
-                    its_ret[its_remote_info] = e.second.first;
+                    its_ret[its_remote_info] = boost::algorithm::join(e.second.first, ",");
                 }
                 for (const auto& port_range : reliability.second.second) {
                     if (port_range.lower() == port_range.upper()) {
@@ -2936,7 +2937,7 @@ application_impl::get_sd_acceptance_required() {
                         its_remote_info.last_ = port_range.upper();
                         its_remote_info.is_range_ = true;
                     }
-                    its_ret[its_remote_info] = e.second.first;
+                    its_ret[its_remote_info] = boost::algorithm::join(e.second.first, ",");
                 }
             }
         }

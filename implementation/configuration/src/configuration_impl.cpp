@@ -4341,10 +4341,7 @@ void configuration_impl::load_event_debounce_ignore(
     }
 }
 
-void
-configuration_impl::load_acceptances(
-        const configuration_element &_element) {
-
+void configuration_impl::load_acceptances(const configuration_element& _element) {
     std::string its_acceptances_key("acceptances");
     try {
         auto its_acceptances = _element.tree_.get_child_optional(its_acceptances_key);
@@ -4366,16 +4363,13 @@ configuration_impl::load_acceptances(
     }
 }
 
-void
-configuration_impl::load_acceptance_data(
-        const boost::property_tree::ptree &_tree) {
-
+void configuration_impl::load_acceptance_data(const boost::property_tree::ptree& _tree) {
     std::stringstream its_converter;
     try {
         std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
 
         boost::asio::ip::address its_address;
-        std::string its_path;
+        std::set<std::string> its_paths;
         std::map<bool,
             std::pair<boost::icl::interval_set<std::uint16_t>,
                 boost::icl::interval_set<std::uint16_t>
@@ -4391,7 +4385,7 @@ configuration_impl::load_acceptance_data(
             if (its_key == "address") {
                 its_address = boost::asio::ip::address::from_string(its_value);
             } else if (its_key == "path") {
-                its_path = its_value;
+                load_activation_file_path(its_paths, i->second);
             } else if (its_key == "reliable" || its_key == "unreliable") {
 
                 is_reliable = (its_key == "reliable");
@@ -4472,10 +4466,38 @@ configuration_impl::load_acceptance_data(
         }
 
         if (!its_address.is_unspecified()) {
-            sd_acceptance_rules_[its_address] = std::make_pair(its_path, its_ports);
+            auto find_sd_acceptance_rule = sd_acceptance_rules_.find(its_address);
+            if (find_sd_acceptance_rule != sd_acceptance_rules_.end()) {
+                if (find_sd_acceptance_rule->second.second == its_ports) {
+                    for (const auto& p : its_paths) {
+                        find_sd_acceptance_rule->second.first.insert(p);
+                    }
+                } else {
+                    VSOMEIP_WARNING << "Detected inconsistent acceptance rules. Multiple entries "
+                                       "share the IP address but define different [semi-] secure "
+                                       "ports";
+                }
+            } else {
+                sd_acceptance_rules_[its_address] = std::make_pair(its_paths, its_ports);
+            }
         }
     } catch (...) {
         // intentionally left empty
+    }
+}
+
+void configuration_impl::load_activation_file_path(std::set<std::string>& _path,
+                                                   const boost::property_tree::ptree& _tree) {
+    std::string its_value {_tree.data()};
+    if (its_value.empty()) {
+        for (const auto& i : _tree) {
+            its_value = i.second.data();
+            if (!its_value.empty()) {
+                _path.insert(its_value);
+            }
+        }
+    } else {
+        _path.insert(its_value);
     }
 }
 
@@ -4917,15 +4939,8 @@ void configuration_impl::set_sd_acceptance_rule(
 
     const auto found_address = sd_acceptance_rules_.find(_address);
     if (found_address != sd_acceptance_rules_.end()) {
-        if (found_address->second.first.length() > 0
-                && found_address->second.first != _path) {
-            VSOMEIP_WARNING << __func__ << ": activation path for IP: "
-                    << _address << " differ: "
-                    << found_address->second.first << " vs. " << _path
-                    << " will use: " << found_address->second.first;
-        } else {
-            found_address->second.first = _path;
-        }
+        found_address->second.first.insert(_path);
+
         const auto found_reliability = found_address->second.second.find(_reliable);
         if (found_reliability != found_address->second.second.end()) {
             if (_enable) {
@@ -4943,12 +4958,12 @@ void configuration_impl::set_sd_acceptance_rule(
                     if (!rules_active) {
                         sd_acceptance_rules_active_.insert(_address);
                     }
-                    VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                    VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
                             << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
                             << found_reliability->second.first << " "
                             << found_reliability->second.second;
                 } else {
-                    VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                    VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
                             << ":" << (_reliable ? "tcp" : "udp") << ": using configured ranges "
                             << found_reliability->second.first << " "
                             << found_reliability->second.second;
@@ -4989,7 +5004,7 @@ void configuration_impl::set_sd_acceptance_rule(
             }
 
             const auto found_reliability = found_address->second.second.find(_reliable);
-            VSOMEIP_INFO << "ipsec:acceptance:" << _address
+            VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
                     << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
                     << found_reliability->second.first << " "
                     << found_reliability->second.second;
@@ -5004,9 +5019,12 @@ void configuration_impl::set_sd_acceptance_rule(
         its_secure_default.add(its_secure_client_spare);
         its_secure_default.add(its_secure_server);
 
+        std::set<std::string> its_path;
+        its_path.insert(_path);
+
         sd_acceptance_rules_.emplace(std::make_pair(_address,
                 std::make_pair(
-                        _path,
+                        its_path,
                         std::map<
                             bool,
                             std::pair<
@@ -5025,7 +5043,7 @@ void configuration_impl::set_sd_acceptance_rule(
         if (found_address != sd_acceptance_rules_.end()) {
             const auto found_reliability = found_address->second.second.find(_reliable);
             if (found_reliability != found_address->second.second.end()) {
-                VSOMEIP_INFO << "ipsec:acceptance:" << _address
+                VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
                         << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges "
                         << found_reliability->second.first << " "
                         << found_reliability->second.second;
