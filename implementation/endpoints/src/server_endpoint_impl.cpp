@@ -136,7 +136,7 @@ bool server_endpoint_impl<Protocol>::is_established_or_connected() const {
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::is_closed() const {
-    return true;
+    return false;
 }
 
 template<typename Protocol>
@@ -547,7 +547,7 @@ bool server_endpoint_impl<Protocol>::queue_train(target_data_iterator_type _it,
     its_data.queue_size_ += _train->buffer_->size();
     its_data.queue_.emplace_back(_train->buffer_, 0);
 
-    if (!its_data.is_sending_) { // no writing in progress
+    if (!its_data.is_sending_ && !is_closed()) { // no writing in progress
         must_erase = send_queued(_it);
     }
 
@@ -764,7 +764,8 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
                 << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
-                << std::setw(4) << its_session << "]";
+                << std::setw(4) << its_session << "]"
+                << " endpoint -> " << this;
         cancel_dispatch_timer(it);
         targets_.erase(it);
         if (!prepare_stop_handlers_.empty()) {

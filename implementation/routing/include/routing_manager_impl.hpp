@@ -317,6 +317,8 @@ public:
     virtual bool is_available(service_t _service, instance_t _instance,
                               major_version_t _major) const;
 
+    bool is_external_routing_ready() const;
+
 private:
     bool offer_service(client_t _client,
             service_t _service, instance_t _instance,
@@ -380,8 +382,6 @@ private:
                                                  bool _available);
 
     void start_ip_routing();
-
-    bool is_external_routing_ready() const;
 
     void init_pending_services();
 
