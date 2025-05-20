@@ -271,7 +271,7 @@ public:
     typedef std::map<
         boost::asio::ip::address, // other device
         std::pair<
-            std::string, // path to file that determines whether or not IPsec is active
+            std::set<std::string>, // paths to files that determines whether or not IPsec is active
             std::map<
                 bool, // false = unreliable (aka UDP), true = reliable (aka TCP)
                 std::pair<

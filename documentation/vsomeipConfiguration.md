@@ -1549,7 +1549,8 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 - **acceptances** - Can be used to modify the assignment of ports to the unsecure, optional and secure ranges.
     - **address** - The IP Address of the device where the ports should be modified.
-    - **path** <`TBD`> -
+    - **path** - Either a single path to an activation file or a list of pathes to activation files.
+                 The existence of an activation file switches on the filter mechanism for the specified address.
     - **reliable** - Type of ports to modify. Possible values are `reliable` and `unreliable`.
         - **port** - Adds that port to the secure port group.
         - **first** -  Group of ports starting at `first`, to add as a secure port.
