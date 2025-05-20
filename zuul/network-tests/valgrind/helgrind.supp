@@ -1,0 +1,112 @@
+{
+   libdlt_unlocked
+   Helgrind:UnlockUnlocked
+   ...
+   obj:/usr/lib/libdlt.so.*
+}
+{
+   libdlt_unlocked2
+   Helgrind:UnlockForeign
+   ...
+   obj:/usr/lib/libdlt.so.*
+}
+{
+   libdlt_pthAPIerror
+   Helgrind:PthAPIerror
+   ...
+   obj:/usr/lib/libdlt.so.*
+}
+{
+   libdlt_misc
+   Helgrind:Misc
+   ...
+   obj:/usr/lib/libdlt.so.*
+}
+{
+   # Dubious: lock is not held by any thread when closing socket.
+   deregister_application
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:_ZN5boost4asio6detail13epoll_reactor21deregister_descriptorEiRPNS2_16descriptor_stateEb
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:start_thread
+   fun:clone
+}
+{
+   # Dubious: lock is not held by any thread on strand handler dispatch.
+   strand_dispatch
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:_ZN5boost4asio6detail14strand_service11do_dispatchERPNS2_11strand_implEPNS1_19scheduler_operationE
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:start_thread
+   fun:clone
+}
+{
+   # Dubious: lock is not held by any thread when a job is posted to a strand.
+   initiate_strand
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   ...
+   fun:initiate<boost::asio::io_context::strand::initiate_post, std::_Bind<*>, boost::asio::io_context::strand*>
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:start_thread
+   fun:clone
+}
+{
+   # Dubious: lock is not held by any thread when boost io scheduler tries to execute a thread.
+   unlock_and_signal_one
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:unlock_and_signal_one<boost::asio::detail::conditionally_enabled_mutex::scoped_lock>
+   ...
+   fun:_ZN5boost4asio6detail9scheduler*
+   ...
+}
+{
+   # Dubious: lock is not held by any thread when boost io scheduler tries to execute a thread.
+   maybe_unlock_and_signal_one
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:maybe_unlock_and_signal_one<boost::asio::detail::conditionally_enabled_mutex::scoped_lock>
+   ...
+   fun:_ZN5boost4asio6detail9scheduler*
+   ...
+}
+{
+   # Dubious: lock is not held by any thread when canceling steady timer
+   cancel_steady_timer
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:cancel_timer<boost::asio::detail::chrono_time_traits<std::chrono::_V2::steady_clock, boost::asio::wait_traits<std::chrono::_V2::steady_clock> > >
+   fun:cancel
+   ...
+}
+{
+   # Dubious: lock is not held by any thread when canceling steady timer
+   cancel_steady_timer_diff_func_sign
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:_ZN5boost4asio6detail13epoll_reactor12cancel_timerINS1_18chrono_time_traitsINSt6chrono3_V212steady_clockENS0_11wait_traitsIS7_EEEEEEmRNS1_11timer_queueIT_EERNSD_14per_timer_data*
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:start_thread
+   fun:clone
+}
+{
+   # Dubious: lock is not held by any thread upon beginning of socket asynchronous operation.
+   async_operation_start
+   Helgrind:Misc
+   obj:/usr/libexec/valgrind/vgpreload_helgrind-amd64-linux.so
+   fun:start_op
+   fun:start_op
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
+}
