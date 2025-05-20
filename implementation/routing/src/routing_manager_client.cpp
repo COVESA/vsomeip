@@ -1163,7 +1163,6 @@ void routing_manager_client::on_message(
             configuration_->get_routing_host_name());
     client_t its_subscriber;
     remote_subscription_id_t its_pending_id(PENDING_SUBSCRIPTION_ID);
-    std::uint32_t its_remote_subscriber_count(0);
 #ifndef VSOMEIP_DISABLE_SECURITY
     bool is_internal_policy_update(false);
 #endif // !VSOMEIP_DISABLE_SECURITY
@@ -1639,35 +1638,41 @@ void routing_manager_client::on_message(
                 its_event = its_unsubscribe.get_event();
                 its_pending_id = its_unsubscribe.get_pending_id();
 
-                host_->on_subscription(its_service, its_instance, its_eventgroup,
-                        its_client, _sec_client, get_env(its_client), false,
-                        [](const bool _subscription_accepted){
+                auto self {shared_from_this()};
+                host_->on_subscription(
+                        its_service, its_instance, its_eventgroup, its_client, _sec_client,
+                        get_env(its_client), false,
+                        [self, this, its_pending_id, its_client, _sec_client, its_service,
+                         its_instance, its_eventgroup,
+                         its_event](const bool _subscription_accepted) {
                             (void)_subscription_accepted;
-                        }
-                );
-                if (its_pending_id == PENDING_SUBSCRIPTION_ID) {
-                    // Local subscriber: withdraw subscription
-                    routing_manager_base::unsubscribe(its_client, _sec_client, its_service, its_instance, its_eventgroup, its_event);
-                } else {
-                    // Remote subscriber: withdraw subscription only if no more remote subscriber exists
-                    its_remote_subscriber_count = get_remote_subscriber_count(its_service,
-                            its_instance, its_eventgroup, false);
-                    if (!its_remote_subscriber_count) {
-                        routing_manager_base::unsubscribe(VSOMEIP_ROUTING_CLIENT, nullptr, its_service,
-                                its_instance, its_eventgroup, its_event);
-                    }
-                    send_unsubscribe_ack(its_service, its_instance, its_eventgroup, its_pending_id);
-                }
-                VSOMEIP_INFO << "UNSUBSCRIBE("
-                    << std::hex << std::setfill('0')
-                    << std::setw(4) << its_client << "): ["
-                    << std::setw(4) << its_service << "."
-                    << std::setw(4) << its_instance << "."
-                    << std::setw(4) << its_eventgroup << "."
-                    << std::setw(4) << its_event << "] "
-                    << std::boolalpha
-                    << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                    << std::dec << its_remote_subscriber_count;
+                            std::uint32_t its_remote_subscriber_count {0};
+                            if (its_pending_id == PENDING_SUBSCRIPTION_ID) {
+                                // Local subscriber: withdraw subscription
+                                routing_manager_base::unsubscribe(its_client, _sec_client,
+                                                                  its_service, its_instance,
+                                                                  its_eventgroup, its_event);
+                            } else {
+                                // Remote subscriber: withdraw subscription only if no more remote
+                                // subscriber exists
+                                its_remote_subscriber_count = get_remote_subscriber_count(
+                                        its_service, its_instance, its_eventgroup, false);
+                                if (!its_remote_subscriber_count) {
+                                    routing_manager_base::unsubscribe(
+                                            VSOMEIP_ROUTING_CLIENT, nullptr, its_service,
+                                            its_instance, its_eventgroup, its_event);
+                                }
+                                send_unsubscribe_ack(its_service, its_instance, its_eventgroup,
+                                                     its_pending_id);
+                            }
+                            VSOMEIP_INFO << "UNSUBSCRIBE(" << std::hex << std::setfill('0')
+                                         << std::setw(4) << its_client << "): [" << std::setw(4)
+                                         << its_service << "." << std::setw(4) << its_instance
+                                         << "." << std::setw(4) << its_eventgroup << "."
+                                         << std::setw(4) << its_event << "] " << std::boolalpha
+                                         << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
+                                         << std::dec << its_remote_subscriber_count;
+                        });
             } else
                 VSOMEIP_ERROR << __func__
                     << ": unsubscribe command deserialization failed ("
@@ -1680,7 +1685,6 @@ void routing_manager_client::on_message(
             protocol::expire_command its_expire;
             its_expire.deserialize(its_buffer, its_error);
             if (its_error == protocol::error_e::ERROR_OK) {
-
                 its_client = its_expire.get_client();
                 its_service = its_expire.get_service();
                 its_instance = its_expire.get_instance();
@@ -1688,36 +1692,43 @@ void routing_manager_client::on_message(
                 its_event = its_expire.get_event();
                 its_pending_id = its_expire.get_pending_id();
 
-                host_->on_subscription(its_service, its_instance, its_eventgroup, its_client,
-                        _sec_client, get_env(its_client), false,
-                        [](const bool _subscription_accepted){ (void)_subscription_accepted; });
-                if (its_pending_id == PENDING_SUBSCRIPTION_ID) {
-                    // Local subscriber: withdraw subscription
-                    routing_manager_base::unsubscribe(its_client, _sec_client,
-                            its_service, its_instance, its_eventgroup, its_event);
-                } else {
-                    // Remote subscriber: withdraw subscription only if no more remote subscriber exists
-                    its_remote_subscriber_count = get_remote_subscriber_count(its_service,
-                            its_instance, its_eventgroup, false);
-                    if (!its_remote_subscriber_count) {
-                        routing_manager_base::unsubscribe(VSOMEIP_ROUTING_CLIENT, nullptr,
-                                its_service, its_instance, its_eventgroup, its_event);
-                    }
-                }
-                VSOMEIP_INFO << "EXPIRED SUBSCRIPTION("
-                    << std::hex << std::setfill('0')
-                    << std::setw(4) << its_client << "): ["
-                    << std::setw(4) << its_service << "."
-                    << std::setw(4) << its_instance << "."
-                    << std::setw(4) << its_eventgroup << "."
-                    << std::setw(4) << its_event << "] "
-                    << std::boolalpha
-                    << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                    << std::dec << its_remote_subscriber_count;
-            } else
-                VSOMEIP_ERROR << __func__
-                    << ": expire deserialization failed ("
-                    << std::dec << static_cast<int>(its_error) << ")";
+                auto self {shared_from_this()};
+                host_->on_subscription(
+                        its_service, its_instance, its_eventgroup, its_client, _sec_client,
+                        get_env(its_client), false,
+                        [self, this, its_pending_id, its_client, _sec_client, its_service,
+                         its_instance, its_eventgroup,
+                         its_event](const bool _subscription_accepted) {
+                            (void)_subscription_accepted;
+                            std::uint32_t its_remote_subscriber_count {0};
+                            if (its_pending_id == PENDING_SUBSCRIPTION_ID) {
+                                // Local subscriber: withdraw subscription
+                                routing_manager_base::unsubscribe(its_client, _sec_client,
+                                                                  its_service, its_instance,
+                                                                  its_eventgroup, its_event);
+                            } else {
+                                // Remote subscriber: withdraw subscription only if no more remote
+                                // subscriber exists
+                                its_remote_subscriber_count = get_remote_subscriber_count(
+                                        its_service, its_instance, its_eventgroup, false);
+                                if (!its_remote_subscriber_count) {
+                                    routing_manager_base::unsubscribe(
+                                            VSOMEIP_ROUTING_CLIENT, nullptr, its_service,
+                                            its_instance, its_eventgroup, its_event);
+                                }
+                            }
+                            VSOMEIP_INFO << "EXPIRED SUBSCRIPTION(" << std::hex << std::setfill('0')
+                                         << std::setw(4) << its_client << "): [" << std::setw(4)
+                                         << its_service << "." << std::setw(4) << its_instance
+                                         << "." << std::setw(4) << its_eventgroup << "."
+                                         << std::setw(4) << its_event << "] " << std::boolalpha
+                                         << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
+                                         << std::dec << its_remote_subscriber_count;
+                        });
+            } else {
+                VSOMEIP_ERROR << __func__ << ": expire deserialization failed (" << std::dec
+                              << static_cast<int>(its_error) << ")";
+            }
             break;
         }
 
