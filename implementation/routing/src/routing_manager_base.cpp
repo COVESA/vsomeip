@@ -600,9 +600,14 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
                     auto its_event = found_event->second;
                     its_event->remove_ref(_client, _is_provided);
                     if (!its_event->has_ref()) {
+                        if(_is_provided){
+                            its_event->unset_payload(false);
+                            its_event->set_provided(false);
+                        }
                         its_unrefed_event = its_event;
                         found_instance->second.erase(found_event);
                     } else if (_is_provided) {
+                        its_event->unset_payload(false);
                         its_event->set_provided(false);
                     }
                 }
