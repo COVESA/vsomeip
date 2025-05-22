@@ -39,6 +39,7 @@ struct profile_config {
           max_delta_counter_(_max_delta_counter),
           base_(VSOMEIP_SOMEIP_HEADER_SIZE) {
     }
+
     profile_config(const profile_config &_config) = default;
     profile_config &operator=(const profile_config &_config) = default;
 
