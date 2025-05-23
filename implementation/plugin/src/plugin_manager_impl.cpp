@@ -49,6 +49,24 @@ plugin_manager_impl::~plugin_manager_impl() {
     plugins_.clear();
 }
 
+#ifdef VSOMEIP_STATIC_PLUGINS
+plugin_init_func plugin_manager_impl::get_static_init_func(const std::string &library_)
+{
+    if (library_ == VSOMEIP_CFG_LIBRARY) {
+        return plugin_manager_impl_init_hook_cfg;
+    }
+    else if (library_ == VSOMEIP_SD_LIBRARY) {
+        return plugin_manager_impl_init_hook_sd;
+    }
+    else if (library_ == VSOMEIP_E2E_LIBRARY) {
+        return plugin_manager_impl_init_hook_e2e;
+    }
+    else {
+        return nullptr;
+    }
+}
+#endif
+
 void plugin_manager_impl::load_plugins() {
     {
         std::lock_guard<std::mutex> its_lock_start_stop(loader_mutex_);
@@ -72,9 +90,18 @@ void plugin_manager_impl::load_plugins() {
     std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
     // Load plug-in info from libraries parsed before
     for (const auto& plugin_name : plugins) {
-        void* handle = load_library(plugin_name);
-        plugin_init_func its_init_func =  reinterpret_cast<plugin_init_func>(
-                load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
+        void* handle;
+        plugin_init_func its_init_func;
+#ifdef VSOMEIP_STATIC_PLUGINS
+        handle = nullptr;
+        its_init_func = get_static_init_func(plugin_name);
+        if (!its_init_func)
+#endif
+        {
+            handle = load_library(plugin_name);
+            its_init_func =  reinterpret_cast<plugin_init_func>(
+                    load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
+        }
         if (its_init_func) {
             create_plugin_func its_create_func = (*its_init_func)();
             if (its_create_func) {
@@ -126,9 +153,18 @@ std::shared_ptr<plugin> plugin_manager_impl::get_plugin(plugin_type_e _type,
 
 std::shared_ptr<plugin> plugin_manager_impl::load_plugin(const std::string& _library,
         plugin_type_e _type, uint32_t _version) {
-    void* handle = load_library(_library);
-    plugin_init_func its_init_func = reinterpret_cast<plugin_init_func>(
-            load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
+    void* handle;
+    plugin_init_func its_init_func;
+#ifdef VSOMEIP_STATIC_PLUGINS
+    handle = nullptr;
+    its_init_func = get_static_init_func(_library);
+    if (!its_init_func)
+#endif
+    {
+        handle = load_library(_library);
+        its_init_func = reinterpret_cast<plugin_init_func>(
+                load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
+    }
     if (its_init_func) {
         create_plugin_func its_create_func = (*its_init_func)();
         if (its_create_func) {
@@ -154,6 +190,9 @@ bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
     const auto found_handle = handles_.find(_type);
     if (found_handle != handles_.end()) {
         for (const auto& its_name : found_handle->second) {
+            if (!its_name.second) { // Skip statically linked plugins
+                continue;
+            }
 #ifdef _WIN32
             FreeLibrary((HMODULE)its_name.second);
 #else
