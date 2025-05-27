@@ -39,6 +39,7 @@ public:
             VSOMEIP_DEBUG << "Started.";
             std::unique_lock<std::mutex> its_lock(mutex_);
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            VSOMEIP_DEBUG << "[TEST-cli] App Started: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
         }
 
@@ -49,23 +50,28 @@ public:
             std::unique_lock<std::mutex> its_lock(mutex_);
             if (!has_received_) {
                 auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+                VSOMEIP_DEBUG << "[TEST-cli] First Receive Validation: r=" << static_cast<int>(r);
                 EXPECT_EQ(r, std::cv_status::no_timeout);
+            } else {
+                VSOMEIP_DEBUG << "[TEST-cli] Jumped received validation";
             }
         }
 
+        VSOMEIP_DEBUG << "[TEST-cli] Sending suspend/resume: ";
         send_suspend();
 
         bool was_successful;
         {
             VSOMEIP_DEBUG << "Triggered suspend/resume.";
-
             // Wait for service to become availaber after suspend/resume.
             std::unique_lock<std::mutex> its_lock(mutex_);
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            VSOMEIP_DEBUG << "[TEST-cli] Service Available after susp/resume: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
 
             // Wait for initial event after suspend/resume.
             r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            VSOMEIP_DEBUG << "[TEST-cli] After susp/resume event validation: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
 
             was_successful = (r == std::cv_status::no_timeout);
@@ -141,11 +147,13 @@ private:
             VSOMEIP_DEBUG << __func__ << ": Test service is "
                     << (_is_available ? "available." : "NOT available.");
 
-            if (_is_available)
+            if (_is_available) {
+                VSOMEIP_DEBUG << "[TEST-cli] On availability will trigger cv";
                 cv_.notify_one();
-            else if (is_available)
+            } else if (is_available) {
+                VSOMEIP_DEBUG << "[TEST-cli] On availability=false, clearing has_received";
                 has_received_ = false;
-
+            }
             is_available = _is_available;
         }
     }
@@ -159,21 +167,23 @@ private:
             VSOMEIP_DEBUG << __func__ << ": Received event.";
             if (!has_received_) {
                 has_received_ = true;
+                VSOMEIP_DEBUG << "[TEST-cli] HasReceived Changed, triggering cv";
                 cv_.notify_one();
             }
         }
     }
 
     void toggle() {
-
+        VSOMEIP_DEBUG << "[TEST-cli] Toggle Start";
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
         std::this_thread::sleep_for(std::chrono::seconds(3));
+        VSOMEIP_DEBUG << "[TEST-cli] Toggle Middle";
         app_->unsubscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP);
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         app_->unsubscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP);
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
-
+        VSOMEIP_DEBUG << "[TEST-cli] Toggle End";
     }
 
 
@@ -235,6 +245,7 @@ TEST(suspend_resume_test, fast)
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
 
+    VSOMEIP_DEBUG << "[TEST-cli] Starting Client";
     ::testing::InitGoogleTest(&argc, argv);
 
     return RUN_ALL_TESTS();

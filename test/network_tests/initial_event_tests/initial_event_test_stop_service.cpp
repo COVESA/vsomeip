@@ -31,14 +31,10 @@ public:
             app_(vsomeip::runtime::get()->create_application()),
             wait_until_registered_(true),
             wait_until_stop_service_other_node_available_(true),
-            wait_until_shutdown_method_called_(true),
-            offer_thread_(std::bind(&initial_event_test_stop_service::run, this)),
             wait_for_stop_(true),
-            stop_thread_(std::bind(&initial_event_test_stop_service::wait_for_stop, this)),
             called_other_node_(false) {
+
         if (!app_->init()) {
-            offer_thread_.detach();
-            stop_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
@@ -72,6 +68,10 @@ public:
                             this, std::placeholders::_1, std::placeholders::_2,
                             std::placeholders::_3));
         }
+
+        stop_thread_ = std::thread(std::bind(&initial_event_test_stop_service::wait_for_stop, this));
+        offer_thread_ = std::thread(std::bind(&initial_event_test_stop_service::run, this));
+
         app_->start();
     }
 
@@ -124,9 +124,9 @@ public:
             vsomeip::instance_t _instance, bool _is_available) {
         bool notify(false);
         if(_is_available) {
-            VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                    << service_info_.service_id << "] Service ["
-                    << std::setw(4) << std::setfill('0') << std::hex << _service
+            VSOMEIP_INFO << "[" << std::hex << std::setfill('0') 
+                    << std::setw(4) << service_info_.service_id << "] Service ["
+                    << std::setw(4) << _service
                     << "." << _instance << "] is available.";
             if(is_master_) {
                 if(_service == initial_event_test::stop_service_slave.service_id
@@ -149,10 +149,10 @@ public:
 
     void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
         if(_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST_NO_RETURN) {
-            VSOMEIP_DEBUG << "Received a request with Client/Session [" << std::setw(4)
-            << std::setfill('0') << std::hex << _message->get_client() << "/"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _message->get_session() << "] shutdown method called";
+            VSOMEIP_DEBUG << "Received a request with Client/Session [" 
+            << std::hex << std::setfill('0') 
+            << std::setw(4) << _message->get_client() << "/"
+            << std::setw(4) << _message->get_session() << "] shutdown method called";
 
             std::lock_guard<std::mutex> its_lock(stop_mutex_);
             wait_for_stop_ = false;
@@ -168,7 +168,7 @@ public:
             }
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
 
@@ -179,7 +179,7 @@ public:
             }
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Calling shutdown method on remote side";
 
         std::shared_ptr<vsomeip::message> msg(vsomeip::runtime::get()->create_request());
@@ -194,21 +194,11 @@ public:
             msg->set_method(initial_event_test::stop_service_master.method_id);
         }
         app_->send(msg);
+        // time to be sure the sent message is sent by routing manager,
+        // otherwise , if the deregistration request is received before the message outs of routing manager
+        // the socket returns as bad description and the other client will not received the message
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         called_other_node_ = true;
-        {
-            std::unique_lock<std::mutex> its_lock(mutex_);
-            while (wait_until_shutdown_method_called_) {
-                auto its_reason = condition_.wait_for(its_lock, std::chrono::milliseconds(250));
-                if (its_reason == std::cv_status::timeout) {
-                    its_lock.unlock();
-                    std::lock_guard<std::mutex> its_guard(stop_mutex_);
-                    wait_for_stop_ = false;
-                    stop_condition_.notify_one();
-                    wait_until_shutdown_method_called_ = false;
-                    its_lock.lock();
-                }
-            }
-        }
     }
 
     void wait_for_stop() {
@@ -220,17 +210,18 @@ public:
                 stop_condition_.wait(its_lock);
             }
         }
-        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" 
+                << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id
                 << "] shutdown method was called, going down";
         while(!called_other_node_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
-        // let offer thread exit
-        {
-            std::lock_guard<std::mutex> its_lock(mutex_);
-            wait_until_shutdown_method_called_ = false;
-            condition_.notify_one();
+
+        if (offer_thread_.joinable()) {
+            offer_thread_.join();
+        } else {
+            offer_thread_.detach();
         }
         app_->clear_all_handler();
         app_->stop();
@@ -245,7 +236,6 @@ private:
 
     bool wait_until_registered_;
     bool wait_until_stop_service_other_node_available_;
-    bool wait_until_shutdown_method_called_;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;

@@ -10,8 +10,8 @@ set (VSOMEIP_NAME vsomeip3)
 set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
-set (VSOMEIP_MINOR_VERSION 4)
-set (VSOMEIP_PATCH_VERSION 10)
+set (VSOMEIP_MINOR_VERSION 5)
+set (VSOMEIP_PATCH_VERSION 5)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -109,9 +109,13 @@ if (ENABLE_SIGNAL_HANDLING)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_SIGNAL_HANDLING")
 endif ()
 
+# Event caching
+if (ENABLE_DEFAULT_EVENT_CACHING)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_DEFAULT_EVENT_CACHING")
+endif ()
+
 if (NOT MSVC)
     # Sanitizers
-
     if (ENABLE_UNDEFINED_SANITIZER)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
     endif ()
@@ -130,6 +134,27 @@ if (NOT MSVC)
 
     if (ENABLE_PROFILING)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+    endif ()
+
+    # Valgrind
+    find_program(VALGRIND "valgrind")
+    if (VALGRIND)
+        if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+            set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE} --trace-children=yes)
+            add_definitions(-DBOOST_USE_VALGRIND)
+        endif ()
+
+        if (VALGRIND_TYPE STREQUAL "helgrind")
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --show-error-list=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --gen-suppressions=all --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+        endif ()
+
+        if (VALGRIND_TYPE STREQUAL "massif")
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.out)
+        endif ()
+
+        if (VALGRIND_TYPE STREQUAL "memcheck")
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --leak-check=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+        endif ()
     endif ()
 endif (NOT MSVC)
 
@@ -163,7 +188,7 @@ add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.55 COMPONENTS system thread filesystem REQUIRED )
+find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     include_directories(${Boost_INCLUDE_DIR} )
 else()
@@ -191,12 +216,6 @@ else()
 endif()
 
 message( STATUS "Using boost version: ${VSOMEIP_BOOST_VERSION}" )
-
-if (${VSOMEIP_BOOST_VERSION} LESS 106600)
-include_directories(SYSTEM
-    implementation/helper
-)
-endif ()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_BOOST_VERSION=${VSOMEIP_BOOST_VERSION}")
 
@@ -250,9 +269,10 @@ if (MSVC)
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
     SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
     # Disable warning C4250 since it warns that the compiler is correctly following the C++ Standard. It's a "We-Are-Doing-Things-By-The-Book" notice, not a real warning.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /wd4250")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -D_WIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /wd4250")
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
+    add_compile_options(/MD$<$<CONFIG:Debug>:d>)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
 else()
@@ -308,6 +328,7 @@ set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOV
 target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+    set_target_properties(${VSOMEIP_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 else ()
     set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
 endif ()
@@ -362,7 +383,11 @@ endif ()
 target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    target_link_directories(${VSOMEIP_NAME} PUBLIC "${QNX_TARGET}/${CPUVARDIR}/io-sock/lib")
     target_link_libraries(${VSOMEIP_NAME}-e2e socket)
+    target_link_libraries(${VSOMEIP_NAME}-cfg socket)
+    target_link_libraries(${VSOMEIP_NAME}-sd socket)
+    target_link_libraries(${VSOMEIP_NAME} PRIVATE socket)
 endif()
 ################################################################################
 # Compatibility library
@@ -622,24 +647,6 @@ else()
     add_dependencies(doc doxygen-doc)
 endif()
 
-find_program(ASCIIDOC_PATH asciidoc)
-find_program(SOURCE_HIGHLIGHT_PATH source-highlight)
-if ("${ASCIIDOC_PATH}" STREQUAL "ASCIIDOC_PATH-NOTFOUND")
-    message(WARNING "asciidoc is not installed. Readme can not be built.")
-elseif("${SOURCE_HIGHLIGHT_PATH}" STREQUAL "SOURCE_HIGHLIGHT_PATH-NOTFOUND")
-    message(WARNING "source-highlight is not installed. Readme can not be built.")
-else()
-    message("asciidoc found")
-    message("source-highlight found")
-    add_custom_command(TARGET doc
-                       POST_BUILD
-                       COMMAND asciidoc
-                               -a version=${VSOMEIP_VERSION}
-                               -b html
-                               -o documentation/vsomeipUserGuide.html
-                               ${PROJECT_SOURCE_DIR}/documentation/vsomeipUserGuide)
-endif()
-
 ##############################################################################
 # create pkg-config file
 if(NOT WIN32)
@@ -648,14 +655,15 @@ if(NOT WIN32)
 endif()
 
 ##############################################################################
-# build routing manager daemon (Non-Windows only)
+# build routing manager daemon and hello world examples (Non-Windows only)
 if (NOT MSVC)
 add_subdirectory( examples/routingmanagerd )
+add_subdirectory( examples/hello_world )
 endif()
 
 # build tools
 add_custom_target( tools )
-add_subdirectory( tools )
+add_subdirectory( tools/vsomeip_ctrl )
 
 # build examples
 add_custom_target( examples )

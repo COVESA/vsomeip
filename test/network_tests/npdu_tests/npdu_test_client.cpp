@@ -2,6 +2,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <iomanip>
+
 #include "../npdu_tests/npdu_test_client.hpp"
 
 #include <vsomeip/internal/logger.hpp>
@@ -166,8 +169,9 @@ template<int service_idx>
 void npdu_test_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_available)
 {
-    VSOMEIP_INFO<< "Service [" << std::setw(4) << std::setfill('0') << std::hex
-            << _service << "." << std::setw(4) << std::setfill('0') << _instance << "] is "
+    VSOMEIP_INFO<< "Service [" << std::hex << std::setfill('0') 
+            << std::setw(4) << _service << "." 
+            << std::setw(4) << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
     if(npdu_test::service_ids[service_idx] == _service
        && npdu_test::instance_ids[service_idx] == _instance) {
@@ -187,12 +191,11 @@ template<int service_idx, int method_idx>
 void npdu_test_client::on_message(const std::shared_ptr<vsomeip::message>& _response) {
     (void)_response;
     //TODO make sure the replies were sent within demanded debounce times
-    VSOMEIP_DEBUG << "Received reply from:" << std::setw(4) << std::setfill('0')
-            << std::hex << npdu_test::service_ids[service_idx] << ":"
-            << std::setw(4) << std::setfill('0') << std::hex
-            << npdu_test::instance_ids[service_idx] << ":" << std::setw(4)
-            << std::setfill('0') << std::hex
-            << npdu_test::method_ids[service_idx][method_idx];
+    VSOMEIP_DEBUG << "Received reply from:"  
+            << std::setfill('0') << std::hex 
+            << std::setw(4) << npdu_test::service_ids[service_idx] << ":"
+            << std::setw(4) << npdu_test::instance_ids[service_idx] << ":" 
+            << std::setw(4) << npdu_test::method_ids[service_idx][method_idx];
 
     if(call_service_sync_)
     {

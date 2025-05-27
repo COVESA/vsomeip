@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "e2e_profile_07_test_common.hpp"
 #include "e2e_profile_07_test_client.hpp"
 
@@ -84,7 +86,7 @@ e2e_profile_07_test_client::on_availability(
         bool _is_available) {
 
     VSOMEIP_INFO << __func__ << ": Client "
-            << std::hex << std::setw(4) << std::setfill('0')
+            << std::hex << std::setfill('0') << std::setw(4)
             << app_->get_client()
             << " : Service [" << _service << "." << _instance
             << "] is " << (_is_available ? "available." : "NOT available.");
@@ -115,7 +117,7 @@ void
 e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::message> &_message) {
 
     VSOMEIP_INFO << __func__ << ": Received a message from Service ["
-            << std::setw(4) << std::setfill('0') << std::hex
+            << std::hex << std::setfill('0') << std::setw(4)
             << _message->get_service() << "." << _message->get_instance()
             << "] to Client/Session ["
             << _message->get_client() << "/" << _message->get_session()
@@ -163,7 +165,7 @@ e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::message> &
     received_++;
     if (received_ == PROFILE_07_NUM_MESSAGES * 2) {
         VSOMEIP_WARNING << __func__ << ": Client"
-                << std::setw(4) << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0') << std::setw(4)
                 << app_->get_client()
                 << " received all messages ~> going down!";
     }

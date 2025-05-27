@@ -112,8 +112,8 @@ private:
 
     void on_availability(vsomeip::service_t _service,
                          vsomeip::instance_t _instance, bool _is_available) {
-        VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0')
-                << std::hex << _service << "." << _instance << "] is "
+        VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0')
+                << std::setw(4) << _service << "." << _instance << "] is "
                 << (_is_available ? "available." : "NOT available.");
 
         if (cpu_load_test::service_id == _service
@@ -228,7 +228,7 @@ private:
         }
         c.stop();
         send_service_start_measuring(false);
-        VSOMEIP_DEBUG << "Synchronously sent " << std::setw(4) << std::setfill('0')
+        VSOMEIP_DEBUG << "Synchronously sent " << std::setfill('0') << std::setw(4)
             << number_of_sent_messages_ << " messages. CPU load [%]: "
             << std::fixed << std::setprecision(2)
             << (std::isfinite(c.get_cpu_load()) ? c.get_cpu_load() : 0.0);

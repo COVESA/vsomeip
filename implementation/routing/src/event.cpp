@@ -37,6 +37,7 @@ event::event(routing_manager *_routing, bool _is_shadow)
           is_cache_placeholder_(false),
           epsilon_change_func_(std::bind(&event::has_changed, this,
                 std::placeholders::_1, std::placeholders::_2)),
+          has_default_epsilon_change_func_(true),
           reliability_(reliability_type_e::RT_UNKNOWN) {
 
 }
@@ -168,7 +169,7 @@ event::set_payload(const std::shared_ptr<payload> &_payload, bool _force) {
     } else {
         VSOMEIP_INFO << __func__ << ":" << __LINE__
                 << " Cannot set payload for event ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << current_->get_service() << "."
                 << current_->get_instance() << "."
                 << current_->get_method()
@@ -191,7 +192,7 @@ event::set_payload(const std::shared_ptr<payload> &_payload, client_t _client,
     } else {
         VSOMEIP_INFO << __func__ << ":" << __LINE__
                 << " Cannot set payload for event ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << current_->get_service() << "."
                 << current_->get_instance() << "."
                 << current_->get_method()
@@ -216,7 +217,7 @@ event::set_payload(const std::shared_ptr<payload> &_payload,
     } else {
         VSOMEIP_INFO << __func__ << ":" << __LINE__
                 << " Cannot set payload for event ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << current_->get_service() << "."
                 << current_->get_instance() << "."
                 << current_->get_method()
@@ -297,6 +298,7 @@ event::set_epsilon_change_function(
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (_epsilon_change_func) {
         epsilon_change_func_ = _epsilon_change_func;
+        has_default_epsilon_change_func_ = false;
     }
 }
 
@@ -365,7 +367,7 @@ event::notify(bool _force) {
     } else {
         VSOMEIP_INFO << __func__
                 << ": Notifying "
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << get_service() << "." << get_instance() << "." << get_event()
                 << " failed. Event payload not (yet) set!";
     }
@@ -381,7 +383,7 @@ event::notify_one(client_t _client,
     } else {
         VSOMEIP_WARNING << __func__
                 << ": Notifying "
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << get_service() << "." << get_instance() << "." << get_event()
                 << " failed. Target undefined";
     }
@@ -398,7 +400,7 @@ event::notify_one_unlocked(client_t _client,
         } else {
             VSOMEIP_INFO << __func__
                     << ": Notifying "
-                    << std::hex << std::setw(4) << std::setfill('0')
+                    << std::hex << std::setfill('0') << std::setw(4)
                     << get_service() << "." << get_instance() << "." << get_event()
                     << " failed. Event payload not (yet) set!";
             pending_.insert(_target);
@@ -406,7 +408,7 @@ event::notify_one_unlocked(client_t _client,
     } else {
         VSOMEIP_WARNING << __func__
                 << ": Notifying "
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << get_service() << "." << get_instance() << "." << get_event()
                 << " failed. Target undefined";
     }
@@ -428,7 +430,7 @@ event::notify_one_unlocked(client_t _client, bool _force) {
     } else {
         VSOMEIP_INFO << __func__
                 << ": Initial value for ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << get_service() << "." << get_instance() << "." << get_event()
                 << "] not yet set by the service/client."
                 << " Client " << _client
@@ -448,22 +450,12 @@ bool
 event::prepare_update_payload_unlocked(
         const std::shared_ptr<payload> &_payload, bool _force) {
 
-    // Copy payload to avoid manipulation from the outside
-    std::shared_ptr<payload> its_payload
-        = runtime::get()->create_payload(
-                _payload->get_data(), _payload->get_length());
-
-    bool is_change = has_changed(current_->get_payload(), its_payload);
-
-    if (!_force
-            && type_ == event_type_e::ET_FIELD
-            && cycle_ == std::chrono::milliseconds::zero()
-            && !is_change
-            && !is_shadow_) {
+    if (!_force && type_ == event_type_e::ET_FIELD && cycle_ == std::chrono::milliseconds::zero()
+        && !has_changed(current_->get_payload(), _payload) && !is_shadow_) {
         return false;
     }
 
-    update_->set_payload(its_payload);
+    update_->set_payload(_payload);
 
     if (!is_set_) {
         start_cycle();
@@ -530,7 +522,7 @@ event::add_subscriber(eventgroup_t _eventgroup,
 
         if (_filter) {
             VSOMEIP_WARNING << "Using client ["
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::hex << std::setfill('0') << std::setw(4)
                 << _client
                 << "] specific filter configuration for SOME/IP event "
                 << get_service() << "." << get_instance() << "." << get_event() << ".";
@@ -543,81 +535,84 @@ event::add_subscriber(eventgroup_t _eventgroup,
                     << ", ignore=[ ";
             for (auto i : _filter->ignore_)
                 its_filter_parameters << "(" << std::dec << i.first << ", "
-                    << std::hex << std::setw(2) << std::setfill('0')
-                    << (int)i.second << ") ";
+                    << std::hex << std::setfill('0') << std::setw(2)
+                    << static_cast<int>(i.second) << ") ";
             its_filter_parameters << "])";
             VSOMEIP_INFO << "Filter parameters: "
                     << its_filter_parameters.str();
+            {
+                std::scoped_lock lk {filters_mutex_};
+                filters_[_client] = [_filter](
+                    const std::shared_ptr<payload> &_old,
+                    const std::shared_ptr<payload> &_new) {
 
-            filters_[_client] = [_filter](
-                const std::shared_ptr<payload> &_old,
-                const std::shared_ptr<payload> &_new) {
+                    bool is_changed(false), is_elapsed(false);
 
-                bool is_changed(false), is_elapsed(false);
+                    // Check whether we should forward because of changed data
+                    if (_filter->on_change_) {
+                        length_t its_min_length, its_max_length;
 
-                // Check whether we should forward because of changed data
-                if (_filter->on_change_) {
-                    length_t its_min_length, its_max_length;
-
-                    if (_old->get_length() < _new->get_length()) {
-                        its_min_length = _old->get_length();
-                        its_max_length = _new->get_length();
-                    } else {
-                        its_min_length = _new->get_length();
-                        its_max_length = _old->get_length();
-                    }
-
-                    // Check whether all additional bytes (if any) are excluded
-                    for (length_t i = its_min_length; i < its_max_length; i++) {
-                        auto j = _filter->ignore_.find(i);
-                        // A change is detected when an additional byte is not
-                        // excluded at all or if its exclusion does not cover all
-                        // bits
-                        if (j == _filter->ignore_.end() || j->second != 0xFF) {
-                            is_changed = true;
-                            break;
+                        if (_old->get_length() < _new->get_length()) {
+                            its_min_length = _old->get_length();
+                            its_max_length = _new->get_length();
+                        } else {
+                            its_min_length = _new->get_length();
+                            its_max_length = _old->get_length();
                         }
-                    }
 
-                    if (!is_changed) {
-                        const byte_t *its_old = _old->get_data();
-                        const byte_t *its_new = _new->get_data();
-                        for (length_t i = 0; i < its_min_length; i++) {
+                        // Check whether all additional bytes (if any) are excluded
+                        for (length_t i = its_min_length; i < its_max_length; i++) {
                             auto j = _filter->ignore_.find(i);
-                            if (j == _filter->ignore_.end()) {
-                                if (its_old[i] != its_new[i]) {
-                                    is_changed = true;
-                                    break;
-                                }
-                            } else if (j->second != 0xFF) {
-                                if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
-                                    is_changed = true;
-                                    break;
+                            // A change is detected when an additional byte is not
+                            // excluded at all or if its exclusion does not cover all
+                            // bits
+                            if (j == _filter->ignore_.end() || j->second != 0xFF) {
+                                is_changed = true;
+                                break;
+                            }
+                        }
+
+                        if (!is_changed) {
+                            const byte_t *its_old = _old->get_data();
+                            const byte_t *its_new = _new->get_data();
+                            for (length_t i = 0; i < its_min_length; i++) {
+                                auto j = _filter->ignore_.find(i);
+                                if (j == _filter->ignore_.end()) {
+                                    if (its_old[i] != its_new[i]) {
+                                        is_changed = true;
+                                        break;
+                                    }
+                                } else if (j->second != 0xFF) {
+                                    if ((its_old[i] & ~(j->second)) != (its_new[i] & ~(j->second))) {
+                                        is_changed = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                if (_filter->interval_ > -1) {
-                    // Check whether we should forward because of the elapsed time since
-                    // we did last time
-                    std::chrono::steady_clock::time_point its_current
-                        = std::chrono::steady_clock::now();
+                    if (_filter->interval_ > -1) {
+                        // Check whether we should forward because of the elapsed time since
+                        // we did last time
+                        std::chrono::steady_clock::time_point its_current
+                            = std::chrono::steady_clock::now();
 
-                    int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            its_current - _filter->last_forwarded_).count();
-                    is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
-                            || elapsed >= _filter->interval_);
-                    if (is_elapsed || (is_changed && _filter->on_change_resets_interval_))
-                        _filter->last_forwarded_ = its_current;                }
+                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                its_current - _filter->last_forwarded_).count();
+                        is_elapsed = (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max()
+                                || elapsed >= _filter->interval_);
+                        if (is_elapsed || (is_changed && _filter->on_change_resets_interval_))
+                            _filter->last_forwarded_ = its_current;                }
 
-                return (is_changed || is_elapsed);
-            };
+                    return (is_changed || is_elapsed);
+                };
+            }
 
             // Create a new callback for this client if filter interval is used
             routing_->register_debounce(_filter, _client, shared_from_this());
         } else {
+            std::scoped_lock lk {filters_mutex_};
             filters_.erase(_client);
         }
 
@@ -625,9 +620,9 @@ event::add_subscriber(eventgroup_t _eventgroup,
 
     } else {
         VSOMEIP_WARNING << __func__ << ": Didnt' insert client "
-                << std::hex << std::setw(4) << std::setfill('0') << _client
+                << std::hex << std::setfill('0') << std::setw(4) << _client
                 << " to eventgroup 0x"
-                << std::hex << std::setw(4) << std::setfill('0')
+                << std::setw(4)
                 << get_service() << "." << get_instance() << "."
                 << _eventgroup;
     }
@@ -683,9 +678,16 @@ event::get_filtered_subscribers(bool _force) {
         its_payload_update = update_->get_payload();
     }
 
-    if (filters_.empty()) {
+    bool is_filters_empty = false;
+    {
+        std::scoped_lock its_lock {filters_mutex_};
+        is_filters_empty = filters_.empty();
+    }
 
-        bool must_forward = (type_ != event_type_e::ET_FIELD
+    if (is_filters_empty) {
+
+        bool must_forward = ((type_ != event_type_e::ET_FIELD
+                    && has_default_epsilon_change_func_)
                 || _force
                 || epsilon_change_func_(its_payload, its_payload_update));
 
@@ -695,7 +697,7 @@ event::get_filtered_subscribers(bool _force) {
     } else {
         byte_t is_allowed(0xff);
 
-        std::lock_guard<std::mutex> its_lock(filters_mutex_);
+        std::scoped_lock its_lock {filters_mutex_};
         for (const auto s : its_subscribers) {
 
             auto its_specific = filters_.find(s);
@@ -704,7 +706,8 @@ event::get_filtered_subscribers(bool _force) {
                     its_filtered_subscribers.insert(s);
             } else {
                 if (is_allowed == 0xff) {
-                    is_allowed = (type_ != event_type_e::ET_FIELD
+                    is_allowed = ((type_ != event_type_e::ET_FIELD
+                            && has_default_epsilon_change_func_)
                         || _force
                         || epsilon_change_func_(its_payload, its_payload_update)
                         ? 0x01 : 0x00);
@@ -817,17 +820,19 @@ bool
 event::has_changed(const std::shared_ptr<payload> &_lhs,
         const std::shared_ptr<payload> &_rhs) const {
 
-    bool is_change = (_lhs->get_length() != _rhs->get_length());
-    if (!is_change) {
-        std::size_t its_pos = 0;
-        const byte_t *its_old_data = _lhs->get_data();
-        const byte_t *its_new_data = _rhs->get_data();
-        while (!is_change && its_pos < _lhs->get_length()) {
-            is_change = (*its_old_data++ != *its_new_data++);
-            its_pos++;
+    if (_lhs) {
+        if (_rhs) {
+            return !((*_lhs) == (*_rhs));
+        } else {
+            return false;
+        }
+    } else {
+        if (_rhs) {
+            return false;
         }
     }
-    return is_change;
+
+    return true; // both are nullptr
 }
 
 std::set<client_t>

@@ -72,13 +72,13 @@ bool big_payload_test_client::init()
 
 void big_payload_test_client::start()
 {
-    VSOMEIP_INFO << "Starting...";
+    VSOMEIP_INFO << "Starting Client...";
     app_->start();
 }
 
 void big_payload_test_client::stop()
 {
-    VSOMEIP_INFO << "Stopping...";
+    VSOMEIP_INFO << "Stopping Client...";
     if (test_mode_ == big_payload_test::test_mode::LIMITED
             || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
             || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
@@ -118,7 +118,7 @@ void big_payload_test_client::on_state(vsomeip::state_type_e _state)
 void big_payload_test_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_available)
 {
-    VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex
+    VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4)
             << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
@@ -139,14 +139,15 @@ void big_payload_test_client::on_availability(vsomeip::service_t _service,
 
 void big_payload_test_client::on_message(const std::shared_ptr<vsomeip::message>& _response)
 {
-    VSOMEIP_INFO << "Received a response from Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _response->get_service() << "."
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _response->get_instance() << "] to Client/Session ["
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _response->get_client() << "/" << std::setw(4)
-            << std::setfill('0') << std::hex << _response->get_session()
-            << "] size: " << std::dec << _response->get_payload()->get_length();
+    VSOMEIP_INFO << "Received a response from Service [" 
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _response->get_service() << "."
+            << std::setw(4) << _response->get_instance() 
+            << "] to Client/Session ["
+            << std::setw(4) << _response->get_client() << "/" 
+            << std::setw(4) << _response->get_session()
+            << "] size: " 
+            << std::dec << _response->get_payload()->get_length();
     static vsomeip::session_t last_session(0);
     ASSERT_GT(_response->get_session(), last_session);
     last_session = _response->get_session();
@@ -233,19 +234,20 @@ void big_payload_test_client::run()
         }
         its_payload->set_data(its_payload_data);
         request_->set_payload(its_payload);
+        VSOMEIP_INFO << "Client/Session [" 
+                     << std::hex << std::setfill('0')
+                     << std::setw(4) << request_->get_client() << "/"
+                     << std::setw(4) << request_->get_session()
+                     << "] is going to send a request to Service ["
+                     << std::setw(4) << request_->get_service() << "."
+                     << std::setw(4) << request_->get_instance()
+                     << "] size: " << std::dec << request_->get_payload()->get_length()
+                     << ". Sent Messages: " << number_of_sent_messages_ + 1;
         app_->send(request_);
         if (test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
-                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
+            || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
-        VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
-                << std::hex << request_->get_client() << "/" << std::setw(4)
-                << std::setfill('0') << std::hex << request_->get_session()
-                << "] sent a request to Service [" << std::setw(4)
-                << std::setfill('0') << std::hex << request_->get_service()
-                << "." << std::setw(4) << std::setfill('0') << std::hex
-                << request_->get_instance() << "] size: " << std::dec <<
-                request_->get_payload()->get_length();
         number_of_sent_messages_++;
     }
     while(!blocked_) {

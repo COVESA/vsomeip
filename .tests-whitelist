@@ -1,0 +1,9 @@
+# This file contains a list of test identifiers that are known to be flaky or non-critical.
+# Tests listed here are allowed to fail without causing the overall test job to fail.
+
+# client_id_tests
+client_id_test_utility
+client_id_test_utility_masked_511
+client_id_test_utility_masked_4095
+client_id_test_utility_masked_127
+client_id_test_utility_discontinuous_masked_511

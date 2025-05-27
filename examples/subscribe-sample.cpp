@@ -64,10 +64,6 @@ public:
         app_->start();
     }
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         app_->clear_all_handler();
         app_->unsubscribe(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENTGROUP_ID);
@@ -75,7 +71,6 @@ public:
         app_->release_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         app_->stop();
     }
-#endif
 
     void on_state(vsomeip::state_type_e _state) {
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
@@ -85,7 +80,7 @@ public:
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         std::cout << "Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
+                << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance
                 << "] is "
                 << (_is_available ? "available." : "NOT available.")
                 << std::endl;
@@ -94,7 +89,7 @@ public:
     void on_message(const std::shared_ptr<vsomeip::message> &_response) {
         std::stringstream its_message;
         its_message << "Received a notification for Event ["
-                << std::setfill('0') << std::hex
+                << std::hex << std::setfill('0')
                 << std::setw(4) << _response->get_service() << "."
                 << std::setw(4) << _response->get_instance() << "."
                 << std::setw(4) << _response->get_method() << "] to Client/Session ["
@@ -104,9 +99,9 @@ public:
         std::shared_ptr<vsomeip::payload> its_payload =
                 _response->get_payload();
         its_message << "(" << std::dec << its_payload->get_length() << ") "
-		    << std::hex << std::setw(2);
+		    << std::hex;
         for (uint32_t i = 0; i < its_payload->get_length(); ++i)
-            its_message << std::setw(2) << (int) its_payload->get_data()[i] << " ";
+            its_message << std::setw(2) << static_cast<int>(its_payload->get_data()[i]) << " ";
         std::cout << its_message.str() << std::endl;
 
         if (_response->get_client() == 0) {
@@ -178,6 +173,9 @@ int main(int argc, char **argv) {
 #endif
     if (its_sample.init()) {
         its_sample.start();
+#ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
+        its_sample.stop();
+#endif
         return 0;
     } else {
         return 1;

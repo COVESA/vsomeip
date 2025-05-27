@@ -17,6 +17,10 @@
 
 #include <chrono>
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"
+#endif
+
 namespace vsomeip_v3 {
 
 typedef server_endpoint_impl<
@@ -28,11 +32,11 @@ class tcp_server_endpoint_impl: public tcp_server_endpoint_base_impl {
 public:
     tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                              const std::shared_ptr<routing_host>& _routing_host,
-                             const endpoint_type& _local,
                              boost::asio::io_context &_io,
                              const std::shared_ptr<configuration>& _configuration);
-    virtual ~tcp_server_endpoint_impl();
+    virtual ~tcp_server_endpoint_impl() = default;
 
+    void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
     void stop();
 
@@ -59,6 +63,8 @@ public:
     // TODO: think about a better design!
     void receive();
     void print_status();
+
+    bool is_suspended() const;
 private:
     class connection: public std::enable_shared_from_this<connection> {
 
@@ -138,17 +144,16 @@ private:
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
-    const std::uint16_t local_port_;
+    std::uint16_t local_port_;
     const std::chrono::milliseconds send_timeout_;
 
 private:
     void remove_connection(connection *_connection);
-    void accept_cbk(const connection::ptr& _connection,
+    void accept_cbk(connection::ptr _connection,
                     boost::system::error_code const &_error);
     std::string get_remote_information(
             const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;
-    bool tp_segmentation_enabled(service_t _service, method_t _method) const;
 };
 
 } // namespace vsomeip_v3

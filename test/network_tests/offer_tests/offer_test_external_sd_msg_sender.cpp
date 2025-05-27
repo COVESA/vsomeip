@@ -15,11 +15,7 @@ static char* passed_address;
 TEST(someip_offer_test, send_offer_service_sd_message)
 {
     try {
-#if VSOMEIP_BOOST_VERSION < 106600
-    	boost::asio::io_service io;
-#else
         boost::asio::io_context io;
-#endif
         boost::asio::ip::udp::socket::endpoint_type target_sd(
                 boost::asio::ip::address::from_string(std::string(passed_address)),
                 30490);
@@ -39,7 +35,7 @@ TEST(someip_offer_test, send_offer_service_sd_message)
             0x00, 0x00, 0x00, 0x18,
             0x00, 0x09, 0x04, 0x00,
             0x0a, 0x00, 0x03, 0x01,
-            0x00, 0x06, 0x9c, 0x41,
+            0x00, 0x06, 0x86, 0xcf,
             0x00, 0x09, 0x04, 0x00,
             0x0a, 0x00, 0x03, 0x7D, // slave address
             0x00, 0x11, 0x75, 0x31

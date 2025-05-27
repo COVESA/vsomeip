@@ -7,6 +7,7 @@
 #define VSOMEIP_V3_ROUTING_MANAGER_STUB_
 
 #include <condition_variable>
+#include <deque>
 #include <list>
 #include <map>
 #include <memory>
@@ -16,12 +17,7 @@
 #include <atomic>
 #include <unordered_set>
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#    include <boost/asio/io_service.hpp>
-#    define io_context io_service
-#else
-#    include <boost/asio/io_context.hpp>
-#endif
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <vsomeip/handler.hpp>
@@ -47,9 +43,8 @@ struct policy;
 class routing_manager_stub: public routing_host,
         public std::enable_shared_from_this<routing_manager_stub> {
 public:
-    routing_manager_stub(
-            routing_manager_stub_host *_host,
-            const std::shared_ptr<configuration>& _configuration);
+    routing_manager_stub(routing_manager_stub_host* _host,
+                         const std::shared_ptr<configuration>& _configuration);
     virtual ~routing_manager_stub();
 
     void init();
@@ -110,24 +105,24 @@ public:
                                             pending_remote_offer_id_t _id);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-    bool update_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool update_security_policy_configuration(uid_t _uid, gid_t _gid,
             const std::shared_ptr<policy> &_policy,
             const std::shared_ptr<payload> &_payload,
             const security_update_handler_t &_handler);
-    bool remove_security_policy_configuration(uint32_t _uid, uint32_t _gid,
+    bool remove_security_policy_configuration(uid_t _uid, gid_t _gid,
             const security_update_handler_t &_handler);
     void on_security_update_response(pending_security_update_id_t _id,
             client_t _client);
 
-    void policy_cache_add(uint32_t _uid, const std::shared_ptr<payload>& _payload);
-    void policy_cache_remove(uint32_t _uid);
-    bool is_policy_cached(uint32_t _uid);
+    void policy_cache_add(uid_t _uid, const std::shared_ptr<payload>& _payload);
+    void policy_cache_remove(uid_t _uid);
+    bool is_policy_cached(uid_t _uid);
 
     bool send_update_security_policy_request(client_t _client,
-            pending_security_update_id_t _update_id, uint32_t _uid,
+            pending_security_update_id_t _update_id, uid_t _uid,
             const std::shared_ptr<payload>& _payload);
     bool send_remove_security_policy_request(client_t _client,
-            pending_security_update_id_t _update_id, uint32_t _uid, uint32_t _gid);
+            pending_security_update_id_t _update_id, uid_t _uid, gid_t _gid);
 
     bool send_cached_security_policies(client_t _client);
 
@@ -138,17 +133,22 @@ public:
 
     void add_known_client(client_t _client, const std::string &_client_host);
 
+    std::string get_env(client_t _client) const;
+
     void send_suspend() const;
 
     void remove_subscriptions(port_t _local_port,
             const boost::asio::ip::address &_remote_address,
             port_t _remote_port);
 
+    routing_state_e get_routing_state();
+
 private:
     void broadcast(const std::vector<byte_t> &_command) const;
 
-    void on_register_application(client_t _client);
+    void on_register_application(client_t _client, bool& continue_registration);
     void on_deregister_application(client_t _client);
+    void on_register_application_ack(client_t _client);
 
     void on_offered_service_request(client_t _client, offer_type_e _offer_type);
 
@@ -160,11 +160,13 @@ private:
             bool _inform_service);
 
     void broadcast_ping() const;
+    void on_ping(client_t _client);
     void on_pong(client_t _client);
     void start_watchdog();
     void check_watchdog();
 
     void client_registration_func(void);
+    void registration_func(client_t client_id, std::vector<registration_type_e> registration_type);
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const &_error);
     void remove_from_pinged_clients(client_t _client);
@@ -196,11 +198,16 @@ private:
         connection_matrix_.erase(_source);
     }
 
+    void remove_client_connections(client_t _client);
+    bool new_client_to_process();
+
     void send_client_routing_info(const client_t _target,
             protocol::routing_info_entry &_entry);
     void send_client_routing_info(const client_t _target,
             std::vector<protocol::routing_info_entry> &&_entries);
-    void send_client_credentials(client_t _target, std::set<std::pair<uint32_t, uint32_t>> &_credentials);
+    void send_client_config_command(const client_t _client, const client_t _target);
+
+    void send_client_credentials(client_t _target, std::set<std::pair<uid_t, gid_t>> &_credentials);
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);
 
@@ -237,7 +244,7 @@ private:
 #endif
 
 private:
-    routing_manager_stub_host *host_;
+    routing_manager_stub_host* host_;
     boost::asio::io_context &io_;
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
@@ -257,12 +264,15 @@ private:
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
+    std::map<std::thread::id, std::shared_ptr<std::thread>> client_registration_thread_pool_;
+    std::mutex client_registration_thread_pool_mutex_;
     std::atomic<bool> client_registration_running_;
-    std::shared_ptr<std::thread> client_registration_thread_;
     std::mutex client_registration_mutex_;
     std::condition_variable client_registration_condition_;
 
-    std::map<client_t, std::vector<registration_type_e>> pending_client_registrations_;
+    std::deque<std::pair<client_t, std::vector<registration_type_e>>>
+            pending_client_registrations_queue_;
+    std::set<client_t> clients_in_progress_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t> > internal_client_ports_;
     const std::uint32_t max_local_message_size_;
     const std::chrono::milliseconds configured_watchdog_timeout_;

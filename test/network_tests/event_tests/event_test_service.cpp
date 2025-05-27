@@ -3,13 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <iomanip>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <thread>
-#include <map>
-#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -116,14 +117,14 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
 
@@ -138,6 +139,8 @@ public:
             condition_.wait(its_lock);
         }
         its_lock.unlock();
+        // Ensure the message is processed before endpoint is destroyed
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         stop();
     }
 

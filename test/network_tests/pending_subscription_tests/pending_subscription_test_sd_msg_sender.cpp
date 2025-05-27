@@ -16,7 +16,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include "../../implementation/utility/include/byteorder.hpp"
+#include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
 #include "../../implementation/service_discovery/include/service_discovery.hpp"
 #include "../../implementation/service_discovery/include/message_impl.hpp"
@@ -85,17 +85,13 @@ TEST_F(pending_subscription, send_multiple_subscriptions)
                 std::uint32_t its_pos = 0;
 
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
@@ -270,25 +266,22 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe)
             } else {
                 #if 0
                 std::stringstream str;
+                str << std::hex << std::setfill('0');
                 for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                 }
                 std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                 #endif
                 std::uint32_t its_pos = 0;
 
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
@@ -479,23 +472,21 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions)
             } else {
                 #if 0
                 std::stringstream str;
+                str << std::hex << std::setfill('0');
                 for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                 }
                 std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                 #endif
                 std::uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
+
                     vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
@@ -686,24 +677,21 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe)
             } else {
                 #if 0
                 std::stringstream str;
+                str << std::hex << std::setfill('0');
                 for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                 }
                 std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                 #endif
                 std::uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
@@ -894,7 +882,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(
-                boost::asio::ip::address::from_string(remote_address), 40001), ec);
+                boost::asio::ip::address::from_string(remote_address), 34511), ec);
         ASSERT_EQ(0, ec.value());
         tcp_connected.set_value();
 
@@ -914,17 +902,13 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
                 std::uint32_t its_pos = 0;
 
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
@@ -1125,17 +1109,12 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
                 std::uint32_t its_pos = 0;
 
                 while (bytes_transfered > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
 
                     its_pos += its_message_size;
                     bytes_transfered -= its_message_size;
@@ -1334,7 +1313,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(
-                boost::asio::ip::address::from_string(remote_address), 40001), ec);
+                boost::asio::ip::address::from_string(remote_address), 34511), ec);
         ASSERT_EQ(0, ec.value());
         tcp_connected.set_value();
 
@@ -1356,23 +1335,20 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
                 while (bytes_transferred > 0) {
                     #if 0
                     std::stringstream str;
+                    str << std::hex << std::setfill('0');
                     for (size_t i = 0; i < bytes_transferred; i++) {
-                        str << std::hex << std::setw(2) << std::setfill('0') << std::uint32_t(receive_buffer[i]) << " ";
+                        str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
                     }
                     std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
                     #endif
 
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
@@ -1560,17 +1536,13 @@ TEST_F(pending_subscription, send_request_to_sd_port)
             } else {
                 std::uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
-                    const std::uint32_t its_message_size = VSOMEIP_BYTES_TO_LONG(
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 1],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 2],
-                            receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN + 3]) + VSOMEIP_SOMEIP_HEADER_SIZE;
-                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    const std::uint32_t its_message_size = vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
+                                                                                + VSOMEIP_SOMEIP_HEADER_SIZE;
 
-                    vsomeip::service_t its_service = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN],
-                                                                           receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MAX]);
-                    vsomeip::method_t its_method = VSOMEIP_BYTES_TO_WORD(receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN],
-                                                                         receive_buffer[its_pos + VSOMEIP_METHOD_POS_MAX]);
+                    vsomeip::deserializer its_deserializer(&receive_buffer[its_pos], its_message_size, 0);
+                    vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_SERVICE_POS_MIN]);
+                    vsomeip::method_t its_method   = vsomeip::bithelper::read_uint16_be(&receive_buffer[its_pos + VSOMEIP_METHOD_POS_MIN]);
+
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 

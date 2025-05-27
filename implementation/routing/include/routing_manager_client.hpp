@@ -49,6 +49,12 @@ public:
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
 
+    void start_keepalive();
+    void check_keepalive();
+    void cancel_keepalive();
+    void ping_host();
+    void on_pong(client_t _client);
+
     bool offer_service(client_t _client,
             service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
@@ -233,16 +239,30 @@ private:
         ST_ASSIGNED = 0x4
     };
 
-    std::atomic<bool> is_connected_;
-    std::atomic<bool> is_started_;
-    inner_state_type_e state_;
+    std::atomic_bool is_connected_;
+    std::atomic_bool is_started_;
+    std::atomic<inner_state_type_e> state_;
 
+    boost::asio::steady_timer keepalive_timer_;
+    bool keepalive_active_;
+    bool keepalive_is_alive_;
+    std::mutex keepalive_mutex_;
+
+    mutable std::mutex sender_mutex_;
     std::shared_ptr<endpoint> sender_;  // --> stub
+
+    mutable std::mutex receiver_mutex_;
     std::shared_ptr<endpoint> receiver_;  // --> from everybody
 
+    std::mutex pending_offers_mutex_;
     std::set<protocol::service> pending_offers_;
+    std::mutex requests_mutex_;
     std::set<protocol::service> requests_;
+    std::mutex requests_to_debounce_mutex_;
     std::set<protocol::service> requests_to_debounce_;
+
+    // protects registration_state_ and ensures the register state
+    std::mutex registration_state_mutex_;
 
     struct event_data_t {
         service_t service_;
@@ -262,25 +282,24 @@ private:
                             _other.is_provided_, _other.is_cyclic_, _other.eventgroups_);
         }
     };
+    std::mutex pending_event_registrations_mutex_;
     std::set<event_data_t> pending_event_registrations_;
 
+    std::mutex incoming_subscriptions_mutex_;
     std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscriptions_;
-    std::recursive_mutex incoming_subscriptions_mutex_;
 
-    std::mutex state_mutex_;
+    std::mutex state_condition_mutex_;
     std::condition_variable state_condition_;
 
-    std::map<service_t,
-                std::map<instance_t, std::map<eventgroup_t, uint32_t > > > remote_subscriber_count_;
     std::mutex remote_subscriber_count_mutex_;
+    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, uint32_t>>>
+            remote_subscriber_count_;
 
-    mutable std::mutex sender_mutex_;
-
+    std::mutex register_application_timer_mutex_;
     boost::asio::steady_timer register_application_timer_;
 
-    std::mutex request_timer_mutex_;
     boost::asio::steady_timer request_debounce_timer_;
-    bool request_debounce_timer_running_;
+    std::atomic<bool> request_debounce_timer_running_;
 
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;

@@ -15,7 +15,7 @@
 #include "../../routing/include/routing_host.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 
@@ -26,11 +26,7 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
         const endpoint_type& _remote,
         boost::asio::io_context &_io,
         const std::shared_ptr<configuration>& _configuration)
-    : udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local,
-                                    _remote, _io, VSOMEIP_MAX_UDP_MESSAGE_SIZE,
-                                    _configuration->get_endpoint_queue_limit(
-                                            _remote.address().to_string(),
-                                            _remote.port()),
+    : udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io,
                                     _configuration),
       remote_address_(_remote.address()),
       remote_port_(_remote.port()),
@@ -38,6 +34,10 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(
       tp_reassembler_(std::make_shared<tp::tp_reassembler>(
               _configuration->get_max_message_size_unreliable(), _io)) {
     is_supporting_someip_tp_ = true;
+
+    this->max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
+    this->queue_limit_ = _configuration->get_endpoint_queue_limit(_remote.address().to_string(),
+                                                                  _remote.port());
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
@@ -195,7 +195,6 @@ void udp_client_endpoint_impl::restart(bool _force) {
     if (!_force && state_ == cei_state_e::CONNECTING) {
         return;
     }
-    state_ = cei_state_e::CONNECTING;
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         queue_.clear();
@@ -205,11 +204,12 @@ void udp_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         local = get_address_port_local();
     }
-    shutdown_and_close_socket(false);
     was_not_connected_ = true;
     reconnect_counter_ = 0;
     VSOMEIP_WARNING << "uce::restart: local: " << local
             << " remote: " << get_address_port_remote();
+    shutdown_and_close_socket(false);
+    state_ = cei_state_e::CONNECTING;
     start_connect_timer();
 }
 
@@ -220,8 +220,8 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     msg << "ucei<" << remote_.address() << ":"
         << std::dec << remote_.port()  << ">::sq: ";
     for (std::size_t i = 0; i < _buffer->size(); i++)
-        msg << std::hex << std::setw(2) << std::setfill('0')
-            << (int)(*_entry.first)[i] << " ";
+        msg << std::hex << std::setfill('0') << std::setw(2)
+            << static_cast<int>((*_entry.first)[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
     {
@@ -364,8 +364,8 @@ void udp_client_endpoint_impl::receive_cbk(
         std::stringstream msg;
         msg << "ucei::rcb(" << _error.message() << "): ";
         for (std::size_t i = 0; i < _bytes; ++i)
-            msg << std::hex << std::setw(2) << std::setfill('0')
-                << (int) (*_recv_buffer)[i] << " ";
+            msg << std::hex << std::setfill('0') << std::setw(2)
+                << static_cast<int>((*_recv_buffer)[i]) << " ";
         VSOMEIP_INFO << msg.str();
 #endif
         std::size_t remaining_bytes = _bytes;
@@ -392,7 +392,7 @@ void udp_client_endpoint_impl::receive_cbk(
                     )) {
                     if ((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
                         VSOMEIP_ERROR << "uce: Wrong protocol version: 0x"
-                                << std::hex << std::setw(2) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(2)
                                 << std::uint32_t((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS])
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
@@ -407,14 +407,14 @@ void udp_client_endpoint_impl::receive_cbk(
                     } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(
                             (*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
                         VSOMEIP_ERROR << "uce: Invalid message type: 0x"
-                                << std::hex << std::setw(2) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(2)
                                 << std::uint32_t((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
                     } else if (!utility::is_valid_return_code(static_cast<return_code_e>(
                             (*_recv_buffer)[i + VSOMEIP_RETURN_CODE_POS]))) {
                         VSOMEIP_ERROR << "uce: Invalid return code: 0x"
-                                << std::hex << std::setw(2) << std::setfill('0')
+                                << std::hex << std::setfill('0') << std::setw(2)
                                 << std::uint32_t((*_recv_buffer)[i + VSOMEIP_RETURN_CODE_POS])
                                 << " local: " << get_address_port_local()
                                 << " remote: " << get_address_port_remote();
@@ -560,18 +560,10 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                 client_t its_client(0);
                 session_t its_session(0);
                 if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-                    its_client = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-                    its_session = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+                    its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+                    its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+                    its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
                 }
                 VSOMEIP_WARNING << "uce::send_cbk received error: "
                         << _error.message() << " (" << std::dec
@@ -623,12 +615,12 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
             VSOMEIP_WARNING << "uce::send_cbk endpoint is already restarting:"
                     << get_remote_information();
         } else {
-            state_ = cei_state_e::CONNECTING;
             shutdown_and_close_socket(false);
             std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
             if (its_host) {
                 its_host->on_disconnect(shared_from_this());
             }
+            state_ = cei_state_e::CONNECTING;
             restart(true);
         }
         service_t its_service(0);
@@ -636,18 +628,10 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
         client_t its_client(0);
         session_t its_session(0);
         if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
@@ -667,11 +651,9 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
 }
 
 bool udp_client_endpoint_impl::tp_segmentation_enabled(
-        service_t _service, method_t _method) const {
+        service_t _service, instance_t _instance, method_t _method) const {
 
-    return configuration_->is_tp_client(_service,
-            remote_address_.to_string(), remote_port_,
-            _method);
+    return configuration_->is_tp_client(_service, _instance, _method);
 }
 
 bool udp_client_endpoint_impl::is_reliable() const {

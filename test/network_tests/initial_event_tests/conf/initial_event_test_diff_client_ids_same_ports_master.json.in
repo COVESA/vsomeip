@@ -34,7 +34,7 @@
             "unreliable":"30000",
             "reliable":
             {
-                "port":"40000",
+                "port":"34510",
                 "enable-magic-cookies":"false"
             }
         },
@@ -44,7 +44,7 @@
             "unreliable":"30000",
             "reliable":
             {
-                "port":"40000",
+                "port":"34510",
                 "enable-magic-cookies":"false"
             }
         },
@@ -54,7 +54,7 @@
             "unreliable":"30000",
             "reliable":
             {
-                "port":"40000",
+                "port":"34510",
                 "enable-magic-cookies":"false"
             }
         },

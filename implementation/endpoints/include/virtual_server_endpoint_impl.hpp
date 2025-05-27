@@ -6,15 +6,8 @@
 #ifndef VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
 
-#if VSOMEIP_BOOST_VERSION < 106600
-#	include <boost/asio/io_service.hpp>
-#	define io_context io_service
-#else
-#	include <boost/asio/io_context.hpp>
-#endif
-
+#include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
-
 #include "../include/endpoint.hpp"
 
 namespace vsomeip_v3 {
@@ -36,6 +29,7 @@ public:
 
     bool is_established() const;
     bool is_established_or_connected() const;
+    bool is_closed() const;
     void set_established(bool _established);
     void set_connected(bool _connected);
 
@@ -59,10 +53,6 @@ public:
     bool is_reliable() const;
     bool is_local() const;
 
-    void increment_use_count();
-    void decrement_use_count();
-    uint32_t get_use_count();
-
     void restart(bool _force);
 
     void register_error_handler(const error_handler_t &_handler);
@@ -75,7 +65,6 @@ private:
     uint16_t port_;
     bool reliable_;
 
-    uint32_t use_count_;
     boost::asio::io_context &io_;
 };
 

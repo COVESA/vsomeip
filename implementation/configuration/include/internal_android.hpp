@@ -23,7 +23,10 @@
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/vendor/run/etc/vsomeip.json"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
-#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg.json"
+#define VSOMEIP_MANDATORY_CONFIGURATION_FILES                                                      \
+    "vsomeip_std.json,vsomeip_app.json,vsomeip_events.json,vsomeip_plc.json,vsomeip_log.json,"     \
+    "vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,"                 \
+    "vsomeip_portcfg.json,vsomeip_device.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/vendor/run/etc/vsomeip"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
@@ -76,13 +79,19 @@
 #define VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT        5000
 #define VSOMEIP_DEFAULT_MAX_MISSING_PONGS       3
 
+#define VSOMEIP_DEFAULT_LOCAL_CLIENTS_KEEPALIVE_TIME    5000
+
 #define VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE     1703936
 
-#define VSOMEIP_IO_THREAD_COUNT                 2
-#define VSOMEIP_IO_THREAD_NICE_LEVEL            255
+#define VSOMEIP_DEFAULT_IO_THREAD_COUNT         2
+#define VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL    0
 
-#define VSOMEIP_MAX_DISPATCHERS                 10
-#define VSOMEIP_MAX_DISPATCH_TIME               100
+#define VSOMEIP_DEFAULT_REGISTER_THREAD_COUNT   2
+
+#define VSOMEIP_DEFAULT_MAX_DISPATCH_TIME       100
+#define VSOMEIP_DEFAULT_MAX_DISPATCHERS         10
+
+#define VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS  3
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
 #define VSOMEIP_DEFAULT_STATISTICS_MAX_MSG      50
@@ -98,8 +107,17 @@
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
 #define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // us
 
+#define VSOMEIP_DEFAULT_EVENT_LOOP_PERIODICITY  0 // seconds
+
 #define LOCAL_TCP_PORT_WAIT_TIME                100
 #define LOCAL_TCP_PORT_MAX_WAIT_TIME            10000
+
+#define LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP       5
+#define LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP       50
+
+#define MIN_ENDPOINT_WAIT_INTERVAL              10
+#define MAX_ENDPOINT_WAIT_INTERVAL              160
+#define SUM_ENDPOINT_WAIT_INTERVAL              500
 
 #include <pthread.h>
 
@@ -118,13 +136,6 @@
 namespace vsomeip_v3 {
 
 typedef enum {
-    RIE_ADD_CLIENT = 0x0,
-    RIE_ADD_SERVICE_INSTANCE = 0x1,
-    RIE_DEL_SERVICE_INSTANCE = 0x2,
-    RIE_DEL_CLIENT = 0x3,
-} routing_info_entry_e;
-
-typedef enum {
     SUBSCRIPTION_ACKNOWLEDGED,
     SUBSCRIPTION_NOT_ACKNOWLEDGED,
     IS_SUBSCRIBING
@@ -138,9 +149,11 @@ inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = std::numeric_limits<std::u
 #define VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO  5 * 1000 * 1000
 
 inline constexpr std::uint32_t MAX_RECONNECTS_UNLIMITED = std::numeric_limits<std::uint32_t>::max();
+inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_UDS = 13;
+inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_TCP = 5;
 
-inline constexpr std::uint32_t ANY_UID = 0xFFFFFFFF;
-inline constexpr std::uint32_t ANY_GID = 0xFFFFFFFF;
+inline constexpr uid_t ANY_UID = (std::numeric_limits<uid_t>::max)();
+inline constexpr gid_t ANY_GID = (std::numeric_limits<gid_t>::max)();
 
 enum class port_type_e {
     PT_OPTIONAL,

@@ -20,35 +20,24 @@
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../utility/include/byteorder.hpp"
+#include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 
 template<typename Protocol>
 client_endpoint_impl<Protocol>::client_endpoint_impl(
-        const std::shared_ptr<endpoint_host>& _endpoint_host,
+		const std::shared_ptr<endpoint_host>& _endpoint_host,
         const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local,
-        const endpoint_type& _remote,
-        boost::asio::io_context &_io,
-        std::uint32_t _max_message_size,
-        configuration::endpoint_queue_limit_t _queue_limit,
-        const std::shared_ptr<configuration>& _configuration)
-        : endpoint_impl<Protocol>(_endpoint_host, _routing_host, _local, _io,
-                _max_message_size, _queue_limit, _configuration),
-          socket_(std::make_unique<socket_type>(_io)), remote_(_remote),
-          flush_timer_(_io), connect_timer_(_io),
-          connect_timeout_(VSOMEIP_DEFAULT_CONNECT_TIMEOUT), // TODO: use config variable
-          state_(cei_state_e::CLOSED),
-          reconnect_counter_(0),
-          connecting_timer_(_io), connecting_timeout_(VSOMEIP_DEFAULT_CONNECTING_TIMEOUT),
-          train_(std::make_shared<train>()),
-          dispatch_timer_(_io),
-          has_last_departure_(false),
-          queue_size_(0),
-          was_not_connected_(false),
-          is_sending_(false),
-          strand_(_io) {
+        const endpoint_type& _local, const endpoint_type& _remote,
+        boost::asio::io_context &_io, const std::shared_ptr<configuration>& _configuration) :
+	endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration),
+          socket_ {std::make_unique<socket_type>(_io)}, remote_ {_remote}, flush_timer_ {_io},
+		  connect_timer_ {_io}, connect_timeout_ {VSOMEIP_DEFAULT_CONNECT_TIMEOUT},
+		  state_ {cei_state_e::CLOSED}, reconnect_counter_ {0}, connecting_timer_ {_io},
+		  connecting_timeout_ {VSOMEIP_DEFAULT_CONNECTING_TIMEOUT},
+		  train_ {std::make_shared<train>()}, dispatch_timer_ {_io}, has_last_departure_ {false},
+		  queue_size_ {0}, was_not_connected_ {false}, is_sending_ {false}, strand_(_io) {
+	this->local_ = _local;
 }
 
 template<typename Protocol>
@@ -73,6 +62,11 @@ bool client_endpoint_impl<Protocol>::is_established_or_connected() const {
 
     return (state_ == cei_state_e::ESTABLISHED
             || state_ == cei_state_e::CONNECTED);
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::is_closed() const {
+    return state_ == cei_state_e::CLOSED;
 }
 
 template<typename Protocol>
@@ -188,7 +182,7 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
     std::stringstream msg;
     msg << "cei::send: ";
     for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setw(2) << std::setfill('0') << (int)_data[i] << " ";
+    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_DEBUG << msg.str();
 #endif
 
@@ -196,26 +190,18 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
         !check_queue_limit(_data, _size)) {
         return false;
     }
-    switch (check_message_size(_data, _size)) {
-        case endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT:
-            return true;
-            break;
-        case endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG:
-            return false;
-            break;
-        case endpoint_impl<Protocol>::cms_ret_e::MSG_OK:
-        default:
-            break;
+
+    if (!check_message_size(_size)) {
+        return segment_message(_data, _size) == endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
     }
 
     // STEP 1: Cancel dispatch timer
     cancel_dispatch_timer();
 
     // STEP 3: Get configured timings
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_SERVICE_POS_MIN], _data[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            _data[VSOMEIP_METHOD_POS_MIN], _data[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const service_t its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     get_configured_times_from_endpoint(its_service, its_method,
                                        &its_debouncing, &its_retention);
@@ -290,6 +276,13 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t *_data, uint32_t _size) 
 }
 
 template<typename Protocol>
+bool client_endpoint_impl<Protocol>::tp_segmentation_enabled(
+        service_t /*_service*/, instance_t /*_instance*/, method_t /*_method*/) const {
+
+    return false;
+}
+
+template<typename Protocol>
 void client_endpoint_impl<Protocol>::send_segments(
         const tp::tp_split_messages_t &_segments, std::uint32_t _separation_time) {
 
@@ -299,12 +292,9 @@ void client_endpoint_impl<Protocol>::send_segments(
         return;
     }
 
-    const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN],
-            (*(_segments[0]))[VSOMEIP_SERVICE_POS_MAX]);
-    const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-            (*(_segments[0]))[VSOMEIP_METHOD_POS_MIN],
-            (*(_segments[0]))[VSOMEIP_METHOD_POS_MAX]);
+    const service_t its_service = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_SERVICE_POS_MIN]);
+    const service_t its_method  = bithelper::read_uint16_be(&(*(_segments[0]))[VSOMEIP_METHOD_POS_MIN]);
+
     std::chrono::nanoseconds its_debouncing(0), its_retention(0);
     get_configured_times_from_endpoint(its_service, its_method,
                                        &its_debouncing, &its_retention);
@@ -321,6 +311,7 @@ void client_endpoint_impl<Protocol>::send_segments(
     // messages as we will send several now anyway.
     if (!train_->passengers_.empty()) {
         schedule_train();
+        train_ = std::make_shared<train>();
         train_->departure_ = its_now + its_retention;
     }
 
@@ -330,8 +321,6 @@ void client_endpoint_impl<Protocol>::send_segments(
     }
 
     if (!is_sending_ && !queue_.empty()) { // no writing in progress
-        // respect minimal debounce time
-        schedule_train();
         // ignore retention time and send immediately as the train is full anyway
         auto its_entry = get_front();
         if (its_entry.first) {
@@ -414,13 +403,19 @@ void client_endpoint_impl<Protocol>::connect_cbk(
 
     if (_error == boost::asio::error::operation_aborted
             || endpoint_impl<Protocol>::sending_blocked_) {
-        // endpoint was stopped
+        VSOMEIP_WARNING << "cei::" << __func__ << ": endpoint stopped. endpoint > " << this
+                        << " socket state > " << static_cast<int>(state_.load());
         shutdown_and_close_socket(false);
         return;
     }
     std::shared_ptr<endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": restarting socket due to "
+                            << _error.message() << " (" << _error.value() << "):"
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+
             shutdown_and_close_socket(true);
 
             if (state_ != cei_state_e::ESTABLISHED) {
@@ -437,22 +432,31 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
                 connect_timeout_ = (connect_timeout_ << 1);
         } else {
+            if (_error) {
+                VSOMEIP_WARNING << "cei::" << __func__ << ": connect_cbk attempt "
+                                << "(" << _error.value() << "):" << _error.message()
+                                << " endpoint > " << this << " socket state > "
+                                << static_cast<int>(state_.load());
+            }
             {
-                std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+                std::scoped_lock its_lock(connect_timer_mutex_);
                 connect_timer_.cancel();
             }
             connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT; // TODO: use config variable
             reconnect_counter_ = 0;
-            if (was_not_connected_) {
-                was_not_connected_ = false;
-                std::lock_guard<std::recursive_mutex> its_lock(mutex_);
-                auto its_entry = get_front();
-                if (its_entry.first) {
-                    is_sending_ = true;
-                    strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
+            {
+                std::scoped_lock its_lock(mutex_);
+                if (was_not_connected_) {
+                    was_not_connected_ = false;
+                    auto its_entry = get_front();
+                    if (its_entry.first) {
+                        is_sending_ = true;
+                        strand_.dispatch(std::bind(&client_endpoint_impl::send_queued,
                             this->shared_from_this(), its_entry));
-                    VSOMEIP_WARNING << __func__ << ": resume sending to: "
-                            << get_remote_information();
+                            VSOMEIP_WARNING
+                            << __func__ << ": resume sending to: " << get_remote_information()
+                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+                    }
                 }
             }
             if (state_ != cei_state_e::ESTABLISHED) {
@@ -471,11 +475,35 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
         /* Need this for TCP endpoints for now because we have no
          direct control about the point in time the connect has finished */
         std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        connecting_timer_state_ = connecting_timer_state_e::FINISH_ERROR;
         operations_cancelled = connecting_timer_.cancel();
+        if (operations_cancelled != 0) {
+            connecting_timer_state_ = connecting_timer_state_e::FINISH_SUCCESS;
+        }
+        connecting_timer_condition_.notify_all();
     }
     if (operations_cancelled != 0) {
+        if (_error) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": cancelled " << operations_cancelled
+                            << " operations err: (" << _error.value()
+                            << "): msg: " << _error.message()
+                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+        }
         connect_cbk(_error);
+    } else {
+        VSOMEIP_INFO << "cei::" << __func__ << " operations_cancelled is 0 endpoint > " << this
+                     << " socket state > " << static_cast<int>(state_.load());
     }
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::wait_connecting_timer() {
+    std::unique_lock its_lock(connecting_timer_mutex_);
+    connecting_timer_condition_.wait(its_lock, [this] {
+        return connecting_timer_state_ != connecting_timer_state_e::IN_PROGRESS;
+    });
+
+    return connecting_timer_state_ == connecting_timer_state_e::FINISH_SUCCESS;
 }
 
 template<typename Protocol>
@@ -495,6 +523,14 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(
 
     if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
         connect_cbk(boost::asio::error::timed_out);
+    } else if (_error.value() != ECANCELED) {
+        VSOMEIP_WARNING << "cei::" << __func__ << ": not calling connect_cbk: "
+                        << "sending_blocked_: " << client_endpoint_impl<Protocol>::sending_blocked_
+                        << " (" << _error.value() << "):" << _error.message()
+                        << " endpoint > " << this  << " socket state > " << static_cast<int>(state_.load());
+    } else {
+        VSOMEIP_INFO << "cei::wait_connecting_cbk: endpoint > " << this << " socket state > "
+                     << static_cast<int>(state_.load());
     }
 }
 
@@ -519,11 +555,31 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 auto its_entry = get_front();
                 if (its_entry.first) {
                     send_queued(its_entry);
+                } else {
+                    VSOMEIP_INFO << "cei::" << __func__ << ": not calling send_queued | endpoint > "
+                                 << this << " socket state > " << static_cast<int>(state_.load());
+                    is_sending_ = false;
                 }
             }
         }
         return;
     } else if (_error == boost::asio::error::broken_pipe) {
+
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << get_remote_information() << " endpoint > "
+                        << this << " socket state > " << static_cast<int>(state_.load());
+
+        if(!is_established_or_connected()) {
+            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
+            // currently reconnecting
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << "(" << _error.message() << ")"
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+            is_sending_ = false;
+            return;
+        }
+
         state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
@@ -538,29 +594,22 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 client_t its_client(0);
                 session_t its_session(0);
                 if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-                    its_service = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-                    its_method = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-                    its_client = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-                    its_session = VSOMEIP_BYTES_TO_WORD(
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                            (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+                    its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+                    its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+                    its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+                    its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
                 }
                 VSOMEIP_WARNING << "cei::send_cbk received error: "
                         << _error.message() << " (" << std::dec
                         << _error.value() << ") " << get_remote_information()
                         << " " << std::dec << queue_.size()
-                        << " " << queue_size_ << " ("
+                        << " " << std::dec << queue_size_ << " ("
                         << std::hex << std::setfill('0')
                         << std::setw(4) << its_client << "): ["
                         << std::setw(4) << its_service << "."
                         << std::setw(4) << its_method << "."
-                        << std::setw(4) << its_session << "]";
+                        << std::setw(4) << its_session << "]"
+                        << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
             }
         }
         if (!stopping) {
@@ -573,11 +622,22 @@ void client_endpoint_impl<Protocol>::send_cbk(
     } else if (_error == boost::asio::error::not_connected
             || _error == boost::asio::error::bad_descriptor
             || _error == boost::asio::error::no_permission) {
+
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << get_remote_information() << " endpoint > "
+                        << this << " socket state > " << static_cast<int>(state_.load());
+
+        if(!is_established_or_connected()) {
+            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
+            // currently reconnecting
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+            is_sending_ = false;
+            return;
+        }
         state_ = cei_state_e::CLOSED;
         if (_error == boost::asio::error::no_permission) {
-            VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
-                    << " (" << std::dec << _error.value() << ") "
-                    << get_remote_information();
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
@@ -587,14 +647,30 @@ void client_endpoint_impl<Protocol>::send_cbk(
         strand_.dispatch(std::bind(&client_endpoint_impl::connect,
                 this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message();
+
+        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
+                        << _error.value() << ") " << get_remote_information() << " endpoint > "
+                        << this << " socket state > " << static_cast<int>(state_.load());
+
+        if(!is_established_or_connected()) {
+            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
+            // currently reconnecting
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                            << "(" << _error.message() << ")"
+                            << " endpoint > " << this << " socket state > "
+                            << static_cast<int>(state_.load());
+            is_sending_ = false;
+            return;
+        }
+
         // endpoint was stopped
         endpoint_impl<Protocol>::sending_blocked_ = true;
         shutdown_and_close_socket(false);
     } else if (_error == boost::system::errc::destination_address_required) {
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
-                << get_remote_information();
+                << get_remote_information()
+                << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
         was_not_connected_ = true;
     } else {
         service_t its_service(0);
@@ -602,18 +678,10 @@ void client_endpoint_impl<Protocol>::send_cbk(
         client_t its_client(0);
         session_t its_session(0);
         if (_sent_msg && _sent_msg->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MIN],
-                    (*_sent_msg)[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
@@ -624,7 +692,8 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
-                << std::setw(4) << its_session << "]";
+                << std::setw(4) << its_session << "]"
+                << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
         print_status();
     }
 
@@ -656,15 +725,39 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
         if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
             VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
                     << std::string(std::strerror(errno))
-                    << "' (" << errno << ") " << get_remote_information();
+                    << "' (" << errno << ") " << get_remote_information()
+                    << " endpoint > " << this;
         }
 #endif
         boost::system::error_code its_error;
         socket_->shutdown(Protocol::socket::shutdown_both, its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket shutdown error "
+                            << "(" << its_error.value() << "): " << its_error.message()
+                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+        }
         socket_->close(its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "cei::" << __func__ << ": socket close error "
+                            << "(" << its_error.value() << "): " << its_error.message()
+                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+        }
+    } else {
+        VSOMEIP_WARNING << "cei::" << __func__ << ": socket was not open "
+                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
     }
+
+    state_ = cei_state_e::CLOSED;
+
     if (_recreate_socket) {
         socket_.reset(new socket_type(endpoint_impl<Protocol>::io_));
+        VSOMEIP_WARNING << "cei::" << __func__ << ": socket has been reset "
+                        << " endpoint > " << this << " socket state > "
+                        << static_cast<int>(state_.load());
+    } else {
+        VSOMEIP_INFO << "cei::" << __func__ << ": not recreating socket "
+                     << " endpoint > " << this << " socket state > "
+                     << static_cast<int>(state_.load());
     }
 }
 
@@ -717,46 +810,46 @@ void client_endpoint_impl<Protocol>::start_connecting_timer() {
 }
 
 template<typename Protocol>
-typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::check_message_size(
-        const std::uint8_t * const _data, std::uint32_t _size) {
+bool client_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
+    return !(endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
+             && _size > endpoint_impl<Protocol>::max_message_size_);
+}
 
-    typename endpoint_impl<Protocol>::cms_ret_e ret(endpoint_impl<Protocol>::cms_ret_e::MSG_OK);
-    if (endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED
-            && _size > endpoint_impl<Protocol>::max_message_size_) {
-        if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
-            const service_t its_service = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_SERVICE_POS_MIN],
-                    _data[VSOMEIP_SERVICE_POS_MAX]);
-            const method_t its_method = VSOMEIP_BYTES_TO_WORD(
-                    _data[VSOMEIP_METHOD_POS_MIN],
-                    _data[VSOMEIP_METHOD_POS_MAX]);
-            if (tp_segmentation_enabled(its_service, its_method)) {
-                instance_t its_instance = this->get_instance(its_service);
-                if (its_instance != 0xFFFF) {
-                    std::uint16_t its_max_segment_length;
-                    std::uint32_t its_separation_time;
-                    this->configuration_->get_tp_configuration(
-                                its_service, its_instance, its_method, true,
-                                its_max_segment_length, its_separation_time);
-                    send_segments(tp::tp::tp_split_message(_data, _size,
-                            its_max_segment_length), its_separation_time);
-                    return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
-                }
+template<typename Protocol>
+typename endpoint_impl<Protocol>::cms_ret_e
+client_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
+                                                std::uint32_t _size) {
+
+    if (endpoint_impl<Protocol>::is_supporting_someip_tp_ && _data != nullptr) {
+        const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+        instance_t its_instance = this->get_instance(its_service);
+
+        if (its_instance != ANY_INSTANCE) {
+            if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                std::uint16_t its_max_segment_length;
+                std::uint32_t its_separation_time;
+                this->configuration_->get_tp_configuration(its_service, its_instance, its_method,
+                                                           true, its_max_segment_length,
+                                                           its_separation_time);
+                send_segments(tp::tp::tp_split_message(_data, _size, its_max_segment_length),
+                              its_separation_time);
+                return endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
             }
         }
-        VSOMEIP_ERROR << "cei::check_message_size: Dropping to big message ("
-                << std::dec << _size << " Bytes). Maximum allowed message size is: "
-                << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
-        ret = endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
     }
-    return ret;
+    VSOMEIP_ERROR << "cei::segment_message: Dropping to big message (" << std::dec << _size
+                  << " Bytes). Maximum allowed message size is: "
+                  << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
+    return endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
 }
 
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std::uint32_t _size) const {
 
     if (endpoint_impl<Protocol>::queue_limit_ != QUEUE_SIZE_UNLIMITED
-            && queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_) {
+        && (queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
+            || queue_size_ + _size < _size)) { // overflow protection
         service_t its_service(0);
         method_t its_method(0);
         client_t its_client(0);
@@ -769,20 +862,16 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t *_data, std
             // [(Command + lowerbyte sender's client ID).
             //  highbyte sender's client ID + lowbyte command size.
             //  lowbyte methodid + highbyte vsomeip length]
-            its_service = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SERVICE_POS_MIN],
-                                                _data[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_METHOD_POS_MIN],
-                                               _data[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_CLIENT_POS_MIN],
-                                               _data[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(_data[VSOMEIP_SESSION_POS_MIN],
-                                                _data[VSOMEIP_SESSION_POS_MAX]);
+            its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+            its_method  = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+            its_client  = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+            its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "cei::check_queue_limit: queue size limit (" << std::dec
                 << endpoint_impl<Protocol>::queue_limit_
                 << ") reached. Dropping message ("
                 << std::hex << std::setfill('0')
-		<< std::setw(4) << its_client << "): ["
+                << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
                 << std::setw(4) << its_session << "] "

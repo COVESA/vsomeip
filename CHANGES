@@ -1,5 +1,205 @@
 Changes
 =======
+v3.5.5
+- Fix build issue on Ubuntu 24.04
+- Fixing change that was introduced on Fix for Find messages commit
+- Changing mandatory configuration files parsing method
+- Testing possible missing break
+- reset force_initial_events
+- Reintroduce VSOMEIP_CONFIG
+- Enable partial valgrind subprocess tracking
+- Ensure endpoint survives send operation
+- Avoid hanging request service commands
+- Fix initial event tests
+- Ensure state value before send_pending_commands
+- Clean-up service info on registration
+- Add and expose settings for SD find debounce as config options
+- Simplify "Add and expose settings for SD find debounce as config options"
+- Consistently use uid_t/gid_t for credentials
+- Skip valgrind initialevents network test
+- Fix NSM logs with empty Container Id strings
+- Fix issue on STR re registration for local tcp
+- Fix data race due to multiple multicast SD message timeouts
+- Remove leftover routing_info_entry_e
+- Remove patches applied as fix
+- Fix reboot on vnet toggle
+- check client queue_size first
+- Add helgrind dubious locks suppresses
+- Reintroduced server endpoints restart on resume
+- Ensure service offers after route toggling
+- Add a keepalive mechanism to the routing_manager_client
+- fix failures on external_local_routing_test
+- Make local client keep alive mandatory
+- Use variable linger for local TCP
+- fixing vsomeip install without vsomeip_ctrl
+- Fix port format
+- Add vsomeip_device.json to mandatory files
+- Revert Fix NSM logs with empty Container Id strings
+
+v3.5.4
+- Update documentation
+- Fix possible dangling pointer
+- Add strand to send_cbk call to prevent data races on sockets
+- wireshark_plugin update send command
+- Documentation add some default values
+- Fix Find messages with Unicast Flag set to 0
+- fix max remote subscription limit
+- fix race condition on lazy_load_test
+- Avoid locking while joining multicast group
+- Add precondition to offer_stop_offer
+- Delete twice definition of port_t in primitive_types.hpp
+- Fixing dereference issues
+- Integration of Suspend/Resume related fixes
+
+v3.5.3
+- Add timeout for detached threads
+- Update wireshark dissector
+- fix race condition on boost async operations
+- Fix core dump back traces
+- Enabled initial event tests
+- Add vsomeip config parsing
+- Whitelist initial events tests
+- Adds on_register_application_ack
+- Suspend resume tests fix
+- add service and method ids to the clients_ array
+- Fix capturing references to stack variables
+- Protects receiver_ and lock to routing stop function
+- Add include unordered map
+- Add remove local in deregistration(rmi)
+- protect deserialization from malicious input
+- Ignore send_cbk if the socket is not connected
+- Move suspend/resume of endpoints
+- Change handling of availabilities for wildcasts
+- Allow to configure the initial routing state
+- Enable subscription expiration
+- Fixed if-guard name
+- Remove redundant ostream manipulators sync update
+- Fix capturing references to stack variables
+- Log offers on first occurrence in routing manager
+
+v3.5.2
+- Revert fix compile issue with pthreads in android commit
+- Revert Force abort hanging detached threads commit
+- Remove dead code path
+
+v3.5.1
+- Restructure Network Tests CMakeLists
+- policy.cpp unit test
+- Remove deprecated usage of byteorder and use bithelper
+- unblock endpoint when closing it
+- Find_Debounce_Time made configurable
+- Check if configuration_ pointer exists before using
+- Initialize routing_state_
+- Solved data race in configuration_impl class
+- utility.cpp unit tests
+- unit tests payload_impl
+- unit tests serializer
+- unit tests deserializer
+- Unit Tests for policy_manager_impl.cpp
+- Unit Test - Routing Manager set_routing_state
+- Move documentation to markdown
+- clang-format to verify the code vsomeip-lib
+- fix deadlock with event and message debounce feature
+- disabled some groups of tests
+- Try to force connection reset on suspend
+- Call availability handler on request service instance
+- Handle endpoint queue size underflow
+- Add Valgrind massif tool
+- Create new train after scheduling to avoid duplicate messages
+- Re-Added offer_tests group in all sanitizers tests
+- removed extra DLT logs of the policies print
+- COVESA-615: vsomeip.lck file not removed upon application termination
+- COVESA-527: Locally switch off -Wstringop-overflow
+- Create network regression test for specific issue
+- Change IndentPPDirectives rule in clang-format
+- applied auto in some identified lines by sonarqube
+- Add Valgrind memcheck
+- Ensure buffer is valid before de-referencing pointer
+- Renaming folder test and fixing typos
+- Fix minor formatting issues from some commits
+- Adds interger overflow check
+- Adds application name on cout logs
+- Adding helgrind, to test output
+- Boost 1.65 cleanup
+- network_test - Offer Stop Offer test
+- Support host name (env) for internal TCP communication
+- Remove cached configuration after app stops
+- Optimize tests/network-tests/CMakeLists.txt
+- Check if pointer exists before dereferencing it
+- avoid requiring valgrind locally
+- Fix Lock-Order-Inversion in policy_manager_impl
+- Revert "Fix to not ignore stop offers when sd acceptance is not required"
+- Fix timeout on offer_stop_offer test
+- Restore config_plugin_impl mutex
+- Rework [STOP_]OFFER command handling
+- some-tp memory consumption increasing fast
+- Remove dlt traces from memory_test
+- restart_routing_test enabled
+- Fix cyclic events
+- Tracing LOI
+- improve connection log on error path
+- added subscribe_notify groups to non-leak verification
+- Relocate hostname config command
+- allow subscribeACK if at least one offer was sent by SD
+- Improve "end of file" error handling
+- Update Clang-Format to Version 18
+- Debounce tests fix
+- Wireshark dissector for vsomeip protocol
+- Remove logging on operation cancel in connect_cbk
+- Add additional info on failure to open TCP port
+- Implementation of SOMEIPSD_00577
+- Refactor how niceness values are applied to threads
+- prevent race between event expiration/forwarding
+- Fix subscribe_notify_one tests
+- Fix missing/blocked subscription requests
+- change references to C++14 into C++17
+- Explicitly check whether an endpoint is in use
+- Enabled all network tests with whitelist
+- Fix target client id in local_send
+- remove redundants package import definitions
+- run unit tests on windows
+- Fix debounce network tests
+- type upgrade and temporary disable of test for QNX build
+- Force abort hanging detached threads
+- Application tests fix
+- Remove behavior from catch block in ~message
+- Stop/Start (network) endpoints on suspend/resume
+- Reduce the number of copy operations on event payloads
+- Sets linger to 0 in local tcp clients
+- Prevent exception re-throw in ~message
+- remove linger on local_tcp
+- Fix android traces build
+- Introduce stateful availability handler
+- Update the availability state
+- Reintroduces the TIME_WAIT for ltcei
+- Faster handlers lookup
+- Increase app registration timeout
+- Force endpoint restart if re registering
+- fix semaphore logs
+- fix compile issue with pthreads in android
+- Disabling set routing state unit test
+- Fixing get_policy_manager error with security disabled
+
+v3.5.0
+- Load Policies Lazy Load
+- Test - Processing SD messages with unknown type option
+- ensure endpoints before deletion
+- Improve "end of file" error handling
+- Enable debouncing of events & selective events
+- Revert "Test - Processing SD messages with unknown type"
+- Logs added to points of failure on registration process
+- One *.json to ignorem all
+- Someip-tp remote address rework
+- Fix crash in multicast_receive receive_cb
+- Generate network_test configs directly to build
+- Fix deadlock if binding of TCP client endpoint fails
+- Added missing includes of iomanip to support compilation on Mint
+- Cache not yet registered events
+- Return true to make sure endpoints are deleted
+- Byteorder implementation
+- Reorder of prepare_stop method
+- Allows applications in the same process using different security configurations
+- Fix to not ignore stop offers when sd acceptance is not required
 
 v3.4.10
 - Fix QNX build

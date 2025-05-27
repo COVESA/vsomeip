@@ -27,6 +27,7 @@ TARGET_LINK_LIBRARIES (
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
 )
 
 # ----------------------------------------------------------------------------
@@ -38,3 +39,7 @@ target_include_directories (
     PUBLIC include
     PRIVATE src
 )
+
+if (MSVC)
+	set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif ()

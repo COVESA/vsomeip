@@ -22,10 +22,12 @@
 #include "e2e.hpp"
 #include "routing.hpp"
 #include "watchdog.hpp"
+#include "local_clients_keepalive.hpp"
 #include "service_instance_range.hpp"
 #include "trace.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "../../security/include/policy.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -37,6 +39,7 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
+struct local_clients_keepalive;
 
 struct suppress_t {
     service_t service;
@@ -126,6 +129,7 @@ public:
 
     VSOMEIP_EXPORT bool is_routing_enabled() const;
     VSOMEIP_EXPORT bool is_local_routing() const;
+    VSOMEIP_EXPORT routing_state_e get_initial_routing_state() const;
 
     VSOMEIP_EXPORT const std::string &get_routing_host_name() const;
     VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_host_address() const;
@@ -140,10 +144,12 @@ public:
 
     VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
     VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
-    VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string &_name) const;
-    VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
+    VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
+    VSOMEIP_EXPORT std::size_t get_request_debounce_time(const std::string& _name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_event_loop_periodicity(const std::string &_name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
 
@@ -193,7 +199,11 @@ public:
     VSOMEIP_EXPORT ttl_t get_sd_ttl() const;
     VSOMEIP_EXPORT int32_t get_sd_cyclic_offer_delay() const;
     VSOMEIP_EXPORT int32_t get_sd_request_response_delay() const;
+    VSOMEIP_EXPORT uint8_t get_sd_find_initial_debounce_reps() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
+    VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
+    VSOMEIP_EXPORT bool get_sd_wait_route_netlink_notification() const;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -201,6 +211,9 @@ public:
     VSOMEIP_EXPORT bool is_watchdog_enabled() const;
     VSOMEIP_EXPORT uint32_t get_watchdog_timeout() const;
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
+
+    VSOMEIP_EXPORT bool is_local_clients_keepalive_enabled() const;
+    VSOMEIP_EXPORT std::chrono::milliseconds get_local_clients_keepalive_time() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
 
@@ -225,8 +238,9 @@ public:
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
 
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(
-            const std::string &_name,
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
+            service_t _service, instance_t _instance, event_t _event) const;
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
             service_t _service, instance_t _instance, event_t _event) const;
 
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
@@ -261,11 +275,10 @@ public:
 
     VSOMEIP_EXPORT bool is_tp_client(
             service_t _service,
-            const std::string &_address, std::uint16_t _port,
+            instance_t _instance,
             method_t _method) const;
     VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, const std::string &_ip_service,
-            std::uint16_t _port_service, method_t _method) const;
+            service_t _service, instance_t _instance, method_t _method) const;
     VSOMEIP_EXPORT void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
             std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;
@@ -297,6 +310,8 @@ public:
     VSOMEIP_EXPORT bool is_security_audit() const;
     VSOMEIP_EXPORT bool is_remote_access_allowed() const;
 
+    VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
+    VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
 private:
     void read_data(const std::set<std::string> &_input,
             std::vector<configuration_element> &_elements,
@@ -397,6 +412,11 @@ private:
     std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree &_tree);
 
     void load_watchdog(const configuration_element &_element);
+    void load_local_clients_keepalive(const configuration_element &_element);
+
+    void load_request_debounce_time(const configuration_element& _element);
+
+    void load_dispatch_defaults(const configuration_element& _element);
 
     void load_payload_sizes(const configuration_element &_element);
     void load_permissions(const configuration_element &_element);
@@ -409,13 +429,15 @@ private:
     void load_service_debounce(const boost::property_tree::ptree &_tree,
             debounce_configuration_t &_debounces);
     void load_events_debounce(const boost::property_tree::ptree &_tree,
-            std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
+            std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce(const boost::property_tree::ptree &_tree,
-                std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
+                std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
             std::map<std::size_t, byte_t> &_ignore);
     void load_acceptances(const configuration_element &_element);
     void load_acceptance_data(const boost::property_tree::ptree &_tree);
+    void load_activation_file_path(std::set<std::string>& _path,
+                                   const boost::property_tree::ptree& _tree);
     void load_udp_receive_buffer_size(const configuration_element &_element);
     bool load_npdu_debounce_times_configuration(
             const std::shared_ptr<service>& _service,
@@ -479,6 +501,9 @@ private:
 
     std::set<std::string> mandatory_;
 
+    std::shared_ptr<policy_manager_impl> policy_manager_;
+    std::shared_ptr<security> security_;
+
 protected:
     // Configuration data
     boost::asio::ip::address unicast_;
@@ -488,9 +513,9 @@ protected:
     diagnosis_t diagnosis_;
     diagnosis_t diagnosis_mask_;
 
-    bool has_console_log_;
-    bool has_file_log_;
-    bool has_dlt_log_;
+    std::atomic_bool has_console_log_;
+    std::atomic_bool has_file_log_;
+    std::atomic_bool has_dlt_log_;
     std::string logfile_;
     mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
@@ -502,9 +527,7 @@ protected:
     std::set<client_t> client_identifiers_;
 
     mutable std::mutex services_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            std::shared_ptr<service> > > services_;
+    service_instance_map<std::shared_ptr<service>> services_;
 
     std::map<std::string, // IP
         std::map<std::uint16_t, // port
@@ -531,6 +554,10 @@ protected:
     int32_t sd_cyclic_offer_delay_;
     int32_t sd_request_response_delay_;
     std::uint32_t sd_offer_debounce_time_;
+    std::uint32_t sd_find_debounce_time_;
+    uint8_t sd_find_initial_debounce_reps_;
+    std::uint32_t sd_find_initial_debounce_time_;
+    bool sd_wait_route_netlink_notification_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -546,6 +573,7 @@ protected:
     std::unordered_set<std::string> supported_selective_addresses;
 
     std::shared_ptr<watchdog> watchdog_;
+    std::shared_ptr<local_clients_keepalive> local_clients_keepalive_;
 
     std::vector<service_instance_range> internal_service_ranges_;
 
@@ -553,7 +581,7 @@ protected:
     uint32_t log_version_interval_;
 
     enum element_type_e {
-        ET_NETWORK,
+        ET_NETWORK = 0,
         ET_UNICAST,
         ET_DEVICE,
         ET_DIAGNOSIS,
@@ -577,9 +605,14 @@ protected:
         ET_WATCHDOG_ENABLE,
         ET_WATCHDOG_TIMEOUT,
         ET_WATCHDOG_ALLOWED_MISSING_PONGS,
+        ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE,
+        ET_LOCAL_CLIENTS_KEEPALIVE_TIME,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
+        ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS,
+        ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME,
+        ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS,
         ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS,
         ET_ENDPOINT_QUEUE_LIMITS,
@@ -598,7 +631,12 @@ protected:
         ET_PARTITIONS,
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
-        ET_MAX = 45
+        ET_INITIAL_ROUTING_STATE,
+        ET_DEFAULT_MAX_DISPATCH_TIME,
+        ET_DEFAULT_MAX_DISPATCHERS,
+        ET_WAIT_ROUTE_NETLINK_NOTFICATION,
+        ET_REQUEST_DEBOUNCE_TIME,
+        ET_MAX
     };
 
     bool is_configured_[ET_MAX];
@@ -655,11 +693,7 @@ protected:
     uint8_t max_remote_subscribers_;
 
     mutable std::mutex partitions_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            partition_id_t
-        >
-    > partitions_;
+    service_instance_map<partition_id_t> partitions_;
 
     std::string path_;
 
@@ -675,6 +709,13 @@ protected:
     std::atomic_bool is_security_external_;
     std::atomic_bool is_security_audit_;
     std::atomic_bool is_remote_access_allowed_;
+
+    routing_state_e initial_routing_state_;
+
+    std::size_t request_debounce_time_;
+
+    std::size_t default_max_dispatch_time_;
+    std::size_t default_max_dispatchers_;
 };
 
 } // namespace cfg

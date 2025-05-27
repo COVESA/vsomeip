@@ -39,6 +39,8 @@
 
 namespace vsomeip_v3 {
 
+class policy_manager_impl;
+class security;
 class event;
 struct debounce_filter_impl_t;
 
@@ -94,6 +96,7 @@ public:
             uid_t _uid, gid_t _gid) const = 0;
 
     virtual bool is_local_routing() const = 0;
+    virtual routing_state_e get_initial_routing_state() const = 0;
 
     virtual std::string get_unicast_address(service_t _service,
             instance_t _instance) const = 0;
@@ -139,10 +142,20 @@ public:
 
     virtual std::size_t get_max_dispatchers(const std::string &_name) const = 0;
     virtual std::size_t get_max_dispatch_time(const std::string &_name) const = 0;
-    virtual std::size_t get_io_thread_count(const std::string &_name) const = 0;
+    virtual std::size_t get_max_detached_thread_wait_time(const std::string& _name) const = 0;
+    virtual std::size_t get_io_thread_count(const std::string& _name) const = 0;
     virtual int get_io_thread_nice_level(const std::string &_name) const = 0;
-    virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
+    virtual std::size_t get_request_debounce_time(const std::string& _name) const = 0;
     virtual bool has_session_handling(const std::string &_name) const = 0;
+
+    /**
+     * @brief Get the boost asio context event loop periodicity.
+     * If set to a value greather than 0, run for is used with the defined period.
+     *
+     * @param _name Application name
+     * @return std::size_t event loop period.
+     */
+    virtual std::size_t get_event_loop_periodicity(const std::string &_name) const = 0;
 
     virtual std::uint32_t get_max_message_size_local() const = 0;
     virtual std::uint32_t get_max_message_size_reliable(const std::string& _address,
@@ -175,7 +188,11 @@ public:
     virtual ttl_t get_sd_ttl() const = 0;
     virtual int32_t get_sd_cyclic_offer_delay() const = 0;
     virtual int32_t get_sd_request_response_delay() const = 0;
+    virtual uint8_t get_sd_find_initial_debounce_reps() const = 0;
+    virtual std::uint32_t get_sd_find_initial_debounce_time() const = 0;
     virtual std::uint32_t get_sd_offer_debounce_time() const = 0;
+    virtual std::uint32_t get_sd_find_debounce_time() const = 0;
+    virtual bool get_sd_wait_route_netlink_notification() const = 0;
 
     // Trace configuration
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;
@@ -184,6 +201,9 @@ public:
     virtual bool is_watchdog_enabled() const = 0;
     virtual uint32_t get_watchdog_timeout() const = 0;
     virtual uint32_t get_allowed_missing_pongs() const = 0;
+
+    virtual bool is_local_clients_keepalive_enabled() const = 0;
+    virtual std::chrono::milliseconds get_local_clients_keepalive_time() const = 0;
 
     // File permissions
     virtual std::uint32_t get_permissions_uds() const = 0;
@@ -218,8 +238,9 @@ public:
     virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
 
     // Debouncing
-    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(
-            const std::string &_name,
+    virtual std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
+            service_t _service, instance_t _instance, event_t _event) const = 0;
+    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
             service_t _service, instance_t _instance, event_t _event) const = 0;
 
     // Queue size limit endpoints
@@ -250,7 +271,7 @@ public:
     typedef std::map<
         boost::asio::ip::address, // other device
         std::pair<
-            std::string, // path to file that determines whether or not IPsec is active
+            std::set<std::string>, // paths to files that determines whether or not IPsec is active
             std::map<
                 bool, // false = unreliable (aka UDP), true = reliable (aka TCP)
                 std::pair<
@@ -276,10 +297,10 @@ public:
 
     // SOME/IP-TP
     virtual bool is_tp_client(
-            service_t _service, const std::string &_address, std::uint16_t _port,
+            service_t _service, instance_t _instance,
             method_t _method) const = 0;
     virtual bool is_tp_service(
-            service_t _service, const std::string &_address, std::uint16_t _port,
+            service_t _service, instance_t _instance,
             method_t _method) const = 0;
     virtual void get_tp_configuration(
             service_t _service, instance_t _instance, method_t _method, bool _is_client,
@@ -309,6 +330,8 @@ public:
     virtual bool is_security_external() const = 0;
     virtual bool is_security_audit() const = 0;
     virtual bool is_remote_access_allowed() const = 0;
+    virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
+    virtual std::shared_ptr<security> get_security() const = 0;
 };
 
 } // namespace vsomeip_v3

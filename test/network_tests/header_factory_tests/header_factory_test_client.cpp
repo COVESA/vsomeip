@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "header_factory_test_client.hpp"
 
 header_factory_test_client::header_factory_test_client(bool _use_tcp) :
@@ -72,7 +74,7 @@ void header_factory_test_client::on_state(vsomeip::state_type_e _state)
 void header_factory_test_client::on_availability(vsomeip::service_t _service,
         vsomeip::instance_t _instance, bool _is_available)
 {
-    VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex
+    VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4)
             << _service << "." << _instance << "] is "
             << (_is_available ? "available." : "NOT available.");
 
@@ -93,13 +95,12 @@ void header_factory_test_client::on_availability(vsomeip::service_t _service,
 
 void header_factory_test_client::on_message(const std::shared_ptr<vsomeip::message>& _response)
 {
-    VSOMEIP_INFO << "Received a response from Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _response->get_service() << "."
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _response->get_instance() << "] to Client/Session ["
-            << std::setw(4) << std::setfill('0') << std::hex
-            << _response->get_client() << "/" << std::setw(4)
-            << std::setfill('0') << std::hex << _response->get_session() << "]";
+    VSOMEIP_INFO << "Received a response from Service [" 
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _response->get_service() << "."
+            << std::setw(4) << _response->get_instance() << "] to Client/Session ["
+            << std::setw(4) << _response->get_client() << "/"
+            << std::setw(4) << _response->get_session() << "]";
     number_of_acknowledged_messages_++;
     ASSERT_EQ(_response->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
     ASSERT_EQ(_response->get_instance(), vsomeip_test::TEST_SERVICE_INSTANCE_ID);
@@ -134,13 +135,13 @@ void header_factory_test_client::run()
     for (uint32_t i = 0; i < number_of_messages_to_send_; i++)
     {
         app_->send(request_);
-        VSOMEIP_INFO << "Client/Session [" << std::setw(4) << std::setfill('0')
-                << std::hex << request_->get_client() << "/" << std::setw(4)
-                << std::setfill('0') << std::hex << request_->get_session()
-                << "] sent a request to Service [" << std::setw(4)
-                << std::setfill('0') << std::hex << request_->get_service()
-                << "." << std::setw(4) << std::setfill('0') << std::hex
-                << request_->get_instance() << "]";
+        VSOMEIP_INFO << "Client/Session [" 
+                << std::hex << std::setfill('0')
+                << std::setw(4) << request_->get_client() << "/" 
+                << std::setw(4) << request_->get_session()
+                << "] sent a request to Service [" 
+                << std::setw(4) << request_->get_service()<< "."
+                << std::setw(4) << request_->get_instance() << "]";
         number_of_sent_messages_++;
     }
     // wait until all messages have been acknowledged

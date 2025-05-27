@@ -94,14 +94,14 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
                 << service_info_.service_id << "] Offering";
         offer();
     }

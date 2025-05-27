@@ -25,8 +25,7 @@
         {
             "service":"0x6767",
             "instance":"0x1",
-            "unicast" : "@TEST_IP_SLAVE@",
-            "unreliable":"40001",
+            "unreliable":"34511",
             "someip-tp" : {
                 "client-to-service": [ "0x6767", "0x8001" ]
             }
