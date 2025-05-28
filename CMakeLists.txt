@@ -11,7 +11,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 5)
-set (VSOMEIP_PATCH_VERSION 4)
+set (VSOMEIP_PATCH_VERSION 5)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -655,9 +655,10 @@ if(NOT WIN32)
 endif()
 
 ##############################################################################
-# build routing manager daemon (Non-Windows only)
+# build routing manager daemon and hello world examples (Non-Windows only)
 if (NOT MSVC)
 add_subdirectory( examples/routingmanagerd )
+add_subdirectory( examples/hello_world )
 endif()
 
 # build tools

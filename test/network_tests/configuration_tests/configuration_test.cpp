@@ -40,6 +40,10 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_VERSION_LOGGING_ENABLED                                    false
 #define EXPECTED_VERSION_LOGGING_INTERVAL                                   15
 
+// Request debounce time
+#define EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME                              10
+#define EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME                               33
+
 // Application
 #define EXPECTED_APPLICATION_MAX_DISPATCHERS                                25
 #define EXPECTED_APPLICATION_MAX_DISPATCH_TIME                              1234
@@ -81,6 +85,7 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_TTL                                                        13
 #define EXPECTED_CYCLIC_OFFER_DELAY                                         2132
 #define EXPECTED_REQUEST_RESPONSE_DELAY                                     1111
+#define EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION                             true
 
 #define EXPECTED_DEPRECATED_INITIAL_DELAY_MIN                               10
 #define EXPECTED_DEPRECATED_INITIAL_DELAY_MAX                               100
@@ -88,6 +93,7 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_DEPRECATED_REPETITIONS_MAX                                 7
 #define EXPECTED_DEPRECATED_TTL                                             5
 #define EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY                          2001
+
 
 template<class T>
 ::testing::AssertionResult check(const T &_is, const T &_expected, const std::string &_test) {
@@ -125,6 +131,7 @@ void check_file(const std::string &_config_file,
                 bool _expected_has_dlt,
                 bool _expected_version_logging_enabled,
                 uint32_t _expected_version_logging_interval,
+                std::size_t _expected_global_request_debounce_time,
                 uint32_t _expected_application_max_dispatcher,
                 uint32_t _expected_application_max_dispatch_time,
                 uint32_t _expected_application_max_detached_thread_wait_time,
@@ -157,7 +164,8 @@ void check_file(const std::string &_config_file,
                 uint8_t _expected_repetitions_max,
                 vsomeip::ttl_t _expected_ttl,
                 vsomeip::ttl_t _expected_cyclic_offer_delay,
-                vsomeip::ttl_t _expected_request_response_delay) {
+                vsomeip::ttl_t _expected_request_response_delay,
+                bool _expected_wait_route_netlink_notification) {
 
 
     // 0. Set environment variable to config file and load it
@@ -329,6 +337,12 @@ void check_file(const std::string &_config_file,
         }
     }
 
+    // Request debounce time (global)
+    std::size_t its_global_request_debounce_time = its_configuration->get_request_debounce_time(
+        "AN UNKNOWN APPLICATION");
+    EXPECT_TRUE(check<std::size_t>(its_global_request_debounce_time,
+        _expected_global_request_debounce_time, "GLOBAL REQUEST DEBOUNCE TIME"));
+
     // Applications
     std::size_t max_dispatchers = its_configuration->get_max_dispatchers(
             EXPECTED_ROUTING_MANAGER_HOST);
@@ -338,7 +352,7 @@ void check_file(const std::string &_config_file,
             EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t io_threads = its_configuration->get_io_thread_count(
             EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t request_time = its_configuration->get_request_debouncing(
+    std::size_t request_time = its_configuration->get_request_debounce_time(
             EXPECTED_ROUTING_MANAGER_HOST);
 
     EXPECT_TRUE(check<std::size_t>(max_dispatchers,
@@ -744,6 +758,7 @@ void check_file(const std::string &_config_file,
     vsomeip::ttl_t ttl = its_configuration->get_sd_ttl();
     int32_t cyclic_offer_delay = its_configuration->get_sd_cyclic_offer_delay();
     int32_t request_response_delay = its_configuration->get_sd_request_response_delay();
+    bool wait_route_netlink_notification = its_configuration->get_sd_wait_route_netlink_notification();
 
     EXPECT_TRUE(check<bool>(enabled, _expected_enabled, "SD ENABLED"));
     EXPECT_TRUE(check<std::string>(protocol, _expected_protocol, "SD PROTOCOL"));
@@ -757,6 +772,7 @@ void check_file(const std::string &_config_file,
     EXPECT_TRUE(check<vsomeip::ttl_t>(ttl, _expected_ttl, "SD TTL"));
     EXPECT_TRUE(check<int32_t>(cyclic_offer_delay, static_cast<int32_t>(_expected_cyclic_offer_delay), "SD CYCLIC OFFER DELAY"));
     EXPECT_TRUE(check<int32_t>(request_response_delay, static_cast<int32_t>(_expected_request_response_delay), "SD RESPONSE REQUEST DELAY"));
+    EXPECT_TRUE(check<bool>(wait_route_netlink_notification, _expected_wait_route_netlink_notification, "SD WAIT ROUTE NETLINK NOTIFICATION"));
     EXPECT_EQ(1000u, its_configuration->get_sd_offer_debounce_time());
 
     ASSERT_TRUE(vsomeip::plugin_manager::get()->unload_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN));
@@ -771,6 +787,7 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_HAS_DLT,
                EXPECTED_VERSION_LOGGING_ENABLED,
                EXPECTED_VERSION_LOGGING_INTERVAL,
+               EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME,
                EXPECTED_APPLICATION_MAX_DISPATCHERS,
                EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
                EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME,
@@ -803,7 +820,8 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_REPETITIONS_MAX,
                EXPECTED_TTL,
                EXPECTED_CYCLIC_OFFER_DELAY,
-               EXPECTED_REQUEST_RESPONSE_DELAY);
+               EXPECTED_REQUEST_RESPONSE_DELAY,
+               EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 TEST(configuration_test, check_deprecated_config_file) {
@@ -815,6 +833,7 @@ TEST(configuration_test, check_deprecated_config_file) {
                EXPECTED_HAS_DLT,
                EXPECTED_VERSION_LOGGING_ENABLED,
                EXPECTED_VERSION_LOGGING_INTERVAL,
+               EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME,
                EXPECTED_APPLICATION_MAX_DISPATCHERS,
                EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
                EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME,
@@ -847,7 +866,8 @@ TEST(configuration_test, check_deprecated_config_file) {
                EXPECTED_DEPRECATED_REPETITIONS_MAX,
                EXPECTED_DEPRECATED_TTL,
                EXPECTED_CYCLIC_OFFER_DELAY,
-               EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY);
+               EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY,
+               EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 int main(int argc, char** argv) {

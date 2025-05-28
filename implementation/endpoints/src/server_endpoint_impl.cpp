@@ -119,6 +119,7 @@ void server_endpoint_impl<Protocol>::restart(bool _force) {
     (void)_force;
 
     boost::system::error_code its_error;
+    this->stop();
     this->init(server_endpoint_impl<Protocol>::local_, its_error);
     this->start();
 }
@@ -135,7 +136,7 @@ bool server_endpoint_impl<Protocol>::is_established_or_connected() const {
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::is_closed() const {
-    return true;
+    return false;
 }
 
 template<typename Protocol>
@@ -184,14 +185,14 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
                     is_valid_target = true;
                     found_client->second.erase(its_session);
                 } else {
-                    VSOMEIP_WARNING << "server_endpoint_impl::send: Cannot find session ["
-                                    << std::hex << std::setfill('0') << its_session
-                                    << "for client [" << std::setw(4) << its_client
-                                    << " and method [" << std::setw(4) << its_service
+                    VSOMEIP_WARNING << "server_endpoint_impl::send: Cannot find sessionid ("
+                                    << std::setw(4) << std::hex << std::setfill('0') << its_session
+                                    << ") for client " << std::setw(4) << its_client
+                                    << " and method [" << std::setw(4) << its_service << "."
                                     << std::setw(4) << its_method << "]";
                     if (its_service == VSOMEIP_SD_SERVICE && its_method == VSOMEIP_SD_METHOD) {
                         VSOMEIP_ERROR << "server_endpoint_impl::send: Clearing clients map as a"
-                                         " request was reeived on SD port";
+                                         " request was received on SD port";
                         clients_.clear();
                         is_valid_target = get_default_target(its_service, its_target);
                     }
@@ -546,7 +547,7 @@ bool server_endpoint_impl<Protocol>::queue_train(target_data_iterator_type _it,
     its_data.queue_size_ += _train->buffer_->size();
     its_data.queue_.emplace_back(_train->buffer_, 0);
 
-    if (!its_data.is_sending_) { // no writing in progress
+    if (!its_data.is_sending_ && !is_closed()) { // no writing in progress
         must_erase = send_queued(_it);
     }
 
@@ -763,7 +764,8 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
                 << std::setw(4) << its_client << "): ["
                 << std::setw(4) << its_service << "."
                 << std::setw(4) << its_method << "."
-                << std::setw(4) << its_session << "]";
+                << std::setw(4) << its_session << "]"
+                << " endpoint -> " << this;
         cancel_dispatch_timer(it);
         targets_.erase(it);
         if (!prepare_stop_handlers_.empty()) {

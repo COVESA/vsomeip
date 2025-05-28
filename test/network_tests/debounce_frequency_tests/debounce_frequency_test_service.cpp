@@ -41,7 +41,7 @@ test_service::test_service(const char* app_name_, const char* app_id_) :
 // Send the debounce events with different frequencies, but configured with the same debounce time
 void test_service::send_messages() {
     std::unique_lock<std::mutex> lk(mutex);
-    if (condition_wait_start.wait_for(lk, std::chrono::milliseconds(2000),
+    if (condition_wait_start.wait_for(lk, std::chrono::seconds(4),
                                       [=] { return received_message; })) {
 
         VSOMEIP_INFO << "service: " << __func__ << ": Starting test ";

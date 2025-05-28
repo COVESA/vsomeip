@@ -62,15 +62,22 @@
 
 namespace vsomeip_v3 {
 
-routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host,
-                                           const std::shared_ptr<configuration>& _configuration) :
-    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()),
-    client_id_timer_(_host->get_io()), root_(nullptr), local_receiver_(nullptr),
-    configuration_(_configuration), is_socket_activated_(false),
-    client_registration_running_(false),
-    max_local_message_size_(configuration_->get_max_message_size_local()),
-    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
-    pinged_clients_timer_(io_), pending_security_update_id_(0)
+routing_manager_stub::routing_manager_stub(
+        routing_manager_stub_host *_host,
+        const std::shared_ptr<configuration>& _configuration) :
+        host_(_host),
+        io_(_host->get_io()),
+        watchdog_timer_(_host->get_io()),
+        client_id_timer_(_host->get_io()),
+        root_(nullptr),
+        local_receiver_(nullptr),
+        configuration_(_configuration),
+        is_socket_activated_(false),
+        client_registration_running_(false),
+        max_local_message_size_(configuration_->get_max_message_size_local()),
+        configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
+        pinged_clients_timer_(io_),
+        pending_security_update_id_(0)
 #if defined(__linux__) || defined(ANDROID)
     , is_local_link_available_(false)
 #endif
@@ -137,10 +144,10 @@ void routing_manager_stub::start() {
 
     if (configuration_->is_watchdog_enabled()) {
         VSOMEIP_INFO << "Watchdog is enabled : Timeout in ms = "
-                     << configuration_->get_watchdog_timeout()
-                     << " : Allowed missing pongs = "
-                     << configuration_->get_allowed_missing_pongs()
-                     << ".";
+                        << configuration_->get_watchdog_timeout()
+                        << " : Allowed missing pongs = "
+                        << configuration_->get_allowed_missing_pongs()
+                        << ".";
         start_watchdog();
     } else {
         VSOMEIP_INFO << "Watchdog is disabled!";
@@ -325,19 +332,29 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             break;
         }
 
-        case protocol::id_e::PONG_ID:
-        {
+        case protocol::id_e::PING_ID: {
+            protocol::ping_command its_command;
+            its_command.deserialize(its_buffer, its_error);
+            if (its_error == protocol::error_e::ERROR_OK) {
+                on_ping(its_client);
+            } else {
+                VSOMEIP_ERROR << __func__ << ": deserializing ping failed (" << std::dec
+                              << static_cast<int>(its_error) << ")";
+            }
+            break;
+        }
+
+        case protocol::id_e::PONG_ID: {
             protocol::pong_command its_command;
             its_command.deserialize(its_buffer, its_error);
             if (its_error == protocol::error_e::ERROR_OK) {
                 on_pong(its_client);
-                VSOMEIP_TRACE << "PONG("
-                        << std::hex << std::setfill('0') << std::setw(4)
-                        << its_client << ")";
-            } else
-                VSOMEIP_ERROR << __func__
-                    << ": deserializing pong failed ("
-                    << std::dec << static_cast<int>(its_error) << ")";
+                VSOMEIP_TRACE << "PONG(" << std::hex << std::setfill('0') << std::setw(4)
+                              << its_client << ")";
+            } else {
+                VSOMEIP_ERROR << __func__ << ": deserializing pong failed (" << std::dec
+                              << static_cast<int>(its_error) << ")";
+            }
             break;
         }
 
@@ -641,6 +658,14 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
                             r.service_, r.instance_, r.major_, r.minor_);
                         its_allowed_requests.insert(r);
                     }
+                    else {
+                        VSOMEIP_WARNING << std::hex << std::setfill('0')
+                                    << "vSomeIP Security: Client 0x" << std::setw(4) << get_client()
+                                    << " received a request from client 0x" << std::setw(4) << its_client
+                                    << " to service/instance "
+                                    << r.service_ << "/" << r.instance_
+                                    << " ~> skip message!";
+                    }
                 }
                 if (configuration_->is_security_enabled()) {
                     handle_credentials(its_client, its_allowed_requests);
@@ -818,6 +843,9 @@ void routing_manager_stub::on_message(const byte_t *_data, length_t _size,
             }
             break;
         }
+        case protocol::id_e::UNKNOWN_ID:
+            // Do/Log nothing
+        break;
         default:
             VSOMEIP_WARNING << __func__ << ": Received an unhandled command ("
                 << std::dec << static_cast<int>(its_id) << ")";
@@ -1172,6 +1200,19 @@ void routing_manager_stub::on_net_state_change(bool _is_interface, const std::st
                 VSOMEIP_INFO << __func__
                         << ": Stopping routing root.";
                 root_->stop();
+                root_.reset();
+
+                std::unordered_set<client_t> its_clients_to_inform;
+                auto its_epm = host_->get_endpoint_manager();
+                if (its_epm) {
+                    its_clients_to_inform = its_epm->get_connected_clients();
+                }
+
+                for (const auto client : its_clients_to_inform) {
+                    if (client != VSOMEIP_ROUTING_CLIENT) {
+                        host_->remove_local(client, false);
+                    }
+                }
 
                 std::scoped_lock its_lock(routing_info_mutex_);
                 routing_info_.clear();
@@ -1186,11 +1227,9 @@ void routing_manager_stub::on_net_state_change(bool _is_interface, const std::st
 void routing_manager_stub::on_offer_service(client_t _client,
         service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
 
-    VSOMEIP_INFO << "routing_manager_stub::" << __func__ << ": ON_OFFER_SERVICE("
-        << std::hex << std::setw(4) << std::setfill('0') << _client <<"): ["
-        << std::hex << std::setw(4) << std::setfill('0') << _service << "."
-        << std::hex << std::setw(4) << std::setfill('0') << _instance
-        << ":" << std::dec << int(_major) << "." << std::dec << _minor << "]";
+    VSOMEIP_DEBUG << "ON_OFFER_SERVICE(" << std::hex << std::setfill('0') << std::setw(4) << _client
+                  << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << ":"
+                  << std::dec << static_cast<int>(_major) << "." << _minor << "]";
 
     if (_client == host_->get_client()) {
         create_local_receiver();
@@ -1314,6 +1353,33 @@ void routing_manager_stub::send_client_routing_info(const client_t _target,
             << "] failed";
 }
 
+void routing_manager_stub::send_client_config_command(const client_t _client,
+    const client_t _target) {
+
+    // Send a `config_command` to share the _client hostname with the _target application.
+    auto its_target_endpoint = host_->find_local(_target);
+    if (its_target_endpoint) {
+        protocol::config_command its_command;
+        its_command.set_client(_client);
+        its_command.insert("hostname", get_env(_client));
+
+        std::vector<byte_t> its_buffer;
+        protocol::error_e its_error;
+        its_command.serialize(its_buffer, its_error);
+
+        if (its_error == protocol::error_e::ERROR_OK) {
+            its_target_endpoint->send(&its_buffer[0],
+                    static_cast<uint32_t>(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << __func__ << ": config command serialization failed("
+                        << std::dec << int(its_error) << ")";
+        }
+    } else {
+        VSOMEIP_WARNING << __func__ << " Couldn't send config command to local client: "
+                        << std::hex << std::setfill('0') << std::setw(4) << _client;
+    }
+}
+
 void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _service, instance_t _instance) {
     std::set<std::pair<uid_t, gid_t>> its_credentials;
     std::set<client_t> its_requesting_clients;
@@ -1361,17 +1427,16 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                 if (_inform_service) {
                     if (_hoster != VSOMEIP_ROUTING_CLIENT &&
                             _hoster != host_->get_client()) {
-                        if (!is_connected(_hoster, its_client.first)) {
-                            add_connection(_hoster, its_client.first);
-                            protocol::routing_info_entry its_entry;
-                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                            its_entry.set_client(its_client.first);
-                            if (host_->get_guest(its_client.first, its_address, its_port)) {
-                                its_entry.set_address(its_address);
-                                its_entry.set_port(its_port);
-                            }
-                            send_client_routing_info(_hoster, its_entry);
+                        add_connection(_hoster, its_client.first);
+                        protocol::routing_info_entry its_entry;
+                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                        its_entry.set_client(its_client.first);
+                        if (host_->get_guest(its_client.first, its_address, its_port)) {
+                            its_entry.set_address(its_address);
+                            its_entry.set_port(its_port);
                         }
+                        send_client_routing_info(_hoster, its_entry);
+                        send_client_config_command(its_client.first, _hoster);
                     }
                 }
                 if (its_client.first != VSOMEIP_ROUTING_CLIENT &&
@@ -1628,6 +1693,28 @@ void routing_manager_stub::broadcast_ping() const {
             << std::dec << int(its_error) << ")";
 }
 
+void routing_manager_stub::on_ping(client_t _client) {
+
+    auto its_endpoint = host_->find_local(_client);
+    if (its_endpoint) {
+        protocol::pong_command its_command;
+
+        std::vector<byte_t> its_buffer;
+        protocol::error_e its_error;
+        its_command.serialize(its_buffer, its_error);
+
+        if (its_error == protocol::error_e::ERROR_OK) {
+            its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << __func__ << ": pong command serialization failed (" << std::dec
+                          << int(its_error) << ")";
+        }
+    } else {
+        VSOMEIP_WARNING << "rms::" << __func__ << ": couldn't find endpoint for client " << std::hex
+                        << _client;
+    }
+}
+
 void routing_manager_stub::on_pong(client_t _client) {
     {
         std::lock_guard<std::mutex> its_lock(routing_info_mutex_);
@@ -1635,8 +1722,8 @@ void routing_manager_stub::on_pong(client_t _client) {
         if (found_info != routing_info_.end()) {
             found_info->second.first = 0;
         } else {
-            VSOMEIP_ERROR << "Received PONG from unregistered application: "
-                    << std::hex << std::setfill('0') << std::setw(4) << _client;
+            VSOMEIP_ERROR << "Received PONG from unregistered application: " << std::hex
+                          << std::setfill('0') << std::setw(4) << _client;
         }
     }
     remove_from_pinged_clients(_client);
@@ -2017,23 +2104,21 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
             // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
             its_clients.insert(VSOMEIP_ROUTING_CLIENT);
             for (const client_t c : its_clients) {
-                if (c != VSOMEIP_ROUTING_CLIENT &&
-                        c != host_->get_client()) {
-                    if (!is_connected(c, _client)) {
-                        add_connection(c, _client);
+                if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
+                    add_connection(c, _client);
 
-                        protocol::routing_info_entry its_entry;
-                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                        its_entry.set_client(_client);
-                        if (host_->get_guest(_client, its_address, its_port)) {
-                            its_entry.set_address(its_address);
-                            its_entry.set_port(its_port);
-                        }
-                        if (_client == c) {
-                            its_entries.emplace_back(its_entry);
-                        } else {
-                            send_client_routing_info(c, its_entry);
-                        }
+                    protocol::routing_info_entry its_entry;
+                    its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                    its_entry.set_client(_client);
+                    if (host_->get_guest(_client, its_address, its_port)) {
+                        its_entry.set_address(its_address);
+                        its_entry.set_port(its_port);
+                    }
+                    if (_client == c) {
+                        its_entries.emplace_back(its_entry);
+                    } else {
+                        send_client_routing_info(c, its_entry);
+                        send_client_config_command(_client, c);
                     }
                 }
                 if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
@@ -2068,21 +2153,20 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                     const auto found_instance = found_service->second.find(request.instance_);
                     if (found_instance != found_service->second.end()) {
                         if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
-                            if (!is_connected(c, _client)) {
-                                add_connection(c, _client);
+                            add_connection(c, _client);
 
-                                protocol::routing_info_entry its_entry;
-                                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                                its_entry.set_client(_client);
-                                if (host_->get_guest(_client, its_address, its_port)) {
-                                    its_entry.set_address(its_address);
-                                    its_entry.set_port(its_port);
-                                }
-                                if (_client == c) {
-                                    its_entries.emplace_back(its_entry);
-                                } else {
-                                    send_client_routing_info(c, its_entry);
-                                }
+                            protocol::routing_info_entry its_entry;
+                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
+                            its_entry.set_client(_client);
+                            if (host_->get_guest(_client, its_address, its_port)) {
+                                its_entry.set_address(its_address);
+                                its_entry.set_port(its_port);
+                            }
+                            if (_client == c) {
+                                its_entries.emplace_back(its_entry);
+                            } else {
+                                send_client_routing_info(c, its_entry);
+                                send_client_config_command(_client, c);
                             }
                         }
                         if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
@@ -2721,6 +2805,10 @@ void routing_manager_stub::on_security_update_response(
     }
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
+
+std::string routing_manager_stub::get_env(client_t _client) const {
+    return host_->get_env(_client);
+}
 
 void routing_manager_stub::send_suspend() const {
 

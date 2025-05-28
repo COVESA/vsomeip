@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <iostream>
 
+#include <boost/algorithm/string/join.hpp>
 #include <boost/asio/ip/host_name.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/exception/diagnostic_information.hpp>
@@ -49,22 +50,21 @@ uint32_t application_impl::app_counter__ = 0;
 std::mutex application_impl::app_counter_mutex__;
 
 application_impl::application_impl(const std::string &_name, const std::string &_path) :
-    runtime_(runtime::get()), client_(VSOMEIP_CLIENT_UNSET), session_(0), is_initialized_(false),
-    name_(_name), path_(_path),
-    work_(std::make_shared<
+    runtime_ {runtime::get()}, client_ {VSOMEIP_CLIENT_UNSET}, session_ {0},
+    is_initialized_ {false}, name_ {_name}, path_ {_path},
+    work_ {std::make_shared<
             boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
-            io_.get_executor())),
-    routing_(nullptr), state_(state_type_e::ST_DEREGISTERED), security_mode_(security_mode_e::SM_ON),
+            io_.get_executor())},
+    routing_ {nullptr}, state_ {state_type_e::ST_DEREGISTERED},
+    security_mode_ {security_mode_e::SM_ON},
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    signals_(io_, SIGINT, SIGTERM), catched_signal_(false),
+    signals_ {io_, SIGINT, SIGTERM}, catched_signal_ {false},
 #endif
-    is_dispatching_(false), max_dispatchers_(VSOMEIP_MAX_DISPATCHERS),
-    max_dispatch_time_(VSOMEIP_MAX_DISPATCH_TIME), dispatcher_counter_(0),
-    max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS), stopped_(false),
-    block_stopping_(false), is_routing_manager_host_(false), stopped_called_(false),
-    watchdog_timer_(io_), client_side_logging_(false), has_session_handling_(true)
-{
-}
+    is_dispatching_ {false}, max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS},
+    max_dispatch_time_ {VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, dispatcher_counter_ {0},
+    max_detached_thread_wait_time {VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS}, stopped_ {false},
+    block_stopping_ {false}, is_routing_manager_host_ {false}, stopped_called_ {false},
+    watchdog_timer_ {io_}, client_side_logging_ {false}, has_session_handling_ {true} { }
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
@@ -393,6 +393,8 @@ void application_impl::start() {
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
+    // Amount of time to run the IO context.
+    const size_t event_loop_periodicity = configuration_->get_event_loop_periodicity(name_);
     {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
         if (io_.stopped()) {
@@ -419,7 +421,7 @@ void application_impl::start() {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                 << " I/O nice " << io_thread_nice_level
 #endif
-        ;
+                << " boost event loop period " << event_loop_periodicity;
 
         start_caller_id_ = std::this_thread::get_id();
         {
@@ -445,7 +447,7 @@ void application_impl::start() {
             routing_->start();
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
-            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
+            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level, event_loop_periodicity] {
                     VSOMEIP_INFO << "io thread id from application: "
                             << std::hex << std::setfill('0') << std::setw(4)
                             << client_ << " (" << name_ << ") is: " << std::hex
@@ -465,8 +467,14 @@ void application_impl::start() {
 #endif
                     while(true) {
                         try {
-                            io_.run();
-                            break;
+                            if (event_loop_periodicity) {
+                                io_.run_for(std::chrono::seconds(event_loop_periodicity));
+                            } else {
+                                io_.run();
+                            }
+                            if (stopped_) {
+                                break;
+                            }
                         } catch (const std::exception &e) {
                             VSOMEIP_ERROR << "application_impl::start() "
                                     "caught exception: " << e.what();
@@ -503,11 +511,17 @@ void application_impl::start() {
     utility::set_thread_niceness(io_thread_nice_level);
     while(true) {
         try {
-            io_.run();
-            if (stop_thread_.joinable()) {
-                stop_thread_.join();
+            if (event_loop_periodicity) {
+                io_.run_for(std::chrono::seconds(event_loop_periodicity));
+            } else {
+                io_.run();
             }
-            break;
+            if (stopped_) {
+                if (stop_thread_.joinable()) {
+                    stop_thread_.join();
+                }
+                break;
+            }
         } catch (const std::exception &e) {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }
@@ -642,9 +656,13 @@ void application_impl::subscribe(service_t _service, instance_t _instance,
         }
 
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
+            // Get configured, application-specific filter
+            auto its_filter {
+                configuration_->get_debounce(get_client(), _service, _instance, _event)};
+
             routing_->subscribe(client_, &sec_client_,
                     _service, _instance, _eventgroup, _major,
-                    _event, nullptr);
+                    _event, its_filter);
         }
     }
 }
@@ -1021,7 +1039,7 @@ void application_impl::register_availability_handler_unlocked(service_t _service
         its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
         its_sync_handler->service_id_ = _srvc;
         its_sync_handler->instance_id_ = _nstnc;
-        handlers_.push_back(its_sync_handler);
+        handlers_.emplace_back(its_sync_handler);
     };
 
     std::scoped_lock handlers_lock(handlers_mutex_);
@@ -1069,14 +1087,13 @@ void application_impl::unregister_availability_handler(service_t _service,
     }
 }
 
-void application_impl::on_subscription(
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-        client_t _client, const vsomeip_sec_client_t *_sec_client,
-        const std::string &_env, bool _subscribed,
-        const std::function<void(bool)> &_accepted_cb) {
-
-    bool handler_found = false;
-    std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t> its_handlers;
+void application_impl::on_subscription(service_t _service, instance_t _instance,
+                                       eventgroup_t _eventgroup, client_t _client,
+                                       const vsomeip_sec_client_t* _sec_client,
+                                       const std::string& _env, bool _subscribed,
+                                       const std::function<void(bool)>& _accepted_cbk) {
+    async_subscription_handler_sec_t its_handler;
+    bool has_handler {false};
     {
         std::lock_guard<std::mutex> its_lock(subscription_mutex_);
         auto found_service = subscription_.find(_service);
@@ -1085,24 +1102,34 @@ void application_impl::on_subscription(
             if (found_instance != found_service->second.end()) {
                 auto found_eventgroup = found_instance->second.find(_eventgroup);
                 if (found_eventgroup != found_instance->second.end()) {
-                    its_handlers = found_eventgroup->second;
-                    handler_found = true;
+                    its_handler = found_eventgroup->second;
+                    has_handler = true;
                 }
             }
         }
     }
 
-    if (handler_found) {
-        if(auto its_handler = its_handlers.first) {
-            // "normal" subscription handler exists
-            _accepted_cb(its_handler(_client, _sec_client, _env, _subscribed));
-        } else if(auto its_handler = its_handlers.second) {
-            // async subscription handler exists
-            its_handler(_client, _sec_client, _env, _subscribed, _accepted_cb);
-        }
+    std::shared_ptr<sync_handler> its_sync_handler;
+    if (has_handler) {
+        its_sync_handler =
+                std::make_shared<sync_handler>([its_handler, _client, its_sec_client = *_sec_client,
+                                                _env, _subscribed, _accepted_cbk](void) {
+                    its_handler(_client, &its_sec_client, _env, _subscribed, _accepted_cbk);
+                });
     } else {
-        _accepted_cb(true);
+        // Did not find a handler, thus accept the subscription
+        its_sync_handler =
+                std::make_shared<sync_handler>([_accepted_cbk](void) { _accepted_cbk(true); });
     }
+    its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
+    its_sync_handler->service_id_ = _service;
+    its_sync_handler->instance_id_ = _instance;
+    its_sync_handler->method_id_ = ANY_EVENT;
+    its_sync_handler->eventgroup_id_ = _eventgroup;
+
+    std::scoped_lock its_lock {handlers_mutex_};
+    handlers_.emplace_back(its_sync_handler);
+    dispatcher_condition_.notify_one();
 }
 
 void application_impl::register_subscription_handler(service_t _service,
@@ -1150,8 +1177,14 @@ void application_impl::register_subscription_handler(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup,
         const subscription_handler_sec_t &_handler) {
 
+    auto its_handler {[_handler](client_t _client, const vsomeip_sec_client_t* _sec_client,
+                                 const std::string& _env, bool _is_subscribed,
+                                 std::function<void(bool)> _callback) {
+        _callback(_handler(_client, _sec_client, _env, _is_subscribed));
+    }};
+
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
+    subscription_[_service][_instance][_eventgroup] = std::move(its_handler);
 }
 
 
@@ -1377,7 +1410,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
             its_sync_handler->instance_id_ = _instance;
             its_sync_handler->method_id_ = _event;
             its_sync_handler->eventgroup_id_ = _eventgroup;
-            handlers_.push_back(its_sync_handler);
+            handlers_.emplace_back(its_sync_handler);
         }
         if (handlers.size()) {
             dispatcher_condition_.notify_one();
@@ -1574,7 +1607,7 @@ void application_impl::on_state(state_type_e _state) {
                                                 handler(_state);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::STATE;
-        handlers_.push_back(its_sync_handler);
+        handlers_.emplace_back(its_sync_handler);
         dispatcher_condition_.notify_one();
     }
 }
@@ -1718,7 +1751,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
                 its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
                 its_sync_handler->service_id_ = _service;
                 its_sync_handler->instance_id_ = _instance;
-                handlers_.push_back(its_sync_handler);
+                handlers_.emplace_back(its_sync_handler);
             }
         }
     }
@@ -1820,7 +1853,7 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
                 its_sync_handler->instance_id_ = _message->get_instance();
                 its_sync_handler->method_id_ = _message->get_method();
                 its_sync_handler->session_id_ = _message->get_session();
-                handlers_.push_back(its_sync_handler);
+                handlers_.emplace_back(its_sync_handler);
             }
             dispatcher_condition_.notify_one();
         }
@@ -1948,9 +1981,11 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
 
         // Check handler
         if (its_next_handler->handler_type_ == handler_type_e::AVAILABILITY) {
-            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                    its_next_handler->service_id_,
-                    its_next_handler->instance_id_);
+            const service_instance_t its_si_pair{
+                its_next_handler->service_id_,
+                its_next_handler->instance_id_
+            };
+
             auto found_si = availability_handlers_.find(its_si_pair);
             if (found_si != availability_handlers_.end()
                     && !found_si->second.empty()
@@ -1963,9 +1998,11 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
                 availability_handlers_[its_si_pair].push_back(its_next_handler);
             }
         } else if (its_next_handler->handler_type_ == handler_type_e::MESSAGE) {
-            const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                    its_next_handler->service_id_,
-                    its_next_handler->instance_id_);
+            const service_instance_t its_si_pair{
+                its_next_handler->service_id_,
+                its_next_handler->instance_id_
+            };
+
             auto found_si = availability_handlers_.find(its_si_pair);
             if (found_si != availability_handlers_.end()
                     && found_si->second.size() > 1) {
@@ -1983,8 +2020,11 @@ std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handl
 void application_impl::reschedule_availability_handler(
         const std::shared_ptr<sync_handler> &_handler) {
     if (_handler->handler_type_ == handler_type_e::AVAILABILITY) {
-        const std::pair<service_t, instance_t> its_si_pair = std::make_pair(
-                _handler->service_id_, _handler->instance_id_);
+        const service_instance_t its_si_pair{
+            _handler->service_id_,
+            _handler->instance_id_
+        };
+
         auto found_si = availability_handlers_.find(its_si_pair);
         if (found_si != availability_handlers_.end()) {
             if (!found_si->second.empty()
@@ -2175,11 +2215,6 @@ void application_impl::clear_all_handler() {
     {
         std::lock_guard<std::mutex> its_lock(subscription_mutex_);
         subscription_.clear();
-    }
-
-    {
-        std::lock_guard<std::mutex> its_lock(subscription_error_mutex_);
-        eventgroup_error_handlers_.clear();
     }
 
     {
@@ -2663,7 +2698,7 @@ void application_impl::on_offered_services_info(std::vector<std::pair<service_t,
                                                 handler(_services);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
-        handlers_.push_back(its_sync_handler);
+        handlers_.emplace_back(its_sync_handler);
         dispatcher_condition_.notify_one();
     }
 }
@@ -2686,7 +2721,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
             auto its_sync_handler = std::make_shared<sync_handler>([handler]() { handler(); });
             its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
-            handlers_.push_back(its_sync_handler);
+            handlers_.emplace_back(its_sync_handler);
             dispatcher_condition_.notify_one();
         }
     }
@@ -2758,7 +2793,7 @@ void application_impl::register_async_subscription_handler(service_t _service,
     async_subscription_handler_sec_t _handler) {
 
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
+    subscription_[_service][_instance][_eventgroup] = std::move(_handler);
 }
 
 void application_impl::register_sd_acceptance_handler(
@@ -2890,7 +2925,7 @@ application_impl::get_sd_acceptance_required() {
                         its_remote_info.last_ = port_range.upper();
                         its_remote_info.is_range_ = true;
                     }
-                    its_ret[its_remote_info] = e.second.first;
+                    its_ret[its_remote_info] = boost::algorithm::join(e.second.first, ",");
                 }
                 for (const auto& port_range : reliability.second.second) {
                     if (port_range.lower() == port_range.upper()) {
@@ -2902,7 +2937,7 @@ application_impl::get_sd_acceptance_required() {
                         its_remote_info.last_ = port_range.upper();
                         its_remote_info.is_range_ = true;
                     }
-                    its_ret[its_remote_info] = e.second.first;
+                    its_ret[its_remote_info] = boost::algorithm::join(e.second.first, ",");
                 }
             }
         }
@@ -3019,7 +3054,6 @@ void application_impl::subscribe_with_debounce(service_t _service, instance_t _i
         }
 
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
-
             auto its_filter = std::make_shared<debounce_filter_impl_t>(_filter);
             routing_->subscribe(client_, get_sec_client(),
                     _service, _instance, _eventgroup, _major,

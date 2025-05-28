@@ -19,7 +19,7 @@
             "unreliable":"30004",
             "reliable":
             {
-                "port":"40004",
+                "port":"34514",
                 "enable-magic-cookies":"false"
             }
         },
@@ -29,7 +29,7 @@
             "unreliable":"30005",
             "reliable":
             {
-                "port":"40005",
+                "port":"34515",
                 "enable-magic-cookies":"false"
             }
         },
@@ -39,7 +39,7 @@
             "unreliable":"30006",
             "reliable":
             {
-                "port":"40006",
+                "port":"34516",
                 "enable-magic-cookies":"false"
             }
         }

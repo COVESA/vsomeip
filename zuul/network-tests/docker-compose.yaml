@@ -50,6 +50,12 @@ services:
     depends_on:
       - slave
     entrypoint: setarch -R /home/source/zuul/network-tests/entrypoint-master
+    sysctls:
+      net.ipv4.tcp_tw_reuse: 1                  # Enable TIME_WAIT socket reuse
+      net.ipv4.ip_local_port_range: 34600 60999 # Set local port range to exclude SOME/IP server port range
   slave:
     <<: *common
     entrypoint: setarch -R /home/source/zuul/network-tests/entrypoint-slave
+    sysctls:
+      net.ipv4.tcp_tw_reuse: 1                  # Enable TIME_WAIT socket reuse
+      net.ipv4.ip_local_port_range: 34600 60999 # Set local port range to exclude SOME/IP server port range

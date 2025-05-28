@@ -131,7 +131,7 @@ TEST_F(malicious_data, send_malicious_events)
             std::promise<bool> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
                     boost::asio::ip::address::from_string(std::string(local_address)),
-                    40001);
+                    34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -168,7 +168,7 @@ TEST_F(malicious_data, send_malicious_events)
                 0x00, 0x00, 0x00, 0x0c, // length options array
                 0x00, 0x09, 0x04, 0x00,
                 0xff, 0xff, 0xff, 0xff, // slave address
-                0x00, 0x06, 0x9c, 0x41,
+                0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
                     boost::asio::ip::address::from_string(std::string(local_address));
@@ -220,7 +220,7 @@ TEST_F(malicious_data, send_malicious_events)
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
                     boost::asio::ip::address::from_string(std::string(remote_address)),
-                    40001);
+                    34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
             std::uint8_t its_malicious_client_data[] = {
@@ -368,7 +368,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
             std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
                     boost::asio::ip::address::from_string(std::string(local_address)),
-                    40001);
+                    34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -405,7 +405,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                 0x00, 0x00, 0x00, 0x0c, // length options array
                 0x00, 0x09, 0x04, 0x00,
                 0xff, 0xff, 0xff, 0xff, // slave address
-                0x00, 0x06, 0x9c, 0x41,
+                0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
                     boost::asio::ip::address::from_string(std::string(local_address));
@@ -529,7 +529,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
                     boost::asio::ip::address::from_string(std::string(remote_address)),
-                    40001);
+                    34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
 
@@ -755,7 +755,7 @@ TEST_F(malicious_data, send_wrong_message_type)
             std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
                     boost::asio::ip::address::from_string(std::string(local_address)),
-                    40001);
+                    34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -792,7 +792,7 @@ TEST_F(malicious_data, send_wrong_message_type)
                 0x00, 0x00, 0x00, 0x0c, // length options array
                 0x00, 0x09, 0x04, 0x00,
                 0xff, 0xff, 0xff, 0xff, // slave address
-                0x00, 0x06, 0x9c, 0x41,
+                0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
                     boost::asio::ip::address::from_string(std::string(local_address));
@@ -884,7 +884,7 @@ TEST_F(malicious_data, send_wrong_message_type)
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
                     boost::asio::ip::address::from_string(std::string(remote_address)),
-                    40001);
+                    34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
 
@@ -1053,7 +1053,7 @@ TEST_F(malicious_data, send_wrong_return_code)
             std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
                     boost::asio::ip::address::from_string(std::string(local_address)),
-                    40001);
+                    34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -1090,7 +1090,7 @@ TEST_F(malicious_data, send_wrong_return_code)
                 0x00, 0x00, 0x00, 0x0c, // length options array
                 0x00, 0x09, 0x04, 0x00,
                 0xff, 0xff, 0xff, 0xff, // slave address
-                0x00, 0x06, 0x9c, 0x41,
+                0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
                     boost::asio::ip::address::from_string(std::string(local_address));
@@ -1182,7 +1182,7 @@ TEST_F(malicious_data, send_wrong_return_code)
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
                     boost::asio::ip::address::from_string(std::string(remote_address)),
-                    40001);
+                    34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
 
@@ -1274,7 +1274,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
     boost::asio::ip::udp::socket udp_socket(io_,
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     boost::asio::ip::udp::socket udp_socket_service(io_,
-            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 40001));
+            boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 34511));
 
     boost::asio::ip::udp::endpoint udp_client_info;
     boost::asio::ip::udp::endpoint udp_service_info;
@@ -1398,7 +1398,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
                 0x00, 0x00, 0x00, 0x0c, // length options array
                 0x00, 0x09, 0x04, 0x00,
                 0xff, 0xff, 0xff, 0xff, // slave address
-                0x00, 0x11, 0x9c, 0x41, // offer via udp
+                0x00, 0x11, 0x86, 0xcf, // offer via udp
             };
             boost::asio::ip::address its_local_address =
                     boost::asio::ip::address::from_string(std::string(local_address));

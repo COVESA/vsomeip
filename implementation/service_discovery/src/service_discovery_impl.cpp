@@ -180,6 +180,7 @@ service_discovery_impl::start() {
     if (!endpoint_) {
         endpoint_ = host_->create_service_discovery_endpoint(
                 sd_multicast_, port_, reliable_);
+
         if (!endpoint_) {
             VSOMEIP_ERROR << "Couldn't start service discovery";
             return;
@@ -207,8 +208,11 @@ service_discovery_impl::start() {
         if (endpoint_ && !reliable_) {
             auto its_server_endpoint
                 = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
-            if (its_server_endpoint)
+            if (its_server_endpoint && !its_server_endpoint->is_joined(sd_multicast_)) {
+                VSOMEIP_INFO << "sd::" << __func__ << ": calling its_server_endpoint->join("
+                             << sd_multicast_ << ")  its_server_endpoint = " << its_server_endpoint;
                 its_server_endpoint->join(sd_multicast_);
+            }
         }
     }
     is_suspended_ = false;
@@ -218,13 +222,17 @@ service_discovery_impl::start() {
     start_ttl_timer();
     async_sender_.set_packet_sender_callback(shared_from_this());
     async_sender_.start();
+    start_last_msg_received_timer();
 }
 
 void
 service_discovery_impl::stop() {
     is_suspended_ = true;
-    stop_ttl_timer();
     stop_last_msg_received_timer();
+
+    stop_ttl_timer();
+    stop_find_debounce_timer();
+    stop_offer_debounce_timer();
     stop_main_phase_timer();
     async_sender_.stop();
 }
@@ -1171,7 +1179,7 @@ service_discovery_impl::on_message(
         static bool must_start_last_msg_received_timer(true);
         boost::system::error_code ec;
 
-        std::lock_guard<std::mutex> its_lock_inner(last_msg_received_timer_mutex_);
+        std::scoped_lock its_last_msg_lock { last_msg_received_timer_mutex_ };
         if (0 < last_msg_received_timer_.cancel(ec) || must_start_last_msg_received_timer) {
             must_start_last_msg_received_timer = false;
             last_msg_received_timer_.expires_from_now(
@@ -1559,14 +1567,18 @@ void service_discovery_impl::process_offerservice_serviceentry(
 
     if (_sd_ac_state.sd_acceptance_required_) {
 
-        auto expire_subscriptions_and_services =
-                [this, &_sd_ac_state](const boost::asio::ip::address& _address,
-                                      std::uint16_t _port, bool _reliable) {
+        auto expire_subscriptions_and_services = [this, &_sd_ac_state, _service, _instance](
+                                                         const boost::asio::ip::address& _address,
+                                                         std::uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.find(its_port_pair) ==
                     _sd_ac_state.expired_ports_.end()) {
-                VSOMEIP_WARNING << "service_discovery_impl::" << __func__
-                        << ": Do not accept offer from "
+                VSOMEIP_WARNING << "service_discovery_impl::process_offerservice_serviceentry"
+                        << ": Do not accept offer ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "]"
+                        << " from "
                         << _address.to_string() << ":"
                         << std::dec << _port << " reliable=" << _reliable;
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
@@ -2515,15 +2527,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
     } else {
         boost::asio::ip::address its_first_address, its_second_address;
         if (ILLEGAL_PORT != _first_port) {
-            uint16_t its_first_port(0);
             its_subscriber = endpoint_definition::get(
                     _first_address, _first_port, _is_first_reliable, _service, _instance);
-            if (!_is_first_reliable &&
-                _info->get_multicast(its_first_address, its_first_port) &&
-                _info->is_sending_multicast()) { // udp multicast
-                its_unreliable = endpoint_definition::get(
-                    its_first_address, its_first_port, false, _service, _instance);
-            } else if (_is_first_reliable) { // tcp unicast
+            if (_is_first_reliable) { // tcp unicast
                 its_reliable = its_subscriber;
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
@@ -2545,15 +2551,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
         }
 
         if (ILLEGAL_PORT != _second_port) {
-            uint16_t its_second_port(0);
             its_subscriber = endpoint_definition::get(
                     _second_address, _second_port, _is_second_reliable, _service, _instance);
-            if (!_is_second_reliable &&
-                _info->get_multicast(its_second_address, its_second_port) &&
-                _info->is_sending_multicast()) { // udp multicast
-                its_unreliable = endpoint_definition::get(
-                    its_second_address, its_second_port, false, _service, _instance);
-            } else if (_is_second_reliable) { // tcp unicast
+            if (_is_second_reliable) { // tcp unicast
                 its_reliable = its_subscriber;
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
@@ -2923,8 +2923,7 @@ service_discovery_impl::check_ipv4_address(
     return is_valid;
 }
 
-void
-service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo> &_info) {
+void service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo>& _info) {
     service_t its_service = _info->get_service();
     service_t its_instance = _info->get_instance();
 
@@ -2943,27 +2942,8 @@ service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo> &_info)
     }
 }
 
-void
-service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
-    std::lock_guard<std::mutex> its_lock(offer_debounce_timer_mutex_);
-    boost::system::error_code ec;
-    if (_first_start) {
-        offer_debounce_timer_.expires_from_now(initial_delay_, ec);
-    } else {
-        offer_debounce_timer_.expires_from_now(offer_debounce_time_, ec);
-    }
-    if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::start_offer_debounce_timer "
-        "setting expiry time of timer failed: " << ec.message();
-    }
-    offer_debounce_timer_.async_wait(
-            std::bind(&service_discovery_impl::on_offer_debounce_timer_expired,
-                      this, std::placeholders::_1));
-}
-
-void
-service_discovery_impl::start_find_debounce_timer(bool _first_start) {
-    std::lock_guard<std::mutex> its_lock(find_debounce_timer_mutex_);
+void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
     boost::system::error_code ec;
     if (_first_start) {
         find_debounce_timer_.expires_from_now(initial_delay_, ec);
@@ -2974,19 +2954,26 @@ service_discovery_impl::start_find_debounce_timer(bool _first_start) {
         find_debounce_timer_.expires_from_now(find_debounce_time_, ec);
     }
     if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::start_find_debounce_timer "
-        "setting expiry time of timer failed: " << ec.message();
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                      << " setting expiry time of timer failed: "
+                      << ec.message();
     }
-    find_debounce_timer_.async_wait(
-            std::bind(
-                    &service_discovery_impl::on_find_debounce_timer_expired,
-                    this, std::placeholders::_1));
+    find_debounce_timer_.async_wait(std::bind(
+            &service_discovery_impl::on_find_debounce_timer_expired, this, std::placeholders::_1));
+}
+
+void service_discovery_impl::stop_find_debounce_timer() {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
+    try {
+        find_debounce_timer_.cancel();
+    } catch (boost::system::system_error&) {
+        // ignore
+    }
 }
 
 // initial delay
-void
-service_discovery_impl::on_find_debounce_timer_expired(
-        const boost::system::error_code &_error) {
+void service_discovery_impl::on_find_debounce_timer_expired(
+        const boost::system::error_code& _error) {
     if(_error) { // timer was canceled
         return;
     }
@@ -3033,15 +3020,40 @@ service_discovery_impl::on_find_debounce_timer_expired(
     boost::system::error_code ec;
     its_timer->expires_from_now(its_delay, ec);
     if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::on_find_debounce_timer_expired "
-        "setting expiry time of timer failed: " << ec.message();
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                      << " setting expiry time of timer failed: "
+                      << ec.message();
     }
-    its_timer->async_wait(
-            std::bind(
-                    &service_discovery_impl::on_find_repetition_phase_timer_expired,
-                    this, std::placeholders::_1, its_timer, its_repetitions,
-                    its_delay.count()));
+    its_timer->async_wait(std::bind(&service_discovery_impl::on_find_repetition_phase_timer_expired,
+                                    this, std::placeholders::_1, its_timer, its_repetitions,
+                                    its_delay.count()));
     start_find_debounce_timer(false);
+}
+
+void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
+    boost::system::error_code ec;
+    if (_first_start) {
+        offer_debounce_timer_.expires_from_now(initial_delay_, ec);
+    } else {
+        offer_debounce_timer_.expires_from_now(offer_debounce_time_, ec);
+    }
+    if (ec) {
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
+                      << " setting expiry time of timer failed: "
+                      << ec.message();
+    }
+    offer_debounce_timer_.async_wait(std::bind(
+            &service_discovery_impl::on_offer_debounce_timer_expired, this, std::placeholders::_1));
+}
+
+void service_discovery_impl::stop_offer_debounce_timer() {
+    std::scoped_lock its_lock {offer_debounce_timer_mutex_};
+    try {
+        offer_debounce_timer_.cancel();
+    } catch (boost::system::system_error&) {
+        // ignore
+    }
 }
 
 void
@@ -3663,21 +3675,24 @@ service_discovery_impl::on_last_msg_received_timer_expired(
                 its_server_endpoint->join(sd_multicast_);
             }
         }
-        {
-            boost::system::error_code ec;
-            std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
-            last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
-            last_msg_received_timer_.async_wait(
-                    std::bind(
-                            &service_discovery_impl::on_last_msg_received_timer_expired,
-                            shared_from_this(), std::placeholders::_1));
-        }
+        start_last_msg_received_timer();
     }
 }
 
 void
+service_discovery_impl::start_last_msg_received_timer() {
+    boost::system::error_code ec;
+    std::scoped_lock its_lock { last_msg_received_timer_mutex_ };
+    last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
+    last_msg_received_timer_.async_wait(
+            std::bind(
+                    &service_discovery_impl::on_last_msg_received_timer_expired,
+                    shared_from_this(), std::placeholders::_1));
+}
+
+void
 service_discovery_impl::stop_last_msg_received_timer() {
-    std::lock_guard<std::mutex> its_lock(last_msg_received_timer_mutex_);
+    std::scoped_lock its_lock { last_msg_received_timer_mutex_ };
     boost::system::error_code ec;
     last_msg_received_timer_.cancel(ec);
 }

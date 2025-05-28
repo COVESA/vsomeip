@@ -1,0 +1,5 @@
+Host slave
+    ProxyCommand socat - TCP4:slave:%p,bind=:22,reuseaddr
+    User root
+    IdentityFile /commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub
+    Port 22

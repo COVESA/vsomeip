@@ -154,7 +154,7 @@ protected:
 
     std::atomic<bool> was_not_connected_;
 
-    bool is_sending_;
+    std::atomic<bool> is_sending_;
 
     boost::asio::io_context::strand strand_;
 

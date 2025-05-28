@@ -12,6 +12,7 @@
 #include <vector>
 #include <list>
 #include <unordered_set>
+#include <boost/functional/hash.hpp>
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -316,6 +317,8 @@ public:
     virtual bool is_available(service_t _service, instance_t _instance,
                               major_version_t _major) const;
 
+    bool is_external_routing_ready() const;
+
 private:
     bool offer_service(client_t _client,
             service_t _service, instance_t _instance,
@@ -358,16 +361,11 @@ private:
             instance_t _instance);
 
     void clear_targets_and_pending_sub_from_eventgroups(service_t _service, instance_t _instance);
-    void clear_remote_subscriber(service_t _service, instance_t _instance);
 
     return_code_e check_error(const byte_t *_data, length_t _size,
             instance_t _instance);
 
     bool supports_selective(service_t _service, instance_t _instance);
-
-    void clear_remote_subscriber(service_t _service, instance_t _instance,
-            client_t _client,
-            const std::shared_ptr<endpoint_definition> &_target);
 
     void log_version_timer_cbk(boost::system::error_code const & _error);
 
@@ -385,7 +383,7 @@ private:
 
     void start_ip_routing();
 
-    inline bool is_external_routing_ready() const;
+    void init_pending_services();
 
     void add_requested_service(client_t _client, service_t _service,
                        instance_t _instance, major_version_t _major,
@@ -488,15 +486,6 @@ private:
         >
     > requested_services_;
 
-    std::mutex remote_subscribers_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<client_t,
-                std::set<std::shared_ptr<endpoint_definition> >
-            >
-        >
-    > remote_subscribers_;
-
     std::shared_ptr<serviceinfo> sd_info_;
 
     std::mutex version_log_timer_mutex_;
@@ -506,7 +495,9 @@ private:
     std::atomic_bool sd_route_set_;
     std::atomic_bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
-    std::vector<std::pair<service_t, instance_t>> pending_sd_offers_;
+    std::unordered_set<std::pair<service_t, instance_t>,
+                       boost::hash<std::pair<service_t, instance_t>>>
+            pending_sd_offers_;
 #if defined(__linux__) || defined(ANDROID)
     std::shared_ptr<netlink_connector> netlink_connector_;
 #endif
@@ -565,6 +556,8 @@ private:
     std::mutex update_remote_subscription_mutex_;
 
     message_acceptance_handler_t message_acceptance_handler_;
+
+    std::mutex on_state_change_mutex_;
 };
 
 }  // namespace vsomeip_v3

@@ -1348,7 +1348,8 @@ endpoint_manager_impl::process_multicast_options() {
 
     std::unique_lock<std::mutex> its_lock(options_mutex_);
     while (is_processing_options_) {
-        if (options_queue_.size() > 0) {
+        if (options_queue_.size() > 0
+        && static_cast<routing_manager_impl*>(rm_)->is_external_routing_ready()) {
             auto its_front = options_queue_.front();
             options_queue_.pop();
             auto its_udp_server_endpoint =
@@ -1361,14 +1362,23 @@ endpoint_manager_impl::process_multicast_options() {
                 its_udp_server_endpoint->set_multicast_option(
                     its_front.address_, its_front.is_join_, its_error);
 
+
+                // Lock again after setting the option
+                its_lock.lock();
+
                 if (its_error) {
                     VSOMEIP_ERROR << __func__ << ": "
                                   << (its_front.is_join_ ? "joining " : "leaving ")
                                   << its_front.address_ << " (" << its_error.message() << ")";
-                }
 
-                // Lock again after setting the option
-                its_lock.lock();
+                    if(its_front.is_join_) {
+                        multicast_option_t its_leave_option {
+                            its_front.endpoint_, false, its_front.address_};
+
+                        options_queue_.push(its_leave_option);
+                        options_queue_.push(its_front);
+                    }
+                }
             }
         } else {
             options_condition_.wait(its_lock);
@@ -1400,13 +1410,15 @@ void endpoint_manager_impl::suspend() {
 
 void endpoint_manager_impl::resume() {
     client_endpoints_t its_client_endpoints;
+    server_endpoints_t its_server_endpoints;
+
     {
         std::scoped_lock its_lock {endpoint_mutex_};
         its_client_endpoints = client_endpoints_;
+        its_server_endpoints = server_endpoints_;
     }
 
     // restart client endpoints
-    std::set<std::shared_ptr<client_endpoint>> its_resumed_client_endpoints;
     for (const auto& [its_address, ports] : its_client_endpoints) {
         for (const auto& [its_port, protocols] : ports) {
             for (const auto& [its_protocol, partitions] : protocols) {
@@ -1414,6 +1426,13 @@ void endpoint_manager_impl::resume() {
                     its_endpoint->restart();
                 }
             }
+        }
+    }
+
+    // restart server endpoints
+    for (const auto& [its_port, protocols] : its_server_endpoints) {
+        for (const auto& [its_protocol, its_endpoint] : protocols) {
+            its_endpoint->restart();
         }
     }
 }

@@ -1,40 +1,42 @@
 # vSomeIP Configurations
 
-**Updated to vSomeIP 3.5.3**
+**Updated to vSomeIP 3.5.5**
 
 <`TBD`> tags means it still needs to be checked/done.
 
 
 ## Index
-1. [Logging](#1-logging)
-2. [Routing](#2-routing)
-3. [Applications](#3-applications)
-4. [Network](#4-network)
-5. [Shutdown](#5-shutdown)
-6. [Payload Sizes](#6-payload-sizes)
-7. [Endpoint Queue Sizes](#7-endpoint-queue-sizes)
-8. [TCP Restart Settings](#8-tcp-restart-settings)
-9. [Permissions](#9-permissions)
-10. [Security](#10-security)
-11. [Tracing](#11-tracing)
-12. [UDP Receive Buffer Size](#12-udp-receive-buffer-size)
-13. [Service Discovery](#13-service-discovery)
-14. [nPDU Default Timings](#14-npdu-default-timings)
-15. [Services](#15-services)
-16. [Internal Services](#16-internal-services)
-17. [Clients](#17-clients)
-18. [Watchdog](#18-watchdog)
-19. [Selective Broadcasts Support](#19-selective-broadcasts-support)
-20. [E2E](#20-e2e)
-21. [Debounce](#21-debounce)
-22. [Acceptances](#22-acceptances)
-23. [Secure Services](#23-secure-services)
-24. [Partitions](#24-partitions)
-25. [Suppress Events](#25-suppress-events)
-26. [Environment Variables](#26-environment-variables)
+- [Logging](#logging)
+- [Routing](#routing)
+- [Applications](#applications)
+- [Network](#network)
+- [Shutdown](#shutdown)
+- [Dispatching](#dispatching)
+- [Payload Sizes](#payload-sizes)
+- [Endpoint Queue Sizes](#endpoint-queue-sizes)
+- [TCP Restart Settings](#tcp-restart-settings)
+- [Permissions](#permissions)
+- [Security](#security)
+- [Tracing](#tracing)
+- [UDP Receive Buffer Size](#udp-receive-buffer-size)
+- [Service Discovery](#service-discovery)
+- [nPDU Default Timings](#npdu-default-timings)
+- [Services](#services)
+- [Internal Services](#internal-services)
+- [Clients](#clients)
+- [Watchdog](#watchdog)
+- [Local Clients Keepalive](#local-clients-keepalive)
+- [Selective Broadcasts Support](#selective-broadcasts-support)
+- [E2E](#e2e)
+- [Debounce](#debounce)
+- [Acceptances](#acceptances)
+- [Secure Services](#secure-services)
+- [Partitions](#partitions)
+- [Suppress Events](#suppress-events)
+- [Environment Variables](#environment-variables)
 ---
 
-## 1. Logging
+## Logging
 
 - **logging** - Used to configure the log messages of vSomeIP
     - **console** - Specifies whether logging via console is enabled, valid values are `true` or `false`. The default value is `true`.
@@ -66,7 +68,7 @@
 ```
 </details>
 
-## 2. Routing
+## Routing
 - **routing** (optional) - Specifies the properties of the routing. Either a string that specifies the application that hosts the routing component or a structure that specifies all properties of the routing. If the routing is not specified, the first started application will host the routing component.
     - **host** - Properties of the routing manager.
         - **name** - Name of the application that hosts the routing component.
@@ -147,7 +149,7 @@
 ```
 </details>
 
-## 3. Applications
+## Applications
 
 - **applications** (array) - Contains the applications of the host system that use this config file.
     - **name** - The name of the application.
@@ -157,12 +159,14 @@
     - **max_detached_thread_wait_time** (optional) - The maximum time in seconds that an application will wait for a detached dispatcher thread to finish executing. The default value if not specified is `5` sec.
     - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. The default value is `2`.
     - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation. The default value is `0`.
-    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is `10` ms.
+    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is set by the global configuration variable of the same name.
     - **plugins** (optional array) - Contains the plug-ins that should be loaded to extend the functionality of vsomeip.
         - **name** - The name of the plug-in.
         - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
         - **additional** - Generic way to define configuration data for plugins.
-    - **debounce** <`TBD`> - Client/Application specific configuration of debouncing, not fully connected yet.
+    - **debounce** - Client/Application specific configuration of debouncing.
+    - **has_session_handling** - Configures the session handling. Mostly used for E2E use cases when the application handles the CRC calculation over the SOME/IP header by themself, and need the ability to switch off the session handling as otherwise their calculated checksum does not match reality after vsomeip inserts the session identifier. Valid values are `true` or `false`. The default value is `true`.
+    - **event_loop_periodicity** (optional) - If set to a positive value, it enables the io_context object's event processing run_for implementation to run the loop based on duration instead of running it until the work queue has work to be done. The default value is `0` seconds, which uses the io_context run interface.
 
 <details><summary>Example of Applications configuration</summary>
 
@@ -196,9 +200,9 @@
 ```
 </details>
 
-## 4. Network
+## Network
 
-- **network** (optional) - Network identifier used to support multiple routing managers on one host. This setting changes the name of the shared memory segment in `/dev/shm` and the name of the unix domain sockets in `/tmp/`. The default value is `vsomeip`, meaning the shared memory will be named `/dev/shm/vsomeip` and the unix domain sockets will be named `/tmp/vsomeip-$CLIENTID`
+- **network** (optional) - Network identifier used to support multiple routing managers on one host. This setting changes the name of the unix domain sockets in `/tmp/`. The default value is `vsomeip`, meaning the unix domain sockets will be named `/tmp/vsomeip-$CLIENTID`
 - **diagnosis** - The diagnosis address (byte) that will be used to build client identifiers. The diagnosis address is assigned to the most significant byte in all client identifiers if not specified otherwise (for example through a predefined client ID). The default value is `0x01`.
 - **diagnosis_mask** - The diagnosis mask (2 byte) is used to control the maximum amount of allowed concurrent vsomeip clients on an ECU and the start value of the client IDs.
 
@@ -219,7 +223,7 @@
 ```
 </details>
 
-## 5. Shutdown
+## Shutdown
 
 - **shutdown_timeout** - Configures the time in milliseconds local clients wait for acknowledgement of their deregistration from the routing manager during shutdown. The default value is `5000` ms.
 
@@ -230,7 +234,15 @@
 ```
 </details>
 
-## 6. Payload Sizes
+## Dispatching
+
+Define default settings for the maximum number of (additional) dispatchers and the maximum dispatch time. These default values are overwritten by application specific definitions.
+
+- **dispatching** (optional)
+    - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. The default value is `10`.
+    - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100` ms.
+
+## Payload Sizes
 
 - **payload-sizes** (array) - Array to limit the maximum allowed payload sizes per IP and port. If not specified otherwise the allowed payload sizes are `unlimited`. The settings in this array only affect communication over TCP. To limit the local payload size `max-payload-size-local` can be used.
     - **unicast** - IP Address of:
@@ -277,7 +289,7 @@
 ```
 </details>
 
-## 7. Endpoint Queue Sizes
+## Endpoint Queue Sizes
 
 - **endpoint-queue-limits** (array) - Array to limit the maximum allowed size in bytes of cached outgoing messages per IP and port (message queue size per endpoint). If not specified otherwise the allowed queue size is `unlimited`. The settings in this array only affect external communication. To limit the local queue size `endpoint-queue-limit-local` can be used.
     - **unicast**
@@ -294,17 +306,17 @@
 - **endpoint-queue-limit-local** - Setting to limit the maximum allowed size in bytes of cached outgoing messages for local communication (message queue size per endpoint). By default the queue size for node internal communication is `unlimited`. It can be limited via this setting.
 
 
-## 8. TCP Restart Settings
+## TCP Restart Settings
 
 - **tcp-restart-aborts-max** - Setting to limit the number of TCP client endpoint restart aborts due to unfinished TCP handshake. After the limit is reached, a forced restart of the TCP client endpoint is done if the connection attempt is still pending. The default value is `5`.
 - **tcp-connect-time-max** - Setting to define the maximum time until the TCP client endpoint connection attempt should be finished. If tcp-connect-time-max is elapsed, the TCP client endpoint is forcefully restarted if the connection attempt is still pending. The default value is `5000` ms.
 
-## 9. Permissions
+## Permissions
 
 - **file-permissions**
     - **permissions-uds** - If UDS is used, this configures the user file-creation mode mask (umask) for the permissions of the sockets. The default value is `0666`.
 
-## 10. Security
+## Security
 
 vSomeIP has a security implementation based on UNIX credentials.
 
@@ -332,6 +344,9 @@ The available configuration switches for the security feature are:
 - **security** (optional) - If specified the credential passing mechanism is activated. However no credential or security checks are done as long as `check_credentials` isn't set to `true`, but the routing manager client ID must be configured if security tag is specified and shall not be set to 0x6300.
 If `check_credentials` is set to `true`, the routing managers UID and GID needs to be specified using `routing-credentials` tag.
 - **NOTE**: As long as no `security` node exists, the security implementation is switched off. This also means, no external security library will be loaded and used.
+
+    If the `security` field is left empty, vSomeIP will treat it as external security. In this case, an external library, such as `libvsomeip-sec.so.1`, will be loaded automatically. A vSomeIP info log message will indicate the library being utilized (e.g., `[info] Using external security implementation!`).
+
     - **check_credentials** (optional) - Specifies whether security checks are active or not. This includes credentials checks on connect as well as all policies checks configured in follow, valid values are `true` or `false`. The default value is `false`. **NOTE**: vsomeip's security implementation can be put in a so called `Audit Mode` where all security violations will be logged but allowed. This mode can be used to build a security configuration. To activate the `Audit Mode` the 'security' object has to be included in the json file but the `check_credentials` switch has to be set to `false`.
     - **allow_remote_clients** (optional) - Specifies whether incoming remote requests / subscriptions are allowed to be sent to a local proxy / client. If not specified, all remote requests / subscriptions are allowed to be received by default. Valid values are `true` and `false`. The default value is `true`.
     - **policies** (array) - Specifies the security policies. Each policy at least needs to specify `allow` or `deny`.
@@ -489,7 +504,7 @@ The following configuration parameters are available and can be defined in a fil
 ```
 </details>
 
-## 11. Tracing
+## Tracing
 
 The Trace Connector is used to forward the internal messages that are sent over the Unix Domain Sockets (UDS) to DLT. Thus, it requires that DLT is installed and the DLT module can be found in the context of CMake.
 
@@ -594,12 +609,12 @@ The general filter rules are:
 </details>
 
 
-## 12. UDP Receive Buffer Size
+## UDP Receive Buffer Size
 
 - **udp-receive-buffer-size** - Specifies the size of the socket receive buffer (SO_RCVBUF) used for UDP client and server endpoints in bytes. Requires CAP_NET_ADMIN to be successful. The default value is: `1703936`.
 
 
-## 13. Service Discovery
+## Service Discovery
 
 - **service-discovery** - Contains settings related to the Service Discovery of the host application.
     - **enable** - Specifies whether the Service Discovery is enabled, valid values are `true`, `false`. The default value is `true`.
@@ -627,6 +642,7 @@ The general filter rules are:
     - **max_remote_subscribers** - Maximum possible number of different remote subscribers. Additional remote subscribers will not be acknowledged. The default value is `3`.
     - **find_initial_debounce_reps** - Number of initial debounces using find_initial_debounce_time. This can be used to modify the number of sent messages during initial part of startup (valid values: `0 - 2^8-1`). The default setting is `0`.
     - **find_initial_debounce_time** - Time which the stack collects new service requests before they enter the repetition phase. This can be used to modify the number of sent messages during initial part of startup. The default setting is `200` ms.
+    - **wait_route_netlink_notification** - Enables the tracking of the route state `on_net_interface_or_route_state_changed`. The default setting is `true`.
 
 <details><summary>Service Discovery configuration</summary>
 
@@ -648,7 +664,7 @@ The general filter rules are:
 </details>
 
 
-## 14. nPDU Default Timings
+## nPDU Default Timings
 
 This is the add-on documentation for the nPDU feature, aka. **Zugverfahren**.
 The nPDU feature can be used to reduce network load as it enables the vsomeip stack to combine multiple vsomeip messages in one single ethernet frame.
@@ -953,7 +969,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ```
 </details>
 
-## 15. Services
+## Services
 
 - **services** (array) - Contains the services of the service provider.
     - **service** - The id of the service.
@@ -963,16 +979,16 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     **NOTE**: The unicast address is needed if external service instances shall be used, but service discovery is disabled. In this case, the provided unicast address is used to access the service instance.
     - **reliable** - Specifies that the communication with the service is reliable respectively the TCP protocol is used for communication.
         - **port** - The port of the TCP endpoint.
-        - **enable-magic-cookies** - Specifies whether magic cookies are enabled, valid values are `true`, `false`.
+        - **enable-magic-cookies** - Specifies whether magic cookies are enabled, valid values are `true` or `false`. The default value is `false`.
     - **unreliable** - Specifies that the communication with the service is unreliable respectively the UDP protocol is used for communication (valid values: the port of the UDP endpoint).
     - **events** (array) - Contains the events of the service.
         - **event** - The id of the event.
         - **is_field** - Specifies whether the event is of type field.
         **NOTE**: A field is a combination of getter, setter and notification event. It contains at least a `getter`, a `setter`, or a `notifier`. The notifier sends an event message that transports the current value of a field on change.
-        - **is_reliable** - Specifies whether the communication is reliable respectively whether the event is sent with the TCP protocol, valid values: `true`, `false`. If the value is false the UDP protocol will be used.
+        - **is_reliable** - Specifies whether the communication is reliable respectively whether the event is sent with the TCP protocol, valid values are `true` or `false`. If the value is false the UDP protocol will be used.
         - **cycle** - Defines the period for events to be sent. (values are defined in `ms`).
-        - **update_on_change** - Defines if the updates are sent right away if the event value changes, valid values: `true`, `false`.
-        - **change_resets_cycle** - When the `update_on_change` is set to `true`, and this parameter is also `true`, the defined cycle will be reset when the event value changes. Valid values: `true`, `false`.
+        - **update_on_change** - Defines if the updates are sent right away if the event value changes, valid values are `true` or `false`. The default value is `true`.
+        - **change_resets_cycle** - When the `update_on_change` is set to `true`, and this parameter is also `true`, the defined cycle will be reset when the event value changes. Valid values are `true` or `false`. The default value is `false`.
     - **eventgroups** (array) - Events can be grouped together into on event group. For a client it is thus possible to subscribe for an event group and to receive the appropriate events within the group.
         - **eventgroup** - The id of the event group.
         - **multicast** - Specifies the multicast that is used to publish the eventgroup.
@@ -980,7 +996,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             - **port** - The multicast port.
         - **events** (array) - Contains the ids of the appropriate events.
         - **threshold** - Specifies when to use multicast and when to use unicast to send a notification event. Must be set to a non-negative number. If it is set to zero, all events of the eventgroup will be sent by unicast. Otherwise, the events will be sent by unicast as long as the number of subscribers is lower than the threshold and by multicast if the number of subscribers is greater or equal. This means, a threshold of 1 will lead to all events being sent by multicast. The default value is `0`.
-    - **debounce-times** (object) - Used to configure the nPDU feature. This is described in detail in SOME/IP [nPDU Default Timings](#14-npdu-default-timings).
+    - **debounce-times** (object) - Used to configure the nPDU feature. This is described in detail in SOME/IP [nPDU Default Timings](#npdu-default-timings).
         - **requests** - Requests configuration
             - **debounce-time** - minimal time between sending a message to the same method of a remote service over the same connection (src/dst address + src/dst port).
             - **maximum-retention-time** - the maximum time which a message to the same method of a remote service over the same connection (src/dst address + src/dst port) is allowed to be buffered on sender side.
@@ -1149,7 +1165,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 
 
-## 16. Internal Services
+## Internal Services
 
 - **internal_services** (optional array) - Specifies service/instance ranges for pure internal service-instances. This information is used by vsomeip to avoid sending Find-Service messages via the Service-Discovery when a client is requesting a not available service-instance. Its can either be done on service/instance level or on service level only which then includes all instance from 0x0000-0xffff.
     - **first** - The lowest entry of the internal service range.
@@ -1189,7 +1205,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 </details>
 
-## 17. Clients
+## Clients
 
 - **clients** (array) - The client-side ports that shall be used to connect to a specific service. For each service, an array of ports to be used for reliable/unreliable communication can be specified. vsomeip will take the first free port of the list. If no free port can be found, the connection will fail. If vsomeip is asked to connect to a service instance without specified port(s), the port will be selected by the system. This implies that the user has to ensure that the ports configured here do not overlap with the ports automatically selected by the IP stack.
     - **service** - Specify the service the port configuration shall be applied to.
@@ -1239,15 +1255,20 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ```
 </details>
 
-## 18. Watchdog
+## Watchdog
 
 - **watchdog** (optional) - The Watchdog sends periodically pings to all known local clients. If a client isn't responding within a configured time/amount of pongs the watchdog deregisters this application/client. If not configured the watchdog isn't activated.
     - **enable** - Specifies whether the watchdog is enabled or disabled, valid values are `true`, `false`. The default value is `false`.
     - **timeout** - Specifies the timeout in ms the watchdog gets activated if a ping isn't answered with a pong by a local client within that time. (valid values: 2 - 2^32). The default value is `5000` ms.
     - **allowed_missing_pongs** - Specifies the amount of allowed missing pongs. (valid values: 1 - 2^32). The default value is `3`.
 
+## Local Clients Keepalive
 
-## 19. Selective Broadcasts Support
+- **local-clients-keepalive** (optional) - The Local Clients Keepalive option activates the sending of periodic ping messages from the routing manager clients to the routing host. The routing manager host shall reply to the ping with a pong. The idea is to have a simpler alternetive to the TCP_KEEPALIVE, particularly for systems where this option can not be configured.
+    - **enable** - Specifies whether the Local Clients Keepalive is enabled or disabled, valid values are `true`, `false`. The default value is `false`.
+    - **time** - Specifies the time in ms the Local Clients Keepalive messages are sent. The default value is `5000` ms.
+
+## Selective Broadcasts Support
 
 - **supports_selective_broadcasts** (optional array) - This nodes allow to add a list of IP addresses on which CAPI-Selective-Broadcasts feature is supported. If not specified the feature can't be used and the subscription behavior of the stack is same as with normal events.
     - **address** - Specifies an IP-Address (in IPv4 or IPv6 notation) on which the "selective"-feature is supported. Multiple addresses can be configured.
@@ -1262,7 +1283,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ```
 </details>
 
-## 20. E2E
+## E2E
 
 - **e2e** - Used to configure the E2E protection for the specified events
     - **e2e_enabled** - Specifies if E2E protection should be enabled or disabled. Use `true` to enable.
@@ -1462,7 +1483,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 </details>
 
 
-## 21. Debounce
+## Debounce
 
 - **debounce** (optional array) - Events/fields sent by external devices will be forwarded to the applications only if a configurable function evaluates to true. The function checks whether the event/field payload has changed and whether a specified interval has been elapsed since the last forwarding.
     - **service** - Service ID which hosts the events to be debounced.
@@ -1520,11 +1541,16 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 </details>
 
 
-## 22. Acceptances
+- **request_debounce_time** - Service requests done by an application can be debounced to be more efficient
+  if many services are requested simultaneously (e.g. at startup). This configuration variable specified the
+  maximum request debounce time in milliseconds. The default time is 10ms.
+
+## Acceptances
 
 - **acceptances** - Can be used to modify the assignment of ports to the unsecure, optional and secure ranges.
     - **address** - The IP Address of the device where the ports should be modified.
-    - **path** <`TBD`> -
+    - **path** - Either a single path to an activation file or a list of pathes to activation files.
+                 The existence of an activation file switches on the filter mechanism for the specified address.
     - **reliable** - Type of ports to modify. Possible values are `reliable` and `unreliable`.
         - **port** - Adds that port to the secure port group.
         - **first** -  Group of ports starting at `first`, to add as a secure port.
@@ -1564,14 +1590,14 @@ Configuration used to specify the port group 30xy from the IP 10.3.0.10 should b
 ```
 </details>
 
-## 23. Secure Services
+## Secure Services
 
 - **secure-services** - List of service instances that are only accepted, if being offered on a secure port.
     - **service** - The id of the service
     - **instance** - The id of the instance
 
 
-## 24. Partitions
+## Partitions
 
 - **partitions** - Allows to group service instances that are offered on the same port into partitions. For each partition, a separate client port will be used. The goal is to enable faster processing of specific
 events if a single server port is used to offer many services that send many messages, especially at startup.
@@ -1606,7 +1632,7 @@ events if a single server port is used to offer many services that send many mes
 </details>
 
 
-## 25. Suppress Events
+## Suppress Events
 
 - **suppress_missing_event_logs**  - Used to filter the log message `deliver_notification: Event [1234.5678.80f3]
 is not registered. The message is dropped.` that occurs whenever vSomeIP
@@ -1660,7 +1686,7 @@ receives an event without having a corresponding object being registered.
 </details>
 
 
-# 26. Environment Variables
+# Environment Variables
 
 On startup of a vSomeIP application, the following environment variables are read:
 
@@ -1679,7 +1705,7 @@ On startup of a vSomeIP application, the following environment variables are rea
 
 - **VSOMEIP_MANDATORY_CONFIGURATION_FILES**: vsomeip allows to specify mandatory configuration files to speed-up application startup. While mandatory configuration files are read by all applications, all other configuration files are only read by the application that is responsible for connections to external devices.
 
-    If this configuration variable is not set, the default mandatory files `vsomeip_std.json`, `vsomeip_app.json`, `vsomeip_events.json`, `vsomeip_plc.json`, `vsomeip_log.json`, `vsomeip_security.json`, `vsomeip_whitelist.json`, `vsomeip_policy_extensions.json` and `vsomeip_portcfg.json`are used.
+    If this configuration variable is not set, the default mandatory files `vsomeip_std.json`, `vsomeip_app.json`, `vsomeip_events.json`, `vsomeip_plc.json`, `vsomeip_log.json`, `vsomeip_security.json`, `vsomeip_whitelist.json`, `vsomeip_policy_extensions.json`, `vsomeip_portcfg.json` and `vsomeip_device.json` are used.
 
 
 - **VSOMEIP_CLIENTSIDELOGGING**: Set this variable to an empty string to enable logging of any received messages to DLT in all applications acting as routing manager proxies. For example add the following line to the applications systemd service file:

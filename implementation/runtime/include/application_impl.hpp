@@ -34,6 +34,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 #include "../../routing/include/routing_manager_host.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -155,18 +156,24 @@ public:
 
     VSOMEIP_EXPORT void on_state(state_type_e _state);
     VSOMEIP_EXPORT void on_availability(service_t _service, instance_t _instance,
-            availability_state_e _state, major_version_t _major, minor_version_t _minor);
+                                        availability_state_e _state, major_version_t _major,
+                                        minor_version_t _minor);
     VSOMEIP_EXPORT void on_message(std::shared_ptr<message> &&_message);
     VSOMEIP_EXPORT void on_subscription(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, client_t _client, const vsomeip_sec_client_t *_sec_client,
-            const std::string &_env, bool _subscribed, const std::function<void(bool)> &_accepted_cb);
+                                        eventgroup_t _eventgroup, client_t _client,
+                                        const vsomeip_sec_client_t* _sec_client,
+                                        const std::string& _env, bool _subscribed,
+                                        const std::function<void(bool)>& _accepted_cbk);
     VSOMEIP_EXPORT void on_subscription_status(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, event_t _event, uint16_t _error);
-    VSOMEIP_EXPORT void register_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                               eventgroup_t _eventgroup, event_t _event,
+                                               uint16_t _error);
+    VSOMEIP_EXPORT void register_subscription_status_handler(
+            service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
             subscription_status_handler_t _handler, bool _is_selective);
     VSOMEIP_EXPORT void unregister_subscription_status_handler(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+                                                               instance_t _instance,
+                                                               eventgroup_t _eventgroup,
+                                                               event_t _event);
 
     // service_discovery_host
     VSOMEIP_EXPORT routing_manager * get_routing_manager() const;
@@ -421,15 +428,9 @@ private:
 
     // Subscription handlers
     std::map<service_t,
-            std::map<instance_t,
-                    std::map<eventgroup_t,
-                            std::pair<subscription_handler_sec_t,
-                                async_subscription_handler_sec_t> > > > subscription_;
+             std::map<instance_t, std::map<eventgroup_t, async_subscription_handler_sec_t>>>
+            subscription_;
     mutable std::mutex subscription_mutex_;
-    std::map<service_t,
-        std::map<instance_t, std::map<eventgroup_t,
-        std::map<client_t, error_handler_t > > > > eventgroup_error_handlers_;
-    mutable std::mutex subscription_error_mutex_;
 
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Signals
@@ -466,7 +467,7 @@ private:
 
     std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;
-    bool stopped_;
+    std::atomic_bool stopped_;
     std::thread stop_thread_;
 
     std::condition_variable block_stop_cv_;
@@ -509,8 +510,7 @@ private:
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
 
-    std::map<std::pair<service_t, instance_t>,
-            std::deque<std::shared_ptr<sync_handler> > > availability_handlers_;
+    service_instance_map<std::deque<std::shared_ptr<sync_handler>>> availability_handlers_;
 
     vsomeip_sec_client_t sec_client_;
 

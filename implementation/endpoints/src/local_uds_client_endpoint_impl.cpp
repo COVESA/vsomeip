@@ -112,8 +112,8 @@ void local_uds_client_endpoint_impl::stop() {
 }
 
 void local_uds_client_endpoint_impl::connect() {
-    start_connecting_timer();
     connecting_timer_state_ = connecting_timer_state_e::IN_PROGRESS;
+    start_connecting_timer();
     boost::system::error_code its_connect_error;
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -233,13 +233,18 @@ void local_uds_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        boost::asio::async_write(
+        if(socket_->is_open()) {
+            boost::asio::async_write(
                 *socket_, bufs,
                 strand_.wrap(std::bind(&client_endpoint_impl::send_cbk,
-                                       std::dynamic_pointer_cast<local_uds_client_endpoint_impl>(
-                                               shared_from_this()),
-                                       std::placeholders::_1, std::placeholders::_2,
-                                       _entry.first)));
+                    std::dynamic_pointer_cast<local_uds_client_endpoint_impl>(
+                        shared_from_this()),
+                        std::placeholders::_1, std::placeholders::_2,
+                        _entry.first)));
+        } else {
+            VSOMEIP_WARNING << "lucei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
+            was_not_connected_ = true;
+        }
     }
 }
 

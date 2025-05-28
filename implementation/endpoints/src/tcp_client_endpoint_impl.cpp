@@ -192,16 +192,17 @@ void tcp_client_endpoint_impl::connect() {
                     // set new client port depending on service / instance / remote port
                     if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_)) {
                         VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
-                                "Failed to set new local port for tce: "
-                                << " local: " << local_.address().to_string()
-                                << ":" << std::dec << local_.port()
-                                << " remote:" << get_address_port_remote();
+                                        << "Failed to set new local port for tce: "
+                                        << " local: " << local_.address().to_string() << ":"
+                                        << std::dec << local_.port()
+                                        << " remote:" << get_address_port_remote()
+                                        << " endpoint: " << this;
                     } else {
                         VSOMEIP_INFO << "tcp_client_endpoint::connect: "
-                                "Using new new local port for tce: "
-                                << " local: " << local_.address().to_string()
-                                << ":" << std::dec << local_.port()
-                                << " remote:" << get_address_port_remote();
+                                     << "Using new local port for tce: "
+                                     << " local: " << local_.address().to_string() << ":"
+                                     << std::dec << local_.port()
+                                     << " remote:" << get_address_port_remote();
                     }
                 }
                 std::size_t operations_cancelled;
@@ -376,6 +377,9 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
                     _entry.first
                 ))
             );
+        } else {
+            VSOMEIP_WARNING << "tcei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
+            was_not_connected_ = true;
         }
     }
 }

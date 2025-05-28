@@ -27,6 +27,7 @@ TARGET_LINK_LIBRARIES (
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
 )
 
 # ----------------------------------------------------------------------------

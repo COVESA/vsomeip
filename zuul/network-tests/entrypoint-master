@@ -38,7 +38,8 @@ DLT
 		-D "TEST_IP_SLAVE=$ip_slave" \
 		-D "VALGRIND_LOGS_DIR=/home/logs/valgrind/$VALGRIND_TYPE" \
 		-D "VALGRIND_SUPPRESS_FILE=/home/source/zuul/network-tests/valgrind/$VALGRIND_TYPE.supp" \
-		-D "VALGRIND_TYPE=$VALGRIND_TYPE"
+		-D "VALGRIND_TYPE=$VALGRIND_TYPE" \
+		-D "DISABLE_DLT=Y"
 	cmake --build --preset ci-network-tests
 )
 

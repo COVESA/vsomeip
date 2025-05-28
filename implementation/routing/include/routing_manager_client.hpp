@@ -49,6 +49,12 @@ public:
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
 
+    void start_keepalive();
+    void check_keepalive();
+    void cancel_keepalive();
+    void ping_host();
+    void on_pong(client_t _client);
+
     bool offer_service(client_t _client,
             service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
@@ -237,6 +243,11 @@ private:
     std::atomic_bool is_started_;
     std::atomic<inner_state_type_e> state_;
 
+    boost::asio::steady_timer keepalive_timer_;
+    bool keepalive_active_;
+    bool keepalive_is_alive_;
+    std::mutex keepalive_mutex_;
+
     mutable std::mutex sender_mutex_;
     std::shared_ptr<endpoint> sender_;  // --> stub
 
@@ -274,7 +285,7 @@ private:
     std::mutex pending_event_registrations_mutex_;
     std::set<event_data_t> pending_event_registrations_;
 
-    std::recursive_mutex incoming_subscriptions_mutex_;
+    std::mutex incoming_subscriptions_mutex_;
     std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscriptions_;
 
     std::mutex state_condition_mutex_;
@@ -288,7 +299,7 @@ private:
     boost::asio::steady_timer register_application_timer_;
 
     boost::asio::steady_timer request_debounce_timer_;
-    bool request_debounce_timer_running_;
+    std::atomic<bool> request_debounce_timer_running_;
 
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;

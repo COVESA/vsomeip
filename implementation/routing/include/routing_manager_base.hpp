@@ -31,6 +31,7 @@
 #if defined(__QNX__)
 #include "../../utility/include/qnx_helper.hpp"
 #endif
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -302,15 +303,12 @@ protected:
 
     // Eventgroups
     mutable std::mutex eventgroups_mutex_;
-    std::map<service_t,
-            std::map<instance_t,
-                    std::map<eventgroup_t, std::shared_ptr<eventgroupinfo> > > > eventgroups_;
+    using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo> > >;
+    eventgroups_t eventgroups_;
+
     // Events (part of one or more eventgroups)
     mutable std::mutex events_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            std::map<event_t,
-                std::shared_ptr<event> > > > events_;
+    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event> > > events_;
 
     boost::asio::steady_timer debounce_timer;
     std::multimap<std::chrono::steady_clock::time_point, std::tuple<client_t, bool, std::function<void (const boost::system::error_code)>, event_t>> debounce_clients_;

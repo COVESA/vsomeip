@@ -91,7 +91,7 @@ struct service {
     }
 
     service(service_t _service, instance_t _instance,
-            major_version_t _major, minor_version_t _minor)
+            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR)
         : service_(_service),
           instance_(_instance),
           major_(_major),

@@ -133,6 +133,8 @@ public:
 
     void add_known_client(client_t _client, const std::string &_client_host);
 
+    std::string get_env(client_t _client) const;
+
     void send_suspend() const;
 
     void remove_subscriptions(port_t _local_port,
@@ -158,6 +160,7 @@ private:
             bool _inform_service);
 
     void broadcast_ping() const;
+    void on_ping(client_t _client);
     void on_pong(client_t _client);
     void start_watchdog();
     void check_watchdog();
@@ -202,6 +205,8 @@ private:
             protocol::routing_info_entry &_entry);
     void send_client_routing_info(const client_t _target,
             std::vector<protocol::routing_info_entry> &&_entries);
+    void send_client_config_command(const client_t _client, const client_t _target);
+
     void send_client_credentials(client_t _target, std::set<std::pair<uid_t, gid_t>> &_credentials);
 
     void on_client_id_timer_expired(boost::system::error_code const &_error);

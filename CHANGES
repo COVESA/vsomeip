@@ -1,5 +1,41 @@
 Changes
 =======
+v3.5.5
+- Fix build issue on Ubuntu 24.04
+- Fixing change that was introduced on Fix for Find messages commit
+- Changing mandatory configuration files parsing method
+- Testing possible missing break
+- reset force_initial_events
+- Reintroduce VSOMEIP_CONFIG
+- Enable partial valgrind subprocess tracking
+- Ensure endpoint survives send operation
+- Avoid hanging request service commands
+- Fix initial event tests
+- Ensure state value before send_pending_commands
+- Clean-up service info on registration
+- Add and expose settings for SD find debounce as config options
+- Simplify "Add and expose settings for SD find debounce as config options"
+- Consistently use uid_t/gid_t for credentials
+- Skip valgrind initialevents network test
+- Fix NSM logs with empty Container Id strings
+- Fix issue on STR re registration for local tcp
+- Fix data race due to multiple multicast SD message timeouts
+- Remove leftover routing_info_entry_e
+- Remove patches applied as fix
+- Fix reboot on vnet toggle
+- check client queue_size first
+- Add helgrind dubious locks suppresses
+- Reintroduced server endpoints restart on resume
+- Ensure service offers after route toggling
+- Add a keepalive mechanism to the routing_manager_client
+- fix failures on external_local_routing_test
+- Make local client keep alive mandatory
+- Use variable linger for local TCP
+- fixing vsomeip install without vsomeip_ctrl
+- Fix port format
+- Add vsomeip_device.json to mandatory files
+- Revert Fix NSM logs with empty Container Id strings
+
 v3.5.4
 - Update documentation
 - Fix possible dangling pointer

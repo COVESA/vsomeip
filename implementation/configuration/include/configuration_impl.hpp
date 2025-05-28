@@ -22,10 +22,12 @@
 #include "e2e.hpp"
 #include "routing.hpp"
 #include "watchdog.hpp"
+#include "local_clients_keepalive.hpp"
 #include "service_instance_range.hpp"
 #include "trace.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "../../security/include/policy.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -37,6 +39,7 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
+struct local_clients_keepalive;
 
 struct suppress_t {
     service_t service;
@@ -144,8 +147,9 @@ public:
     VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_request_debouncing(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_request_debounce_time(const std::string& _name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_event_loop_periodicity(const std::string &_name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
 
@@ -201,6 +205,7 @@ public:
     VSOMEIP_EXPORT std::uint32_t get_sd_find_initial_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
+    VSOMEIP_EXPORT bool get_sd_wait_route_netlink_notification() const;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -208,6 +213,9 @@ public:
     VSOMEIP_EXPORT bool is_watchdog_enabled() const;
     VSOMEIP_EXPORT uint32_t get_watchdog_timeout() const;
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
+
+    VSOMEIP_EXPORT bool is_local_clients_keepalive_enabled() const;
+    VSOMEIP_EXPORT std::chrono::milliseconds get_local_clients_keepalive_time() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
 
@@ -232,8 +240,9 @@ public:
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
 
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(
-            const std::string &_name,
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
+            service_t _service, instance_t _instance, event_t _event) const;
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
             service_t _service, instance_t _instance, event_t _event) const;
 
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
@@ -405,6 +414,11 @@ private:
     std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree &_tree);
 
     void load_watchdog(const configuration_element &_element);
+    void load_local_clients_keepalive(const configuration_element &_element);
+
+    void load_request_debounce_time(const configuration_element& _element);
+
+    void load_dispatch_defaults(const configuration_element& _element);
 
     void load_payload_sizes(const configuration_element &_element);
     void load_permissions(const configuration_element &_element);
@@ -417,13 +431,15 @@ private:
     void load_service_debounce(const boost::property_tree::ptree &_tree,
             debounce_configuration_t &_debounces);
     void load_events_debounce(const boost::property_tree::ptree &_tree,
-            std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
+            std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce(const boost::property_tree::ptree &_tree,
-                std::map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
+                std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
     void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
             std::map<std::size_t, byte_t> &_ignore);
     void load_acceptances(const configuration_element &_element);
     void load_acceptance_data(const boost::property_tree::ptree &_tree);
+    void load_activation_file_path(std::set<std::string>& _path,
+                                   const boost::property_tree::ptree& _tree);
     void load_udp_receive_buffer_size(const configuration_element &_element);
     bool load_npdu_debounce_times_configuration(
             const std::shared_ptr<service>& _service,
@@ -513,9 +529,7 @@ protected:
     std::set<client_t> client_identifiers_;
 
     mutable std::mutex services_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            std::shared_ptr<service> > > services_;
+    service_instance_map<std::shared_ptr<service>> services_;
 
     std::map<std::string, // IP
         std::map<std::uint16_t, // port
@@ -547,6 +561,7 @@ protected:
     std::uint32_t sd_find_debounce_time_;
     uint8_t sd_find_initial_debounce_reps_;
     std::uint32_t sd_find_initial_debounce_time_;
+    bool sd_wait_route_netlink_notification_;
 
     std::map<std::string, std::set<uint16_t> > magic_cookies_;
 
@@ -562,6 +577,7 @@ protected:
     std::unordered_set<std::string> supported_selective_addresses;
 
     std::shared_ptr<watchdog> watchdog_;
+    std::shared_ptr<local_clients_keepalive> local_clients_keepalive_;
 
     std::vector<service_instance_range> internal_service_ranges_;
 
@@ -569,7 +585,7 @@ protected:
     uint32_t log_version_interval_;
 
     enum element_type_e {
-        ET_NETWORK,
+        ET_NETWORK = 0,
         ET_UNICAST,
         ET_DEVICE,
         ET_DIAGNOSIS,
@@ -595,6 +611,8 @@ protected:
         ET_WATCHDOG_ENABLE,
         ET_WATCHDOG_TIMEOUT,
         ET_WATCHDOG_ALLOWED_MISSING_PONGS,
+        ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE,
+        ET_LOCAL_CLIENTS_KEEPALIVE_TIME,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS,
@@ -620,7 +638,11 @@ protected:
         ET_SECURITY_AUDIT_MODE,
         ET_SECURITY_REMOTE_ACCESS,
         ET_INITIAL_ROUTING_STATE,
-        ET_MAX = 51
+        ET_DEFAULT_MAX_DISPATCH_TIME,
+        ET_DEFAULT_MAX_DISPATCHERS,
+        ET_WAIT_ROUTE_NETLINK_NOTFICATION,
+        ET_REQUEST_DEBOUNCE_TIME,
+        ET_MAX
     };
 
     bool is_configured_[ET_MAX];
@@ -677,11 +699,7 @@ protected:
     uint8_t max_remote_subscribers_;
 
     mutable std::mutex partitions_mutex_;
-    std::map<service_t,
-        std::map<instance_t,
-            partition_id_t
-        >
-    > partitions_;
+    service_instance_map<partition_id_t> partitions_;
 
     std::string path_;
 
@@ -699,6 +717,11 @@ protected:
     std::atomic_bool is_remote_access_allowed_;
 
     routing_state_e initial_routing_state_;
+
+    std::size_t request_debounce_time_;
+
+    std::size_t default_max_dispatch_time_;
+    std::size_t default_max_dispatchers_;
 };
 
 } // namespace cfg

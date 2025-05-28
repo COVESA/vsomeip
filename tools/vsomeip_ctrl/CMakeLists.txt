@@ -11,10 +11,11 @@ target_link_libraries(vsomeip_ctrl
     ${DL_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
 )
+add_dependencies(tools vsomeip_ctrl)
 
 install (
     TARGETS vsomeip_ctrl
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin OPTIONAL
 )
 
 ###################################################################################################

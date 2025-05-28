@@ -13,7 +13,7 @@
 static std::vector<std::shared_ptr<vsomeip::payload>> payloads__;
 
 debounce_test_client::debounce_test_client(int64_t _interval) :
-    interval(_interval), index_(0), is_available_(false),
+    interval(_interval), index_(0), is_available_(false), messagesReceived_(false),
     runner_(std::bind(&debounce_test_client::run, this)),
     app_(vsomeip::runtime::get()->create_application("debounce_timeout_test_client")) { }
 
@@ -61,11 +61,11 @@ void debounce_test_client::run() {
     {
         std::unique_lock<std::mutex> its_lock(run_mutex_);
         while (!is_available_) {
-            auto its_status = run_condition_.wait_for(its_lock, std::chrono::milliseconds(15000));
+            auto its_status = run_condition_.wait_for(its_lock, std::chrono::seconds(20));
             EXPECT_EQ(its_status, std::cv_status::no_timeout);
             if (its_status == std::cv_status::timeout) {
                 VSOMEIP_ERROR << __func__
-                              << ": Debounce service did not become available after 15s.";
+                              << ": Debounce service did not become available after 20s.";
                 stop();
                 return;
             }
@@ -97,7 +97,7 @@ void debounce_test_client::on_availability(vsomeip::service_t _service,
     if (_service == DEBOUNCE_SERVICE && _instance == DEBOUNCE_INSTANCE) {
 
         if (_is_available) {
-            VSOMEIP_ERROR << __func__ << ": Debounce service becomes available.";
+            VSOMEIP_INFO << __func__ << ": Debounce service becomes available.";
             {
                 std::lock_guard<std::mutex> its_lock(run_mutex_);
                 is_available_ = true;
@@ -128,6 +128,12 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
             || DEBOUNCE_EVENT_2 == _message->get_method())) {
         bool is_equal = compare_payload(_message->get_payload(), index_++);
         EXPECT_EQ(is_equal, true);
+
+        if (index_ == payloads__.size()) {
+            std::lock_guard<std::mutex> its_lock(run_mutex_);
+            messagesReceived_ = true;
+            run_condition_.notify_one();
+        }
     }
 }
 
@@ -152,7 +158,12 @@ void debounce_test_client::run_test() {
     its_message->set_payload(its_payload);
     app_->send(its_message);
 
-    std::this_thread::sleep_for(std::chrono::seconds(23));
+    std::unique_lock<std::mutex> lock(run_mutex_);
+    bool status = run_condition_.wait_for(lock, std::chrono::seconds(30),
+                                          [&] { return messagesReceived_; });
+    if (!status) {
+        VSOMEIP_ERROR << "debounce_test_client::on_message: Timeout waiting for messages";
+    }
 }
 
 void debounce_test_client::unsubscribe_all() {
@@ -182,7 +193,7 @@ TEST(debounce_timeout_test, callback) {
     // Interval time of 2 seconds
     debounce_test_client its_client(2000);
     ASSERT_TRUE(its_client.init());
-    VSOMEIP_ERROR << "Debounce Client successfully initialized!";
+    VSOMEIP_INFO << "Debounce Client successfully initialized!";
     its_client.start();
     its_client.wait();
 

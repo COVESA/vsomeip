@@ -145,8 +145,17 @@ public:
     virtual std::size_t get_max_detached_thread_wait_time(const std::string& _name) const = 0;
     virtual std::size_t get_io_thread_count(const std::string& _name) const = 0;
     virtual int get_io_thread_nice_level(const std::string &_name) const = 0;
-    virtual std::size_t get_request_debouncing(const std::string &_name) const = 0;
+    virtual std::size_t get_request_debounce_time(const std::string& _name) const = 0;
     virtual bool has_session_handling(const std::string &_name) const = 0;
+
+    /**
+     * @brief Get the boost asio context event loop periodicity.
+     * If set to a value greather than 0, run for is used with the defined period.
+     *
+     * @param _name Application name
+     * @return std::size_t event loop period.
+     */
+    virtual std::size_t get_event_loop_periodicity(const std::string &_name) const = 0;
 
     virtual std::uint32_t get_max_message_size_local() const = 0;
     virtual std::uint32_t get_max_message_size_reliable(const std::string& _address,
@@ -185,6 +194,7 @@ public:
     virtual std::uint32_t get_sd_find_initial_debounce_time() const = 0;
     virtual std::uint32_t get_sd_offer_debounce_time() const = 0;
     virtual std::uint32_t get_sd_find_debounce_time() const = 0;
+    virtual bool get_sd_wait_route_netlink_notification() const = 0;
 
     // Trace configuration
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;
@@ -193,6 +203,9 @@ public:
     virtual bool is_watchdog_enabled() const = 0;
     virtual uint32_t get_watchdog_timeout() const = 0;
     virtual uint32_t get_allowed_missing_pongs() const = 0;
+
+    virtual bool is_local_clients_keepalive_enabled() const = 0;
+    virtual std::chrono::milliseconds get_local_clients_keepalive_time() const = 0;
 
     // File permissions
     virtual std::uint32_t get_permissions_uds() const = 0;
@@ -227,8 +240,9 @@ public:
     virtual ttl_map_t get_ttl_factor_subscribes() const = 0;
 
     // Debouncing
-    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(
-            const std::string &_name,
+    virtual std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
+            service_t _service, instance_t _instance, event_t _event) const = 0;
+    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
             service_t _service, instance_t _instance, event_t _event) const = 0;
 
     // Queue size limit endpoints
@@ -259,7 +273,7 @@ public:
     typedef std::map<
         boost::asio::ip::address, // other device
         std::pair<
-            std::string, // path to file that determines whether or not IPsec is active
+            std::set<std::string>, // paths to files that determines whether or not IPsec is active
             std::map<
                 bool, // false = unreliable (aka UDP), true = reliable (aka TCP)
                 std::pair<
