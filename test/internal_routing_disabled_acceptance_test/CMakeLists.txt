@@ -10,7 +10,7 @@ project(internal_routing_disabled_acceptance_test LANGUAGES CXX)
 add_compile_options(-pedantic -Wall -Wconversion -Wextra)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_executable(${PROJECT_NAME} applet.cpp client.cpp server.cpp main.cpp)
