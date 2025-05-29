@@ -328,7 +328,7 @@ void udp_server_endpoint_impl::receive() {
 }
 
 void udp_server_endpoint_impl::receive_unicast() {
-    std::scoped_lock<std::mutex> its_lock(unicast_mutex_);
+    std::scoped_lock its_lock(unicast_mutex_);
     if (!is_stopped_ && unicast_socket_ && unicast_socket_->is_open()) {
         unicast_socket_->async_receive_from(
                 boost::asio::buffer(&unicast_recv_buffer_[0], max_message_size_), unicast_remote_,
