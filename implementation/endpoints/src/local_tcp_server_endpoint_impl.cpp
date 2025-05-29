@@ -57,7 +57,7 @@ bool local_tcp_server_endpoint_impl::is_local() const {
 
 void local_tcp_server_endpoint_impl::init(const endpoint_type& _local,
                                           boost::system::error_code& _error) {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    std::scoped_lock<std::mutex> its_lock(acceptor_mutex_);
     init_unlocked(_local, _error);
 }
 
@@ -135,7 +135,7 @@ void local_tcp_server_endpoint_impl::stop() {
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::scoped_lock<std::mutex> its_lock(connections_mutex_);
         for (const auto &c : connections_) {
             c.second->stop();
         }
@@ -151,7 +151,7 @@ bool local_tcp_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
         msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock<std::mutex> its_lock(mutex_);
     if (endpoint_impl::sending_blocked_) {
         return false;
     }
@@ -161,7 +161,7 @@ bool local_tcp_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
 
     connection::ptr its_connection;
     {
-        std::lock_guard<std::mutex> its_lock_inner(connections_mutex_);
+        std::scoped_lock<std::mutex> its_lock_inner(connections_mutex_);
         const auto its_iterator = connections_.find(its_client);
         if (its_iterator == connections_.end()) {
             return false;
@@ -221,7 +221,7 @@ bool local_tcp_server_endpoint_impl::add_connection(const client_t &_client,
         const std::shared_ptr<connection> &_connection) {
 
     bool ret = false;
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    std::scoped_lock<std::mutex> its_lock(connections_mutex_);
     auto find_connection = connections_.find(_client);
     if (find_connection == connections_.end()) {
         connections_[_client] = _connection;
@@ -236,7 +236,7 @@ bool local_tcp_server_endpoint_impl::add_connection(const client_t &_client,
 void local_tcp_server_endpoint_impl::remove_connection(
         const client_t &_client) {
 
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    std::scoped_lock<std::mutex> its_lock(connections_mutex_);
     if (!connections_.erase(_client)) {
         VSOMEIP_WARNING << "Client " << std::hex << _client << " has no registered connection to "
                         << " remove, endpoint > " << this;
@@ -378,7 +378,7 @@ local_tcp_server_endpoint_impl::connection::get_socket_lock() {
 }
 
 void local_tcp_server_endpoint_impl::connection::start() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
     if (socket_->is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
@@ -431,7 +431,7 @@ void local_tcp_server_endpoint_impl::connection::start() {
 }
 
 void local_tcp_server_endpoint_impl::connection::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
     is_stopped_ = true;
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
@@ -474,7 +474,7 @@ void local_tcp_server_endpoint_impl::connection::send_queued(
     bufs.push_back(boost::asio::buffer(its_end_tag));
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock<std::mutex> its_lock(socket_mutex_);
         socket_->async_write(bufs,
                              std::bind(&local_tcp_server_endpoint_impl::connection::send_cbk,
                                        shared_from_this(), _buffer, std::placeholders::_1,
@@ -617,7 +617,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                 }
                 if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED
                         && its_command_size > max_message_size_) {
-                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
                     VSOMEIP_ERROR << "Received a local message which exceeds "
                           << "maximum message size (" << std::dec << its_command_size
                           << ") aborting! local: " << get_path_local() << " remote: "
@@ -903,7 +903,7 @@ local_tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
 
 void
 local_tcp_server_endpoint_impl::connection::shutdown_and_close() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
     shutdown_and_close_unlocked();
 }
 
@@ -915,10 +915,10 @@ local_tcp_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
 }
 
 void local_tcp_server_endpoint_impl::print_status() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock<std::mutex> its_lock(mutex_);
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock_inner(connections_mutex_);
+        std::scoped_lock<std::mutex> its_lock_inner(connections_mutex_);
         its_connections = connections_;
     }
     std::string its_local_path("TCP");
