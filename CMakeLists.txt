@@ -121,7 +121,6 @@ find_package(Threads REQUIRED)
 
 # OS
 add_library(OS_INTERFACE INTERFACE IMPORTED)
-add_library(RT_INTERFACE INTERFACE IMPORTED)
 add_library(DL_INTERFACE INTERFACE IMPORTED)
 
 # Boost, once this is pushed pased 1.70, it should be found using CONFIG rather
@@ -234,7 +233,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
       "socket"
       CACHE STRING "Default socket library for QNX"
   )
-  target_link_libraries(RT_INTERFACE INTERFACE $<$<PLATFORM_ID:QNX>:${VSOMEIP_SOCKET_LIB}>)
+  target_link_libraries(OS_INTERFACE INTERFACE $<$<PLATFORM_ID:QNX>:${VSOMEIP_SOCKET_LIB}>)
 
 endif()
 
@@ -391,10 +390,6 @@ if(MSVC)
   )
   link_directories(${Boost_LIBRARY_DIR_DEBUG})
   add_compile_options(/MD$<$<CONFIG:Debug>:d>)
-elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-  # Do not apply rt on QNX
-else()
-  target_link_libraries(RT_INTERFACE INTERFACE rt)
 endif()
 
 # ######################################################################################################################
@@ -420,7 +415,6 @@ if(NOT ENABLE_MULTIPLE_ROUTING_MANAGERS)
     PRIVATE ${VSOMEIP_NAME}
             Boost::filesystem
             Boost::thread
-            RT_INTERFACE
             DL_INTERFACE
             OS_INTERFACE
   )
@@ -504,7 +498,6 @@ target_link_libraries(
   PRIVATE Boost::filesystem
           Boost::thread
           $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
-          RT_INTERFACE
           DL_INTERFACE
           OS_INTERFACE
           Threads::Threads
@@ -534,8 +527,7 @@ target_compile_definitions(${VSOMEIP_NAME}-sd PUBLIC $<$<CXX_COMPILER_ID:MSVC>:V
 target_link_libraries(
   ${VSOMEIP_NAME}-sd
   PUBLIC ${VSOMEIP_NAME}
-  PRIVATE RT_INTERFACE
-          DL_INTERFACE
+  PRIVATE DL_INTERFACE
           OS_INTERFACE
           Threads::Threads
 )
@@ -559,7 +551,7 @@ target_compile_definitions(${VSOMEIP_NAME}-e2e PUBLIC $<$<CXX_COMPILER_ID:MSVC>:
 target_link_libraries(
   ${VSOMEIP_NAME}-e2e
   PUBLIC ${VSOMEIP_NAME}
-  PRIVATE RT_INTERFACE DL_INTERFACE OS_INTERFACE
+  PRIVATE DL_INTERFACE OS_INTERFACE
 )
 
 # ######################################################################################################################
@@ -605,7 +597,6 @@ if(ENABLE_COMPAT)
     PRIVATE ${VSOMEIP_NAME}
             Boost::system
             Boost::thread
-            RT_INTERFACE
             DL_INTERFACE
             OS_INTERFACE
   )

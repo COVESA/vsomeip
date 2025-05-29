@@ -21,7 +21,6 @@ target_link_libraries(
           $<TARGET_NAME_IF_EXISTS:PkgConfig::DLT>
           OS_INTERFACE
           DL_INTERFACE
-          RT_INTERFACE
           Threads::Threads
 )
 
