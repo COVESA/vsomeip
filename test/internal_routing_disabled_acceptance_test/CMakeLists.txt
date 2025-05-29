@@ -15,7 +15,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_executable(${PROJECT_NAME} applet.cpp client.cpp server.cpp main.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ${gtest_SOURCE_DIR}/include)
-target_link_libraries(${PROJECT_NAME} PRIVATE gtest Threads::Threads vsomeip3 Boost::system)
+target_link_libraries(${PROJECT_NAME} PRIVATE gtest Threads::Threads ${VSOMEIP_NAME} Boost::system)
 
 enable_testing()
 add_test(NAME ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}>)
@@ -24,7 +24,7 @@ configure_file(vsomeip.json vsomeip.json COPYONLY)
 set_property(
     TEST ${PROJECT_NAME}
     APPEND PROPERTY ENVIRONMENT
-    "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:vsomeip3>"
+    "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:${VSOMEIP_NAME}>"
     "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/vsomeip.json"
 )
 set_property(
