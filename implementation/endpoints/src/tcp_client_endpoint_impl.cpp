@@ -941,7 +941,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
                                         const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
 
-    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
     sent_timer_.cancel();
 
     if (!_error) {
