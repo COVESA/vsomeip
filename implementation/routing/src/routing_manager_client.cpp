@@ -2546,7 +2546,7 @@ void routing_manager_client::send_register_event(client_t _client,
 
     protocol::register_event reg(_service, _instance, _notifier, _type,
                                 _is_provided, _reliability, _is_cyclic,
-                                uint16_t(_eventgroups.size()), _eventgroups);
+                                static_cast<uint16_t>(_eventgroups.size()), _eventgroups);
 
     if(!its_command.add_registration(reg)) {
         VSOMEIP_ERROR << __func__ << ": register event command is too long.";
