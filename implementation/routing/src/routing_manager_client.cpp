@@ -2512,7 +2512,7 @@ void routing_manager_client::send_pending_event_registrations(client_t _client) 
         for(; it!=pending_event_registrations_.end(); it++) {
             protocol::register_event reg(it->service_, it->instance_, it->notifier_, it->type_,
                                 it->is_provided_, it->reliability_, it->is_cyclic_
-                                , uint16_t(it->eventgroups_.size()), it->eventgroups_);
+                                , static_cast<uint16_t>(it->eventgroups_.size()), it->eventgroups_);
             if(!its_command.add_registration(reg)) {break;}
         }
 
