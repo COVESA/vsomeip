@@ -1021,7 +1021,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
         boost::asio::ip::multicast::join_group its_join_option;
         {
-            std::lock_guard<std::mutex> its_lock_inner(local_mutex_);
+            std::scoped_lock<std::mutex> its_lock_inner(local_mutex_);
             if (is_v4_) {
                 its_join_option = boost::asio::ip::multicast::join_group(_address.to_v4(),
                                                                          local_.address().to_v4());
