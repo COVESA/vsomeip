@@ -31,6 +31,12 @@ set(VSOMEIP_HOTFIX_VERSION 0)
 set(VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
 set(PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
 
+if(${VSOMEIP_HOTFIX_VERSION} EQUAL 0)
+  add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
+else()
+  add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}.${VSOMEIP_HOTFIX_VERSION}")
+endif()
+
 if(NOT GTEST_ROOT)
   if(DEFINED ENV{GTEST_ROOT})
     set(GTEST_ROOT $ENV{GTEST_ROOT})
@@ -362,11 +368,6 @@ endif()
 # Directories
 # ######################################################################################################################
 
-if(${VSOMEIP_HOTFIX_VERSION} EQUAL 0)
-  add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
-else()
-  add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}.${VSOMEIP_HOTFIX_VERSION}")
-endif()
 
 if(MSVC)
   message("using MSVC Compiler")
