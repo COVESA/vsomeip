@@ -48,10 +48,6 @@ if(NOT GTEST_ROOT)
   endif()
 endif()
 
-# ######################################################################################################################
-# see http://www.cmake.org/Wiki/CMake/Tutorials/How_to_create_a_ProjectConfig.cmake_file
-# ######################################################################################################################
-
 include(GNUInstallDirs)
 
 # Offer the user the choice of overriding the installation directories
@@ -93,7 +89,6 @@ foreach(
   endif()
 endforeach()
 
-# #####################################################################
 # Set a default build type if none was specified
 # This is a CMake anti-pattern.
 set(default_build_type "RelWithDebInfo")
@@ -240,9 +235,8 @@ if(${OS})
   add_definitions(-D${OS})
 endif()
 
-# ###################################My lib link flags##############################
+#
 # Options
-# ##################################################################################
 
 find_package(PkgConfig)
 
@@ -337,9 +331,8 @@ endif()
 # Suppress deprecation warnings for vSomeIP interfaces
 add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 
-# ######################################################################################################################
+#
 # Dependencies
-# ######################################################################################################################
 
 # cmake 3.15 introduced a new variable and a new format for the old one
 if(DEFINED Boost_VERSION_MACRO)
@@ -362,10 +355,8 @@ else()
   target_link_libraries(OS_INTERFACE INTERFACE ${SystemD_LIBRARIES})
 endif()
 
-# ######################################################################################################################
+#
 # Directories
-# ######################################################################################################################
-
 
 if(MSVC)
   message("using MSVC Compiler")
@@ -391,9 +382,9 @@ if(MSVC)
   add_compile_options(/MD$<$<CONFIG:Debug>:d>)
 endif()
 
-# ######################################################################################################################
+#
 # Configuration library
-# ######################################################################################################################
+
 file(GLOB vsomeip_cfg_SRC "implementation/configuration/src/*.cpp")
 list(SORT vsomeip_cfg_SRC)
 if(NOT ENABLE_MULTIPLE_ROUTING_MANAGERS)
@@ -426,9 +417,9 @@ else()
   )
 endif()
 
-# ######################################################################################################################
+#
 # Base library
-# ######################################################################################################################
+
 file(
   GLOB
   vsomeip3_SRC
@@ -506,9 +497,9 @@ if(NOT WIN32)
   target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
 endif()
 
-# ######################################################################################################################
+#
 # Service Discovery library
-# ######################################################################################################################
+
 file(GLOB vsomeip_sd_SRC "implementation/service_discovery/src/*.cpp")
 list(SORT vsomeip_sd_SRC)
 
@@ -531,9 +522,8 @@ target_link_libraries(
           Threads::Threads
 )
 
-# ######################################################################################################################
+#
 # E2E library
-# ######################################################################################################################
 file(GLOB_RECURSE vsomeip_e2e_SRC "implementation/e2e_protection/src/*.cpp")
 list(SORT vsomeip_e2e_SRC)
 
@@ -553,9 +543,9 @@ target_link_libraries(
   PRIVATE DL_INTERFACE OS_INTERFACE
 )
 
-# ######################################################################################################################
+#
 # Compatibility library
-# ######################################################################################################################
+
 if(ENABLE_COMPAT)
   set(VSOMEIP_COMPAT_MAJOR_VERSION 2)
   set(VSOMEIP_COMPAT_VERSION ${VSOMEIP_COMPAT_MAJOR_VERSION}.99.99)
@@ -602,9 +592,9 @@ if(ENABLE_COMPAT)
 
 endif()
 
-# ######################################################################################################################
+#
 # Configuration files
-# ######################################################################################################################
+
 set(EXAMPLE_CONFIG_FILES
     "config/vsomeip.json"
     "config/vsomeip-local.json"
@@ -614,9 +604,9 @@ set(EXAMPLE_CONFIG_FILES
     "config/vsomeip-udp-service.json"
 )
 
-# ######################################################################################################################
+#
 # Configuration parameters
-# ######################################################################################################################
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
   set(VSOMEIP_BASE_PATH_DEFAULT "/var")
 else()
@@ -676,9 +666,8 @@ message("Predefined wait times for internal communication ports (TCP):\
  (max=${VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME})"
 )
 
-# ######################################################################################################################
+#
 # Installation
-# ######################################################################################################################
 
 set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/interface/vsomeip")
 
@@ -830,9 +819,9 @@ install(
   dev
 )
 
-# ######################################################################################################################
+#
 # build documentation
-# ######################################################################################################################
+
 add_custom_target(doc)
 
 find_package(Doxygen)
@@ -874,15 +863,17 @@ else()
   add_dependencies(doc doxygen-doc)
 endif()
 
-# ######################################################################################################################
+#
 # create pkg-config file
+
 if(NOT WIN32)
   configure_file(vsomeip3.pc.in ${PROJECT_BINARY_DIR}/vsomeip3.pc @ONLY)
   install(FILES ${PROJECT_BINARY_DIR}/vsomeip3.pc DESTINATION lib/pkgconfig)
 endif()
 
-# ######################################################################################################################
+#
 # build routing manager daemon (Non-Windows only)
+
 if(NOT MSVC)
   add_subdirectory(examples/routingmanagerd)
   add_subdirectory(examples/hello_world)
@@ -896,7 +887,7 @@ add_subdirectory(tools/vsomeip_ctrl)
 add_custom_target(examples)
 add_subdirectory(examples EXCLUDE_FROM_ALL)
 
-# ######################################################################################################################
+# ####################################################################
 
 # add test directory
 enable_testing()
