@@ -2299,24 +2299,22 @@ void configuration_impl::load_eventgroup(
                 }
             } else if (its_key == "threshold") {
                 int its_threshold(0);
-                std::stringstream its_converter_inner;
-                its_converter_inner << std::dec << its_value;
-                its_converter_inner >> std::dec >> its_threshold;
+                its_converter << std::dec << its_value;
+                its_converter >> std::dec >> its_threshold;
                 its_eventgroup->threshold_ =
                         (its_threshold > std::numeric_limits<std::uint8_t>::max()) ?
                                 std::numeric_limits<std::uint8_t>::max() :
                                 static_cast<uint8_t>(its_threshold);
             } else if (its_key == "events") {
                 for (auto k = j->second.begin(); k != j->second.end(); ++k) {
-                    std::stringstream its_converter_inner;
                     std::string its_value_inner(k->second.data());
                     event_t its_event_id(0);
                     if (its_value_inner.size() > 1 && its_value_inner[0] == '0' && its_value_inner[1] == 'x') {
-                        its_converter_inner << std::hex << its_value_inner;
+                        its_converter << std::hex << its_value_inner;
                     } else {
-                        its_converter_inner << std::dec << its_value_inner;
+                        its_converter << std::dec << its_value_inner;
                     }
-                    its_converter_inner >> its_event_id;
+                    its_converter >> its_event_id;
                     if (0 < its_event_id) {
                         std::shared_ptr<event> its_event(nullptr);
                         auto find_event = _service->events_.find(its_event_id);
