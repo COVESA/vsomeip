@@ -423,7 +423,7 @@ endif()
 
 file(
   GLOB
-  vsomeip3_SRC
+  ${VSOMEIP_NAME}_SRC
   "implementation/endpoints/src/*.cpp"
   "implementation/logger/src/*.cpp"
   "implementation/tracing/src/*.cpp"
@@ -436,13 +436,13 @@ file(
   "implementation/utility/src/*.cpp"
 )
 if(ENABLE_MULTIPLE_ROUTING_MANAGERS)
-  list(APPEND vsomeip3_SRC "implementation/configuration/src/configuration_impl.cpp")
+  list(APPEND ${VSOMEIP_NAME}_SRC "implementation/configuration/src/configuration_impl.cpp")
 endif()
-list(SORT vsomeip3_SRC)
+list(SORT ${VSOMEIP_NAME}_SRC)
 
 if(WIN32)
   list(
-    FILTER vsomeip3_SRC
+    FILTER ${VSOMEIP_NAME}_SRC
            EXCLUDE
            REGEX
            ".*uds.*"
@@ -450,7 +450,7 @@ if(WIN32)
 endif()
 
 add_library(${VSOMEIP_NAME} SHARED)
-target_sources(${VSOMEIP_NAME} PRIVATE ${vsomeip3_SRC})
+target_sources(${VSOMEIP_NAME} PRIVATE ${${VSOMEIP_NAME}_SRC})
 target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 target_include_directories(
   ${VSOMEIP_NAME}
@@ -555,25 +555,26 @@ if(ENABLE_COMPAT)
 
   file(
     GLOB_RECURSE
-    vsomeip_compat_SRC
+    ${VSOMEIP_COMPAT_NAME}_SRC
     "implementation/compat/logging/src/*.cpp"
     "implementation/compat/message/src/*.cpp"
     "implementation/compat/runtime/src/*.cpp"
   )
-  list(SORT vsomeip_compat_SRC)
+  list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
 
-  add_library(${VSOMEIP_NAME}-compat SHARED ${vsomeip_compat_SRC})
-  target_compile_features(${VSOMEIP_NAME}-compat PRIVATE cxx_std_17)
-  target_compile_definitions(${VSOMEIP_NAME}-compat PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
+  add_library(${VSOMEIP_COMPAT_NAME})
+  target_sources(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
+  target_compile_features(${VSOMEIP_COMPAT_NAME} PRIVATE cxx_std_17)
+  target_compile_definitions(${VSOMEIP_COMPAT_NAME} PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
   set_target_properties(
-    ${VSOMEIP_NAME}-compat PROPERTIES
+    ${VSOMEIP_COMPAT_NAME} PROPERTIES
     VERSION ${VSOMEIP_COMPAT_VERSION}
     SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION}
     OUTPUT_NAME ${VSOMEIP_COMPAT_NAME}
     EXPORT_NAME vsomeip-compat
   )
   target_include_directories(
-    ${VSOMEIP_NAME}-compat
+    ${VSOMEIP_COMPAT_NAME}
     PUBLIC # Access to vsomeip3 includes
            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface> # Access to vsomeip3 includes
            $<INSTALL_INTERFACE:include>
@@ -583,7 +584,7 @@ if(ENABLE_COMPAT)
            $<INSTALL_INTERFACE:include/compat> # for clients in install mode
   )
   target_link_libraries(
-    ${VSOMEIP_NAME}-compat
+    ${VSOMEIP_COMPAT_NAME}
     PRIVATE ${VSOMEIP_NAME}
             Boost::system
             Boost::thread
@@ -743,7 +744,7 @@ install(
 
 if(ENABLE_COMPAT)
   install(
-    TARGETS ${VSOMEIP_NAME}-compat
+    TARGETS ${VSOMEIP_COMPAT_NAME}
             EXPORT vsomeipTargets
             LIBRARY
             DESTINATION "${INSTALL_LIB_DIR}"
@@ -753,8 +754,8 @@ if(ENABLE_COMPAT)
             COMPONENT bin
   )
 
-  export(TARGETS ${VSOMEIP_NAME}-compat FILE "${PROJECT_BINARY_DIR}/vsomeipTargets.cmake")
-  export(PACKAGE ${VSOMEIP_NAME}-compat)
+  export(TARGETS ${VSOMEIP_COMPAT_NAME} FILE "${PROJECT_BINARY_DIR}/vsomeipTargets.cmake")
+  export(PACKAGE ${VSOMEIP_COMPAT_NAME})
 
   configure_file(vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake" @ONLY)
   configure_file(vsomeipConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake" @ONLY)
