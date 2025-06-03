@@ -32,6 +32,5 @@ target_link_libraries(
           gtest
           DL_INTERFACE
 )
-set_target_properties(vsomeip3-benchmark-tests PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
 add_dependencies(build_benchmark_tests ${PROJECT_NAME})
