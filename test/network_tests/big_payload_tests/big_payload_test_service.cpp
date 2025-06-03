@@ -9,6 +9,21 @@
 
 #include "big_payload_test_globals.hpp"
 
+// Test steps:
+//      waits for registration
+//      offer service
+//
+//      while isn't blocked or incoming_requests isn't empty
+// 	        wait for new request
+// 	        check last session
+// 	        checks payload according to test_mode
+// 	        creates response with payload according to test_mode
+// 	        send response
+//
+// 	        if received messages == expected messages
+// 		        blocked = true
+//      stop
+
 big_payload_test_service::big_payload_test_service(big_payload_test::test_mode _test_mode) :
                 app_(vsomeip::runtime::get()->create_application("big_payload_test_service")),
                 is_registered_(false),

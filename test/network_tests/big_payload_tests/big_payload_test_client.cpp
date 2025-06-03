@@ -7,6 +7,28 @@
 #include "big_payload_test_globals.hpp"
 #include <common/utility.hpp>
 
+// Test steps:
+// on_message:
+//      check session_id
+//      check payload according to test_mode
+//
+//      depending on test_mode, if reached expected number of acknowledged_messages
+//      executes send which unblocks run()
+//
+// run:
+//      wait for availability
+//      for number of messages
+//
+// 	        set payload size according to test_mode
+// 	        send request
+//
+//      while it didn't receive all messages
+// 	        if timeout occurred
+// 		        FAILURE
+// 	        else
+// 		        check number of messages received
+//      stop
+
 big_payload_test_client::big_payload_test_client(
         bool _use_tcp, big_payload_test::test_mode _test_mode) :
         app_(vsomeip::runtime::get()->create_application("big_payload_test_client")),
@@ -191,7 +213,7 @@ void big_payload_test_client::send()
 
 void big_payload_test_client::run()
 {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock<std::mutex> its_lock(mutex_); 
     while (!blocked_)
     {
         condition_.wait(its_lock);

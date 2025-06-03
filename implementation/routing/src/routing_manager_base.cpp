@@ -773,7 +773,11 @@ void routing_manager_base::add_known_client(client_t _client, const std::string 
     }
 #endif
     std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
-    known_clients_[_client] = _client_host;
+    if (known_clients_.find(_client) == known_clients_.end()) {
+        known_clients_[_client] = _client_host;
+    } else if (!_client_host.empty()) {
+        known_clients_[_client] = _client_host;
+    }
 }
 
 void routing_manager_base::remove_known_client(client_t _client) {
