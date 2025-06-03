@@ -170,7 +170,7 @@ public:
     }
 
     void send() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         while (wait_service_available_) {
             if(std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(6))) {
                 VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0')

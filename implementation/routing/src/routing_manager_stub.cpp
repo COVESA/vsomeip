@@ -1008,7 +1008,7 @@ void routing_manager_stub::client_registration_func(void) {
         pthread_setname_np(pthread_self(), s.str().c_str());
     }
 #endif
-    std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
+    std::unique_lock its_lock{client_registration_mutex_};
     while (client_registration_running_) {
         client_registration_condition_.wait(its_lock, [this] {
             return (new_client_to_process() || !client_registration_running_);

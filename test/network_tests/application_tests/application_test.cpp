@@ -285,7 +285,7 @@ protected:
 
     void send_shutdown_message() {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (!is_registered_) {
                 if (std::cv_status::timeout
                         == cv_.wait_for(its_lock, std::chrono::seconds(10))) {
@@ -409,7 +409,7 @@ protected:
 
     void send_shutdown_message() {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while(!is_registered_) {
                 cv_.wait(its_lock);
             }
@@ -430,7 +430,7 @@ protected:
         app_->send(r);
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (!exception_method_called_) {
                 cv_.wait(its_lock);
             }

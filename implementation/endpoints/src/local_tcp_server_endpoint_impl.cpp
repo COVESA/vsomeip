@@ -235,7 +235,7 @@ void local_tcp_server_endpoint_impl::accept_cbk(
         boost::system::error_code its_error;
         endpoint_type remote;
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            std::unique_lock its_socket_lock{_connection->get_socket_lock()};
             socket_type &new_connection_socket = _connection->get_socket();
 
             // Nagle algorithm off
@@ -867,7 +867,7 @@ void local_tcp_server_endpoint_impl::print_status() {
 
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            std::unique_lock c_s_lock{c.second->get_socket_lock()};
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
 

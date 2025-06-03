@@ -115,7 +115,7 @@ void local_tcp_client_endpoint_impl::stop() {
 
 void local_tcp_client_endpoint_impl::connect() {
     boost::system::error_code its_connect_error;
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock{socket_mutex_};
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {

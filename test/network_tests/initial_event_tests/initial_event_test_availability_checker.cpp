@@ -102,7 +102,7 @@ public:
     }
 
     void wait_for_stop() {
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
+        std::unique_lock its_lock{stop_mutex_};
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }

@@ -144,7 +144,7 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
 void big_payload_test_service::run()
 {
     {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         while (!blocked_) {
             condition_.wait(its_lock);
         }

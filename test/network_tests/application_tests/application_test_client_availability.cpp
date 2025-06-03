@@ -122,7 +122,7 @@ public:
 
     void run() {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (wait_until_registered_) {
                 condition_.wait(its_lock);
             }
@@ -171,7 +171,7 @@ public:
 
         }
         {
-            std::unique_lock<std::mutex> its_lock(availability_handler_called_mutex_);
+            std::unique_lock its_lock{availability_handler_called_mutex_};
             while(!std::all_of(availability_handler_called_.cbegin(),
                             availability_handler_called_.cend(),
                             [&](const availability_handler_called_t::value_type &v) {

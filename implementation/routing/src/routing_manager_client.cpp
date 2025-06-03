@@ -1447,7 +1447,7 @@ void routing_manager_client::on_message(
                 its_pending_id = its_subscribe_command.get_pending_id();
                 auto its_filter = its_subscribe_command.get_filter();
 
-                std::unique_lock<std::mutex> its_lock(incoming_subscriptions_mutex_);
+                std::unique_lock its_lock{incoming_subscriptions_mutex_};
                 if (its_pending_id != PENDING_SUBSCRIPTION_ID) {
                     its_lock.unlock();
 #ifdef VSOMEIP_ENABLE_COMPAT
