@@ -21,7 +21,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 add_executable(vsomeip3-benchmark-tests)
 target_sources(vsomeip3-benchmark-tests PRIVATE ${SRCS})
 target_link_libraries(
-  vsomeip3-benchmark-tests
+  ${PROJECT_NAME}
   PRIVATE ${VSOMEIP_NAME}
           ${VSOMEIP_NAME}-cfg
           vsomeip_utilities
@@ -34,4 +34,4 @@ target_link_libraries(
 )
 set_target_properties(vsomeip3-benchmark-tests PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
-add_dependencies(build_benchmark_tests vsomeip3-benchmark-tests)
+add_dependencies(build_benchmark_tests ${PROJECT_NAME})
