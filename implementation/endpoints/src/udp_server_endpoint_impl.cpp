@@ -384,7 +384,7 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
 bool udp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition> _target,
                                        const byte_t* _data, uint32_t _size) {
 
-    std::scoped_lock<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock{mutex_};
     endpoint_type its_target(_target->get_address(), _target->get_port());
     return send_intern(its_target, _data, _size);
 }
@@ -392,7 +392,7 @@ bool udp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition
 bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target,
                                           const byte_t* _data, uint32_t _size) {
 
-    std::scoped_lock<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock{mutex_};
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto& its_data = its_target_iterator->second;
@@ -413,8 +413,8 @@ bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
 
 bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) {
 
-    std::scoped_lock<std::mutex> its_last_sent_lock(last_sent_mutex_);
-    std::scoped_lock<std::mutex> its_unicast_lock(unicast_mutex_);
+    std::scoped_lock its_last_sent_lock{last_sent_mutex_};
+    std::scoped_lock its_unicast_lock{unicast_mutex_};
 
     const auto its_entry = _it->second.queue_.front();
 #if 0
@@ -572,19 +572,19 @@ void udp_server_endpoint_impl::leave_unlocked(const std::string& _address) {
 
 void udp_server_endpoint_impl::add_default_target(service_t _service, const std::string& _address,
                                                   uint16_t _port) {
-    std::scoped_lock<std::mutex> its_lock(default_targets_mutex_);
+    std::scoped_lock its_lock{default_targets_mutex_};
     endpoint_type its_endpoint(boost::asio::ip::make_address(_address), _port);
     default_targets_[_service] = its_endpoint;
 }
 
 void udp_server_endpoint_impl::remove_default_target(service_t _service) {
-    std::scoped_lock<std::mutex> its_lock(default_targets_mutex_);
+    std::scoped_lock its_lock{default_targets_mutex_};
     default_targets_.erase(_service);
 }
 
 bool udp_server_endpoint_impl::get_default_target(
         service_t _service, udp_server_endpoint_impl::endpoint_type& _target) const {
-    std::scoped_lock<std::mutex> its_lock(default_targets_mutex_);
+    std::scoped_lock its_lock{default_targets_mutex_};
     bool is_valid(false);
     auto find_service = default_targets_.find(_service);
     if (find_service != default_targets_.end()) {
@@ -846,7 +846,7 @@ bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address& _a
 }
 
 void udp_server_endpoint_impl::print_status() {
-    std::scoped_lock<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock{mutex_};
 
     VSOMEIP_INFO << "status use: " << std::dec << local_port_ << " number targets: " << std::dec
                  << targets_.size() << " recv_buffer: " << std::dec
@@ -880,7 +880,7 @@ bool udp_server_endpoint_impl::is_reliable() const {
 
 std::string udp_server_endpoint_impl::get_address_port_local() const {
 
-    std::scoped_lock<std::mutex> its_lock(unicast_mutex_);
+    std::scoped_lock its_lock{unicast_mutex_};
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::system::error_code ec;
@@ -1020,7 +1020,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
         boost::asio::ip::multicast::join_group its_join_option;
         {
-            std::scoped_lock<std::mutex> its_lock_inner(local_mutex_);
+            std::scoped_lock its_lock_inner{local_mutex_};
             if (is_v4_) {
                 its_join_option = boost::asio::ip::multicast::join_group(_address.to_v4(),
                                                                          local_.address().to_v4());
