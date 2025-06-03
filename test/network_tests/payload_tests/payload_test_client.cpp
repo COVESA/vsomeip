@@ -171,7 +171,7 @@ void payload_test_client::send()
 
 void payload_test_client::run()
 {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock{mutex_};
     while (!blocked_)
     {
         condition_.wait(its_lock);
@@ -182,7 +182,7 @@ void payload_test_client::run()
     request_->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID);
 
     // lock the mutex
-    std::unique_lock<std::mutex> lk(all_msg_acknowledged_mutex_);
+    std::unique_lock lk{all_msg_acknowledged_mutex_};
 
     std::uint32_t max_allowed_payload = get_max_allowed_payload();
 

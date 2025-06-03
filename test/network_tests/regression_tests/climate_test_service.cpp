@@ -139,12 +139,12 @@ public:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         while (!blocked_)
             condition_.wait(its_lock);
 
         offer();
-        std::unique_lock<std::mutex> its_lock_message(message_mutex_);
+        std::unique_lock its_lock_message{message_mutex_};
         while (running_ && !is_second_) {
             notify_condition_.wait(its_lock_message);
         }
@@ -169,7 +169,7 @@ public:
         uint32_t its_size = 5;
 
         while (running_) {
-            std::unique_lock<std::mutex> its_lock(notify_mutex_);
+            std::unique_lock its_lock{notify_mutex_};
             while (!is_offered_ && running_) {
                 notify_condition_.wait(its_lock);
             }

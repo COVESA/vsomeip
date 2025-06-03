@@ -85,7 +85,7 @@ void tcp_server_endpoint_impl::start() {
                 send_timeout_);
 
         {
-            std::unique_lock<std::mutex> its_socket_lock(new_connection->get_socket_lock());
+            std::unique_lock its_socket_lock{new_connection->get_socket_lock()};
             acceptor_.async_accept(new_connection->get_socket(),
                                    std::bind(&tcp_server_endpoint_impl::accept_cbk,
                                              std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
@@ -248,7 +248,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
         boost::system::error_code its_error;
         endpoint_type remote;
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            std::unique_lock its_socket_lock{_connection->get_socket_lock()};
             socket_type& new_connection_socket = _connection->get_socket();
             remote = new_connection_socket.remote_endpoint(its_error);
             _connection->set_remote_info(remote);
@@ -962,7 +962,7 @@ void tcp_server_endpoint_impl::print_status() {
         std::size_t its_queue_size(0);
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            std::unique_lock c_s_lock{c.second->get_socket_lock()};
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
         auto found_queue = targets_.find(c.first);

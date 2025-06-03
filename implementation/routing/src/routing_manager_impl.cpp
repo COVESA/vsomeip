@@ -745,7 +745,7 @@ void routing_manager_impl::subscribe(
             // run concurrently to a call to on_subscribe_ack. Therefore the lock is acquired
             // before calling insert_subscription and released after the call to
             // handle_subscription_state.
-            std::unique_lock<std::mutex> its_critical(remote_subscription_state_mutex_);
+            std::unique_lock its_critical{remote_subscription_state_mutex_};
             bool inserted = insert_subscription(_service, _instance, _eventgroup,
                     _event, _filter, _client, &its_already_subscribed_events);
             const bool subscriber_is_rm_host = (get_client() == _client);

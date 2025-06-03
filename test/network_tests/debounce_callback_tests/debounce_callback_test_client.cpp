@@ -59,7 +59,7 @@ void debounce_test_client::stop() {
 void debounce_test_client::run() {
 
     {
-        std::unique_lock<std::mutex> its_lock(run_mutex_);
+        std::unique_lock its_lock{run_mutex_};
         while (!is_available_) {
             auto its_status = run_condition_.wait_for(its_lock, std::chrono::seconds(20));
             EXPECT_EQ(its_status, std::cv_status::no_timeout);
@@ -158,7 +158,7 @@ void debounce_test_client::run_test() {
     its_message->set_payload(its_payload);
     app_->send(its_message);
 
-    std::unique_lock<std::mutex> lock(run_mutex_);
+    std::unique_lock lock{run_mutex_};
     bool status = run_condition_.wait_for(lock, std::chrono::seconds(30),
                                           [&] { return messagesReceived_; });
     if (!status) {

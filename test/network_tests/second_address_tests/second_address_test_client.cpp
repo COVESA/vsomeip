@@ -231,7 +231,7 @@ public:
     }
 
     void send() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }

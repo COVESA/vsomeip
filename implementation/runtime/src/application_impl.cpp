@@ -594,7 +594,7 @@ void application_impl::stop() {
     }
 
     if (block) {
-        std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
+        std::unique_lock block_stop_lock{block_stop_mutex_};
         block_stop_cv_.wait_for(block_stop_lock, std::chrono::milliseconds(1000),
                                 [this] { return block_stop_condition_; });
         block_stop_condition_ = false;
@@ -1393,7 +1393,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
         }
     }
     {
-        std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
+        std::unique_lock handlers_lock{handlers_mutex_};
         for (auto &handler : handlers) {
             auto its_sync_handler = std::make_shared<sync_handler>([handler, _service,
                                                   _instance, _eventgroup,
@@ -1879,7 +1879,7 @@ void application_impl::main_dispatch() {
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
-    std::unique_lock<std::mutex> its_lock(handlers_mutex_);
+    std::unique_lock its_lock{handlers_mutex_};
     while (is_dispatching_) {
         if (handlers_.empty() || !is_active_dispatcher(its_id)) {
             // Cancel other waiting dispatcher
@@ -1933,7 +1933,7 @@ void application_impl::dispatch() {
             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
-    std::unique_lock<std::mutex> its_lock(handlers_mutex_);
+    std::unique_lock its_lock{handlers_mutex_};
     while (is_active_dispatcher(its_id)) {
         if (is_dispatching_ && handlers_.empty()) {
             dispatcher_condition_.wait(its_lock, [this] {
@@ -2246,7 +2246,7 @@ void application_impl::shutdown() {
 #endif
 
     {
-        std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
+        std::unique_lock its_lock(start_stop_mutex_);
         stop_cv_.wait(its_lock, [this] { return stopped_called_; });
     }
     {

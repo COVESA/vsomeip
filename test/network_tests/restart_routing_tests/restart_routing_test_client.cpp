@@ -72,7 +72,7 @@ void routing_restart_test_client::on_availability(vsomeip::service_t _service,
 
     if(vsomeip_test::TEST_SERVICE_SERVICE_ID == _service
             && vsomeip_test::TEST_SERVICE_INSTANCE_ID == _instance) {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         if(is_available_ && !_is_available) {
             is_available_ = false;
         }
@@ -109,7 +109,7 @@ void routing_restart_test_client::run() {
     bool its_availability_timeout = false;
     while (its_sent_requests < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (!is_available_)
             {
                 if (!condition_.wait_for(its_lock, std::chrono::milliseconds(10000),

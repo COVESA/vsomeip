@@ -160,7 +160,7 @@ private:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         while (wait_for_availability_) {
             condition_.wait(its_lock);
         }
@@ -178,7 +178,7 @@ private:
         for(std::uint32_t i=0; i <= number_of_calls_; i++) {
             number_of_calls_current_ = i;
             sliding_window_size_ = i;
-            std::unique_lock<std::mutex> lk(all_msg_acknowledged_mutex_);
+            std::unique_lock lk{all_msg_acknowledged_mutex_};
             call_service_sync_ ? send_messages_sync(lk, i) : send_messages_async(lk, i);
         }
         const double average_load(std::accumulate(results_.begin(), results_.end(), 0.0) / static_cast<double>(results_.size()));

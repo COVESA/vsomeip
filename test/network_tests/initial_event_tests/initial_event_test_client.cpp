@@ -128,7 +128,7 @@ public:
         // start thread which handles all of the signals
         signal_thread_ = std::thread(&initial_event_test_client::wait_for_signal, this);
         {
-            std::unique_lock<std::mutex> its_lock(signal_mutex_);
+            std::unique_lock its_lock{signal_mutex_};
             while(wait_for_signal_handler_registration_) {
                 EXPECT_EQ(std::cv_status::no_timeout,
                         signal_condition_.wait_for(its_lock, std::chrono::seconds(10)));
@@ -467,7 +467,7 @@ public:
         its_call_number++;
 
         {
-            std::unique_lock<std::mutex> its_lock(stop_mutex_);
+            std::unique_lock its_lock{stop_mutex_};
             while (wait_for_stop_) {
                 stop_condition_.wait_for(its_lock, std::chrono::milliseconds(100));
             }

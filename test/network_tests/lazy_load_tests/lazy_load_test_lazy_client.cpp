@@ -125,7 +125,7 @@ void lazy_load_lazy_client::on_availability(vsomeip::service_t _service,
 
     if (vsomeip_test::TEST_SERVICE_SERVICE_ID == _service
             && TEST_INSTANCE_LAZY == _instance) {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         if (current_service_availability_status_ && !_is_service_available) {
             current_service_availability_status_ = false;
         } else if (_is_service_available && !current_service_availability_status_) {
@@ -177,7 +177,7 @@ void lazy_load_lazy_client::on_message(const std::shared_ptr<vsomeip::message> &
 void lazy_load_lazy_client::run() {
     for (std::uint32_t i = 0; i < NUMBER_OF_MESSAGES_TO_SEND; ++i) {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (!current_service_availability_status_) {
                 condition_.wait(its_lock);
             }
