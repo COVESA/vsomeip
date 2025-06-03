@@ -357,6 +357,10 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
                 boost::asio::ip::address(), std::numeric_limits<std::size_t>::min());
         multicast_socket_->async_wait(socket_type::wait_read,
                                       udp_endpoint_receive_op::receive_cb(its_storage));
+    } else {
+        VSOMEIP_WARNING << "usei::" << __func__ << ": is_stopped_: " << is_stopped_
+                        << " received multicast_id: " << _multicast_id
+                        << " expected multicast_id: " << multicast_id_;
     }
 }
 
@@ -1029,7 +1033,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
             if (0 == joined_.size()) {
                 multicast_socket_->cancel(_error);
-
+                multicast_id_ = 0;
                 multicast_socket_.reset();
                 multicast_local_.reset(nullptr);
             }
