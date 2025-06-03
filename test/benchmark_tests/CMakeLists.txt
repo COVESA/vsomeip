@@ -18,8 +18,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 # ----------------------------------------------------------------------------
 # Executable and libraries to link
 # ----------------------------------------------------------------------------
-add_executable(vsomeip3-benchmark-tests)
-target_sources(vsomeip3-benchmark-tests PRIVATE ${SRCS})
+add_executable(${PROJECT_NAME})
+target_sources(${PROJECT_NAME} PRIVATE ${SRCS})
 target_link_libraries(
   ${PROJECT_NAME}
   PRIVATE ${VSOMEIP_NAME}
