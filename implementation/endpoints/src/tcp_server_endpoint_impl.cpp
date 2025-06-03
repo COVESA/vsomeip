@@ -260,10 +260,12 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
                 VSOMEIP_WARNING << "tsei::" << __func__
                                 << ": couldn't enable keep_alive: " << its_error.message();
             }
-            // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
-            // The linger is needed to be set for suspend to RAM, since after resuming the
-            // connection could be lost and the socket could get stuck in TIME_WAIT for 120 seconds
-            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 5), its_error);
+
+            // force always TCP RST on close/shutdown, in order to:
+            // 1) avoid issues with TIME_WAIT, which otherwise lasts for 120 secs with a
+            // non-responding endpoint (see also 4396812d2)
+            // 2) handle by default what needs to happen at suspend/shutdown
+            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 0), its_error);
             if (its_error) {
                 VSOMEIP_WARNING << "tsei::" << __func__
                                 << ": setting SO_LINGER failed: " << its_error.message();
@@ -423,17 +425,6 @@ void tcp_server_endpoint_impl::connection::stop() {
 
     if (socket_.is_open()) {
         boost::system::error_code its_error;
-
-        auto its_server {server_.lock()};
-
-        if (its_server && its_server->is_suspended()) {
-            socket_.set_option(boost::asio::socket_base::linger(true, 0), its_error);
-            if (its_error) {
-                VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop<"
-                                << get_address_port_remote() << ">:setting SO_LINGER failed ("
-                                << its_error.message() << ")";
-            }
-        }
 
         socket_.shutdown(socket_.shutdown_both, its_error);
         if (its_error) {
