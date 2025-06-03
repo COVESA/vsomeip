@@ -244,6 +244,7 @@ void local_uds_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
         } else {
             VSOMEIP_WARNING << "lucei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
             was_not_connected_ = true;
+            is_sending_ = false;
         }
     }
 }
