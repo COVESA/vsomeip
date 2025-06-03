@@ -238,7 +238,7 @@ void npdu_test_client::send()
 template<int service_idx>
 void npdu_test_client::run()
 {
-    std::unique_lock<std::mutex> its_lock(mutexes_[service_idx]);
+    std::unique_lock its_lock{mutexes_[service_idx]};
     while (!blocked_[service_idx])
     {
         conditions_[service_idx].wait(its_lock);

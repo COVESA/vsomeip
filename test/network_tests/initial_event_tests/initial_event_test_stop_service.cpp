@@ -162,7 +162,7 @@ public:
 
     void run() {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (wait_until_registered_) {
                 condition_.wait(its_lock);
             }
@@ -173,7 +173,7 @@ public:
         offer();
 
         {
-            std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
+            std::unique_lock its_availability_lock{availability_mutex_};
             while (wait_until_stop_service_other_node_available_) {
                 availability_condition_.wait(its_availability_lock);
             }
@@ -205,7 +205,7 @@ public:
         static int its_call_number(0);
         its_call_number++;
         {
-            std::unique_lock<std::mutex> its_lock(stop_mutex_);
+            std::unique_lock its_lock{stop_mutex_};
             while (wait_for_stop_) {
                 stop_condition_.wait(its_lock);
             }

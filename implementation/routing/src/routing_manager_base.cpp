@@ -1480,7 +1480,7 @@ bool routing_manager_base::insert_subscription(
 
 std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
-    std::unique_lock<std::mutex> its_lock(serializer_mutex_);
+    std::unique_lock its_lock{serializer_mutex_};
     while (serializers_.empty()) {
         VSOMEIP_INFO << __func__ << ": Client "
                 << std::hex << std::setw(4) << std::setfill('0')
@@ -1509,7 +1509,7 @@ void routing_manager_base::put_serializer(
 
 std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 
-    std::unique_lock<std::mutex> its_lock(deserializer_mutex_);
+    std::unique_lock its_lock{deserializer_mutex_};
     while (deserializers_.empty()) {
         VSOMEIP_INFO << std::hex << "client " << get_client() <<
                 "routing_manager_base::get_deserializer ~> all in use!";

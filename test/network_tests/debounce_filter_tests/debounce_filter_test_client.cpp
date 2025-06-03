@@ -52,7 +52,7 @@ void debounce_test_client::stop() {
 
 void debounce_test_client::run() {
     {
-        std::unique_lock<std::mutex> its_lock(run_mutex_);
+        std::unique_lock its_lock{run_mutex_};
         while (!is_available_) {
             auto its_status = run_condition_.wait_for(its_lock, std::chrono::milliseconds(15000));
             EXPECT_EQ(its_status, std::cv_status::no_timeout);

@@ -126,12 +126,12 @@ void routing_restart_test_service::on_message_shutdown(
 }
 
 void routing_restart_test_service::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock{mutex_};
     while (!blocked_)
         condition_.wait(its_lock);
 
     offer();
-    std::unique_lock<std::mutex> its_shutdown_lock(shutdown_mutex_);
+    std::unique_lock its_shutdown_lock{shutdown_mutex_};
     init_shutdown_condition_.wait(its_shutdown_lock, [this] { return init_shutdown_; });
     if (!execute_shutdown_condition_.wait_for(its_shutdown_lock, std::chrono::milliseconds(5000),
                                               [this] { return all_received_; })) {

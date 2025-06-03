@@ -37,7 +37,7 @@ public:
 
         {
             VSOMEIP_DEBUG << "Started.";
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
             VSOMEIP_DEBUG << "[TEST-cli] App Started: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
@@ -47,7 +47,7 @@ public:
 
         {
             VSOMEIP_DEBUG << "Toggled.";
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             if (!has_received_) {
                 auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
                 VSOMEIP_DEBUG << "[TEST-cli] First Receive Validation: r=" << static_cast<int>(r);
@@ -64,7 +64,7 @@ public:
         {
             VSOMEIP_DEBUG << "Triggered suspend/resume.";
             // Wait for service to become availaber after suspend/resume.
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
             VSOMEIP_DEBUG << "[TEST-cli] Service Available after susp/resume: r=" << static_cast<int>(r);
             EXPECT_EQ(r, std::cv_status::no_timeout);
@@ -113,7 +113,7 @@ private:
     void run() {
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             cv_.wait(its_lock);
         }
 
