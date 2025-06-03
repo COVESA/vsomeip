@@ -99,7 +99,7 @@ void routing_manager_stub::init() {
 
 void routing_manager_stub::start() {
     {
-        std::scoped_lock<std::mutex> its_lock(used_client_ids_mutex_);
+        std::scoped_lock its_lock{used_client_ids_mutex_};
         used_client_ids_ = utility::get_used_client_ids(configuration_->get_network());
         // Wait VSOMEIP_MAX_CONNECT_TIMEOUT * 2 and expect after that time
         // that all client_ids are used have to be connected to the routing.
@@ -161,14 +161,14 @@ void routing_manager_stub::start() {
     }
 
     {
-        std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+        std::scoped_lock its_lock{routing_info_mutex_};
         routing_info_[host_->get_client()].first = 0;
     }
 }
 
 void routing_manager_stub::stop() {
     {
-        std::scoped_lock<std::mutex> its_lock(client_registration_mutex_);
+        std::scoped_lock its_lock{client_registration_mutex_};
         client_registration_running_ = false;
         client_registration_condition_.notify_all();
     }
@@ -184,12 +184,12 @@ void routing_manager_stub::stop() {
     }
 
     {
-        std::scoped_lock<std::mutex> its_lock(watchdog_timer_mutex_);
+        std::scoped_lock its_lock{watchdog_timer_mutex_};
         watchdog_timer_.cancel();
     }
 
     {
-        std::scoped_lock<std::mutex> its_lock(used_client_ids_mutex_);
+        std::scoped_lock its_lock{used_client_ids_mutex_};
         client_id_timer_.cancel();
     }
 
@@ -867,7 +867,7 @@ void routing_manager_stub::on_register_application(client_t _client, bool& conti
     // Find or create a local endpoint.
     auto endpoint = host_->find_or_create_local(_client);
     {
-        std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+        std::scoped_lock its_lock{routing_info_mutex_};
         routing_info_[_client].first = 0;
     }
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -900,7 +900,7 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
             std::tuple<service_t, instance_t,
                        major_version_t, minor_version_t>> services_to_report;
     {
-        std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+        std::scoped_lock its_lock{routing_info_mutex_};
         auto its_info = routing_info_.find(_client);
         if (its_info != routing_info_.end()) {
             for (const auto &its_service : its_info->second.second) {
@@ -1050,7 +1050,7 @@ void routing_manager_stub::registration_func(client_t client_id,
         // Don't inform client if we deregister because of an client
         // endpoint error to avoid writing in an already closed socket
         if (type != registration_type_e::DEREGISTER_ON_ERROR) {
-            std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+            std::scoped_lock its_guard{routing_info_mutex_};
             add_connection(client_id, client_id);
             protocol::routing_info_entry its_entry;
             its_entry.set_client(client_id);
@@ -1083,7 +1083,7 @@ void routing_manager_stub::registration_func(client_t client_id,
 
 void routing_manager_stub::remove_client_connections(client_t client_id) {
     {
-        std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+        std::scoped_lock its_guard{routing_info_mutex_};
         auto find_connections = connection_matrix_.find(client_id);
         if (find_connections != connection_matrix_.end()) {
             for (auto its_client : find_connections->second) {
@@ -1234,7 +1234,7 @@ void routing_manager_stub::on_offer_service(client_t _client,
         create_local_receiver();
     }
 
-    std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+    std::scoped_lock its_guard{routing_info_mutex_};
     routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
     if (configuration_->is_security_enabled()) {
         distribute_credentials(_client, _service, _instance);
@@ -1245,7 +1245,7 @@ void routing_manager_stub::on_offer_service(client_t _client,
 
 void routing_manager_stub::on_stop_offer_service(client_t _client,
         service_t _service, instance_t _instance,  major_version_t _major, minor_version_t _minor) {
-    std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+    std::scoped_lock its_guard{routing_info_mutex_};
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {
         auto found_service = found_client->second.second.find(_service);
@@ -1459,7 +1459,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
 }
 
 void routing_manager_stub::broadcast(const std::vector<byte_t> &_command) const {
-    std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+    std::scoped_lock its_guard{routing_info_mutex_};
     for (const auto& a : routing_info_) {
         if (a.first != VSOMEIP_ROUTING_CLIENT && a.first != host_->get_client()) {
             std::shared_ptr<endpoint> its_endpoint
@@ -1658,7 +1658,7 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
 bool routing_manager_stub::contained_in_routing_info(
         client_t _client, service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+    std::scoped_lock its_guard{routing_info_mutex_};
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {
         auto found_service = found_client->second.second.find(_service);
@@ -1716,7 +1716,7 @@ void routing_manager_stub::on_ping(client_t _client) {
 
 void routing_manager_stub::on_pong(client_t _client) {
     {
-        std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+        std::scoped_lock its_lock{routing_info_mutex_};
         auto found_info = routing_info_.find(_client);
         if (found_info != routing_info_.end()) {
             found_info->second.first = 0;
@@ -1737,7 +1737,7 @@ void routing_manager_stub::start_watchdog() {
                     check_watchdog();
             };
     {
-        std::scoped_lock<std::mutex> its_lock(watchdog_timer_mutex_);
+        std::scoped_lock its_lock{watchdog_timer_mutex_};
         // Divide / 2 as start and check sleep each
         watchdog_timer_.expires_from_now(
                 std::chrono::milliseconds(
@@ -1749,7 +1749,7 @@ void routing_manager_stub::start_watchdog() {
 
 void routing_manager_stub::check_watchdog() {
     {
-        std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+        std::scoped_lock its_guard{routing_info_mutex_};
         for (auto i = routing_info_.begin(); i != routing_info_.end(); ++i) {
             i->second.first++;
         }
@@ -1761,7 +1761,7 @@ void routing_manager_stub::check_watchdog() {
                 (void)_error;
                 std::list< client_t > lost;
                 {
-                    std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+                    std::scoped_lock its_lock{routing_info_mutex_};
                     for (const auto& i : routing_info_) {
                         if (i.first > 0 && i.first != host_->get_client()) {
                             if (i.second.first > configuration_->get_allowed_missing_pongs()) {
@@ -1777,7 +1777,7 @@ void routing_manager_stub::check_watchdog() {
                 start_watchdog();
             };
     {
-        std::scoped_lock<std::mutex> its_lock(watchdog_timer_mutex_);
+        std::scoped_lock its_lock{watchdog_timer_mutex_};
         watchdog_timer_.expires_from_now(
                 std::chrono::milliseconds(
                         configuration_->get_watchdog_timeout() / 2));
@@ -1786,7 +1786,7 @@ void routing_manager_stub::check_watchdog() {
 }
 
 void routing_manager_stub::create_local_receiver() {
-    std::scoped_lock<std::mutex> its_lock(local_receiver_mutex_);
+    std::scoped_lock its_lock{local_receiver_mutex_};
 
     if (local_receiver_) {
         return;
@@ -1812,7 +1812,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
 
     std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
     if (its_endpoint) {
-        std::scoped_lock<std::mutex> its_lock(pinged_clients_mutex_);
+        std::scoped_lock its_lock{pinged_clients_mutex_};
 
         if (pinged_clients_.find(_client) != pinged_clients_.end()) {
             // client was already pinged: don't ping again and wait for answer
@@ -1879,7 +1879,7 @@ void routing_manager_stub::on_ping_timer_expired(
 
     {
         // remove timed out clients
-        std::scoped_lock<std::mutex> its_lock(pinged_clients_mutex_);
+        std::scoped_lock its_lock{pinged_clients_mutex_};
         const std::chrono::steady_clock::time_point now(
                 std::chrono::steady_clock::now());
 
@@ -1927,7 +1927,7 @@ void routing_manager_stub::on_ping_timer_expired(
 }
 
 void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
-    std::scoped_lock<std::mutex> its_lock(pinged_clients_mutex_);
+    std::scoped_lock its_lock{pinged_clients_mutex_};
     if (!pinged_clients_.size()) {
         return;
     }
@@ -1966,7 +1966,7 @@ void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
 }
 
 bool routing_manager_stub::is_registered(client_t _client) const {
-    std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+    std::scoped_lock its_lock{routing_info_mutex_};
     return (routing_info_.find(_client) != routing_info_.end());
 }
 
@@ -2017,7 +2017,7 @@ void routing_manager_stub::update_registration(client_t _client,
         }
     }
 
-    std::scoped_lock<std::mutex> its_lock(client_registration_mutex_);
+    std::scoped_lock its_lock{client_registration_mutex_};
     auto it = std::find_if(
             pending_client_registrations_queue_.begin(), pending_client_registrations_queue_.end(),
             [_client](const std::pair<short unsigned int,
@@ -2035,7 +2035,7 @@ void routing_manager_stub::update_registration(client_t _client,
     client_registration_condition_.notify_one();
 
     if (_type != registration_type_e::REGISTER) {
-        std::scoped_lock<std::mutex> its_lock_inner(used_client_ids_mutex_);
+        std::scoped_lock its_lock_inner{used_client_ids_mutex_};
         used_client_ids_.erase(_client);
     }
 }
@@ -2049,7 +2049,7 @@ void routing_manager_stub::handle_credentials(const client_t _client, std::set<p
         return;
     }
 
-    std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+    std::scoped_lock its_guard{routing_info_mutex_};
     std::set<std::pair<uid_t, gid_t>> its_credentials;
     vsomeip_sec_client_t its_requester_sec_client;
     if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_requester_sec_client)) {
@@ -2093,7 +2093,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
     port_t its_port;
 
     std::vector<protocol::routing_info_entry> its_entries;
-    std::scoped_lock<std::mutex> its_guard(routing_info_mutex_);
+    std::scoped_lock its_guard{routing_info_mutex_};
 
     for (auto request : _requests) {
         service_requests_[_client][request.service_][request.instance_]
@@ -2195,14 +2195,14 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
 void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code const &_error) {
     std::set<client_t> used_client_ids;
     {
-        std::scoped_lock<std::mutex> its_lock(used_client_ids_mutex_);
+        std::scoped_lock its_lock{used_client_ids_mutex_};
         used_client_ids = used_client_ids_;
         used_client_ids_.clear();
     }
 
     std::set<client_t> erroneous_clients;
     if (!_error) {
-        std::scoped_lock<std::mutex> its_lock(routing_info_mutex_);
+        std::scoped_lock its_lock{routing_info_mutex_};
         for (auto client : used_client_ids) {
             if (client != VSOMEIP_ROUTING_CLIENT && client != get_client()) {
                 if (routing_info_.find(client) == routing_info_.end()) {
@@ -2257,7 +2257,7 @@ bool routing_manager_stub::send_provided_event_resend_request(
 #ifndef VSOMEIP_DISABLE_SECURITY
 bool routing_manager_stub::is_policy_cached(uid_t _uid) {
     {
-        std::scoped_lock<std::mutex> its_lock(updated_security_policies_mutex_);
+        std::scoped_lock its_lock{updated_security_policies_mutex_};
         if (updated_security_policies_.find(_uid)
                 != updated_security_policies_.end()) {
             VSOMEIP_INFO << __func__ << " Policy for UID: " << std::dec
@@ -2272,14 +2272,14 @@ bool routing_manager_stub::is_policy_cached(uid_t _uid) {
 void routing_manager_stub::policy_cache_add(uid_t _uid, const std::shared_ptr<payload>& _payload) {
     // cache security policy payload for later distribution to new registering clients
     {
-        std::scoped_lock<std::mutex> its_lock(updated_security_policies_mutex_);
+        std::scoped_lock its_lock{updated_security_policies_mutex_};
         updated_security_policies_[_uid] = _payload;
     }
 }
 
 void routing_manager_stub::policy_cache_remove(uid_t _uid) {
     {
-        std::scoped_lock<std::mutex> its_lock(updated_security_policies_mutex_);
+        std::scoped_lock its_lock{updated_security_policies_mutex_};
         updated_security_policies_.erase(_uid);
     }
 }
@@ -2331,7 +2331,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
     if (its_endpoint) {
 
 
-        std::scoped_lock<std::mutex> its_lock(updated_security_policies_mutex_);
+        std::scoped_lock its_lock{updated_security_policies_mutex_};
         if (!updated_security_policies_.empty()) {
 
             VSOMEIP_INFO << __func__ << " Distributing ["
@@ -2400,7 +2400,7 @@ bool
 routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid,
         const std::set<std::shared_ptr<policy> > &_policies) {
 
-    std::scoped_lock<std::mutex> its_lock(requester_policies_mutex_);
+    std::scoped_lock its_lock{requester_policies_mutex_};
     auto found_uid = requester_policies_.find(_uid);
     if (found_uid != requester_policies_.end()) {
         auto found_gid = found_uid->second.find(_gid);
@@ -2427,7 +2427,7 @@ routing_manager_stub::add_requester_policies(uid_t _uid, gid_t _gid,
 void
 routing_manager_stub::remove_requester_policies(uid_t _uid, gid_t _gid) {
 
-    std::scoped_lock<std::mutex> its_lock(requester_policies_mutex_);
+    std::scoped_lock its_lock{requester_policies_mutex_};
     auto found_uid = requester_policies_.find(_uid);
     if (found_uid != requester_policies_.end()) {
         found_uid->second.erase(_gid);
@@ -2440,7 +2440,7 @@ void
 routing_manager_stub::get_requester_policies(uid_t _uid, gid_t _gid,
         std::set<std::shared_ptr<policy> > &_policies) const {
 
-    std::scoped_lock<std::mutex> its_lock(requester_policies_mutex_);
+    std::scoped_lock its_lock{requester_policies_mutex_};
     auto found_uid = requester_policies_.find(_uid);
     if (found_uid != requester_policies_.end()) {
         auto found_gid = found_uid->second.find(_gid);
@@ -2477,7 +2477,7 @@ routing_manager_stub::add_pending_security_update_timer(
                 << "[" << std::dec << _id << "]: timer creation: "
                 << ec.message();
     }
-    std::scoped_lock<std::mutex> its_lock(security_update_timers_mutex_);
+    std::scoped_lock its_lock{security_update_timers_mutex_};
     security_update_timers_[_id] = its_timer;
 }
 
@@ -2538,7 +2538,7 @@ void routing_manager_stub::on_security_update_timeout(
     std::unordered_set<client_t> its_missing_clients = pending_security_update_get(_id);
     {
         // erase timer
-        std::scoped_lock<std::mutex> its_lock(security_update_timers_mutex_);
+        std::scoped_lock its_lock{security_update_timers_mutex_};
         security_update_timers_.erase(_id);
     }
     {
@@ -2564,7 +2564,7 @@ void routing_manager_stub::on_security_update_timeout(
         }
         {
             // erase pending security update
-            std::scoped_lock<std::mutex> its_lock(pending_security_updates_mutex_);
+            std::scoped_lock its_lock{pending_security_updates_mutex_};
             pending_security_updates_.erase(_id);
         }
 
@@ -2718,7 +2718,7 @@ bool routing_manager_stub::remove_security_policy_configuration(
 
 pending_security_update_id_t routing_manager_stub::pending_security_update_add(
         const std::unordered_set<client_t>& _clients) {
-    std::scoped_lock<std::mutex> its_lock(pending_security_updates_mutex_);
+    std::scoped_lock its_lock{pending_security_updates_mutex_};
     if (++pending_security_update_id_ == 0) {
         pending_security_update_id_++;
     }
@@ -2729,7 +2729,7 @@ pending_security_update_id_t routing_manager_stub::pending_security_update_add(
 
 std::unordered_set<client_t> routing_manager_stub::pending_security_update_get(
         pending_security_update_id_t _id) {
-    std::scoped_lock<std::mutex> its_lock(pending_security_updates_mutex_);
+    std::scoped_lock its_lock{pending_security_updates_mutex_};
     std::unordered_set<client_t> its_missing_clients;
     auto found_si = pending_security_updates_.find(_id);
     if (found_si != pending_security_updates_.end()) {
@@ -2740,7 +2740,7 @@ std::unordered_set<client_t> routing_manager_stub::pending_security_update_get(
 
 bool routing_manager_stub::pending_security_update_remove(
         pending_security_update_id_t _id, client_t _client) {
-    std::scoped_lock<std::mutex> its_lock(pending_security_updates_mutex_);
+    std::scoped_lock its_lock{pending_security_updates_mutex_};
     auto found_si = pending_security_updates_.find(_id);
     if (found_si != pending_security_updates_.end()) {
         if (found_si->second.erase(_client)) {
@@ -2752,7 +2752,7 @@ bool routing_manager_stub::pending_security_update_remove(
 
 bool routing_manager_stub::is_pending_security_update_finished(
         pending_security_update_id_t _id) {
-    std::scoped_lock<std::mutex> its_lock(pending_security_updates_mutex_);
+    std::scoped_lock its_lock{pending_security_updates_mutex_};
     bool ret(false);
     auto found_si = pending_security_updates_.find(_id);
     if (found_si != pending_security_updates_.end()) {
@@ -2772,7 +2772,7 @@ void routing_manager_stub::on_security_update_response(
         if (is_pending_security_update_finished(_id)) {
             // cancel timeout timer
             {
-                std::scoped_lock<std::mutex> its_lock(security_update_timers_mutex_);
+                std::scoped_lock its_lock{security_update_timers_mutex_};
                 auto found_timer = security_update_timers_.find(_id);
                 if (found_timer != security_update_timers_.end()) {
                     boost::system::error_code ec;

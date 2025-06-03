@@ -89,7 +89,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
         }
         std::string address_port_local;
         {
-            std::scoped_lock<std::mutex> its_lock(self->socket_mutex_);
+            std::scoped_lock its_lock{self->socket_mutex_};
             address_port_local = self->get_address_port_local();
             self->shutdown_and_close_socket_unlocked(true);
             self->recv_buffer_ = std::make_shared<message_buffer_t>(self->recv_buffer_size_initial_, 0);
@@ -208,7 +208,7 @@ void tcp_client_endpoint_impl::connect() {
                 }
                 std::size_t operations_cancelled;
                 {
-                    std::scoped_lock<std::mutex> its_lock_inner(connecting_timer_mutex_);
+                    std::scoped_lock its_lock_inner{connecting_timer_mutex_};
                     operations_cancelled = connecting_timer_.cancel();
                 }
                 if (operations_cancelled != 0) {
@@ -251,7 +251,7 @@ void tcp_client_endpoint_impl::connect() {
                         << "(" << its_error.value() << "): " << its_error.message();
         std::size_t operations_cancelled;
         {
-            std::scoped_lock<std::mutex> its_lock_inner(connecting_timer_mutex_);
+            std::scoped_lock its_lock_inner{connecting_timer_mutex_};
             operations_cancelled = connecting_timer_.cancel();
         }
         if (operations_cancelled != 0) {
@@ -267,7 +267,7 @@ void tcp_client_endpoint_impl::connect() {
 void tcp_client_endpoint_impl::receive() {
     message_buffer_ptr_t its_recv_buffer;
     {
-        std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock{socket_mutex_};
         its_recv_buffer = recv_buffer_;
     }
     auto self = std::dynamic_pointer_cast< tcp_client_endpoint_impl >(shared_from_this());
@@ -279,7 +279,7 @@ void tcp_client_endpoint_impl::receive() {
 void tcp_client_endpoint_impl::receive(message_buffer_ptr_t  _recv_buffer,
              std::size_t _recv_buffer_size,
              std::size_t _missing_capacity) {
-    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     if(socket_->is_open()) {
         const std::size_t its_capacity(_recv_buffer->capacity());
         size_t buffer_size = its_capacity - _recv_buffer_size;
@@ -356,7 +356,7 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock{socket_mutex_};
         if (socket_->is_open()) {
             boost::asio::async_write(
                 *socket_,
@@ -409,7 +409,7 @@ uint16_t tcp_client_endpoint_impl::get_local_port() const {
     uint16_t its_port(0);
 
     // Local port may be zero, if no client ports are configured
-    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     if (socket_->is_open()) {
         boost::system::error_code its_error;
         endpoint_type its_local = socket_->local_endpoint(its_error);
@@ -426,7 +426,7 @@ uint16_t tcp_client_endpoint_impl::get_local_port() const {
 }
 
 void tcp_client_endpoint_impl::set_local_port() {
-    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     boost::system::error_code its_error;
     if (socket_->is_open()) {
         endpoint_type its_endpoint = socket_->local_endpoint(its_error);
@@ -444,7 +444,7 @@ void tcp_client_endpoint_impl::set_local_port() {
 
 void tcp_client_endpoint_impl::set_local_port(port_t _port) {
 
-    std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     if (!socket_->is_open()) {
         local_.port(_port);
     } else {
@@ -883,7 +883,7 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(
         sending_blocked_ = true;
     }
     {
-        std::scoped_lock<std::mutex> its_lock(connect_timer_mutex_);
+        std::scoped_lock its_lock{connect_timer_mutex_};
         boost::system::error_code ec;
         connect_timer_.cancel(ec);
     }
@@ -913,7 +913,7 @@ void tcp_client_endpoint_impl::print_status() {
     }
     std::string local;
     {
-        std::scoped_lock<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock{socket_mutex_};
         local = get_address_port_local();
         its_receive_buffer_capacity = recv_buffer_->capacity();
     }
