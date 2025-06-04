@@ -3067,8 +3067,17 @@ application_impl::is_local_endpoint(const boost::asio::ip::address &_unicast,
         port_t _port) {
 
     try {
+        // Try to bind to the host routing address.
+        // If it throws, either:
+        // 1) we cannot be routing host (another process is already routing host), or
+        // 2) we are a guest and therefore `its_endpoint` is a nonsense address
         boost::asio::ip::tcp::endpoint its_endpoint(_unicast, _port);
-        boost::asio::ip::tcp::socket its_socket(io_, its_endpoint);
+        boost::asio::ip::tcp::socket its_socket(io_);
+
+        its_socket.open(its_endpoint.protocol());
+        its_socket.set_option(boost::asio::socket_base::reuse_address(true));
+        its_socket.bind(its_endpoint);
+
         its_socket.close();
 
         return true;
