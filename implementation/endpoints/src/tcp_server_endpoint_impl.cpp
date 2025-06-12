@@ -217,7 +217,7 @@ bool tcp_server_endpoint_impl::is_established_to(
         } else {
             VSOMEIP_INFO << "Didn't find TCP connection: Subscription "
                          << "rejected for: " << its_endpoint.address().to_string() << ":" << std::dec
-                         << static_cast<std::uint16_t>(its_endpoint.port());
+                         << its_endpoint.port();
         }
     }
     return is_connected;
