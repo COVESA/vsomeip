@@ -2957,26 +2957,26 @@ void routing_manager_client::handle_client_error(client_t _client) {
                      << get_client() << " handles a client error 0x" << std::hex << std::setw(4)
                      << _client << " not reconnecting";
 
-        // Save the services that were subscribed to this client, before cleaning up
-        auto its_subsciptions = get_subscriptions(_client);
-
-        // remove the client from the local connections
-        remove_local(_client, true);
-
-        // Request the host these services again
+        // Save the services that were requested to this client, before cleaning up.
+        std::set<protocol::service> services_to_request {};
         if ( state_ == inner_state_type_e::ST_REGISTERED ) {
-
-            std::set<protocol::service> its_subscription_requests;
-            {
-                std::scoped_lock lk { requests_mutex_ };
-                for(const auto &[its_service, its_instance, its_eventgroup] : its_subsciptions) {
-                    auto it = requests_.find({ its_service, its_instance });
-                    if (it != requests_.end()) {
-                        its_subscription_requests.emplace(*it);
+            std::scoped_lock lk { local_services_mutex_ };
+            for (const auto& [service, instances] : local_services_) {
+                for (const auto& [instance, info] : instances) {
+                    const auto [major, minor, client] = info;
+                    if (client == _client) {
+                        services_to_request.emplace(service, instance, major, minor);
                     }
                 }
             }
-            send_request_services(its_subscription_requests);
+        }
+
+        // Remove the client from the local connections.
+        remove_local(_client, true);
+
+        // Request the host these services again.
+        if ( state_ == inner_state_type_e::ST_REGISTERED ) {
+            send_request_services(services_to_request);
         }
 
     } else {
