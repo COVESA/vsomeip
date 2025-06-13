@@ -72,6 +72,7 @@ void local_tcp_client_endpoint_impl::start() {
         {
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             sending_blocked_ = false;
+            is_stopping_ = false;
         }
         connect();
     }
@@ -81,6 +82,7 @@ void local_tcp_client_endpoint_impl::stop() {
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = true;
+        is_stopping_ = true;
     }
     {
         std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
@@ -99,13 +101,13 @@ void local_tcp_client_endpoint_impl::stop() {
         std::uint32_t times_slept(0);
 
         while (times_slept <= LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP) {
-            mutex_.lock();
+            std::unique_lock<std::recursive_mutex> its_lock(mutex_);
             send_queue_empty = (queue_.size() == 0);
-            mutex_.unlock();
             if (send_queue_empty) {
                 break;
             } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                queue_cv_.wait_for(its_lock, std::chrono::milliseconds(10),
+                                   [this] { return queue_.size() == 0; });
                 times_slept++;
             }
         }
@@ -313,6 +315,10 @@ void local_tcp_client_endpoint_impl::receive_cbk(
             sending_blocked_ = false;
             queue_.clear();
             queue_size_ = 0;
+
+            if (is_stopping_) {
+                queue_cv_.notify_all();
+            }
         }
         error_handler_t handler;
         {

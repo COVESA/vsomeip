@@ -477,7 +477,7 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(
         std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
         connecting_timer_state_ = connecting_timer_state_e::FINISH_ERROR;
         operations_cancelled = connecting_timer_.cancel();
-        if (operations_cancelled != 0) {
+        if (!_error) {
             connecting_timer_state_ = connecting_timer_state_e::FINISH_SUCCESS;
         }
         connecting_timer_condition_.notify_all();

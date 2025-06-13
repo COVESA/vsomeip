@@ -67,6 +67,9 @@ private:
 
     // send data
     message_buffer_ptr_t send_data_buffer_;
+
+    bool is_stopping_;
+    std::condition_variable_any queue_cv_;
 };
 
 } // namespace vsomeip_v3
