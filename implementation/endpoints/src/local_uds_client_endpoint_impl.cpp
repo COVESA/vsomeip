@@ -54,6 +54,7 @@ void local_uds_client_endpoint_impl::restart(bool _force) {
         sending_blocked_ = false;
         queue_.clear();
         queue_size_ = 0;
+        is_sending_ = false;
     }
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);

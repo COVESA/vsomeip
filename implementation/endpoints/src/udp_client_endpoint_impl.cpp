@@ -205,6 +205,7 @@ void udp_client_endpoint_impl::restart(bool _force) {
         local = get_address_port_local();
     }
     was_not_connected_ = true;
+    is_sending_ = false;
     reconnect_counter_ = 0;
     VSOMEIP_WARNING << "uce::restart: local: " << local
             << " remote: " << get_address_port_remote();
