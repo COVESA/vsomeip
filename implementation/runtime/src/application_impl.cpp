@@ -1039,7 +1039,7 @@ void application_impl::register_availability_handler_unlocked(service_t _service
         its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
         its_sync_handler->service_id_ = _srvc;
         its_sync_handler->instance_id_ = _nstnc;
-        handlers_.emplace_back(its_sync_handler);
+        handlers_.push_back(its_sync_handler);
     };
 
     std::scoped_lock handlers_lock(handlers_mutex_);
@@ -1087,13 +1087,14 @@ void application_impl::unregister_availability_handler(service_t _service,
     }
 }
 
-void application_impl::on_subscription(service_t _service, instance_t _instance,
-                                       eventgroup_t _eventgroup, client_t _client,
-                                       const vsomeip_sec_client_t* _sec_client,
-                                       const std::string& _env, bool _subscribed,
-                                       const std::function<void(bool)>& _accepted_cbk) {
-    async_subscription_handler_sec_t its_handler;
-    bool has_handler {false};
+void application_impl::on_subscription(
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+        client_t _client, const vsomeip_sec_client_t *_sec_client,
+        const std::string &_env, bool _subscribed,
+        const std::function<void(bool)> &_accepted_cb) {
+
+    bool handler_found = false;
+    std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t> its_handlers;
     {
         std::lock_guard<std::mutex> its_lock(subscription_mutex_);
         auto found_service = subscription_.find(_service);
@@ -1102,34 +1103,24 @@ void application_impl::on_subscription(service_t _service, instance_t _instance,
             if (found_instance != found_service->second.end()) {
                 auto found_eventgroup = found_instance->second.find(_eventgroup);
                 if (found_eventgroup != found_instance->second.end()) {
-                    its_handler = found_eventgroup->second;
-                    has_handler = true;
+                    its_handlers = found_eventgroup->second;
+                    handler_found = true;
                 }
             }
         }
     }
 
-    std::shared_ptr<sync_handler> its_sync_handler;
-    if (has_handler) {
-        its_sync_handler =
-                std::make_shared<sync_handler>([its_handler, _client, its_sec_client = *_sec_client,
-                                                _env, _subscribed, _accepted_cbk](void) {
-                    its_handler(_client, &its_sec_client, _env, _subscribed, _accepted_cbk);
-                });
+    if (handler_found) {
+        if(auto its_handler = its_handlers.first) {
+            // "normal" subscription handler exists
+            _accepted_cb(its_handler(_client, _sec_client, _env, _subscribed));
+        } else if(auto its_handler = its_handlers.second) {
+            // async subscription handler exists
+            its_handler(_client, _sec_client, _env, _subscribed, _accepted_cb);
+        }
     } else {
-        // Did not find a handler, thus accept the subscription
-        its_sync_handler =
-                std::make_shared<sync_handler>([_accepted_cbk](void) { _accepted_cbk(true); });
+        _accepted_cb(true);
     }
-    its_sync_handler->handler_type_ = handler_type_e::SUBSCRIPTION;
-    its_sync_handler->service_id_ = _service;
-    its_sync_handler->instance_id_ = _instance;
-    its_sync_handler->method_id_ = ANY_EVENT;
-    its_sync_handler->eventgroup_id_ = _eventgroup;
-
-    std::scoped_lock its_lock {handlers_mutex_};
-    handlers_.emplace_back(its_sync_handler);
-    dispatcher_condition_.notify_one();
 }
 
 void application_impl::register_subscription_handler(service_t _service,
@@ -1177,14 +1168,8 @@ void application_impl::register_subscription_handler(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup,
         const subscription_handler_sec_t &_handler) {
 
-    auto its_handler {[_handler](client_t _client, const vsomeip_sec_client_t* _sec_client,
-                                 const std::string& _env, bool _is_subscribed,
-                                 std::function<void(bool)> _callback) {
-        _callback(_handler(_client, _sec_client, _env, _is_subscribed));
-    }};
-
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = std::move(its_handler);
+    subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
 }
 
 
@@ -1410,7 +1395,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
             its_sync_handler->instance_id_ = _instance;
             its_sync_handler->method_id_ = _event;
             its_sync_handler->eventgroup_id_ = _eventgroup;
-            handlers_.emplace_back(its_sync_handler);
+            handlers_.push_back(its_sync_handler);
         }
         if (handlers.size()) {
             dispatcher_condition_.notify_one();
@@ -1607,7 +1592,7 @@ void application_impl::on_state(state_type_e _state) {
                                                 handler(_state);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::STATE;
-        handlers_.emplace_back(its_sync_handler);
+        handlers_.push_back(its_sync_handler);
         dispatcher_condition_.notify_one();
     }
 }
@@ -1751,7 +1736,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
                 its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
                 its_sync_handler->service_id_ = _service;
                 its_sync_handler->instance_id_ = _instance;
-                handlers_.emplace_back(its_sync_handler);
+                handlers_.push_back(its_sync_handler);
             }
         }
     }
@@ -1853,7 +1838,7 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
                 its_sync_handler->instance_id_ = _message->get_instance();
                 its_sync_handler->method_id_ = _message->get_method();
                 its_sync_handler->session_id_ = _message->get_session();
-                handlers_.emplace_back(its_sync_handler);
+                handlers_.push_back(its_sync_handler);
             }
             dispatcher_condition_.notify_one();
         }
@@ -2698,7 +2683,7 @@ void application_impl::on_offered_services_info(std::vector<std::pair<service_t,
                                                 handler(_services);
                                              });
         its_sync_handler->handler_type_ = handler_type_e::OFFERED_SERVICES_INFO;
-        handlers_.emplace_back(its_sync_handler);
+        handlers_.push_back(its_sync_handler);
         dispatcher_condition_.notify_one();
     }
 }
@@ -2721,7 +2706,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
             std::lock_guard<std::mutex> its_lock(handlers_mutex_);
             auto its_sync_handler = std::make_shared<sync_handler>([handler]() { handler(); });
             its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
-            handlers_.emplace_back(its_sync_handler);
+            handlers_.push_back(its_sync_handler);
             dispatcher_condition_.notify_one();
         }
     }
@@ -2793,7 +2778,7 @@ void application_impl::register_async_subscription_handler(service_t _service,
     async_subscription_handler_sec_t _handler) {
 
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = std::move(_handler);
+    subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
 }
 
 void application_impl::register_sd_acceptance_handler(
