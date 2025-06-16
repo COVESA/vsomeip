@@ -10,6 +10,7 @@
 #include <memory>
 
 #include <vsomeip/export.hpp>
+#include <cstdint>
 
 // Version should be incremented on breaking API change
 #define VSOMEIP_APPLICATION_PLUGIN_VERSION              1

@@ -12,6 +12,7 @@
 #include <chrono>
 #include <mutex>
 #include <set>
+#include <cstdint>
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/export.hpp>
