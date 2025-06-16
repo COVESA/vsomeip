@@ -234,19 +234,21 @@ void local_uds_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
+
+        auto its_me {std::dynamic_pointer_cast<local_uds_client_endpoint_impl>(shared_from_this())};
+        auto buffer_ptr = _entry.first; // Capture shared_ptr to ensure it stays alive
+        
         if(socket_->is_open()) {
             boost::asio::async_write(
-                *socket_, bufs,
-                strand_.wrap(std::bind(&client_endpoint_impl::send_cbk,
-                    std::dynamic_pointer_cast<local_uds_client_endpoint_impl>(
-                        shared_from_this()),
-                        std::placeholders::_1, std::placeholders::_2,
-                        _entry.first)));
+                    *socket_, bufs,
+                    strand_.wrap([its_me, buffer_ptr](const boost::system::error_code& ec, std::size_t bytes_transferred){
+                        its_me->send_cbk(ec, bytes_transferred, buffer_ptr);
+                    }));
         } else {
             VSOMEIP_WARNING << "lucei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
             was_not_connected_ = true;
             is_sending_ = false;
-        }
+        } 
     }
 }
 
