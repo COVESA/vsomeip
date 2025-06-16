@@ -328,15 +328,24 @@ void udp_server_endpoint_impl::receive() {
 }
 
 void udp_server_endpoint_impl::receive_unicast() {
-
     std::lock_guard<std::mutex> its_lock(unicast_mutex_);
-
-    if (!is_stopped_ && unicast_socket_->is_open()) {
+    if (!is_stopped_ && unicast_socket_ && unicast_socket_->is_open()) {
         unicast_socket_->async_receive_from(
                 boost::asio::buffer(&unicast_recv_buffer_[0], max_message_size_), unicast_remote_,
                 std::bind(&udp_server_endpoint_impl::on_unicast_received,
                           std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this()),
                           std::placeholders::_1, std::placeholders::_2));
+    } else {
+        if (is_stopped_ && unicast_socket_) {
+            io_.post(std::bind(
+                    &udp_server_endpoint_impl::shutdown_and_close,
+                    std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this()), true));
+        } else {
+            VSOMEIP_WARNING << "usei::" << __func__
+                            << ": Endpoint is running, but the unicast socket is not existing/"
+                               "closed. (0x"
+                            << std::hex << this << ")";
+        }
     }
 }
 
@@ -344,7 +353,6 @@ void udp_server_endpoint_impl::receive_unicast() {
 // receive_multicast is called with multicast_mutex_ being hold
 //
 void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
-
     if (!is_stopped_ && _multicast_id == multicast_id_ && multicast_socket_
         && multicast_socket_->is_open()) {
         auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
@@ -358,9 +366,14 @@ void udp_server_endpoint_impl::receive_multicast(uint8_t _multicast_id) {
         multicast_socket_->async_wait(socket_type::wait_read,
                                       udp_endpoint_receive_op::receive_cb(its_storage));
     } else {
-        VSOMEIP_WARNING << "usei::" << __func__ << ": is_stopped_: " << is_stopped_
-                        << " received multicast_id: " << _multicast_id
-                        << " expected multicast_id: " << multicast_id_;
+        VSOMEIP_WARNING << "usei::" << __func__ << ": is_stopped_: " << is_stopped_ << std::dec
+                        << " _multicast_id: " << static_cast<int>(_multicast_id)
+                        << " multicast_id_: " << static_cast<int>(multicast_id_);
+        if (is_stopped_ && multicast_socket_) {
+            io_.post(std::bind(
+                    &udp_server_endpoint_impl::shutdown_and_close,
+                    std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this()), false));
+        }
     }
 }
 
