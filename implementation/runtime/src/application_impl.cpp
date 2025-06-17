@@ -708,12 +708,13 @@ application_impl::is_available_unlocked(
                 its_state = found_major->second.second;
             }
         } else if (_major == DEFAULT_MAJOR || _major == ANY_MAJOR) {
-            for (const auto &found_major_inner : _found_instance->second) {
+            for (const auto& [major, minor_and_state] : _found_instance->second) {
+                static_cast<void>(major); // unused
                 if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
-                    its_state = found_major_inner.second.second;
+                    its_state = minor_and_state.second;
                     break;
-                } else if (_minor <= found_major_inner.second.first) {
-                    its_state = found_major_inner.second.second;
+                } else if (_minor <= minor_and_state.first) {
+                    its_state = minor_and_state.second;
                     break;
                 }
             }
