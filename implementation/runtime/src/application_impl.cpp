@@ -736,16 +736,17 @@ application_impl::is_available_unlocked(
             }
         }
     } else if (_service == ANY_SERVICE) {
-        for (const auto &found_service_inner : available_) {
-            auto found_instance = found_service_inner.second.find(_instance);
-            if (found_instance != found_service_inner.second.end()) {
+        for (const auto &[service, instances] : available_) {
+            static_cast<void>(service); // unused
+            auto found_instance = instances.find(_instance);
+            if (found_instance != instances.end()) {
                 check_major_minor(found_instance);
                 if (its_state != availability_state_e::AS_UNKNOWN) {
                     break;
                 }
             } else if (_instance == ANY_INSTANCE) {
-                for (auto it = found_service_inner.second.cbegin();
-                        it != found_service_inner.second.cend(); it++) {
+                for (auto it = instances.cbegin();
+                        it != instances.cend(); it++) {
                     check_major_minor(it);
                     if (its_state != availability_state_e::AS_UNKNOWN) {
                         break;
