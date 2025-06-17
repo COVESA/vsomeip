@@ -709,10 +709,7 @@ application_impl::is_available_unlocked(
             for (const auto& [found_major, minor_avail_pair] : _found_instance->second) {
                 static_cast<void>(found_major); // unused
                 const auto [found_minor, availability_state] = minor_avail_pair;
-                if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
-                    its_state = availability_state;
-                    break;
-                } else if (_minor <= found_minor) {
+                if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR || _minor <= found_minor) {
                     its_state = availability_state;
                     break;
                 }
