@@ -706,8 +706,8 @@ application_impl::is_available_unlocked(
                 its_state = found_major->second.second;
             }
         } else if (_major == DEFAULT_MAJOR || _major == ANY_MAJOR) {
-            for (const auto& [found_major, minor_avail_pair] : _found_instance->second) {
-                static_cast<void>(found_major); // unused
+            for (const auto& [found_major_inner, minor_avail_pair] : _found_instance->second) {
+                static_cast<void>(found_major_inner); // unused
                 const auto [found_minor, availability_state] = minor_avail_pair;
                 if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR || _minor <= found_minor) {
                     its_state = availability_state;
