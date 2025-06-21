@@ -118,7 +118,7 @@ find_package(Threads REQUIRED)
 add_library(OS_INTERFACE INTERFACE IMPORTED)
 add_library(DL_INTERFACE INTERFACE IMPORTED)
 
-# Boost, once this is pushed pased 1.70, it should be found using CONFIG rather
+# Boost: once this is pushed passed 1.70, it should be found using CONFIG rather
 # than CMake's FindBoost module, see policy CMP0167
 find_package(
   Boost 1.66 REQUIRED
