@@ -1275,30 +1275,31 @@ void routing_manager_client::on_message(
                                 return;
                             }
 
-                            bool is_access_member_ok = (VSOMEIP_SEC_OK ==
-                                configuration_->get_security()->is_client_allowed_to_access_member(
-                                get_sec_client(), its_message->get_service(), its_message->get_instance(),
-                                its_message->get_method()));
-
                             bool is_intern_resp_allowed = (!configuration_->is_security_external()
                                     && is_response_allowed(_bound_client, its_message->get_service(),
                                     its_message->get_instance(),
                                     its_message->get_method()));
 
                             if (is_intern_resp_allowed || is_offer_access_ok) {
-                                if (!is_access_member_ok) {
-                                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
-                                                    << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                                                    << " : routing_manager_client::on_message: isn't allowed to receive a "
-                                                    << (utility::is_notification(its_message->get_message_type()) ? "notification" : "response")
-                                                    << " from service/instance/method "
-                                                    << its_message->get_service() << "/" << its_message->get_instance()
-                                                    << "/" << its_message->get_method()
-                                                    << " respectively from client 0x" << _bound_client
-                                                    << " ~> Skip message!";
-                                    return;
-                                }
-                                if (utility::is_notification(its_message->get_message_type())){
+                                const bool is_notification = utility::is_notification(its_message->get_message_type());
+
+                                if(is_notification){
+                                    const bool is_access_member_ok = (VSOMEIP_SEC_OK ==
+                                        configuration_->get_security()->is_client_allowed_to_access_member(
+                                        get_sec_client(), its_message->get_service(), its_message->get_instance(),
+                                        its_message->get_method()));
+
+                                    if (!is_access_member_ok) {
+                                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
+                                                        << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                                                        << " : routing_manager_client::on_message: isn't allowed to receive a "
+                                                        << " notification from service/instance/method "
+                                                        << its_message->get_service() << "/" << its_message->get_instance()
+                                                        << "/" << its_message->get_method()
+                                                        << " respectively from client 0x" << _bound_client
+                                                        << " ~> Skip message!";
+                                        return;
+                                    }
                                     cache_event_payload(its_message);
                                 }
                             } else {
