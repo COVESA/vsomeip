@@ -6,12 +6,20 @@
 #include <atomic>
 #include <iomanip>
 #include <sstream>
+#if defined(__linux__) || defined(ANDROID)
+#include <netinet/tcp.h>
+#endif
 
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif
 #include "../include/endpoint_host.hpp"
 #include "../include/local_tcp_client_endpoint_impl.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
@@ -130,13 +138,41 @@ void local_tcp_client_endpoint_impl::connect() {
                             << " remote: " << remote_.port() << " endpoint: " << this
                             << " state_: " << static_cast<int>(state_.load());
         }
-        socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
-        if (its_error) {
-            VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
-                            << "keep_alive: " << its_error.message() << " remote:" << remote_.port()
-                            << " endpoint > " << this << " state_ > "
-                            << static_cast<int>(state_.load());
+
+        // connection in the same host (and not across a host and guest or similar)
+        // important, as we can (MUST!) be lax in the socket options - no keep alive necessary
+        if (local_.address() == remote_.address()) {
+            // disable keep alive
+            socket_->set_option(boost::asio::socket_base::keep_alive(false), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "ltcei::connect: couldn't disable "
+                                << "keep_alive: " << its_error.message()
+                                << " remote:" << remote_.port() << " endpoint > " << this
+                                << " state_ > " << static_cast<int>(state_.load());
+            }
+        } else {
+            // enable keep alive
+            socket_->set_option(boost::asio::socket_base::keep_alive(true), its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
+                                << "keep_alive: " << its_error.message()
+                                << " remote:" << remote_.port() << " endpoint > " << this
+                                << " state_ > " << static_cast<int>(state_.load());
+            }
+
+#if defined(__linux__) || defined(ANDROID)
+            // set a user timeout
+            // along the keep alives, this ensures connection closes if endpoint is unreachable
+            unsigned int opt = LOCAL_TCP_USER_TIMEOUT;
+            if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &opt,
+                           sizeof(opt))
+                == -1) {
+                VSOMEIP_WARNING << "ltcei::" << __func__
+                                << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
+            }
+#endif
         }
+
         // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
         // Since this is endpoint for internal communication, setting the TIME_WAIT to 1-5 seconds
         // should be enough to ensure the ACK to the FIN arrives to the server endpoint.

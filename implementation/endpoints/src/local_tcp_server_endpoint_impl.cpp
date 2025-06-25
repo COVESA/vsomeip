@@ -6,12 +6,20 @@
 #include <deque>
 #include <iomanip>
 #include <sstream>
+#if defined(__linux__) || defined(ANDROID)
+#include <netinet/tcp.h>
+#endif
 
 #include <sys/types.h>
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/internal/logger.hpp>
 
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif
 #include "../include/endpoint_host.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
 #include "../include/local_server_endpoint_impl_receive_op.hpp"
@@ -233,22 +241,21 @@ void local_tcp_server_endpoint_impl::accept_cbk(
         connection::ptr _connection, boost::system::error_code const &_error) {
     if (!_error) {
         boost::system::error_code its_error;
-        endpoint_type remote;
         {
             std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
             socket_type &new_connection_socket = _connection->get_socket();
+
+            endpoint_type remote = new_connection_socket.remote_endpoint(its_error);
+            if (its_error) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": could not read endpoint, "
+                                << "error: " << its_error.message();
+            }
 
             // Nagle algorithm off
             new_connection_socket.set_option(boost::asio::ip::tcp::no_delay(true), its_error);
             if (its_error) {
                 VSOMEIP_WARNING << "ltsei::" << __func__ << ": couldn't disable "
                                 << "Nagle algorithm: " << its_error.message()
-                                << " endpoint > " << this;
-            }
-            new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true), its_error);
-            if (its_error) {
-                VSOMEIP_WARNING << "ltsei::" << __func__ << ": couldn't enable "
-                                << "keep_alive: " << its_error.message()
                                 << " endpoint > " << this;
             }
             // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
@@ -259,6 +266,40 @@ void local_tcp_server_endpoint_impl::accept_cbk(
             if (its_error) {
                 VSOMEIP_WARNING << "ltsei::" << __func__ << ": setting SO_LINGER failed ("
                                 << its_error.message() << ") " << this;
+            }
+
+            // connection in the same host (and not across a host and guest or similar)
+            // important, as we can (MUST!) be lax in the socket options - no keep alive necessary
+            if (local_.address() == remote.address()) {
+                // disable keep alive
+                new_connection_socket.set_option(boost::asio::socket_base::keep_alive(false),
+                                                 its_error);
+                if (its_error) {
+                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": couldn't disable "
+                                    << "keep_alive: " << its_error.message() << " endpoint > "
+                                    << this;
+                }
+            } else {
+                // enable keep alive
+                new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true),
+                                                 its_error);
+                if (its_error) {
+                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": couldn't enable "
+                                    << "keep_alive: " << its_error.message() << " endpoint > "
+                                    << this;
+                }
+
+#if defined(__linux__) || defined(ANDROID)
+                // set a user timeout
+                // along the keep alives, this ensures connection closes if endpoint is unreachable
+                unsigned int opt = LOCAL_TCP_USER_TIMEOUT;
+                if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT,
+                               &opt, sizeof(opt))
+                    == -1) {
+                    VSOMEIP_WARNING << "ltsei::" << __func__
+                                    << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
+                }
+#endif
             }
         }
     }
