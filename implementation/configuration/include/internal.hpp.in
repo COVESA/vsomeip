@@ -135,6 +135,8 @@
 #define LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP       5
 #define LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP       50
 
+#define LOCAL_TCP_USER_TIMEOUT                  3000
+
 #define MIN_ENDPOINT_WAIT_INTERVAL              10
 #define MAX_ENDPOINT_WAIT_INTERVAL              160
 #define SUM_ENDPOINT_WAIT_INTERVAL              500
