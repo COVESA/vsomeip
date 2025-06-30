@@ -43,7 +43,7 @@ export VSOMEIP_APPLICATION_NAME=local_routing_test_service
 ./local_routing_test_service &
 SERIVCE_PID=$!
 WAIT_PID_ONE=$!
-sleep 1;
+sleep 4;
 
 check_tcp_udp_sockets_are_closed  $SERIVCE_PID
 

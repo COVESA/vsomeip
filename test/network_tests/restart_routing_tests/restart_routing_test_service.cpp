@@ -9,7 +9,7 @@
 
 routing_restart_test_service::routing_restart_test_service() :
     app_(vsomeip::runtime::get()->create_application()), is_registered_(false), blocked_(false),
-    init_shutdown_(false), all_received_(false), shutdown_counter_(0),
+    init_shutdown_(false), all_received_(false), shutdown_counter_(0), number_of_received_messages_(0),
     offer_thread_(std::bind(&routing_restart_test_service::run, this)) { }
 
 bool routing_restart_test_service::init() {
@@ -139,6 +139,10 @@ void routing_restart_test_service::run() {
                 << "Timeout reached : Not all clients requested shutdown. Stopping Service anyway";
     }
     stop();
+}
+
+routing_restart_test_service::~routing_restart_test_service() {
+    join_offer_thread();
 }
 
 TEST(someip_restart_routing_test, send_response_for_every_request) {

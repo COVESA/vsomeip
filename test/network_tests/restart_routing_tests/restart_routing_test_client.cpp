@@ -168,6 +168,10 @@ void routing_restart_test_client::shutdown_service() {
     app_->send(request);
 }
 
+routing_restart_test_client::~routing_restart_test_client() {
+    join_sender_thread();
+}
+
 TEST(someip_restart_routing_test, request_response_over_restart)
 {
     routing_restart_test_client test_client;

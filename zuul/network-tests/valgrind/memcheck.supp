@@ -1,3 +1,21 @@
+# offer_thread_bind_tls
+# Valgrind can't follow TLS memory until the thread is completely destroyed,
+# therefore can't confirm whether the thread cleans it up after exit, hence it marks
+# it "possibly lost."
+# Thread is joined in the object (offer_test_service) destructor.
+
+# dispatcher_threads_tls, stop_thread_tls, io_threads_tls
+# When app_->start() is called, threads are internally created.
+# Valgrind can't keep track cleanup of thread shutdown for TLS allocations, thus it marks
+# as "possibly lost".
+
+# Suppressions for 'load_policy_data'
+# These errors come with the usage of the function configuration_impl::load_policy_data
+# There is no leak directly within the configuration_element class or its members. Structure
+# uses value semantics std::string and boost:property_tree::ptree.
+# False positive, likely trigger by external resources or Boost usage.
+
+
 {
 	<memcheck_leak_bash_if_command>
 	Memcheck:Leak
@@ -23,4 +41,520 @@
 	match-leak-kinds: definite
 	...
 	fun:__libc_dlopen_mode
+}
+{
+   <io_threads_tls>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.34
+   fun:_ZNSt6thread15_M_start_threadESt10unique_ptrINS_6_StateESt14default_deleteIS1_EEPFvvE
+   fun:thread<vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:_Construct<std::thread, vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:construct<std::thread, vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:_Sp_counted_ptr_inplace<vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:__shared_count<std::thread, std::allocator<void>, vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:__shared_ptr<std::allocator<void>, vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:_ZNSt10shared_ptrISt6threadEC1ISaIvEJZN10vsomeip_v316application_impl5startEvEUlvE_EEESt20_Sp_alloc_shared_tagIT_EDpOT0_
+   fun:make_shared<std::thread, vsomeip_v3::application_impl::start()::<lambda()> >
+   fun:_ZN10vsomeip_v316application_impl5startEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+   fun:HandleSehExceptionsInMethodIfSupported<testing::Test, void>
+   fun:_ZN7testing8internal35HandleExceptionsInMethodIfSupportedINS_4TestEvEET0_PT_MS4_FS3_vEPKc
+   fun:_ZN7testing4Test3RunEv
+   fun:_ZN7testing8TestInfo3RunEv
+   fun:_ZN7testing9TestSuite3RunEv
+}
+{
+   <dispatcher_threads_tls>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.34
+   fun:_ZNSt6thread15_M_start_threadESt10unique_ptrINS_6_StateESt14default_deleteIS1_EEPFvvE
+   fun:thread<std::packaged_task<void()> >
+   fun:_Construct<std::thread, std::packaged_task<void()> >
+   fun:construct<std::thread, std::packaged_task<void()> >
+   fun:_Sp_counted_ptr_inplace<std::packaged_task<void()> >
+   fun:__shared_count<std::thread, std::allocator<void>, std::packaged_task<void()> >
+   fun:__shared_ptr<std::allocator<void>, std::packaged_task<void()> >
+   fun:_ZNSt10shared_ptrISt6threadEC1ISaIvEJSt13packaged_taskIFvvEEEEESt20_Sp_alloc_shared_tagIT_EDpOT0_
+   fun:make_shared<std::thread, std::packaged_task<void()> >
+   fun:_ZN10vsomeip_v316application_impl5startEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+   fun:HandleSehExceptionsInMethodIfSupported<testing::Test, void>
+   fun:_ZN7testing8internal35HandleExceptionsInMethodIfSupportedINS_4TestEvEET0_PT_MS4_FS3_vEPKc
+   fun:_ZN7testing4Test3RunEv
+   fun:_ZN7testing8TestInfo3RunEv
+   fun:_ZN7testing9TestSuite3RunEv
+}
+{
+   <stop_thread_tls>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.34
+   fun:_ZNSt6thread15_M_start_threadESt10unique_ptrINS_6_StateESt14default_deleteIS1_EEPFvvE
+   fun:thread<void (vsomeip_v3::application_impl::*)(), std::shared_ptr<vsomeip_v3::application_impl> >
+   fun:_ZN10vsomeip_v316application_impl5startEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+   fun:HandleSehExceptionsInMethodIfSupported<testing::Test, void>
+   fun:_ZN7testing8internal35HandleExceptionsInMethodIfSupportedINS_4TestEvEET0_PT_MS4_FS3_vEPKc
+   fun:_ZN7testing4Test3RunEv
+   fun:_ZN7testing8TestInfo3RunEv
+   fun:_ZN7testing9TestSuite3RunEv
+   fun:_ZN7testing8internal12UnitTestImpl11RunAllTestsEv
+}
+{
+   <offer_thread_bind_tls>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.34
+   fun:_ZNSt6thread15_M_start_threadESt10unique_ptrINS_6_StateESt14default_deleteIS1_EEPFvvE
+   fun:thread<std::_Bind<void (offer_test_service::*(offer_test_service*))()> >
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+   fun:HandleSehExceptionsInMethodIfSupported<testing::Test, void>
+   fun:_ZN7testing8internal35HandleExceptionsInMethodIfSupportedINS_4TestEvEET0_PT_MS4_FS3_vEPKc
+   fun:_ZN7testing4Test3RunEv
+   fun:_ZN7testing8TestInfo3RunEv
+   fun:_ZN7testing9TestSuite3RunEv
+   fun:_ZN7testing8internal12UnitTestImpl11RunAllTestsEv
+   fun:HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>
+   fun:_ZN7testing8internal35HandleExceptionsInMethodIfSupportedINS0_12UnitTestImplEbEET0_PT_MS4_FS3_vEPKc
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZNSt7__cxx1112basic_string*
+   fun:basic_string
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZNSt7__cxx1112basic_string*
+   fun:basic_string
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptreeINSt7__cxx1112basic_string*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZN5boost13property_tree11basic_ptreeINSt7__cxx1112basic_string*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptreeINSt7__cxx1112basic_string*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:allocate
+   fun:allocate
+   fun:allocate_node
+   fun:header_holder
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptreeINSt7__cxx1112basic_string*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:allocate
+   fun:allocate
+   fun:allocate
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+   fun:HandleSehExceptionsInMethodIfSupported<testing::Test, void>
+   fun:_ZN7testing8internal35HandleExceptionsInMethodIfSupportedINS_4TestEvEET0_PT_MS4_FS3_vEPKc
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:allocate
+   fun:allocate
+   fun:allocate_node
+   fun:header_holder
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptreeINSt7__cxx1112basic_string*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:allocate
+   fun:allocate
+   fun:allocate
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+}
+{
+   <load_policy_data>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:allocate
+   fun:allocate
+   fun:allocate_node
+   fun:header_holder
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+}
+{
+   <load_policy>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:_Znwm
+   fun:_ZNSt7__cxx1112basic_string*
+   fun:basic_string
+   fun:pair
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:construct<std::pair<const std::__cxx11::basic_string<char>, boost::property_tree::basic_ptree*
+   fun:clone<boost::multi_index::detail::copy_map_value_copier>
+   fun:copy_clone
+   fun:_ZN5boost11multi_index21multi_index_container*
+   fun:multi_index_container
+   fun:_ZN5boost13property_tree11basic_ptree*
+   fun:configuration_element
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:construct<vsomeip_v3::configuration_element, vsomeip_v3::configuration_element>
+   fun:_ZNSt6vectorIN10vsomeip_v321configuration_element*
+   fun:emplace_back<vsomeip_v3::configuration_element>
+   fun:push_back
+   fun:_ZN10vsomeip_v33cfg18configuration_impl16load_policy_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl9read_data*
+   fun:_ZN10vsomeip_v33cfg18configuration_impl4load*
+   fun:_ZN10vsomeip_v325configuration_plugin_impl17get_configuration*
+   fun:_ZN10vsomeip_v316application_impl4initEv
+   fun:_ZN18offer_test_serviceC1EN10offer_test12service_infoE
+   fun:_ZN48someip_offer_test_notify_increasing_counter_Test8TestBodyEv
 }

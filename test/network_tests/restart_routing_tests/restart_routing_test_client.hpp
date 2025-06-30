@@ -23,6 +23,8 @@
 class routing_restart_test_client {
 public:
     routing_restart_test_client();
+    ~routing_restart_test_client();
+    
     bool init();
     void start();
     void stop();
