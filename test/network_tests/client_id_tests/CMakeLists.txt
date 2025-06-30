@@ -52,14 +52,6 @@ set(test_executables
 targets_link_default_libraries("${test_executables}")
 targets_add_default_dependencies("${test_executables}")
 
-# Skip valgrind
-if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-    if (TEST_SKIP_VALGRIND_TRACKING)
-        set(SUBPROCESSES ,*/client_id_test_service*)
-    endif()
-    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
-endif()
-
 # Add custom test commands.
 
 add_custom_test(

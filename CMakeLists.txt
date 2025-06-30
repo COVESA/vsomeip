@@ -144,10 +144,6 @@ if (NOT MSVC)
             add_definitions(-DBOOST_USE_VALGRIND)
         endif ()
 
-        if (VALGRIND_TYPE STREQUAL "helgrind")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --show-error-list=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --gen-suppressions=all --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
-        endif ()
-
         if (VALGRIND_TYPE STREQUAL "massif")
             set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.out)
         endif ()
