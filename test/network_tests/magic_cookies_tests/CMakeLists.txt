@@ -40,14 +40,6 @@ foreach(target ${executables})
     target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT})
 endforeach()
 
-# Skip valgrind
-if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-    if (TEST_SKIP_VALGRIND_TRACKING)
-        set(SUBPROCESSES ,*/magic_cookies_test_*)
-    endif()
-    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
-endif()
-
 # Add custom test command.
 add_custom_test(
     NAME magic_cookies_test
