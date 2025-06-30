@@ -86,8 +86,13 @@ public:
     }
 
     ~offer_test_client() {
-        send_thread_.join();
-        stop_thread_.join();
+        if (send_thread_.joinable()) {
+            send_thread_.join();
+        }
+
+        if (stop_thread_.joinable()) {
+            stop_thread_.join();
+        }
     }
 
     void on_state(vsomeip::state_type_e _state) {

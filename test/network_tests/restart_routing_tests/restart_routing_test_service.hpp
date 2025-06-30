@@ -20,6 +20,7 @@
 class routing_restart_test_service {
 public:
     routing_restart_test_service();
+    ~routing_restart_test_service();
     bool init();
     void start();
     void stop();

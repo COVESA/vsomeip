@@ -16,6 +16,8 @@ TEST(someip_application_test_availability, register_availability_handlers)
     // start receiver service
     application_test_service its_receiver(application_test::service);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
     // start client
     application_test_client_availability its_client(application_test::service);
     int counter(0);

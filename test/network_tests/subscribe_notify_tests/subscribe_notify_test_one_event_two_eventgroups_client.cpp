@@ -225,7 +225,7 @@ public:
         std::cv_status its_status(std::cv_status::no_timeout);
         while (received_events_.size() != _expected_number_received_events
                 && its_status != std::cv_status::timeout) {
-            its_status = _condition.wait_for(_lock, std::chrono::seconds(15));
+            its_status = _condition.wait_for(_lock, std::chrono::seconds(5));
             if (std::cv_status::timeout == its_status) {
                 ADD_FAILURE() << "Didn't receive expected number of events: "
                         << _expected_number_received_events

@@ -23,8 +23,16 @@ constexpr auto REQUESTS_NUMBER = 10;
 
 class common {
 public:
-    virtual void on_availability(service_t _service_id, instance_t _instance_id, bool _is_available);
+    common() :
+        instance_id_{0},
+        service_id_{0},
+        major_version_{0},
+        minor_version_{0},
+        availability_{false},
+        msg_sent_{false} {}
 
+    virtual void on_availability(service_t _service_id, instance_t _instance_id, bool _is_available);
+    
 public:
     instance_t instance_id_;
     service_t service_id_;
