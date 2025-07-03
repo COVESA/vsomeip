@@ -172,6 +172,7 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(someip_tp_tests)
     add_subdirectory(offer_tests)
     add_subdirectory(suspend_resume_tests)
+    add_subdirectory(availability_handler_tests)
 endif()
 
 add_subdirectory(application_tests)
