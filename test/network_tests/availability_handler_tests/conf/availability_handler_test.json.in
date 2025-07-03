@@ -1,0 +1,58 @@
+{
+    "unicast":"@TEST_IP_MASTER@",
+    "logging":
+    {
+        "level":"info",
+        "console":"true",
+        "file":
+        {
+            "enable":"false",
+            "path":"/tmp/someip.log"
+        },
+        "dlt":"true"
+    },
+    "applications":
+    [
+        {
+            "name":"availability_handler_test_service",
+            "id":"0x1234",
+            "threads":"4"
+        },
+        {
+            "name":"availability_handler_test_client",
+            "id":"0x1235"
+        }
+    ],
+    "services":
+    [
+        {
+            "service":"0x1234",
+            "instance":"0x5678",
+            "reliable":"30503"
+        }
+    ],
+    "routing": {
+        "host" : {
+            "name" : "availability_handler_test_service",
+            "unicast" : "@TEST_IP_MASTER@",
+            "port" : "31000"
+        },
+        "guests" : {
+            "unicast" : "@TEST_IP_MASTER@",
+            "ports" :
+            [
+                {
+                    "first" : "1026",
+                    "last" : "65535"
+                }
+            ]
+        }
+    },
+    "service-discovery":
+    {
+        "enable":"true",
+        "multicast":"224.0.0.1",
+        "port":"30490",
+        "protocol":"udp"
+    }
+}
