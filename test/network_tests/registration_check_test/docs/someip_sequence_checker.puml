@@ -1,0 +1,31 @@
+@startuml
+actor User
+participant "someip_sequence_checker.py" as Proxy
+participant "NetfilterQueue" as NFQ
+participant "iptables" as IPT
+participant "Kernel" as Kernel
+participant "Scapy" as Scapy
+
+User -> Proxy : Start script
+Proxy -> IPT : Add OUTPUT rule to NFQUEUE
+IPT -> Kernel : Update packet filter rules
+
+Proxy -> NFQ : Bind queue 0 to process_packet
+loop For each outgoing packet
+    Kernel -> NFQ : Pass packet to queue 0
+    NFQ -> Proxy : Call process_packet(packet)
+    Proxy -> Scapy : Parse packet (IP/TCP/SOMEIP)
+    alt TCP handshake
+        Proxy -> Proxy : Detect SYN/SYN-ACK/ACK
+    else SOMEIP payload
+        Proxy -> Proxy : Detect and parse SOMEIP commands
+    end
+    Proxy -> Proxy : Update sequence_state, my_counter
+    Proxy -> Proxy : Print debug info
+    Proxy -> NFQ : Accept packet
+end
+
+User -> Proxy : Ctrl+C or script ends
+Proxy -> NFQ : Unbind queue
+Proxy -> IPT : Remove OUTPUT rule from NFQUEUE
+@enduml

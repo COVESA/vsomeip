@@ -1,0 +1,51 @@
+{
+    "unicast" : "@TEST_IP_MASTER@",
+    "logging" :
+    {
+        "level" : "info",
+        "console" : "true",
+        "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
+        "dlt" : "true"
+    },
+    "applications" :
+    [
+        {
+            "name" : "routingmanagerd",
+            "id" : "0x0001"        
+        },
+        {
+            "name" : "service-sample",
+            "id" : "0x0002",
+            "service" : "0x0106",
+            "instance" : "0x63",
+            "reliable" : {
+                "port" : "30506",
+                "enable-magic-cookies" : "true"
+            }
+        },
+        {
+            "name" : "client",
+            "id" : "0x0003"        
+        }
+    ],
+    "routing" : 
+    {
+        "host" : 
+        {
+            "name" : "routingmanagerd",
+            "unicast" : "@TEST_IP_MASTER@",
+            "port" : "30491"
+        },
+        "guests" : 
+        {
+            "unicast" : "@TEST_IP_MASTER@",
+            "ports" :
+            [
+                {
+                    "first" : "30491",
+                    "last" : "30491"
+                }
+            ]
+        }
+    }
+}

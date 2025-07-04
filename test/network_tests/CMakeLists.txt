@@ -182,6 +182,7 @@ add_subdirectory(header_factory_tests)
 add_subdirectory(npdu_tests)
 add_subdirectory(payload_tests)
 add_subdirectory(cyclic_event_tests)
+add_subdirectory(registration_check_test)
 
 # some tests require the routingmanagerd
 if (NOT MSVC)

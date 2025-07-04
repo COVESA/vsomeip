@@ -8,22 +8,26 @@ RUN export DEBIAN_FRONTEND=noninteractive;\
         g++-12\
         gdb\
         googletest\
+        iptables\
         iproute2\
         jq\
         lcov\
+        libnetfilter-queue-dev\
+        libnfnetlink-dev\
         lsof\
         net-tools\
         ninja-build\
         openssh-server\
         pkg-config\
         python3-pip\
+        python3-scapy\
         tcpdump\
         valgrind\
         socat \
         ;\
     apt-get autoremove --purge --yes;\
     apt-get clean;\
-    pip3 install gcovr
+    pip3 install gcovr NetfilterQueue
 
 # Pinned GCC version
 ENV CC=gcc-12
