@@ -42,6 +42,23 @@
 	...
 	fun:__libc_dlopen_mode
 }
+# Suppressions for known memory leaks and uninitialized memory usage in system binaries.
+# These issues are by external tools (e.g., bash, iptables/xtables-nft-multi) 
+# that are invoked during testing. 
+# Suppressing them allows Valgrind to focus on real issues in our codebase.
+{
+   bash_leaks
+   Memcheck:Leak
+   ...
+   obj:/usr/bin/bash
+}
+{
+   xtables_sendto_uninit
+   Memcheck:Param
+   socketcall.sendto(msg)
+   ...
+   obj:/usr/sbin/xtables-nft-multi
+}
 {
    <io_threads_tls>
    Memcheck:Leak

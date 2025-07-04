@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+# Copyright (C) 2015-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+"""
+    This script intercepts outgoing TCP packets using NetfilterQueue and Scapy,
+    and checks for a specific sequence of SOMEIP protocol messages during
+    application registration.
+"""
+
+from netfilterqueue import NetfilterQueue
+from scapy.all import IP, TCP
+from time import sleep
+import os
+
+# Substitute these with the test IP at runtime
+SRC = '@TEST_IP_MASTER@'
+DST = '@TEST_IP_MASTER@'
+
+# Constants for tags
+SOMEIP_START_TAG = b'\x67\x37\x6d\x07'
+SOMEIP_END_TAG = b'\x07\x6d\x37\x67'
+
+# State machine variables for sequence detection
+sequence_state = 0
+my_counter = 0
+
+def add_iptables_rule():
+    """Add iptables rule to redirect outgoing packets to NFQUEUE 0."""
+    iptablesr = "iptables -A OUTPUT -j NFQUEUE --queue-num 0"
+    print("Adding iptable rules:")
+    print(iptablesr)
+    os.system(iptablesr)
+    return iptablesr
+
+def get_tcp_handshake_type(tcp_pkt):
+    if tcp_pkt.flags == 'S':
+        return 'SYN'
+    elif tcp_pkt.flags == 'SA':
+        return 'SYN/ACK'
+    elif tcp_pkt.flags == 'A':
+        return 'ACK'
+    return None
+
+def parse_someip_payload(payload):
+    # Ensure payload is long enough for tags and command
+    if len(payload) >= 9 and payload.startswith(SOMEIP_START_TAG) and payload[-4:] == SOMEIP_END_TAG:
+        command = payload[4]
+        return {
+            'command': command,
+            'start_tag': payload[:4],
+            'end_tag': payload[-4:],
+            'payload': payload
+        }
+    return None
+
+def process_packet(packet):
+    global my_counter, sequence_state
+    # Parse the packet, check TCP handshake and SOMEIP message sequence, and update state machine.    
+    ip_pkt = IP(packet.get_payload())
+
+    # Only process packets from SRC to DST with TCP
+    if ip_pkt.src == SRC and ip_pkt.dst == DST and TCP in ip_pkt:
+        tcp_pkt = ip_pkt[TCP]
+        handshake = get_tcp_handshake_type(tcp_pkt)
+        payload_bytes = bytes(tcp_pkt.payload)
+        someip = parse_someip_payload(payload_bytes)
+
+        print(f"\nPacket {my_counter}: State {sequence_state}, Flags: {tcp_pkt.flags}")
+        # State machine for expected registration sequence
+        if sequence_state == 0 and handshake == 'SYN':
+            print("SYN detected")
+            sequence_state += 1
+        elif sequence_state == 1 and handshake == 'SYN/ACK':
+            print("SYN/ACK detected")
+            sequence_state += 1
+        elif sequence_state == 2 and handshake == 'ACK':
+            print("ACK detected")
+            sequence_state += 1
+        elif sequence_state == 3 and someip and someip['command'] == 0x00:
+            print("VSOMEIP_ASSIGN_CLIENT detected")
+            sequence_state += 1        
+        elif sequence_state == 4 and handshake == 'ACK':
+            print("ACK for VSOMEIP_ASSIGN_CLIENT detected")
+            sequence_state += 1
+        elif sequence_state == 5 and someip and someip['command'] == 0x01:
+            print("VSOMEIP_ASSIGN_CLIENT_ACK detected")
+            sequence_state += 1
+        elif sequence_state == 6 and handshake == 'ACK':
+            print("ACK for VSOMEIP_ASSIGN_CLIENT_ACK detected")
+            sequence_state += 1
+        elif sequence_state == 7 and someip and someip['command'] == 0x02:
+            print("VSOMEIP_REGISTER_APPLICATION detected")
+            sequence_state += 1
+        elif sequence_state == 8 and someip:
+            sequence_state += 1
+        else:
+            if sequence_state > 0:
+                print(f"Sequence broken at state {sequence_state}, resetting.")
+            sequence_state = 0
+
+        my_counter += 1
+        if my_counter == 9 and sequence_state == 9:
+            print("Sequence complete! Sleeping for 1 second.")
+            sleep(1)
+            sequence_state = 0
+            my_counter = 0
+        
+        # Print SOMEIP payload if present
+        if payload_bytes:
+            print(' '.join(format(byte, '02x') for byte in payload_bytes))
+    
+    # Always accept the packet to avoid blocking traffic
+    packet.accept()
+
+def main():
+    """Main entry: bind NFQUEUE and process packets."""
+    iptablesr = add_iptables_rule()
+    nfqueue = NetfilterQueue()
+    nfqueue.bind(0, process_packet)
+
+    try:
+        print("Starting NFQueue")
+        nfqueue.run()
+    except KeyboardInterrupt:
+        print("Stopping NFQueue")
+    finally:
+        nfqueue.unbind()
+        print("Flushing iptables.")
+        # Remove the iptables rule on exit
+        os.system(iptablesr.replace("-A", "-D"))
+
+if __name__ == "__main__":
+    main()
