@@ -94,7 +94,7 @@ application_impl::~application_impl() {
     }
 
     try {
-        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
         for (const auto& t : io_threads_) {
             if (t->joinable()) {
                 t->detach();
@@ -106,7 +106,7 @@ application_impl::~application_impl() {
     }
 
     try {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        std::scoped_lock its_lock{dispatcher_mutex_};
         for (const auto& its_dispatcher : dispatchers_) {
             if (its_dispatcher.second->joinable()) {
                 its_dispatcher.second->detach();
@@ -119,7 +119,7 @@ application_impl::~application_impl() {
 }
 
 bool application_impl::init() {
-    std::lock_guard<std::mutex> its_initialized_lock(initialize_mutex_);
+    std::scoped_lock its_initialized_lock{initialize_mutex_};
     if(is_initialized_) {
         VSOMEIP_WARNING << "Trying to initialize an already initialized application.";
         return true;
@@ -384,7 +384,7 @@ void application_impl::start() {
     }
 #endif
     {
-        std::lock_guard<std::mutex> its_initialized_lock(initialize_mutex_);
+        std::scoped_lock its_initialized_lock{initialize_mutex_};
         if (!is_initialized_) {
             VSOMEIP_ERROR << "Trying to start an unintialized application.";
             return;
@@ -396,7 +396,7 @@ void application_impl::start() {
     // Amount of time to run the IO context.
     const size_t event_loop_periodicity = configuration_->get_event_loop_periodicity(name_);
     {
-        std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
+        std::scoped_lock its_lock{start_stop_mutex_};
         if (io_.stopped()) {
             io_.reset();
         } else if(stop_thread_.joinable()) {
@@ -405,7 +405,7 @@ void application_impl::start() {
         }
         if (stopped_) {
             {
-                std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
+                std::scoped_lock its_lock_start_stop{block_stop_mutex_};
                 block_stopping_ = true;
                 block_stop_cv_.notify_all();
             }
@@ -425,7 +425,7 @@ void application_impl::start() {
 
         start_caller_id_ = std::this_thread::get_id();
         {
-            std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+            std::scoped_lock its_lock_inner{dispatcher_mutex_};
             is_dispatching_ = true;
             std::packaged_task<void()> dispatcher_task_(
                     std::bind(&application_impl::main_dispatch, shared_from_this()));
@@ -498,7 +498,7 @@ void application_impl::start() {
         }
     }
     {
-        std::lock_guard<std::mutex> its_app_lock(app_counter_mutex__);
+        std::scoped_lock its_app_lock{app_counter_mutex__};
         app_counter__++;
     }
     VSOMEIP_INFO << "io thread id from application: "
@@ -527,17 +527,17 @@ void application_impl::start() {
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
+        std::scoped_lock its_lock_start_stop{block_stop_mutex_};
         block_stopping_ = true;
         block_stop_cv_.notify_all();
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
+        std::scoped_lock its_lock{start_stop_mutex_};
         stopped_ = false;
     }
     {
-        std::lock_guard<std::mutex> its_app_lock(app_counter_mutex__);
+        std::scoped_lock its_app_lock{app_counter_mutex__};
         app_counter__--;
     }
 }
@@ -549,7 +549,7 @@ void application_impl::stop() {
 
     bool block = true;
     {
-        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
         if (stopped_ || stopped_called_) {
             return;
         }
@@ -583,7 +583,7 @@ void application_impl::stop() {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
         stop_cv_.notify_one();
     }
 
@@ -626,7 +626,7 @@ void application_impl::request_service(service_t _service, instance_t _instance,
 void application_impl::release_service(service_t _service,
         instance_t _instance) {
     {
-        std::lock_guard<std::mutex> its_subscriptions_state_guard(subscriptions_state_mutex_);
+        std::scoped_lock its_subscriptions_state_guard{subscriptions_state_mutex_};
         auto found_service = subscriptions_state_.find(_service);
         if (found_service != subscriptions_state_.end()) {
             found_service->second.erase(_instance);
@@ -684,7 +684,7 @@ void application_impl::unsubscribe(service_t _service, instance_t _instance,
 bool application_impl::is_available(
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::scoped_lock its_lock{availability_mutex_};
     return (is_available_unlocked(_service, _instance, _major, _minor)
             == availability_state_e::AS_AVAILABLE);
 }
@@ -704,12 +704,11 @@ application_impl::is_available_unlocked(
                 its_state = found_major->second.second;
             }
         } else if (_major == DEFAULT_MAJOR || _major == ANY_MAJOR) {
-            for (const auto &found_major : _found_instance->second) {
-                if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR) {
-                    its_state = found_major.second.second;
-                    break;
-                } else if (_minor <= found_major.second.first) {
-                    its_state = found_major.second.second;
+            for (const auto& [found_major_inner, minor_avail_pair] : _found_instance->second) {
+                static_cast<void>(found_major_inner); // unused
+                const auto [found_minor, availability_state] = minor_avail_pair;
+                if (_minor == DEFAULT_MINOR || _minor == ANY_MINOR || _minor <= found_minor) {
+                    its_state = availability_state;
                     break;
                 }
             }
@@ -730,16 +729,17 @@ application_impl::is_available_unlocked(
             }
         }
     } else if (_service == ANY_SERVICE) {
-        for (const auto &found_service : available_) {
-            auto found_instance = found_service.second.find(_instance);
-            if (found_instance != found_service.second.end()) {
+        for (const auto &[service, instances] : available_) {
+            static_cast<void>(service); // unused
+            auto found_instance = instances.find(_instance);
+            if (found_instance != instances.end()) {
                 check_major_minor(found_instance);
                 if (its_state != availability_state_e::AS_UNKNOWN) {
                     break;
                 }
             } else if (_instance == ANY_INSTANCE) {
-                for (auto it = found_service.second.cbegin();
-                        it != found_service.second.cend(); it++) {
+                for (auto it = instances.cbegin();
+                        it != instances.cend(); it++) {
                     check_major_minor(it);
                     if (its_state != availability_state_e::AS_UNKNOWN) {
                         break;
@@ -758,7 +758,7 @@ bool application_impl::are_available(
         available_t &_available,
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) const {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::scoped_lock its_lock{availability_mutex_};
     return (are_available_unlocked(_available, _service, _instance, _major, _minor)
             == availability_state_e::AS_AVAILABLE);
 }
@@ -941,12 +941,12 @@ void application_impl::notify_one(service_t _service, instance_t _instance,
 }
 
 void application_impl::register_state_handler(const state_handler_t &_handler) {
-    std::lock_guard<std::mutex> its_lock(state_handler_mutex_);
+    std::scoped_lock its_lock{state_handler_mutex_};
     handler_ = _handler;
 }
 
 void application_impl::unregister_state_handler() {
-    std::lock_guard<std::mutex> its_lock(state_handler_mutex_);
+    std::scoped_lock its_lock{state_handler_mutex_};
     handler_ = nullptr;
 }
 
@@ -954,10 +954,10 @@ void application_impl::register_availability_handler(service_t _service,
         instance_t _instance, const availability_handler_t &_handler,
         major_version_t _major, minor_version_t _minor) {
 
-    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
-    auto its_handler_ext = [_handler](service_t _service, instance_t _instance,
+    std::scoped_lock availability_lock{availability_mutex_};
+    auto its_handler_ext = [_handler](service_t _service_inner, instance_t _instance_inner,
             availability_state_e _state) {
-        _handler(_service, _instance,
+        _handler(_service_inner, _instance_inner,
                 (_state == availability_state_e::AS_AVAILABLE));
     };
 
@@ -969,7 +969,7 @@ void application_impl::register_availability_handler(service_t _service,
         instance_t _instance, const availability_state_handler_t &_handler,
         major_version_t _major, minor_version_t _minor) {
 
-    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+    std::scoped_lock availability_lock{availability_mutex_};
     register_availability_handler_unlocked(_service, _instance,
             _handler, _major, _minor);
 }
@@ -978,7 +978,7 @@ void application_impl::invoke_availability_handler(
     service_t _service, instance_t _instance,
     major_version_t _major, minor_version_t _minor) {
 
-    std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+    std::scoped_lock availability_lock{availability_mutex_};
     auto found_service = availability_.find(_service);
     if (found_service != availability_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1002,7 +1002,7 @@ void application_impl::invoke_availability_handler(
                         set_availability_state(found_minor->second.second, _service, _instance,
                                                _major, _minor, its_state);
 
-                        std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+                        std::scoped_lock handlers_lock{handlers_mutex_};
                         auto its_sync_handler = std::make_shared<sync_handler>(
                                 [its_handler, _service, _instance, its_state]() {
                                     its_handler(_service, _instance, its_state);
@@ -1061,7 +1061,7 @@ void application_impl::register_availability_handler_unlocked(service_t _service
 
 void application_impl::unregister_availability_handler(service_t _service,
         instance_t _instance, major_version_t _major, minor_version_t _minor) {
-    std::lock_guard<std::mutex> its_lock(availability_mutex_);
+    std::scoped_lock its_lock{availability_mutex_};
     auto found_service = availability_.find(_service);
     if (found_service != availability_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1096,7 +1096,7 @@ void application_impl::on_subscription(
     bool handler_found = false;
     std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t> its_handlers;
     {
-        std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+        std::scoped_lock its_lock{subscription_mutex_};
         auto found_service = subscription_.find(_service);
         if (found_service != subscription_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -1168,14 +1168,14 @@ void application_impl::register_subscription_handler(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup,
         const subscription_handler_sec_t &_handler) {
 
-    std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+    std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
 }
 
 
 void application_impl::unregister_subscription_handler(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup) {
-    std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+    std::scoped_lock its_lock{subscription_mutex_};
     auto found_service = subscription_.find(_service);
     if (found_service != subscription_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1194,7 +1194,7 @@ void application_impl::on_subscription_status(
 
     bool entry_found(false);
     {
-        std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+        std::scoped_lock its_lock{subscriptions_state_mutex_};
         auto its_service = subscriptions_state_.find(_service);
         if (its_service == subscriptions_state_.end()) {
             its_service = subscriptions_state_.find(ANY_SERVICE);
@@ -1241,7 +1241,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 
     std::vector<subscription_status_handler_t> handlers;
     {
-        std::lock_guard<std::mutex> its_lock(subscription_status_handlers_mutex_);
+        std::scoped_lock its_lock{subscription_status_handlers_mutex_};
         auto found_service = subscription_status_handlers_.find(_service);
         if (found_service != subscription_status_handlers_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -1406,7 +1406,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 void application_impl::register_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event,
             subscription_status_handler_t _handler, bool _is_selective) {
-    std::lock_guard<std::mutex> its_lock(subscription_status_handlers_mutex_);
+    std::scoped_lock its_lock{subscription_status_handlers_mutex_};
     if (_handler) {
         subscription_status_handlers_[_service][_instance][_eventgroup][_event] =
                 std::make_pair(_handler, _is_selective);
@@ -1425,7 +1425,7 @@ void application_impl::register_subscription_status_handler(service_t _service,
 
 void application_impl::unregister_subscription_status_handler(service_t _service,
             instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-    std::lock_guard<std::mutex> its_lock(subscription_status_handlers_mutex_);
+    std::scoped_lock its_lock{subscription_status_handlers_mutex_};
     auto its_service = subscription_status_handlers_.find(_service);
     if (its_service != subscription_status_handlers_.end()) {
         auto its_instance = its_service->second.find(_instance);
@@ -1456,7 +1456,7 @@ void application_impl::register_message_handler(service_t _service,
 
 void application_impl::unregister_message_handler(service_t _service,
         instance_t _instance, method_t _method) {
-    std::lock_guard<std::mutex> its_lock(members_mutex_);
+    std::scoped_lock its_lock{members_mutex_};
     members_.erase(to_members_key(_service, _instance, _method));
 }
 
@@ -1536,7 +1536,7 @@ session_t application_impl::get_session(bool _is_request) {
     if (!has_session_handling_ && !_is_request)
         return 0;
 
-    std::lock_guard<std::mutex> its_lock(session_mutex_);
+    std::scoped_lock its_lock{session_mutex_};
     if (0 == ++session_) {
         // Smallest allowed session identifier
         session_ = 1;
@@ -1580,14 +1580,14 @@ void application_impl::on_state(state_type_e _state) {
     bool has_state_handler(false);
     state_handler_t handler = nullptr;
     {
-        std::lock_guard<std::mutex> its_lock(state_handler_mutex_);
+        std::scoped_lock its_lock{state_handler_mutex_};
         if (handler_) {
             has_state_handler = true;
             handler = handler_;
         }
     }
     if (has_state_handler) {
-        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        std::scoped_lock its_lock{handlers_mutex_};
         auto its_sync_handler = std::make_shared<sync_handler>([handler, _state]() {
                                                 handler(_state);
                                              });
@@ -1632,7 +1632,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
 
     std::vector<availability_state_handler_t> its_handlers;
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::scoped_lock availability_lock{availability_mutex_};
         if (_state == is_available_unlocked(_service, _instance, _major, _minor)) {
             return;
         }
@@ -1726,7 +1726,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             }
         }
         {
-            std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+            std::scoped_lock handlers_lock{handlers_mutex_};
             for (const auto &handler : its_handlers) {
                 auto its_sync_handler = std::make_shared<sync_handler>(
                                 [handler, _service, _instance, _state]()
@@ -1742,7 +1742,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
     if (_state == availability_state_e::AS_UNAVAILABLE) {
         {
-            std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+            std::scoped_lock its_lock{subscriptions_mutex_};
             auto found_service = subscriptions_.find(_service);
             if (found_service != subscriptions_.end()) {
                 auto found_instance = found_service->second.find(_instance);
@@ -1756,7 +1756,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             }
         }
         {
-            std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+            std::scoped_lock its_lock{subscriptions_state_mutex_};
             auto its_service = subscriptions_state_.find(_service);
             if (its_service != subscriptions_state_.end()) {
                 auto its_instance = its_service->second.find(_instance);
@@ -1773,7 +1773,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     }
 
     if (its_handlers.size()) {
-        std::lock_guard<std::mutex> handlers_lock(handlers_mutex_);
+        std::scoped_lock handlers_lock{handlers_mutex_};
         dispatcher_condition_.notify_one();
     }
 }
@@ -1822,12 +1822,12 @@ void application_impl::on_message(std::shared_ptr<message> &&_message) {
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(members_mutex_);
+        std::scoped_lock its_lock{members_mutex_};
 
         const auto its_handlers = find_handlers(its_service, its_instance, its_method);
 
-        if (!its_handlers.empty()) {
-            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        if (its_handlers.size()) {
+            std::scoped_lock its_lock_inner{handlers_mutex_};
             for (const auto &handler : its_handlers) {
                 auto its_sync_handler =
                         std::make_shared<sync_handler>([handler, _message]() {
@@ -1930,7 +1930,7 @@ void application_impl::dispatch() {
                  if (!is_dispatching_) {
                      return;
                  }
-                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+                 std::scoped_lock its_lock_inner{dispatcher_mutex_};
                  elapsed_dispatchers_.insert(its_id);
                  return;
              }
@@ -1952,7 +1952,7 @@ void application_impl::dispatch() {
         }
     }
     if (is_dispatching_) {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        std::scoped_lock its_lock_inner{dispatcher_mutex_};
         elapsed_dispatchers_.insert(its_id);
     }
     dispatcher_condition_.notify_all();
@@ -2045,7 +2045,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
         if (!_error) {
             print_blocking_call(its_sync_handler);
             if (has_active_dispatcher()) {
-                std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+                std::scoped_lock its_lock{handlers_mutex_};
                 dispatcher_condition_.notify_all();
             } else {
                 // If possible, create a new dispatcher thread to unblock.
@@ -2171,7 +2171,7 @@ bool application_impl::is_active_dispatcher(const std::thread::id &_id) const {
 
 void application_impl::remove_elapsed_dispatchers() {
     if (is_dispatching_) {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        std::scoped_lock its_lock{dispatcher_mutex_};
         for (auto id : elapsed_dispatchers_) {
             if (auto its_dispatcher = dispatchers_.find(id); its_dispatcher->second->joinable()) {
                 dispatchers_control_.erase(id);
@@ -2188,26 +2188,26 @@ void application_impl::remove_elapsed_dispatchers() {
 void application_impl::clear_all_handler() {
     unregister_state_handler();
     {
-        std::lock_guard<std::mutex> its_lock(offered_services_handler_mutex_);
+        std::scoped_lock its_lock{offered_services_handler_mutex_};
         offered_services_handler_ = nullptr;
     }
 
     {
-        std::lock_guard<std::mutex> availability_lock(availability_mutex_);
+        std::scoped_lock availability_lock{availability_mutex_};
         availability_.clear();
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+        std::scoped_lock its_lock{subscription_mutex_};
         subscription_.clear();
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(members_mutex_);
+        std::scoped_lock its_lock{members_mutex_};
         members_.clear();
     }
     {
-        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        std::scoped_lock its_lock{handlers_mutex_};
         handlers_.clear();
     }
 }
@@ -2237,13 +2237,13 @@ void application_impl::shutdown() {
         }
     }
     {
-        std::lock_guard<std::mutex> its_handler_lock(handlers_mutex_);
+        std::scoped_lock its_handler_lock{handlers_mutex_};
         is_dispatching_ = false;
         dispatcher_condition_.notify_all();
     }
 
     try {
-        std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+        std::scoped_lock its_lock{dispatcher_mutex_};
         for (const auto& its_dispatcher : dispatchers_) {
             if (its_dispatcher.second->get_id() != stop_caller_id_) {
                 if (its_dispatcher.second->joinable()) {
@@ -2323,7 +2323,7 @@ void application_impl::shutdown() {
     }
 
     try {
-        std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
+        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
         for (const auto& t : io_threads_) {
             if (t->joinable()) {
                 t->join();
@@ -2398,7 +2398,7 @@ void application_impl::check_send_back_cached_event(
         service_t _service, instance_t _instance, event_t _event,
         eventgroup_t _eventgroup, bool *_send_back_cached_event,
         bool *_send_back_cached_eventgroup) {
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock{subscriptions_mutex_};
     *_send_back_cached_event = false;
     *_send_back_cached_eventgroup = false;
     bool already_subscribed(false);
@@ -2436,7 +2436,7 @@ void application_impl::remove_subscription(service_t _service,
                                            event_t _event) {
 
     {
-        std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+        std::scoped_lock its_lock{subscriptions_state_mutex_};
         auto its_service = subscriptions_state_.find(_service);
         if (its_service != subscriptions_state_.end()) {
             auto its_instance = its_service->second.find(_instance);
@@ -2460,7 +2460,7 @@ void application_impl::remove_subscription(service_t _service,
         }
     }
 
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock{subscriptions_mutex_};
 
     auto found_service = subscriptions_.find(_service);
     if(found_service != subscriptions_.end()) {
@@ -2487,7 +2487,7 @@ void application_impl::remove_subscription(service_t _service,
 bool application_impl::check_for_active_subscription(service_t _service,
                                                      instance_t _instance,
                                                      event_t _event) {
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock{subscriptions_mutex_};
     auto found_service = subscriptions_.find(_service);
     if(found_service != subscriptions_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2542,7 +2542,7 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
     {
         bool has_found(false);
 
-        std::lock_guard<std::mutex> its_lock(subscriptions_state_mutex_);
+        std::scoped_lock its_lock{subscriptions_state_mutex_};
         auto its_service = subscriptions_state_.find(_service);
         if (its_service != subscriptions_state_.end()) {
             auto its_instance = its_service->second.find(_instance);
@@ -2630,7 +2630,7 @@ void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& 
 void application_impl::get_offered_services_async(offer_type_e _offer_type,
                                                     const offered_services_handler_t &_handler) {
     {
-        std::lock_guard<std::mutex> its_lock(offered_services_handler_mutex_);
+        std::scoped_lock its_lock{offered_services_handler_mutex_};
         offered_services_handler_ = _handler;
     }
 
@@ -2671,14 +2671,14 @@ void application_impl::on_offered_services_info(std::vector<std::pair<service_t,
     bool has_offered_services_handler(false);
     offered_services_handler_t handler = nullptr;
     {
-        std::lock_guard<std::mutex> its_lock(offered_services_handler_mutex_);
+        std::scoped_lock its_lock{offered_services_handler_mutex_};
         if (offered_services_handler_) {
             has_offered_services_handler = true;
             handler = offered_services_handler_;
         }
     }
     if (has_offered_services_handler) {
-        std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+        std::scoped_lock its_lock{handlers_mutex_};
         auto its_sync_handler = std::make_shared<sync_handler>([handler, _services]() {
                                                 handler(_services);
                                              });
@@ -2693,7 +2693,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
 
         watchdog_handler_t handler = nullptr;
         {
-            std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+            std::scoped_lock its_lock{watchdog_timer_mutex_};
             handler = watchdog_handler_;
             if (handler && std::chrono::seconds::zero() != watchdog_interval_) {
                 watchdog_timer_.expires_from_now(watchdog_interval_);
@@ -2703,7 +2703,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
         }
 
         if (handler) {
-            std::lock_guard<std::mutex> its_lock(handlers_mutex_);
+            std::scoped_lock its_lock{handlers_mutex_};
             auto its_sync_handler = std::make_shared<sync_handler>([handler]() { handler(); });
             its_sync_handler->handler_type_ = handler_type_e::WATCHDOG;
             handlers_.push_back(its_sync_handler);
@@ -2715,14 +2715,14 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
 void application_impl::set_watchdog_handler(const watchdog_handler_t &_handler,
             std::chrono::seconds _interval) {
     if (_handler && std::chrono::seconds::zero() != _interval) {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        std::scoped_lock its_lock{watchdog_timer_mutex_};
         watchdog_handler_ = _handler;
         watchdog_interval_ = _interval;
         watchdog_timer_.expires_from_now(_interval);
         watchdog_timer_.async_wait(std::bind(&application_impl::watchdog_cbk,
                 this, std::placeholders::_1));
     } else {
-        std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
+        std::scoped_lock its_lock{watchdog_timer_mutex_};
         watchdog_timer_.cancel();
         watchdog_handler_ = nullptr;
         watchdog_interval_ = std::chrono::seconds::zero();
@@ -2777,7 +2777,7 @@ void application_impl::register_async_subscription_handler(service_t _service,
     instance_t _instance, eventgroup_t _eventgroup,
     async_subscription_handler_sec_t _handler) {
 
-    std::lock_guard<std::mutex> its_lock(subscription_mutex_);
+    std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
 }
 
@@ -3095,7 +3095,7 @@ void application_impl::register_message_handler_ext(
 
     const auto key = to_members_key(_service, _instance, _method);
 
-    std::lock_guard<std::mutex> its_lock(members_mutex_);
+    std::scoped_lock its_lock{members_mutex_};
     switch (_type) {
     case handler_registration_type_e::HRT_REPLACE:
         members_[key].clear();

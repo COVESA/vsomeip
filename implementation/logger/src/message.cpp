@@ -202,7 +202,7 @@ message::~message() try {
 std::streambuf::int_type
 message::buffer::overflow(std::streambuf::int_type c) {
     if (c != EOF) {
-        data_ << (char)c;
+        data_ << static_cast<char>(c);
     }
 
     return c;
