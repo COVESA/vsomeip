@@ -589,7 +589,7 @@ void tcp_client_endpoint_impl::receive_cbk(
                     } else {
                         if (has_enabled_magic_cookies_) {
                             uint32_t its_offset = find_magic_cookie(&(*_recv_buffer)[its_iteration_gap],
-                                    uint32_t(_recv_buffer_size));
+                                    static_cast<uint32_t>(_recv_buffer_size));
                             if (its_offset < current_message_size) {
                                 VSOMEIP_ERROR << "Message includes Magic Cookie. Ignoring it.";
                                 current_message_size = its_offset;
