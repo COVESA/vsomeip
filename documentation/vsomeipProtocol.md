@@ -1,7 +1,5 @@
 # vSomeIP Protocol Documentation
 
-The vsomeip protocol payload will contain a start and end tag with the following value: 0x67376d07 (the end tag is reversed).
-
 - [vSomeIP Protocol Documentation](#vsomeip-protocol-documentation)
   - [VSOMEIP\_ASSIGN\_CLIENT (0x00)](#vsomeip_assign_client-0x00)
   - [VSOMEIP\_ASSIGN\_CLIENT\_ACK (0x01)](#vsomeip_assign_client_ack-0x01)
@@ -41,7 +39,6 @@ The vsomeip protocol payload will contain a start and end tag with the following
   - [VSOMEIP\_DISTRIBUTE\_SECURITY\_POLICIES (0x28)](#vsomeip_distribute_security_policies-0x28)
   - [VSOMEIP\_SUSPEND (0x30)](#vsomeip_suspend-0x30)
   - [VSOMEIP\_CONFIG (0x31)](#vsomeip_config-0x31)
-
 
 Vsomeip protocol payload will contain a start and end tag with the following value: 0x67376d07 (the end tag is reversed).
 
@@ -84,28 +81,36 @@ Vsomeip protocol payload will contain a start and end tag with the following val
 
 ## VSOMEIP_ROUTING_INFO (0x05)
 
-    Command            05
-    Version            xx xx
-    Client             xx xx
-    Size               xx xx xx xx
-    Entries
-        SubCommand     xx        ; RIE_ADD_CLIENT (0x0) or RIE_DEL_CLIENT (0x1)
-        Size           xx xx xx xx
-        Client         xx xx
-        [Address]      xx .. xx    ; Size - sizeof(Client) - sizeof(Port)
-        [Port]         xx xx
+The VSOMEIP_ROUTING_INFO (0x05) command with subcommand RIE_ADD_CLIENT (0x0) is sent from the daemon to client applications and serves two purposes:
 
-        SubCommand     xx        ; RIE_ADD_SERVICE_INSTANCE (0x2) or RIE_DEL_SERVICE_INSTANCE (0x4)
-        Size           xx xx xx xx    ; Command size
-        Size           xx xx xx xx    ; Client info size
-        Client         xx xx
-        [Address]      xx .. xx    ; Client info size - sizeof(Client) - sizeof(Port)
-        [Port]         xx xx
-        Size           xx xx xx xx    ; Services size
-            Service    xx xx
-            Instance   xx xx
-            Major      xx
-            Minor      xx xx xx xx
+- If the client ID on the payload matches the ID of the receiving client, it serves to indicate to the client that it was successfully registered to the daemon.
+
+- If the client ID on the payload is different from the ID of the receiving client, it serves to add the payload client on the VSOMEIP_ROUTING_INFO command to a map of `guests_` of the receiving client, which contains the route (ip and port) for that client. This `guests_` is later used to create a connection between the two clients. Note that this is the behaviour for provider applications, consumer applications will receive a RIE_ADD_SERVICE_INSTANCE (0x2) subcommand for this purpose
+
+On both cases it also adds to the `known_clients_` map which later serves to create the local endpoint between the provider and consumer applications
+
+        Command            05
+        Version            xx xx
+        Client             xx xx
+        Size               xx xx xx xx
+        Entries
+            SubCommand     xx        ; RIE_ADD_CLIENT (0x0) or RIE_DEL_CLIENT (0x1)
+            Size           xx xx xx xx
+            Client         xx xx
+            [Address]      xx .. xx    ; Size - sizeof(Client) - sizeof(Port)
+            [Port]         xx xx
+
+            SubCommand     xx        ; RIE_ADD_SERVICE_INSTANCE (0x2) or RIE_DEL_SERVICE_INSTANCE (0x4)
+            Size           xx xx xx xx    ; Command size
+            Size           xx xx xx xx    ; Client info size
+            Client         xx xx
+            [Address]      xx .. xx    ; Client info size - sizeof(Client) - sizeof(Port)
+            [Port]         xx xx
+            Size           xx xx xx xx    ; Services size
+                Service    xx xx
+                Instance   xx xx
+                Major      xx
+                Minor      xx xx xx xx
 
 
 ## VSOMEIP_REGISTERED_ACK (0x06)
