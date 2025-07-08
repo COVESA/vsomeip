@@ -135,8 +135,16 @@ void routing_manager_stub::start() {
     {
         std::scoped_lock its_thread_pool_lock(client_registration_thread_pool_mutex_);
         for (size_t i = 0; i < VSOMEIP_DEFAULT_REGISTER_THREAD_COUNT; i++) {
-            auto its_thread = std::make_shared<std::thread>(
-                    std::bind(&routing_manager_stub::client_registration_func, this));
+            auto its_thread = std::make_shared<std::thread>([this, i]() {
+#if defined(__linux__) || defined(ANDROID)
+                std::stringstream s;
+                s << std::hex << std::setfill('0') << std::setw(4) << host_->get_client() << "_reg_"
+                  << std::setw(2) << i;
+                pthread_setname_np(pthread_self(), s.str().c_str());
+#endif
+                client_registration_func();
+            });
+
             client_registration_thread_pool_[its_thread->get_id()] = its_thread;
         }
     }
@@ -999,14 +1007,6 @@ void routing_manager_stub::on_offered_service_request(client_t _client,
 }
 
 void routing_manager_stub::client_registration_func(void) {
-#if defined(__linux__) || defined(ANDROID)
-    {
-        std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << host_->get_client() << "_client_reg_"
-          << std::hex << std::this_thread::get_id();
-        pthread_setname_np(pthread_self(), s.str().c_str());
-    }
-#endif
     std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
         client_registration_condition_.wait(its_lock, [this] {
