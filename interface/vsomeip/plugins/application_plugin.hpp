@@ -8,6 +8,7 @@
 
 #include <string>
 #include <memory>
+#include <cstdint>
 
 #include <vsomeip/export.hpp>
 
