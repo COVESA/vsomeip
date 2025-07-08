@@ -1523,14 +1523,10 @@ bool configuration_impl::check_suppress_events(service_t _service, instance_t _i
         return false;
 
     std::set<suppress_t> event_combinations = {
-        {_service, _instance, _event},
-        {_service, _instance, ANY_EVENT},
-        {_service, ANY_INSTANCE, _event},
-        {_service, ANY_INSTANCE, ANY_EVENT},
-        {ANY_SERVICE, _instance, _event},
-        {ANY_SERVICE, _instance, ANY_EVENT},
-        {ANY_SERVICE, ANY_INSTANCE, _event}
-        };
+            {_service, _instance, _event},       {_service, _instance, ANY_EVENT},
+            {_service, ANY_INSTANCE, _event},    {_service, ANY_INSTANCE, ANY_EVENT},
+            {ANY_SERVICE, _instance, _event},    {ANY_SERVICE, _instance, ANY_EVENT},
+            {ANY_SERVICE, ANY_INSTANCE, _event}, {ANY_SERVICE, ANY_INSTANCE, ANY_EVENT}};
 
     for (const auto &its_event: event_combinations) {
         if (suppress_events_.find(its_event) != std::end(suppress_events_))
