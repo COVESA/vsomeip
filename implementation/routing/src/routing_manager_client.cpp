@@ -2039,10 +2039,7 @@ void routing_manager_client::on_routing_info(
 
             case protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT:
             {
-                {
-                    std::scoped_lock its_lock(known_clients_mutex_);
-                    known_clients_.erase(its_client);
-                }
+                remove_known_client(its_client);
                 if (its_client == get_client()) {
                     its_policy_manager->remove_client_to_sec_client_mapping(its_client);
                     VSOMEIP_INFO << "Application/Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
