@@ -7,6 +7,7 @@
 #define VSOMEIP_V3_SD_SERVICE_DISCOVERY_HPP_
 
 #include <boost/asio/ip/address.hpp>
+#include <chrono>
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -76,6 +77,7 @@ public:
     virtual void register_reboot_notification_handler(
             const reboot_notification_handler_t &_handler) = 0;
     virtual std::recursive_mutex& get_subscribed_mutex() = 0;
+    virtual std::chrono::milliseconds get_request_response_delay_random() const = 0;
 };
 
 } // namespace sd

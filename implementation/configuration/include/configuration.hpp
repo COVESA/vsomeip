@@ -187,7 +187,9 @@ public:
     virtual uint8_t get_sd_repetitions_max() const = 0;
     virtual ttl_t get_sd_ttl() const = 0;
     virtual int32_t get_sd_cyclic_offer_delay() const = 0;
-    virtual int32_t get_sd_request_response_delay() const = 0;
+    virtual int32_t get_sd_cyclic_request_delay() const = 0;
+    virtual int32_t get_sd_request_response_delay_min() const = 0;
+    virtual int32_t get_sd_request_response_delay_max() const = 0;
     virtual uint8_t get_sd_find_initial_debounce_reps() const = 0;
     virtual std::uint32_t get_sd_find_initial_debounce_time() const = 0;
     virtual std::uint32_t get_sd_offer_debounce_time() const = 0;
