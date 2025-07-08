@@ -11,6 +11,7 @@
 
 #include "e2e_provider.hpp"
 #include "profile_interface/checker.hpp"
+#include "profile_interface/header_info.hpp"
 #include "profile_interface/protector.hpp"
 
 #include "../../../../../interface/vsomeip/export.hpp"
@@ -39,19 +40,22 @@ public:
     VSOMEIP_EXPORT void check(e2exf::data_identifier_t id,
             const e2e_buffer &_buffer, instance_t _instance,
             profile_interface::check_status_t &_generic_check_status) override;
+    VSOMEIP_EXPORT bool should_remove_e2e_header(e2exf::data_identifier_t id) override;
+    VSOMEIP_EXPORT bool get_header_offset_and_length(e2exf::data_identifier_t id,length_t& offset, length_t& length) override;
 
 private:
     std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::protector>> custom_protectors_;
     std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::checker>> custom_checkers_;
+    std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::profile_header_info>> header_infos_;
     std::map<e2exf::data_identifier_t, std::size_t> custom_bases_;
 
     template<typename config_t>
-    config_t make_e2e_profile_config(const std::shared_ptr<cfg::e2e>& config);
+    config_t make_e2e_profile_config(const e2exf::data_identifier_t data_identifier, const std::shared_ptr<cfg::e2e>& config);
 
     template<typename config_t, typename checker_t, typename protector_t>
     void process_e2e_profile(std::shared_ptr<cfg::e2e> config) {
         const e2exf::data_identifier_t data_identifier = {config->service_id, config->event_id};
-        config_t profile_config = make_e2e_profile_config<config_t>(config);
+        config_t profile_config = make_e2e_profile_config<config_t>(data_identifier,config);
 
         std::shared_ptr<e2e::profile_interface::checker> checker;
         if ((config->variant == "checker") || (config->variant == "both")) {
