@@ -9,7 +9,6 @@
 #include <memory>
 
 #include <boost/asio/io_context.hpp>
-#include <vsomeip/error.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
 namespace vsomeip_v3 {

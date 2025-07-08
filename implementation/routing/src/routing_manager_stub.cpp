@@ -11,7 +11,6 @@
 #include <boost/system/error_code.hpp>
 
 #include <vsomeip/constants.hpp>
-#include <vsomeip/error.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/runtime.hpp>
