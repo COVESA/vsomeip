@@ -379,8 +379,9 @@ void routing_manager_client::check_keepalive() {
                 keepalive_timer_.async_wait(
                     [this](boost::system::error_code const&) { this->check_keepalive(); });
                 } else {
-                    VSOMEIP_WARNING << "rmc::" << __func__ << ": client " << get_client()
-                    << " didn't receive keepalive confirmation from HOST.";
+                    VSOMEIP_WARNING << "rmc::" << __func__ << ": client 0x" << std::setfill('0')
+                                    << std::setw(4) << std::hex << get_client()
+                                    << " didn't receive keepalive confirmation from HOST.";
                     io_.post([this] { this->handle_client_error(VSOMEIP_ROUTING_CLIENT); });
                 }
             }
