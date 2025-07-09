@@ -957,12 +957,11 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
         client_t _bound_client, const vsomeip_sec_client_t *_sec_client,
         uint8_t _status_check, bool _sent_from_remote, bool _force) {
 
-    (void)_client;
     (void)_bound_client;
     (void)_sec_client;
     (void)_sent_from_remote;
-    bool is_sent(false);
-    bool has_remote_subscribers(false);
+    bool is_sent {false};
+    bool has_remote_subscribers {false};
     {
         if (state_ != inner_state_type_e::ST_REGISTERED) {
             return false;
@@ -1023,14 +1022,16 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
             // notify_one
             its_target = ep_mgr_->find_local(_client);
             if (its_target) {
+                is_sent = send_local(its_target, get_client(), _data, _size, _instance,
+                                     _reliable, protocol::id_e::SEND_ID, _status_check);
 #ifdef USE_DLT
-                trace::header its_header;
-                if (its_header.prepare(nullptr, true, _instance))
-                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                            _data, _size);
+                if (is_sent) {
+                    trace::header its_header;
+                    if (its_header.prepare(nullptr, true, _instance))
+                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+                }
 #endif
-                return send_local(its_target, get_client(), _data, _size,
-                        _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                return is_sent;
             }
         }
         // If no direct endpoint could be found
@@ -1063,18 +1064,19 @@ bool routing_manager_client::send(client_t _client, const byte_t *_data,
                 send = has_remote_subscribers;
             }
         }
-#ifdef USE_DLT
-        else if (!message_to_stub) {
-            trace::header its_header;
-            if (its_header.prepare(nullptr, true, _instance))
-                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                        _data, _size);
-        }
-#endif
         if (send) {
-            is_sent = send_local(its_target,
-                    (its_command == protocol::id_e::NOTIFY_ONE_ID ? _client : get_client()),
-                    _data, _size, _instance, _reliable, its_command, _status_check);
+            auto its_client {its_command == protocol::id_e::NOTIFY_ONE_ID ? _client
+                                                                          : get_client()};
+            is_sent = send_local(its_target, its_client, _data, _size, _instance, _reliable,
+                                 its_command, _status_check);
+#ifdef USE_DLT
+            if (is_sent && !utility::is_notification(VSOMEIP_MESSAGE_TYPE_POS) &&
+                !message_to_stub) {
+                trace::header its_header;
+                if (its_header.prepare(nullptr, true, _instance))
+                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+            }
+#endif
         }
     }
     return is_sent;
@@ -1350,7 +1352,8 @@ void routing_manager_client::on_message(
                             cache_event_payload(its_message);
                         }
                     }
-    #ifdef USE_DLT
+                    host_->on_message(std::move(its_message));
+#ifdef USE_DLT
                     if (client_side_logging_
                         && (client_side_logging_filter_.empty()
                             || (1 == client_side_logging_filter_.count(std::make_tuple(its_message->get_service(), ANY_INSTANCE)))
@@ -1367,9 +1370,7 @@ void routing_manager_client::on_message(
                                     &_data[vsomeip_v3::protocol::SEND_COMMAND_HEADER_SIZE], its_message_size);
                         }
                     }
-    #endif
-
-                    host_->on_message(std::move(its_message));
+#endif
                 } else
                     VSOMEIP_ERROR << "Routing proxy: on_message: "
                         << "SomeIP-Header deserialization failed!";
