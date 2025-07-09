@@ -775,7 +775,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
     if (_error == boost::asio::error::eof || _error == boost::asio::error::connection_reset
         || _error == boost::asio::error::timed_out) {
         if (_error == boost::asio::error::timed_out) {
-            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            std::scoped_lock its_lock {socket_mutex_};
             VSOMEIP_WARNING << "tcp_server_endpoint receive_cbk: " << _error.message()
                             << " local: " << get_address_port_local()
                             << " remote: " << get_address_port_remote();
@@ -995,8 +995,11 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(
                               std::placeholders::_1));
             return;
         } else {
+            std::scoped_lock its_lock_inner {socket_mutex_};
             VSOMEIP_WARNING << __func__
-                            << ": Maximum wait time for send operation exceeded for tse.";
+                            << ": Maximum wait time for send operation exceeded for tse."
+                            << " local: " << get_address_port_local()
+                            << " remote: " << get_address_port_remote();
         }
     }
     {
