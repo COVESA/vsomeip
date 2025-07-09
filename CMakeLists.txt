@@ -396,7 +396,7 @@ if(NOT ENABLE_MULTIPLE_ROUTING_MANAGERS)
     VERSION ${VSOMEIP_VERSION}
     SOVERSION ${VSOMEIP_MAJOR_VERSION}
     OUTPUT_NAME ${VSOMEIP_NAME}-cfg
-    EXPORT_NAME vsomeip3-cfg
+    EXPORT_NAME ${VSOMEIP_NAME}-cfg
   )
   target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
   target_compile_definitions(${VSOMEIP_NAME}-cfg PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
@@ -478,7 +478,7 @@ set_target_properties(
   SOVERSION ${VSOMEIP_MAJOR_VERSION}
   VERSION ${VSOMEIP_VERSION}
   OUTPUT_NAME ${VSOMEIP_NAME}
-  EXPORT_NAME vsomeip3
+  EXPORT_NAME ${VSOMEIP_NAME}
 )
 
 # PRIVATE means the listed libraries won't be included in the "link interface", meaning the exported
@@ -512,7 +512,7 @@ set_target_properties(
   VERSION ${VSOMEIP_VERSION}
   SOVERSION ${VSOMEIP_MAJOR_VERSION}
   OUTPUT_NAME ${VSOMEIP_NAME}-sd
-  EXPORT_NAME vsomeip3-sd
+  EXPORT_NAME ${VSOMEIP_NAME}-sd
 )
 target_compile_definitions(${VSOMEIP_NAME}-sd PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
 target_link_libraries(
@@ -535,7 +535,7 @@ set_target_properties(
   VERSION ${VSOMEIP_VERSION}
   SOVERSION ${VSOMEIP_MAJOR_VERSION}
   OUTPUT_NAME ${VSOMEIP_NAME}-e2e
-  EXPORT_NAME vsomeip3-e2e
+  EXPORT_NAME ${VSOMEIP_NAME}-e2e
 )
 target_compile_definitions(${VSOMEIP_NAME}-e2e PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
 target_link_libraries(
@@ -789,14 +789,14 @@ install(
 )
 
 # Add all targets to the build-tree export set
-export(TARGETS ${VSOMEIP_NAME} FILE "${PROJECT_BINARY_DIR}/vsomeip3Targets.cmake")
+export(TARGETS ${VSOMEIP_NAME} FILE "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}Targets.cmake")
 
 # Export the package for use from the build-tree (this registers the build-tree with a global CMake-registry)
 export(PACKAGE ${VSOMEIP_NAME})
 
-# Create the vsomeip3Config.cmake and vsomeip3ConfigVersion files
-configure_file(vsomeip3Config.cmake.in "${PROJECT_BINARY_DIR}/vsomeip3Config.cmake" @ONLY)
-configure_file(vsomeip3ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeip3ConfigVersion.cmake" @ONLY)
+# Create the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion files
+configure_file(${VSOMEIP_NAME}Config.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}Config.cmake" @ONLY)
+configure_file(${VSOMEIP_NAME}ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}ConfigVersion.cmake" @ONLY)
 
 # configure internal.hpp for correct version number
 configure_file(
@@ -804,9 +804,9 @@ configure_file(
   "${PROJECT_BINARY_DIR}/implementation/configuration/include/internal.hpp"
 )
 
-# Install the vsomeip3Config.cmake and vsomeip3ConfigVersion.cmake
+# Install the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion.cmake
 install(
-  FILES "${PROJECT_BINARY_DIR}/vsomeip3Config.cmake" "${PROJECT_BINARY_DIR}/vsomeip3ConfigVersion.cmake"
+  FILES "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}Config.cmake" "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}ConfigVersion.cmake"
         DESTINATION "${INSTALL_CMAKE_DIR}"
         COMPONENT dev
 )
@@ -814,7 +814,7 @@ install(
 # Install the export set for use with the install-tree
 install(
   EXPORT
-  vsomeip3Targets
+  ${VSOMEIP_NAME}Targets
   DESTINATION
   "${INSTALL_CMAKE_DIR}"
   COMPONENT
@@ -869,8 +869,8 @@ endif()
 # create pkg-config file
 
 if(NOT WIN32)
-  configure_file(vsomeip3.pc.in ${PROJECT_BINARY_DIR}/vsomeip3.pc @ONLY)
-  install(FILES ${PROJECT_BINARY_DIR}/vsomeip3.pc DESTINATION lib/pkgconfig)
+  configure_file(${VSOMEIP_NAME}.pc.in ${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}.pc @ONLY)
+  install(FILES ${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}.pc DESTINATION lib/pkgconfig)
 endif()
 
 #
