@@ -903,18 +903,18 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         } else if (!is_notification) {
             its_target = find_local(its_client);
             its_target_client = its_client;
-        } else if (is_notification && _client
-                   && !is_service_discovery) { // Selective notifications!
+        } else if (is_notification && _client &&
+                   !is_service_discovery) { // Selective notifications!
             if (_client == get_client()) {
+                deliver_message(_data, _size, _instance, _reliable,
+                        _bound_client, _sec_client,
+                        _status_check, _sent_from_remote);
 #ifdef USE_DLT
                 trace::header its_header;
                 if (its_header.prepare(its_target, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                             _data, _size);
 #endif
-                deliver_message(_data, _size, _instance, _reliable,
-                        _bound_client, _sec_client,
-                        _status_check, _sent_from_remote);
                 return true;
             }
             its_target = find_local(_client);
@@ -922,19 +922,19 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
         }
 
         if (its_target) {
+            is_sent = send_local(its_target, its_target_client, _data, _size, _instance, _reliable,
+                                 protocol::id_e::SEND_ID, _status_check);
 #ifdef USE_DLT
-            if ((is_request && its_client == get_client()) ||
-                    (is_response && find_local_client(its_service, _instance) == get_client()) ||
-                    (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT)) {
+            if (is_sent &&
+                ((is_request && its_client == get_client()) ||
+                 (is_response && find_local_client(its_service, _instance) == get_client()) ||
+                 (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT))) {
 
                 trace::header its_header;
                 if (its_header.prepare(its_target, true, _instance))
-                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                            _data, _size);
+                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
             }
 #endif
-            is_sent = send_local(its_target, its_target_client, _data, _size, _instance, _reliable,
-                                 protocol::id_e::SEND_ID, _status_check);
         } else {
             // Check whether hosting application should get the message
             // If not, check routes to external
@@ -970,16 +970,17 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                     }
                 }
                 if (is_request) {
-                    its_target = ep_mgr_impl_->find_or_create_remote_client(
-                            its_service, _instance, _reliable);
+                    its_target = ep_mgr_impl_->find_or_create_remote_client(its_service, _instance,
+                                                                            _reliable);
                     if (its_target) {
-#ifdef USE_DLT
-                        trace::header its_header;
-                        if (its_header.prepare(its_target, true, _instance))
-                            tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                                    _data, _size);
-#endif
                         is_sent = its_target->send(_data, _size);
+#ifdef USE_DLT
+                        if (is_sent) {
+                            trace::header its_header;
+                            if (its_header.prepare(its_target, true, _instance))
+                                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+                        }
+#endif
                     } else {
                         const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                         VSOMEIP_ERROR<< "Routing info for remote service could not be found! ("
@@ -1058,8 +1059,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                                 if (has_sent) {
                                     trace::header its_header;
                                     if (its_header.prepare(nullptr, true, _instance))
-                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                                                _data, _size);
+                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                                 }
 #endif
                             }
@@ -1083,13 +1083,14 @@ bool routing_manager_impl::send(client_t _client, const byte_t *_data,
                             its_target = is_service_discovery ?
                                          (sd_info_ ? sd_info_->get_endpoint(false) : nullptr) : its_info->get_endpoint(_reliable);
                             if (its_target) {
-#ifdef USE_DLT
-                                trace::header its_header;
-                                if (its_header.prepare(its_target, true, _instance))
-                                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                                            _data, _size);
-#endif
                                 is_sent = its_target->send(_data, _size);
+#ifdef USE_DLT
+                                if (is_sent) {
+                                    trace::header its_header;
+                                    if (its_header.prepare(its_target, true, _instance))
+                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+                                }
+#endif
                             } else {
                                 const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                                 VSOMEIP_ERROR << "Routing error. Endpoint for service ("
@@ -1163,38 +1164,39 @@ bool routing_manager_impl::send_to(
     return is_sent;
 }
 
-bool routing_manager_impl::send_to(
-        const std::shared_ptr<endpoint_definition> &_target,
-        const byte_t *_data, uint32_t _size, instance_t _instance) {
-
+bool routing_manager_impl::send_to(const std::shared_ptr<endpoint_definition>& _target,
+                                   const byte_t* _data, uint32_t _size, instance_t _instance) {
+    bool is_sent {false};
     std::shared_ptr<endpoint> its_endpoint =
             ep_mgr_impl_->find_server_endpoint(
                     _target->get_remote_port(), _target->is_reliable());
 
     if (its_endpoint) {
+        is_sent = its_endpoint->send_to(_target, _data, _size);
 #ifdef USE_DLT
-        trace::header its_header;
-        if (its_header.prepare(its_endpoint, true, _instance))
-            tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
-                    _data, _size);
+        if (is_sent) {
+            trace::header its_header;
+            if (its_header.prepare(its_endpoint, true, _instance))
+                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+        }
 #else
         (void) _instance;
 #endif
-        return its_endpoint->send_to(_target, _data, _size);
     }
-    return false;
+    return is_sent;
 }
 
-bool routing_manager_impl::send_via_sd(
-        const std::shared_ptr<endpoint_definition> &_target,
-        const byte_t *_data, uint32_t _size, uint16_t _sd_port) {
+bool routing_manager_impl::send_via_sd(const std::shared_ptr<endpoint_definition>& _target,
+                                       const byte_t* _data, uint32_t _size, uint16_t _sd_port) {
+    bool is_sent {false};
     std::shared_ptr<endpoint> its_endpoint =
             ep_mgr_impl_->find_server_endpoint(_sd_port,
                     _target->is_reliable());
 
     if (its_endpoint) {
+        is_sent = its_endpoint->send_to(_target, _data, _size);
 #ifdef USE_DLT
-        if (tc_->is_sd_enabled()) {
+        if (is_sent && tc_->is_sd_enabled()) {
             trace::header its_header;
             if (its_header.prepare(its_endpoint, true, 0x0))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
@@ -1202,10 +1204,8 @@ bool routing_manager_impl::send_via_sd(
 
         }
 #endif
-        return its_endpoint->send_to(_target, _data, _size);
     }
-
-    return false;
+    return is_sent;
 }
 
 void routing_manager_impl::register_event(client_t _client,
@@ -3260,16 +3260,16 @@ void routing_manager_impl::send_error(return_code_e _return_code,
                                 its_endpoint_def->get_remote_port(),
                                 its_endpoint_def->is_reliable());
                 if (its_endpoint) {
-                    #ifdef USE_DLT
+                    its_endpoint->send_error(its_endpoint_def,
+                        its_serializer->get_data(), its_serializer->get_size());
+#ifdef USE_DLT
                         trace::header its_header;
                         if (its_header.prepare(its_endpoint, true, _instance))
                             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE,
                                     _data, _size);
-                    #else
+#else
                         (void) _instance;
-                    #endif
-                    its_endpoint->send_error(its_endpoint_def,
-                            its_serializer->get_data(), its_serializer->get_size());
+#endif
                 }
             }
             its_serializer->reset();
