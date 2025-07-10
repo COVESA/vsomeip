@@ -1168,6 +1168,13 @@ void application_impl::register_subscription_handler(service_t _service,
         instance_t _instance, eventgroup_t _eventgroup,
         const subscription_handler_sec_t &_handler) {
 
+        VSOMEIP_INFO << __func__ << ": ("
+        << std::hex << std::setfill('0')
+        << std::setw(4) << get_client() << "): ["
+        << std::setw(4) << _service << "."
+        << std::setw(4) << _instance << "."
+        << std::setw(4) << _eventgroup << "]";
+
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
 }
@@ -2776,6 +2783,13 @@ void application_impl::register_async_subscription_handler(service_t _service,
 void application_impl::register_async_subscription_handler(service_t _service,
     instance_t _instance, eventgroup_t _eventgroup,
     async_subscription_handler_sec_t _handler) {
+
+    VSOMEIP_INFO << __func__ << ": ("
+    << std::hex << std::setfill('0')
+    << std::setw(4) << get_client() << "): ["
+    << std::setw(4) << _service << "."
+    << std::setw(4) << _instance << "."
+    << std::setw(4) << _eventgroup << "]";
 
     std::lock_guard<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
