@@ -622,7 +622,8 @@ void client_endpoint_impl<Protocol>::send_cbk(
                 this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected
             || _error == boost::asio::error::bad_descriptor
-            || _error == boost::asio::error::no_permission) {
+            || _error == boost::asio::error::no_permission
+            || _error == boost::asio::error::not_socket) {
 
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec
                         << _error.value() << ") " << get_remote_information() << " endpoint > "
