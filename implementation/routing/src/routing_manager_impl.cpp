@@ -2338,14 +2338,19 @@ void routing_manager_impl::init_service_info(
 }
 
 void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
-    auto clients_subscriptions = get_subscriptions(_client);
-    {
-        std::scoped_lock its_lock {remote_subscription_state_mutex_};
-        for (const auto& s : clients_subscriptions) {
+
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>> its_clients_subscriptions;
+    its_clients_subscriptions = get_subscriptions(_client);
+
+    for (const auto& s : its_clients_subscriptions) {
+        auto [service, instance, eventgroup] = s;
+        {
+            std::scoped_lock its_lock {remote_subscription_state_mutex_};
             remote_subscription_state_.erase(std::tuple_cat(s, std::make_tuple(_client)));
         }
+        unsubscribe(_client, nullptr, service, instance, eventgroup, ANY_EVENT);
     }
-    routing_manager_base::remove_local(_client, clients_subscriptions, _remove_uid);
+    routing_manager_base::remove_local(_client, its_clients_subscriptions, _remove_uid);
 
     for (const auto &s : get_requested_services(_client)) {
         release_service(_client, s.service_, s.instance_);
