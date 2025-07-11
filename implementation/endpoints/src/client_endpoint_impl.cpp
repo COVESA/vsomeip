@@ -428,8 +428,9 @@ void client_endpoint_impl<Protocol>::connect_cbk(
             } else {
                 max_allowed_reconnects_reached();
             }
+            // After 30 attempts of 100ms (3s) increase the timer exponential
             // Double the timeout as long as the maximum allowed is larger
-            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT)
+            if (connect_timeout_ < VSOMEIP_MAX_CONNECT_TIMEOUT && reconnect_counter_ > 30)
                 connect_timeout_ = (connect_timeout_ << 1);
         } else {
             if (_error) {
