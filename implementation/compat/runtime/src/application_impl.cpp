@@ -5,7 +5,7 @@
 
 #include <vsomeip/application.hpp>
 #include <vsomeip/runtime.hpp>
-#include <compat/vsomeip/runtime.hpp>
+#include "compat/vsomeip/runtime.hpp"
 
 #include <vsomeip/internal/logger.hpp>
 

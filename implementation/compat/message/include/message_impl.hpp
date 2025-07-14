@@ -10,7 +10,7 @@
 #    pragma warning( disable : 4250 )
 #endif
 
-#include <compat/vsomeip/message.hpp>
+#include "compat/vsomeip/message.hpp"
 #include "message_base_impl.hpp"
 
 namespace vsomeip {
