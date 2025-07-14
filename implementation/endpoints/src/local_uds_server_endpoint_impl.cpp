@@ -559,6 +559,15 @@ client_t local_uds_server_endpoint_impl::assign_client(
             its_command.get_name(), its_command.get_client());
 }
 
+void local_uds_server_endpoint_impl::disconnect_from(const client_t _client) {
+    std::scoped_lock lock {connections_mutex_};
+    if (connections_.find(_client) == connections_.end()) {
+        return;
+    }
+    connections_.at(_client)->stop();
+    connections_.erase(_client);
+}
+
 void local_uds_server_endpoint_impl::get_configured_times_from_endpoint(
         service_t _service,
         method_t _method, std::chrono::nanoseconds *_debouncing,

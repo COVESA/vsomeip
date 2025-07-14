@@ -26,6 +26,7 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../protocol/include/assign_client_command.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
+#include "../../protocol/include/protocol.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
@@ -520,6 +521,15 @@ client_t local_tcp_server_endpoint_impl::assign_client(
             its_command.get_name(), its_command.get_client());
 }
 
+void local_tcp_server_endpoint_impl::disconnect_from(const client_t _client) {
+    std::scoped_lock lock {connections_mutex_};
+    if (connections_.find(_client) == connections_.end()) {
+        return;
+    }
+    connections_.at(_client)->stop();
+    connections_.erase(_client);
+}
+
 void local_tcp_server_endpoint_impl::get_configured_times_from_endpoint(
         service_t _service,
         method_t _method, std::chrono::nanoseconds *_debouncing,
@@ -727,6 +737,18 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                         }
                         sec_client_.port = htons(its_port);
                         its_server->configuration_->get_security()->sync_client(&sec_client_);
+
+                        // Associate a client ID to this connection.
+                        if (bound_client_ == VSOMEIP_CLIENT_UNSET) {
+                            client_t its_client = VSOMEIP_CLIENT_UNSET;
+                            std::memcpy(
+                                    &its_client,
+                                    &recv_buffer_[its_start + protocol::COMMAND_POSITION_CLIENT],
+                                    sizeof(client_t));
+
+                            set_bound_client(its_client);
+                            its_server->add_connection(its_client, shared_from_this());
+                        }
 
                         its_host->on_message(&recv_buffer_[its_start],
                                             uint32_t(its_end - its_start), its_server.get(),

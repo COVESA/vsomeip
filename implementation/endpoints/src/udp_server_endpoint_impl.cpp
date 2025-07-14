@@ -539,6 +539,10 @@ void udp_server_endpoint_impl::leave(const std::string& _address) {
     leave_unlocked(_address);
 }
 
+void udp_server_endpoint_impl::disconnect_from(const client_t) {
+    return;
+}
+
 void udp_server_endpoint_impl::leave_unlocked(const std::string& _address) {
 
     try {

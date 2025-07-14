@@ -28,6 +28,7 @@
 #include "../include/routing_manager_client.hpp"
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/netlink_connector.hpp"
+#include "../../endpoints/include/server_endpoint.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/serializer.hpp"
@@ -2961,6 +2962,12 @@ void routing_manager_client::handle_client_error(client_t _client) {
         }
 
         // Remove the client from the local connections.
+        {
+            std::scoped_lock lock {receiver_mutex_};
+            if (auto endpoint = std::dynamic_pointer_cast<server_endpoint>(receiver_)) {
+                endpoint->disconnect_from(_client);
+            }
+        }
         remove_local(_client, true);
 
         // Request the host these services again.
