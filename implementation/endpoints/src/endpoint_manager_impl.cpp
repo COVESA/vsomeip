@@ -1348,8 +1348,15 @@ endpoint_manager_impl::process_multicast_options() {
 
     std::unique_lock<std::mutex> its_lock(options_mutex_);
     while (is_processing_options_) {
+        options_condition_.wait(
+                its_lock, [this] { return !options_queue_.empty() || !is_processing_options_; });
+
+        if (!is_processing_options_) {
+            return;
+        }
+
         if (options_queue_.size() > 0
-        && static_cast<routing_manager_impl*>(rm_)->is_external_routing_ready()) {
+            && static_cast<routing_manager_impl*>(rm_)->is_external_routing_ready()) {
             auto its_front = options_queue_.front();
             options_queue_.pop();
             auto its_udp_server_endpoint =
@@ -1380,8 +1387,6 @@ endpoint_manager_impl::process_multicast_options() {
                     }
                 }
             }
-        } else {
-            options_condition_.wait(its_lock);
         }
     }
 }

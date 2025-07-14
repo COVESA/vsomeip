@@ -453,6 +453,7 @@ private:
     std::map<std::thread::id, std::future<void>> dispatchers_control_;
 
     // Condition to wakeup the dispatcher thread
+    bool elapse_unactive_dispatchers_;
     mutable std::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
@@ -468,7 +469,7 @@ private:
 
     std::condition_variable block_stop_cv_;
     std::mutex block_stop_mutex_;
-    std::atomic_bool block_stopping_;
+    bool block_stop_condition_;
 
     static uint32_t app_counter__;
     static std::mutex app_counter_mutex__;
