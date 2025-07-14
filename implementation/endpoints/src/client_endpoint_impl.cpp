@@ -577,6 +577,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
                             << "(" << _error.message() << ")"
                             << " endpoint > " << this << " socket state > "
                             << static_cast<int>(state_.load());
+            was_not_connected_ = true;
             is_sending_ = false;
             return;
         }
@@ -635,6 +636,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
             VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
                             << " endpoint > " << this << " socket state > "
                             << static_cast<int>(state_.load());
+            was_not_connected_ = true;
             is_sending_ = false;
             return;
         }
@@ -661,6 +663,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
                             << "(" << _error.message() << ")"
                             << " endpoint > " << this << " socket state > "
                             << static_cast<int>(state_.load());
+            was_not_connected_ = true;
             is_sending_ = false;
             return;
         }
@@ -700,6 +703,7 @@ void client_endpoint_impl<Protocol>::send_cbk(
     }
 
     std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    was_not_connected_ = true;
     is_sending_ = false;
 }
 
