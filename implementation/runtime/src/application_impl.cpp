@@ -49,7 +49,8 @@ configuration::~configuration() {}
 uint32_t application_impl::app_counter__ = 0;
 std::mutex application_impl::app_counter_mutex__;
 
-application_impl::application_impl(const std::string &_name, const std::string &_path) :
+
+application_impl::application_impl(const std::string& _name, const std::string& _path) :
     runtime_ {runtime::get()}, client_ {VSOMEIP_CLIENT_UNSET}, session_ {0},
     is_initialized_ {false}, name_ {_name}, path_ {_path},
     work_ {std::make_shared<
@@ -63,8 +64,10 @@ application_impl::application_impl(const std::string &_name, const std::string &
     is_dispatching_ {false}, max_dispatchers_ {VSOMEIP_DEFAULT_MAX_DISPATCHERS},
     max_dispatch_time_ {VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, dispatcher_counter_ {0},
     max_detached_thread_wait_time {VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS}, stopped_ {false},
-    block_stopping_ {false}, is_routing_manager_host_ {false}, stopped_called_ {false},
-    watchdog_timer_ {io_}, client_side_logging_ {false}, has_session_handling_ {true} { }
+    block_stop_condition_ {false}, is_routing_manager_host_ {false}, stopped_called_ {false},
+    watchdog_timer_ {io_}, client_side_logging_ {false}, has_session_handling_ {true} {
+}
+
 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
@@ -406,7 +409,7 @@ void application_impl::start() {
         if (stopped_) {
             {
                 std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
-                block_stopping_ = true;
+                block_stop_condition_ = true;
                 block_stop_cv_.notify_all();
             }
 
@@ -427,6 +430,7 @@ void application_impl::start() {
         {
             std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
             is_dispatching_ = true;
+            elapse_unactive_dispatchers_ = false;
             std::packaged_task<void()> dispatcher_task_(
                     std::bind(&application_impl::main_dispatch, shared_from_this()));
             std::future<void> dispatcher_future_ = dispatcher_task_.get_future();
@@ -528,7 +532,7 @@ void application_impl::start() {
     }
     {
         std::lock_guard<std::mutex> its_lock_start_stop(block_stop_mutex_);
-        block_stopping_ = true;
+        block_stop_condition_ = true;
         block_stop_cv_.notify_all();
     }
 
@@ -550,7 +554,7 @@ void application_impl::stop() {
     bool block = true;
     {
         std::lock_guard<std::mutex> its_lock_start_stop(start_stop_mutex_);
-        if (stopped_ || stopped_called_) {
+        if (stopped_called_) {
             return;
         }
         stop_caller_id_ = std::this_thread::get_id();
@@ -590,8 +594,8 @@ void application_impl::stop() {
     if (block) {
         std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
         block_stop_cv_.wait_for(block_stop_lock, std::chrono::milliseconds(1000),
-                                [this] { return block_stopping_.load(); });
-        block_stopping_ = false;
+                                [this] { return block_stop_condition_; });
+        block_stop_condition_ = false;
     }
 }
 
@@ -1879,11 +1883,13 @@ void application_impl::main_dispatch() {
     while (is_dispatching_) {
         if (handlers_.empty() || !is_active_dispatcher(its_id)) {
             // Cancel other waiting dispatcher
+            elapse_unactive_dispatchers_ = true;
             dispatcher_condition_.notify_all();
             // Wait for new handlers to execute
-            while (is_dispatching_ && (handlers_.empty() || !is_active_dispatcher(its_id))) {
-                dispatcher_condition_.wait(its_lock);
-            }
+            dispatcher_condition_.wait(its_lock, [this, &its_id] {
+                return !is_dispatching_ || (!handlers_.empty() && is_active_dispatcher(its_id));
+            });
+            elapse_unactive_dispatchers_ = false;
         } else {
             std::shared_ptr<sync_handler> its_handler;
             while (is_dispatching_ && is_active_dispatcher(its_id)
@@ -1908,7 +1914,6 @@ void application_impl::main_dispatch() {
             }
         }
     }
-    its_lock.unlock();
 }
 
 void application_impl::dispatch() {
@@ -1931,16 +1936,19 @@ void application_impl::dispatch() {
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_active_dispatcher(its_id)) {
         if (is_dispatching_ && handlers_.empty()) {
-             dispatcher_condition_.wait(its_lock);
-             // Maybe woken up from main dispatcher
-             if (handlers_.empty() && !is_active_dispatcher(its_id)) {
-                 if (!is_dispatching_) {
-                     return;
-                 }
-                 std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
-                 elapsed_dispatchers_.insert(its_id);
-                 return;
-             }
+            dispatcher_condition_.wait(its_lock, [this] {
+                return !is_dispatching_ || !handlers_.empty() || elapse_unactive_dispatchers_;
+            });
+
+            // Maybe woken up from main dispatcher
+            if (handlers_.empty() && !is_active_dispatcher(its_id)) {
+                if (!is_dispatching_) {
+                    return;
+                }
+                std::lock_guard<std::mutex> its_lock(dispatcher_mutex_);
+                elapsed_dispatchers_.insert(its_id);
+                return;
+            }
         } else {
             std::shared_ptr<sync_handler> its_handler;
             while (is_dispatching_ && is_active_dispatcher(its_id)
@@ -2239,9 +2247,7 @@ void application_impl::shutdown() {
 
     {
         std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
-        while(!stopped_) {
-            stop_cv_.wait(its_lock);
-        }
+        stop_cv_.wait(its_lock, [this] { return stopped_called_; });
     }
     {
         std::lock_guard<std::mutex> its_handler_lock(handlers_mutex_);
