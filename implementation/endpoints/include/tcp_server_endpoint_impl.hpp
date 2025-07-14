@@ -65,6 +65,12 @@ public:
     void print_status();
 
     bool is_suspended() const;
+
+    /// @brief Disconnects from the given client.
+    ///
+    /// @param _client ID of the remote client.
+    void disconnect_from(const client_t _client) override;
+
 private:
     class connection: public std::enable_shared_from_this<connection> {
 

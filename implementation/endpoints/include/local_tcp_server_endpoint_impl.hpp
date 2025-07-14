@@ -69,6 +69,11 @@ public:
 
     client_t assign_client(const byte_t *_data, uint32_t _size);
 
+    /// @brief Disconnects from the given client.
+    ///
+    /// @param _client ID of the remote client.
+    void disconnect_from(const client_t _client) override;
+
 private:
     class connection: public std::enable_shared_from_this<connection> {
 
