@@ -240,7 +240,7 @@ public:
     // Debouncing
     virtual std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
             service_t _service, instance_t _instance, event_t _event) const = 0;
-    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
+    virtual std::shared_ptr<debounce_filter_impl_t> get_debounce(const std::string& _name,
             service_t _service, instance_t _instance, event_t _event) const = 0;
 
     // Queue size limit endpoints
