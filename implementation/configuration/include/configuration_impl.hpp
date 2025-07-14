@@ -240,7 +240,7 @@ public:
 
     VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
             service_t _service, instance_t _instance, event_t _event) const;
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(client_t _client,
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(const std::string& _name,
             service_t _service, instance_t _instance, event_t _event) const;
 
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(

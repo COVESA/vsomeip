@@ -4772,22 +4772,20 @@ configuration_impl::get_default_debounce(service_t _service, instance_t _instanc
     return nullptr;
 }
 
-std::shared_ptr<debounce_filter_impl_t> configuration_impl::get_debounce(client_t _client,
+
+std::shared_ptr<debounce_filter_impl_t> configuration_impl::get_debounce(const std::string& _name,
                                                                          service_t _service,
                                                                          instance_t _instance,
                                                                          event_t _event) const {
-    // Try to find application (client) specific debounce configuration
-    for (auto& [its_name, its_application] : applications_) {
-        if (its_application.client_ == _client) {
-            const auto search =
-                    its_application.debounces_.find(service_instance_t {_service, _instance});
-            if (search != its_application.debounces_.end()) {
-                const auto found_event = search->second.find(_event);
-                if (found_event != search->second.end()) {
-                    return found_event->second;
-                }
+    auto its_application {applications_.find(_name)};
+    if (its_application != applications_.end()) {
+        const auto search =
+                its_application->second.debounces_.find(service_instance_t {_service, _instance});
+        if (search != its_application->second.debounces_.end()) {
+            const auto found_event = search->second.find(_event);
+            if (found_event != search->second.end()) {
+                return found_event->second;
             }
-            break;
         }
     }
     return nullptr;

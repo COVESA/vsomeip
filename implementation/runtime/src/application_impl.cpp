@@ -662,11 +662,9 @@ void application_impl::subscribe(service_t _service, instance_t _instance,
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
             // Get configured, application-specific filter
             auto its_filter {
-                configuration_->get_debounce(get_client(), _service, _instance, _event)};
-
-            routing_->subscribe(client_, &sec_client_,
-                    _service, _instance, _eventgroup, _major,
-                    _event, its_filter);
+                configuration_->get_debounce(get_name(), _service, _instance, _event)};
+            routing_->subscribe(client_, &sec_client_, _service, _instance, _eventgroup, _major,
+                                _event, its_filter);
         }
     }
 }
