@@ -750,21 +750,23 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                     client_t its_client = its_server->assign_client(
                             &recv_buffer_[its_start], uint32_t(its_end - its_start));
 
-                    if (its_config && its_config->is_security_enabled()) {
-                        // Add to known clients (loads new config if needed)
-                        its_host->add_known_client(its_client, get_bound_client_host());
+                    if (!its_server->add_connection(its_client, shared_from_this())) {
+                        VSOMEIP_WARNING
+                                << std::hex << "Client 0x" << its_host->get_client()
+                                << " is rejecting new connection with client ID 0x" << its_client
+                                << " uid/gid= " << std::dec << sec_client_.user << "/"
+                                << sec_client_.group
+                                << " because of already existing connection using same client ID";
 
-                        if (!its_server->add_connection(its_client, shared_from_this())) {
-                            VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                                    << " is rejecting new connection with client ID 0x" << its_client
-                                    << " uid/gid= " << std::dec
-                                    << sec_client_.user << "/"
-                                    << sec_client_.group
-                                    << " because of already existing connection using same client ID";
-                            stop();
-                            return;
-                        } else if (!its_server->configuration_->get_policy_manager()->check_credentials(
-                                its_client, &sec_client_)) {
+                        stop();
+                        return;
+                    }
+
+                    its_host->add_known_client(its_client, get_bound_client_host());
+
+                    if (its_config && its_config->is_security_enabled()) {
+                        if (!its_server->configuration_->get_policy_manager()->check_credentials(
+                                    its_client, &sec_client_)) {
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
                                     << " received client credentials from client 0x" << its_client
                                     << " which violates the security policy : uid/gid="
@@ -776,14 +778,9 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                             stop();
                             return;
                         }
-                        else {
-                            set_bound_client(its_client);
-                        }
-                    } else {
-                        set_bound_client(its_client);
-                        its_host->add_known_client(its_client, get_bound_client_host());
-                        its_server->add_connection(its_client, shared_from_this());
                     }
+
+                    set_bound_client(its_client);
                     its_server->send_client_identifier(its_client);
                     assigned_client_ = true;
                 } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
@@ -835,12 +832,23 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
-    if (is_stopped_ || _error == boost::asio::error::eof
-        || _error == boost::asio::error::connection_reset || is_error) {
+    if (is_stopped_ || is_error || _error == boost::asio::error::eof
+        || _error == boost::asio::error::timed_out || _error == boost::asio::error::bad_descriptor
+        || _error == boost::asio::error::connection_reset) {
+        VSOMEIP_INFO << "lusei::receive_cbk closing connection due to is_stopped " << is_stopped_
+                     << ", error '" << _error.message() << "', is_error " << is_error
+                     << ", endpoint > " << this;
+
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
         its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
-    } else if (_error != boost::asio::error::bad_descriptor) {
+    } else {
+        if (_error) {
+            VSOMEIP_WARNING << "lusei::receive_cbk received err '" << _error.message()
+                            << "', endpoint > " << this;
+        }
+
+        // schedule next read
         start();
     }
 }

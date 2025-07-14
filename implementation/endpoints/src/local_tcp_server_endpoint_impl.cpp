@@ -225,8 +225,8 @@ bool local_tcp_server_endpoint_impl::add_connection(const client_t &_client,
         connections_[_client] = _connection;
         ret = true;
     } else {
-        VSOMEIP_WARNING << "Attempt to add already existing "
-            "connection to client " << std::hex << _client << " endpoint > " << this;
+        VSOMEIP_WARNING << "Attempt to add already existing connection to client " << std::hex
+                        << _client << " endpoint > " << this;
     }
     return ret;
 }
@@ -235,7 +235,10 @@ void local_tcp_server_endpoint_impl::remove_connection(
         const client_t &_client) {
 
     std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    connections_.erase(_client);
+    if (!connections_.erase(_client)) {
+        VSOMEIP_WARNING << "Client " << std::hex << _client << " has no registered connection to "
+                        << " remove, endpoint > " << this;
+    }
 }
 
 void local_tcp_server_endpoint_impl::accept_cbk(
@@ -718,9 +721,20 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                     client_t its_client = its_server->assign_client(
                             &recv_buffer_[its_start], uint32_t(its_end - its_start));
                     {
-                        set_bound_client(its_client);
+                        // order matters, register connection first, as it can fail
+                        if (!its_server->add_connection(its_client, shared_from_this())) {
+                            VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                                            << " is rejecting new connection with client ID 0x"
+                                            << its_client << " uid/gid= " << std::dec
+                                            << sec_client_.user << "/" << sec_client_.group
+                                            << " because of already existing connection using same "
+                                               "client ID";
+
+                            stop();
+                            return;
+                        }
                         its_host->add_known_client(its_client, get_bound_client_host());
-                        its_server->add_connection(its_client, shared_from_this());
+                        set_bound_client(its_client);
                     }
                     its_server->send_client_identifier(its_client);
                     assigned_client_ = true;
@@ -798,14 +812,23 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
-    if (is_stopped_ || _error == boost::asio::error::eof
-        || _error == boost::asio::error::connection_reset || is_error) {
+    if (is_stopped_ || is_error || _error == boost::asio::error::eof
+        || _error == boost::asio::error::timed_out || _error == boost::asio::error::bad_descriptor
+        || _error == boost::asio::error::connection_reset) {
+        VSOMEIP_INFO << "ltsei::receive_cbk closing connection due to is_stopped " << is_stopped_
+                     << ", error '" << _error.message() << "', is_error " << is_error
+                     << "', endpoint > " << this;
 
         shutdown_and_close();
         its_server->remove_connection(bound_client_);
         its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
+    } else {
+        if (_error) {
+            VSOMEIP_WARNING << "ltsei::receive_cbk received err '" << _error.message()
+                            << "', endpoint > " << this;
+        }
 
-    } else if (_error != boost::asio::error::bad_descriptor) {
+        // schedule next read
         start();
     }
 }
