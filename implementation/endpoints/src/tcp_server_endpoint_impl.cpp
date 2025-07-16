@@ -270,6 +270,18 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
                 VSOMEIP_WARNING << "tsei::" << __func__
                                 << ": setting SO_LINGER failed: " << its_error.message();
             }
+
+#if defined(__linux__) || defined(ANDROID)
+            // set a user timeout
+            // along the keep alives, this ensures connection closes if endpoint is unreachable
+            unsigned int opt = VSOMEIP_TCP_USER_TIMEOUT;
+            if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT,
+                           &opt, sizeof(opt))
+                == -1) {
+                VSOMEIP_WARNING << "tsei::" << __func__
+                                << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
+            }
+#endif
         }
         if (!its_error) {
             {
