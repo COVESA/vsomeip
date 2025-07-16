@@ -1104,9 +1104,9 @@ endpoint_manager_impl::find_remote_client(
                                 service_instances_[_service][its_endpoint.get()] = _instance;
 
                                 // add endpoint to serviceinfo object
-                                auto found_service_info = rm_->find_service(_service,_instance);
-                                if (found_service_info) {
-                                    found_service_info->set_endpoint(its_endpoint, _reliable);
+                                auto found_service_info_inner = rm_->find_service(_service,_instance);
+                                if (found_service_info_inner) {
+                                    found_service_info_inner->set_endpoint(its_endpoint, _reliable);
                                 }
                             }
                         }

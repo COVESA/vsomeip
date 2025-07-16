@@ -46,7 +46,7 @@ local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
 
 void local_uds_server_endpoint_impl::init(const endpoint_type& _local,
                                           boost::system::error_code& _error) {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    std::scoped_lock its_lock{acceptor_mutex_};
     acceptor_.open(_local.protocol(), _error);
     if (_error)
         return;
@@ -56,7 +56,7 @@ void local_uds_server_endpoint_impl::init(const endpoint_type& _local,
 
 void local_uds_server_endpoint_impl::init(const endpoint_type& _local, const int _socket,
                                           boost::system::error_code& _error) {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    std::scoped_lock its_lock{acceptor_mutex_};
     acceptor_.assign(_local.protocol(), _socket, _error);
     if (_error)
         return;
@@ -91,13 +91,13 @@ void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local,
 }
 
 void local_uds_server_endpoint_impl::deinit() {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    std::scoped_lock its_lock{acceptor_mutex_};
     boost::system::error_code its_error;
     acceptor_.close(its_error);
 }
 
 void local_uds_server_endpoint_impl::start() {
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    std::scoped_lock its_lock{acceptor_mutex_};
     if (acceptor_.is_open()) {
         connection::ptr new_connection = connection::create(
                 std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(
@@ -106,7 +106,7 @@ void local_uds_server_endpoint_impl::start() {
                         io_);
 
         {
-            std::unique_lock<std::mutex> its_lock(new_connection->get_socket_lock());
+            std::unique_lock its_lock_inner{new_connection->get_socket_lock()};
             acceptor_.async_accept(
                 new_connection->get_socket(),
                 std::bind(
@@ -126,14 +126,14 @@ void local_uds_server_endpoint_impl::stop() {
 
     server_endpoint_impl::stop();
     {
-        std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+        std::scoped_lock its_lock{acceptor_mutex_};
         if (acceptor_.is_open()) {
             boost::system::error_code its_error;
             acceptor_.close(its_error);
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::scoped_lock its_lock{connections_mutex_};
         for (const auto &c : connections_) {
             c.second->stop();
         }
@@ -153,7 +153,7 @@ bool local_uds_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
         msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock{mutex_};
     if (endpoint_impl::sending_blocked_) {
         return false;
     }
@@ -163,7 +163,7 @@ bool local_uds_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
 
     connection::ptr its_connection;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::scoped_lock its_lock_inner{connections_mutex_};
         const auto its_iterator = connections_.find(its_client);
         if (its_iterator == connections_.end()) {
             return false;
@@ -222,7 +222,7 @@ bool local_uds_server_endpoint_impl::add_connection(const client_t &_client,
         const std::shared_ptr<connection> &_connection) {
 
     bool ret = false;
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    std::scoped_lock its_lock{connections_mutex_};
     auto find_connection = connections_.find(_client);
     if (find_connection == connections_.end()) {
         connections_[_client] = _connection;
@@ -237,7 +237,7 @@ bool local_uds_server_endpoint_impl::add_connection(const client_t &_client,
 void local_uds_server_endpoint_impl::remove_connection(
         const client_t &_client) {
 
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
+    std::scoped_lock its_lock{connections_mutex_};
     connections_.erase(_client);
 }
 
@@ -257,8 +257,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
         auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(
                 shared_from_this());
         its_timer->async_wait([its_timer, its_ep]
-                               (const boost::system::error_code& _error) {
-            if (!_error) {
+                               (const boost::system::error_code& _error_inner) {
+            if (!_error_inner) {
                 its_ep->start();
             }
         });
@@ -312,7 +312,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 _connection->set_bound_client_host(its_client_host);
             } else {
                 {
-                    std::lock_guard<std::mutex> its_connection_lock(connections_mutex_);
+                    std::scoped_lock its_connection_lock{connections_mutex_};
                     // rm_impl receives VSOMEIP_CLIENT_UNSET initially -> check later
                     const auto found_client = connections_.find(its_client);
                     if (found_client != connections_.end()) {
@@ -421,7 +421,7 @@ local_uds_server_endpoint_impl::connection::get_socket_lock() {
 }
 
 void local_uds_server_endpoint_impl::connection::start() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     if (socket_.is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
@@ -484,7 +484,7 @@ void local_uds_server_endpoint_impl::connection::start() {
 }
 
 void local_uds_server_endpoint_impl::connection::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     is_stopped_ = true;
     if (socket_.is_open()) {
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
@@ -524,7 +524,7 @@ void local_uds_server_endpoint_impl::connection::send_queued(
     bufs.push_back(boost::asio::buffer(its_end_tag));
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock{socket_mutex_};
         boost::asio::async_write(
             socket_,
             bufs,
@@ -671,7 +671,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                 }
                 if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED
                         && its_command_size > max_message_size_) {
-                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                    std::scoped_lock its_lock{socket_mutex_};
                     VSOMEIP_ERROR << "Received a local message which exceeds "
                           << "maximum message size (" << std::dec << its_command_size
                           << ") aborting! local: " << get_path_local() << " remote: "
@@ -952,7 +952,7 @@ local_uds_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
 
 void
 local_uds_server_endpoint_impl::connection::shutdown_and_close() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock{socket_mutex_};
     shutdown_and_close_unlocked();
 }
 
@@ -964,10 +964,10 @@ local_uds_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
 }
 
 void local_uds_server_endpoint_impl::print_status() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock{mutex_};
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::scoped_lock its_lock_inner{connections_mutex_};
         its_connections = connections_;
     }
 
