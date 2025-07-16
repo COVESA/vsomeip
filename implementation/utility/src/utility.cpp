@@ -85,13 +85,72 @@ bool utility::is_routing_manager(const std::string &_network) {
         std::wstring its_lockfile(its_tmp_folder);
         std::string its_network(_network + ".lck");
         its_lockfile.append(its_network.begin(), its_network.end());
-        r.first->second.lock_handle_ = CreateFileW(its_lockfile.c_str(), GENERIC_READ, 0, NULL, CREATE_NEW, 0, NULL);
+        r.first->second.lock_handle_ = CreateFileW(its_lockfile.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+        
         if (r.first->second.lock_handle_ == INVALID_HANDLE_VALUE) {
-            VSOMEIP_ERROR << __func__ << ": CreateFileW failed: " << std::hex << GetLastError();
+            DWORD error = GetLastError();
+            if (error == ERROR_FILE_EXISTS) {
+                // Check if the process that created the lock file is still running
+                HANDLE existing_file = CreateFileW(its_lockfile.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+                if (existing_file != INVALID_HANDLE_VALUE) {
+                    DWORD pid = 0;
+                    DWORD bytes_read = 0;
+                    bool process_active = false;
+                    
+                    if (ReadFile(existing_file, &pid, sizeof(pid), &bytes_read, NULL) && bytes_read == sizeof(pid)) {
+                        // Check if process is still running
+                        HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+                        if (process_handle != NULL) {
+                            DWORD exit_code;
+                            if (GetExitCodeProcess(process_handle, &exit_code) && exit_code == STILL_ACTIVE) {
+                                process_active = true;
+                            }
+                            CloseHandle(process_handle);
+                        }
+                        
+                        if (!process_active) {
+                            // Process doesn't exist, remove stale lock file and try again
+                            VSOMEIP_DEBUG << __func__ << ": Removing stale lock file (PID " << pid << " no longer exists)";
+                            CloseHandle(existing_file);
+                            if (DeleteFileW(its_lockfile.c_str()) != 0) {
+                                r.first->second.lock_handle_ = CreateFileW(its_lockfile.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+                            }
+                        } else {
+                            // Process still active - cannot become HOST
+                            VSOMEIP_DEBUG << __func__ << ": Another process (" << pid << ") is already routing manager";
+                            CloseHandle(existing_file);
+                            r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
+                        }
+                    } else {
+                        // Corrupted file - try to remove it
+                        CloseHandle(existing_file);
+                        if (DeleteFileW(its_lockfile.c_str()) != 0) {
+                            r.first->second.lock_handle_ = CreateFileW(its_lockfile.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+                        }
+                    }
+                } else {
+                    // Cannot open existing file - might be in use
+                    VSOMEIP_ERROR << __func__ << ": Cannot access existing lock file";
+                    r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
+                }
+            } else {
+                // Other error creating file
+                VSOMEIP_ERROR << __func__ << ": CreateFileW failed: " << std::hex << error;
+                r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
+            }
+        }
+        
+        // Write current PID to the lock file
+        if (r.first->second.lock_handle_ != INVALID_HANDLE_VALUE) {
+            DWORD current_pid = GetCurrentProcessId();
+            DWORD bytes_written = 0;
+            WriteFile(r.first->second.lock_handle_, &current_pid, sizeof(current_pid), &bytes_written, NULL);
+        } else {
+            // Failed to create lock file
+            r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
         }
     } else {
-        VSOMEIP_ERROR << __func__ << ": Could not get temp folder: "
-                << std::hex << GetLastError();
+        VSOMEIP_ERROR << __func__ << ": Could not get temp folder: " << std::hex << GetLastError();
         r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
     }
 
