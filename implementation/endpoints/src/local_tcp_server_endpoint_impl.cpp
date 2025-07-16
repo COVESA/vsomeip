@@ -73,6 +73,16 @@ void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local,
         return;
 #endif
 
+#if defined(__linux__) || defined(ANDROID)
+    // using IP_FREEBIND here helps avoid an extra dependency - can setup socket even before
+    // the underlying network interface is ready
+    int opt = 1;
+    if (setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) != 0) {
+        VSOMEIP_ERROR << "ltsei::" << __func__ << ": could not setsockopt(IP_FREEBIND), errno "
+                      << errno;
+    }
+#endif
+
     acceptor_.bind(_local, _error);
     if (_error)
         return;

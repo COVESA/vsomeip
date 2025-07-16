@@ -29,7 +29,6 @@
 #include "../include/routing_manager_host.hpp"
 #include "../include/routing_manager_client.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../endpoints/include/netlink_connector.hpp"
 #include "../../endpoints/include/server_endpoint.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/message_impl.hpp"
@@ -100,9 +99,6 @@ routing_manager_client::routing_manager_client(routing_manager_host *_host,
         request_debounce_timer_running_(false),
         client_side_logging_(_client_side_logging),
         client_side_logging_filter_(_client_side_logging_filter)
-#if defined(__linux__) || defined(ANDROID)
-        , is_local_link_available_(false)
-#endif // defined(__linux__) || defined(ANDROID)
 {
 
     char its_hostname[1024];
@@ -118,60 +114,32 @@ void routing_manager_client::init() {
     routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
     {
         std::scoped_lock its_sender_lock {sender_mutex_};
-        if (configuration_->is_local_routing()) {
-            sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-        } else {
-#if defined(__linux__) || defined(ANDROID)
-            auto its_guest_address = configuration_->get_routing_guest_address();
-            auto its_host_address = configuration_->get_routing_host_address();
-            local_link_connector_ = std::make_shared<netlink_connector>(
-                    io_, its_guest_address, boost::asio::ip::address(),
-                    (its_guest_address != its_host_address));
-            // if the guest is in the same node as the routing manager
-            // it should not require LINK to be UP to communicate
 
-            if (local_link_connector_) {
-                local_link_connector_->register_net_if_changes_handler(
-                    std::bind(&routing_manager_client::on_net_state_change,
-                        this, std::placeholders::_1, std::placeholders::_2,
-                        std::placeholders::_3));
-            } else {
-                VSOMEIP_WARNING << __func__ << ": (" << its_guest_address.to_string() << ":"
-                                << its_host_address.to_string() << ")"
-                                << " local_link_connector not initialized.";
-            }
-#else
+        // NOTE: order matters, `create_local_server` must done first
+        // with TCP, following `create_local` will use whatever port is established there
+        if (!configuration_->is_local_routing()) {
             receiver_ = ep_mgr_->create_local_server(shared_from_this());
-            sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-#endif
+        }
+
+        sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
+        if (sender_) {
+            host_->set_sec_client_port(sender_->get_local_port());
+            sender_->start();
         }
     }
 }
 
 void routing_manager_client::start() {
-
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    if (configuration_->is_local_routing()) {
-#else
+    is_started_ = true;
     {
-#endif // __linux__ || ANDROID
-        is_started_ = true;
-        {
-            std::scoped_lock its_sender_lock {sender_mutex_};
-            if (!sender_) {
-                // application has been stopped and started again
-                sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-            }
-            if (sender_) {
-                sender_->start();
-            }
+        std::scoped_lock its_sender_lock {sender_mutex_};
+        if (!sender_) {
+            // application has been stopped and started again
+            sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
         }
-
-#if defined(__linux__) || defined(ANDROID)
-    } else {
-        if (local_link_connector_)
-            local_link_connector_->start();
-#endif // __linux__ || ANDROID
+        if (sender_) {
+            sender_->start();
+        }
     }
 }
 
@@ -208,11 +176,6 @@ void routing_manager_client::stop() {
         }
     }
     is_started_ = false;
-
-#if defined(__linux__) || defined(ANDROID)
-    if (local_link_connector_)
-        local_link_connector_->stop();
-#endif
 
     {
         std::scoped_lock its_lock(requests_to_debounce_mutex_);
@@ -257,85 +220,6 @@ void routing_manager_client::stop() {
     #endif
     }
 }
-
-#if defined(__linux__) || defined(ANDROID)
-void routing_manager_client::on_net_state_change(bool _is_interface, const std::string& _name,
-                                                 bool _is_available) {
-
-    // No changes in the link availability
-    if (_is_available == is_local_link_available_)
-        return;
-
-    VSOMEIP_INFO << "rmc::" << __func__ << ": ThreadID: " << std::hex << std::this_thread::get_id()
-                 << " - " << std::boolalpha << _is_interface << " " << _name << " "
-                 << std::boolalpha << _is_available;
-
-    if (_is_interface) {
-        if (_is_available) {
-            if (!is_local_link_available_) {
-
-                is_local_link_available_ = true;
-
-                bool is_receiver {false};
-                {
-                    std::scoped_lock its_lock {receiver_mutex_};
-                    if (!receiver_)
-                        receiver_ = ep_mgr_->create_local_server(shared_from_this());
-
-                    if (receiver_) {
-                        receiver_->start();
-                        is_started_ = true;
-
-                        is_receiver = true;
-                    }
-                }
-                if (is_receiver) {
-                    std::scoped_lock its_lock {sender_mutex_};
-                    if (!sender_)
-                        sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-
-                    if (sender_) {
-                        host_->set_sec_client_port(sender_->get_local_port());
-                        sender_->start();
-                    }
-                }
-            }
-        } else {
-            if (is_local_link_available_) {
-                is_local_link_available_ = false;
-                is_started_ = false;
-
-                VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
-                             << static_cast<int>(state_.load()) << " -> "
-                             << static_cast<int>(inner_state_type_e::ST_DEREGISTERED);
-                state_ = inner_state_type_e::ST_DEREGISTERED;
-
-                {
-                    std::unique_lock its_sender_lock(sender_mutex_);
-                    if (sender_) {
-                        on_disconnect(sender_);
-                        host_->set_sec_client_port(VSOMEIP_SEC_PORT_UNSET);
-                        sender_->stop();
-                        sender_.reset();
-                    }
-                }
-                {
-                    std::scoped_lock its_receiver_lock(receiver_mutex_);
-                    if (receiver_) {
-                        receiver_->stop();
-                        receiver_.reset();
-                    }
-                }
-                for (const auto client : ep_mgr_->get_connected_clients()) {
-                    if (client != VSOMEIP_ROUTING_CLIENT) {
-                        remove_local(client, true);
-                    }
-                }
-            }
-        }
-    }
-}
-#endif // __linux__ || ANDROID
 
 std::shared_ptr<configuration> routing_manager_client::get_configuration() const {
     return host_->get_configuration();

@@ -225,10 +225,6 @@ private:
 
     void on_suspend();
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    void on_net_state_change(bool _is_interface, const std::string &_name, bool _is_available);
-#endif
-
 private:
 
     enum class inner_state_type_e : std::uint8_t {
@@ -305,11 +301,6 @@ private:
     const std::set<std::tuple<service_t, instance_t> > client_side_logging_filter_;
 
     std::mutex stop_mutex_;
-
-#if defined(__linux__) || defined(ANDROID)
-    std::shared_ptr<netlink_connector> local_link_connector_;
-    bool is_local_link_available_;
-#endif
 };
 
 } // namespace vsomeip_v3
