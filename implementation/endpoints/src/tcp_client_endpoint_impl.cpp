@@ -165,6 +165,18 @@ void tcp_client_endpoint_impl::connect() {
                     << " remote:" << get_address_port_remote();
         }
 
+#if defined(__linux__) || defined(ANDROID)
+        // set a user timeout
+        // along the keep alives, this ensures connection closes if endpoint is unreachable
+        unsigned int opt = VSOMEIP_TCP_USER_TIMEOUT;
+        if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &opt, sizeof(opt))
+            == -1) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: could not "
+                               "setsockopt(TCP_USER_TIMEOUT), errno "
+                            << errno;
+        }
+#endif
+
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
