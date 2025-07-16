@@ -168,6 +168,7 @@ bool application_impl::init() {
             configuration_->set_configuration_path(configuration_path);
         }
         configuration_->load(name_);
+        VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
     }
 
