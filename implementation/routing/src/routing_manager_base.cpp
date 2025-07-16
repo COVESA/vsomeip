@@ -791,12 +791,10 @@ void routing_manager_base::subscribe(client_t _client,
     (void)_sec_client;
 
     std::set<event_t> its_already_subscribed_events;
-    bool inserted = insert_subscription(_service, _instance, _eventgroup,
-            _event, _filter, _client, &its_already_subscribed_events);
-    if (inserted) {
-        notify_one_current_value(_client, _service, _instance, _eventgroup,
-                _event, its_already_subscribed_events);
-    }
+    insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client,
+                        &its_already_subscribed_events);
+    notify_one_current_value(_client, _service, _instance, _eventgroup, _event,
+                             its_already_subscribed_events);
 }
 
 void routing_manager_base::unsubscribe(client_t _client,
