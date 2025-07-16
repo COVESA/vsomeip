@@ -8,6 +8,7 @@
     #define NOMINMAX
     #include <windows.h>
     #include <stdlib.h>
+    #include <boost/filesystem.hpp>
 #endif
 
 #include <algorithm>
@@ -645,9 +646,6 @@ policy_manager_impl::exist_in_any_client_policies_unlocked(std::shared_ptr<polic
 
 void
 policy_manager_impl::load_policies(const configuration_element &_element) {
-#ifdef _WIN32
-        return;
-#endif
     try {
         auto optional = _element.tree_.get_child_optional("security");
         if (!optional) {
@@ -970,9 +968,6 @@ policy_manager_impl::load_routing_credentials(const configuration_element &_elem
 
 void
 policy_manager_impl::load_security_update_whitelist(const configuration_element &_element) {
-#ifdef _WIN32
-        return;
-#endif
     try {
         auto optional = _element.tree_.get_child_optional("security-update-whitelist");
         if (!optional) {
@@ -1006,9 +1001,6 @@ policy_manager_impl::load_security_update_whitelist(const configuration_element 
 
 void
 policy_manager_impl::load_security_policy_extensions(const configuration_element &_element) {
-#ifdef _WIN32
-        return;
-#endif
     try {
         auto optional = _element.tree_.get_child_optional("container_policy_extensions");
         if (!optional) {
@@ -1040,11 +1032,25 @@ policy_manager_impl::load_security_policy_extensions(const configuration_element
                      }
                 }
             }
+#ifdef _WIN32
+            // Windows: use boost::filesystem to join paths correctly
+            boost::filesystem::path base_path(VSOMEIP_DEFAULT_CONFIGURATION_FOLDER);
+            boost::filesystem::path extension_path(its_path);
 
+            // Remove leading separators from extension_path
+            while (!extension_path.empty() &&
+                   (extension_path.string().front() == '/' || extension_path.string().front() == '\\')) {
+                extension_path = extension_path.string().substr(1);
+            }
+
+            boost::filesystem::path full_path = base_path.parent_path() / extension_path;
+            std::string its_filesystem_path = full_path.string();
+            std::replace(its_filesystem_path.begin(), its_filesystem_path.end(), '\\', '/');
+#else
             std::string str = VSOMEIP_DEFAULT_CONFIGURATION_FOLDER;
             std::string its_filesystem_path = str.substr(0, str.find_last_of("\\/"))
                 + its_path.erase(0, its_path.find_first_of("\\/"));
-
+#endif
             if (!utility::is_folder(its_filesystem_path)) {
                 VSOMEIP_DEBUG << __func__ << ": The path "
                         << its_filesystem_path
@@ -1285,6 +1291,8 @@ policy_manager_impl::get_security_config_folder(const std::string &its_folder) c
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     its_security_config_folder << "/" << getuid() << "_" << getgid();
+#elif defined(_WIN32)
+    its_security_config_folder << "/0_0"; // Windows does not use UID/GID, so we use a default value
 #endif
 
     if (utility::is_folder(its_security_config_folder.str())) {

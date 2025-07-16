@@ -62,7 +62,7 @@ void config_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _e
         return;
     }
     std::size_t remaining = size_;
-    if (_buffer.size() < remaining) {
+    if (_buffer.size() < COMMAND_HEADER_SIZE + remaining) {
         _error = error_e::ERROR_NOT_ENOUGH_BYTES;
         return;
     }
@@ -76,12 +76,16 @@ void config_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _e
         std::memcpy(&size, &_buffer[read_position], sizeof(std::uint32_t));
         remaining -= sizeof(std::uint32_t);
         read_position += sizeof(std::uint32_t);
-        if (remaining < size) {
+
+        if (remaining < size || read_position + size > _buffer.size()) {
             failed = true;
             return std::string("");
         }
         std::string value;
-        value.assign(&_buffer[read_position], &_buffer[read_position + size]);
+        if (size > 0) {
+            value.assign(_buffer.begin() + static_cast<std::ptrdiff_t>(read_position), 
+                        _buffer.begin() + static_cast<std::ptrdiff_t>(read_position + size));
+        }
         remaining -= size;
         read_position += size;
         return value;
