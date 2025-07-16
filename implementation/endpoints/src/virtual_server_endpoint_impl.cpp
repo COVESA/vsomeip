@@ -5,6 +5,8 @@
 
 #include "../include/virtual_server_endpoint_impl.hpp"
 
+#include <boost/asio/post.hpp>
+
 #include <vsomeip/constants.hpp>
 #include <vsomeip/internal/logger.hpp>
 
@@ -28,7 +30,7 @@ void virtual_server_endpoint_impl::prepare_stop(const endpoint::prepare_stop_han
     (void)_service;
 
     auto ptr = shared_from_this();
-    io_.post([ptr, _handler]() { _handler(ptr); });
+    boost::asio::post(io_, [ptr, _handler]() { _handler(ptr); });
 }
 
 void virtual_server_endpoint_impl::stop() {

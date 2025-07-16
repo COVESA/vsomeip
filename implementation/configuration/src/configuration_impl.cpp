@@ -94,8 +94,8 @@ configuration_impl::configuration_impl(const std::string& _path) :
 
     policy_manager_ = std::make_shared<policy_manager_impl>();
     security_ = std::make_shared<security>(policy_manager_);
-    unicast_ = unicast_.from_string(VSOMEIP_UNICAST_ADDRESS);
-    netmask_ = netmask_.from_string(VSOMEIP_NETMASK);
+    unicast_ = boost::asio::ip::make_address(VSOMEIP_UNICAST_ADDRESS);
+    netmask_ = boost::asio::ip::make_address(VSOMEIP_NETMASK);
     for (auto i = 0; i < ET_MAX; i++)
         is_configured_[i] = false;
 
@@ -1555,7 +1555,7 @@ void configuration_impl::load_unicast_address(const configuration_element &_elem
             VSOMEIP_WARNING << "Multiple definitions for unicast."
                     "Ignoring definition from " << _element.name_;
         } else {
-            unicast_ = unicast_.from_string(its_value);
+            unicast_ = boost::asio::ip::make_address(its_value);
             is_configured_[ET_UNICAST] = true;
         }
     } catch (...) {
@@ -1571,7 +1571,7 @@ void configuration_impl::load_netmask(const configuration_element &_element) {
                 VSOMEIP_WARNING << "Multiple definitions for netmask/prefix."
                         "Ignoring netmask definition from " << _element.name_;
             } else {
-                netmask_ = netmask_.from_string(*its_value);
+                netmask_ = boost::asio::ip::make_address(*its_value);
                 is_configured_[ET_NETMASK] = true;
             }
         }
@@ -4379,7 +4379,7 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
             std::string its_value(i->second.data());
 
             if (its_key == "address") {
-                its_address = boost::asio::ip::address::from_string(its_value);
+                its_address = boost::asio::ip::make_address(its_value);
             } else if (its_key == "path") {
                 load_activation_file_path(its_paths, i->second);
             } else if (its_key == "reliable" || its_key == "unreliable") {

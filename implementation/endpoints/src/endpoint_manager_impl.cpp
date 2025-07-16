@@ -1178,12 +1178,10 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(
                 if (found_service_info) {
                     found_service_info->set_endpoint(its_endpoint, _reliable);
                 }
-                boost::system::error_code ec;
                 VSOMEIP_INFO << "endpoint_manager_impl::create_remote_client: "
-                        << its_endpoint_def->get_address().to_string(ec)
-                        << ":" << std::dec << its_endpoint_def->get_port()
-                        << " reliable: " << _reliable
-                        << " using local port: " << std::dec << its_local_port;
+                             << its_endpoint_def->get_address().to_string() << ":" << std::dec
+                             << its_endpoint_def->get_port() << " reliable: " << _reliable
+                             << " using local port: " << std::dec << its_local_port;
             }
         }
     }

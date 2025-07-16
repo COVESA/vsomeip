@@ -35,8 +35,11 @@ static char* local_address;
 class malicious_data : public ::testing::Test {
 public:
     malicious_data() :
-        work_(std::make_shared<boost::asio::io_context::work>(io_)),
-        io_thread_(std::bind(&malicious_data::io_run, this)) {}
+        work_ {std::make_shared<
+                boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+                io_.get_executor())},
+        io_thread_(std::bind(&malicious_data::io_run, this)) { }
+
 protected:
 
     void TearDown() {
@@ -50,7 +53,7 @@ protected:
     }
 
     boost::asio::io_context io_;
-    std::shared_ptr<boost::asio::io_context::work> work_;
+    std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_;
     std::thread io_thread_;
 };
 
@@ -130,8 +133,7 @@ TEST_F(malicious_data, send_malicious_events)
         try {
             std::promise<bool> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
-                    boost::asio::ip::address::from_string(std::string(local_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(local_address)), 34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -140,7 +142,7 @@ TEST_F(malicious_data, send_malicious_events)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -171,12 +173,11 @@ TEST_F(malicious_data, send_malicious_events)
                 0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
 
             // wait until client established TCP connection
@@ -219,8 +220,7 @@ TEST_F(malicious_data, send_malicious_events)
             // establish second tcp connection as client and send malicious data as well
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(remote_address)), 34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
             std::uint8_t its_malicious_client_data[] = {
@@ -257,8 +257,7 @@ TEST_F(malicious_data, send_malicious_events)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (const std::exception& _e) {
             ADD_FAILURE() << "catched exception: " << _e.what();
@@ -301,7 +300,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
 
         // join the sd multicast group 224.0.24.1
         udp_socket.set_option(boost::asio::ip::multicast::join_group(
-                            boost::asio::ip::address::from_string("224.0.24.1").to_v4()));
+                boost::asio::ip::make_address("224.0.24.1").to_v4()));
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -367,8 +366,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
         try {
             std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
-                    boost::asio::ip::address::from_string(std::string(local_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(local_address)), 34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -377,7 +375,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -408,12 +406,11 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                 0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
 
             // wait until client established TCP connection
@@ -528,8 +525,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
 
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(remote_address)), 34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
 
@@ -642,8 +638,7 @@ TEST_F(malicious_data, send_wrong_protocol_version)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
             udp_socket2.shutdown(boost::asio::socket_base::shutdown_both, ec);
@@ -688,7 +683,7 @@ TEST_F(malicious_data, send_wrong_message_type)
 
         // join the sd multicast group 224.0.24.1
         udp_socket.set_option(boost::asio::ip::multicast::join_group(
-                            boost::asio::ip::address::from_string("224.0.24.1").to_v4()));
+                boost::asio::ip::make_address("224.0.24.1").to_v4()));
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -754,8 +749,7 @@ TEST_F(malicious_data, send_wrong_message_type)
         try {
             std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
-                    boost::asio::ip::address::from_string(std::string(local_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(local_address)), 34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -764,7 +758,7 @@ TEST_F(malicious_data, send_wrong_message_type)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -795,12 +789,11 @@ TEST_F(malicious_data, send_wrong_message_type)
                 0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
 
             // wait until client established TCP connection
@@ -883,8 +876,7 @@ TEST_F(malicious_data, send_wrong_message_type)
 
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(remote_address)), 34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
 
@@ -940,8 +932,7 @@ TEST_F(malicious_data, send_wrong_message_type)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
             udp_socket2.shutdown(boost::asio::socket_base::shutdown_both, ec);
@@ -986,7 +977,7 @@ TEST_F(malicious_data, send_wrong_return_code)
 
         // join the sd multicast group 224.0.24.1
         udp_socket.set_option(boost::asio::ip::multicast::join_group(
-                            boost::asio::ip::address::from_string("224.0.24.1").to_v4()));
+                boost::asio::ip::make_address("224.0.24.1").to_v4()));
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -1052,8 +1043,7 @@ TEST_F(malicious_data, send_wrong_return_code)
         try {
             std::promise<void> client_connected;
             boost::asio::ip::tcp::socket::endpoint_type local(
-                    boost::asio::ip::address::from_string(std::string(local_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(local_address)), 34511);
             boost::asio::ip::tcp::acceptor its_acceptor(io_);
             boost::system::error_code ec;
             its_acceptor.open(local.protocol(), ec);
@@ -1062,7 +1052,7 @@ TEST_F(malicious_data, send_wrong_return_code)
             boost::asio::detail::throw_error(ec, "acceptor set_option");
             its_acceptor.bind(local, ec);
             boost::asio::detail::throw_error(ec, "acceptor bind");
-            its_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+            its_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
             boost::asio::detail::throw_error(ec, "acceptor listen");
             its_acceptor.async_accept(tcp_socket, [&](boost::system::error_code _error) {
                 if (!_error) {
@@ -1093,12 +1083,11 @@ TEST_F(malicious_data, send_wrong_return_code)
                 0x00, 0x06, 0x86, 0xcf,
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
 
             // wait until client established TCP connection
@@ -1181,8 +1170,7 @@ TEST_F(malicious_data, send_wrong_return_code)
 
             boost::asio::ip::tcp::socket tcp_socket2(io_);
             boost::asio::ip::tcp::socket::endpoint_type remote(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    34511);
+                    boost::asio::ip::make_address(std::string(remote_address)), 34511);
             tcp_socket2.open(remote.protocol());
             tcp_socket2.connect(remote);
 
@@ -1238,8 +1226,7 @@ TEST_F(malicious_data, send_wrong_return_code)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
             udp_socket2.shutdown(boost::asio::socket_base::shutdown_both, ec);
@@ -1289,7 +1276,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
 
         // join the sd multicast group 224.0.24.1
         udp_socket.set_option(boost::asio::ip::multicast::join_group(
-                            boost::asio::ip::address::from_string("224.0.24.1").to_v4()));
+                boost::asio::ip::make_address("224.0.24.1").to_v4()));
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -1401,12 +1388,11 @@ TEST_F(malicious_data, wrong_header_fields_udp)
                 0x00, 0x11, 0x86, 0xcf, // offer via udp
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_offer_service_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
 
             // wait until client subscribed
@@ -1460,8 +1446,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
 
             boost::asio::ip::udp::socket udp_socket_client(io_);
             boost::asio::ip::udp::socket::endpoint_type remote(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket_client.open(remote.protocol());
             udp_socket_client.connect(remote);
 
@@ -1548,8 +1533,7 @@ TEST_F(malicious_data, wrong_header_fields_udp)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
             udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
             udp_socket2.shutdown(boost::asio::socket_base::shutdown_both, ec);

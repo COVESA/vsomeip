@@ -7,7 +7,9 @@
 #include <sstream>
 #include <thread>
 
+#include <boost/asio/dispatch.hpp>
 #include <boost/asio/ip/multicast.hpp>
+
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/endpoint_host.hpp"
@@ -158,8 +160,9 @@ void udp_client_endpoint_impl::connect() {
 
                 try {
                     // don't connect on bind error to avoid using a random port
-                    strand_.post(std::bind(&client_endpoint_impl::connect_cbk,
-                                    shared_from_this(), its_bind_error));
+                    boost::asio::post(strand_,
+                                      std::bind(&client_endpoint_impl::connect_cbk,
+                                                shared_from_this(), its_bind_error));
                 } catch (const std::exception &e) {
                     VSOMEIP_ERROR << "udp_client_endpoint_impl::connect: "
                             << e.what() << " remote:" << get_address_port_remote();
@@ -182,8 +185,9 @@ void udp_client_endpoint_impl::connect() {
     } else {
         VSOMEIP_WARNING << "udp_client_endpoint::connect: Error opening socket: "
                 << its_error.message() << " remote:" << get_address_port_remote();
-        strand_.post(std::bind(&udp_client_endpoint_base_impl::connect_cbk,
-                        shared_from_this(), its_error));
+        boost::asio::post(strand_,
+                          std::bind(&udp_client_endpoint_base_impl::connect_cbk, shared_from_this(),
+                                    its_error));
     }
 }
 
@@ -491,7 +495,7 @@ std::string udp_client_endpoint_impl::get_address_port_local() const {
     if (socket_->is_open()) {
         endpoint_type its_local_endpoint = socket_->local_endpoint(ec);
         if (!ec) {
-            its_address_port += its_local_endpoint.address().to_string(ec);
+            its_address_port += its_local_endpoint.address().to_string();
             its_address_port += ":";
             its_address_port.append(std::to_string(its_local_endpoint.port()));
         }
@@ -520,9 +524,7 @@ void udp_client_endpoint_impl::print_status() {
 }
 
 std::string udp_client_endpoint_impl::get_remote_information() const {
-    boost::system::error_code ec;
-    return remote_.address().to_string(ec) + ":"
-            + std::to_string(remote_.port());
+    return remote_.address().to_string() + ":" + std::to_string(remote_.port());
 }
 
 void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
@@ -583,8 +585,8 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
         }
         was_not_connected_ = true;
         shutdown_and_close_socket(true);
-        strand_.dispatch(std::bind(&client_endpoint_impl::connect,
-                this->shared_from_this()));
+        boost::asio::dispatch(strand_,
+                              std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected
             || _error == boost::asio::error::bad_descriptor
             || _error == boost::asio::error::no_permission) {
@@ -599,8 +601,8 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const &_error,
         }
         was_not_connected_ = true;
         shutdown_and_close_socket(true);
-        strand_.dispatch(std::bind(&client_endpoint_impl::connect,
-                this->shared_from_this()));
+        boost::asio::dispatch(strand_,
+                              std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
         VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message();
         // endpoint was stopped

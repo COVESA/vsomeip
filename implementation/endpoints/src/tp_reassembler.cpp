@@ -163,8 +163,7 @@ bool tp_reassembler::cleanup_unfinished_messages() {
 
 void tp_reassembler::stop() {
     std::lock_guard<std::mutex> its_lock(cleanup_timer_mutex_);
-    boost::system::error_code ec;
-    cleanup_timer_.cancel(ec);
+    cleanup_timer_.cancel();
 }
 
 void tp_reassembler::cleanup_timer_start(bool _force) {
@@ -174,7 +173,7 @@ void tp_reassembler::cleanup_timer_start(bool _force) {
 
 void tp_reassembler::cleanup_timer_start_unlocked(bool _force) {
     if (!cleanup_timer_running_ || _force) {
-        cleanup_timer_.expires_from_now(std::chrono::seconds(5));
+        cleanup_timer_.expires_after(std::chrono::seconds(5));
         cleanup_timer_running_ = true;
         cleanup_timer_.async_wait(
                 std::bind(&tp_reassembler::cleanup_timer_cbk,

@@ -40,7 +40,6 @@ void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
 
     std::lock_guard<std::mutex> its_lock(mutex_);
     std::vector<target_data_iterator_type> its_erased;
-    boost::system::error_code ec;
 
     if (_service == ANY_SERVICE) {
         endpoint_impl<Protocol>::sending_blocked_ = true;
@@ -50,7 +49,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
                         })) {
             // nothing was queued and all queues are empty -> ensure cbk is called
             auto ptr = this->shared_from_this();
-            endpoint_impl<Protocol>::io_.post([ptr, _handler]() { _handler(ptr); });
+            boost::asio::post(endpoint_impl<Protocol>::io_, [ptr, _handler]() { _handler(ptr); });
         } else {
             prepare_stop_handlers_[_service] = _handler;
         }
@@ -58,7 +57,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
             auto its_train(t->second.train_);
             // cancel dispatch timer
-            t->second.dispatch_timer_->cancel(ec);
+            t->second.dispatch_timer_->cancel();
             if (its_train->buffer_->size() > 0) {
                 if (queue_train(t, its_train))
                     its_erased.push_back(t);
@@ -84,7 +83,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
             prepare_stop_handlers_[_service] = _handler;
         } else { // no messages of the to be stopped service are or have been queued
             auto ptr = this->shared_from_this();
-            endpoint_impl<Protocol>::io_.post([ptr, _handler]() { _handler(ptr); });
+            boost::asio::post(endpoint_impl<Protocol>::io_, [ptr, _handler]() { _handler(ptr); });
         }
 
         for (auto t = targets_.begin(); t != targets_.end(); t++) {
@@ -92,7 +91,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
             for (auto const& passenger_iter : its_train->passengers_) {
                 if (passenger_iter.first == _service) {
                     // cancel dispatch timer
-                    t->second.dispatch_timer_->cancel(ec);
+                    t->second.dispatch_timer_->cancel();
                     // TODO: Queue all(!) trains here...
                     if (queue_train(t, its_train))
                         its_erased.push_back(t);
@@ -645,7 +644,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
             } else { // all messages of the to be stopped service have been sent
                 auto handler = stp_hndlr_iter->second;
                 auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, handler]() { handler(ptr); });
+                boost::asio::post(endpoint_impl<Protocol>::io_, [ptr, handler]() { handler(ptr); });
                 stp_hndlr_iter = prepare_stop_handlers_.erase(stp_hndlr_iter);
             }
         }
@@ -666,7 +665,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
             if (found_cbk != prepare_stop_handlers_.end()) {
                 auto handler = found_cbk->second;
                 auto ptr = this->shared_from_this();
-                endpoint_impl<Protocol>::io_.post([ptr, handler]() { handler(ptr); });
+                boost::asio::post(endpoint_impl<Protocol>::io_, [ptr, handler]() { handler(ptr); });
                 prepare_stop_handlers_.erase(found_cbk);
             }
         }
@@ -680,8 +679,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key,
 
     auto& its_data = it->second;
 
-    boost::system::error_code ec;
-    its_data.sent_timer_.cancel(ec);
+    its_data.sent_timer_.cancel();
 
     // Extracts some information for logging puposes.
     //
@@ -843,9 +841,9 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(
     }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    its_data.dispatch_timer_->expires_from_now(its_offset);
+    its_data.dispatch_timer_->expires_after(its_offset);
 #else
-    its_data.dispatch_timer_->expires_from_now(
+    its_data.dispatch_timer_->expires_after(
             std::chrono::duration_cast<std::chrono::steady_clock::duration>(its_offset));
 #endif
     its_data.dispatch_timer_->async_wait(std::bind(&server_endpoint_impl<Protocol>::flush_cbk,
@@ -855,14 +853,11 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::cancel_dispatch_timer(target_data_iterator_type _it) {
-
-    boost::system::error_code ec;
-    _it->second.dispatch_timer_->cancel(ec);
+    _it->second.dispatch_timer_->cancel();
 }
 
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::update_last_departure(endpoint_data_type& _data) {
-
     _data.last_departure_ = std::chrono::steady_clock::now();
     _data.has_last_departure_ = true;
 }

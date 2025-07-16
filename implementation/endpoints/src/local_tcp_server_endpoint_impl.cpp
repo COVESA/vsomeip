@@ -77,7 +77,7 @@ void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local,
     if (_error)
         return;
 
-    acceptor_.listen(boost::asio::socket_base::max_connections, _error);
+    acceptor_.listen(boost::asio::socket_base::max_listen_connections, _error);
     if (_error)
         return;
 
@@ -746,8 +746,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                         auto its_port = its_endpoint.port();
 
                         if (its_address.is_v4()) {
-                            sec_client_.host
-                                = htonl(uint32_t(its_address.to_v4().to_ulong()));
+                            sec_client_.host = htonl(uint32_t(its_address.to_v4().to_uint()));
                         }
                         sec_client_.port = htons(its_port);
                         its_server->configuration_->get_security()->sync_client(&sec_client_);
@@ -868,7 +867,7 @@ std::string local_tcp_server_endpoint_impl::connection::get_path_local() const {
     if (socket_.is_open()) {
         endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
         if (!ec) {
-            its_local_path += its_local_endpoint.address().to_string(ec);
+            its_local_path += its_local_endpoint.address().to_string();
             its_local_path += ":";
             its_local_path += std::to_string(its_local_endpoint.port());
         }
@@ -882,7 +881,7 @@ std::string local_tcp_server_endpoint_impl::connection::get_path_remote() const 
     if (socket_.is_open()) {
         endpoint_type its_remote_endpoint = socket_.remote_endpoint(ec);
         if (!ec) {
-            its_remote_path += its_remote_endpoint.address().to_string(ec);
+            its_remote_path += its_remote_endpoint.address().to_string();
             its_remote_path += ":";
             its_remote_path += std::to_string(its_remote_endpoint.port());
         }
@@ -963,17 +962,12 @@ void local_tcp_server_endpoint_impl::print_status() {
 }
 std::string local_tcp_server_endpoint_impl::get_remote_information(
         const target_data_iterator_type _it) const {
-    boost::system::error_code ec;
-    return _it->first.address().to_string(ec) + ":"
-            + std::to_string(_it->first.port());
+    return _it->first.address().to_string() + ":" + std::to_string(_it->first.port());
 }
 
 std::string local_tcp_server_endpoint_impl::get_remote_information(
         const endpoint_type& _remote) const {
-
-    boost::system::error_code ec;
-    return _remote.address().to_string(ec) + ":"
-            + std::to_string(_remote.port());
+    return _remote.address().to_string() + ":" + std::to_string(_remote.port());
 }
 
 bool local_tcp_server_endpoint_impl::is_reliable() const {

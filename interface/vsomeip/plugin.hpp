@@ -6,6 +6,7 @@
 #ifndef VSOMEIP_V3_PLUGIN_HPP_
 #define VSOMEIP_V3_PLUGIN_HPP_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <cstdint>

@@ -20,7 +20,7 @@ protected :
     mock_routing_manager_host mock_host_;
     vsomeip_v3::routing_manager_impl* its_manager;
     const std::string name_ = "RandomName";
-    boost::asio::io_service io_;
+    boost::asio::io_context io_;
     std::shared_ptr<vsomeip_v3::cfg::configuration_impl> configuration_ptr_;
     void SetUp() override;
     // Tears down the test fixture.

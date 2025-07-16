@@ -32,8 +32,11 @@ static char* local_address;
 class pending_subscription : public ::testing::Test {
 public:
     pending_subscription() :
-        work_(std::make_shared<boost::asio::io_context::work>(io_)),
-        io_thread_(std::bind(&pending_subscription::io_run, this)) {}
+        work_ {std::make_shared<
+                boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+                io_.get_executor())},
+        io_thread_(std::bind(&pending_subscription::io_run, this)) { }
+
 protected:
 
     void TearDown() {
@@ -47,7 +50,7 @@ protected:
     }
 
     boost::asio::io_context io_;
-    std::shared_ptr<boost::asio::io_context::work> work_;
+    std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_;
     std::thread io_thread_;
 };
 
@@ -171,12 +174,11 @@ TEST_F(pending_subscription, send_multiple_subscriptions)
                 0x00, 0x11, 0x77, 0x1a
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
@@ -193,8 +195,7 @@ TEST_F(pending_subscription, send_multiple_subscriptions)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -205,8 +206,7 @@ TEST_F(pending_subscription, send_multiple_subscriptions)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -370,12 +370,11 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe)
             };
 
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
@@ -398,8 +397,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -410,8 +408,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -574,12 +571,11 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions)
             };
 
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 if (its_subscribe_message[11] == 15 || its_subscribe_message[11] == 0x1) {
                     its_subscribe_message[35] = 16;
@@ -602,8 +598,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -614,8 +609,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -788,12 +782,11 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe)
             };
 
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
@@ -816,8 +809,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -828,8 +820,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -882,7 +873,8 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(
-                boost::asio::ip::address::from_string(remote_address), 34511), ec);
+                                   boost::asio::ip::make_address(remote_address), 34511),
+                           ec);
         ASSERT_EQ(0, ec.value());
         tcp_connected.set_value();
 
@@ -1005,13 +997,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
             };
 
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
             std::memcpy(&its_subscribe_message[76], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
@@ -1034,8 +1025,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -1046,8 +1036,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -1196,8 +1185,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x01, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
 
             std::uint8_t its_subscribe_message[] = {
@@ -1217,12 +1205,11 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed)
                 0x00, 0x11, 0x77, 0x1a
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
 
             udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
 
@@ -1313,7 +1300,8 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(
-                boost::asio::ip::address::from_string(remote_address), 34511), ec);
+                                   boost::asio::ip::make_address(remote_address), 34511),
+                           ec);
         ASSERT_EQ(0, ec.value());
         tcp_connected.set_value();
 
@@ -1455,13 +1443,12 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
             };
 
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[80], &its_local_address.to_v4().to_bytes()[0], 4);
             std::memcpy(&its_normal_subscribe_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
 
             udp_socket.send_to(boost::asio::buffer(its_normal_subscribe_message), target_sd);
             udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
@@ -1476,8 +1463,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -1488,8 +1474,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe)
                 0x22, 0x22, 0x00, 0x01,
                 0x01, 0x00, 0x00, 0x00 };
             boost::asio::ip::udp::socket::endpoint_type target_service(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30001);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30001);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -1517,7 +1502,7 @@ TEST_F(pending_subscription, send_request_to_sd_port)
             boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_socket.set_option(boost::asio::ip::multicast::enable_loopback(false));
     udp_socket.set_option(boost::asio::ip::multicast::join_group(
-        boost::asio::ip::address::from_string("224.0.23.1").to_v4()));
+            boost::asio::ip::make_address("224.0.23.1").to_v4()));
     udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
     udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
@@ -1618,12 +1603,11 @@ TEST_F(pending_subscription, send_request_to_sd_port)
                 0x00, 0x11, 0x77, 0x1a
             };
             boost::asio::ip::address its_local_address =
-                    boost::asio::ip::address::from_string(std::string(local_address));
+                    boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(
-                    boost::asio::ip::address::from_string(std::string(remote_address)),
-                    30490);
+                    boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
@@ -1643,8 +1627,7 @@ TEST_F(pending_subscription, send_request_to_sd_port)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x01, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
@@ -1656,8 +1639,7 @@ TEST_F(pending_subscription, send_request_to_sd_port)
                     0x22, 0x22, 0x00, 0x01,
                     0x01, 0x00, 0x00, 0x00 };
                 boost::asio::ip::udp::socket::endpoint_type target_service(
-                        boost::asio::ip::address::from_string(std::string(remote_address)),
-                        30001);
+                        boost::asio::ip::make_address(std::string(remote_address)), 30001);
                 udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
             }
 

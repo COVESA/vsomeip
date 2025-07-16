@@ -402,7 +402,7 @@ void application_impl::start() {
     {
         std::lock_guard<std::mutex> its_lock(start_stop_mutex_);
         if (io_.stopped()) {
-            io_.reset();
+            io_.restart();
         } else if(stop_thread_.joinable()) {
             VSOMEIP_ERROR << "Trying to start an already started application.";
             return;
@@ -2054,7 +2054,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             _handler->handler_type_);
 
     boost::asio::steady_timer its_dispatcher_timer(io_);
-    its_dispatcher_timer.expires_from_now(std::chrono::milliseconds(max_dispatch_time_));
+    its_dispatcher_timer.expires_after(std::chrono::milliseconds(max_dispatch_time_));
     its_dispatcher_timer.async_wait([this, its_sync_handler](const boost::system::error_code &_error) {
         if (!_error) {
             print_blocking_call(its_sync_handler);
@@ -2133,8 +2133,8 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler> &_handler) {
             print_blocking_call(its_sync_handler);
         }
     }
-    boost::system::error_code ec;
-    its_dispatcher_timer.cancel(ec);
+
+    its_dispatcher_timer.cancel();
 
     while (is_dispatching_ ) {
         if (dispatcher_mutex_.try_lock()) {
@@ -2708,7 +2708,7 @@ void application_impl::watchdog_cbk(boost::system::error_code const &_error) {
             std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
             handler = watchdog_handler_;
             if (handler && std::chrono::seconds::zero() != watchdog_interval_) {
-                watchdog_timer_.expires_from_now(watchdog_interval_);
+                watchdog_timer_.expires_after(watchdog_interval_);
                 watchdog_timer_.async_wait(std::bind(&application_impl::watchdog_cbk,
                         this, std::placeholders::_1));
             }
@@ -2730,7 +2730,7 @@ void application_impl::set_watchdog_handler(const watchdog_handler_t &_handler,
         std::lock_guard<std::mutex> its_lock(watchdog_timer_mutex_);
         watchdog_handler_ = _handler;
         watchdog_interval_ = _interval;
-        watchdog_timer_.expires_from_now(_interval);
+        watchdog_timer_.expires_after(_interval);
         watchdog_timer_.async_wait(std::bind(&application_impl::watchdog_cbk,
                 this, std::placeholders::_1));
     } else {

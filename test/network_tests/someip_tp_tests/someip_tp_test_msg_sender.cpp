@@ -57,13 +57,14 @@ std::vector<someip_tp_test::test_mode_e> its_modes({
 class someip_tp : public ::testing::TestWithParam<someip_tp_test::test_mode_e> {
 public:
     someip_tp() :
-        work_(std::make_shared<boost::asio::io_context::work>(io_)),
-        io_thread_(std::bind(&someip_tp::io_run, this)),
-        session_(0x0),
-        sd_session_(0x0),
-        address_remote_(boost::asio::ip::address::from_string(std::string(remote_address))),
-        address_local_(boost::asio::ip::address::from_string(std::string(local_address))),
-        runtime_(vsomeip::runtime::get()) {}
+        work_ {std::make_shared<
+                boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+                io_.get_executor())},
+        io_thread_(std::bind(&someip_tp::io_run, this)), session_(0x0), sd_session_(0x0),
+        address_remote_(boost::asio::ip::make_address(std::string(remote_address))),
+        address_local_(boost::asio::ip::make_address(std::string(local_address))),
+        runtime_(vsomeip::runtime::get()) { }
+
 protected:
     void TearDown() {
         work_.reset();
@@ -78,8 +79,7 @@ protected:
             0x00, 0x00, 0x00, 0x08,
             0xDD, 0xDD, 0x00, 0x01,
             0x01, 0x00, 0x00, 0x00 };
-        boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_,
-                30001);
+        boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_, 30001);
         boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
         udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
         udp_socket2.shutdown(boost::asio::socket_base::shutdown_both, ec);
@@ -339,7 +339,7 @@ protected:
     };
 
     boost::asio::io_context io_;
-    std::shared_ptr<boost::asio::io_context::work> work_;
+    std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_;
     std::thread io_thread_;
     std::vector<vsomeip::message_buffer_ptr_t> fragments_request_to_master_;
     std::vector<vsomeip::message_buffer_ptr_t> fragments_response_of_master_;
@@ -403,7 +403,7 @@ TEST_P(someip_tp, send_in_mode)
 
         // join the sd multicast group 224.0.77.1
         udp_sd_socket.set_option(boost::asio::ip::multicast::join_group(
-                            boost::asio::ip::address::from_string("224.0.77.1").to_v4()));
+                boost::asio::ip::make_address("224.0.77.1").to_v4()));
         while (keep_receiving) {
             boost::system::error_code error;
             std::size_t bytes_transferred = udp_sd_socket.receive(

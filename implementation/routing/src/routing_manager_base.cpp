@@ -58,10 +58,8 @@ void routing_manager_base::debounce_timeout_update_cbk(
         if (!_event) {
             std::lock_guard<std::mutex> its_lock(debounce_mutex_);
             if (debounce_clients_.size() > 0) {
-                debounce_timer.expires_from_now(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                                debounce_clients_.begin()->first
-                                - std::chrono::steady_clock::now()));
+                debounce_timer.expires_after(std::chrono::duration_cast<std::chrono::milliseconds>(
+                        debounce_clients_.begin()->first - std::chrono::steady_clock::now()));
                 debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
             }
             return;
@@ -111,10 +109,8 @@ void routing_manager_base::debounce_timeout_update_cbk(
             }
 
             if (debounce_clients_.size() > 0) {
-                debounce_timer.expires_from_now(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                                debounce_clients_.begin()->first
-                                - std::chrono::steady_clock::now()));
+                debounce_timer.expires_after(std::chrono::duration_cast<std::chrono::milliseconds>(
+                        debounce_clients_.begin()->first - std::chrono::steady_clock::now()));
                 debounce_timer.async_wait(std::get<2>(debounce_clients_.begin()->second));
             }
         } // its_lock(debounce_mutex_)
@@ -138,7 +134,7 @@ void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filt
 
         if (elem == debounce_clients_.begin()) {
             debounce_timer.cancel();
-            debounce_timer.expires_from_now(sec);
+            debounce_timer.expires_after(sec);
             debounce_timer.async_wait(std::get<2>(elem->second));
         }
     }
@@ -1301,8 +1297,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(
                         its_multicast_address, its_multicast_port)) {
                     try {
                         its_info->set_multicast(
-                                boost::asio::ip::address::from_string(
-                                        its_multicast_address),
+                                boost::asio::ip::make_address(its_multicast_address),
                                 its_multicast_port);
                     }
                     catch (...) {
@@ -1632,14 +1627,12 @@ routing_manager_base::get_guest(client_t _client,
 void
 routing_manager_base::add_guest(client_t _client,
         const boost::asio::ip::address &_address, port_t _port) {
-
     std::lock_guard<std::mutex> its_lock(guests_mutex_);
     guests_[_client] = std::make_pair(_address, _port);
 }
 
 void
 routing_manager_base::remove_guest(client_t _client) {
-
     std::lock_guard<std::mutex> its_lock(guests_mutex_);
     guests_.erase(_client);
 }

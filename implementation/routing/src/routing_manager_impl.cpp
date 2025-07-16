@@ -199,7 +199,7 @@ void routing_manager_impl::start() {
 #if defined(__linux__) || defined(ANDROID)
     boost::asio::ip::address its_multicast;
     try {
-        its_multicast = boost::asio::ip::address::from_string(configuration_->get_sd_multicast());
+        its_multicast = boost::asio::ip::make_address(configuration_->get_sd_multicast());
     } catch (...) {
         VSOMEIP_ERROR << "Illegal multicast address \""
                 << configuration_->get_sd_multicast()
@@ -236,16 +236,14 @@ void routing_manager_impl::start() {
 
     if (configuration_->log_version()) {
         std::lock_guard<std::mutex> its_lock(version_log_timer_mutex_);
-        version_log_timer_.expires_from_now(
-                std::chrono::seconds(0));
-        version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk,
-                this, std::placeholders::_1));
+        version_log_timer_.expires_after(std::chrono::seconds(0));
+        version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk, this,
+                                                std::placeholders::_1));
     }
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (configuration_->log_memory()) {
         std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
-        boost::system::error_code ec;
-        memory_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
+        memory_log_timer_.expires_after(std::chrono::seconds(0));
         memory_log_timer_.async_wait(
                 std::bind(&routing_manager_impl::memory_log_timer_cbk, this,
                         std::placeholders::_1));
@@ -253,8 +251,7 @@ void routing_manager_impl::start() {
 #endif
     if (configuration_->log_status()) {
         std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
-        boost::system::error_code ec;
-        status_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
+        status_log_timer_.expires_after(std::chrono::seconds(0));
         status_log_timer_.async_wait(
                 std::bind(&routing_manager_impl::status_log_timer_cbk, this,
                         std::placeholders::_1));
@@ -262,8 +259,7 @@ void routing_manager_impl::start() {
 
     if (configuration_->log_statistics()) {
         std::lock_guard<std::mutex> its_lock(statistics_log_timer_mutex_);
-        boost::system::error_code ec;
-        statistics_log_timer_.expires_from_now(std::chrono::seconds(0), ec);
+        statistics_log_timer_.expires_after(std::chrono::seconds(0));
         statistics_log_timer_.async_wait(
                 std::bind(&routing_manager_impl::statistics_log_timer_cbk, this,
                         std::placeholders::_1));
@@ -297,9 +293,8 @@ void routing_manager_impl::stop() {
     }
 #if defined(__linux__) || defined(ANDROID)
     {
-        boost::system::error_code ec;
         std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
-        memory_log_timer_.cancel(ec);
+        memory_log_timer_.cancel();
     }
     if (netlink_connector_) {
         netlink_connector_->stop();
@@ -308,14 +303,12 @@ void routing_manager_impl::stop() {
 
     {
         std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
-        boost::system::error_code ec;
-        status_log_timer_.cancel(ec);
+        status_log_timer_.cancel();
     }
 
     {
         std::lock_guard<std::mutex> its_lock(statistics_log_timer_mutex_);
-        boost::system::error_code ec;
-        statistics_log_timer_.cancel(ec);
+        statistics_log_timer_.cancel();
     }
 
     host_->on_state(state_type_e::ST_DEREGISTERED);
@@ -365,12 +358,12 @@ bool routing_manager_impl::erase_offer_command(service_t _service, instance_t _i
                 // check for other commands to be processed
                 auto its_command = found_service_instance->second.front();
                 if (std::get<0>(its_command) == uint8_t(protocol::id_e::OFFER_SERVICE_ID)) {
-                    io_.post([&, its_command, _service, _instance](){
+                    boost::asio::post(io_, [this, its_command, _service, _instance]() {
                         offer_service(std::get<1>(its_command), _service, _instance,
                             std::get<2>(its_command), std::get<3>(its_command), false);
                     });
                 } else {
-                    io_.post([&, its_command, _service, _instance](){
+                    boost::asio::post(io_, [this, its_command, _service, _instance]() {
                         stop_offer_service(std::get<1>(its_command), _service, _instance,
                             std::get<2>(its_command), std::get<3>(its_command), false);
                     });
@@ -1525,15 +1518,12 @@ void routing_manager_impl::on_message(const byte_t *_data, length_t _size,
                 its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                 const client_t its_client   = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
                 const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                boost::system::error_code ec;
-                VSOMEIP_ERROR << "Received message on invalid port: ["
-                        << std::hex << std::setfill('0')
-                        << std::setw(4) << its_service << "."
-                        << std::setw(4) << its_instance << "."
-                        << std::setw(4) << its_method << "."
-                        << std::setw(4) << its_client << "."
-                        << std::setw(4) << its_session << "] from: "
-                        << _remote_address.to_string(ec) << ":" << std::dec << _remote_port;
+                VSOMEIP_ERROR << "Received message on invalid port: [" << std::hex
+                              << std::setfill('0') << std::setw(4) << its_service << "."
+                              << std::setw(4) << its_instance << "." << std::setw(4) << its_method
+                              << "." << std::setw(4) << its_client << "." << std::setw(4)
+                              << its_session << "] from: " << _remote_address.to_string() << ":"
+                              << std::dec << _remote_port;
             }
             //Ignore messages with invalid message type
             if(_size >= VSOMEIP_MESSAGE_TYPE_POS) {
@@ -2863,9 +2853,8 @@ routing_manager_impl::expire_subscriptions(
 void routing_manager_impl::init_routing_info() {
     VSOMEIP_INFO<< "Service Discovery disabled. Using static routing information.";
     for (auto i : configuration_->get_remote_services()) {
-        boost::asio::ip::address its_address(
-                boost::asio::ip::address::from_string(
-                    configuration_->get_unicast_address(i.first, i.second)));
+        boost::asio::ip::address its_address(boost::asio::ip::make_address(
+                configuration_->get_unicast_address(i.first, i.second)));
         uint16_t its_reliable_port
             = configuration_->get_reliable_port(i.first, i.second);
         uint16_t its_unreliable_port
@@ -3445,7 +3434,7 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
 
         {
             std::scoped_lock its_lock(version_log_timer_mutex_);
-            version_log_timer_.expires_from_now(std::chrono::seconds(its_interval));
+            version_log_timer_.expires_after(std::chrono::seconds(its_interval));
             version_log_timer_.async_wait(
                     std::bind(&routing_manager_impl::log_version_timer_cbk,
                               this, std::placeholders::_1));
@@ -4512,9 +4501,8 @@ void routing_manager_impl::memory_log_timer_cbk(
 
     {
         std::lock_guard<std::mutex> its_lock(memory_log_timer_mutex_);
-        boost::system::error_code ec;
-        memory_log_timer_.expires_from_now(std::chrono::seconds(
-                configuration_->get_log_memory_interval()), ec);
+        memory_log_timer_.expires_after(
+                std::chrono::seconds(configuration_->get_log_memory_interval()));
         memory_log_timer_.async_wait(
                 std::bind(&routing_manager_impl::memory_log_timer_cbk, this,
                         std::placeholders::_1));
@@ -4530,9 +4518,8 @@ void routing_manager_impl::status_log_timer_cbk(
     ep_mgr_impl_->print_status();
     {
         std::lock_guard<std::mutex> its_lock(status_log_timer_mutex_);
-        boost::system::error_code ec;
-        status_log_timer_.expires_from_now(std::chrono::seconds(
-                configuration_->get_log_status_interval()), ec);
+        status_log_timer_.expires_after(
+                std::chrono::seconds(configuration_->get_log_status_interval()));
         status_log_timer_.async_wait(
                 std::bind(&routing_manager_impl::status_log_timer_cbk, this,
                         std::placeholders::_1));
@@ -4613,14 +4600,14 @@ void routing_manager_impl::send_subscription(
                                 std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
                                 its_client, _service, _instance,
                                 _eventgroup, false, _id);
-                        io_.post(its_callback);
+                        boost::asio::post(io_, its_callback);
                     } else {
                         const auto its_callback = std::bind(
                                 &routing_manager_stub_host::on_subscribe_ack,
                                 std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
                                 its_client, _service, _instance,
                                 _eventgroup, ANY_EVENT, _id);
-                        io_.post(its_callback);
+                        boost::asio::post(io_, its_callback);
                     }
                 } catch (const std::exception &e) {
                     VSOMEIP_ERROR << __func__ << e.what();
@@ -4637,7 +4624,7 @@ void routing_manager_impl::send_subscription(
                             std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
                             its_client, _service, _instance, _eventgroup,
                             true, _id);
-                    io_.post(its_callback);
+                    boost::asio::post(io_, its_callback);
                 } catch (const std::exception &e) {
                     VSOMEIP_ERROR << __func__ << e.what();
                 }
@@ -4722,19 +4709,14 @@ void routing_manager_impl::service_endpoint_connected(
                     _major, _minor);
     }
 
-    auto its_timer =
-            std::make_shared<boost::asio::steady_timer>(io_);
-    boost::system::error_code ec;
-    its_timer->expires_from_now(std::chrono::milliseconds(3), ec);
-    if (!ec) {
-        its_timer->async_wait(
-                std::bind(&routing_manager_impl::call_sd_endpoint_connected,
-                        std::static_pointer_cast<routing_manager_impl>(
-                                shared_from_this()), std::placeholders::_1,
-                        _service, _instance, _endpoint, its_timer));
-    } else {
-        VSOMEIP_ERROR << __func__ << " " << ec.message();
-    }
+    auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
+    its_timer->expires_after(std::chrono::milliseconds(3));
+
+    auto its_me {std::static_pointer_cast<routing_manager_impl>(shared_from_this())};
+    its_timer->async_wait([its_me, _service, _instance, _endpoint,
+                           its_timer](const boost::system::error_code& _error) {
+        its_me->call_sd_endpoint_connected(_error, _service, _instance, _endpoint, its_timer);
+    });
 }
 
 void routing_manager_impl::service_endpoint_disconnected(
@@ -4776,7 +4758,7 @@ routing_manager_impl::send_unsubscription(client_t _offering_client,
                             &routing_manager_stub_host::on_unsubscribe_ack,
                             std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
                             its_client, _service, _instance, _eventgroup, _id);
-                        io_.post(its_callback);
+                        boost::asio::post(io_, its_callback);
                     } catch (const std::exception &e) {
                         VSOMEIP_ERROR << __func__ << e.what();
                     }
@@ -4792,7 +4774,7 @@ routing_manager_impl::send_unsubscription(client_t _offering_client,
                         &routing_manager_stub_host::on_unsubscribe_ack,
                         std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
                         its_client, _service, _instance, _eventgroup, _id);
-                    io_.post(its_callback);
+                    boost::asio::post(io_, its_callback);
                 } catch (const std::exception &e) {
                     VSOMEIP_ERROR << __func__ << e.what();
                 }
@@ -4948,7 +4930,7 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
 
         {
             std::lock_guard<std::mutex> its_lock(statistics_log_timer_mutex_);
-            statistics_log_timer_.expires_from_now(std::chrono::milliseconds(its_interval));
+            statistics_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
             statistics_log_timer_.async_wait(
                     std::bind(&routing_manager_impl::statistics_log_timer_cbk,
                               this, std::placeholders::_1));
