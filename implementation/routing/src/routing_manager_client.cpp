@@ -19,6 +19,8 @@
 #include <thread>
 #include <unordered_set>
 
+#include <boost/asio/post.hpp>
+
 #include <vsomeip/constants.hpp>
 #include <vsomeip/runtime.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -383,7 +385,8 @@ void routing_manager_client::check_keepalive() {
                     VSOMEIP_WARNING << "rmc::" << __func__ << ": client 0x" << std::setfill('0')
                                     << std::setw(4) << std::hex << get_client()
                                     << " didn't receive keepalive confirmation from HOST.";
-                    io_.post([this] { this->handle_client_error(VSOMEIP_ROUTING_CLIENT); });
+                    boost::asio::post(
+                            io_, [this] { this->handle_client_error(VSOMEIP_ROUTING_CLIENT); });
                 }
             }
     }
@@ -558,7 +561,8 @@ void routing_manager_client::request_service(client_t _client,
             requests_to_debounce_.insert(request);
             if (!request_debounce_timer_running_) {
                 request_debounce_timer_running_ = true;
-                request_debounce_timer_.expires_from_now(std::chrono::milliseconds(request_debouncing_time));
+                request_debounce_timer_.expires_after(
+                        std::chrono::milliseconds(request_debouncing_time));
                 request_debounce_timer_.async_wait(
                         std::bind(
                                 &routing_manager_client::request_debounce_timeout_cbk,
@@ -2012,8 +2016,7 @@ void routing_manager_client::on_routing_info(
                         if (state_ == inner_state_type_e::ST_REGISTERING) {
                             {
                                 std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
-                                boost::system::error_code ec;
-                                register_application_timer_.cancel(ec);
+                                register_application_timer_.cancel();
                             }
 
                             VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
@@ -2318,9 +2321,8 @@ void routing_manager_client::assign_client() {
 
             {
                 std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
-                boost::system::error_code ec;
-                register_application_timer_.cancel(ec);
-                register_application_timer_.expires_from_now(std::chrono::milliseconds(3000));
+                register_application_timer_.cancel();
+                register_application_timer_.expires_after(std::chrono::milliseconds(3000));
                 register_application_timer_.async_wait(
                     std::bind(
                             &routing_manager_client::assign_client_timeout_cbk,
@@ -2380,7 +2382,7 @@ void routing_manager_client::register_application() {
                 {
                     std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
                     register_application_timer_.cancel();
-                    register_application_timer_.expires_from_now(std::chrono::milliseconds(3000));
+                    register_application_timer_.expires_after(std::chrono::milliseconds(3000));
                     register_application_timer_.async_wait(std::bind(
                             &routing_manager_client::register_application_timeout_cbk,
                             std::dynamic_pointer_cast<routing_manager_client>(shared_from_this()),
@@ -2918,7 +2920,7 @@ void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_c
                            requests_to_debounce_.end());
                 requests_to_debounce_.clear();
             } else {
-                request_debounce_timer_.expires_from_now(std::chrono::milliseconds(
+                request_debounce_timer_.expires_after(std::chrono::milliseconds(
                         configuration_->get_request_debounce_time(host_->get_name())));
                 request_debounce_timer_.async_wait(
                         std::bind(
@@ -3152,8 +3154,7 @@ void routing_manager_client::on_client_assign_ack(const client_t &_client) {
 
             {
                 std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
-                boost::system::error_code ec;
-                register_application_timer_.cancel(ec);
+                register_application_timer_.cancel();
             }
             host_->set_client(_client);
 

@@ -427,7 +427,7 @@ bool netlink_connector::check_sd_multicast_route_match(struct rtmsg* _routemsg,
                 }
                 const std::uint32_t dst_addr = ntohl(*((std::uint32_t *)RTA_DATA(retrta)));
                 const std::uint32_t dst_net = (dst_addr & netmask);
-                const std::uint32_t sd_addr = static_cast<std::uint32_t>(multicast_address_.to_v4().to_ulong());
+                const auto sd_addr = multicast_address_.to_v4().to_uint();
                 const std::uint32_t sd_net = (sd_addr & netmask);
                 matches_sd_multicast = !(dst_net ^ sd_net);
             } else if (rtattr_length == 16 && multicast_address_.is_v6()) { // IPv6 route

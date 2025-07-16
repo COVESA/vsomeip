@@ -39,7 +39,6 @@ event::event(routing_manager *_routing, bool _is_shadow)
                 std::placeholders::_1, std::placeholders::_2)),
           has_default_epsilon_change_func_(true),
           reliability_(reliability_type_e::RT_UNKNOWN) {
-
 }
 
 service_t
@@ -349,7 +348,7 @@ event::update_cbk(boost::system::error_code const &_error) {
 
     if (!_error) {
         std::lock_guard<std::mutex> its_lock(mutex_);
-        cycle_timer_.expires_from_now(cycle_);
+        cycle_timer_.expires_after(cycle_);
         notify(true);
         auto its_handler =
                 std::bind(&event::update_cbk, shared_from_this(),
@@ -798,7 +797,7 @@ event::start_cycle() {
 
     if (!is_shadow_
             && std::chrono::milliseconds::zero() != cycle_) {
-        cycle_timer_.expires_from_now(cycle_);
+        cycle_timer_.expires_after(cycle_);
         auto its_handler =
                 std::bind(&event::update_cbk, shared_from_this(),
                         std::placeholders::_1);
@@ -808,11 +807,8 @@ event::start_cycle() {
 
 void
 event::stop_cycle() {
-
-    if (!is_shadow_
-            && std::chrono::milliseconds::zero() != cycle_) {
-        boost::system::error_code ec;
-        cycle_timer_.cancel(ec);
+    if (!is_shadow_ && std::chrono::milliseconds::zero() != cycle_) {
+        cycle_timer_.cancel();
     }
 }
 

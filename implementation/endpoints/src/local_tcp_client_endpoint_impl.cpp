@@ -94,8 +94,7 @@ void local_tcp_client_endpoint_impl::stop() {
     }
     {
         std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
-        boost::system::error_code ec;
-        connect_timer_.cancel(ec);
+        connect_timer_.cancel();
     }
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
 
@@ -200,8 +199,9 @@ void local_tcp_client_endpoint_impl::connect() {
                             << " endpoint > " << this << " state_ > "
                             << static_cast<int>(state_.load());
             try {
-                strand_.post(std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
-                                       its_connect_error));
+                boost::asio::post(strand_,
+                                  std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                                            its_connect_error));
             } catch (const std::exception& e) {
                 VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this
                               << " state_ > " << static_cast<int>(state_.load());
@@ -227,9 +227,9 @@ void local_tcp_client_endpoint_impl::connect() {
                 << " endpoint > " << this;
         its_connect_error = its_error;
         try {
-            strand_.post(
-                std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
-                        its_connect_error));
+            boost::asio::post(strand_,
+                              std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(),
+                                        its_connect_error));
         } catch (const std::exception &e) {
             VSOMEIP_ERROR << "ltcei::connect: " << e.what()
                           << " endpoint > " << this;
@@ -427,10 +427,7 @@ void local_tcp_client_endpoint_impl::print_status() {
 }
 
 std::string local_tcp_client_endpoint_impl::get_remote_information() const {
-
-    boost::system::error_code ec;
-    return remote_.address().to_string(ec) + ":"
-            + std::to_string(remote_.port());
+    return remote_.address().to_string() + ":" + std::to_string(remote_.port());
 }
 
 bool local_tcp_client_endpoint_impl::check_packetizer_space(std::uint32_t _size) const {

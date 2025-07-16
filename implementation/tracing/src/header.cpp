@@ -55,11 +55,11 @@ void header::prepare(const boost::asio::ip::address_v4 &_address,
         std::uint16_t _port, protocol_e _protocol,
         bool _is_sending, instance_t _instance) {
 
-    bithelper::write_uint32_be((uint32_t)_address.to_ulong(), data_);   // [0-3] Address
-    bithelper::write_uint16_be(_port, &data_[4]);                       // [4-5] Port
-    data_[6] = static_cast<byte_t>(_protocol);                          //   [6] Protocol
-    data_[7] = static_cast<byte_t>(_is_sending);                        //   [7] is_sending
-    bithelper::write_uint16_be(_instance, &data_[8]);                   // [8-9] Instance
+    bithelper::write_uint32_be(_address.to_uint(), data_); // [0-3] Address
+    bithelper::write_uint16_be(_port, &data_[4]); // [4-5] Port
+    data_[6] = static_cast<byte_t>(_protocol); // [6] Protocol
+    data_[7] = static_cast<byte_t>(_is_sending); // [7] is_sending
+    bithelper::write_uint16_be(_instance, &data_[8]); // [8-9] Instance
 }
 
 } // namespace trace

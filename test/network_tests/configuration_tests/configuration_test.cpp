@@ -262,7 +262,7 @@ void check_file(const std::string &_config_file,
 
     // selective broadcasts
     EXPECT_TRUE(its_configuration->supports_selective_broadcasts(
-            boost::asio::ip::address::from_string("160.160.160.160")));
+            boost::asio::ip::make_address("160.160.160.160")));
 
     // tracing
     std::shared_ptr<vsomeip::cfg::trace> its_trace = its_configuration->get_trace();

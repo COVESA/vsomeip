@@ -17,8 +17,7 @@ TEST(someip_offer_test, send_offer_service_sd_message)
     try {
         boost::asio::io_context io;
         boost::asio::ip::udp::socket::endpoint_type target_sd(
-                boost::asio::ip::address::from_string(std::string(passed_address)),
-                30490);
+                boost::asio::ip::make_address(std::string(passed_address)), 30490);
         boost::asio::ip::udp::socket udp_socket(io,
                 boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
         std::uint8_t its_offer_service_message[] = {
@@ -52,8 +51,7 @@ TEST(someip_offer_test, send_offer_service_sd_message)
             0x22, 0x22, 0x00, 0x01,
             0x01, 0x00, 0x01, 0x00 };
         boost::asio::ip::udp::socket::endpoint_type target_service(
-                boost::asio::ip::address::from_string(std::string(passed_address)),
-                30001);
+                boost::asio::ip::make_address(std::string(passed_address)), 30001);
         udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
     } catch (const std::exception& e) {
         std::cerr << "Caught exception: " << e.what() << '\n';

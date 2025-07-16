@@ -98,7 +98,7 @@ service_discovery_impl::init() {
     unicast_ = configuration_->get_unicast_address();
     sd_multicast_ = configuration_->get_sd_multicast();
     boost::system::error_code ec;
-    sd_multicast_address_ = boost::asio::ip::address::from_string(sd_multicast_, ec);
+    sd_multicast_address_ = boost::asio::ip::make_address(sd_multicast_, ec);
 
     port_ = configuration_->get_sd_port();
     reliable_ = (configuration_->get_sd_protocol() == "tcp");
@@ -1163,13 +1163,11 @@ service_discovery_impl::on_message(
 
     if (_is_multicast) {
         static bool must_start_last_msg_received_timer(true);
-        boost::system::error_code ec;
 
         std::scoped_lock its_last_msg_lock { last_msg_received_timer_mutex_ };
-        if (0 < last_msg_received_timer_.cancel(ec) || must_start_last_msg_received_timer) {
+        if (0 < last_msg_received_timer_.cancel() || must_start_last_msg_received_timer) {
             must_start_last_msg_received_timer = false;
-            last_msg_received_timer_.expires_from_now(
-                    last_msg_received_timer_timeout_, ec);
+            last_msg_received_timer_.expires_after(last_msg_received_timer_timeout_);
             last_msg_received_timer_.async_wait(
                     std::bind(&service_discovery_impl::on_last_msg_received_timer_expired,
                               shared_from_this(), std::placeholders::_1));
@@ -1918,15 +1916,13 @@ service_discovery_impl::process_eventgroupentry(
             // --> Create dummy eventgroupinfo to send Nack.
             its_info = std::make_shared<eventgroupinfo>(its_service, its_instance,
                     its_eventgroup, its_major, its_ttl, VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS);
-            boost::system::error_code ec;
             VSOMEIP_ERROR << __func__
-                    << ": Received a SubscribeEventGroup entry for unknown eventgroup "
-                    << " from: " << its_sender.to_string(ec) << " for: ["
-                    << std::hex << std::setfill('0')
-                    << std::setw(4) << its_service << "."
-                    << std::setw(4) << its_instance << "."
-                    << std::setw(4) << its_eventgroup
-                    << "] session: " << std::setw(4) << its_session << ", ttl: " << its_ttl;
+                          << ": Received a SubscribeEventGroup entry for unknown eventgroup "
+                             " from: "
+                          << its_sender.to_string() << " for: [" << std::hex << std::setfill('0')
+                          << std::setw(4) << its_service << "." << std::setw(4) << its_instance
+                          << "." << std::setw(4) << its_eventgroup << "] session: " << std::setw(4)
+                          << its_session << ", ttl: " << its_ttl;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1935,24 +1931,21 @@ service_discovery_impl::process_eventgroupentry(
             // --> Remove subscription.
             unsubscribe(its_service, its_instance, its_eventgroup, VSOMEIP_ROUTING_CLIENT);
 
-            boost::system::error_code ec;
-            VSOMEIP_WARNING << __func__
+            VSOMEIP_WARNING
+                    << __func__
                     << ": Received a SubscribeEventGroup[N]Ack entry for unknown eventgroup "
-                    << " from: " << its_sender.to_string(ec) << " for: ["
-                    << std::hex << std::setfill('0')
-                    << std::setw(4) << its_service << "."
-                    << std::setw(4) << its_instance << "."
-                    << std::setw(4) << its_eventgroup
+                    << " from: " << its_sender.to_string() << " for: [" << std::hex
+                    << std::setfill('0') << std::setw(4) << its_service << "." << std::setw(4)
+                    << its_instance << "." << std::setw(4) << its_eventgroup
                     << "] session: " << std::setw(4) << its_session << ", ttl: " << its_ttl;
         }
         return;
     }
 
     if (_entry->get_owning_message()->get_return_code() != return_code) {
-        boost::system::error_code ec;
         VSOMEIP_ERROR << __func__ << ": Invalid return code in SOMEIP/SD header "
-                << its_sender.to_string(ec) << " session: "
-                << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                      << its_sender.to_string() << " session: " << std::hex << std::setfill('0')
+                      << std::setw(4) << its_session;
         if (its_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
         }
@@ -1961,11 +1954,10 @@ service_discovery_impl::process_eventgroupentry(
 
     if (its_type == entry_type_e::SUBSCRIBE_EVENTGROUP) {
         if (_is_multicast) {
-            boost::system::error_code ec;
             VSOMEIP_ERROR << __func__
-                    << ": Received a SubscribeEventGroup entry on multicast address "
-                    << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                          << ": Received a SubscribeEventGroup entry on multicast address "
+                          << its_sender.to_string() << " session: " << std::hex << std::setfill('0')
+                          << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1973,11 +1965,9 @@ service_discovery_impl::process_eventgroupentry(
         }
         if (_entry->get_num_options(1) == 0
                 && _entry->get_num_options(2) == 0) {
-            boost::system::error_code ec;
-            VSOMEIP_ERROR << __func__
-                    << ": Invalid number of options in SubscribeEventGroup entry "
-                    << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+            VSOMEIP_ERROR << __func__ << ": Invalid number of options in SubscribeEventGroup entry "
+                          << its_sender.to_string() << " session: " << std::hex << std::setfill('0')
+                          << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 // increase number of required acks by one as number required acks
                 // is calculated based on the number of referenced options
@@ -1986,11 +1976,9 @@ service_discovery_impl::process_eventgroupentry(
             return;
         }
         if (_entry->get_owning_message()->get_options_length() < 12) {
-            boost::system::error_code ec;
-            VSOMEIP_ERROR << __func__
-                    << ": Invalid options length in SOMEIP/SD message "
-                    << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+            VSOMEIP_ERROR << __func__ << ": Invalid options length in SOMEIP/SD message "
+                          << its_sender.to_string() << " session: " << std::hex << std::setfill('0')
+                          << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -2001,12 +1989,11 @@ service_discovery_impl::process_eventgroupentry(
                  // by the + operator on 16 bit or higher machines.
                  < static_cast<std::vector<std::shared_ptr<option_impl>>::size_type>(
                      (_entry->get_num_options(1)) + (_entry->get_num_options(2)))) {
-            boost::system::error_code ec;
             VSOMEIP_ERROR << __func__
-                    << "Fewer options in SOMEIP/SD message than "
-                       "referenced in EventGroup entry or malformed option received "
-                    << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                          << "Fewer options in SOMEIP/SD message than referenced in EventGroup "
+                             "entry or malformed option received "
+                          << its_sender.to_string() << " session: " << std::hex << std::setfill('0')
+                          << std::setw(4) << its_session;
             if (its_ttl > 0) {
                 // set to 0 to ensure an answer containing at least this subscribe_nack is sent out
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
@@ -2016,14 +2003,13 @@ service_discovery_impl::process_eventgroupentry(
         if (_entry->get_owning_message()->get_someip_length()
                 < _entry->get_owning_message()->get_length()
                 && its_ttl > 0) {
-            boost::system::error_code ec;
-            VSOMEIP_ERROR  << __func__
-                    << ": SOME/IP length field in SubscribeEventGroup message header: ["
-                    << std::dec << _entry->get_owning_message()->get_someip_length()
-                    << "] bytes, is shorter than length of deserialized message: ["
-                    << static_cast<uint32_t>(_entry->get_owning_message()->get_length()) << "] bytes. "
-                    << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+            VSOMEIP_ERROR << __func__
+                          << ": SOME/IP length field in SubscribeEventGroup message header: ["
+                          << std::dec << _entry->get_owning_message()->get_someip_length()
+                          << "] bytes, is shorter than length of deserialized message: ["
+                          << _entry->get_owning_message()->get_length() << "] bytes. "
+                          << its_sender.to_string() << " session: " << std::hex << std::setfill('0')
+                          << std::setw(4) << its_session;
             return;
         }
     }
@@ -2041,15 +2027,11 @@ service_discovery_impl::process_eventgroupentry(
             try {
                 its_option = _options.at(its_index);
             } catch(const std::out_of_range&) {
-                boost::system::error_code ec;
                 VSOMEIP_ERROR << __func__
-                        << ": Fewer options in SD message than "
-                           "referenced in EventGroup entry for "
-                           "option run number: "
-                        << i << " "
-                        << its_sender.to_string(ec) << " session: "
-                        << std::hex << std::setfill('0') << std::setw(4)
-                        << its_session;
+                              << ": Fewer options in SD message than referenced in EventGroup "
+                                 "entry for option run number: "
+                              << i << " " << its_sender.to_string() << " session: " << std::hex
+                              << std::setfill('0') << std::setw(4) << its_session;
                 if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type && its_ttl > 0) {
                     insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                 }
@@ -2084,12 +2066,12 @@ service_discovery_impl::process_eventgroupentry(
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            boost::system::error_code ec;
                             VSOMEIP_ERROR << __func__
-                                    << ": Multiple IPv4 endpoint options of same kind referenced! "
-                                    << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
-                                    << " is_first_reliable: " << is_first_reliable;
+                                          << ": Multiple IPv4 endpoint options of same kind "
+                                             "referenced! "
+                                          << its_sender.to_string() << " session: " << std::hex
+                                          << std::setfill('0') << std::setw(4) << its_session
+                                          << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
 
@@ -2098,11 +2080,11 @@ service_discovery_impl::process_eventgroupentry(
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            boost::system::error_code ec;
                             VSOMEIP_ERROR << __func__
-                                    << ": Invalid port or IP address in first IPv4 endpoint option specified! "
-                                    << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                                          << ": Invalid port or IP address in first IPv4 endpoint "
+                                             "option specified! "
+                                          << its_sender.to_string() << " session: " << std::hex
+                                          << std::setfill('0') << std::setw(4) << its_session;
                             return;
                         }
                     } else
@@ -2119,12 +2101,12 @@ service_discovery_impl::process_eventgroupentry(
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            boost::system::error_code ec;
                             VSOMEIP_ERROR << __func__
-                                    << ": Multiple IPv4 endpoint options of same kind referenced! "
-                                    << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
-                                    << " is_second_reliable: " << is_second_reliable;
+                                          << ": Multiple IPv4 endpoint options of same kind "
+                                             "referenced! "
+                                          << its_sender.to_string() << " session: " << std::hex
+                                          << std::setfill('0') << std::setw(4) << its_session
+                                          << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
 
@@ -2133,22 +2115,20 @@ service_discovery_impl::process_eventgroupentry(
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            boost::system::error_code ec;
                             VSOMEIP_ERROR << __func__
-                                    << ": Invalid port or IP address in second IPv4 endpoint option specified! "
-                                    << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                                          << ": Invalid port or IP address in second IPv4 endpoint "
+                                          << "option specified! " << its_sender.to_string()
+                                          << " session: " << std::hex << std::setfill('0')
+                                          << std::setw(4) << its_session;
                             return;
                         }
                     } else {
                         // TODO: error message, too many endpoint options!
                     }
                 } else {
-                    boost::system::error_code ec;
-                    VSOMEIP_ERROR << __func__
-                            << ": Invalid eventgroup option (IPv4 Endpoint)"
-                            << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv4 Endpoint)"
+                                  << its_sender.to_string() << " session: " << std::hex
+                                  << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             }
@@ -2164,10 +2144,10 @@ service_discovery_impl::process_eventgroupentry(
                         if(its_ttl > 0) {
                             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                         }
-                        boost::system::error_code ec;
-                        VSOMEIP_ERROR << "Invalid layer 4 protocol type in IPv6 endpoint option specified! "
-                                << its_sender.to_string(ec) << " session: "
-                                << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                        VSOMEIP_ERROR << "Invalid layer 4 protocol type in IPv6 endpoint option "
+                                         "specified! "
+                                      << its_sender.to_string() << " session: " << std::hex
+                                      << std::setfill('0') << std::setw(4) << its_session;
                         return;
                     }
 
@@ -2182,11 +2162,11 @@ service_discovery_impl::process_eventgroupentry(
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            boost::system::error_code ec;
-                            VSOMEIP_ERROR << __func__
+                            VSOMEIP_ERROR
+                                    << __func__
                                     << ": Multiple IPv6 endpoint options of same kind referenced! "
-                                    << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
+                                    << its_sender.to_string() << " session: " << std::hex
+                                    << std::setfill('0') << std::setw(4) << its_session
                                     << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
@@ -2202,11 +2182,11 @@ service_discovery_impl::process_eventgroupentry(
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            boost::system::error_code ec;
-                            VSOMEIP_ERROR << __func__
+                            VSOMEIP_ERROR
+                                    << __func__
                                     << ": Multiple IPv6 endpoint options of same kind referenced! "
-                                    << its_sender.to_string(ec) << " session: "
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_session
+                                    << its_sender.to_string() << " session: " << std::hex
+                                    << std::setfill('0') << std::setw(4) << its_session
                                     << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
@@ -2214,11 +2194,9 @@ service_discovery_impl::process_eventgroupentry(
                         // TODO: error message, too many endpoint options!
                     }
                 } else {
-                    boost::system::error_code ec;
-                    VSOMEIP_ERROR << __func__
-                            << ": Invalid eventgroup option (IPv6 Endpoint) "
-                            << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv6 Endpoint) "
+                                  << its_sender.to_string() << " session: " << std::hex
+                                  << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             }
@@ -2244,19 +2222,16 @@ service_discovery_impl::process_eventgroupentry(
                     // ID: SIP_SD_946, ID: SIP_SD_1144
                     if (its_first_port != ILLEGAL_PORT
                             && its_second_port != ILLEGAL_PORT) {
-                        boost::system::error_code ec;
                         VSOMEIP_ERROR << __func__
-                                << ": Multiple IPv4 multicast options referenced! "
-                                << its_sender.to_string(ec) << " session: "
-                                << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                                      << ": Multiple IPv4 multicast options referenced! "
+                                      << its_sender.to_string() << " session: " << std::hex
+                                      << std::setfill('0') << std::setw(4) << its_session;
                         return;
                     }
                 } else {
-                    boost::system::error_code ec;
-                    VSOMEIP_ERROR << __func__
-                            << ": Invalid eventgroup option (IPv4 Multicast) "
-                            << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv4 Multicast) "
+                                  << its_sender.to_string() << " session: " << std::hex
+                                  << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             case option_type_e::IP6_MULTICAST:
@@ -2281,19 +2256,15 @@ service_discovery_impl::process_eventgroupentry(
                     // ID: SIP_SD_946, ID: SIP_SD_1144
                     if (its_first_port != ILLEGAL_PORT
                             && its_second_port != ILLEGAL_PORT) {
-                        boost::system::error_code ec;
-                        VSOMEIP_ERROR << __func__
-                                << "Multiple IPv6 multicast options referenced! "
-                                << its_sender.to_string(ec) << " session: "
-                                << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                        VSOMEIP_ERROR << __func__ << "Multiple IPv6 multicast options referenced! "
+                                      << its_sender.to_string() << " session: " << std::hex
+                                      << std::setfill('0') << std::setw(4) << its_session;
                         return;
                     }
                 } else {
-                    boost::system::error_code ec;
-                    VSOMEIP_ERROR << __func__
-                            << ": Invalid eventgroup option (IPv6 Multicast) "
-                            << its_sender.to_string(ec) << " session: "
-                            << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv6 Multicast) "
+                                  << its_sender.to_string() << " session: " << std::hex
+                                  << std::setfill('0') << std::setw(4) << its_session;
                 }
                 break;
             case option_type_e::CONFIGURATION: {
@@ -2309,12 +2280,10 @@ service_discovery_impl::process_eventgroupentry(
             }
             case option_type_e::UNKNOWN:
             default:
-                boost::system::error_code ec;
-                VSOMEIP_WARNING << __func__
-                    << ": Unsupported eventgroup option ["
-                    << std::hex << static_cast<int>(its_option->get_type()) << "] "
-                    << its_sender.to_string(ec) << " session: "
-                    << std::hex << std::setfill('0') << std::setw(4) << its_session;
+                VSOMEIP_WARNING << __func__ << ": Unsupported eventgroup option [" << std::hex
+                                << static_cast<int>(its_option->get_type()) << "] "
+                                << its_sender.to_string() << " session: " << std::hex
+                                << std::setfill('0') << std::setw(4) << its_session;
                 if (its_ttl > 0) {
                     insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                     return;
@@ -2392,20 +2361,15 @@ void service_discovery_impl::handle_eventgroup_subscription(
     }
     if (reliablility_nack && _ttl > 0) {
         insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
-        boost::system::error_code ec;
         // TODO: Add sender and session id
-        VSOMEIP_WARNING << __func__
-                << ": Subscription for ["
-                << std::hex << std::setfill('0')
-                << std::setw(4) << _service << "."
-                << std::setw(4) << _instance << "."
-                << std::setw(4) << _eventgroup << "]"
-                << " not valid: Event configuration ("
-                << static_cast<std::uint32_t>(_info->get_reliability())
-                << ") does not match the provided endpoint options: "
-                << _first_address.to_string(ec) << ":" << std::dec << _first_port << " "
-                << _second_address.to_string(ec) << ":" << _second_port;
-
+        VSOMEIP_WARNING << __func__ << ": Subscription for [" << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup << "]"
+                        << " not valid: Event configuration ("
+                        << static_cast<std::uint32_t>(_info->get_reliability())
+                        << ") does not match the provided endpoint options: "
+                        << _first_address.to_string() << ":" << std::dec << _first_port << " "
+                        << _second_address.to_string() << ":" << _second_port;
         return;
     }
 
@@ -2439,18 +2403,15 @@ void service_discovery_impl::handle_eventgroup_subscription(
         // Create a temporary info object with TTL=0 --> send NACK
         auto its_info = std::make_shared<eventgroupinfo>(_service, _instance,
                 _eventgroup, _major, 0, VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS);
-        boost::system::error_code ec;
         // TODO: Add session id
-        VSOMEIP_ERROR << __func__
-                << ": Requested major version:[" << static_cast<uint32_t>(_major)
-                << "] in subscription to service: ["
-                << std::hex << std::setfill('0')
-                << std::setw(4) << _service << "."
-                << std::setw(4) << _instance << "."
-                << std::setw(4) << _eventgroup << "]"
-                << " does not match with services major version:["
-                << static_cast<uint32_t>(_info->get_major()) << "] subscriber: "
-                << _first_address.to_string(ec) << ":" << std::dec << _first_port;
+        VSOMEIP_ERROR << __func__ << ": Requested major version:[" << static_cast<uint32_t>(_major)
+                      << "] in subscription to service: [" << std::hex << std::setfill('0')
+                      << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
+                      << std::setw(4) << _eventgroup << "]"
+                      << " does not match with services major version:["
+                      << static_cast<uint32_t>(_info->get_major())
+                      << "] subscriber: " << _first_address.to_string() << ":" << std::dec
+                      << _first_port;
         if (_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, _clients);
         }
@@ -2721,8 +2682,7 @@ service_discovery_impl::start_ttl_timer(int _shift) {
             its_timeout = std::chrono::milliseconds(VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT);
     }
 
-    boost::system::error_code ec;
-    ttl_timer_.expires_from_now(its_timeout, ec);
+    ttl_timer_.expires_after(its_timeout);
     ttl_timer_.async_wait(
             std::bind(&service_discovery_impl::check_ttl, shared_from_this(),
                       std::placeholders::_1));
@@ -2731,8 +2691,7 @@ service_discovery_impl::start_ttl_timer(int _shift) {
 void
 service_discovery_impl::stop_ttl_timer() {
     std::lock_guard<std::mutex> its_lock(ttl_timer_mutex_);
-    boost::system::error_code ec;
-    ttl_timer_.cancel(ec);
+    ttl_timer_.cancel();
 }
 
 void
@@ -2875,19 +2834,13 @@ void service_discovery_impl::offer_service(const std::shared_ptr<serviceinfo>& _
 
 void service_discovery_impl::start_find_debounce_timer(bool _first_start) {
     std::scoped_lock its_lock {offer_debounce_timer_mutex_};
-    boost::system::error_code ec;
     if (_first_start) {
-        find_debounce_timer_.expires_from_now(initial_delay_, ec);
+        find_debounce_timer_.expires_after(initial_delay_);
     } else if (remaining_find_initial_debounce_reps_ > 0) {
-        find_debounce_timer_.expires_from_now(find_initial_debounce_time_, ec);
+        find_debounce_timer_.expires_after(find_initial_debounce_time_);
         --remaining_find_initial_debounce_reps_;
     } else {
-        find_debounce_timer_.expires_from_now(find_debounce_time_, ec);
-    }
-    if (ec) {
-        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
-                      << " setting expiry time of timer failed: "
-                      << ec.message();
+        find_debounce_timer_.expires_after(find_debounce_time_);
     }
     find_debounce_timer_.async_wait(std::bind(
             &service_discovery_impl::on_find_debounce_timer_expired, this, std::placeholders::_1));
@@ -2948,13 +2901,7 @@ void service_discovery_impl::on_find_debounce_timer_expired(
         find_repetition_phase_timers_[its_timer] = repetition_phase_finds;
     }
 
-    boost::system::error_code ec;
-    its_timer->expires_from_now(its_delay, ec);
-    if (ec) {
-        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
-                      << " setting expiry time of timer failed: "
-                      << ec.message();
-    }
+    its_timer->expires_after(its_delay);
     its_timer->async_wait(std::bind(&service_discovery_impl::on_find_repetition_phase_timer_expired,
                                     this, std::placeholders::_1, its_timer, its_repetitions,
                                     its_delay.count()));
@@ -2963,16 +2910,10 @@ void service_discovery_impl::on_find_debounce_timer_expired(
 
 void service_discovery_impl::start_offer_debounce_timer(bool _first_start) {
     std::scoped_lock its_lock {offer_debounce_timer_mutex_};
-    boost::system::error_code ec;
     if (_first_start) {
-        offer_debounce_timer_.expires_from_now(initial_delay_, ec);
+        offer_debounce_timer_.expires_after(initial_delay_);
     } else {
-        offer_debounce_timer_.expires_from_now(offer_debounce_time_, ec);
-    }
-    if (ec) {
-        VSOMEIP_ERROR << "service_discovery_impl::" << __func__
-                      << " setting expiry time of timer failed: "
-                      << ec.message();
+        offer_debounce_timer_.expires_after(offer_debounce_time_);
     }
     offer_debounce_timer_.async_wait(std::bind(
             &service_discovery_impl::on_offer_debounce_timer_expired, this, std::placeholders::_1));
@@ -3059,12 +3000,7 @@ service_discovery_impl::on_offer_debounce_timer_expired(
         repetition_phase_timers_[its_timer] = repetition_phase_offers;
     }
 
-    boost::system::error_code ec;
-    its_timer->expires_from_now(its_delay, ec);
-    if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::on_offer_debounce_timer_expired "
-        "setting expiry time of timer failed: " << ec.message();
-    }
+    its_timer->expires_after(its_delay);
     its_timer->async_wait(
             std::bind(
                     &service_discovery_impl::on_repetition_phase_timer_expired,
@@ -3124,13 +3060,7 @@ service_discovery_impl::on_repetition_phase_timer_expired(
                 move_offers_into_main_phase(_timer);
                 return;
             }
-            boost::system::error_code ec;
-            its_timer_pair->first->expires_from_now(new_delay, ec);
-            if (ec) {
-                VSOMEIP_ERROR <<
-                "service_discovery_impl::on_repetition_phase_timer_expired "
-                "setting expiry time of timer failed: " << ec.message();
-            }
+            its_timer_pair->first->expires_after(new_delay);
             its_timer_pair->first->async_wait(
                     std::bind(
                             &service_discovery_impl::on_repetition_phase_timer_expired,
@@ -3168,12 +3098,7 @@ service_discovery_impl::on_find_repetition_phase_timer_expired(
             find_repetition_phase_timers_.erase(its_timer_pair);
             return;
         }
-        boost::system::error_code ec;
-        its_timer_pair->first->expires_from_now(new_delay, ec);
-        if (ec) {
-            VSOMEIP_ERROR << __func__
-                    << "setting expiry time of timer failed: " << ec.message();
-        }
+        its_timer_pair->first->expires_after(new_delay);
         its_timer_pair->first->async_wait(
                 std::bind(
                         &service_discovery_impl::on_find_repetition_phase_timer_expired,
@@ -3306,12 +3231,7 @@ service_discovery_impl::send_collected_stop_offers(const std::vector<std::shared
 void
 service_discovery_impl::start_main_phase_timer() {
     std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
-    boost::system::error_code ec;
-    main_phase_timer_.expires_from_now(cyclic_offer_delay_, ec);
-    if (ec) {
-        VSOMEIP_ERROR<< "service_discovery_impl::start_main_phase_timer "
-        "setting expiry time of timer failed: " << ec.message();
-    }
+    main_phase_timer_.expires_after(cyclic_offer_delay_);
     main_phase_timer_.async_wait(
             std::bind(&service_discovery_impl::on_main_phase_timer_expired,
                     this, std::placeholders::_1));
@@ -3320,8 +3240,7 @@ service_discovery_impl::start_main_phase_timer() {
 void
 service_discovery_impl::stop_main_phase_timer() {
     std::scoped_lock<std::mutex> its_lock(main_phase_timer_mutex_);
-    boost::system::error_code ec;
-    main_phase_timer_.cancel(ec);
+    main_phase_timer_.cancel();
 }
 
 void
@@ -3356,7 +3275,7 @@ service_discovery_impl::last_offer_shorter_half_offer_delay_ago() {
     {
         std::lock_guard<std::mutex> its_lock(main_phase_timer_mutex_);
         remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
-                main_phase_timer_.expires_from_now());
+                main_phase_timer_.expiry() - std::chrono::steady_clock::now());
     }
     if (std::chrono::milliseconds(0) > remaining) {
         remaining = cyclic_offer_delay_;
@@ -3612,9 +3531,8 @@ service_discovery_impl::on_last_msg_received_timer_expired(
 
 void
 service_discovery_impl::start_last_msg_received_timer() {
-    boost::system::error_code ec;
     std::scoped_lock its_lock { last_msg_received_timer_mutex_ };
-    last_msg_received_timer_.expires_from_now(last_msg_received_timer_timeout_, ec);
+    last_msg_received_timer_.expires_after(last_msg_received_timer_timeout_);
     last_msg_received_timer_.async_wait(
             std::bind(
                     &service_discovery_impl::on_last_msg_received_timer_expired,
@@ -3624,8 +3542,7 @@ service_discovery_impl::start_last_msg_received_timer() {
 void
 service_discovery_impl::stop_last_msg_received_timer() {
     std::scoped_lock its_lock { last_msg_received_timer_mutex_ };
-    boost::system::error_code ec;
-    last_msg_received_timer_.cancel(ec);
+    last_msg_received_timer_.cancel();
 }
 
 reliability_type_e
