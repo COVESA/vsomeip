@@ -98,7 +98,7 @@ utility::get_policies_path() {
 
     return boost::filesystem::canonical(
             boost::filesystem::current_path()).string()
-            + "/../test/common/examples_policies";
+            + "/test/common/examples_policies";
 }
 
 vsomeip_sec_client_t
@@ -120,7 +120,7 @@ utility::force_check_credentials(
                 = security.get_child("check_credentials");
             if (credentials.get_value<std::string>().compare(_value)) {
                 security.erase("check_credentials");
-                credentials.put("check_credentials", _value);
+                security.put("check_credentials", _value);
             }
         }
         catch(...) {}

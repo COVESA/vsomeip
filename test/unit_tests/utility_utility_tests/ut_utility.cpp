@@ -35,6 +35,18 @@ namespace {
     const vsomeip_v3::byte_t payload_byte2 = 0x37;
 }
 
+std::string get_temp_dir() {
+#ifdef _WIN32
+    const char* tmp = std::getenv("TEMP");
+    if (tmp)
+        return std::string(tmp) + "\\";
+    else
+        return "C:\\Temp\\";
+#else
+    return "/tmp/";
+#endif
+}
+
 TEST(utility_test, get_message_size) {
     std::unique_ptr<vsomeip_v3::utility> its_utility;
 
@@ -137,8 +149,10 @@ TEST(utility_test, is_routing_manager) {
 
     std::unique_ptr<vsomeip_v3::utility> its_utility2;
 
-    // Weird network name.
-    const std::string network2_("\\\\////\0");
+    // Create a network with an invalid name compatible between Linux and Windows.
+    // On Linux, the characters `\` and `/0` are invalid but are valid on Windows.
+    // On Windows, the character `?` is used to invalidate the network name.
+    const std::string network2_("\\\\?////\0");
 
     // Expect the network name to lead to failure.
     ASSERT_FALSE(its_utility2->is_routing_manager(network2_));
@@ -183,7 +197,7 @@ TEST(utility_test, exists) {
     ASSERT_TRUE(its_utility->is_routing_manager(network_));
 
     // Create a path variable.
-    const std::string path_("/tmp/exists_tests.lck");
+    const std::string path_(get_temp_dir() + "exists_tests.lck");
 
     // Expect true.
     ASSERT_TRUE(its_utility->exists(path_));
@@ -200,8 +214,8 @@ TEST(utility_test, is_file) {
 
     // Random network name.
     const std::string network_("is_file_tests");
-    const std::string file_("/tmp/is_file_tests.lck");
-    const std::string directory_("/tmp/");
+    const std::string file_(get_temp_dir() + "is_file_tests.lck");
+    const std::string directory_(get_temp_dir());
 
     // Expect false.
     ASSERT_FALSE(its_utility->is_file(network_));
@@ -227,8 +241,8 @@ TEST(utility_test, is_folder) {
 
     // Random network name.
     const std::string network_("is_folder_tests");
-    const std::string file_("/tmp/is_folder_tests.lck");
-    const std::string directory_("/tmp/");
+    const std::string file_(get_temp_dir() + "is_folder_tests.lck");
+    const std::string directory_(get_temp_dir());
 
     // Expect false.
     ASSERT_FALSE(its_utility->is_folder(network_));
