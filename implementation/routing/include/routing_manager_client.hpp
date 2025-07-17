@@ -133,14 +133,14 @@ private:
 
     void send_pong() const;
 
-    void send_offer_service(client_t _client, service_t _service,
+    bool send_offer_service(client_t _client, service_t _service,
             instance_t _instance, major_version_t _major,
             minor_version_t _minor);
 
     void send_release_service(client_t _client,
             service_t _service, instance_t _instance);
 
-    void send_pending_event_registrations(client_t _client);
+    [[nodiscard]] bool send_pending_event_registrations(client_t _client);
 
     void send_register_event(client_t _client,
             service_t _service, instance_t _instance,
@@ -176,7 +176,7 @@ private:
     void on_stop_offer_service(service_t _service, instance_t _instance,
             major_version_t _major, minor_version_t _minor);
 
-    void send_pending_commands();
+    [[nodiscard]] bool send_pending_commands();
 
     void init_receiver();
 
@@ -191,7 +191,7 @@ private:
 
     void register_application_timeout_cbk(boost::system::error_code const &_error);
 
-    void send_registered_ack();
+    bool send_registered_ack();
 
     void set_routing_state(routing_state_e _routing_state) {
         (void)_routing_state;
@@ -206,7 +206,7 @@ private:
 
     void request_debounce_timeout_cbk(boost::system::error_code const &_error);
 
-    void send_request_services(const std::set<protocol::service> &_requests);
+    bool send_request_services(const std::set<protocol::service> &_requests);
 
     void send_unsubscribe_ack(service_t _service, instance_t _instance,
             eventgroup_t _eventgroup, remote_subscription_id_t _id);
