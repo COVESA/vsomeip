@@ -25,17 +25,23 @@
 #include "client_endpoint.hpp"
 #include "tp.hpp"
 
+namespace boost::asio::ip {
+class tcp;
+}
+
 namespace vsomeip_v3 {
 
 class endpoint;
 class endpoint_host;
+class tcp_socket;
 
 template<typename Protocol>
 class client_endpoint_impl: public endpoint_impl<Protocol>, public client_endpoint,
         public std::enable_shared_from_this<client_endpoint_impl<Protocol> > {
 public:
     typedef typename Protocol::endpoint endpoint_type;
-    typedef typename Protocol::socket socket_type;
+    using socket_type = std::conditional_t<std::is_same_v<Protocol, boost::asio::ip::tcp>,
+                                           tcp_socket, typename Protocol::socket>;
 
     client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                          const std::shared_ptr<routing_host>& _routing_host,
@@ -173,6 +179,7 @@ private:
 
     void start_dispatch_timer(const std::chrono::steady_clock::time_point &_now);
     void cancel_dispatch_timer();
+    void recreate_socket();
 };
 
 } // namespace vsomeip_v3

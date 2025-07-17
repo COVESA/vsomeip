@@ -30,6 +30,7 @@
 #include "../include/routing_manager_client.hpp"
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/server_endpoint.hpp"
+#include "../../endpoints/include/abstract_socket_factory.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/serializer.hpp"
@@ -114,7 +115,6 @@ void routing_manager_client::init() {
     routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
     {
         std::scoped_lock its_sender_lock {sender_mutex_};
-
         // NOTE: order matters, `create_local_server` must done first
         // with TCP, following `create_local` will use whatever port is established there
         if (!configuration_->is_local_routing()) {

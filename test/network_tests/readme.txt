@@ -571,3 +571,58 @@ Manual start:
 
 # Client side TCP mode
 ./npdu_test_client_npdu_start.sh TCP
+
+
+fake socket tests
+-----------------
+
+The objective of this test suite is to enable developers to add reproduction
+tests along their fixes, for a quick feedback. The focus of these tests is
+the logical handling of e.g. errors. But these tests do not offer any insights
+into protocol/ECU specific behavior.
+With the status quo the focus is laying on local tcp communication.
+
+## Responsibilities
+
+To remain on top of all helper classes here is a list of introduced helpers,
+and their responsibility:
+
+### fake_tcp_socket
+The testing tcp_socket interface implementation. Because the actual socket
+communication is faked out, the fake_tcp_socket acts as a facade for the
+fake_tcp_socket_handle.
+
+### fake_tcp_acceptor
+The testing tcp_acceptor interface implementation. Because the actual socket
+communication is faked out, the fake_tcp_acceptor acts as a facade for the
+fake_tcp_acceptor_handle.
+
+### fake_tcp_socket_handle
+This class is responsible for:
+* keeping track of set socket options
+* forwarding data to a connected fake_tcp_socket_handle
+* injecting data/errors received into the production code
+
+### fake_tcp_acceptor_handle
+This class is responsible for:
+* collaborate with the socket_manager on establishing connections
+Production implementation of the tcp_socket
+
+### socket_manager
+This class is responsible of keeping track of:
+* what application owns which socket,
+* providing an interface to enable fault injection into the production code
+* orchestrating the connection of different fake_tcp_*_handle
+
+### app
+This class is a thin wrapper of a vsomeip application that ensures:
+* that the vsomeip application does not block the main thread directly
+* that the vsomeip application is stopped when the wrapper is destroyed
+* provides a thread safe interface (via the attribute_record) to await in the
+  tests for certain events/messages/states
+
+### base_fake_socket_fixture
+This class is responsible:
+* To setup the fake socket factory
+* Provide helpers to ensure that the clients are started in a way that the
+  socket_manager can properly work

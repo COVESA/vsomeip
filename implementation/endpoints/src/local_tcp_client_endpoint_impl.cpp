@@ -10,7 +10,6 @@
 #include <netinet/tcp.h>
 #endif
 
-#include <boost/asio/write.hpp>
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -20,6 +19,7 @@
 #else
 #include "../../configuration/include/internal.hpp"
 #endif
+#include "../include/tcp_socket.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/local_tcp_client_endpoint_impl.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
@@ -163,9 +163,7 @@ void local_tcp_client_endpoint_impl::connect() {
             // set a user timeout
             // along the keep alives, this ensures connection closes if endpoint is unreachable
             unsigned int opt = LOCAL_TCP_USER_TIMEOUT;
-            if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &opt,
-                           sizeof(opt))
-                == -1) {
+            if (!socket_->set_user_timeout(opt)) {
                 VSOMEIP_WARNING << "ltcei::" << __func__
                                 << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
             }
@@ -298,21 +296,13 @@ void local_tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         if(socket_->is_open()) {
-            boost::asio::async_write(
-                *socket_,
-                bufs,
-                strand_.wrap(
-                    std::bind(
-                        &client_endpoint_impl::send_cbk,
-                        std::dynamic_pointer_cast<
-                        local_tcp_client_endpoint_impl
-                        >(shared_from_this()),
-                        std::placeholders::_1,
-                        std::placeholders::_2,
-                        _entry.first
-                    )
-                )
-            );
+            socket_->async_write(bufs,
+                                 // ensure the callback keeps the buffer alive by copying the
+                                 // shared_ptr of the buffer
+                                 strand_.wrap([self = shared_from_this(),
+                                               buffer = _entry.first](auto ec, size_t length) {
+                                     self->send_cbk(ec, length, buffer);
+                                 }));
         } else {
             VSOMEIP_WARNING << "ltcei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
             was_not_connected_ = true;

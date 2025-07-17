@@ -64,6 +64,7 @@ global:
         *vsomeip::runtime;
         vsomeip::logger::*;
         *vsomeip::logger;
+        vsomeip_v3::set_abstract_factory*;
     };
     vsomeip_plugin_init;
 local:

@@ -13,6 +13,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "../include/tcp_socket.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../include/tcp_client_endpoint_impl.hpp"
@@ -180,11 +181,8 @@ void tcp_client_endpoint_impl::connect() {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
-        if (its_device != "") {
-            if (setsockopt(socket_->native_handle(),
-                    SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), static_cast<socklen_t>(its_device.size())) == -1) {
-                VSOMEIP_WARNING << "TCP Client: Could not bind to device \"" << its_device << "\"";
-            }
+        if (its_device != "" && socket_->bind_to_device(its_device)) {
+            VSOMEIP_WARNING << "TCP Client: Could not bind to device \"" << its_device << "\"";
         }
 #endif
 
@@ -372,26 +370,20 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
         if (socket_->is_open()) {
-            boost::asio::async_write(
-                *socket_,
-                boost::asio::buffer(*_entry.first),
-                std::bind(
-                    &tcp_client_endpoint_impl::write_completion_condition,
-                    std::static_pointer_cast<tcp_client_endpoint_impl>(shared_from_this()),
-                    std::placeholders::_1,
-                    std::placeholders::_2,
-                    _entry.first->size(),
-                    its_service, its_method, its_client, its_session,
-                    std::chrono::steady_clock::now()),
-                strand_.wrap(
-                    std::bind(
-                    &tcp_client_endpoint_base_impl::send_cbk,
-                    shared_from_this(),
-                    std::placeholders::_1,
-                    std::placeholders::_2,
-                    _entry.first
-                ))
-            );
+            socket_->async_write(
+                    boost::asio::buffer(*_entry.first),
+                    [this, self = shared_from_this(), to_be_send_length = _entry.first->size(),
+                     when = std::chrono::steady_clock::now(), its_service, its_method, its_client,
+                     its_session](auto ec, auto size) {
+                        // do not use self, as the shared_from_this is pointing to the base class
+                        return write_completion_condition(ec, size, to_be_send_length, its_service,
+                                                          its_method, its_client, its_session,
+                                                          when);
+                    },
+                    strand_.wrap(
+                            // copy the buffer into the callback to keep the buffer itself alive
+                            [this, self = shared_from_this(), buffer = _entry.first](
+                                    auto ec, auto size) { send_cbk(ec, size, buffer); }));
         } else {
             VSOMEIP_WARNING << "tcei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
             was_not_connected_ = true;

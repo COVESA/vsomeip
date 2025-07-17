@@ -37,6 +37,7 @@
 #include "../../endpoints/include/tcp_server_endpoint_impl.hpp"
 #include "../../endpoints/include/udp_client_endpoint_impl.hpp"
 #include "../../endpoints/include/udp_server_endpoint_impl.hpp"
+#include "../../endpoints/include/abstract_socket_factory.hpp"
 #include "../../endpoints/include/virtual_server_endpoint_impl.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/message_impl.hpp"
@@ -220,7 +221,7 @@ void routing_manager_impl::start() {
             << ", "
             << its_netmask_or_prefix.str();
 
-    netlink_connector_ = std::make_shared<netlink_connector>(
+    netlink_connector_ = abstract_socket_factory::get()->create_netlink_connector(
             host_->get_io(), configuration_->get_unicast_address(), its_multicast);
     netlink_connector_->register_net_if_changes_handler(
             std::bind(&routing_manager_impl::on_net_interface_or_route_state_changed,

@@ -63,7 +63,7 @@ void tcp_server_endpoint_impl::init(const endpoint_type& _local,
     if (_error)
         return;
 
-    acceptor_.listen(boost::asio::socket_base::max_listen_connections, _error);
+    acceptor_.listen(boost::asio::socket_base::max_connections, _error);
     if (_error)
         return;
 

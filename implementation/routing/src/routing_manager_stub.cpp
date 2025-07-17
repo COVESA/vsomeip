@@ -22,7 +22,7 @@
 #include "../include/remote_subscription.hpp"
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_manager_impl.hpp"
-#include "../../endpoints/include/netlink_connector.hpp"
+#include "../../endpoints/include/abstract_socket_factory.hpp"
 #include "../../protocol/include/deregister_application_command.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
 #include "../../protocol/include/dummy_command.hpp"
@@ -1154,8 +1154,9 @@ void routing_manager_stub::init_routing_endpoint() {
 #if defined(__linux__) || defined(ANDROID)
     } else {
         auto its_host_address = configuration_->get_routing_host_address();
-        local_link_connector_ = std::make_shared<netlink_connector>(
-                io_, its_host_address, boost::asio::ip::address(), false); // routing host doesn't need link up
+        local_link_connector_ = abstract_socket_factory::get()->create_netlink_connector(
+                io_, its_host_address, boost::asio::ip::address(),
+                false); // routing host doesn't need link up
         if (local_link_connector_) {
             local_link_connector_->register_net_if_changes_handler(
                 std::bind(&routing_manager_stub::on_net_state_change,

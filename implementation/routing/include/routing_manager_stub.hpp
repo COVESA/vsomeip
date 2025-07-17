@@ -33,7 +33,7 @@ namespace vsomeip_v3 {
 
 class configuration;
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-class netlink_connector;
+class abstract_netlink_connector;
 #endif // __linux__ || ANDROID
 class routing_manager_stub_host;
 
@@ -307,7 +307,7 @@ private:
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     // netlink connector for internal network
     // (replacement for Unix Domain Sockets if configured)
-    std::shared_ptr<netlink_connector> local_link_connector_;
+    std::shared_ptr<abstract_netlink_connector> local_link_connector_;
     bool is_local_link_available_;
 #endif
 };

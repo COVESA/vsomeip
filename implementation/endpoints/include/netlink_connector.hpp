@@ -18,13 +18,14 @@
 #include <boost/asio/basic_raw_socket.hpp>
 #include <boost/asio/ip/address.hpp>
 
-#include "../../endpoints/include/buffer.hpp"
-
 #ifdef ANDROID
 #    include "../../configuration/include/internal_android.hpp"
 #else
 #    include "../../configuration/include/internal.hpp"
 #endif
+
+#include "../../endpoints/include/buffer.hpp"
+#include "abstract_netlink_connector.hpp"
 
 namespace vsomeip_v3 {
 
@@ -136,13 +137,8 @@ private:
     int proto;
 };
 
-typedef std::function< void (
-    bool,        // true = is interface, false = is route
-    std::string, // interface name
-    bool)        // available?
-> net_if_changed_handler_t;
-
-class netlink_connector : public std::enable_shared_from_this<netlink_connector> {
+class netlink_connector : public abstract_netlink_connector,
+                          public std::enable_shared_from_this<netlink_connector> {
 public:
     netlink_connector(boost::asio::io_context &_io, const boost::asio::ip::address &_address,
                         const boost::asio::ip::address &_multicast_address,
@@ -157,11 +153,11 @@ public:
     }
     ~netlink_connector() {}
 
-    void register_net_if_changes_handler(const net_if_changed_handler_t& _handler);
-    void unregister_net_if_changes_handler();
+    void register_net_if_changes_handler(const net_if_changed_handler_t& _handler) override;
+    void unregister_net_if_changes_handler() override;
 
-    void start();
-    void stop();
+    void start() override;
+    void stop() override;
 
 private:
     bool has_address(struct ifaddrmsg * ifa_struct,
