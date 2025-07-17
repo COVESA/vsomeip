@@ -27,7 +27,12 @@ static void BM_is_policy_update_allowed_valid_uid_no_requests(benchmark::State &
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::string test = utility::get_policies_path() + configuration_file;
+
     utility::read_data(input, policy_elements, its_failed);
+    if (policy_elements.empty()) {
+        throw std::runtime_error("No valid policies loaded. Check the input files or configurations."+test);
+    }
 
     // Load the configuration into the security.
     const bool check_whitelist { true };

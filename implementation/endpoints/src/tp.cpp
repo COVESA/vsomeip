@@ -73,7 +73,5 @@ tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
     return split_messages;
 }
 
-const std::uint16_t tp::tp_max_segment_length_;
-
 } // namespace tp
 } // namespace vsomeip_v3

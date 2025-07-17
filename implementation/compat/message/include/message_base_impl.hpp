@@ -6,8 +6,8 @@
 #ifndef VSOMEIP_COMPAT_MESSAGE_BASE_IMPL_HPP_
 #define VSOMEIP_COMPAT_MESSAGE_BASE_IMPL_HPP_
 
-#include <compat/vsomeip/export.hpp>
-#include <compat/vsomeip/message.hpp>
+#include "compat/vsomeip/export.hpp"
+#include "compat/vsomeip/message.hpp"
 #include <vsomeip/message.hpp>
 
 namespace vsomeip_v3 {

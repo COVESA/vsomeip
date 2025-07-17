@@ -5,7 +5,7 @@
 
 #include <vsomeip/application.hpp>
 #include <vsomeip/runtime.hpp>
-#include <compat/vsomeip/runtime.hpp>
+#include "compat/vsomeip/runtime.hpp"
 
 #include <vsomeip/internal/logger.hpp>
 
@@ -13,7 +13,7 @@
 #ifdef ANDROID
 #    include "../../../configuration/include/internal_android.hpp"
 #else
-#    include "../../../configuration/include/internal.hpp"
+#    include "internal.hpp"
 #endif
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/payload_impl.hpp"

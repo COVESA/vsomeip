@@ -8,7 +8,7 @@ project (vSomeIPHelloWorld)
 
 find_package(Threads REQUIRED)
 
-set(VSOMEIP_NAME "vsomeip3")
+include(GNUInstallDirs)
 
 # create_target("executable")
 function(create_target executable)
@@ -19,7 +19,7 @@ function(create_target executable)
     target_compile_features(vsomeip_hello_world_${executable} INTERFACE cxx_std_17)
 
     target_include_directories(vsomeip_hello_world_${executable} INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}
     )
 endfunction()
 
@@ -27,10 +27,11 @@ endfunction()
 function(link_target executable)
     add_executable(hello_world_${executable})
     target_sources(hello_world_${executable} PRIVATE hello_world_${executable}_main.cpp)
-    target_link_libraries(hello_world_${executable} PRIVATE vsomeip_hello_world_${executable} vsomeip3 Threads::Threads)
+    target_link_libraries(hello_world_${executable} PRIVATE vsomeip_hello_world_${executable} ${VSOMEIP_NAME} Threads::Threads)
+    if(ENABLE_SIGNAL_HANDLING)
+      target_compile_definitions(vsomeip_hello_world_${executable} PRIVATE VSOMEIP_ENABLE_SIGNAL_HANDLING)
+    endif()
 endfunction()
-
-include_directories(${VSOMEIP_INCLUDE_DIRS})
 
 create_target("service")
 create_target("client")
@@ -46,4 +47,11 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android")
 
     link_target("client")
     link_target("service")
+
+    install(
+        TARGETS
+            hello_world_client hello_world_service RUNTIME
+         DESTINATION "${INSTALL_BIN_DIR}"
+         COMPONENT example-hello_world
+    )
 endif()

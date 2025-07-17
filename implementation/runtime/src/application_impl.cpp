@@ -24,6 +24,7 @@
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "internal.hpp"
 #include "../include/application_impl.hpp"
 #ifdef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 #include "../../configuration/include/configuration_impl.hpp"
