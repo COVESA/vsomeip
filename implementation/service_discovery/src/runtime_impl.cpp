@@ -12,7 +12,18 @@
 #include "../include/runtime_impl.hpp"
 #include "../include/service_discovery_impl.hpp"
 
+#ifdef VSOMEIP_STATIC_PLUGINS
+namespace vsomeip_v3 {
+
+create_plugin_func plugin_manager_impl_init_hook_sd()
+{
+    return sd::runtime_impl::get_plugin;
+}
+
+} // namespace vsomeip_v3
+#else
 VSOMEIP_PLUGIN(vsomeip_v3::sd::runtime_impl)
+#endif
 
 namespace vsomeip_v3 {
 namespace sd {

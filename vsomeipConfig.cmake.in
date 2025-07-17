@@ -16,4 +16,9 @@ if (NOT TARGET vsomeip AND NOT vsomeip_BINARY_DIR)
 endif ()
 
 # These are IMPORTED targets created by vsomeipTargets.cmake
-set (VSOMEIP_LIBRARIES vsomeip)
+if (NOT @BUILD_SHARED_LIBS@)
+    link_directories(@CMAKE_INSTALL_PREFIX@/@INSTALL_LIB_DIR@)
+    set (VSOMEIP_LIBRARIES vsomeip vsomeip3-cfg vsomeip3-e2e vsomeip3-sd)
+else ()
+    set (VSOMEIP_LIBRARIES vsomeip)
+endif ()
