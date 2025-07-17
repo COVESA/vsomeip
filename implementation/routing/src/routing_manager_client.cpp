@@ -336,7 +336,7 @@ bool routing_manager_client::offer_service(client_t _client,
     return true;
 }
 
-void routing_manager_client::send_offer_service(client_t _client,
+bool routing_manager_client::send_offer_service(client_t _client,
         service_t _service, instance_t _instance,
         major_version_t _major, minor_version_t _minor) {
 
@@ -355,14 +355,18 @@ void routing_manager_client::send_offer_service(client_t _client,
 
     if (its_error == protocol::error_e::ERROR_OK) {
         std::scoped_lock its_sender_lock {sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
+            return true;
         }
+        VSOMEIP_ERROR << "rmc::" << __func__ << ": failure offerring service " << std::hex
+                     << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4)
+                     << _instance << "." << std::setw(4) << _major;
     } else {
         VSOMEIP_ERROR << __func__ << ": offer_service serialization failed ("
                 << std::dec << static_cast<int>(its_error) << ")";
     }
 
+    return false;
 }
 
 void routing_manager_client::stop_offer_service(client_t _client,
@@ -1882,9 +1886,6 @@ void routing_manager_client::on_routing_info(
                 }
 
                 if (its_client == get_client()) {
-                    VSOMEIP_INFO << "Application/Client "
-                                 << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                                 << " (" << host_->get_name() << ") is registered.";
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                     if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
                         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
@@ -1895,33 +1896,36 @@ void routing_manager_client::on_routing_info(
                         return;
                     }
 #endif
-                    {
-                        std::scoped_lock its_registration_lock {registration_state_mutex_};
-                        if (state_ == inner_state_type_e::ST_REGISTERING) {
+                    std::unique_lock its_registration_lock(registration_state_mutex_);
+                    if (state_ == inner_state_type_e::ST_REGISTERING) {
+                        if (send_registered_ack() && send_pending_commands()) {
+                            VSOMEIP_INFO << "Application/Client "
+                                         << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                                         << " (" << host_->get_name() << ") is registered.";
+
+                            state_ = inner_state_type_e::ST_REGISTERED;
                             {
                                 std::scoped_lock its_register_application_lock {register_application_timer_mutex_};
                                 register_application_timer_.cancel();
                             }
 
-                            VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change "
-                                            << static_cast<int>(state_.load()) << " -> "
-                                            << static_cast<int>(inner_state_type_e::ST_REGISTERED);
-                            state_ = inner_state_type_e::ST_REGISTERED;
-                            send_registered_ack();
-                            send_pending_commands();
-
                             start_keepalive();
+                            {
+                                // Notify stop() call about clean deregistration
+                                std::scoped_lock its_lock(state_condition_mutex_);
+                                state_condition_.notify_one();
+                            }
 
-                            // Notify stop() call about clean deregistration
-                            std::scoped_lock its_lock(state_condition_mutex_);
-                            state_condition_.notify_one();
-
+                            its_registration_lock.unlock();
+                            // inform host about its own registration state changes
+                            host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_REGISTERED));
+                        } else {
+                            VSOMEIP_ERROR << "rmc::" << __func__ << ": failure registering client " << std::hex
+                                          << std::setfill('0') << std::setw(4) << get_client() << " (" << host_->get_name() << ")";
                         }
-                    }
-
-                    // inform host about its own registration state changes
-                    if (state_ == inner_state_type_e::ST_REGISTERED) {
-                        host_->on_state(static_cast<state_type_e>(inner_state_type_e::ST_REGISTERED));
+                    } else if (state_ == inner_state_type_e::ST_REGISTERED) {
+                        VSOMEIP_INFO << "rmc::" << __func__ << ": application/client " << std::hex << std::setfill('0')
+                                     << std::setw(4) << get_client() << " (" << host_->get_name() << ") is already registered.";
                     }
                 }
                 break;
@@ -2341,10 +2345,9 @@ void routing_manager_client::send_pong() const {
             << std::dec << int(its_error) << ")";
 }
 
-void routing_manager_client::send_request_services(const std::set<protocol::service> &_requests) {
-
+bool routing_manager_client::send_request_services(const std::set<protocol::service> &_requests) {
     if (!_requests.size()) {
-        return;
+        return true;
     }
 
     protocol::request_service_command its_command;
@@ -2356,13 +2359,16 @@ void routing_manager_client::send_request_services(const std::set<protocol::serv
     its_command.serialize(its_buffer, its_error);
     if (its_error == protocol::error_e::ERROR_OK) {
         std::scoped_lock its_sender_lock {sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
+            return true;
         }
+        VSOMEIP_ERROR << "rmc::" << __func__ << ": Failed to send requested services";
     } else {
         VSOMEIP_ERROR << __func__ << ": request service serialization failed ("
                 << std::dec << static_cast<int>(its_error) << ")";
     }
+
+    return false;
 }
 
 void routing_manager_client::send_release_service(client_t _client, service_t _service,
@@ -2386,10 +2392,11 @@ void routing_manager_client::send_release_service(client_t _client, service_t _s
     }
 }
 
-void routing_manager_client::send_pending_event_registrations(client_t _client) {
+bool routing_manager_client::send_pending_event_registrations(client_t _client) {
 
     protocol::register_events_command its_command;
     its_command.set_client(_client);
+    bool sent{true};
 
     std::scoped_lock its_lock(pending_event_registrations_mutex_);
     auto it = pending_event_registrations_.begin();
@@ -2408,14 +2415,23 @@ void routing_manager_client::send_pending_event_registrations(client_t _client) 
 
         if (its_error == protocol::error_e::ERROR_OK) {
             std::scoped_lock its_sender_lock {sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            if (!(sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size())))) {
+                    VSOMEIP_ERROR << "rmc::" << __func__ << " : failed to send pending registration to host";
+                    sent = false;
             }
-        } else
+        } else {
             VSOMEIP_ERROR << __func__
                 << ": register event command serialization failed ("
                 << std::dec << int(its_error) << ")";
+            sent = false;
+        }
+
+        if (!sent) {
+            break;
+        }
     }
+
+    return sent;
 }
 
 void routing_manager_client::send_register_event(client_t _client,
@@ -2557,19 +2573,21 @@ void routing_manager_client::on_stop_offer_service(service_t _service,
     }
 }
 
-void routing_manager_client::send_pending_commands() {
+bool routing_manager_client::send_pending_commands() {
     {
         std::scoped_lock its_lock(pending_offers_mutex_);
         for (auto &po : pending_offers_) {
-            send_offer_service(get_client(),
-                po.service_, po.instance_,
-                po.major_, po.minor_);
+            if (!send_offer_service(get_client(), po.service_, po.instance_,
+            po.major_, po.minor_)) {
+                return  false;
+            }
         }
     }
 
-    send_pending_event_registrations(get_client());
-    std::scoped_lock its_lock (requests_mutex_);
-    send_request_services(requests_);
+    {
+        std::scoped_lock its_lock (requests_mutex_);
+        return send_pending_event_registrations(get_client()) && send_request_services(requests_);
+    }
 }
 
 void routing_manager_client::init_receiver() {
@@ -2735,7 +2753,7 @@ void routing_manager_client::register_application_timeout_cbk(
     }
 }
 
-void routing_manager_client::send_registered_ack() {
+bool routing_manager_client::send_registered_ack() {
 
     protocol::registered_ack_command its_command;
     its_command.set_client(get_client());
@@ -2747,13 +2765,17 @@ void routing_manager_client::send_registered_ack() {
     if (its_error == protocol::error_e::ERROR_OK) {
 
         std::scoped_lock its_sender_lock {sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
+            return true;
         }
-    } else
+        VSOMEIP_ERROR << "rmc::" << __func__ << ": failed sending registered ack";
+    } else {
         VSOMEIP_ERROR << __func__
             << ": registered ack command serialization failed ("
             << std::dec << int(its_error) << ")";
+    }
+
+    return false;
 }
 
 bool routing_manager_client::is_client_known(client_t _client) {
