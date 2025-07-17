@@ -273,6 +273,7 @@ endpoint_manager_base::log_client_states() const {
         return (_a.second > _b.second);
     });
 
+    // NOTE: limit is important, do *NOT* want an arbitrarily big string!
     size_t its_max(std::min(size_t(10), its_client_queue_sizes.size()));
     its_log << std::setfill('0');
     for (size_t i = 0; i < its_max; i++) {
@@ -283,7 +284,7 @@ endpoint_manager_base::log_client_states() const {
     }
 
     if (its_log.str().length() > 0)
-        VSOMEIP_WARNING << "ICQ: [" << its_log.str() << "]";
+        VSOMEIP_WARNING << "ICQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
 }
 
 std::shared_ptr<endpoint>
