@@ -1270,6 +1270,7 @@ endpoint_manager_impl::log_client_states() const {
             return (_a.second > _b.second);
         });
 
+    // NOTE: limit is important, do *NOT* want an arbitrarily big string!
     size_t its_max(std::min(size_t(5), its_client_queue_sizes.size()));
     for (size_t i = 0; i < its_max; i++) {
         its_log << std::hex << std::setfill('0') << std::setw(4)
@@ -1282,7 +1283,7 @@ endpoint_manager_impl::log_client_states() const {
     }
 
     if (its_log.str().length() > 0)
-        VSOMEIP_INFO << "ECQ: [" << its_log.str() << "]";
+        VSOMEIP_INFO << "ECQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
 }
 
 void
@@ -1320,6 +1321,7 @@ endpoint_manager_impl::log_server_states() const {
             return (_a.second > _b.second);
         });
 
+    // NOTE: limit is important, do *NOT* want an arbitrarily big string!
     size_t its_max(std::min(size_t(5), its_client_queue_sizes.size()));
     for (size_t i = 0; i < its_max; i++) {
         its_log << std::dec << its_client_queue_sizes[i].first.first
@@ -1330,7 +1332,7 @@ endpoint_manager_impl::log_server_states() const {
     }
 
     if (its_log.str().length() > 0)
-        VSOMEIP_INFO << "ESQ: [" << its_log.str() << "]";
+        VSOMEIP_INFO << "ESQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
 }
 
 void

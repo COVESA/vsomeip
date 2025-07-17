@@ -3403,8 +3403,7 @@ routing_manager_impl::expire_subscriptions(bool _force) {
 
 void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const & _error) {
     if (!_error) {
-        static int its_counter(0);
-        static uint32_t its_interval = configuration_->get_log_version_interval();
+        const uint32_t its_interval = configuration_->get_log_version_interval();
 
         bool is_diag_mode(false);
 
@@ -3425,12 +3424,9 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
                 << ((is_diag_mode == true) ? "diagnosis)" : "default)")
                 << its_last_resume.str();
 
-        its_counter++;
-        if (its_counter == 6) {
-            ep_mgr_->log_client_states();
-            ep_mgr_impl_->log_client_states();
-            its_counter = 0;
-        }
+        ep_mgr_->log_client_states();
+        ep_mgr_impl_->log_client_states();
+        ep_mgr_impl_->log_server_states();
 
         {
             std::scoped_lock its_lock(version_log_timer_mutex_);
