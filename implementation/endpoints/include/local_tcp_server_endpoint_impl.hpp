@@ -20,6 +20,9 @@
 
 namespace vsomeip_v3 {
 
+class tcp_socket;
+class tcp_acceptor;
+
 typedef server_endpoint_impl<
             boost::asio::ip::tcp
         > local_tcp_server_endpoint_base_impl;
@@ -33,7 +36,7 @@ public:
             boost::asio::io_context &_io,
             const std::shared_ptr<configuration>& _configuration,
             bool _is_routing_endpoint);
-    virtual ~local_tcp_server_endpoint_impl() = default;
+    virtual ~local_tcp_server_endpoint_impl();
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);
     void deinit();
@@ -84,7 +87,7 @@ private:
                           std::uint32_t _max_message_size,
                           std::uint32_t _buffer_shrink_threshold,
                           boost::asio::io_context &_io);
-        socket_type & get_socket();
+        tcp_socket& get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 
         void start();
@@ -120,7 +123,7 @@ private:
         void shutdown_and_close_unlocked();
 
         std::mutex socket_mutex_;
-        local_tcp_server_endpoint_impl::socket_type socket_;
+        std::unique_ptr<tcp_socket> socket_;
         std::weak_ptr<local_tcp_server_endpoint_impl> server_;
 
         const std::uint32_t recv_buffer_size_initial_;
@@ -142,7 +145,7 @@ private:
     };
 
     std::mutex acceptor_mutex_;
-    boost::asio::ip::tcp::acceptor acceptor_;
+    std::unique_ptr<tcp_acceptor> acceptor_;
 
     typedef std::map<client_t, connection::ptr> connections_t;
     std::mutex connections_mutex_;

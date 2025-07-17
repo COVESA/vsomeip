@@ -18,6 +18,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "../include/abstract_socket_factory.hpp"
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../../utility/include/utility.hpp"
@@ -27,23 +28,39 @@ namespace vsomeip_v3 {
 
 template<typename Protocol>
 client_endpoint_impl<Protocol>::client_endpoint_impl(
-		const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        const endpoint_type& _local, const endpoint_type& _remote,
-        boost::asio::io_context &_io, const std::shared_ptr<configuration>& _configuration) :
-	endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration),
-          socket_ {std::make_unique<socket_type>(_io)}, remote_ {_remote}, flush_timer_ {_io},
-		  connect_timer_ {_io}, connect_timeout_ {VSOMEIP_DEFAULT_CONNECT_TIMEOUT},
-		  state_ {cei_state_e::CLOSED}, reconnect_counter_ {0}, connecting_timer_ {_io},
-		  connecting_timeout_ {VSOMEIP_DEFAULT_CONNECTING_TIMEOUT},
-		  train_ {std::make_shared<train>()}, dispatch_timer_ {_io}, has_last_departure_ {false},
-		  queue_size_ {0}, was_not_connected_ {false}, is_sending_ {false}, strand_(_io) {
-	this->local_ = _local;
+        const std::shared_ptr<endpoint_host>& _endpoint_host,
+        const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
+        const endpoint_type& _remote, boost::asio::io_context& _io,
+        const std::shared_ptr<configuration>& _configuration) :
+    endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration), remote_ {_remote},
+    flush_timer_ {_io}, connect_timer_ {_io}, connect_timeout_ {VSOMEIP_DEFAULT_CONNECT_TIMEOUT},
+    state_ {cei_state_e::CLOSED}, reconnect_counter_ {0}, connecting_timer_ {_io},
+    connecting_timeout_ {VSOMEIP_DEFAULT_CONNECTING_TIMEOUT}, train_ {std::make_shared<train>()},
+    dispatch_timer_ {_io}, has_last_departure_ {false}, queue_size_ {0}, was_not_connected_ {false},
+    is_sending_ {false}, strand_(_io) {
+    this->local_ = _local;
+    recreate_socket();
 }
 
 template<typename Protocol>
 client_endpoint_impl<Protocol>::~client_endpoint_impl() {
 
+}
+
+template<typename Protocol>
+void client_endpoint_impl<Protocol>::recreate_socket() {
+    auto& io = endpoint_impl<Protocol>::io_;
+    auto socket_factory = abstract_socket_factory::get();
+    if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
+        socket_ = socket_factory->create_tcp_socket(io);
+    } else if constexpr (std::is_same_v<Protocol, boost::asio::ip::udp>) {
+        socket_ = socket_factory->create_udp_socket(io);
+    }
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+    else if constexpr (std::is_same_v<Protocol, boost::asio::local::stream_protocol>) {
+        socket_ = socket_factory->create_uds_socket(io);
+    }
+#endif
 }
 
 template<typename Protocol>
@@ -730,11 +747,20 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
 
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-        if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
-                    << std::string(std::strerror(errno))
-                    << "' (" << errno << ") " << get_remote_information()
-                    << " endpoint > " << this;
+        if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
+            if (!socket_->can_read_fd_flags()) {
+                VSOMEIP_ERROR
+                        << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
+                        << std::string(std::strerror(errno)) << "' (" << errno << ") "
+                        << get_remote_information() << " endpoint > " << this;
+            }
+        } else {
+            if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
+                VSOMEIP_ERROR
+                        << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
+                        << std::string(std::strerror(errno)) << "' (" << errno << ") "
+                        << get_remote_information() << " endpoint > " << this;
+            }
         }
 #endif
         boost::system::error_code its_error;
@@ -758,7 +784,7 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
     state_ = cei_state_e::CLOSED;
 
     if (_recreate_socket) {
-        socket_.reset(new socket_type(endpoint_impl<Protocol>::io_));
+        recreate_socket();
         VSOMEIP_WARNING << "cei::" << __func__ << ": socket has been reset "
                         << " endpoint > " << this << " socket state > "
                         << static_cast<int>(state_.load());

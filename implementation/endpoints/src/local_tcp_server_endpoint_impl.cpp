@@ -21,6 +21,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif
 #include "../include/endpoint_host.hpp"
+#include "../include/abstract_socket_factory.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
 #include "../include/local_server_endpoint_impl_receive_op.hpp"
 #include "../../configuration/include/configuration.hpp"
@@ -37,19 +38,18 @@ namespace vsomeip_v3 {
 
 local_tcp_server_endpoint_impl::local_tcp_server_endpoint_impl(
         const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        boost::asio::io_context &_io,
-        const std::shared_ptr<configuration>& _configuration,
-        bool _is_routing_endpoint)
-    : local_tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
-      acceptor_(_io),
-      buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()),
-      is_routing_endpoint_(_is_routing_endpoint) {
+        const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
+        const std::shared_ptr<configuration>& _configuration, bool _is_routing_endpoint) :
+    local_tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
+    acceptor_(abstract_socket_factory::get()->create_tcp_acceptor(_io)),
+    buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()),
+    is_routing_endpoint_(_is_routing_endpoint) {
     is_supporting_magic_cookies_ = false;
 
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
+local_tcp_server_endpoint_impl::~local_tcp_server_endpoint_impl() = default;
 bool local_tcp_server_endpoint_impl::is_local() const {
 
     return true;
@@ -63,31 +63,28 @@ void local_tcp_server_endpoint_impl::init(const endpoint_type& _local,
 
 void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local,
                                                    boost::system::error_code& _error) {
-    acceptor_.open(_local.protocol(), _error);
+    acceptor_->open(_local.protocol(), _error);
     if (_error)
         return;
 
 #ifndef _WIN32
-    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _error);
+    acceptor_->set_option(boost::asio::socket_base::reuse_address(true), _error);
     if (_error)
         return;
 #endif
 
 #if defined(__linux__) || defined(ANDROID)
-    // using IP_FREEBIND here helps avoid an extra dependency - can setup socket even before
-    // the underlying network interface is ready
-    int opt = 1;
-    if (setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) != 0) {
+    if (!acceptor_->set_native_option_free_bind()) {
         VSOMEIP_ERROR << "ltsei::" << __func__ << ": could not setsockopt(IP_FREEBIND), errno "
                       << errno;
     }
 #endif
 
-    acceptor_.bind(_local, _error);
+    acceptor_->bind(_local, _error);
     if (_error)
         return;
 
-    acceptor_.listen(boost::asio::socket_base::max_listen_connections, _error);
+    acceptor_->listen(boost::asio::socket_base::max_listen_connections, _error);
     if (_error)
         return;
 
@@ -97,18 +94,18 @@ void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local,
 
 void local_tcp_server_endpoint_impl::deinit() {
     boost::system::error_code its_error;
-    acceptor_.close(its_error);
+    acceptor_->close(its_error);
 }
 
 void local_tcp_server_endpoint_impl::start() {
 
     std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
-    if (!acceptor_.is_open()) {
+    if (!acceptor_->is_open()) {
         boost::system::error_code its_error;
         init_unlocked(local_, its_error);
     }
 
-    if (acceptor_.is_open()) {
+    if (acceptor_->is_open()) {
         connection::ptr new_connection = connection::create(
                 std::dynamic_pointer_cast<local_tcp_server_endpoint_impl>(
                         shared_from_this()), max_message_size_,
@@ -117,17 +114,12 @@ void local_tcp_server_endpoint_impl::start() {
 
         {
             std::unique_lock<std::mutex> its_lock(new_connection->get_socket_lock());
-            acceptor_.async_accept(
-                new_connection->get_socket(),
-                std::bind(
-                    &local_tcp_server_endpoint_impl::accept_cbk,
-                    std::dynamic_pointer_cast<
-                        local_tcp_server_endpoint_impl
-                    >(shared_from_this()),
-                    new_connection,
-                    std::placeholders::_1
-                )
-            );
+            acceptor_->async_accept(
+                    new_connection->get_socket(),
+                    std::bind(&local_tcp_server_endpoint_impl::accept_cbk,
+                              std::dynamic_pointer_cast<local_tcp_server_endpoint_impl>(
+                                      shared_from_this()),
+                              new_connection, std::placeholders::_1));
         }
     }
 }
@@ -137,9 +129,9 @@ void local_tcp_server_endpoint_impl::stop() {
     server_endpoint_impl::stop();
     {
         std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
-        if (acceptor_.is_open()) {
+        if (acceptor_->is_open()) {
             boost::system::error_code its_error;
-            acceptor_.close(its_error);
+            acceptor_->close(its_error);
         }
     }
     {
@@ -257,7 +249,7 @@ void local_tcp_server_endpoint_impl::accept_cbk(
         boost::system::error_code its_error;
         {
             std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
-            socket_type &new_connection_socket = _connection->get_socket();
+            auto& new_connection_socket = _connection->get_socket();
 
             endpoint_type remote = new_connection_socket.remote_endpoint(its_error);
             if (its_error) {
@@ -307,9 +299,7 @@ void local_tcp_server_endpoint_impl::accept_cbk(
                 // set a user timeout
                 // along the keep alives, this ensures connection closes if endpoint is unreachable
                 unsigned int opt = LOCAL_TCP_USER_TIMEOUT;
-                if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT,
-                               &opt, sizeof(opt))
-                    == -1) {
+                if (!new_connection_socket.set_user_timeout(opt)) {
                     VSOMEIP_WARNING << "ltsei::" << __func__
                                     << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
                 }
@@ -347,24 +337,15 @@ void local_tcp_server_endpoint_impl::accept_cbk(
 ///////////////////////////////////////////////////////////////////////////////
 
 local_tcp_server_endpoint_impl::connection::connection(
-        const std::shared_ptr<local_tcp_server_endpoint_impl> &_server,
-        std::uint32_t _max_message_size,
-        std::uint32_t _initial_recv_buffer_size,
-        std::uint32_t _buffer_shrink_threshold,
-        boost::asio::io_context &_io)
-    : socket_(_io),
-      server_(_server),
-      recv_buffer_size_initial_(_initial_recv_buffer_size + 8),
-      max_message_size_(_max_message_size),
-      recv_buffer_(recv_buffer_size_initial_, 0),
-      recv_buffer_size_(0),
-      missing_capacity_(0),
-      shrink_count_(0),
-      buffer_shrink_threshold_(_buffer_shrink_threshold),
-      bound_client_(VSOMEIP_CLIENT_UNSET),
-      bound_client_host_(""),
-      assigned_client_(false),
-      is_stopped_(true) {
+        const std::shared_ptr<local_tcp_server_endpoint_impl>& _server,
+        std::uint32_t _max_message_size, std::uint32_t _initial_recv_buffer_size,
+        std::uint32_t _buffer_shrink_threshold, boost::asio::io_context& _io) :
+    socket_(abstract_socket_factory::get()->create_tcp_socket(_io)), server_(_server),
+    recv_buffer_size_initial_(_initial_recv_buffer_size + 8), max_message_size_(_max_message_size),
+    recv_buffer_(recv_buffer_size_initial_, 0), recv_buffer_size_(0), missing_capacity_(0),
+    shrink_count_(0), buffer_shrink_threshold_(_buffer_shrink_threshold),
+    bound_client_(VSOMEIP_CLIENT_UNSET), bound_client_host_(""), assigned_client_(false),
+    is_stopped_(true) {
     if (_server->is_routing_endpoint_ &&
             !_server->configuration_->is_security_enabled()) {
         assigned_client_ = true;
@@ -387,9 +368,8 @@ local_tcp_server_endpoint_impl::connection::create(
             _buffer_shrink_threshold, _io));
 }
 
-local_tcp_server_endpoint_impl::socket_type &
-local_tcp_server_endpoint_impl::connection::get_socket() {
-    return socket_;
+tcp_socket& local_tcp_server_endpoint_impl::connection::get_socket() {
+    return *socket_;
 }
 
 std::unique_lock<std::mutex>
@@ -399,7 +379,7 @@ local_tcp_server_endpoint_impl::connection::get_socket_lock() {
 
 void local_tcp_server_endpoint_impl::connection::start() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
             VSOMEIP_ERROR << __func__ << "Received buffer size is greater than the buffer capacity!"
@@ -441,15 +421,10 @@ void local_tcp_server_endpoint_impl::connection::start() {
         }
 
         is_stopped_ = false;
-        socket_.async_receive(
-            boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
-            std::bind(
-                &local_tcp_server_endpoint_impl::connection::receive_cbk,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        );
+        socket_->async_receive(
+                boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
+                std::bind(&local_tcp_server_endpoint_impl::connection::receive_cbk,
+                          shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     } else {
         VSOMEIP_WARNING << "ltsei::" << __func__ << ": socket was closed | endpoint > " << this;
     }
@@ -458,16 +433,16 @@ void local_tcp_server_endpoint_impl::connection::start() {
 void local_tcp_server_endpoint_impl::connection::stop() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     is_stopped_ = true;
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-        if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
+        if (!socket_->can_read_fd_flags()) {
             VSOMEIP_ERROR << "ltsei: socket/handle closed already '"
                           << std::string(std::strerror(errno)) << "' (" << errno << ") "
                           << get_path_local() << " endpoint > " << this;
         }
 #endif
         boost::system::error_code its_error;
-        socket_.cancel(its_error);
+        socket_->cancel(its_error);
     }
 }
 
@@ -500,17 +475,10 @@ void local_tcp_server_endpoint_impl::connection::send_queued(
 
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
-        boost::asio::async_write(
-            socket_,
-            bufs,
-            std::bind(
-                &local_tcp_server_endpoint_impl::connection::send_cbk,
-                shared_from_this(),
-                _buffer,
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        );
+        socket_->async_write(bufs,
+                             std::bind(&local_tcp_server_endpoint_impl::connection::send_cbk,
+                                       shared_from_this(), _buffer, std::placeholders::_1,
+                                       std::placeholders::_2));
     }
 }
 
@@ -750,7 +718,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                     assigned_client_ = true;
                 } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
                     boost::system::error_code ec;
-                    auto its_endpoint = socket_.remote_endpoint(ec);
+                    auto its_endpoint = socket_->remote_endpoint(ec);
                     if (!ec) {
                         auto its_address = its_endpoint.address();
                         auto its_port = its_endpoint.port();
@@ -874,8 +842,8 @@ void local_tcp_server_endpoint_impl::connection::calculate_shrink_count() {
 std::string local_tcp_server_endpoint_impl::connection::get_path_local() const {
     boost::system::error_code ec;
     std::string its_local_path;
-    if (socket_.is_open()) {
-        endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
+    if (socket_->is_open()) {
+        endpoint_type its_local_endpoint = socket_->local_endpoint(ec);
         if (!ec) {
             its_local_path += its_local_endpoint.address().to_string();
             its_local_path += ":";
@@ -888,8 +856,8 @@ std::string local_tcp_server_endpoint_impl::connection::get_path_local() const {
 std::string local_tcp_server_endpoint_impl::connection::get_path_remote() const {
     boost::system::error_code ec;
     std::string its_remote_path;
-    if (socket_.is_open()) {
-        endpoint_type its_remote_endpoint = socket_.remote_endpoint(ec);
+    if (socket_->is_open()) {
+        endpoint_type its_remote_endpoint = socket_->remote_endpoint(ec);
         if (!ec) {
             its_remote_path += its_remote_endpoint.address().to_string();
             its_remote_path += ":";
@@ -917,10 +885,10 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
     }
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
         boost::system::error_code its_error;
-        socket_.shutdown(socket_.shutdown_both, its_error);
-        socket_.close(its_error);
+        socket_->shutdown(tcp_socket::shutdown_both, its_error);
+        socket_->close(its_error);
     }
     std::shared_ptr<local_tcp_server_endpoint_impl> its_server = server_.lock();
     if (its_server) {
@@ -942,8 +910,8 @@ local_tcp_server_endpoint_impl::connection::shutdown_and_close() {
 void
 local_tcp_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
     boost::system::error_code its_error;
-    socket_.shutdown(socket_.shutdown_both, its_error);
-    socket_.close(its_error);
+    socket_->shutdown(tcp_socket::shutdown_both, its_error);
+    socket_->close(its_error);
 }
 
 void local_tcp_server_endpoint_impl::print_status() {

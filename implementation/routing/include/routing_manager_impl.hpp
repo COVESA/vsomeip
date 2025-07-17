@@ -24,7 +24,7 @@
 #include "routing_manager_stub_host.hpp"
 #include "types.hpp"
 
-#include "../../endpoints/include/netlink_connector.hpp"
+#include "../../endpoints/include/abstract_netlink_connector.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
 #include "../../endpoints/include/endpoint_manager_impl.hpp"
 
@@ -499,7 +499,7 @@ private:
                        boost::hash<std::pair<service_t, instance_t>>>
             pending_sd_offers_;
 #if defined(__linux__) || defined(ANDROID)
-    std::shared_ptr<netlink_connector> netlink_connector_;
+    std::shared_ptr<abstract_netlink_connector> netlink_connector_;
 #endif
 
     std::mutex pending_offers_mutex_;
