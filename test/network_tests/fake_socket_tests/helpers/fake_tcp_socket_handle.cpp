@@ -64,7 +64,7 @@ void fake_tcp_socket_handle::close() {
         protocol_type_ = std::nullopt;
         if (receptor_) {
             TEST_LOG << "[fake-socket] posting operation_aborted on: " << socket_id_;
-            io_.post([handler = std::move(receptor_->handler_)] {
+            boost::asio::post(io_, [handler = std::move(receptor_->handler_)] {
                 handler(boost::asio::error::operation_aborted, 0);
             });
             receptor_ = std::nullopt;
@@ -113,7 +113,8 @@ bool fake_tcp_socket_handle::disconnect(std::optional<boost::system::error_code>
         TEST_LOG << "[fake-socket] Error on disconnect on: " << socket_id_ << " no receptor set";
         return false;
     }
-    io_.post([ec = *_ec, handler = std::move(receptor_->handler_)] { handler(ec, 0); });
+    boost::asio::post(io_,
+                      [ec = *_ec, handler = std::move(receptor_->handler_)] { handler(ec, 0); });
     receptor_ = std::nullopt;
     return true;
 }
@@ -134,7 +135,7 @@ void fake_tcp_socket_handle::inner_close() {
         // managed, and could be implicitly deleted by the io_context in production
         // code, but within the test this "only" means that the io_context went
         // out of scope :/.
-        io_.post([handler = std::move(receptor_->handler_)] {
+        boost::asio::post(io_, [handler = std::move(receptor_->handler_)] {
             handler(boost::asio::error::connection_reset, 0);
         });
         receptor_ = std::nullopt;
@@ -151,11 +152,11 @@ void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep,
 
     if (sm) {
         sm->connect(_ep, *this, [this, h = std::move(_handler)](auto ec) {
-            io_.post([handler = std::move(h), ec] { handler(ec); });
+            boost::asio::post(io_, [handler = std::move(h), ec] { handler(ec); });
         });
         return;
     }
-    io_.post([handler = std::move(_handler)] {
+    boost::asio::post(io_, [handler = std::move(_handler)] {
         // TODO correct error code?
         handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
     });
@@ -217,12 +218,12 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
 
     if (receiver) {
         size_t size = receiver->consume(_buffer);
-        io_.post([size, handler = std::move(_handler)] {
+        boost::asio::post(io_, [size, handler = std::move(_handler)] {
             handler(boost::system::errc::make_error_code(boost::system::errc::success), size);
         });
         return;
     }
-    io_.post([handler = std::move(_handler)] {
+    boost::asio::post(io_, [handler = std::move(_handler)] {
         if (!handler) {
             return;
         }
@@ -244,7 +245,7 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
     auto const lock = std::scoped_lock(mtx_);
     input_data_.reserve(input_data_.size() + incoming_size);
     for (auto const& buffer : _buffer) {
-        auto first = boost::asio::buffer_cast<const char*>(buffer);
+        auto first = static_cast<const char*>(buffer.data());
         auto const last = first + buffer.size();
         for (; first != last; ++first) {
             input_data_.push_back(*first);
@@ -276,7 +277,7 @@ void fake_tcp_socket_handle::update_reception() {
         ++it;
     }
     input_data_.erase(input_data_.begin(), input_data_.begin() + len);
-    io_.post([handler = std::move(receptor_->handler_), len] {
+    boost::asio::post(io_, [handler = std::move(receptor_->handler_), len] {
         if (!handler) {
             return;
         }
@@ -345,7 +346,7 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
     auto const lock = std::scoped_lock(mtx_);
     auto* fake_socket = dynamic_cast<fake_tcp_socket*>(&_socket);
     if (!fake_socket) {
-        io_.post([handler = std::move(_handler)] {
+        boost::asio::post(io_, [handler = std::move(_handler)] {
             handler(boost::system::errc::make_error_code(boost::system::errc::invalid_argument));
         });
         return;
@@ -372,7 +373,7 @@ fake_tcp_acceptor_handle::connect(fake_tcp_socket_handle& _state, connect_handle
             _handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
             return nullptr;
         }
-        io_.post([handler = std::move(connection_->handler_)] {
+        boost::asio::post(io_, [handler = std::move(connection_->handler_)] {
             handler(boost::system::errc::make_error_code(boost::system::errc::success));
         });
         _handler(boost::system::errc::make_error_code(boost::system::errc::success));

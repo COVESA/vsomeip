@@ -119,7 +119,7 @@ public:
 
     virtual void async_accept(tcp_socket&, connect_handler) = 0;
 
-    static constexpr auto max_connection = boost::asio::ip::tcp::acceptor::max_connections;
+    static constexpr auto max_connection = boost::asio::ip::tcp::acceptor::max_listen_connections;
 };
 
 }

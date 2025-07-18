@@ -29,7 +29,7 @@ private:
     }
     virtual void unregister_net_if_changes_handler() { handler_ = nullptr; }
     virtual void start() {
-        io_.post([self = weak_from_this()] {
+        boost::asio::post(io_, [self = weak_from_this()] {
             if (auto lock = self.lock(); lock) {
                 if (lock->handler_) {
                     lock->handler_(true /*interface*/, "fake-interface", true /*is avail*/);
