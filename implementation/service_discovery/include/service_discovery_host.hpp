@@ -54,7 +54,7 @@ public:
             uint16_t _unreliable_port) = 0;
 
     virtual void del_routing_info(service_t _service, instance_t _instance,
-            bool _has_reliable, bool _has_unreliable) = 0;
+            bool _has_reliable, bool _has_unreliable, bool _trigger_availability) = 0;
 
     virtual void update_routing_info(std::chrono::milliseconds _elapsed) = 0;
 

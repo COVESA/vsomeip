@@ -475,10 +475,10 @@ bool routing_manager_impl::offer_service(client_t _client,
 
         send_pending_subscriptions(_service, _instance, _major);
     }
+    erase_offer_command(_service, _instance);
     if (stub_)
         stub_->on_offer_service(_client, _service, _instance, _major, _minor);
     on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
-    erase_offer_command(_service, _instance);
 
     VSOMEIP_INFO << "OFFER("
             << std::hex << std::setfill('0')
@@ -548,9 +548,6 @@ void routing_manager_impl::stop_offer_service(client_t _client,
         }
 
         on_stop_offer_service(_client, _service, _instance, _major, _minor);
-        if (stub_)
-            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
     } else {
         VSOMEIP_WARNING << __func__ << " received STOP_OFFER("
                 << std::hex << std::setfill('0')
@@ -1762,14 +1759,14 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         // Create a ready_to_stop_t object to synchronize the stopping
         // of the service on reliable and unreliable endpoints.
         struct ready_to_stop_t {
-            ready_to_stop_t(bool _reliable, bool _unreliable)
-                : reliable_(_reliable), unreliable_(_unreliable) {
+            ready_to_stop_t(bool _reliable, bool _unreliable) :
+                reliable_(_reliable), unreliable_(_unreliable) {
+                done_ = false;
             }
 
-            inline bool is_ready() const {
-                return reliable_ && unreliable_;
-            }
-
+            inline bool is_ready() const { return reliable_ && unreliable_; }
+            std::mutex is_ready_mutex_;
+            bool done_;
             std::atomic<bool> reliable_;
             std::atomic<bool> unreliable_;
         };
@@ -1778,9 +1775,8 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         auto ptr = shared_from_this();
 
         auto callback = [this, ptr, its_info, its_reliable_endpoint, its_unreliable_endpoint,
-                         ready_to_stop, _service, _instance, _major, _minor]
-                         (std::shared_ptr<endpoint> _endpoint) {
-
+                         ready_to_stop, _client, _service, _instance, _major,
+                         _minor](std::shared_ptr<endpoint> _endpoint) {
             if (its_reliable_endpoint && its_reliable_endpoint == _endpoint)
                 ready_to_stop->reliable_ = true;
 
@@ -1791,38 +1787,55 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                 if (its_info->get_major() == _major && its_info->get_minor() == _minor)
                     discovery_->stop_offer_service(its_info, true);
             }
-            del_routing_info(_service, _instance,
-                    its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr);
 
-            for (const auto& ep: {its_reliable_endpoint, its_unreliable_endpoint}) {
-                if (ep) {
-                    if (ep_mgr_impl_->remove_instance(_service, ep.get())) {
-                        // last instance -> pass ANY_INSTANCE and shutdown completely
-                        ep->prepare_stop(
-                            [this, ptr] (std::shared_ptr<endpoint> _endpoint_to_stop) {
-                                if (ep_mgr_impl_->remove_server_endpoint(
+            if (ep_mgr_impl_->remove_instance(_service, _endpoint.get())) {
+                // last instance -> pass ANY_INSTANCE and shutdown completely
+                _endpoint->prepare_stop(
+                        [this, ptr](std::shared_ptr<endpoint> _endpoint_to_stop) {
+                            if (ep_mgr_impl_->remove_server_endpoint(
                                         _endpoint_to_stop->get_local_port(),
                                         _endpoint_to_stop->is_reliable())) {
-                                    _endpoint_to_stop->stop();
-                                }
-                            }, ANY_SERVICE);
-                    }
-                    // Clear service info and service group
-                    clear_service_info(_service, _instance, ep->is_reliable());
-                }
+                                _endpoint_to_stop->stop();
+                            }
+                        },
+                        ANY_SERVICE);
             }
 
-            if (ready_to_stop->is_ready())
-                erase_offer_command(_service, _instance);
+            if (ready_to_stop->is_ready()) {
+                {
+                    std::scoped_lock ready_lck {ready_to_stop->is_ready_mutex_};
+                    if (!ready_to_stop->done_) {
+                        ready_to_stop->done_ = true;
+                        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr,
+                                         its_unreliable_endpoint != nullptr, true);
+                        erase_offer_command(_service, _instance);
+                        if (stub_)
+                            stub_->on_stop_offer_service(_client, _service, _instance, _major,
+                                                         _minor);
+                        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE,
+                                        _major, _minor);
+                    } else {
+                        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr,
+                                         its_unreliable_endpoint != nullptr, false);
+                    }
+                }
+            } else {
+                del_routing_info(_service, _instance, its_reliable_endpoint != nullptr,
+                                 its_unreliable_endpoint != nullptr, false);
+            }
         };
 
-        for (const auto& ep : { its_reliable_endpoint, its_unreliable_endpoint }) {
+        for (const auto& ep : {its_reliable_endpoint, its_unreliable_endpoint}) {
             if (ep)
                 ep->prepare_stop(callback, _service);
         }
 
         if (!its_reliable_endpoint && !its_unreliable_endpoint) {
             erase_offer_command(_service, _instance);
+            if (stub_)
+                stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+            on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major,
+                            _minor);
         }
 
         std::set<std::shared_ptr<eventgroupinfo> > its_eventgroup_info_set;
@@ -1842,6 +1855,9 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         }
     } else {
         erase_offer_command(_service, _instance);
+        if (stub_)
+            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
     }
 }
 
@@ -2577,11 +2593,20 @@ void routing_manager_impl::add_routing_info(
 }
 
 void routing_manager_impl::del_routing_info(service_t _service, instance_t _instance,
-        bool _has_reliable, bool _has_unreliable) {
+                                            bool _has_reliable, bool _has_unreliable,
+                                            bool _trigger_availability) {
 
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
     if(!its_info)
         return;
+
+    if (_trigger_availability) {
+        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE,
+                        its_info->get_major(), its_info->get_minor());
+        if (stub_)
+            stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance,
+                                         its_info->get_major(), its_info->get_minor());
+    }
 
     on_availability(_service, _instance,
             availability_state_e::AS_UNAVAILABLE,
@@ -2687,7 +2712,7 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
             if (discovery_) {
                 discovery_->unsubscribe_all(s.first, i);
             }
-            del_routing_info(s.first, i, true, true);
+            del_routing_info(s.first, i, true, true, true);
             VSOMEIP_INFO << "update_routing_info: elapsed=" << _elapsed.count()
                     << " : delete service/instance "
                     << std::hex << std::setfill('0')
@@ -2749,7 +2774,7 @@ void routing_manager_impl::expire_services(
                     << std::setw(4) << s.first << "." << std::setw(4) << i
                     << " port [" << std::dec << _range.first << "," << _range.second
                     << "] reliability=" << std::boolalpha << _reliable;
-            del_routing_info(s.first, i, true, true);
+            del_routing_info(s.first, i, true, true, true);
         }
     }
 }
@@ -3760,7 +3785,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                                 if (has_unreliable)
                                     its_instance.second->get_endpoint(false)->remove_stop_handler(its_service.first);
 
-                                del_routing_info(its_service.first, its_instance.first, has_reliable, has_unreliable);
+                                del_routing_info(its_service.first, its_instance.first,
+                                                 has_reliable, has_unreliable, true);
 
                                 std::lock_guard<std::mutex> its_lock(pending_offers_mutex_);
                                 auto its_pending_offer = pending_offers_.find(its_service.first);
@@ -3808,7 +3834,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     for (const auto &i : s.second) {
                         const bool has_reliable(i.second->get_endpoint(true));
                         const bool has_unreliable(i.second->get_endpoint(false));
-                        del_routing_info(s.first, i.first, has_reliable, has_unreliable);
+                        del_routing_info(s.first, i.first, has_reliable, has_unreliable, true);
 
                         // clear all cached payloads of remote services
                         unset_all_eventpayloads(s.first, i.first);

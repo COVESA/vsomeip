@@ -1477,7 +1477,7 @@ void service_discovery_impl::process_serviceentry(
         if (!is_diagnosis_ && !is_suspended_) {
             host_->del_routing_info(its_service, its_instance,
                                     (its_reliable_port != ILLEGAL_PORT),
-                                    (its_unreliable_port != ILLEGAL_PORT));
+                                    (its_unreliable_port != ILLEGAL_PORT), true);
         }
     }
 }
