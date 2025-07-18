@@ -222,8 +222,8 @@ public:
             uint16_t _reliable_port,
             const boost::asio::ip::address &_unreliable_address,
             uint16_t _unreliable_port);
-    void del_routing_info(service_t _service, instance_t _instance,
-            bool _has_reliable, bool _has_unreliable);
+    void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable,
+                          bool _has_unreliable, bool _trigger_availability);
     void update_routing_info(std::chrono::milliseconds _elapsed);
 
     // Handle remote subscriptions / subscription acks
