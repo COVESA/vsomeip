@@ -38,7 +38,12 @@ endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm,
                                              boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration) :
     endpoint_manager_base(_rm, _io, _configuration), is_processing_options_(true),
-    options_thread_(std::bind(&endpoint_manager_impl::process_multicast_options, this)) {
+    options_thread_([this]() {
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+        pthread_setname_np(pthread_self(), "m_multicast");
+#endif
+        process_multicast_options();
+    }) {
 
     local_port_ = port_t(_configuration->get_routing_host_port() + 1);
     if (!is_local_routing_) {
