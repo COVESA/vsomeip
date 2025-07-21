@@ -758,8 +758,8 @@ TEST_F(ipv4_no_multicast_netlink_fixture, start_stop) {
 
 struct ipv6_netlink_fixture : public simulation_netlink_fixture {
     ipv6_netlink_fixture() {
-        listening_address_ = boost::asio::ip::address_v6::from_string("::1");
-        multicast_address_ = boost::asio::ip::address_v6::from_string("ff02::1");
+        listening_address_ = boost::asio::ip::make_address_v6("::1");
+        multicast_address_ = boost::asio::ip::make_address_v6("ff02::1");
     }
 };
 
