@@ -1348,48 +1348,56 @@ endpoint_manager_impl::add_multicast_option(const multicast_option_t &_option) {
     options_condition_.notify_one();
 }
 
+bool endpoint_manager_impl::check_options_queue() {
+
+    if (options_queue_.empty()) {
+        return false;
+    }
+
+    if (!static_cast<routing_manager_impl*>(rm_)->is_external_routing_ready()) {
+        return false;
+    }
+
+    return true;
+}
+
 void
 endpoint_manager_impl::process_multicast_options() {
 
     std::unique_lock<std::mutex> its_lock(options_mutex_);
     while (is_processing_options_) {
         options_condition_.wait(
-                its_lock, [this] { return !options_queue_.empty() || !is_processing_options_; });
+                its_lock, [this] { return check_options_queue() || !is_processing_options_; });
 
         if (!is_processing_options_) {
             return;
         }
 
-        if (options_queue_.size() > 0
-            && static_cast<routing_manager_impl*>(rm_)->is_external_routing_ready()) {
-            auto its_front = options_queue_.front();
-            options_queue_.pop();
-            auto its_udp_server_endpoint =
-                    std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
-            if (its_udp_server_endpoint) {
-                // Unlock before setting the option as this might block
-                its_lock.unlock();
+        auto its_front = options_queue_.front();
+        options_queue_.pop();
+        auto its_udp_server_endpoint =
+                std::dynamic_pointer_cast<udp_server_endpoint_impl>(its_front.endpoint_);
+        if (its_udp_server_endpoint) {
+            // Unlock before setting the option as this might block
+            its_lock.unlock();
 
-                boost::system::error_code its_error;
-                its_udp_server_endpoint->set_multicast_option(
-                    its_front.address_, its_front.is_join_, its_error);
+            boost::system::error_code its_error;
+            its_udp_server_endpoint->set_multicast_option(its_front.address_, its_front.is_join_,
+                                                          its_error);
 
+            // Lock again after setting the option
+            its_lock.lock();
 
-                // Lock again after setting the option
-                its_lock.lock();
+            if (its_error) {
+                VSOMEIP_ERROR << __func__ << ": " << (its_front.is_join_ ? "joining " : "leaving ")
+                              << its_front.address_ << " (" << its_error.message() << ")";
 
-                if (its_error) {
-                    VSOMEIP_ERROR << __func__ << ": "
-                                  << (its_front.is_join_ ? "joining " : "leaving ")
-                                  << its_front.address_ << " (" << its_error.message() << ")";
+                if(its_front.is_join_) {
+                    multicast_option_t its_leave_option {its_front.endpoint_, false,
+                                                         its_front.address_};
 
-                    if(its_front.is_join_) {
-                        multicast_option_t its_leave_option {
-                            its_front.endpoint_, false, its_front.address_};
-
-                        options_queue_.push(its_leave_option);
-                        options_queue_.push(its_front);
-                    }
+                    options_queue_.push(its_leave_option);
+                    options_queue_.push(its_front);
                 }
             }
         }
