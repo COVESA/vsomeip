@@ -168,14 +168,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     -Wno-inconsistent-missing-override
   )
 
-  # Check if optimization level is set in CMAKE_CXX_FLAGS_RELWITHDEBINFO
-  string(REGEX MATCH "-O([0-3s]?)" OPTIMIZATION_SET "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-
-  if(NOT OPTIMIZATION_SET)
-      message(WARNING "No optimization level set in CMAKE_CXX_FLAGS_RELWITHDEBINFO, adding -O")
-      set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O")
-  endif()
-
   target_link_libraries(OS_INTERFACE INTERFACE Threads::Threads)
 
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -196,7 +188,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # There appear to be complication issues without this flag
     target_link_options(OS_INTERFACE INTERFACE -Wno-tsan)
   endif()
-  target_link_options(OS_INTERFACE INTERFACE -Wl,--wrap=socket,--wrap=accept,--wrap=open)
 
   # force all use of std::mutex and std::recursive_mutex to use runtime init instead of static initialization so mutexes
   # can be hooked to enable PI as needed
@@ -206,7 +197,6 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
   set(OS "FREEBSD")
   add_compile_options(-Wno-deprecated)
   target_link_libraries(OS_INTERFACE INTERFACE Threads::Threads)
-  target_link_options(OS_INTERFACE INTERFACE -Wl,--wrap=socket,--wrap=accept,--wrap=open)
 
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
   set(OS "QNX")
@@ -219,7 +209,6 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     -fno-omit-frame-pointer
   )
   target_link_options(OS_INTERFACE INTERFACE -Wl,-export-dynamic)
-  target_link_options(OS_INTERFACE INTERFACE -Wl,--wrap=socket,--wrap=accept,--wrap=open)
 
   target_link_libraries(OS_INTERFACE INTERFACE slog2)
 
@@ -465,6 +454,8 @@ if(MSVC)
     WINDOWS_EXPORT_ALL_SYMBOLS
     ON
   )
+else()
+  set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
 endif()
 target_compile_definitions(
   ${VSOMEIP_NAME}
