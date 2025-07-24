@@ -18,7 +18,6 @@ class plugin_manager {
 public:
     VSOMEIP_EXPORT virtual ~plugin_manager() {};
     VSOMEIP_EXPORT static std::shared_ptr<plugin_manager> get();
-    VSOMEIP_EXPORT virtual void load_plugins() = 0;
     VSOMEIP_EXPORT virtual std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string &_name) = 0;
     VSOMEIP_EXPORT virtual void * load_library(const std::string &_path) = 0;
     VSOMEIP_EXPORT virtual void * load_symbol(void * _handle, const std::string &_symbol) = 0;
