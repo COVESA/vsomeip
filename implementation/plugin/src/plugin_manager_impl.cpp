@@ -40,75 +40,11 @@ std::shared_ptr<plugin_manager_impl> plugin_manager_impl::get() {
     return the_plugin_manager__;
 }
 
-plugin_manager_impl::plugin_manager_impl() :
-        plugins_loaded_(false) {
-}
+plugin_manager_impl::plugin_manager_impl() { }
 
 plugin_manager_impl::~plugin_manager_impl() {
     handles_.clear();
     plugins_.clear();
-}
-
-void plugin_manager_impl::load_plugins() {
-    {
-        std::lock_guard<std::mutex> its_lock_start_stop(loader_mutex_);
-        if (plugins_loaded_) {
-            return;
-        }
-        plugins_loaded_ = true;
-    }
-
-    // Get plug-ins libraries from environment
-    std::vector<std::string> plugins;
-    const char *its_plugins = getenv(VSOMEIP_ENV_LOAD_PLUGINS);
-    if (nullptr != its_plugins) {
-        std::string token;
-        std::stringstream ss(its_plugins);
-        while(std::getline(ss, token, ',')) {
-            plugins.push_back(token);
-        }
-    }
-
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
-    // Load plug-in info from libraries parsed before
-    for (const auto& plugin_name : plugins) {
-        void* handle = load_library(plugin_name);
-        plugin_init_func its_init_func =  reinterpret_cast<plugin_init_func>(
-                load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
-        if (its_init_func) {
-            create_plugin_func its_create_func = (*its_init_func)();
-            if (its_create_func) {
-                auto its_plugin = (*its_create_func)();
-                if (its_plugin) {
-                    handles_[its_plugin->get_plugin_type()][plugin_name] = handle;
-                    switch (its_plugin->get_plugin_type()) {
-                    case plugin_type_e::APPLICATION_PLUGIN:
-                        if (its_plugin->get_plugin_version()
-                                == VSOMEIP_APPLICATION_PLUGIN_VERSION) {
-                            add_plugin(its_plugin, plugin_name);
-                        } else {
-                            VSOMEIP_ERROR << "Plugin version mismatch. "
-                                    << "Ignoring application plugin "
-                                    << its_plugin->get_plugin_name();
-                        }
-                        break;
-                    case plugin_type_e::PRE_CONFIGURATION_PLUGIN:
-                        if (its_plugin->get_plugin_version()
-                                == VSOMEIP_PRE_CONFIGURATION_PLUGIN_VERSION) {
-                            add_plugin(its_plugin, plugin_name);
-                        } else {
-                            VSOMEIP_ERROR << "Plugin version mismatch. Ignoring "
-                                    << "pre-configuration plugin "
-                                    << its_plugin->get_plugin_name();
-                        }
-                        break;
-                    default:
-                        break;
-                    }
-                }
-            }
-        }
-    }
 }
 
 std::shared_ptr<plugin> plugin_manager_impl::get_plugin(plugin_type_e _type,
@@ -178,7 +114,12 @@ void * plugin_manager_impl::load_library(const std::string &_path) {
 #ifdef _WIN32
     return LoadLibrary(_path.c_str());
 #else
-    return dlopen(_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
+    void* handle = dlopen(_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
+    if (handle == nullptr) {
+        VSOMEIP_ERROR << "Could not dlopen \"" << _path << "\" due to err: " << dlerror();
+    }
+
+    return handle;
 #endif
 }
 
