@@ -1153,12 +1153,13 @@ void routing_manager_client::on_message(
                         } else { // Notification or Response
 
                             // Verifies security offer rule for messages (notifications and responses)
-                            bool is_offer_access_ok = (VSOMEIP_SEC_OK == configuration_->get_security()
+                            bool is_offer_access_ok = (configuration_->is_security_external()
+                                                        && VSOMEIP_SEC_OK == configuration_->get_security()
                                                         ->is_client_allowed_to_offer(
                                                         _sec_client, its_message->get_service(),
                                                         its_message->get_instance()));
 
-                            if (!is_offer_access_ok){
+                            if (!is_offer_access_ok && configuration_->is_security_external()){
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                                                     << std::hex << std::setw(4) << std::setfill('0') << get_client()
                                                     << " : routing_manager_client::on_message: received a "
@@ -1201,7 +1202,7 @@ void routing_manager_client::on_message(
                             } else {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x"
                                                 << std::hex << std::setw(4) << std::setfill('0') << get_client()
-                                                << " : routing_manager_client::on_message: received a response "
+                                                << " : routing_manager_client::on_message: received a "
                                                 << (utility::is_notification(its_message->get_message_type()) ? "notification" : "response")
                                                 << " from client 0x" << _bound_client
                                                 << " which does not offer service/instance/method "
