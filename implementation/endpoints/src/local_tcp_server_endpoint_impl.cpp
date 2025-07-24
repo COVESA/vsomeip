@@ -797,8 +797,11 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(
                      << "', endpoint > " << this;
 
         shutdown_and_close();
-        its_server->remove_connection(bound_client_);
-        its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
+        if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
+            its_server->remove_connection(bound_client_);
+            its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(
+                    bound_client_);
+        }
     } else {
         if (_error) {
             VSOMEIP_WARNING << "ltsei::receive_cbk received err '" << _error.message()
@@ -890,9 +893,12 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(
         socket_->shutdown(tcp_socket::shutdown_both, its_error);
         socket_->close(its_error);
     }
-    std::shared_ptr<local_tcp_server_endpoint_impl> its_server = server_.lock();
-    if (its_server) {
-        its_server->remove_connection(bound_client_);
+
+    if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
+        std::shared_ptr<local_tcp_server_endpoint_impl> its_server = server_.lock();
+        if (its_server) {
+            its_server->remove_connection(bound_client_);
+        }
     }
 }
 
