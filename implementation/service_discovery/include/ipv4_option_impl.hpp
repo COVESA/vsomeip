@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_SD_IPV3_OPTION_IMPL_HPP_
-#define VSOMEIP_V3_SD_IPV3_OPTION_IMPL_HPP_
+#ifndef VSOMEIP_V3_SD_IPV4_OPTION_IMPL_HPP_
+#define VSOMEIP_V3_SD_IPV4_OPTION_IMPL_HPP_
 
 #include <boost/asio/ip/address.hpp>
 
@@ -38,5 +38,5 @@ private:
 } // namespace sd
 } // namespace vsomeip_v3
 
-#endif // VSOMEIP_V3_SD_IPV3_OPTION_IMPL_HPP_
+#endif // VSOMEIP_V3_SD_IPV4_OPTION_IMPL_HPP_
 
