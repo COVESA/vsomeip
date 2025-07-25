@@ -553,8 +553,8 @@ if(ENABLE_COMPAT)
   )
   list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
 
-  add_library(${VSOMEIP_COMPAT_NAME})
-  target_sources(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
+  add_library(${VSOMEIP_COMPAT_NAME} SHARED)
+  target_sources(${VSOMEIP_COMPAT_NAME} PRIVATE ${${VSOMEIP_COMPAT_NAME}_SRC})
   target_compile_features(${VSOMEIP_COMPAT_NAME} PRIVATE cxx_std_17)
   target_compile_definitions(${VSOMEIP_COMPAT_NAME} PUBLIC $<$<CXX_COMPILER_ID:MSVC>:VSOMEIP_DLL_COMPILATION_PLUGIN>)
   set_target_properties(
