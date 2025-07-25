@@ -47,7 +47,7 @@ void profile_04_checker::check(const e2e_buffer &_buffer, instance_t _instance,
                             VSOMEIP_ERROR << std::hex << "E2E P04 protection: CRC32 does not match: calculated CRC: "
                                     << its_crc << " received CRC: " << its_received_crc;
                         } else {
-                            uint32_t its_data_id(uint32_t(_instance) << 24 | config_.data_id_);
+                            uint32_t its_data_id(config_.data_id_);
                             if (its_received_data_id == its_data_id
                                     && static_cast<size_t>(its_received_length) == _buffer.size()
                                     && verify_counter(_instance, its_received_counter)) {

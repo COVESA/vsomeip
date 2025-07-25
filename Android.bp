@@ -21,7 +21,7 @@ libvsomeip_cfg_srcs = [
 ]
 
 libvsomeip_e2e_srcs = [
-    "implementation/e2e_protection/src/*.cpp",
+    "implementation/e2e_protection/src/**/*.cpp",
 ]
 
 libvsomeip_sd_srcs = [
@@ -83,6 +83,7 @@ cc_library_shared {
         "-DVSOMEIP_COMPAT_VERSION=\"3.5.6\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
         "-DUSE_DLT",
+        "-DENABLE_E2E_FEATURE"
     ],
 
     ldflags: [

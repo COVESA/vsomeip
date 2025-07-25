@@ -259,6 +259,9 @@ if(ENABLE_SIGNAL_HANDLING)
   add_definitions(-DVSOMEIP_ENABLE_SIGNAL_HANDLING)
 endif()
 
+# Enable E2E feature
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_E2E_FEATURE")
+
 # Event caching
 option(ENABLE_DEFAULT_EVENT_CACHING "Enable default event caching")
 
