@@ -23,6 +23,7 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/endpoint_manager_impl.hpp"
 #include "../../endpoints/include/abstract_socket_factory.hpp"
+#include "../../endpoints/include/server_endpoint.hpp"
 #include "../../protocol/include/deregister_application_command.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
 #include "../../protocol/include/dummy_command.hpp"
@@ -1103,6 +1104,11 @@ void routing_manager_stub::remove_client_connections(client_t client_id) {
         service_requests_.erase(client_id);
     }
     host_->remove_local(client_id, false);
+    // notice that the effective shared_ptr copy is ensuring that the object
+    // does not go out of scope during execution
+    if (auto endpoint = std::dynamic_pointer_cast<server_endpoint>(root_)) {
+        endpoint->disconnect_from(client_id);
+    }
 }
 
 // Checks if the next client in the queue is already being processed by another thread.

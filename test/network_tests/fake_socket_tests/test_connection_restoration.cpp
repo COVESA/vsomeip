@@ -9,6 +9,7 @@
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/service_state.hpp"
 
+#include <boost/asio/error.hpp>
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
@@ -336,10 +337,6 @@ struct test_single_connection_breakdown
 TEST_P(test_single_connection_breakdown,
        ensure_that_every_dropped_connection_is_restored_with_request_reply) {
     auto [from, to] = GetParam();
-    if (from == routingmanager_name_ || (from == server_name_ && to == client_name_)) {
-        GTEST_SKIP() << "Currently no fix provided for: " << from << " -> " << to;
-    }
-
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
 
@@ -348,14 +345,13 @@ TEST_P(test_single_connection_breakdown,
     ASSERT_TRUE(server_->message_record_.wait_for(expected_request_));
     ASSERT_TRUE(client_->message_record_.wait_for(expected_reply_));
 
-    // suspend one direction
-    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to, std::nullopt));
-    // resume the direction
-    ASSERT_TRUE(disconnect(from, std::nullopt, to, boost::asio::error::connection_reset));
+    // break one direction
+    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to,
+                           boost::asio::error::connection_reset));
 
     for (int i = 0; i < 10; ++i) {
         client_->send_request(request_);
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     auto next_reply = expected_reply_;
     // It seems some messages are dropped, but the session bumped anyhow.
@@ -366,7 +362,7 @@ TEST_P(test_single_connection_breakdown,
 TEST_P(test_single_connection_breakdown,
        ensure_that_every_dropped_connection_is_restored_with_events) {
     auto [from, to] = GetParam();
-    if ((from == routingmanager_name_ && to == client_name_) || from == server_name_
+    if ((from == server_name_ && to == client_name_)
         || (from == client_name_ && to == server_name_)) {
         GTEST_SKIP() << "Currently no fix provided for: " << from << " -> " << to;
     }
@@ -376,14 +372,13 @@ TEST_P(test_single_connection_breakdown,
     send_first_message();
     ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
 
-    // suspend one direction
-    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to, std::nullopt));
-    // resume the direction
-    ASSERT_TRUE(disconnect(from, std::nullopt, to, boost::asio::error::connection_reset));
+    // break single connection
+    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to,
+                           boost::asio::error::connection_reset));
 
     for (int i = 0; i < 10; ++i) {
         send_first_message();
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     auto some_expected_message = first_expected_message_;
     // It seems some messages are dropped, but the session bumped anyhow.
