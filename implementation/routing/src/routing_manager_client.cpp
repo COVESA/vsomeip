@@ -2870,6 +2870,10 @@ void routing_manager_client::handle_client_error(client_t _client) {
             }
         }
 
+        // First ensure that the connection is dropped, before enforcing a
+        // reconnect from the client. Otherwise a client subscribe might
+        // be handled by a partially cleaned-up connection
+        remove_local(_client, true);
         // Remove the client from the local connections.
         {
             std::scoped_lock lock {receiver_mutex_};
@@ -2877,7 +2881,6 @@ void routing_manager_client::handle_client_error(client_t _client) {
                 endpoint->disconnect_from(_client);
             }
         }
-        remove_local(_client, true);
 
         // Request the host these services again.
         if ( state_ == inner_state_type_e::ST_REGISTERED ) {

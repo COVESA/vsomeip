@@ -349,4 +349,27 @@ void socket_manager::set_ignore_connections(std::string const& _app_name,
     }
     return false;
 }
+
+[[nodiscard]] bool socket_manager::block_on_close_for(
+        std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
+        std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
+    auto const lock = std::scoped_lock(mtx_);
+    auto const cn = connection_name(_from, _to);
+    auto const it_connection = app_names_to_connection.find(cn);
+    if (it_connection == app_names_to_connection.end()) {
+        return false;
+    }
+    bool ret = true;
+    if (auto from = it_connection->second.first.lock(); from) {
+        from->block_on_close_for(_from_block_time);
+    } else {
+        ret = false;
+    }
+    if (auto to = it_connection->second.second.lock(); to) {
+        to->block_on_close_for(_to_block_time);
+    } else {
+        ret = false;
+    }
+    return ret;
+}
 }

@@ -163,6 +163,12 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      **/
     void delay_processing(bool _delay);
 
+    /**
+     * Lets the thread calling ::close sleep for _block_time after informing
+     * the connected socket about the closing.
+     **/
+    void block_on_close_for(std::optional<std::chrono::milliseconds> _block_time);
+
     void set_app_name(std::string const& _name);
     std::string get_app_name();
 
@@ -187,6 +193,7 @@ private:
     std::optional<Receptor> receptor_;
     boost::asio::ip::tcp::endpoint local_ep_;
     boost::asio::ip::tcp::endpoint remote_ep_;
+    std::optional<std::chrono::milliseconds> block_on_close_time_;
     std::mutex mtx_;
 };
 
