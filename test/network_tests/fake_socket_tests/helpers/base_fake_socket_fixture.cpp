@@ -105,4 +105,9 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     return socket_manager_->delay_message_processing(_from, _to, _delay);
 }
 
+[[nodiscard]] bool base_fake_socket_fixture::block_on_close_for(
+        std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
+        std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
+    return socket_manager_->block_on_close_for(_from, _from_block_time, _to, _to_block_time);
+}
 }

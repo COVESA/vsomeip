@@ -305,6 +305,30 @@ TEST_F(test_client_helper, client_ignores_server_connection_attempt_once) {
     EXPECT_TRUE(subscribe_to_event());
 }
 
+TEST_F(test_client_helper,
+       given_server_to_client_breaksdown_when_the_connection_is_re_established_then_the_subscription_confirmed) {
+    start_apps();
+    send_field_message();
+    ASSERT_TRUE(subscribe_to_field());
+    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    client_->subscription_record_.clear();
+
+    // give the client a head start when cleaning the "sibling" connection, by holding back the
+    // server execution.
+    ASSERT_TRUE(block_on_close_for(client_name_, std::nullopt, server_name_,
+                                   std::chrono::milliseconds(200)));
+
+    // break the server->client connection. Notice that if the blocking above is in place,
+    // the "wrong" order of cleaning up server->client + client->server will lead to a race
+    // condition.
+    ASSERT_TRUE(
+            disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
+
+    EXPECT_TRUE(client_->subscription_record_.wait_for(
+            event_subscription::successfully_subscribed_to(offered_field_),
+            std::chrono::seconds(6)));
+}
+
 struct test_single_connection_breakdown
     : test_client_helper,
       ::testing::WithParamInterface<std::pair<std::string, std::string>> { };

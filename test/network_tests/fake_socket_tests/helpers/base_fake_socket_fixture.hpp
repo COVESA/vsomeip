@@ -145,6 +145,14 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to,
                                                 bool _delay);
 
+    /**
+     * @see socket_manager::block_on_close_for()
+     **/
+    [[nodiscard]] bool block_on_close_for(std::string const& _from,
+                                          std::optional<std::chrono::milliseconds> _from_block_time,
+                                          std::string const& _to,
+                                          std::optional<std::chrono::milliseconds> _to_block_time);
+
 private:
     static std::shared_ptr<fake_socket_factory> factory_;
     std::shared_ptr<socket_manager> socket_manager_ {std::make_shared<socket_manager>()};

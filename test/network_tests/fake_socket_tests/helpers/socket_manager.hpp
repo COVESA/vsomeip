@@ -114,6 +114,19 @@ public:
      **/
     [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to,
                                                 bool _delay);
+
+    /**
+     * searches for the _from -> _to connected sockets and demands from _from to block execution
+     * for _from_block_time when close is invoked, equivalent for _to with _to_block_time.
+     * @see fake_tcp_socket_handle::block_on_close_for() for further details.
+     *
+     * @return true, if all non nullopts could be forwarded
+     **/
+    [[nodiscard]] bool block_on_close_for(std::string const& _from,
+                                          std::optional<std::chrono::milliseconds> _from_block_time,
+                                          std::string const& _to,
+                                          std::optional<std::chrono::milliseconds> _to_block_time);
+
     /**
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
      **/

@@ -9,6 +9,7 @@
 #include "test_logging.hpp"
 
 #include <span>
+#include <thread>
 #include <numeric>
 
 namespace vsomeip_v3::testing {
@@ -74,6 +75,16 @@ void fake_tcp_socket_handle::close() {
     if (remote) {
         remote->inner_close();
     }
+    auto block_time = [&] {
+        auto const lock = std::scoped_lock(mtx_);
+        return block_on_close_time_;
+    }();
+    if (block_time) {
+        TEST_LOG << "[fake-socket] delaying close procesesing for: " << socket_id_
+                 << " by: " << block_time->count() << "ms";
+        std::this_thread::sleep_for(*block_time);
+        TEST_LOG << "[fake-socket] continuing close procesesing for: " << socket_id_;
+    }
 }
 
 void fake_tcp_socket_handle::shutdown() {
@@ -124,6 +135,12 @@ void fake_tcp_socket_handle::delay_processing(bool _delay) {
              << " on: " << socket_id_;
     delay_processing_ = _delay;
     update_reception();
+}
+
+void fake_tcp_socket_handle::block_on_close_for(
+        std::optional<std::chrono::milliseconds> _block_time) {
+    auto const lock = std::scoped_lock(mtx_);
+    block_on_close_time_ = _block_time;
 }
 
 void fake_tcp_socket_handle::inner_close() {
