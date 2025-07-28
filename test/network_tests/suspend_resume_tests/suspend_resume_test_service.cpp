@@ -39,7 +39,7 @@ public:
         VSOMEIP_DEBUG << "Using daemon with pid=" << std::dec << daemon_pid__;
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(30));
             EXPECT_EQ(r, std::cv_status::no_timeout);
         }
@@ -71,7 +71,7 @@ private:
     void sr_run() {
 
         while (is_running_) {
-            std::unique_lock<std::mutex> its_lock(sr_mutex_);
+            std::unique_lock its_lock{sr_mutex_};
             sr_cv_.wait(its_lock);
 
             if (is_running_) {

@@ -85,7 +85,7 @@ void tcp_server_endpoint_impl::start() {
                 send_timeout_);
 
         {
-            std::unique_lock<std::mutex> its_socket_lock(new_connection->get_socket_lock());
+            std::unique_lock its_socket_lock{new_connection->get_socket_lock()};
             acceptor_.async_accept(new_connection->get_socket(),
                                    std::bind(&tcp_server_endpoint_impl::accept_cbk,
                                              std::dynamic_pointer_cast<tcp_server_endpoint_impl>(
@@ -208,16 +208,16 @@ void tcp_server_endpoint_impl::get_configured_times_from_endpoint(
 bool tcp_server_endpoint_impl::is_established_to(
         const std::shared_ptr<endpoint_definition>& _endpoint) {
     bool is_connected = false;
-    endpoint_type endpoint(_endpoint->get_address(), _endpoint->get_port());
+    endpoint_type its_endpoint(_endpoint->get_address(), _endpoint->get_port());
     {
         std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        auto connection_iterator = connections_.find(endpoint);
+        auto connection_iterator = connections_.find(its_endpoint);
         if (connection_iterator != connections_.end()) {
             is_connected = true;
         } else {
             VSOMEIP_INFO << "Didn't find TCP connection: Subscription "
-                         << "rejected for: " << endpoint.address().to_string() << ":" << std::dec
-                         << static_cast<std::uint16_t>(endpoint.port());
+                         << "rejected for: " << its_endpoint.address().to_string() << ":" << std::dec
+                         << its_endpoint.port();
         }
     }
     return is_connected;
@@ -248,7 +248,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection,
         boost::system::error_code its_error;
         endpoint_type remote;
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            std::unique_lock its_socket_lock{_connection->get_socket_lock()};
             socket_type& new_connection_socket = _connection->get_socket();
             remote = new_connection_socket.remote_endpoint(its_error);
             _connection->set_remote_info(remote);
@@ -962,7 +962,7 @@ void tcp_server_endpoint_impl::print_status() {
         std::size_t its_queue_size(0);
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            std::unique_lock c_s_lock{c.second->get_socket_lock()};
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
         auto found_queue = targets_.find(c.first);

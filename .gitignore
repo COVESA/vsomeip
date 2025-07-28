@@ -23,3 +23,4 @@
 /Testing
 /logs
 !build_qnx/*
+CMakeUserPresets.json

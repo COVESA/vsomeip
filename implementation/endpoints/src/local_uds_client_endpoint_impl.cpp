@@ -57,7 +57,7 @@ void local_uds_client_endpoint_impl::restart(bool _force) {
         is_sending_ = false;
     }
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
         shutdown_and_close_socket_unlocked(true);
     }
     state_ = cei_state_e::CONNECTING;
@@ -78,18 +78,18 @@ void local_uds_client_endpoint_impl::start() {
 
 void local_uds_client_endpoint_impl::stop() {
     {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         sending_blocked_ = true;
     }
     {
-        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+        std::scoped_lock its_lock(connect_timer_mutex_);
         connect_timer_.cancel();
     }
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
 
     bool is_open(false);
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
         is_open = socket_->is_open();
     }
     if (is_open) {
@@ -116,7 +116,7 @@ void local_uds_client_endpoint_impl::connect() {
     start_connecting_timer();
     boost::system::error_code its_connect_error;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::lock_guard its_lock(socket_mutex_);
         boost::system::error_code its_error;
         socket_->open(remote_.protocol(), its_error);
 
@@ -153,7 +153,7 @@ void local_uds_client_endpoint_impl::connect() {
     }
     std::size_t operations_cancelled;
     {
-        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        std::lock_guard its_lock(connecting_timer_mutex_);
         operations_cancelled = connecting_timer_.cancel();
         connecting_timer_state_ = connecting_timer_state_e::FINISH_ERROR;
         if (operations_cancelled != 0) {
@@ -174,7 +174,7 @@ void local_uds_client_endpoint_impl::connect() {
 }
 
 void local_uds_client_endpoint_impl::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::lock_guard its_lock(socket_mutex_);
     if (socket_->is_open()) {
         socket_->async_receive(
             boost::asio::buffer(recv_buffer_),
@@ -232,11 +232,11 @@ void local_uds_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
     bufs.push_back(boost::asio::buffer(its_end_tag));
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
 
         auto its_me {std::dynamic_pointer_cast<local_uds_client_endpoint_impl>(shared_from_this())};
         auto buffer_ptr = _entry.first; // Capture shared_ptr to ensure it stays alive
-        
+
         if(socket_->is_open()) {
             boost::asio::async_write(
                     *socket_, bufs,
@@ -247,7 +247,7 @@ void local_uds_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t,
             VSOMEIP_WARNING << "lucei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
             was_not_connected_ = true;
             is_sending_ = false;
-        } 
+        }
     }
 }
 
@@ -287,7 +287,7 @@ void local_uds_client_endpoint_impl::receive_cbk(
         }
         error_handler_t handler;
         {
-            std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+            std::scoped_lock its_lock(error_handler_mutex_);
             handler = error_handler_;
         }
         if (handler)
@@ -394,7 +394,7 @@ void local_uds_client_endpoint_impl::max_allowed_reconnects_reached() {
             << get_remote_information();
     error_handler_t handler;
     {
-        std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
+        std::scoped_lock its_lock(error_handler_mutex_);
         handler = error_handler_;
     }
     if (handler)

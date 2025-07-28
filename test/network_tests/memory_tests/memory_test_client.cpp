@@ -50,7 +50,7 @@ void memory_test_client::on_availability(vsomeip::service_t service_, vsomeip::i
                                          bool is_available_)
 {
     if (is_available_ && service_ == MEMORY_SERVICE && instance_ == MEMORY_INSTANCE) {
-        std::unique_lock<std::mutex> lk(availability_mutex);
+        std::unique_lock lk{availability_mutex};
         availability = true;
         condition_availability.notify_one();
     }
@@ -102,7 +102,7 @@ memory_test_client::memory_test_client(const char *app_name_, const char *app_id
 
 void memory_test_client::send_request(std::atomic<bool> &stop_checking_)
 {
-    std::unique_lock<std::mutex> lk(availability_mutex);
+    std::unique_lock lk{availability_mutex};
     // Only send the requests when the service availability is secured
     if (condition_availability.wait_for(lk, WAIT_AVAILABILITY,
                                         [=] { return availability; })) {

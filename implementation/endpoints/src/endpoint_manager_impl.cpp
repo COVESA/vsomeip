@@ -981,7 +981,7 @@ bool endpoint_manager_impl::on_bind_error(std::shared_ptr<endpoint> _endpoint,
                     uint16_t its_old_local_port = _endpoint->get_local_port();
                     uint16_t its_new_local_port(ILLEGAL_PORT);
 
-                    std::unique_lock<std::mutex> its_lock(used_client_ports_mutex_);
+                    std::unique_lock its_lock{used_client_ports_mutex_};
                     std::map<bool, std::set<port_t> > its_used_client_ports;
                     get_used_client_ports(_remote_address, _remote_port, its_used_client_ports);
                     if (configuration_->get_client_port(
@@ -1109,9 +1109,9 @@ endpoint_manager_impl::find_remote_client(
                                 service_instances_[_service][its_endpoint.get()] = _instance;
 
                                 // add endpoint to serviceinfo object
-                                auto found_service_info = rm_->find_service(_service,_instance);
-                                if (found_service_info) {
-                                    found_service_info->set_endpoint(its_endpoint, _reliable);
+                                auto found_service_info_inner = rm_->find_service(_service,_instance);
+                                if (found_service_info_inner) {
+                                    found_service_info_inner->set_endpoint(its_endpoint, _reliable);
                                 }
                             }
                         }
@@ -1364,7 +1364,7 @@ bool endpoint_manager_impl::check_options_queue() {
 void
 endpoint_manager_impl::process_multicast_options() {
 
-    std::unique_lock<std::mutex> its_lock(options_mutex_);
+    std::unique_lock its_lock{options_mutex_};
     while (is_processing_options_) {
         options_condition_.wait(
                 its_lock, [this] { return check_options_queue() || !is_processing_options_; });

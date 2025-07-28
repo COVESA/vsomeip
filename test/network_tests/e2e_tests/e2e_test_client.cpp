@@ -105,7 +105,7 @@ void e2e_test_client::on_availability(vsomeip::service_t _service,
 
     if(vsomeip_test::TEST_SERVICE_SERVICE_ID == _service
             && vsomeip_test::TEST_SERVICE_INSTANCE_ID == _instance) {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock{mutex_};
         if(is_available_ && !_is_available) {
             is_available_ = false;
         }
@@ -196,7 +196,7 @@ void e2e_test_client::on_message(const std::shared_ptr<vsomeip::message> &_respo
 void e2e_test_client::run() {
     for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND; ++i) {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock{mutex_};
             while (!is_available_)
             {
                 condition_.wait(its_lock);

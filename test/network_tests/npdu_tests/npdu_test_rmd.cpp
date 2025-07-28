@@ -134,7 +134,7 @@ void npdu_test_rmd::join_shutdown_thread() {
 }
 
 void npdu_test_rmd::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock{mutex_};
     while (!blocked_)
         condition_.wait(its_lock);
 #ifdef RMD_CLIENT_SIDE
