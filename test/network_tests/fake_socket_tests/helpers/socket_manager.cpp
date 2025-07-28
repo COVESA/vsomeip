@@ -238,7 +238,7 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep,
 
     bool result = true;
     if (auto from = weak_from.lock(); from) {
-        result &= from->disconnect(_from_error);
+        from->disconnect(_from_error);
     } else if (_from_error) {
         LOCAL_LOG << "The error code: \"" << _from_error->message()
                   << "\" could not be injected into \"" << _from_name << "\"";
@@ -246,7 +246,7 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep,
         result = false;
     }
     if (auto to = weak_to.lock(); to) {
-        result &= to->disconnect(_to_error);
+        to->disconnect(_to_error);
     } else if (_to_error) {
         LOCAL_LOG << "The error code: \"" << _to_error->message()
                   << "\" could not be injected into \"" << _to_name << "\"";
