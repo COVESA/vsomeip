@@ -151,11 +151,12 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      * Removes the weak reference to the connected socket.
      * If an error is passed in it is tried to be injected
      * into the handler of the last async_receive call.
-     * true, if either the error was successfully injected, or no error was passed in.
+     * If no receiver is set, the error is stashed until a receiver
+     * is passed in.
      *
      * Used by the socket_manager.
      **/
-    bool disconnect(std::optional<boost::system::error_code> _ec);
+    void disconnect(std::optional<boost::system::error_code> _ec);
 
     /**
      * if _delay == true, will not invoke the read handler, but stores messages in the internal
@@ -191,6 +192,7 @@ private:
     std::weak_ptr<fake_tcp_socket_handle> connected_socket_;
     std::vector<unsigned char> input_data_;
     std::optional<Receptor> receptor_;
+    std::optional<boost::system::error_code> stashed_ec_;
     boost::asio::ip::tcp::endpoint local_ep_;
     boost::asio::ip::tcp::endpoint remote_ep_;
     std::optional<std::chrono::milliseconds> block_on_close_time_;

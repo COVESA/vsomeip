@@ -112,22 +112,24 @@ boost::asio::ip::tcp::endpoint fake_tcp_socket_handle::remote_endpoint() {
     return remote_ep_;
 }
 
-bool fake_tcp_socket_handle::disconnect(std::optional<boost::system::error_code> _ec) {
+void fake_tcp_socket_handle::disconnect(std::optional<boost::system::error_code> _ec) {
     auto const lock = std::scoped_lock(mtx_);
     TEST_LOG << "[fake-socket] calling disconnect on: " << socket_id_
              << " with: " << (_ec ? _ec->message() : "nullopt");
     connected_socket_ = {};
     if (!_ec) {
-        return true;
+        return;
     }
     if (!receptor_) {
-        TEST_LOG << "[fake-socket] Error on disconnect on: " << socket_id_ << " no receptor set";
-        return false;
+        TEST_LOG << "[fake-socket] Error on disconnect on: " << socket_id_
+                 << " no receptor set, stashing the error: " << _ec->message();
+        stashed_ec_ = _ec;
+        return;
     }
     boost::asio::post(io_,
                       [ec = *_ec, handler = std::move(receptor_->handler_)] { handler(ec, 0); });
     receptor_ = std::nullopt;
-    return true;
+    return;
 }
 void fake_tcp_socket_handle::delay_processing(bool _delay) {
     auto const lock = std::scoped_lock(mtx_);
@@ -156,6 +158,9 @@ void fake_tcp_socket_handle::inner_close() {
             handler(boost::asio::error::connection_reset, 0);
         });
         receptor_ = std::nullopt;
+    } else {
+        TEST_LOG << "[fake-socket] WARNING: calling inner_close on: " << socket_id_
+                 << " could not forward the connection_reset";
     }
     connected_socket_ = {};
 }
@@ -251,6 +256,20 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
 void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer,
                                            rw_handler _handler) {
     auto const lock = std::scoped_lock(mtx_);
+    if (stashed_ec_) {
+        TEST_LOG << "[fake-socket] Injecting on: " << socket_id_
+                 << ", the stashed error: " << stashed_ec_->message();
+        boost::asio::post(io_,
+                          [ec = *stashed_ec_, handler = std::move(_handler)] { handler(ec, 0); });
+        stashed_ec_ = std::nullopt;
+    }
+    if (auto remote = connected_socket_.lock(); !remote) {
+        TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
+        boost::asio::post(io_, [handler = std::move(_handler)] {
+            handler(boost::asio::error::connection_reset, 0);
+        });
+        return;
+    }
     receptor_ = Receptor {std::move(_buffer), std::move(_handler)};
     update_reception();
 }
