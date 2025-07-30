@@ -9,7 +9,7 @@
 #include <map>
 #include <mutex>
 
-#include "compat/vsomeip/runtime.hpp"
+#include <compat/vsomeip/runtime.hpp>
 
 namespace vsomeip {
 

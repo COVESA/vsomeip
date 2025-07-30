@@ -21,22 +21,19 @@ file(COPY ${EXAMPLES_POLICIES_FILES} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/ex
 # Declare the library
 # ----------------------------------------------------------------------------
 add_library (
-    vsomeip_utilities
+    ${PROJECT_NAME} SHARED
     ${SRC}
     ${INC}
 )
 
-target_link_libraries (
-    vsomeip_utilities
+TARGET_LINK_LIBRARIES (
+    ${PROJECT_NAME}
     PUBLIC
         ${VSOMEIP_NAME}
-    PRIVATE
-        Boost::system
-        Boost::filesystem
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
         ${DLT_LIBRARIES}
-    INTERFACE
-        DL_INTERFACE
 )
 
 # ----------------------------------------------------------------------------
@@ -44,12 +41,11 @@ target_link_libraries (
 # by this library
 # ----------------------------------------------------------------------------
 target_include_directories (
-    vsomeip_utilities
+    ${PROJECT_NAME}
     PUBLIC include
     PRIVATE src
 )
-target_compile_definitions(vsomeip_utilities PUBLIC SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 if (MSVC)
-	set_target_properties(vsomeip_utilities PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif()
+	set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif ()

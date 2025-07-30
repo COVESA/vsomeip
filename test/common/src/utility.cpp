@@ -95,9 +95,10 @@ utility::get_all_files_in_dir(const std::string &_dir_path,
 
 std::string
 utility::get_policies_path() {
-    std::string source_dir = SOURCE_DIR;
-    boost::filesystem::path policies_path(source_dir+"/test/common/examples_policies");
-    return policies_path.string();
+
+    return boost::filesystem::canonical(
+            boost::filesystem::current_path()).string()
+            + "/test/common/examples_policies";
 }
 
 vsomeip_sec_client_t

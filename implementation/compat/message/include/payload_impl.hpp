@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_COMPAT_PAYLOAD_IMPL_HPP_
 #define VSOMEIP_COMPAT_PAYLOAD_IMPL_HPP_
 
-#include "compat/vsomeip/payload.hpp"
+#include <compat/vsomeip/payload.hpp>
 #include <vsomeip/payload.hpp>
 
 namespace vsomeip {

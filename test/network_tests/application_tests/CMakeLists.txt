@@ -70,6 +70,12 @@ if (NOT ${TESTS_BAT})
         application_test_single_process.cpp
     )
 
+    if(QNX)
+        target_compile_definitions(application_test_single_process
+            PRIVATE _QNX_SOURCE
+        )
+    endif()
+
     # Add the test executable.
     add_executable(application_test_availability
         application_test_availability.cpp
