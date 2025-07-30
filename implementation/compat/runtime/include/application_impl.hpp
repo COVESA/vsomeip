@@ -9,7 +9,7 @@
 #include <map>
 #include <mutex>
 
-#include "compat/vsomeip/application.hpp"
+#include <compat/vsomeip/application.hpp>
 
 namespace vsomeip_v3 {
 class application;

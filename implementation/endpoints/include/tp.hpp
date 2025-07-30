@@ -52,7 +52,7 @@ public:
             const std::uint8_t * const _data, std::uint32_t _size,
             std::uint16_t _max_segment_length);
 
-    static constexpr std::uint16_t tp_max_segment_length_ = 1392;
+    static const std::uint16_t tp_max_segment_length_ = 1392;
 };
 
 } // namespace tp

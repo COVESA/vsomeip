@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "compat/vsomeip/message_base.hpp"
+#include "../../compat/vsomeip/message_base.hpp"
 
 namespace vsomeip {
 
