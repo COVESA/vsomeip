@@ -4,6 +4,7 @@
 /compile_commands.json
 /.ninja
 /CMakeFiles
+/CMakeUserPresets.json
 /build*/*
 /*bld*
 /*stage

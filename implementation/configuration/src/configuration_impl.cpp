@@ -604,8 +604,13 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
 
 bool configuration_impl::load_logging(
         const configuration_element &_element, std::set<std::string> &_warnings) {
+    auto its_logging_opt = _element.tree_.get_child_optional("logging");
+    if (!its_logging_opt) {
+        return false;
+    }
+    auto its_logging = its_logging_opt.value();
+
     try {
-        auto its_logging = _element.tree_.get_child("logging");
         for (auto i = its_logging.begin(); i != its_logging.end(); ++i) {
             std::string its_key(i->first);
             if (its_key == "console") {
@@ -722,13 +727,19 @@ bool configuration_impl::load_logging(
     } catch (...) {
         return false;
     }
+
     return true;
 }
 
 bool
 configuration_impl::load_routing(const configuration_element &_element) {
+    auto its_routing_opt = _element.tree_.get_child_optional("routing");
+    if (!its_routing_opt) {
+        return false;
+    }
+    auto its_routing = its_routing_opt.value();
+
     try {
-        auto its_routing = _element.tree_.get_child("routing");
         if (is_configured_[ET_ROUTING]) {
             VSOMEIP_WARNING << "Multiple definitions of routing."
                     << " Ignoring definition from " << _element.name_;
@@ -797,72 +808,75 @@ bool
 configuration_impl::load_routing_host(const boost::property_tree::ptree &_tree,
         const std::string &_name) {
 
-    try {
-        bool has_uid(false), has_gid(false);
-        uid_t its_uid;
-        gid_t its_gid;
-        auto its_host = _tree.get_child("host");
-        for (auto i = its_host.begin(); i != its_host.end(); ++i) {
-            std::string its_key(i->first);
-            std::string its_value(i->second.data());
-            if (its_key == "name") {
-                routing_.host_.name_ = its_value;
-            } else if (its_key == "uid" || its_key == "gid") {
-                std::stringstream its_converter;
-                if (its_value.find("0x") == 0) {
-                    its_converter << std::hex << its_value;
-                } else {
-                    its_converter << std::dec << its_value;
-                }
-                if (its_key == "uid") {
-                    its_converter >> its_uid;
-                    has_uid = true;
-                } else {
-                    its_converter >> its_gid;
-                    has_gid = true;
-                }
-            } else if (its_key == "unicast") {
-                routing_.host_.unicast_
-                    = boost::asio::ip::make_address(its_value);
-            } else if (its_key == "port") {
-                std::stringstream its_converter;
-                if (its_value.find("0x") == 0) {
-                    its_converter << std::hex << its_value;
-                } else {
-                    its_converter << std::dec << its_value;
-                }
-                its_converter >> routing_.host_.port_;
-            }
-        }
-
-        if (has_uid && has_gid) {
-            policy_manager_->set_routing_credentials(its_uid, its_gid, _name);
-        }
-
-    } catch (...) {
+    bool has_uid(false), has_gid(false);
+    uid_t its_uid;
+    gid_t its_gid;
+    auto its_host_opt = _tree.get_child_optional("host");
+    if (!its_host_opt) {
         return false;
     }
+    auto its_host = its_host_opt.value();
+
+    for (auto i = its_host.begin(); i != its_host.end(); ++i) {
+        std::string its_key(i->first);
+        std::string its_value(i->second.data());
+        if (its_key == "name") {
+            routing_.host_.name_ = its_value;
+        } else if (its_key == "uid" || its_key == "gid") {
+            std::stringstream its_converter;
+            if (its_value.find("0x") == 0) {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            if (its_key == "uid") {
+                its_converter >> its_uid;
+                has_uid = true;
+            } else {
+                its_converter >> its_gid;
+                has_gid = true;
+            }
+        } else if (its_key == "unicast") {
+            routing_.host_.unicast_
+                = boost::asio::ip::make_address(its_value);
+        } else if (its_key == "port") {
+            std::stringstream its_converter;
+            if (its_value.find("0x") == 0) {
+                its_converter << std::hex << its_value;
+            } else {
+                its_converter << std::dec << its_value;
+            }
+            its_converter >> routing_.host_.port_;
+        }
+    }
+
+    if (has_uid && has_gid) {
+        policy_manager_->set_routing_credentials(its_uid, its_gid, _name);
+    }
+
     return true;
 }
 
 bool
 configuration_impl::load_routing_guests(const boost::property_tree::ptree &_tree) {
 
-    try {
-        auto its_guests = _tree.get_child("guests");
-        for (auto i = its_guests.begin(); i != its_guests.end(); ++i) {
-            std::string its_key(i->first);
-            if (its_key == "unicast") {
-                std::string its_value(i->second.data());
-                routing_.guests_.unicast_
-                    = boost::asio::ip::make_address(its_value);
-            } else if (its_key == "ports") {
-                load_routing_guest_ports(i->second);
-            }
-        }
-    } catch (...) {
-        // intentionally left empty
+    auto its_guests_opt = _tree.get_child_optional("guests");
+    if (!its_guests_opt) {
+        return true;
     }
+    auto its_guests = its_guests_opt.value();
+
+    for (auto i = its_guests.begin(); i != its_guests.end(); ++i) {
+        std::string its_key(i->first);
+        if (its_key == "unicast") {
+            std::string its_value(i->second.data());
+            routing_.guests_.unicast_
+                = boost::asio::ip::make_address(its_value);
+        } else if (its_key == "ports") {
+            load_routing_guest_ports(i->second);
+        }
+    }
+
     return true;
 }
 
@@ -879,23 +893,28 @@ configuration_impl::load_routing_guest_ports(
         gid_t its_gid { ANY_GID };
         std::set<std::pair<port_t, port_t> > its_ranges;
 
-        try {
-            auto its_uid_value = its_range->second.get_child("uid").data();
+        auto its_uid_value_opt = its_range->second.get_child_optional("uid");
+        if (its_uid_value_opt) {
+            auto its_uid_value = its_uid_value_opt.value().data();
             its_converter.str("");
             its_converter.clear();
             its_converter << its_uid_value;
             its_converter >> (its_uid_value.find("0x") == 0 ? std::hex : std::dec) >> its_uid;
+        }
 
-            auto its_gid_value = its_range->second.get_child("gid").data();
+        auto its_gid_value_opt = its_range->second.get_child_optional("gid");
+        if (its_gid_value_opt) {
+            auto its_gid_value = its_gid_value_opt.value().data();
             its_converter.str("");
             its_converter.clear();
             its_converter << its_gid_value;
             its_converter >> (its_gid_value.find("0x") == 0 ? std::hex : std::dec) >> its_gid;
+        }
 
-            auto its_ranges_value = its_range->second.get_child("ranges");
+        auto its_ranges_value_opt = its_range->second.get_child_optional("ranges");
+        if (its_ranges_value_opt) {
+            auto its_ranges_value = its_ranges_value_opt.value();
             its_ranges = load_routing_guest_port_range(its_ranges_value);
-        } catch (...) {
-            its_ranges = load_routing_guest_port_range(its_range->second);
         }
 
         if (!its_ranges.empty())
@@ -945,27 +964,25 @@ configuration_impl::load_routing_guest_port_range(
 
 void
 configuration_impl::load_routing_client_ports(const configuration_element &_element) {
-
-    try {
-        auto its_ports = _element.tree_.get_child("routing-client-ports");
-        load_routing_guest_ports(its_ports);
+    auto its_ports_opt = _element.tree_.get_child_optional("routing-client-ports");
+    if (!its_ports_opt) {
+        return;
     }
-    catch (...) {
-        // intentionally left empty
-    }
+    load_routing_guest_ports(its_ports_opt.value());
 }
 
 bool
 configuration_impl::load_applications(const configuration_element &_element) {
-    try {
-        auto its_applications = _element.tree_.get_child("applications");
-        for (auto i = its_applications.begin();
-                i != its_applications.end();
-                ++i) {
-            load_application_data(i->second, _element.name_);
-        }
-    } catch (...) {
+    auto its_applications_opt = _element.tree_.get_child_optional("applications");
+    if (!its_applications_opt) {
         return false;
+    }
+    auto its_applications = its_applications_opt.value();
+
+    for (auto i = its_applications.begin();
+            i != its_applications.end();
+            ++i) {
+        load_application_data(i->second, _element.name_);
     }
     return true;
 }
@@ -1168,8 +1185,13 @@ void configuration_impl::add_plugin(std::map<plugin_type_e, std::set<std::string
 }
 
 void configuration_impl::load_tracing(const configuration_element &_element) {
+    auto its_trace_configuration_opt = _element.tree_.get_child_optional("tracing");
+    if (!its_trace_configuration_opt) {
+        return;
+    }
+    auto its_trace_configuration = its_trace_configuration_opt.value();
+
     try {
-        auto its_trace_configuration = _element.tree_.get_child("tracing");
         for(auto i = its_trace_configuration.begin();
                 i != its_trace_configuration.end();
                 ++i) {
@@ -1384,9 +1406,13 @@ void configuration_impl::load_trace_filter_match(
 }
 
 void configuration_impl::load_suppress_events(const configuration_element &_element) {
-    try {
-        auto its_missing_events = _element.tree_.get_child("suppress_missing_event_logs");
+    auto its_missing_events_opt = _element.tree_.get_child_optional("suppress_missing_event_logs");
+    if (!its_missing_events_opt) {
+        return;
+    }
+    auto its_missing_events = its_missing_events_opt.value();
 
+    try {
         if(its_missing_events.size()) {
             for (auto i = its_missing_events.begin();
                     i != its_missing_events.end();
@@ -1550,17 +1576,18 @@ void configuration_impl::print_suppress_events(void) const {
 }
 
 void configuration_impl::load_unicast_address(const configuration_element &_element) {
-    try {
-        std::string its_value = _element.tree_.get<std::string>("unicast");
-        if (is_configured_[ET_UNICAST]) {
-            VSOMEIP_WARNING << "Multiple definitions for unicast."
-                    "Ignoring definition from " << _element.name_;
-        } else {
-            unicast_ = boost::asio::ip::make_address(its_value);
-            is_configured_[ET_UNICAST] = true;
-        }
-    } catch (...) {
-        // intentionally left empty!
+    auto its_value_opt = _element.tree_.get_optional<std::string>("unicast");
+    if (!its_value_opt) {
+        return;
+    }
+    auto its_value = its_value_opt.value();
+
+    if (is_configured_[ET_UNICAST]) {
+        VSOMEIP_WARNING << "Multiple definitions for unicast."
+                "Ignoring definition from " << _element.name_;
+    } else {
+        unicast_ = boost::asio::ip::make_address(its_value);
+        is_configured_[ET_UNICAST] = true;
     }
 }
 
@@ -1602,38 +1629,45 @@ void configuration_impl::load_netmask(const configuration_element &_element) {
 }
 
 void configuration_impl::load_device(const configuration_element &_element) {
-    try {
-        std::string its_value = _element.tree_.get<std::string>("device");
-        if (is_configured_[ET_DEVICE]) {
-            VSOMEIP_WARNING << "Multiple definitions for device."
-                    "Ignoring definition from " << _element.name_;
-        } else {
-            device_ = its_value;
-            is_configured_[ET_DEVICE] = true;
-        }
-    } catch (...) {
-        // intentionally left empty!
+    auto its_network_opt = _element.tree_.get_optional<std::string>("device");
+    if (!its_network_opt) {
+        return;
+    }
+    auto its_value(its_network_opt.value());
+
+    if (is_configured_[ET_DEVICE]) {
+        VSOMEIP_WARNING << "Multiple definitions for device."
+                "Ignoring definition from " << _element.name_;
+    } else {
+        device_ = its_value;
+        is_configured_[ET_DEVICE] = true;
     }
 }
 
 void configuration_impl::load_network(const configuration_element &_element) {
-    try {
-        std::string its_value(_element.tree_.get<std::string>("network"));
-        if (is_configured_[ET_NETWORK]) {
-            VSOMEIP_WARNING << "Multiple definitions for network."
-                    "Ignoring definition from " << _element.name_;
-        } else {
-            network_ = its_value;
-            is_configured_[ET_NETWORK] = true;
-        }
-    } catch (...) {
-        // intentionally left empty
+    auto its_network_opt = _element.tree_.get_optional<std::string>("network");
+    if (!its_network_opt) {
+        return;
+    }
+    auto its_value(its_network_opt.value());
+
+    if (is_configured_[ET_NETWORK]) {
+        VSOMEIP_WARNING << "Multiple definitions for network."
+                "Ignoring definition from " << _element.name_;
+    } else {
+        network_ = its_value;
+        is_configured_[ET_NETWORK] = true;
     }
 }
 
 void configuration_impl::load_diagnosis_address(const configuration_element &_element) {
+    auto its_value_opt = _element.tree_.get_optional<std::string>("diagnosis");
+    if (!its_value_opt) {
+        return;
+    }
+    auto its_value = its_value_opt.value();
+
     try {
-        std::string its_value = _element.tree_.get<std::string>("diagnosis");
         if (is_configured_[ET_DIAGNOSIS]) {
             VSOMEIP_WARNING << "Multiple definitions for diagnosis."
                     "Ignoring definition from " << _element.name_;
@@ -1704,7 +1738,11 @@ void configuration_impl::load_shutdown_timeout(const configuration_element &_ele
 void configuration_impl::load_service_discovery(
         const configuration_element &_element) {
     try {
-        auto its_service_discovery = _element.tree_.get_child("service-discovery");
+        auto its_service_discovery_opt = _element.tree_.get_child_optional("service-discovery");
+        if (!its_service_discovery_opt) {
+            return;
+        }
+        auto its_service_discovery = its_service_discovery_opt.value();
         for (auto i = its_service_discovery.begin();
                 i != its_service_discovery.end(); ++i) {
             std::string its_key(i->first);
@@ -2010,18 +2048,20 @@ void configuration_impl::load_npdu_default_timings(const configuration_element &
 
 void configuration_impl::load_services(const configuration_element &_element) {
     std::lock_guard<std::mutex> its_lock(services_mutex_);
-    try {
-        auto its_services = _element.tree_.get_child("services");
+    auto its_services_opt = _element.tree_.get_child_optional("services");
+    if (its_services_opt) {
+        auto its_services = its_services_opt.value();
+
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
             load_service(i->second, default_unicast_);
-    } catch (...) {
-        try {
-            auto its_servicegroups = _element.tree_.get_child("servicegroups");
-            for (auto i = its_servicegroups.begin(); i != its_servicegroups.end(); ++i)
-                load_servicegroup(i->second);
-        } catch (...) {
-            // intentionally left empty
+    } else {
+        auto its_servicegroups_opt = _element.tree_.get_child_optional("servicegroups");
+        if (!its_servicegroups_opt) {
+            return;
         }
+        auto its_servicegroups = its_servicegroups_opt.value();
+        for (auto i = its_servicegroups.begin(); i != its_servicegroups.end(); ++i)
+            load_servicegroup(i->second);
     }
 }
 
@@ -2074,23 +2114,20 @@ void configuration_impl::load_service(
             if (its_key == "unicast") {
                 its_service->unicast_address_ = its_value;
             } else if (its_key == "reliable") {
-                try {
-                    its_value = i->second.get_child("port").data();
-                    its_converter << its_value;
-                    its_converter >> its_service->reliable_;
-                } catch (...) {
+                auto its_value_opt = i->second.get_child_optional("port");
+                if (its_value_opt) {
+                    its_value = its_value_opt.value().data();
                     its_converter << its_value;
                     its_converter >> its_service->reliable_;
                 }
+
                 if(!its_service->reliable_) {
                     its_service->reliable_ = ILLEGAL_PORT;
                 }
-                try {
-                    its_value
-                        = i->second.get_child("enable-magic-cookies").data();
-                    use_magic_cookies = ("true" == its_value);
-                } catch (...) {
-                    // intentionally left empty
+
+                its_value_opt = i->second.get_child_optional("enable-magic-cookies");
+                if (its_value_opt) {
+                    use_magic_cookies = ("true" == its_value_opt.value().data());
                 }
             } else if (its_key == "unreliable") {
                 its_converter << its_value;
@@ -2099,14 +2136,20 @@ void configuration_impl::load_service(
                     its_service->unreliable_ = ILLEGAL_PORT;
                 }
             } else if (its_key == "multicast") {
-                try {
-                    its_value = i->second.get_child("address").data();
-                    its_service->multicast_address_ = its_value;
-                    its_value = i->second.get_child("port").data();
-                    its_converter << its_value;
-                    its_converter >> its_service->multicast_port_;
-                } catch (...) {
-                    // intentionally left empty
+                {
+                    auto its_value_opt = i->second.get_child_optional("address");
+                    if (its_value_opt)
+                        its_service->multicast_address_ = its_value_opt.value().data();
+                }
+
+                {
+                    auto its_value_opt = i->second.get_child_optional("port");
+                    if (its_value_opt)
+                    {
+                        its_value = its_value_opt.value().data();
+                        its_converter << its_value;
+                        its_converter >> its_service->multicast_port_;
+                    }
                 }
             } else if (its_key == "protocol") {
                 its_service->protocol_ = its_value;
@@ -2289,14 +2332,21 @@ void configuration_impl::load_eventgroup(
                     its_eventgroup->multicast_port_ = _service->multicast_port_;
                 }
             } else if (its_key == "multicast") {
-                try {
-                    std::string its_value = j->second.get_child("address").data();
-                    its_eventgroup->multicast_address_ = its_value;
-                    its_value = j->second.get_child("port").data();
-                    its_converter << its_value;
-                    its_converter >> its_eventgroup->multicast_port_;
-                } catch (...) {
-                    // intentionally left empty
+                {
+                    auto its_value_inner_opt = i->second.get_child_optional("address");
+                    if (its_value_inner_opt) {
+                        auto its_value_inner = its_value_inner_opt.value().data();
+                        its_eventgroup->multicast_address_ = its_value_inner_opt.value().data();
+                    }
+                }
+                {
+                    auto its_value_inner_opt = j->second.get_child_optional("port");
+                    if (its_value_inner_opt)
+                    {
+                        auto its_value_inner = its_value_inner_opt.value().data();
+                        its_converter << its_value_inner;
+                        its_converter >> its_eventgroup->multicast_port_;
+                    }
                 }
             } else if (its_key == "threshold") {
                 int its_threshold(0);
@@ -2351,7 +2401,7 @@ void configuration_impl::load_internal_services(const configuration_element &_el
         if (!optional) {
             return;
         }
-        auto its_internal_services = _element.tree_.get_child("internal_services");
+        auto its_internal_services = optional.value();
         for (auto found_range = its_internal_services.begin();
                 found_range != its_internal_services.end(); ++found_range) {
             service_instance_range range;
@@ -2417,13 +2467,13 @@ void configuration_impl::load_internal_services(const configuration_element &_el
 }
 
 void configuration_impl::load_clients(const configuration_element &_element) {
-    try {
-        auto its_clients = _element.tree_.get_child("clients");
-        for (auto i = its_clients.begin(); i != its_clients.end(); ++i)
-            load_client(i->second);
-    } catch (...) {
-        // intentionally left empty!
-    }
+    auto its_clients_opt = _element.tree_.get_child_optional("clients");
+    if (!its_clients_opt)
+        return;
+
+    auto its_clients = its_clients_opt.value();
+    for (auto i = its_clients.begin(); i != its_clients.end(); ++i)
+        load_client(i->second);
 }
 
 void configuration_impl::load_client(const boost::property_tree::ptree &_tree) {
@@ -2530,8 +2580,13 @@ std::pair<uint16_t,uint16_t> configuration_impl::load_client_port_range(
 }
 
 void configuration_impl::load_watchdog(const configuration_element &_element) {
+    auto its_service_discovery_opt = _element.tree_.get_child_optional("watchdog");
+    if (!its_service_discovery_opt) {
+        return;
+    }
+    auto its_service_discovery = its_service_discovery_opt.value();
+
     try {
-        auto its_service_discovery = _element.tree_.get_child("watchdog");
         for (auto i = its_service_discovery.begin();
                 i != its_service_discovery.end(); ++i) {
             std::string its_key(i->first);
@@ -2571,8 +2626,13 @@ void configuration_impl::load_watchdog(const configuration_element &_element) {
 }
 
 void configuration_impl::load_local_clients_keepalive(const configuration_element& _element) {
+    auto its_service_discovery_opt = _element.tree_.get_child_optional("local-clients-keepalive");
+    if (!its_service_discovery_opt) {
+        return;
+    }
+    auto its_service_discovery = its_service_discovery_opt.value();
+
     try {
-        auto its_service_discovery = _element.tree_.get_child("local-clients-keepalive");
         for (auto i = its_service_discovery.begin(); i != its_service_discovery.end(); ++i) {
             std::string its_key(i->first);
             std::string its_value(i->second.data());
@@ -2855,8 +2915,13 @@ void configuration_impl::load_security(const configuration_element &_element) {
 
 
 void configuration_impl::load_selective_broadcasts_support(const configuration_element &_element) {
+    auto its_service_discovery_opt = _element.tree_.get_child_optional("supports_selective_broadcasts");
+    if (!its_service_discovery_opt) {
+        return;
+    }
+    auto its_service_discovery = its_service_discovery_opt.value();
+
     try {
-        auto its_service_discovery = _element.tree_.get_child("supports_selective_broadcasts");
         for (auto i = its_service_discovery.begin();
                 i != its_service_discovery.end(); ++i) {
             std::string its_value(i->second.data());
@@ -2870,14 +2935,13 @@ void configuration_impl::load_selective_broadcasts_support(const configuration_e
 
 void
 configuration_impl::load_partitions(const configuration_element &_element) {
+    auto its_partitions_opt = _element.tree_.get_child_optional("partitions");
+    if (!its_partitions_opt)
+        return;
+    auto its_partitions = its_partitions_opt.value();
 
-    try {
-        auto its_partitions = _element.tree_.get_child("partitions");
-        for (auto i = its_partitions.begin(); i != its_partitions.end(); ++i) {
-            load_partition(i->second);
-        }
-    } catch (...) {
-        // intentionally left empty
+    for (auto i = its_partitions.begin(); i != its_partitions.end(); ++i) {
+        load_partition(i->second);
     }
 }
 
@@ -3917,7 +3981,7 @@ void configuration_impl::load_e2e(const configuration_element &_element) {
         if (!optional) {
             return;
         }
-        auto found_e2e = _element.tree_.get_child("e2e");
+        auto found_e2e = optional.value();
         for (auto its_e2e = found_e2e.begin();
                 its_e2e != found_e2e.end(); ++its_e2e) {
             if (its_e2e->first == "e2e_enabled") {
@@ -4174,13 +4238,14 @@ configuration_impl::load_endpoint_queue_sizes(const configuration_element &_elem
 
 void
 configuration_impl::load_debounce(const configuration_element &_element) {
-    try {
-        auto its_debounce = _element.tree_.get_child("debounce");
-        for (auto i = its_debounce.begin(); i != its_debounce.end(); ++i) {
-            load_service_debounce(i->second, debounces_);
-        }
-    } catch (...) {
-        // intentionally left empty
+    auto its_debounce_opt = _element.tree_.get_child_optional("debounce");
+    if (!its_debounce_opt) {
+        return;
+    }
+    auto its_debounce = its_debounce_opt.value();
+
+    for (auto i = its_debounce.begin(); i != its_debounce.end(); ++i) {
+        load_service_debounce(i->second, debounces_);
     }
 }
 
@@ -4340,24 +4405,23 @@ void configuration_impl::load_event_debounce_ignore(
 
 void configuration_impl::load_acceptances(const configuration_element& _element) {
     std::string its_acceptances_key("acceptances");
-    try {
-        auto its_acceptances = _element.tree_.get_child_optional(its_acceptances_key);
-        if (its_acceptances) {
-            if (is_configured_[ET_SD_ACCEPTANCE_REQUIRED]) {
-                VSOMEIP_WARNING << "Multiple definitions of " << its_acceptances_key
-                        << " Ignoring definition from " << _element.name_;
-                return;
-            }
-
-            for (auto i = its_acceptances->begin(); i != its_acceptances->end(); ++i) {
-                load_acceptance_data(i->second);
-            }
-
-            is_configured_[ET_SD_ACCEPTANCE_REQUIRED] = true;
-        }
-    } catch (...) {
-        // Intentionally left empty
+    auto its_acceptances_opt = _element.tree_.get_child_optional(its_acceptances_key);
+    if (!its_acceptances_opt) {
+        return;
     }
+    auto its_acceptances = its_acceptances_opt.value();
+
+    if (is_configured_[ET_SD_ACCEPTANCE_REQUIRED]) {
+        VSOMEIP_WARNING << "Multiple definitions of " << its_acceptances_key
+                << " Ignoring definition from " << _element.name_;
+        return;
+    }
+
+    for (auto i = its_acceptances.begin(); i != its_acceptances.end(); ++i) {
+        load_acceptance_data(i->second);
+    }
+
+    is_configured_[ET_SD_ACCEPTANCE_REQUIRED] = true;
 }
 
 void configuration_impl::load_acceptance_data(const boost::property_tree::ptree& _tree) {
@@ -4713,13 +4777,13 @@ configuration_impl::load_udp_receive_buffer_size(const configuration_element &_e
 
 void configuration_impl::load_secure_services(const configuration_element &_element) {
     std::lock_guard<std::mutex> its_lock(secure_services_mutex_);
-    try {
-        auto its_services = _element.tree_.get_child("secure-services");
-        for (auto i = its_services.begin(); i != its_services.end(); ++i)
-            load_secure_service(i->second);
-    } catch (...) {
-        // intentionally left empty
+    auto its_services_opt = _element.tree_.get_child_optional("secure-services");
+    if (!its_services_opt) {
+        return;
     }
+    auto its_services = its_services_opt.value();
+    for (auto i = its_services.begin(); i != its_services.end(); ++i)
+        load_secure_service(i->second);
 }
 
 void configuration_impl::load_secure_service(const boost::property_tree::ptree &_tree) {
@@ -4916,8 +4980,8 @@ void configuration_impl::set_sd_acceptance_rule(
         port_range_t _port_range, port_type_e _type,
         const std::string &_path, bool _reliable, bool _enable, bool _default) {
 
-    (void)_port_range;
-    (void)_type;
+    static_cast<void>(_port_range);
+    static_cast<void>(_type);
 
     std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
 
