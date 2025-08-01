@@ -47,51 +47,42 @@ struct suppress_t {
     event_t event;
 
     inline bool operator<(const suppress_t& entry_) const {
-        if(service != entry_.service) {
+        if (service != entry_.service) {
             return service < entry_.service;
         }
-        if(instance != entry_.instance) {
+        if (instance != entry_.instance) {
             return instance < entry_.instance;
         }
-        if(event != entry_.event) {
+        if (event != entry_.event) {
             return event < entry_.event;
         }
         return false;
     }
 };
 
-class configuration_impl:
-        public configuration,
-        public std::enable_shared_from_this<configuration_impl> {
+class configuration_impl : public configuration, public std::enable_shared_from_this<configuration_impl> {
 public:
-    VSOMEIP_EXPORT configuration_impl(const std::string &_path);
-    VSOMEIP_EXPORT configuration_impl(const configuration_impl &_other);
+    VSOMEIP_EXPORT configuration_impl(const std::string& _path);
+    VSOMEIP_EXPORT configuration_impl(const configuration_impl& _other);
     VSOMEIP_EXPORT virtual ~configuration_impl();
 
-    VSOMEIP_EXPORT bool load(const std::string &_name);
+    VSOMEIP_EXPORT bool load(const std::string& _name);
 #ifndef VSOMEIP_DISABLE_SECURITY
-    VSOMEIP_EXPORT bool lazy_load_security(const std::string &_client_host);
+    VSOMEIP_EXPORT bool lazy_load_security(const std::string& _client_host);
 #endif // !VSOMEIP_DISABLE_SECURITY
-    VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service,
-                                              instance_t _instance,
-                                              std::uint16_t _port,
-                                              bool _reliable,
+    VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
                                               bool _magic_cookies_enabled);
-    VSOMEIP_EXPORT bool remote_offer_info_remove(service_t _service,
-                                                 instance_t _instance,
-                                                 std::uint16_t _port,
-                                                 bool _reliable,
-                                                 bool _magic_cookies_enabled,
-                                                 bool* _still_offered_remote);
+    VSOMEIP_EXPORT bool remote_offer_info_remove(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+                                                 bool _magic_cookies_enabled, bool* _still_offered_remote);
 
-    VSOMEIP_EXPORT const std::string &get_network() const;
+    VSOMEIP_EXPORT const std::string& get_network() const;
 
-    VSOMEIP_EXPORT void set_configuration_path(const std::string &_path);
+    VSOMEIP_EXPORT void set_configuration_path(const std::string& _path);
 
-    VSOMEIP_EXPORT const boost::asio::ip::address & get_unicast_address() const;
+    VSOMEIP_EXPORT const boost::asio::ip::address& get_unicast_address() const;
     VSOMEIP_EXPORT const boost::asio::ip::address& get_netmask() const;
     VSOMEIP_EXPORT unsigned short get_prefix() const;
-    VSOMEIP_EXPORT const std::string &get_device() const;
+    VSOMEIP_EXPORT const std::string& get_device() const;
     VSOMEIP_EXPORT unsigned short get_diagnosis_address() const;
     VSOMEIP_EXPORT std::uint16_t get_diagnosis_mask() const;
     VSOMEIP_EXPORT bool is_v4() const;
@@ -100,77 +91,67 @@ public:
     VSOMEIP_EXPORT bool has_console_log() const;
     VSOMEIP_EXPORT bool has_file_log() const;
     VSOMEIP_EXPORT bool has_dlt_log() const;
-    VSOMEIP_EXPORT const std::string & get_logfile() const;
+    VSOMEIP_EXPORT const std::string& get_logfile() const;
     VSOMEIP_EXPORT vsomeip_v3::logger::level_e get_loglevel() const;
 
     VSOMEIP_EXPORT std::string get_unicast_address(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
-    VSOMEIP_EXPORT bool has_enabled_magic_cookies(const std::string &_address, uint16_t _port) const;
-    VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service,
-            instance_t _instance) const;
+    VSOMEIP_EXPORT bool has_enabled_magic_cookies(const std::string& _address, uint16_t _port) const;
+    VSOMEIP_EXPORT uint16_t get_unreliable_port(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT void get_configured_timing_requests(
-            service_t _service, const std::string &_ip_target,
-            std::uint16_t _port_target, method_t _method,
-            std::chrono::nanoseconds *_debounce_time,
-            std::chrono::nanoseconds *_max_retention_time) const;
-    VSOMEIP_EXPORT void get_configured_timing_responses(
-            service_t _service, const std::string &_ip_service,
-            std::uint16_t _port_service, method_t _method,
-            std::chrono::nanoseconds *_debounce_time,
-            std::chrono::nanoseconds *_max_retention_time) const;
+    VSOMEIP_EXPORT void get_configured_timing_requests(service_t _service, const std::string& _ip_target, std::uint16_t _port_target,
+                                                       method_t _method, std::chrono::nanoseconds* _debounce_time,
+                                                       std::chrono::nanoseconds* _max_retention_time) const;
+    VSOMEIP_EXPORT void get_configured_timing_responses(service_t _service, const std::string& _ip_service, std::uint16_t _port_service,
+                                                        method_t _method, std::chrono::nanoseconds* _debounce_time,
+                                                        std::chrono::nanoseconds* _max_retention_time) const;
 
     VSOMEIP_EXPORT bool is_someip(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance,
-            uint16_t _remote_port, bool _reliable,
-            std::map<bool, std::set<uint16_t> > &_used_client_ports, uint16_t &_client_port) const;
+    VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance, uint16_t _remote_port, bool _reliable,
+                                        std::map<bool, std::set<uint16_t>>& _used_client_ports, uint16_t& _client_port) const;
 
     VSOMEIP_EXPORT bool is_routing_enabled() const;
     VSOMEIP_EXPORT bool is_local_routing() const;
     VSOMEIP_EXPORT routing_state_e get_initial_routing_state() const;
 
-    VSOMEIP_EXPORT const std::string &get_routing_host_name() const;
-    VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_host_address() const;
+    VSOMEIP_EXPORT const std::string& get_routing_host_name() const;
+    VSOMEIP_EXPORT const boost::asio::ip::address& get_routing_host_address() const;
     VSOMEIP_EXPORT port_t get_routing_host_port() const;
 
-    VSOMEIP_EXPORT const boost::asio::ip::address &get_routing_guest_address() const;
-    VSOMEIP_EXPORT std::set<std::pair<port_t, port_t> > get_routing_guest_ports(
-            uid_t _uid, gid_t _gid) const;
+    VSOMEIP_EXPORT const boost::asio::ip::address& get_routing_guest_address() const;
+    VSOMEIP_EXPORT std::set<std::pair<port_t, port_t>> get_routing_guest_ports(uid_t _uid, gid_t _gid) const;
 
-    VSOMEIP_EXPORT client_t get_id(const std::string &_name) const;
+    VSOMEIP_EXPORT client_t get_id(const std::string& _name) const;
     VSOMEIP_EXPORT bool is_configured_client_id(client_t _id) const;
 
-    VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string &_name) const;
-    VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_max_dispatchers(const std::string& _name) const;
+    VSOMEIP_EXPORT std::size_t get_max_dispatch_time(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_max_detached_thread_wait_time(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string &_name) const;
+    VSOMEIP_EXPORT std::size_t get_io_thread_count(const std::string& _name) const;
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_request_debounce_time(const std::string& _name) const;
-    VSOMEIP_EXPORT bool has_session_handling(const std::string &_name) const;
-    VSOMEIP_EXPORT std::size_t get_event_loop_periodicity(const std::string &_name) const;
+    VSOMEIP_EXPORT bool has_session_handling(const std::string& _name) const;
+    VSOMEIP_EXPORT std::size_t get_event_loop_periodicity(const std::string& _name) const;
 
-    VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t> > get_remote_services() const;
+    VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t>> get_remote_services() const;
 
-    VSOMEIP_EXPORT bool get_multicast(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, std::string &_address, uint16_t &_port) const;
+    VSOMEIP_EXPORT bool get_multicast(service_t _service, instance_t _instance, eventgroup_t _eventgroup, std::string& _address,
+                                      uint16_t& _port) const;
 
-    VSOMEIP_EXPORT uint8_t get_threshold(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup) const;
+    VSOMEIP_EXPORT uint8_t get_threshold(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
 
-    VSOMEIP_EXPORT void get_event_update_properties(
-            service_t _service, instance_t _instance, event_t _event,
-            std::chrono::milliseconds &_cycle,
-            bool &_change_resets_cycle, bool &_update_on_change_) const;
+    VSOMEIP_EXPORT void get_event_update_properties(service_t _service, instance_t _instance, event_t _event,
+                                                    std::chrono::milliseconds& _cycle, bool& _change_resets_cycle,
+                                                    bool& _update_on_change_) const;
 
     VSOMEIP_EXPORT std::uint32_t get_max_message_size_local() const;
-    VSOMEIP_EXPORT std::uint32_t get_max_message_size_reliable(const std::string& _address,
-                                           std::uint16_t _port) const;
+    VSOMEIP_EXPORT std::uint32_t get_max_message_size_reliable(const std::string& _address, std::uint16_t _port) const;
     VSOMEIP_EXPORT std::uint32_t get_max_message_size_unreliable() const;
     VSOMEIP_EXPORT std::uint32_t get_buffer_shrink_threshold() const;
 
-    VSOMEIP_EXPORT bool supports_selective_broadcasts(const boost::asio::ip::address &_address) const;
+    VSOMEIP_EXPORT bool supports_selective_broadcasts(const boost::asio::ip::address& _address) const;
 
     VSOMEIP_EXPORT bool is_offered_remote(service_t _service, instance_t _instance) const;
 
@@ -179,18 +160,16 @@ public:
 
     VSOMEIP_EXPORT bool is_local_service(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT reliability_type_e get_event_reliability(
-            service_t _service, instance_t _instance, event_t _event) const;
+    VSOMEIP_EXPORT reliability_type_e get_event_reliability(service_t _service, instance_t _instance, event_t _event) const;
 
-    VSOMEIP_EXPORT reliability_type_e get_service_reliability(
-            service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT reliability_type_e get_service_reliability(service_t _service, instance_t _instance) const;
 
     // Service Discovery configuration
     VSOMEIP_EXPORT bool is_sd_enabled() const;
 
-    VSOMEIP_EXPORT const std::string & get_sd_multicast() const;
+    VSOMEIP_EXPORT const std::string& get_sd_multicast() const;
     VSOMEIP_EXPORT uint16_t get_sd_port() const;
-    VSOMEIP_EXPORT const std::string & get_sd_protocol() const;
+    VSOMEIP_EXPORT const std::string& get_sd_protocol() const;
 
     VSOMEIP_EXPORT uint32_t get_sd_initial_delay_min() const;
     VSOMEIP_EXPORT uint32_t get_sd_initial_delay_max() const;
@@ -217,14 +196,11 @@ public:
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
 
-    VSOMEIP_EXPORT bool check_routing_credentials(client_t _client,
-            const vsomeip_sec_client_t *_sec_client) const;
+    VSOMEIP_EXPORT bool check_routing_credentials(client_t _client, const vsomeip_sec_client_t* _sec_client) const;
 
-    VSOMEIP_EXPORT bool check_suppress_events(service_t _service,
-            instance_t _instance, event_t _event) const;
+    VSOMEIP_EXPORT bool check_suppress_events(service_t _service, instance_t _instance, event_t _event) const;
 
-    VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(
-            const std::string &_name) const;
+    VSOMEIP_EXPORT std::map<plugin_type_e, std::set<std::string>> get_plugins(const std::string& _name) const;
     // E2E
     VSOMEIP_EXPORT std::map<e2exf::data_identifier_t, std::shared_ptr<cfg::e2e>> get_e2e_configuration() const;
     VSOMEIP_EXPORT bool is_e2e_enabled() const;
@@ -238,50 +214,35 @@ public:
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
 
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_default_debounce(
-            service_t _service, instance_t _instance, event_t _event) const;
-    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(const std::string& _name,
-            service_t _service, instance_t _instance, event_t _event) const;
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_default_debounce(service_t _service, instance_t _instance,
+                                                                                event_t _event) const;
+    VSOMEIP_EXPORT std::shared_ptr<debounce_filter_impl_t> get_debounce(const std::string& _name, service_t _service, instance_t _instance,
+                                                                        event_t _event) const;
 
-    VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(
-            const std::string& _address, std::uint16_t _port) const;
+    VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const;
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit_local() const;
 
     VSOMEIP_EXPORT std::uint32_t get_max_tcp_restart_aborts() const;
     VSOMEIP_EXPORT std::uint32_t get_max_tcp_connect_time() const;
 
-    VSOMEIP_EXPORT bool is_protected_device(
-            const boost::asio::ip::address& _address) const;
-    VSOMEIP_EXPORT bool is_protected_port(
-            const boost::asio::ip::address& _address,
-            std::uint16_t _port, bool _reliable) const;
-    VSOMEIP_EXPORT bool is_secure_port(
-            const boost::asio::ip::address& _address,
-            std::uint16_t _port, bool _reliable) const;
+    VSOMEIP_EXPORT bool is_protected_device(const boost::asio::ip::address& _address) const;
+    VSOMEIP_EXPORT bool is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const;
+    VSOMEIP_EXPORT bool is_secure_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const;
 
-    VSOMEIP_EXPORT void set_sd_acceptance_rule(
-            const boost::asio::ip::address& _address,
-            port_range_t _port_range, port_type_e _type,
-            const std::string& _path, bool _reliable, bool _enable, bool _default);
-    VSOMEIP_EXPORT void set_sd_acceptance_rules(
-                const sd_acceptance_rules_t& _rules, bool _enable);
+    VSOMEIP_EXPORT void set_sd_acceptance_rule(const boost::asio::ip::address& _address, port_range_t _port_range, port_type_e _type,
+                                               const std::string& _path, bool _reliable, bool _enable, bool _default);
+    VSOMEIP_EXPORT void set_sd_acceptance_rules(const sd_acceptance_rules_t& _rules, bool _enable);
     VSOMEIP_EXPORT sd_acceptance_rules_t get_sd_acceptance_rules();
-    VSOMEIP_EXPORT void set_sd_acceptance_rules_active(
-            const boost::asio::ip::address& _address, bool _enable);
+    VSOMEIP_EXPORT void set_sd_acceptance_rules_active(const boost::asio::ip::address& _address, bool _enable);
 
     VSOMEIP_EXPORT bool is_secure_service(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT int get_udp_receive_buffer_size() const;
 
-    VSOMEIP_EXPORT bool is_tp_client(
-            service_t _service,
-            instance_t _instance,
-            method_t _method) const;
-    VSOMEIP_EXPORT bool is_tp_service(
-            service_t _service, instance_t _instance, method_t _method) const;
-    VSOMEIP_EXPORT void get_tp_configuration(
-            service_t _service, instance_t _instance, method_t _method, bool _is_client,
-            std::uint16_t &_max_segment_length, std::uint32_t &_separation_time) const;
+    VSOMEIP_EXPORT bool is_tp_client(service_t _service, instance_t _instance, method_t _method) const;
+    VSOMEIP_EXPORT bool is_tp_service(service_t _service, instance_t _instance, method_t _method) const;
+    VSOMEIP_EXPORT void get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
+                                             std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const;
 
     VSOMEIP_EXPORT std::uint32_t get_shutdown_timeout() const;
 
@@ -292,18 +253,15 @@ public:
 
     VSOMEIP_EXPORT uint8_t get_max_remote_subscribers() const;
 
-    VSOMEIP_EXPORT partition_id_t get_partition_id(
-            service_t _service, instance_t _instance) const;
+    VSOMEIP_EXPORT partition_id_t get_partition_id(service_t _service, instance_t _instance) const;
 
-    VSOMEIP_EXPORT std::map<std::string, std::string> get_additional_data(
-            const std::string &_application_name,
-            const std::string &_plugin_name);
+    VSOMEIP_EXPORT std::map<std::string, std::string> get_additional_data(const std::string& _application_name,
+                                                                          const std::string& _plugin_name);
 
-    VSOMEIP_EXPORT reliability_type_e get_reliability_type(
-            const boost::asio::ip::address &_reliable_address,
-            const uint16_t &_reliable_port,
-            const boost::asio::ip::address &_unreliable_address,
-            const uint16_t &_unreliable_port) const;
+    VSOMEIP_EXPORT reliability_type_e get_reliability_type(const boost::asio::ip::address& _reliable_address,
+                                                           const uint16_t& _reliable_port,
+                                                           const boost::asio::ip::address& _unreliable_address,
+                                                           const uint16_t& _unreliable_port) const;
 
     VSOMEIP_EXPORT bool is_security_enabled() const;
     VSOMEIP_EXPORT bool is_security_external() const;
@@ -312,185 +270,149 @@ public:
 
     VSOMEIP_EXPORT std::shared_ptr<policy_manager_impl> get_policy_manager() const;
     VSOMEIP_EXPORT std::shared_ptr<security> get_security() const;
+
 private:
-    void read_data(const std::set<std::string> &_input,
-            std::vector<configuration_element> &_elements,
-            std::set<std::string> &_failed,
-            bool _mandatory_only, bool _read_second_level = false);
+    void read_data(const std::set<std::string>& _input, std::vector<configuration_element>& _elements, std::set<std::string>& _failed,
+                   bool _mandatory_only, bool _read_second_level = false);
 #ifndef VSOMEIP_DISABLE_POLICY
-    void load_policy_data(const std::string &_input,
-            std::vector<configuration_element> &_elements,
-            std::set<std::string> &_failed,
-            bool _mandatory_only);
+    void load_policy_data(const std::string& _input, std::vector<configuration_element>& _elements, std::set<std::string>& _failed,
+                          bool _mandatory_only);
 #endif // !VSOMEIP_DISABLE_POLICY
-    bool load_data(const std::vector<configuration_element> &_elements,
-            bool _load_mandatory, bool _load_optional);
+    bool load_data(const std::vector<configuration_element>& _elements, bool _load_mandatory, bool _load_optional);
 
-    bool load_logging(const configuration_element &_element,
-                std::set<std::string> &_warnings);
+    bool load_logging(const configuration_element& _element, std::set<std::string>& _warnings);
 
-    bool load_applications(const configuration_element &_element);
-    void load_application_data(const boost::property_tree::ptree &_tree,
-            const std::string &_file_name);
+    bool load_applications(const configuration_element& _element);
+    void load_application_data(const boost::property_tree::ptree& _tree, const std::string& _file_name);
 
-    std::map<plugin_type_e, std::set<std::string>> load_plugins(
-            const boost::property_tree::ptree &_tree,
-            const std::string &_application_name);
+    std::map<plugin_type_e, std::set<std::string>> load_plugins(const boost::property_tree::ptree& _tree,
+                                                                const std::string& _application_name);
 
     struct plugin_config_data_t {
         std::string name_;
         std::string type_;
     };
 
-    void add_plugin(std::map<plugin_type_e, std::set<std::string>> &_plugins,
-            const plugin_config_data_t &_plugin_data,
-            const std::string& _application_name);
+    void add_plugin(std::map<plugin_type_e, std::set<std::string>>& _plugins, const plugin_config_data_t& _plugin_data,
+                    const std::string& _application_name);
 
-    bool load_routing(const configuration_element &_element);
-    bool load_routing_host(const boost::property_tree::ptree &_tree,
-            const std::string &_name);
-    bool load_routing_guests(const boost::property_tree::ptree &_tree);
-    void load_routing_guest_ports(const boost::property_tree::ptree &_tree);
-    std::set<std::pair<port_t, port_t> > load_routing_guest_port_range(
-            const boost::property_tree::ptree &_tree) const;
+    bool load_routing(const configuration_element& _element);
+    bool load_routing_host(const boost::property_tree::ptree& _tree, const std::string& _name);
+    bool load_routing_guests(const boost::property_tree::ptree& _tree);
+    void load_routing_guest_ports(const boost::property_tree::ptree& _tree);
+    std::set<std::pair<port_t, port_t>> load_routing_guest_port_range(const boost::property_tree::ptree& _tree) const;
 
-    bool load_routing_credentials(const configuration_element &_element); // compatibility
-    void load_routing_client_ports(const configuration_element &_element); // compatibility
+    bool load_routing_credentials(const configuration_element& _element); // compatibility
+    void load_routing_client_ports(const configuration_element& _element); // compatibility
 
-    void load_tracing(const configuration_element &_element);
-    void load_trace_channels(const boost::property_tree::ptree &_tree);
-    void load_trace_channel(const boost::property_tree::ptree &_tree);
-    void load_trace_filters(const boost::property_tree::ptree &_tree);
-    void load_trace_filter(const boost::property_tree::ptree &_tree);
-    void load_trace_filter_expressions(
-            const boost::property_tree::ptree &_tree,
-            std::string &_criteria,
-            std::shared_ptr<trace_filter> &_filter);
-    void load_trace_filter_match(
-            const boost::property_tree::ptree &_data,
-            std::tuple<service_t, instance_t, method_t> &_match);
+    void load_tracing(const configuration_element& _element);
+    void load_trace_channels(const boost::property_tree::ptree& _tree);
+    void load_trace_channel(const boost::property_tree::ptree& _tree);
+    void load_trace_filters(const boost::property_tree::ptree& _tree);
+    void load_trace_filter(const boost::property_tree::ptree& _tree);
+    void load_trace_filter_expressions(const boost::property_tree::ptree& _tree, std::string& _criteria,
+                                       std::shared_ptr<trace_filter>& _filter);
+    void load_trace_filter_match(const boost::property_tree::ptree& _data, std::tuple<service_t, instance_t, method_t>& _match);
 
-    void load_suppress_events(const configuration_element &_element);
-    void load_suppress_events_data(
-            const boost::property_tree::ptree &_tree);
-    std::set<event_t> load_suppress_multiple_events(
-            const boost::property_tree::ptree &_tree);
-    uint16_t load_suppress_data(const std::string &_value) const;
-    std::set<event_t> load_range_events(event_t _first_event,
-            event_t _last_event) const ;
-    void insert_suppress_events(service_t  _service,
-    instance_t _instance, event_t _event);
+    void load_suppress_events(const configuration_element& _element);
+    void load_suppress_events_data(const boost::property_tree::ptree& _tree);
+    std::set<event_t> load_suppress_multiple_events(const boost::property_tree::ptree& _tree);
+    uint16_t load_suppress_data(const std::string& _value) const;
+    std::set<event_t> load_range_events(event_t _first_event, event_t _last_event) const;
+    void insert_suppress_events(service_t _service, instance_t _instance, event_t _event);
     void print_suppress_events(void) const;
 
-    void load_network(const configuration_element &_element);
-    void load_device(const configuration_element &_element);
+    void load_network(const configuration_element& _element);
+    void load_device(const configuration_element& _element);
 
-    void load_unicast_address(const configuration_element &_element);
-    void load_netmask(const configuration_element &_element);
-    void load_diagnosis_address(const configuration_element &_element);
-    void load_shutdown_timeout(const configuration_element &_element);
+    void load_unicast_address(const configuration_element& _element);
+    void load_netmask(const configuration_element& _element);
+    void load_diagnosis_address(const configuration_element& _element);
+    void load_shutdown_timeout(const configuration_element& _element);
 
-    void load_service_discovery(const configuration_element &_element);
-    void load_delays(const boost::property_tree::ptree &_tree);
+    void load_service_discovery(const configuration_element& _element);
+    void load_delays(const boost::property_tree::ptree& _tree);
 
-    void load_npdu_default_timings(const configuration_element &_element);
-    void load_services(const configuration_element &_element);
-    void load_servicegroup(const boost::property_tree::ptree &_tree);
-    void load_service(const boost::property_tree::ptree &_tree,
-            const std::string &_unicast_address);
-    void load_event(std::shared_ptr<service> &_service,
-            const boost::property_tree::ptree &_tree);
-    void load_eventgroup(std::shared_ptr<service> &_service,
-            const boost::property_tree::ptree &_tree);
+    void load_npdu_default_timings(const configuration_element& _element);
+    void load_services(const configuration_element& _element);
+    void load_servicegroup(const boost::property_tree::ptree& _tree);
+    void load_service(const boost::property_tree::ptree& _tree, const std::string& _unicast_address);
+    void load_event(std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree);
+    void load_eventgroup(std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree);
 
-    void load_internal_services(const configuration_element &_element);
+    void load_internal_services(const configuration_element& _element);
 
-    void load_clients(const configuration_element &_element);
-    void load_client(const boost::property_tree::ptree &_tree);
+    void load_clients(const configuration_element& _element);
+    void load_client(const boost::property_tree::ptree& _tree);
 
-    std::set<uint16_t> load_client_ports(const boost::property_tree::ptree &_tree);
-    std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree &_tree);
+    std::set<uint16_t> load_client_ports(const boost::property_tree::ptree& _tree);
+    std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree& _tree);
 
-    void load_watchdog(const configuration_element &_element);
-    void load_local_clients_keepalive(const configuration_element &_element);
+    void load_watchdog(const configuration_element& _element);
+    void load_local_clients_keepalive(const configuration_element& _element);
 
     void load_request_debounce_time(const configuration_element& _element);
 
     void load_dispatch_defaults(const configuration_element& _element);
 
-    void load_payload_sizes(const configuration_element &_element);
-    void load_permissions(const configuration_element &_element);
+    void load_payload_sizes(const configuration_element& _element);
+    void load_permissions(const configuration_element& _element);
 
-    void load_security(const configuration_element &_element);
+    void load_security(const configuration_element& _element);
 
-    void load_selective_broadcasts_support(const configuration_element &_element);
+    void load_selective_broadcasts_support(const configuration_element& _element);
 
-    void load_debounce(const configuration_element &_element);
-    void load_service_debounce(const boost::property_tree::ptree &_tree,
-            debounce_configuration_t &_debounces);
-    void load_events_debounce(const boost::property_tree::ptree &_tree,
-            std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
-    void load_event_debounce(const boost::property_tree::ptree &_tree,
-                std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t> > &_debounces);
-    void load_event_debounce_ignore(const boost::property_tree::ptree &_tree,
-            std::map<std::size_t, byte_t> &_ignore);
-    void load_acceptances(const configuration_element &_element);
-    void load_acceptance_data(const boost::property_tree::ptree &_tree);
-    void load_activation_file_path(std::set<std::string>& _path,
-                                   const boost::property_tree::ptree& _tree);
-    void load_udp_receive_buffer_size(const configuration_element &_element);
-    bool load_npdu_debounce_times_configuration(
-            const std::shared_ptr<service>& _service,
-            const boost::property_tree::ptree &_tree);
-    bool load_npdu_debounce_times_for_service(
-            const std::shared_ptr<service>& _service, bool _is_request,
-            const boost::property_tree::ptree &_tree);
-    void load_someip_tp(const std::shared_ptr<service>& _service,
-                        const boost::property_tree::ptree &_tree);
-    void load_someip_tp_for_service(
-            const std::shared_ptr<service>& _service,
-            const boost::property_tree::ptree &_tree, bool _is_request);
+    void load_debounce(const configuration_element& _element);
+    void load_service_debounce(const boost::property_tree::ptree& _tree, debounce_configuration_t& _debounces);
+    void load_events_debounce(const boost::property_tree::ptree& _tree,
+                              std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>& _debounces);
+    void load_event_debounce(const boost::property_tree::ptree& _tree,
+                             std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>& _debounces);
+    void load_event_debounce_ignore(const boost::property_tree::ptree& _tree, std::map<std::size_t, byte_t>& _ignore);
+    void load_acceptances(const configuration_element& _element);
+    void load_acceptance_data(const boost::property_tree::ptree& _tree);
+    void load_activation_file_path(std::set<std::string>& _path, const boost::property_tree::ptree& _tree);
+    void load_udp_receive_buffer_size(const configuration_element& _element);
+    bool load_npdu_debounce_times_configuration(const std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree);
+    bool load_npdu_debounce_times_for_service(const std::shared_ptr<service>& _service, bool _is_request,
+                                              const boost::property_tree::ptree& _tree);
+    void load_someip_tp(const std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree);
+    void load_someip_tp_for_service(const std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree, bool _is_request);
 
-    servicegroup *find_servicegroup(const std::string &_name) const;
-    std::shared_ptr<client> find_client(service_t _service,
-            instance_t _instance) const;
+    servicegroup* find_servicegroup(const std::string& _name) const;
+    std::shared_ptr<client> find_client(service_t _service, instance_t _instance) const;
     std::shared_ptr<service> find_service(service_t _service, instance_t _instance) const;
     std::shared_ptr<service> find_service_unlocked(service_t _service, instance_t _instance) const;
-    std::shared_ptr<service> find_service(service_t _service,
-            const std::string &_address, std::uint16_t _port) const;
-    std::shared_ptr<eventgroup> find_eventgroup(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup) const;
-    bool find_port(uint16_t &_port, uint16_t _remote, bool _reliable,
-            std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
-    bool find_specific_port(uint16_t &_port, service_t _service,
-            instance_t _instance, bool _reliable,
-            std::map<bool, std::set<uint16_t> > &_used_client_ports) const;
+    std::shared_ptr<service> find_service(service_t _service, const std::string& _address, std::uint16_t _port) const;
+    std::shared_ptr<eventgroup> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
+    bool find_port(uint16_t& _port, uint16_t _remote, bool _reliable, std::map<bool, std::set<uint16_t>>& _used_client_ports) const;
+    bool find_specific_port(uint16_t& _port, service_t _service, instance_t _instance, bool _reliable,
+                            std::map<bool, std::set<uint16_t>>& _used_client_ports) const;
 
     void set_magic_cookies_unicast_address();
 
-    bool is_mandatory(const std::string &_name) const;
+    bool is_mandatory(const std::string& _name) const;
     bool is_remote(const std::shared_ptr<service>& _service) const;
     bool is_internal_service(service_t _service, instance_t _instance) const;
     bool is_in_port_range(uint16_t _port, std::pair<uint16_t, uint16_t> _port_range) const;
 
-    void set_mandatory(const std::string &_input);
-    void trim(std::string &_s);
+    void set_mandatory(const std::string& _input);
+    void trim(std::string& _s);
 
-    void load_e2e(const configuration_element &_element);
-    void load_e2e_protected(const boost::property_tree::ptree &_tree);
+    void load_e2e(const configuration_element& _element);
+    void load_e2e_protected(const boost::property_tree::ptree& _tree);
 
-    void load_ttl_factors(const boost::property_tree::ptree &_tree,
-                          ttl_map_t* _target);
+    void load_ttl_factors(const boost::property_tree::ptree& _tree, ttl_map_t* _target);
 
-    void load_endpoint_queue_sizes(const configuration_element &_element);
+    void load_endpoint_queue_sizes(const configuration_element& _element);
 
-    void load_tcp_restart_settings(const configuration_element &_element);
+    void load_tcp_restart_settings(const configuration_element& _element);
 
-    void load_secure_services(const configuration_element &_element);
-    void load_secure_service(const boost::property_tree::ptree &_tree);
+    void load_secure_services(const configuration_element& _element);
+    void load_secure_service(const boost::property_tree::ptree& _tree);
 
-    void load_partitions(const configuration_element &_element);
-    void load_partition(const boost::property_tree::ptree &_tree);
+    void load_partitions(const configuration_element& _element);
+    void load_partition(const boost::property_tree::ptree& _tree);
 
 private:
     std::mutex mutex_;
@@ -520,24 +442,21 @@ protected:
     mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
 
-    std::map<
-        std::string,
-        application_configuration
-    > applications_;
+    std::map<std::string, application_configuration> applications_;
     std::set<client_t> client_identifiers_;
 
     mutable std::mutex services_mutex_;
     service_instance_map<std::shared_ptr<service>> services_;
 
     std::map<std::string, // IP
-        std::map<std::uint16_t, // port
-            std::map<service_t,
-                std::shared_ptr<service>>>> services_by_ip_port_;
+             std::map<std::uint16_t, // port
+                      std::map<service_t, std::shared_ptr<service>>>>
+            services_by_ip_port_;
 
     std::set<suppress_t> suppress_events_;
     bool is_suppress_events_enabled_;
 
-    std::list< std::shared_ptr<client> > clients_;
+    std::list<std::shared_ptr<client>> clients_;
 
     routing_t routing_;
 
@@ -559,7 +478,7 @@ protected:
     std::uint32_t sd_find_initial_debounce_time_;
     bool sd_wait_route_netlink_notification_;
 
-    std::map<std::string, std::set<uint16_t> > magic_cookies_;
+    std::map<std::string, std::set<uint16_t>> magic_cookies_;
 
     std::map<std::string, std::map<std::uint16_t, std::uint32_t>> message_sizes_;
     std::uint32_t max_configured_message_size_;
@@ -683,7 +602,7 @@ protected:
     std::uint32_t shutdown_timeout_;
 
     mutable std::mutex secure_services_mutex_;
-    std::map<service_t, std::set<instance_t> > secure_services_;
+    std::map<service_t, std::set<instance_t>> secure_services_;
 
     bool log_statistics_;
     uint32_t statistics_interval_;
@@ -697,13 +616,7 @@ protected:
 
     std::string path_;
 
-    std::map<std::string,
-        std::map<std::string,
-            std::map<std::string,
-            std::string
-            >
-        >
-    > plugins_additional_;
+    std::map<std::string, std::map<std::string, std::map<std::string, std::string>>> plugins_additional_;
 
     std::atomic_bool is_security_enabled_;
     std::atomic_bool is_security_external_;

@@ -13,16 +13,14 @@ namespace sd {
 
 class message_impl;
 
-class deserializer
-        : public vsomeip_v3::deserializer {
+class deserializer : public vsomeip_v3::deserializer {
 public:
     deserializer(std::uint32_t _shrink_buffer_threshold);
-    deserializer(uint8_t *_data, std::size_t _length,
-                 std::uint32_t _shrink_buffer_threshold);
-    deserializer(const deserializer &_other);
+    deserializer(uint8_t* _data, std::size_t _length, std::uint32_t _shrink_buffer_threshold);
+    deserializer(const deserializer& _other);
     virtual ~deserializer();
 
-    message_impl * deserialize_sd_message();
+    message_impl* deserialize_sd_message();
 };
 
 } // namespace sd

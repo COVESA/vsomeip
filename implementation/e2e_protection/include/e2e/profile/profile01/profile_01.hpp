@@ -19,30 +19,26 @@ namespace profile01 {
 struct profile_config;
 
 class profile_01 {
-  public:
-    static uint8_t compute_crc(const profile_config &_config, const e2e_buffer &_buffer);
+public:
+    static uint8_t compute_crc(const profile_config& _config, const e2e_buffer& _buffer);
 
-    static bool is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer);
+    static bool is_buffer_length_valid(const profile_config& _config, const e2e_buffer& _buffer);
 };
 
 // [SWS_E2E_00200]
-enum class p01_data_id_mode : uint8_t {E2E_P01_DATAID_BOTH, E2E_P01_DATAID_ALT, E2E_P01_DATAID_LOW, E2E_P01_DATAID_NIBBLE};
+enum class p01_data_id_mode : uint8_t { E2E_P01_DATAID_BOTH, E2E_P01_DATAID_ALT, E2E_P01_DATAID_LOW, E2E_P01_DATAID_NIBBLE };
 
 struct profile_config {
     profile_config() = delete;
 
-    profile_config(uint16_t _crc_offset, uint16_t _data_id,
-                   p01_data_id_mode _data_id_mode, uint16_t _data_length,
-                   uint16_t _counter_offset, uint16_t _data_id_nibble_offset)
+    profile_config(uint16_t _crc_offset, uint16_t _data_id, p01_data_id_mode _data_id_mode, uint16_t _data_length, uint16_t _counter_offset,
+                   uint16_t _data_id_nibble_offset)
 
-        : crc_offset_(_crc_offset), data_id_(_data_id),
-          data_id_mode_(_data_id_mode), data_length_(_data_length),
-          counter_offset_(_counter_offset),
-          data_id_nibble_offset_(_data_id_nibble_offset),
-          base_(VSOMEIP_FULL_HEADER_SIZE) {
-    }
-    profile_config(const profile_config &_config) = default;
-    profile_config &operator=(const profile_config &_config) = default;
+        :
+        crc_offset_(_crc_offset), data_id_(_data_id), data_id_mode_(_data_id_mode), data_length_(_data_length),
+        counter_offset_(_counter_offset), data_id_nibble_offset_(_data_id_nibble_offset), base_(VSOMEIP_FULL_HEADER_SIZE) { }
+    profile_config(const profile_config& _config) = default;
+    profile_config& operator=(const profile_config& _config) = default;
 
     // [SWS_E2E_00018]
     uint16_t crc_offset_;

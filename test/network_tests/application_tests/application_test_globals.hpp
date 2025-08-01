@@ -19,8 +19,7 @@ struct service_info {
     vsomeip::minor_version_t minor_version;
 };
 
-
-struct service_info service = { 0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404, 0x2, 0x4711 };
+struct service_info service = {0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404, 0x2, 0x4711};
 
 static constexpr int number_of_messages_to_send = 150;
 }

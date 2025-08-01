@@ -29,7 +29,7 @@ public:
     ///
     /// @return true if vsomeip->init() was successful
     bool init();
-    
+
     /// @brief Starts vsomeip application on a background thread. Non blocking call.
     void start();
 
@@ -45,7 +45,6 @@ public:
     ///
     /// @return true if registered
     bool is_registered();
-
 
 private:
     /// @brief vsomeip app interface

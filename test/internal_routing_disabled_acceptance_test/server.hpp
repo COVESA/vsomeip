@@ -6,8 +6,7 @@
 
 #include "applet.hpp"
 
-struct server final : applet
-{
+struct server final : applet {
     server();
     ~server();
 

@@ -17,16 +17,12 @@ VSOMEIP_PLUGIN(vsomeip_v3::sd::runtime_impl)
 namespace vsomeip_v3 {
 namespace sd {
 
-runtime_impl::runtime_impl()
-    : plugin_impl("vsomeip SD plug-in", 1, plugin_type_e::SD_RUNTIME_PLUGIN) {
-}
+runtime_impl::runtime_impl() : plugin_impl("vsomeip SD plug-in", 1, plugin_type_e::SD_RUNTIME_PLUGIN) { }
 
-runtime_impl::~runtime_impl() {
-}
+runtime_impl::~runtime_impl() { }
 
-std::shared_ptr<service_discovery>
-runtime_impl::create_service_discovery(service_discovery_host *_host,
-        std::shared_ptr<configuration> _configuration) const {
+std::shared_ptr<service_discovery> runtime_impl::create_service_discovery(service_discovery_host* _host,
+                                                                          std::shared_ptr<configuration> _configuration) const {
     return std::make_shared<service_discovery_impl>(_host, _configuration);
 }
 

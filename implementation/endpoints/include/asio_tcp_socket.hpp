@@ -25,70 +25,38 @@ private:
     [[nodiscard]] bool is_open() const override { return socket_.is_open(); }
     [[nodiscard]] int native_handle() override { return socket_.native_handle(); }
 
-    void open(boost::asio::ip::tcp::endpoint::protocol_type pt,
-              boost::system::error_code& ec) override {
-        socket_.open(pt, ec);
-    }
-    void bind(boost::asio::ip::tcp::endpoint const& ep, boost::system::error_code& ec) override {
-        socket_.bind(ep, ec);
-    }
+    void open(boost::asio::ip::tcp::endpoint::protocol_type pt, boost::system::error_code& ec) override { socket_.open(pt, ec); }
+    void bind(boost::asio::ip::tcp::endpoint const& ep, boost::system::error_code& ec) override { socket_.bind(ep, ec); }
 
     void close(boost::system::error_code& ec) override { socket_.close(ec); }
     void cancel(boost::system::error_code& ec) override { socket_.cancel(ec); }
-    void shutdown(boost::asio::ip::tcp::socket::shutdown_type st,
-                  boost::system::error_code& ec) override {
-        socket_.shutdown(st, ec);
-    }
-    void set_option(boost::asio::ip::tcp::no_delay nd, boost::system::error_code& ec) override {
-        socket_.set_option(nd, ec);
-    }
-    void set_option(boost::asio::ip::tcp::socket::keep_alive ka,
-                    boost::system::error_code& ec) override {
-        socket_.set_option(ka, ec);
-    }
-    void set_option(boost::asio::ip::tcp::socket::linger l,
-                    boost::system::error_code& ec) override {
-        socket_.set_option(l, ec);
-    }
-    void set_option(boost::asio::ip::tcp::socket::reuse_address ra,
-                    boost::system::error_code& ec) override {
-        socket_.set_option(ra, ec);
-    }
+    void shutdown(boost::asio::ip::tcp::socket::shutdown_type st, boost::system::error_code& ec) override { socket_.shutdown(st, ec); }
+    void set_option(boost::asio::ip::tcp::no_delay nd, boost::system::error_code& ec) override { socket_.set_option(nd, ec); }
+    void set_option(boost::asio::ip::tcp::socket::keep_alive ka, boost::system::error_code& ec) override { socket_.set_option(ka, ec); }
+    void set_option(boost::asio::ip::tcp::socket::linger l, boost::system::error_code& ec) override { socket_.set_option(l, ec); }
+    void set_option(boost::asio::ip::tcp::socket::reuse_address ra, boost::system::error_code& ec) override { socket_.set_option(ra, ec); }
 #if defined(__linux__) || defined(ANDROID)
     [[nodiscard]] bool set_user_timeout(unsigned int timeout) override {
-        return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &timeout,
-                          sizeof(timeout))
-                != -1;
+        return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != -1;
     }
 #endif
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     [[nodiscard]] bool bind_to_device(std::string const& _device) override {
-        return setsockopt(socket_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(),
-                          static_cast<socklen_t>(_device.size()))
+        return setsockopt(socket_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(), static_cast<socklen_t>(_device.size()))
                 != -1;
     }
-    [[nodiscard]] bool can_read_fd_flags() override {
-        return fcntl(socket_.native_handle(), F_GETFD) != -1;
-    }
+    [[nodiscard]] bool can_read_fd_flags() override { return fcntl(socket_.native_handle(), F_GETFD) != -1; }
 #endif
-    boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code& ec) const override {
-        return socket_.local_endpoint(ec);
-    }
-    boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code& ec) const override {
-        return socket_.remote_endpoint(ec);
-    }
+    boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code& ec) const override { return socket_.local_endpoint(ec); }
+    boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code& ec) const override { return socket_.remote_endpoint(ec); }
     void async_connect(boost::asio::ip::tcp::endpoint const& ep, connect_handler handler) override {
         socket_.async_connect(ep, std::move(handler));
     }
-    void async_receive(boost::asio::mutable_buffer b, rw_handler handler) override {
-        socket_.async_receive(b, std::move(handler));
-    }
-    void async_write(std::vector<boost::asio::const_buffer> const& bs,
-                     rw_handler handler) override {
+    void async_receive(boost::asio::mutable_buffer b, rw_handler handler) override { socket_.async_receive(b, std::move(handler)); }
+    void async_write(std::vector<boost::asio::const_buffer> const& bs, rw_handler handler) override {
         boost::asio::async_write(socket_, bs, std::move(handler));
     }
-    void async_write(boost::asio::const_buffer const& b, completion_condition cc,
-                     rw_handler handler) override {
+    void async_write(boost::asio::const_buffer const& b, completion_condition cc, rw_handler handler) override {
         boost::asio::async_write(socket_, b, std::move(cc), std::move(handler));
     }
 
@@ -105,28 +73,19 @@ private:
     [[nodiscard]] bool is_open() const override { return acceptor_.is_open(); }
     [[nodiscard]] int native_handle() override { return acceptor_.native_handle(); }
 
-    void open(boost::asio::ip::tcp::endpoint::protocol_type pt,
-              boost::system::error_code& ec) override {
-        acceptor_.open(pt, ec);
-    }
-    void bind(boost::asio::ip::tcp::endpoint const& ep, boost::system::error_code& ec) override {
-        acceptor_.bind(ep, ec);
-    }
+    void open(boost::asio::ip::tcp::endpoint::protocol_type pt, boost::system::error_code& ec) override { acceptor_.open(pt, ec); }
+    void bind(boost::asio::ip::tcp::endpoint const& ep, boost::system::error_code& ec) override { acceptor_.bind(ep, ec); }
     void close(boost::system::error_code& ec) override { acceptor_.close(ec); }
-    void listen(int backlog, boost::system::error_code& ec) override {
-        acceptor_.listen(backlog, ec);
-    }
+    void listen(int backlog, boost::system::error_code& ec) override { acceptor_.listen(backlog, ec); }
 
-    void set_option(boost::asio::ip::tcp::socket::reuse_address ra,
-                    boost::system::error_code& ec) override {
+    void set_option(boost::asio::ip::tcp::socket::reuse_address ra, boost::system::error_code& ec) override {
         acceptor_.set_option(ra, ec);
     }
 
 #if defined(__linux__) || defined(ANDROID)
     [[nodiscard]] bool set_native_option_free_bind() override {
         int opt = 1;
-        return setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt))
-                == 0;
+        return setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) == 0;
     }
 #endif
 

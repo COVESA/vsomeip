@@ -7,7 +7,7 @@
 
 #include <common/utility.hpp>
 
-namespace{
+namespace {
 vsomeip_v3::uid_t invalid_uid = 1;
 vsomeip_v3::uid_t valid_uid = 4003017;
 vsomeip_v3::gid_t invalid_gid = 1;

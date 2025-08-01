@@ -16,9 +16,9 @@
 #include <stdlib.h>
 
 namespace vsomeip_v3::testing {
-static std::string const routingmanager_name_ {"routingmanagerd"};
-static std::string const server_name_ {"server"};
-static std::string const client_name_ {"client"};
+static std::string const routingmanager_name_{"routingmanagerd"};
+static std::string const server_name_{"server"};
+static std::string const client_name_{"client"};
 
 struct test_client_helper : public base_fake_socket_fixture {
     test_client_helper() {
@@ -42,19 +42,15 @@ struct test_client_helper : public base_fake_socket_fixture {
         client_ = start_client(client_name_);
         ASSERT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
     }
-    [[nodiscard]] bool
-    subscribe_to_event(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
+    [[nodiscard]] bool subscribe_to_event(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
         client_->request_service(service_instance_);
         client_->subscribe_event(offered_event_);
-        return client_->subscription_record_.wait_for(
-                event_subscription::successfully_subscribed_to(offered_event_), timeout);
+        return client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_event_), timeout);
     }
-    [[nodiscard]] bool
-    subscribe_to_field(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
+    [[nodiscard]] bool subscribe_to_field(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
         client_->request_service(service_instance_);
         client_->subscribe_field(offered_field_);
-        return client_->subscription_record_.wait_for(
-                event_subscription::successfully_subscribed_to(offered_field_), timeout);
+        return client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_), timeout);
     }
     void send_first_message() { server_->send_event(offered_event_, {}); }
     void send_field_message() { server_->send_event(offered_field_, field_payload_); }
@@ -63,36 +59,24 @@ struct test_client_helper : public base_fake_socket_fixture {
         expected_reply_.payload_ = _payload;
     }
 
-    service_instance service_instance_ {0x3344, 0x1};
-    event_ids offered_event_ {service_instance_, 0x8002, 0x1};
-    message first_expected_message_ {client_session {0, 1},
-                                     service_instance_,
-                                     offered_event_.event_id_,
-                                     vsomeip::message_type_e::MT_NOTIFICATION,
-                                     {}};
-    event_ids offered_field_ {service_instance_, 0x8003, 0x6};
-    std::vector<unsigned char> field_payload_ {0x42, 0x13};
-    message first_expected_field_message_ {
-            client_session {0, 2}, // todo, why is the session a two here?
-            service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
-            field_payload_};
+    service_instance service_instance_{0x3344, 0x1};
+    event_ids offered_event_{service_instance_, 0x8002, 0x1};
+    message first_expected_message_{
+            client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
+    event_ids offered_field_{service_instance_, 0x8003, 0x6};
+    std::vector<unsigned char> field_payload_{0x42, 0x13};
+    message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
+                                          service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                          field_payload_};
 
-    vsomeip_v3::method_t method_ {0x1111};
-    request request_ {service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
-    message expected_request_ {client_session {0x3490 /*client id*/, 1},
-                               service_instance_,
-                               method_,
-                               vsomeip::message_type_e::MT_REQUEST,
-                               {}};
-    message expected_reply_ {client_session {0x3490 /*client id*/, 1},
-                             service_instance_,
-                             method_,
-                             vsomeip::message_type_e::MT_RESPONSE,
-                             {}};
+    vsomeip_v3::method_t method_{0x1111};
+    request request_{service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
+    message expected_request_{client_session{0x3490 /*client id*/, 1}, service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
+    message expected_reply_{client_session{0x3490 /*client id*/, 1}, service_instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
 
-    app* routingmanagerd_ {};
-    app* client_ {};
-    app* server_ {};
+    app* routingmanagerd_{};
+    app* client_{};
+    app* server_{};
 };
 
 TEST_F(test_client_helper, event_subscription) {
@@ -137,9 +121,8 @@ TEST_F(test_client_helper, the_server_sends_subscribe_ack_when_the_routing_info_
     ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, false));
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false));
 
-    ASSERT_TRUE(client_->subscription_record_.wait_for(
-            event_subscription::successfully_subscribed_to(offered_field_),
-            std::chrono::seconds(3)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_),
+                                                       std::chrono::seconds(3)));
 
     EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
 }
@@ -154,19 +137,15 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
-    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_,
-                           std::nullopt));
-    ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_,
-                           boost::asio::error::timed_out));
+    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_, boost::asio::error::timed_out));
     std::this_thread::sleep_for(std::chrono::milliseconds(700));
 
     // resume of the client:
     set_ignore_connections(client_name_, false);
     // resume of the client:
-    ASSERT_TRUE(disconnect(routingmanager_name_, std::nullopt, client_name_,
-                           boost::asio::error::connection_reset));
-    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_,
-                           std::nullopt));
+    ASSERT_TRUE(disconnect(routingmanager_name_, std::nullopt, client_name_, boost::asio::error::connection_reset));
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, std::nullopt));
 
     // in order for the server to be able to send an event, the server needs to connect back
     // to the client. This can only be traced via the socket connection state afaik.
@@ -201,18 +180,14 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
-    ASSERT_TRUE(
-            disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
-    ASSERT_TRUE(
-            disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::timed_out));
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::timed_out));
     std::this_thread::sleep_for(std::chrono::milliseconds(700));
 
     // resume of the client:
     set_ignore_connections(client_name_, false);
-    ASSERT_TRUE(disconnect(server_name_, std::nullopt, client_name_,
-                           boost::asio::error::connection_reset));
-    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_,
-                           std::nullopt));
+    ASSERT_TRUE(disconnect(server_name_, std::nullopt, client_name_, boost::asio::error::connection_reset));
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, std::nullopt));
 
     ASSERT_TRUE(await_connection(server_name_, client_name_, std::chrono::seconds(6)));
     ASSERT_TRUE(await_connection(client_name_, server_name_, std::chrono::seconds(6)));
@@ -234,18 +209,14 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
 
     // simulating a suspend of a server:
     set_ignore_connections(server_name_, true);
-    ASSERT_TRUE(
-            disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt));
-    ASSERT_TRUE(
-            disconnect(server_name_, std::nullopt, client_name_, boost::asio::error::timed_out));
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(server_name_, std::nullopt, client_name_, boost::asio::error::timed_out));
     std::this_thread::sleep_for(std::chrono::milliseconds(700));
 
     // resume of the server:
     set_ignore_connections(server_name_, false);
-    ASSERT_TRUE(disconnect(client_name_, std::nullopt, server_name_,
-                           boost::asio::error::connection_reset));
-    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::connection_reset, client_name_,
-                           std::nullopt));
+    ASSERT_TRUE(disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::connection_reset));
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::connection_reset, client_name_, std::nullopt));
 
     ASSERT_TRUE(await_connection(server_name_, client_name_, std::chrono::seconds(6)));
     ASSERT_TRUE(await_connection(client_name_, server_name_, std::chrono::seconds(6)));
@@ -257,8 +228,7 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
     EXPECT_TRUE(client_->message_record_.wait_for(next_expected_message));
 }
 
-TEST_F(test_client_helper,
-       field_updates_are_resend_when_a_broken_routing_connection_enforces_a_resubscription) {
+TEST_F(test_client_helper, field_updates_are_resend_when_a_broken_routing_connection_enforces_a_resubscription) {
     GTEST_SKIP() << "No fix  delivered yet";
     start_apps();
     send_field_message();
@@ -267,15 +237,13 @@ TEST_F(test_client_helper,
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
-    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_,
-                           std::nullopt));
+    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(700));
     // resume of the client:
     set_ignore_connections(client_name_, false);
     // resume of the client:
-    ASSERT_TRUE(disconnect(routingmanager_name_, std::nullopt, client_name_,
-                           boost::asio::error::connection_reset));
+    ASSERT_TRUE(disconnect(routingmanager_name_, std::nullopt, client_name_, boost::asio::error::connection_reset));
 
     // TODO:
     // Because the re-connection needs to timeout before being successful, let's
@@ -306,8 +274,7 @@ TEST_F(test_client_helper, client_ignores_server_connection_attempt_once) {
     EXPECT_TRUE(subscribe_to_event());
 }
 
-TEST_F(test_client_helper,
-       given_server_to_client_breaksdown_when_the_connection_is_re_established_then_the_subscription_confirmed) {
+TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection_is_re_established_then_the_subscription_confirmed) {
     start_apps();
     send_field_message();
     ASSERT_TRUE(subscribe_to_field());
@@ -316,26 +283,21 @@ TEST_F(test_client_helper,
 
     // give the client a head start when cleaning the "sibling" connection, by holding back the
     // server execution.
-    ASSERT_TRUE(block_on_close_for(client_name_, std::nullopt, server_name_,
-                                   std::chrono::milliseconds(200)));
+    ASSERT_TRUE(block_on_close_for(client_name_, std::nullopt, server_name_, std::chrono::milliseconds(200)));
 
     // break the server->client connection. Notice that if the blocking above is in place,
     // the "wrong" order of cleaning up server->client + client->server will lead to a race
     // condition.
-    ASSERT_TRUE(
-            disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
 
-    EXPECT_TRUE(client_->subscription_record_.wait_for(
-            event_subscription::successfully_subscribed_to(offered_field_),
-            std::chrono::seconds(6)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_),
+                                                       std::chrono::seconds(6)));
 }
 
-struct test_single_connection_breakdown
-    : test_client_helper,
-      ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
+struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
 
-TEST_P(test_single_connection_breakdown,
-       ensure_that_every_dropped_connection_is_restored_with_request_reply) {
+TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is_restored_with_request_reply) {
+
     auto [from, to] = GetParam();
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
@@ -346,8 +308,7 @@ TEST_P(test_single_connection_breakdown,
     ASSERT_TRUE(client_->message_record_.wait_for(expected_reply_));
 
     // break one direction
-    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to,
-                           boost::asio::error::connection_reset));
+    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to, boost::asio::error::connection_reset));
 
     for (int i = 0; i < 10; ++i) {
         client_->send_request(request_);
@@ -359,11 +320,10 @@ TEST_P(test_single_connection_breakdown,
     EXPECT_TRUE(client_->message_record_.wait_for(next_reply)) << next_reply;
 }
 
-TEST_P(test_single_connection_breakdown,
-       ensure_that_every_dropped_connection_is_restored_with_events) {
+TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is_restored_with_events) {
+
     auto [from, to] = GetParam();
-    if ((from == server_name_ && to == client_name_)
-        || (from == client_name_ && to == server_name_)) {
+    if ((from == server_name_ && to == client_name_) || (from == client_name_ && to == server_name_)) {
         GTEST_SKIP() << "Currently no fix provided for: " << from << " -> " << to;
     }
 
@@ -373,8 +333,7 @@ TEST_P(test_single_connection_breakdown,
     ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
 
     // break single connection
-    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to,
-                           boost::asio::error::connection_reset));
+    ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to, boost::asio::error::connection_reset));
 
     for (int i = 0; i < 10; ++i) {
         send_first_message();
@@ -387,11 +346,7 @@ TEST_P(test_single_connection_breakdown,
 }
 
 INSTANTIATE_TEST_SUITE_P(test_all_permutations, test_single_connection_breakdown,
-                         ::testing::Values(std::pair {routingmanager_name_, client_name_},
-                                           std::pair {client_name_, routingmanager_name_},
-                                           std::pair {routingmanager_name_, server_name_},
-                                           std::pair {server_name_, routingmanager_name_},
-                                           std::pair {client_name_, server_name_},
-                                           std::pair {server_name_, client_name_}));
-
+                         ::testing::Values(std::pair{routingmanager_name_, client_name_}, std::pair{client_name_, routingmanager_name_},
+                                           std::pair{routingmanager_name_, server_name_}, std::pair{server_name_, routingmanager_name_},
+                                           std::pair{client_name_, server_name_}, std::pair{server_name_, client_name_}));
 }

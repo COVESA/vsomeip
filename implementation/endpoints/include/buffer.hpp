@@ -18,9 +18,9 @@
 #include <vsomeip/primitive_types.hpp>
 
 #if defined(_WIN32) && !defined(_MSVC_LANG)
-    #define DEFAULT_NANOSECONDS_MAX 1000000000
+#define DEFAULT_NANOSECONDS_MAX 1000000000
 #else
-    #define DEFAULT_NANOSECONDS_MAX std::chrono::nanoseconds::max()
+#define DEFAULT_NANOSECONDS_MAX std::chrono::nanoseconds::max()
 #endif
 
 namespace vsomeip_v3 {
@@ -38,12 +38,9 @@ struct timing {
 #endif
 
 struct train {
-    train()
-        : buffer_(std::make_shared<message_buffer_t>()),
-          minimal_debounce_time_(DEFAULT_NANOSECONDS_MAX),
-          minimal_max_retention_time_(DEFAULT_NANOSECONDS_MAX),
-          departure_(std::chrono::steady_clock::now() + std::chrono::hours(6)) {
-    };
+    train() :
+        buffer_(std::make_shared<message_buffer_t>()), minimal_debounce_time_(DEFAULT_NANOSECONDS_MAX),
+        minimal_max_retention_time_(DEFAULT_NANOSECONDS_MAX), departure_(std::chrono::steady_clock::now() + std::chrono::hours(6)) {};
 
     void reset() {
         buffer_ = std::make_shared<message_buffer_t>();
@@ -54,14 +51,13 @@ struct train {
     }
 
     message_buffer_ptr_t buffer_;
-    std::set<std::pair<service_t, method_t> > passengers_;
+    std::set<std::pair<service_t, method_t>> passengers_;
 
     std::chrono::nanoseconds minimal_debounce_time_;
     std::chrono::nanoseconds minimal_max_retention_time_;
 
     std::chrono::steady_clock::time_point departure_;
 };
-
 
 } // namespace vsomeip_v3
 

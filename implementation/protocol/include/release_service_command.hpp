@@ -13,14 +13,13 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class release_service_command
-    : public command {
+class release_service_command : public command {
 public:
     release_service_command();
 
     // command
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
     service_t get_service() const;

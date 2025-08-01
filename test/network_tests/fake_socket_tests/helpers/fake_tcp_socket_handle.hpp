@@ -20,9 +20,9 @@ using fd_t = unsigned short;
 
 enum class socket_role { unspecified, sender, receiver };
 struct socket_id {
-    fd_t fd_ {};
-    socket_role role_ {socket_role::unspecified};
-    std::string app_name_ {};
+    fd_t fd_{};
+    socket_role role_{socket_role::unspecified};
+    std::string app_name_{};
 };
 
 class socket_manager;
@@ -184,7 +184,7 @@ private:
         rw_handler handler_;
     };
 
-    bool delay_processing_ {false};
+    bool delay_processing_{false};
     socket_id socket_id_;
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
@@ -255,8 +255,7 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
      *
      * Used by the socket_manager
      **/
-    [[nodiscard]] std::shared_ptr<fake_tcp_socket_handle> connect(fake_tcp_socket_handle& _state,
-                                                                  connect_handler _handler);
+    [[nodiscard]] std::shared_ptr<fake_tcp_socket_handle> connect(fake_tcp_socket_handle& _state, connect_handler _handler);
 
     /**
      * true, if async_accept is pending.
@@ -277,8 +276,8 @@ private:
         connect_handler handler_;
     };
     std::mutex mtx_;
-    bool is_open_ {false};
-    fd_t fd_ {0};
+    bool is_open_{false};
+    fd_t fd_{0};
     std::optional<connection> connection_;
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;

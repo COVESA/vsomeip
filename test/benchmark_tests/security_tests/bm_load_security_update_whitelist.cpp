@@ -6,7 +6,7 @@
 #include <benchmark/benchmark.h>
 #include <common/utility.hpp>
 namespace {
-std::string configuration_file { "/vsomeip/0_0/vsomeip_security.json" };
+std::string configuration_file{"/vsomeip/0_0/vsomeip_security.json"};
 }
 
 // Since this set of tests check a private method, there is the need to indirectly change the
@@ -14,14 +14,13 @@ std::string configuration_file { "/vsomeip/0_0/vsomeip_security.json" };
 // The is_policy_removal_allowed method checks if a selected uid is present in the whitelist.
 // The is_policy_update_allowed method checks if a selected service_id is present in the whitelist.
 
-static void BM_load_security_update_whitelist_check_no_uids_loaded(benchmark::State &state)
-{
+static void BM_load_security_update_whitelist_check_no_uids_loaded(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Force load of some policies.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     std::vector<vsomeip_v3::uid_t> user_ids;
@@ -34,18 +33,17 @@ static void BM_load_security_update_whitelist_check_no_uids_loaded(benchmark::St
 
     // Using load function to indirectly call load_security_update_whitelist.
     for (auto _ : state) {
-    security->load(policy_elements.at(0));
+        security->load(policy_elements.at(0));
     }
 }
 
-static void BM_load_security_update_whitelist_check_uids_loaded(benchmark::State &state)
-{
+static void BM_load_security_update_whitelist_check_uids_loaded(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Force load of some policies.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     std::vector<vsomeip_v3::uid_t> user_ids;
@@ -59,18 +57,17 @@ static void BM_load_security_update_whitelist_check_uids_loaded(benchmark::State
 
     // Using load function to indirectly call load_security_update_whitelist.
     for (auto _ : state) {
-    security->load(policy_elements.at(0));
+        security->load(policy_elements.at(0));
     }
 }
 
-static void BM_load_security_update_whitelist_check_no_service_ids_loaded(benchmark::State &state)
-{
+static void BM_load_security_update_whitelist_check_no_service_ids_loaded(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Force load of some policies with an empty service id vector.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     std::vector<vsomeip_v3::uid_t> user_ids;
@@ -87,14 +84,13 @@ static void BM_load_security_update_whitelist_check_no_service_ids_loaded(benchm
     }
 }
 
-static void BM_load_security_update_whitelist_check_service_ids_loaded(benchmark::State &state)
-{
+static void BM_load_security_update_whitelist_check_service_ids_loaded(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Force load of some policies.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     std::vector<vsomeip_v3::uid_t> user_ids;
@@ -112,14 +108,13 @@ static void BM_load_security_update_whitelist_check_service_ids_loaded(benchmark
     }
 }
 
-static void BM_load_security_update_whitelist_check_whitelist_disabled(benchmark::State &state)
-{
+static void BM_load_security_update_whitelist_check_whitelist_disabled(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Force load of some policies.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     std::vector<vsomeip_v3::uid_t> user_ids;

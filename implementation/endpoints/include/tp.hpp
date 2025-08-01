@@ -32,25 +32,13 @@ const std::uint8_t TP_FLAG = 0x20;
 
 class tp {
 public:
-    static inline length_t get_offset(tp_header_t _tp_header) {
-        return _tp_header & 0xfffffff0;
-    };
-    static inline bool more_segments(tp_header_t _tp_header) {
-        return _tp_header & 0x1;
-    };
-    static inline bool tp_flag_is_set(tp_message_type_t _msg_type) {
-        return _msg_type & TP_FLAG;
-    };
-    static inline tp_message_type_t tp_flag_set(message_type_e _msg_type) {
-        return static_cast<tp_message_type_t>(_msg_type) | TP_FLAG;
-    }
-    static inline message_type_e tp_flag_unset(tp_message_type_t _msg_type) {
-        return static_cast<message_type_e>(_msg_type & ~TP_FLAG);
-    }
+    static inline length_t get_offset(tp_header_t _tp_header) { return _tp_header & 0xfffffff0; };
+    static inline bool more_segments(tp_header_t _tp_header) { return _tp_header & 0x1; };
+    static inline bool tp_flag_is_set(tp_message_type_t _msg_type) { return _msg_type & TP_FLAG; };
+    static inline tp_message_type_t tp_flag_set(message_type_e _msg_type) { return static_cast<tp_message_type_t>(_msg_type) | TP_FLAG; }
+    static inline message_type_e tp_flag_unset(tp_message_type_t _msg_type) { return static_cast<message_type_e>(_msg_type & ~TP_FLAG); }
 
-    static tp_split_messages_t tp_split_message(
-            const std::uint8_t * const _data, std::uint32_t _size,
-            std::uint16_t _max_segment_length);
+    static tp_split_messages_t tp_split_message(const std::uint8_t* const _data, std::uint32_t _size, std::uint16_t _max_segment_length);
 
     static const std::uint16_t tp_max_segment_length_ = 1392;
 };

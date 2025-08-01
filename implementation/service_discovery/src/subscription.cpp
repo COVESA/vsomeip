@@ -30,8 +30,7 @@ std::shared_ptr<endpoint> subscription::get_endpoint(bool _reliable) const {
     return _reliable ? reliable_ : unreliable_;
 }
 
-void subscription::set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
-        bool _reliable) {
+void subscription::set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable) {
     if (_reliable)
         reliable_ = _endpoint;
     else
@@ -45,8 +44,7 @@ void subscription::set_selective(const bool _is_selective) {
     is_selective_ = _is_selective;
 }
 
-subscription_state_e
-subscription::get_state(const client_t _client) const {
+subscription_state_e subscription::get_state(const client_t _client) const {
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
     auto found_client = clients_.find(_client);
     if (found_client != clients_.end())
@@ -54,9 +52,7 @@ subscription::get_state(const client_t _client) const {
     return subscription_state_e::ST_UNKNOWN;
 }
 
-void
-subscription::set_state(
-        const client_t _client, const subscription_state_e _state) {
+void subscription::set_state(const client_t _client, const subscription_state_e _state) {
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
     auto found_client = clients_.find(_client);
     if (found_client != clients_.end())
@@ -77,8 +73,7 @@ void subscription::set_udp_connection_established(bool _is_established) {
     udp_connection_established_ = _is_established;
 }
 
-bool
-subscription::add_client(const client_t _client) {
+bool subscription::add_client(const client_t _client) {
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
     auto find_client = clients_.find(_client);
     if (find_client != clients_.end())
@@ -88,8 +83,7 @@ subscription::add_client(const client_t _client) {
     return true;
 }
 
-bool
-subscription::remove_client(const client_t _client) {
+bool subscription::remove_client(const client_t _client) {
     std::lock_guard<std::mutex> its_lock(clients_mutex_);
     auto its_size = clients_.size();
     clients_.erase(_client);
@@ -116,8 +110,7 @@ bool subscription::has_client(const client_t _client) const {
     return clients_.find(_client) != clients_.end();
 }
 
-void subscription::set_eventgroupinfo(
-        const std::shared_ptr<eventgroupinfo> _info) {
+void subscription::set_eventgroupinfo(const std::shared_ptr<eventgroupinfo> _info) {
     eg_info_ = _info;
 }
 std::weak_ptr<eventgroupinfo> subscription::get_eventgroupinfo() const {

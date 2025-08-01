@@ -29,7 +29,7 @@
 namespace vsomeip_v3 {
 
 namespace cfg {
-    struct trace;
+struct trace;
 }
 
 namespace trace {
@@ -43,7 +43,7 @@ public:
     VSOMEIP_EXPORT connector_impl();
     VSOMEIP_EXPORT virtual ~connector_impl();
 
-    VSOMEIP_EXPORT void configure(const std::shared_ptr<cfg::trace> &_configuration);
+    VSOMEIP_EXPORT void configure(const std::shared_ptr<cfg::trace>& _configuration);
     VSOMEIP_EXPORT void reset();
 
     VSOMEIP_EXPORT void set_enabled(const bool _enabled);
@@ -52,15 +52,13 @@ public:
     VSOMEIP_EXPORT void set_sd_enabled(const bool _sd_enabled);
     VSOMEIP_EXPORT bool is_sd_enabled() const;
 
-    VSOMEIP_EXPORT bool is_sd_message(const byte_t *_data, uint16_t _data_size) const;
+    VSOMEIP_EXPORT bool is_sd_message(const byte_t* _data, uint16_t _data_size) const;
 
-    VSOMEIP_EXPORT std::shared_ptr<channel> add_channel(const std::string &_id,
-            const std::string &_description);
-    VSOMEIP_EXPORT bool remove_channel(const std::string &_id);
-    VSOMEIP_EXPORT std::shared_ptr<channel> get_channel(const std::string &_id) const;
+    VSOMEIP_EXPORT std::shared_ptr<channel> add_channel(const std::string& _id, const std::string& _description);
+    VSOMEIP_EXPORT bool remove_channel(const std::string& _id);
+    VSOMEIP_EXPORT std::shared_ptr<channel> get_channel(const std::string& _id) const;
 
-    VSOMEIP_EXPORT void trace(const byte_t *_header, uint16_t _header_size,
-            const byte_t *_data, uint32_t _data_size);
+    VSOMEIP_EXPORT void trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size);
 
 private:
     bool is_enabled_;
@@ -69,7 +67,7 @@ private:
     std::map<std::string, std::shared_ptr<channel_impl>> channels_;
     mutable std::mutex channels_mutex_;
 
-    std::shared_ptr<channel_impl> get_channel_impl(const std::string &_id) const;
+    std::shared_ptr<channel_impl> get_channel_impl(const std::string& _id) const;
 
     std::mutex configure_mutex_;
 
@@ -79,7 +77,6 @@ private:
     mutable std::mutex contexts_mutex_;
 #endif
 #endif
-
 };
 
 } // namespace trace

@@ -11,7 +11,7 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-class serviceentry_impl: public entry_impl {
+class serviceentry_impl : public entry_impl {
 public:
     serviceentry_impl();
     virtual ~serviceentry_impl();
@@ -19,8 +19,8 @@ public:
     minor_version_t get_minor_version() const;
     void set_minor_version(minor_version_t _version);
 
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
 private:
     minor_version_t minor_version_;

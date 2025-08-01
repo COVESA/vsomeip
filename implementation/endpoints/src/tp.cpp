@@ -21,13 +21,10 @@
 #include <Winsock2.h>
 #endif
 
-
 namespace vsomeip_v3 {
 namespace tp {
 
-tp_split_messages_t
-tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
-        std::uint16_t _max_segment_length) {
+tp_split_messages_t tp::tp_split_message(const std::uint8_t* const _data, std::uint32_t _size, std::uint16_t _max_segment_length) {
 
     tp_split_messages_t split_messages;
 
@@ -48,11 +45,10 @@ tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
         const auto segment_end = current_offset + _max_segment_length;
         const bool is_last_segment = (segment_end >= data_end);
         // insert tp_header
-        const tp_header_t header = htonl(
-                static_cast<tp_header_t>((current_offset - VSOMEIP_FULL_HEADER_SIZE - _data)) |
-                static_cast<tp_header_t>(is_last_segment ? 0x0u : 0x1u));
+        const tp_header_t header = htonl(static_cast<tp_header_t>((current_offset - VSOMEIP_FULL_HEADER_SIZE - _data))
+                                         | static_cast<tp_header_t>(is_last_segment ? 0x0u : 0x1u));
 
-        const byte_t * const headerp = reinterpret_cast<const byte_t*>(&header);
+        const byte_t* const headerp = reinterpret_cast<const byte_t*>(&header);
         msg->insert(msg->end(), headerp, headerp + sizeof(tp_header_t));
 
         // insert payload
@@ -64,8 +60,7 @@ tp::tp_split_message(const std::uint8_t * const _data, std::uint32_t _size,
             current_offset += _max_segment_length;
         }
         // update length
-        const length_t its_length = static_cast<length_t>(msg->size()
-                                                - VSOMEIP_SOMEIP_HEADER_SIZE);
+        const length_t its_length = static_cast<length_t>(msg->size() - VSOMEIP_SOMEIP_HEADER_SIZE);
         *(reinterpret_cast<length_t*>(&(*msg)[VSOMEIP_LENGTH_POS_MIN])) = htonl(its_length);
         split_messages.emplace_back(std::move(msg));
     }

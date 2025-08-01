@@ -15,24 +15,24 @@ namespace vsomeip_v3 {
 
 class serializable;
 
-class  VSOMEIP_IMPORT_EXPORT serializer {
+class VSOMEIP_IMPORT_EXPORT serializer {
 public:
     serializer(std::uint32_t _buffer_shrink_threshold);
     virtual ~serializer();
 
-    bool serialize(const serializable *_from);
+    bool serialize(const serializable* _from);
 
     bool serialize(const uint8_t _value);
     bool serialize(const uint16_t _value);
     bool serialize(const uint32_t _value, bool _omit_last_byte = false);
-    bool serialize(const uint8_t *_data, uint32_t _length);
-    bool serialize(const std::vector<byte_t> &_data);
+    bool serialize(const uint8_t* _data, uint32_t _length);
+    bool serialize(const std::vector<byte_t>& _data);
 
-    virtual const uint8_t * get_data() const;
+    virtual const uint8_t* get_data() const;
     virtual uint32_t get_capacity() const;
     virtual uint32_t get_size() const;
 
-    virtual void set_data(uint8_t *_data, uint32_t _capacity);
+    virtual void set_data(uint8_t* _data, uint32_t _capacity);
 
     virtual void reset();
 

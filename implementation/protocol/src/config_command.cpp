@@ -83,8 +83,8 @@ void config_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _e
         }
         std::string value;
         if (size > 0) {
-            value.assign(_buffer.begin() + static_cast<std::ptrdiff_t>(read_position), 
-                        _buffer.begin() + static_cast<std::ptrdiff_t>(read_position + size));
+            value.assign(_buffer.begin() + static_cast<std::ptrdiff_t>(read_position),
+                         _buffer.begin() + static_cast<std::ptrdiff_t>(read_position + size));
         }
         remaining -= size;
         read_position += size;

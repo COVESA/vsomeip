@@ -25,10 +25,10 @@ public:
 
 #if defined(__linux__) || defined(ANDROID)
     // netlink needs to be faked in order to test local-tcp connection handling
-    virtual std::shared_ptr<abstract_netlink_connector>
-    create_netlink_connector(boost::asio::io_context& _io, const boost::asio::ip::address& _address,
-                             const boost::asio::ip::address& _multicast_address,
-                             bool _is_requiring_link = true) = 0;
+    virtual std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io,
+                                                                                 const boost::asio::ip::address& _address,
+                                                                                 const boost::asio::ip::address& _multicast_address,
+                                                                                 bool _is_requiring_link = true) = 0;
 #endif
 
     // only tcp sockets are fakable atm.
@@ -40,8 +40,7 @@ public:
     }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    std::unique_ptr<boost::asio::local::stream_protocol::socket>
-    create_uds_socket(boost::asio::io_context& _io) {
+    std::unique_ptr<boost::asio::local::stream_protocol::socket> create_uds_socket(boost::asio::io_context& _io) {
         return std::make_unique<boost::asio::local::stream_protocol::socket>(_io);
     }
 #endif

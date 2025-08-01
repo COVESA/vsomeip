@@ -19,21 +19,18 @@ namespace profile_custom {
 struct profile_config;
 
 class profile_custom {
-  public:
-    static uint32_t compute_crc(const profile_config &_config, const e2e_buffer &_buffer);
+public:
+    static uint32_t compute_crc(const profile_config& _config, const e2e_buffer& _buffer);
 
-    static bool is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer);
+    static bool is_buffer_length_valid(const profile_config& _config, const e2e_buffer& _buffer);
 };
 
 struct profile_config {
     profile_config() = delete;
 
-    profile_config(uint16_t _crc_offset)
-        : crc_offset_(_crc_offset),
-          base_(VSOMEIP_FULL_HEADER_SIZE) {
-    }
-    profile_config(const profile_config &_config) = default;
-    profile_config &operator=(const profile_config &_config) = default;
+    profile_config(uint16_t _crc_offset) : crc_offset_(_crc_offset), base_(VSOMEIP_FULL_HEADER_SIZE) { }
+    profile_config(const profile_config& _config) = default;
+    profile_config& operator=(const profile_config& _config) = default;
 
     uint16_t crc_offset_;
     size_t base_;

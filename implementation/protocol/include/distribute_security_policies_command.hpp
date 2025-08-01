@@ -20,21 +20,20 @@ struct policy;
 
 namespace protocol {
 
-class distribute_security_policies_command
-    : public command {
+class distribute_security_policies_command : public command {
 public:
     distribute_security_policies_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
-    std::set<std::shared_ptr<policy> > get_policies() const;
+    std::set<std::shared_ptr<policy>> get_policies() const;
 
-    void set_payloads(const std::map<uint32_t, std::shared_ptr<payload> > &_payloads);
+    void set_payloads(const std::map<uint32_t, std::shared_ptr<payload>>& _payloads);
 
 private:
-    std::set<std::shared_ptr<policy> > policies_;
+    std::set<std::shared_ptr<policy>> policies_;
     std::vector<byte_t> payload_;
 };
 

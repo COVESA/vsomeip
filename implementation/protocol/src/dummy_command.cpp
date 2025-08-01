@@ -10,10 +10,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-dummy_command::dummy_command()
-        : simple_command(id_e::UNKNOWN_ID) {
-
-}
+dummy_command::dummy_command() : simple_command(id_e::UNKNOWN_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

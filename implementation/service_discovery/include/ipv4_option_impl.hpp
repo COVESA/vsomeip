@@ -15,21 +15,20 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-class ipv4_option_impl: public ip_option_impl {
+class ipv4_option_impl : public ip_option_impl {
 public:
     ipv4_option_impl();
-    ipv4_option_impl(const boost::asio::ip::address &_address,
-            const uint16_t _port, const bool _is_reliable);
+    ipv4_option_impl(const boost::asio::ip::address& _address, const uint16_t _port, const bool _is_reliable);
     virtual ~ipv4_option_impl();
 
-    bool equals(const option_impl &_other) const;
+    bool equals(const option_impl& _other) const;
 
-    const ipv4_address_t & get_address() const;
-    void set_address(const ipv4_address_t &_address);
+    const ipv4_address_t& get_address() const;
+    void set_address(const ipv4_address_t& _address);
 
     bool is_multicast() const;
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
 private:
     ipv4_address_t address_;
@@ -39,4 +38,3 @@ private:
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_SD_IPV4_OPTION_IMPL_HPP_
-

@@ -14,8 +14,8 @@ namespace e2e {
 namespace profile01 {
 
 // [SWS_E2E_00196]
-void profile_01_checker::check(const e2e_buffer &_buffer, instance_t _instance,
-        e2e::profile_interface::check_status_t &_generic_check_status) {
+void profile_01_checker::check(const e2e_buffer& _buffer, instance_t _instance,
+                               e2e::profile_interface::check_status_t& _generic_check_status) {
 
     (void)_instance;
 
@@ -31,8 +31,8 @@ void profile_01_checker::check(const e2e_buffer &_buffer, instance_t _instance,
             _generic_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
         } else {
             _generic_check_status = e2e::profile_interface::generic_check_status::E2E_WRONG_CRC;
-            VSOMEIP_INFO << std::hex << "E2E protection: CRC8 does not match: calculated CRC: "
-                    << (uint32_t) calculated_crc << " received CRC: " << (uint32_t) received_crc;
+            VSOMEIP_INFO << std::hex << "E2E protection: CRC8 does not match: calculated CRC: " << (uint32_t)calculated_crc
+                         << " received CRC: " << (uint32_t)received_crc;
         }
     }
 }

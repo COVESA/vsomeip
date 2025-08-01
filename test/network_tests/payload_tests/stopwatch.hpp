@@ -8,33 +8,23 @@
 
 #include <cstdint>
 
-
-class stop_watch
-{
+class stop_watch {
 public:
     typedef uint64_t usec_t;
 
-    stop_watch() :
-                    started_(false),
-                    start_time_point_(0),
-                    total_elapsed_(0)
-    {
-    }
+    stop_watch() : started_(false), start_time_point_(0), total_elapsed_(0) { }
 
-    inline void reset()
-    {
+    inline void reset() {
         started_ = false;
         total_elapsed_ = 0;
     }
 
-    inline void start()
-    {
+    inline void start() {
         start_time_point_ = now();
         started_ = true;
     }
 
-    inline void stop()
-    {
+    inline void stop() {
         total_elapsed_ += get_elapsed();
         started_ = false;
     }
@@ -43,10 +33,7 @@ public:
     usec_t get_total_elapsed_seconds() const;
 
 private:
-    inline usec_t get_elapsed() const
-    {
-        return now() - start_time_point_;
-    }
+    inline usec_t get_elapsed() const { return now() - start_time_point_; }
 
     static usec_t now();
 

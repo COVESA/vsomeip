@@ -8,34 +8,22 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-command::command(id_e _id)
-        : id_(_id),
-          version_(MAX_SUPPORTED_VERSION),
-          client_(0),
-          size_(0) {
-}
+command::command(id_e _id) : id_(_id), version_(MAX_SUPPORTED_VERSION), client_(0), size_(0) { }
 
-void
-command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
     // buffer space reservation is done within the code of
     // the derived classes that call this method
 
     _buffer[0] = static_cast<byte_t>(id_);
-    std::memcpy(&_buffer[COMMAND_POSITION_VERSION], &version_,
-            sizeof(version_));
-    std::memcpy(&_buffer[COMMAND_POSITION_CLIENT], &client_,
-            sizeof(client_));
-    std::memcpy(&_buffer[COMMAND_POSITION_SIZE], &size_,
-            sizeof(size_));
+    std::memcpy(&_buffer[COMMAND_POSITION_VERSION], &version_, sizeof(version_));
+    std::memcpy(&_buffer[COMMAND_POSITION_CLIENT], &client_, sizeof(client_));
+    std::memcpy(&_buffer[COMMAND_POSITION_SIZE], &size_, sizeof(size_));
 
     _error = error_e::ERROR_OK;
 }
 
-void
-command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
     // buffer size check (size >= header size) is
     // done within the code of the derived classes
@@ -52,12 +40,9 @@ command::deserialize(const std::vector<byte_t> &_buffer,
         return;
     }
 
-    std::memcpy(&version_, &_buffer[COMMAND_POSITION_VERSION],
-            sizeof(version_));
-    std::memcpy(&client_, &_buffer[COMMAND_POSITION_CLIENT],
-            sizeof(client_));
-    std::memcpy(&size_, &_buffer[COMMAND_POSITION_SIZE],
-            sizeof(size_));
+    std::memcpy(&version_, &_buffer[COMMAND_POSITION_VERSION], sizeof(version_));
+    std::memcpy(&client_, &_buffer[COMMAND_POSITION_CLIENT], sizeof(client_));
+    std::memcpy(&size_, &_buffer[COMMAND_POSITION_SIZE], sizeof(size_));
 
     _error = error_e::ERROR_OK;
 }

@@ -15,14 +15,13 @@
 class application_test_daemon : public vsomeip_utilities::base_logger {
 public:
     application_test_daemon() :
-            vsomeip_utilities::base_logger("APTD", "APPLICATION TEST DAEMON"),
-            app_(vsomeip::runtime::get()->create_application("daemon")) {
+        vsomeip_utilities::base_logger("APTD", "APPLICATION TEST DAEMON"), app_(vsomeip::runtime::get()->create_application("daemon")) {
         if (!app_->init()) {
             ADD_FAILURE() << "[Daemon] Couldn't initialize application";
             return;
         }
         std::promise<bool> its_promise;
-        application_thread_ = std::thread([&](){
+        application_thread_ = std::thread([&]() {
             its_promise.set_value(true);
             app_->start();
         });
@@ -31,9 +30,7 @@ public:
         VSOMEIP_INFO << "[Daemon] Starting";
     }
 
-    ~application_test_daemon() {
-        application_thread_.join();
-    }
+    ~application_test_daemon() { application_thread_.join(); }
 
     void stop() {
         VSOMEIP_INFO << "[Daemon] Stopping";

@@ -15,22 +15,20 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-class ipv6_option_impl
-        : public ip_option_impl {
+class ipv6_option_impl : public ip_option_impl {
 public:
     ipv6_option_impl();
-    ipv6_option_impl(const boost::asio::ip::address &_address,
-            const uint16_t _port, const bool _is_reliable);
+    ipv6_option_impl(const boost::asio::ip::address& _address, const uint16_t _port, const bool _is_reliable);
     virtual ~ipv6_option_impl();
 
-    bool equals(const option_impl &_other) const;
+    bool equals(const option_impl& _other) const;
 
-    const ipv6_address_t & get_address() const;
-    void set_address(const ipv6_address_t &_address);
+    const ipv6_address_t& get_address() const;
+    void set_address(const ipv6_address_t& _address);
 
     bool is_multicast() const;
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
 private:
     ipv6_address_t address_;

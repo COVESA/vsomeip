@@ -16,11 +16,9 @@ namespace vsomeip_v3 {
 using udp_server_endpoint_base_impl = server_endpoint_impl<boost::asio::ip::udp>;
 
 // callback type to sent messages (SD)
-using on_unicast_sent_cbk_t =
-        std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
+using on_unicast_sent_cbk_t = std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
 // callback type to own multicast messages received
-using on_sent_multicast_received_cbk_t =
-        std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
+using on_sent_multicast_received_cbk_t = std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
 
 class udp_server_endpoint_impl : public udp_server_endpoint_base_impl {
 
@@ -28,10 +26,8 @@ public:
     udp_server_endpoint_impl() = delete;
     udp_server_endpoint_impl(const udp_server_endpoint_impl&) = delete;
     udp_server_endpoint_impl(udp_server_endpoint_impl&&) = delete;
-    udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-                             const std::shared_ptr<routing_host>& _routing_host,
-                             boost::asio::io_context& _io,
-                             const std::shared_ptr<configuration>& _configuration);
+    udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
+                             boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
     ~udp_server_endpoint_impl() override;
 
     udp_server_endpoint_impl& operator=(const udp_server_endpoint_impl&) = delete;
@@ -45,24 +41,18 @@ public:
 
     bool is_closed() const override;
 
-    bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data,
-                 uint32_t _size) override;
-    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data,
-                    uint32_t _size) override;
+    bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
+    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
     bool send_queued(const target_data_iterator_type _it) override;
-    void
-    get_configured_times_from_endpoint(service_t _service, method_t _method,
-                                       std::chrono::nanoseconds* _debouncing,
-                                       std::chrono::nanoseconds* _maximum_retention) const override;
+    void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
+                                            std::chrono::nanoseconds* _maximum_retention) const override;
 
     VSOMEIP_EXPORT void join(const std::string& _address);
     VSOMEIP_EXPORT void join_unlocked(const std::string& _address);
     VSOMEIP_EXPORT void leave(const std::string& _address);
-    VSOMEIP_EXPORT void set_multicast_option(const boost::asio::ip::address& _address,
-                                             bool _is_join, boost::system::error_code& _error);
+    VSOMEIP_EXPORT void set_multicast_option(const boost::asio::ip::address& _address, bool _is_join, boost::system::error_code& _error);
 
-    void add_default_target(service_t _service, const std::string& _address,
-                            uint16_t _port) override;
+    void add_default_target(service_t _service, const std::string& _address, uint16_t _port) override;
     void remove_default_target(service_t _service) override;
     bool get_default_target(service_t _service, endpoint_type& _target) const override;
 
@@ -104,24 +94,19 @@ private:
     std::string get_remote_information(const endpoint_type& _remote) const override;
 
     std::string get_address_port_local_unlocked() const;
-    bool tp_segmentation_enabled(service_t _service, instance_t _instance,
-                                 method_t _method) const override;
+    bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const override;
 
     void on_unicast_received(boost::system::error_code const& _error, std::size_t _bytes);
 
-    void on_multicast_received(boost::system::error_code const& _error, std::size_t _bytes,
-                               const boost::asio::ip::udp::endpoint& _sender,
+    void on_multicast_received(boost::system::error_code const& _error, std::size_t _bytes, const boost::asio::ip::udp::endpoint& _sender,
                                const boost::asio::ip::address& _destination);
 
-    void on_message_received_unlocked(boost::system::error_code const& _error, std::size_t _bytes,
-                                      bool _is_multicast, endpoint_type const& _remote,
-                                      message_buffer_t const& _buffer);
+    void on_message_received_unlocked(boost::system::error_code const& _error, std::size_t _bytes, bool _is_multicast,
+                                      endpoint_type const& _remote, message_buffer_t const& _buffer);
 
     bool is_same_subnet_unlocked(const boost::asio::ip::address& _address) const;
 
-    auto shared_ptr() {
-        return std::shared_ptr<udp_server_endpoint_impl>(shared_from_this(), this);
-    }
+    auto shared_ptr() { return std::shared_ptr<udp_server_endpoint_impl>(shared_from_this(), this); }
 
 private:
     mutable std::mutex sync_;
@@ -140,9 +125,9 @@ private:
     std::map<service_t, endpoint_type> default_targets_;
 
     boost::asio::ip::address netmask_;
-    uint16_t prefix_ {0};
+    uint16_t prefix_{0};
 
-    uint16_t local_port_ {0};
+    uint16_t local_port_{0};
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
     boost::asio::steady_timer tp_cleanup_timer_;
@@ -150,15 +135,15 @@ private:
     std::chrono::steady_clock::time_point last_sent_;
 
     // Atomic so the logger can print this variable without a lock
-    std::atomic<bool> is_stopped_ {true};
-    bool is_v4_ {true};
+    std::atomic<bool> is_stopped_{true};
+    bool is_v4_{true};
 
     // to tracking sent messages
-    on_unicast_sent_cbk_t on_unicast_sent_ {nullptr};
+    on_unicast_sent_cbk_t on_unicast_sent_{nullptr};
 
     // to receive own multicast messages
-    bool receive_own_multicast_messages_ {false};
-    on_sent_multicast_received_cbk_t on_sent_multicast_received_ {nullptr};
+    bool receive_own_multicast_messages_{false};
+    on_sent_multicast_received_cbk_t on_sent_multicast_received_{nullptr};
 
     std::string instance_name_;
 };

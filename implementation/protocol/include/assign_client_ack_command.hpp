@@ -11,13 +11,12 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class assign_client_ack_command
-    : public command {
+class assign_client_ack_command : public command {
 public:
     assign_client_ack_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
     client_t get_assigned() const;

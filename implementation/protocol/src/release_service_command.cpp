@@ -10,17 +10,11 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-release_service_command::release_service_command()
-    : command(id_e::RELEASE_SERVICE_ID) {
+release_service_command::release_service_command() : command(id_e::RELEASE_SERVICE_ID) { }
 
-}
+void release_service_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-void
-release_service_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
-
-    size_t its_size(COMMAND_HEADER_SIZE
-                + sizeof(service::service_) + sizeof(service::instance_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service::service_) + sizeof(service::instance_));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -46,12 +40,9 @@ release_service_command::serialize(std::vector<byte_t> &_buffer,
     std::memcpy(&_buffer[its_offset], &service_.instance_, sizeof(service_.instance_));
 }
 
-void
-release_service_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void release_service_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service::service_) + sizeof(service::instance_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service::service_) + sizeof(service::instance_));
 
     if (its_size > _buffer.size()) {
 
@@ -66,33 +57,27 @@ release_service_command::deserialize(const std::vector<byte_t> &_buffer,
 
     // deserialize payload
     size_t its_offset(COMMAND_POSITION_PAYLOAD);
-    std::memcpy(&service_.service_, &_buffer[its_offset],
-            sizeof(service_.service_));
+    std::memcpy(&service_.service_, &_buffer[its_offset], sizeof(service_.service_));
     its_offset += sizeof(service_.service_);
-    std::memcpy(&service_.instance_, &_buffer[its_offset],
-            sizeof(service_.instance_));
+    std::memcpy(&service_.instance_, &_buffer[its_offset], sizeof(service_.instance_));
 }
 
-service_t
-release_service_command::get_service() const {
+service_t release_service_command::get_service() const {
 
     return service_.service_;
 }
 
-void
-release_service_command::set_service(service_t _service) {
+void release_service_command::set_service(service_t _service) {
 
     service_.service_ = _service;
 }
 
-instance_t
-release_service_command::get_instance() const {
+instance_t release_service_command::get_instance() const {
 
     return service_.instance_;
 }
 
-void
-release_service_command::set_instance(instance_t _instance) {
+void release_service_command::set_instance(instance_t _instance) {
 
     service_.instance_ = _instance;
 }

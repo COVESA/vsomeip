@@ -12,29 +12,23 @@
 
 namespace vsomeip_v3 {
 
-virtual_server_endpoint_impl::virtual_server_endpoint_impl(const std::string& _address,
-                                                           uint16_t _port, bool _reliable,
+virtual_server_endpoint_impl::virtual_server_endpoint_impl(const std::string& _address, uint16_t _port, bool _reliable,
                                                            boost::asio::io_context& _io) :
 
-    address_(_address),
-    port_(_port), reliable_(_reliable), io_(_io) { }
+    address_(_address), port_(_port), reliable_(_reliable), io_(_io) { }
 
-virtual_server_endpoint_impl::~virtual_server_endpoint_impl() {
-}
+virtual_server_endpoint_impl::~virtual_server_endpoint_impl() { }
 
-void virtual_server_endpoint_impl::start() {
-}
+void virtual_server_endpoint_impl::start() { }
 
-void virtual_server_endpoint_impl::prepare_stop(const endpoint::prepare_stop_handler_t &_handler,
-                                                service_t _service) {
+void virtual_server_endpoint_impl::prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service) {
     (void)_service;
 
     auto ptr = shared_from_this();
     boost::asio::post(io_, [ptr, _handler]() { _handler(ptr); });
 }
 
-void virtual_server_endpoint_impl::stop() {
-}
+void virtual_server_endpoint_impl::stop() { }
 
 bool virtual_server_endpoint_impl::is_established() const {
     return false;
@@ -49,63 +43,50 @@ bool virtual_server_endpoint_impl::is_closed() const {
 }
 
 void virtual_server_endpoint_impl::set_established(bool _established) {
-    (void) _established;
+    (void)_established;
 }
 
 void virtual_server_endpoint_impl::set_connected(bool _connected) {
-    (void) _connected;
+    (void)_connected;
 }
 
-bool virtual_server_endpoint_impl::send(const byte_t *_data, uint32_t _size) {
+bool virtual_server_endpoint_impl::send(const byte_t* _data, uint32_t _size) {
     (void)_data;
     (void)_size;
     return false;
 }
 
-bool virtual_server_endpoint_impl::send_to(
-        const std::shared_ptr<endpoint_definition> _target,
-        const byte_t *_data, uint32_t _size) {
+bool virtual_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
     (void)_target;
     (void)_data;
     (void)_size;
     return false;
 }
 
-bool virtual_server_endpoint_impl::send_error(
-        const std::shared_ptr<endpoint_definition> _target,
-        const byte_t *_data, uint32_t _size) {
+bool virtual_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
     (void)_target;
     (void)_data;
     (void)_size;
     return false;
 }
 
+void virtual_server_endpoint_impl::enable_magic_cookies() { }
 
-void virtual_server_endpoint_impl::enable_magic_cookies() {
-}
+void virtual_server_endpoint_impl::receive() { }
 
-void virtual_server_endpoint_impl::receive() {
-}
-
-void virtual_server_endpoint_impl::add_default_target(
-        service_t _service,
-        const std::string &_address, uint16_t _port) {
+void virtual_server_endpoint_impl::add_default_target(service_t _service, const std::string& _address, uint16_t _port) {
     (void)_service;
     (void)_address;
     (void)_port;
 }
 
-void virtual_server_endpoint_impl::remove_default_target(
-        service_t _service) {
+void virtual_server_endpoint_impl::remove_default_target(service_t _service) {
     (void)_service;
 }
 
-void virtual_server_endpoint_impl::remove_stop_handler(
-        service_t) {
-}
+void virtual_server_endpoint_impl::remove_stop_handler(service_t) { }
 
-bool virtual_server_endpoint_impl::get_remote_address(
-        boost::asio::ip::address &_address) const {
+bool virtual_server_endpoint_impl::get_remote_address(boost::asio::ip::address& _address) const {
     (void)_address;
     return false;
 }
@@ -134,14 +115,11 @@ void virtual_server_endpoint_impl::restart(bool _force) {
     (void)_force;
 }
 
-void virtual_server_endpoint_impl::register_error_handler(
-        const error_handler_t &_handler) {
+void virtual_server_endpoint_impl::register_error_handler(const error_handler_t& _handler) {
     (void)_handler;
 }
 
-void virtual_server_endpoint_impl::print_status() {
-
-}
+void virtual_server_endpoint_impl::print_status() { }
 
 size_t virtual_server_endpoint_impl::get_queue_size() const {
     return 0;

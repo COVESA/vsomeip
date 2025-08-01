@@ -10,8 +10,7 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-bool sd::unknown_option_impl::deserialize(deserializer * _from)
-{
+bool sd::unknown_option_impl::deserialize(deserializer* _from) {
     // Deserialize the header.
     if (!option_impl::deserialize(_from) || length_ == 0 || (_from->get_remaining() < length_)) {
         return false;
@@ -22,8 +21,7 @@ bool sd::unknown_option_impl::deserialize(deserializer * _from)
     return _from->deserialize(payload_);
 }
 
-const std::vector<uint8_t>& unknown_option_impl::get_payload() const
-{
+const std::vector<uint8_t>& unknown_option_impl::get_payload() const {
     return payload_;
 }
 

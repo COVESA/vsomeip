@@ -16,8 +16,7 @@ namespace sd {
 /// @brief An SD Endpoint Option of unknown type.
 ///
 /// It is meant to allow the deserialization of an option even if its type is unknown.
-class unknown_option_impl : public option_impl
-{
+class unknown_option_impl : public option_impl {
 public:
     /// @brief Constructor.
     unknown_option_impl() = default;

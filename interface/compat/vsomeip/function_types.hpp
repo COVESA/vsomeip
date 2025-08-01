@@ -13,9 +13,7 @@ namespace vsomeip {
 
 class payload;
 
-typedef std::function<
-    bool (const std::shared_ptr<payload> &,
-          const std::shared_ptr<payload> &) > epsilon_change_func_t;
+typedef std::function<bool(const std::shared_ptr<payload>&, const std::shared_ptr<payload>&)> epsilon_change_func_t;
 
 } // namespace vsomeip
 

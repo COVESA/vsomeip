@@ -62,14 +62,12 @@ void app::subscribe_field(event_ids const& _ei) {
     subscribe(_ei, vsomeip::event_type_e::ET_FIELD);
 }
 
-void app::answer_request(request const& r,
-                         std::function<std::vector<unsigned char>()> payload_creator) {
-    app_->register_message_handler(r.service_instance_.service_, r.service_instance_.instance_,
-                                   r.method_, [this, payload_creator](auto const& message) {
+void app::answer_request(request const& r, std::function<std::vector<unsigned char>()> payload_creator) {
+    app_->register_message_handler(r.service_instance_.service_, r.service_instance_.instance_, r.method_,
+                                   [this, payload_creator](auto const& message) {
                                        // capture the message and log the reception
                                        on_message(message);
-                                       auto response =
-                                               vsomeip::runtime::get()->create_response(message);
+                                       auto response = vsomeip::runtime::get()->create_response(message);
                                        auto payload = vsomeip::runtime::get()->create_payload();
                                        payload->set_data(payload_creator());
                                        response->set_payload(payload);
@@ -119,19 +117,15 @@ void app::on_message(const std::shared_ptr<vsomeip::message>& _message) {
          ptr < _message->get_payload()->get_data() + _message->get_payload()->get_length(); ++ptr) {
         payload.push_back(*ptr);
     }
-    auto m = message {_message->get_client(),  _message->get_session(),
-                      _message->get_service(), _message->get_instance(),
-                      _message->get_method(),  _message->get_message_type(),
-                      std::move(payload)};
+    auto m = message{_message->get_client(), _message->get_session(),      _message->get_service(), _message->get_instance(),
+                     _message->get_method(), _message->get_message_type(), std::move(payload)};
     TEST_LOG << "[app] \"" << app_->get_name() << "\" received: " << m;
     message_record_.record(m);
 }
 
-void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance,
-                                         vsomeip::eventgroup_t _eventgroup, vsomeip::event_t _event,
-                                         uint16_t error_code) {
-    auto const event_sub =
-            event_subscription {{{_service, _instance}, _event, _eventgroup}, error_code};
+void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
+                                         vsomeip::event_t _event, uint16_t error_code) {
+    auto const event_sub = event_subscription{{{_service, _instance}, _event, _eventgroup}, error_code};
     TEST_LOG << "[app] \"" << app_->get_name() << "\" subscription status changed: " << event_sub;
     subscription_record_.record(event_sub);
 }
@@ -139,15 +133,13 @@ void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::i
 void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
     std::set<vsomeip::eventgroup_t> its_eventgroups;
-    app_->register_subscription_status_handler(
-            _ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
-            std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
-                      std::placeholders::_5));
+    app_->register_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
+                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
+                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+                                                         std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et,
-                        vsomeip::reliability_type_e::RT_RELIABLE);
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, vsomeip::reliability_type_e::RT_RELIABLE);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
 
     app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_);
@@ -157,8 +149,7 @@ void app::offer(event_ids const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
     std::set<vsomeip::eventgroup_t> its_eventgroups;
     its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et,
-                      std::chrono::milliseconds::zero(), false, true, nullptr,
-                      vsomeip::reliability_type_e::RT_RELIABLE);
+    app_->offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, std::chrono::milliseconds::zero(), false,
+                      true, nullptr, vsomeip::reliability_type_e::RT_RELIABLE);
 }
 }

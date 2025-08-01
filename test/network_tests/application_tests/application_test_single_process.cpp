@@ -8,8 +8,7 @@
 #include "application_test_client.cpp"
 #include "application_test_daemon.cpp"
 
-TEST(someip_application_test_single_process, notify_increasing_counter)
-{
+TEST(someip_application_test_single_process, notify_increasing_counter) {
     // start application acting as daemon (rm_stub)
     auto its_daemon = std::make_shared<application_test_daemon>();
 
@@ -25,7 +24,7 @@ TEST(someip_application_test_single_process, notify_increasing_counter)
         // every time the client is restarted it becomes the rm_stub again
         application_test_client its_client(application_test::service);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        if(var != 9) {
+        if (var != 9) {
             its_client.stop(false);
         } else {
             its_client.stop(true);
@@ -35,10 +34,8 @@ TEST(someip_application_test_single_process, notify_increasing_counter)
     its_receiver.on_shutdown_method_called(vsomeip::runtime::get()->create_message());
 }
 
-
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -28,8 +28,7 @@ enum class VSOMEIP_IMPORT_EXPORT level_e : std::uint8_t {
     LL_VERBOSE = 6
 };
 
-class message
-    : public std::ostream {
+class message : public std::ostream {
 
 public:
     VSOMEIP_IMPORT_EXPORT message(level_e _level);
@@ -39,7 +38,7 @@ private:
     class buffer : public std::streambuf {
     public:
         int_type overflow(int_type);
-        std::streamsize xsputn(const char *, std::streamsize);
+        std::streamsize xsputn(const char*, std::streamsize);
 
         std::stringstream data_;
     };

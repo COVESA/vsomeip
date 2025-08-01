@@ -22,8 +22,6 @@
 #define VSOMEIP_SOMEIP_SD_EMPTY_MESSAGE_SIZE     28
 #define VSOMEIP_SOMEIP_SD_SPACE_FOR_PAYLOAD      VSOMEIP_MAX_UDP_MESSAGE_SIZE - VSOMEIP_SOMEIP_SD_EMPTY_MESSAGE_SIZE;
 
-
-
 #define VSOMEIP_SD_IPV4_OPTION_LENGTH            0x0009
 #define VSOMEIP_SD_IPV6_OPTION_LENGTH            0x0015
 
@@ -31,7 +29,6 @@
 #define VSOMEIP_SD_INSTANCE                      0x0000
 #define VSOMEIP_SD_METHOD                        0x8100
 #define VSOMEIP_SD_CLIENT                        0x0
-
 
 #define VSOMEIP_SD_DEFAULT_ENABLED                  true
 #define VSOMEIP_SD_DEFAULT_PROTOCOL                 "udp"

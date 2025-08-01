@@ -15,10 +15,10 @@ public:
     ~asio_socket_factory() override = default;
 
 #if defined(__linux__) || defined(ANDROID)
-    std::shared_ptr<abstract_netlink_connector>
-    create_netlink_connector(boost::asio::io_context& _io, const boost::asio::ip::address& _address,
-                             const boost::asio::ip::address& _multicast_address,
-                             bool _is_requiring_link) override;
+    std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io,
+                                                                         const boost::asio::ip::address& _address,
+                                                                         const boost::asio::ip::address& _multicast_address,
+                                                                         bool _is_requiring_link) override;
 #endif
 
     std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override;

@@ -20,14 +20,8 @@
 class service_sample {
 public:
     service_sample(uint32_t _cycle) :
-            app_(vsomeip::runtime::get()->create_application()),
-            is_registered_(false),
-            cycle_(_cycle),
-            blocked_(false),
-            running_(true),
-            is_offered_(false),
-            offer_thread_(std::bind(&service_sample::run, this)),
-            notify_thread_(std::bind(&service_sample::notify, this)) {
+        app_(vsomeip::runtime::get()->create_application()), is_registered_(false), cycle_(_cycle), blocked_(false), running_(true),
+        is_offered_(false), offer_thread_(std::bind(&service_sample::run, this)), notify_thread_(std::bind(&service_sample::notify, this)) {
     }
 
     bool init() {
@@ -37,33 +31,18 @@ public:
             std::cerr << "Couldn't initialize application" << std::endl;
             return false;
         }
-        app_->register_state_handler(
-                std::bind(&service_sample::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&service_sample::on_state, this, std::placeholders::_1));
 
-        app_->register_message_handler(
-                SAMPLE_SERVICE_ID,
-                SAMPLE_INSTANCE_ID,
-                SAMPLE_GET_METHOD_ID,
-                std::bind(&service_sample::on_get, this,
-                          std::placeholders::_1));
+        app_->register_message_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_GET_METHOD_ID,
+                                       std::bind(&service_sample::on_get, this, std::placeholders::_1));
 
-        app_->register_message_handler(
-                SAMPLE_SERVICE_ID,
-                SAMPLE_INSTANCE_ID,
-                SAMPLE_SET_METHOD_ID,
-                std::bind(&service_sample::on_set, this,
-                          std::placeholders::_1));
+        app_->register_message_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_SET_METHOD_ID,
+                                       std::bind(&service_sample::on_set, this, std::placeholders::_1));
 
         std::set<vsomeip::eventgroup_t> its_groups;
         its_groups.insert(SAMPLE_EVENTGROUP_ID);
-        app_->offer_event(
-                SAMPLE_SERVICE_ID,
-                SAMPLE_INSTANCE_ID,
-                SAMPLE_EVENT_ID,
-                its_groups,
-                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+        app_->offer_event(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_groups, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         {
             std::lock_guard<std::mutex> its_lock(payload_mutex_);
             payload_ = vsomeip::runtime::get()->create_payload();
@@ -74,9 +53,7 @@ public:
         return true;
     }
 
-    void start() {
-        app_->start();
-    }
+    void start() { app_->start(); }
 
     void stop() {
         running_ = false;
@@ -116,8 +93,7 @@ public:
 
     void on_state(vsomeip::state_type_e _state) {
         std::cout << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.") << std::endl;
+                  << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.") << std::endl;
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             if (!is_registered_) {
@@ -128,9 +104,8 @@ public:
         }
     }
 
-    void on_get(const std::shared_ptr<vsomeip::message> &_message) {
-        std::shared_ptr<vsomeip::message> its_response
-            = vsomeip::runtime::get()->create_response(_message);
+    void on_get(const std::shared_ptr<vsomeip::message>& _message) {
+        std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_message);
         {
             std::lock_guard<std::mutex> its_lock(payload_mutex_);
             its_response->set_payload(payload_);
@@ -138,9 +113,8 @@ public:
         app_->send(its_response);
     }
 
-    void on_set(const std::shared_ptr<vsomeip::message> &_message) {
-        std::shared_ptr<vsomeip::message> its_response
-            = vsomeip::runtime::get()->create_response(_message);
+    void on_set(const std::shared_ptr<vsomeip::message>& _message) {
+        std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_message);
         {
             std::lock_guard<std::mutex> its_lock(payload_mutex_);
             payload_ = _message->get_payload();
@@ -148,8 +122,7 @@ public:
         }
 
         app_->send(its_response);
-        app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID,
-                     SAMPLE_EVENT_ID, payload_);
+        app_->notify(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, payload_);
     }
 
     void run() {
@@ -225,15 +198,14 @@ private:
 };
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    service_sample *its_sample_ptr(nullptr);
-    void handle_signal(int _signal) {
-        if (its_sample_ptr != nullptr &&
-                (_signal == SIGINT || _signal == SIGTERM))
-            its_sample_ptr->stop();
-    }
+service_sample* its_sample_ptr(nullptr);
+void handle_signal(int _signal) {
+    if (its_sample_ptr != nullptr && (_signal == SIGINT || _signal == SIGTERM))
+        its_sample_ptr->stop();
+}
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     uint32_t cycle = 1000; // default 1s
 
     std::string cycle_arg("--cycle");

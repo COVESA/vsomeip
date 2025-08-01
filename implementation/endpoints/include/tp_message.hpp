@@ -22,8 +22,7 @@ namespace tp {
 
 class tp_message {
 public:
-    tp_message(const byte_t* const _data, std::uint32_t _data_length,
-               std::uint32_t _max_message_size);
+    tp_message(const byte_t* const _data, std::uint32_t _data_length, std::uint32_t _max_message_size);
 
     bool add_segment(const byte_t* const _data, std::uint32_t _data_length);
 
@@ -33,8 +32,8 @@ public:
 
 private:
     std::string get_message_id(const byte_t* const _data, std::uint32_t _data_length);
-    bool check_lengths(const byte_t* const _data, std::uint32_t _data_length,
-                       length_t _segment_size, bool _more_fragments);
+    bool check_lengths(const byte_t* const _data, std::uint32_t _data_length, length_t _segment_size, bool _more_fragments);
+
 private:
     std::chrono::steady_clock::time_point timepoint_creation_;
     std::uint32_t max_message_size_;
@@ -42,14 +41,10 @@ private:
     bool last_segment_received_;
 
     struct segment_t {
-        segment_t(std::uint32_t _start, std::uint32_t _end) :
-                start_(_start),
-                end_(_end) {
-        }
+        segment_t(std::uint32_t _start, std::uint32_t _end) : start_(_start), end_(_end) { }
 
         bool operator<(const segment_t& _other) const {
-            return start_ < _other.start_
-                    || ((start_ >= _other.start_) && (end_ < _other.end_));
+            return start_ < _other.start_ || ((start_ >= _other.start_) && (end_ < _other.end_));
         };
 
         std::uint32_t start_;

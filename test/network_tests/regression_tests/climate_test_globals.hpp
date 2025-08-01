@@ -18,7 +18,7 @@ struct service_info {
     vsomeip::method_t shutdown_method_id;
 };
 
-struct service_info service = { 0x1234, 0x5678, 0x0421, 0x8778, 0x4465, 0x0001, 0x0002};
+struct service_info service = {0x1234, 0x5678, 0x0421, 0x8778, 0x4465, 0x0001, 0x0002};
 
 constexpr std::chrono::seconds OFFER_CYCLE_INTERVAL = std::chrono::seconds(1);
 constexpr std::chrono::milliseconds MSG_SEND_WAIT_INTERVAL = std::chrono::milliseconds(500);

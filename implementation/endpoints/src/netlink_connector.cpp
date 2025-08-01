@@ -79,8 +79,7 @@ void netlink_connector::start() {
         its_lock.unlock();
         set_state(state_e::RESET);
         socket_.async_receive(boost::asio::buffer(&recv_buffer_[0], recv_buffer_.size()),
-                              std::bind(&netlink_connector::receive_cbk, shared_from_this(),
-                                        std::placeholders::_1, std::placeholders::_2));
+                              std::bind(&netlink_connector::receive_cbk, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     } else {
         VSOMEIP_ERROR << "Error opening NETLINK socket!";
     }
@@ -95,9 +94,8 @@ void netlink_connector::set_state(state_e _state) {
         return;
     }
 
-    VSOMEIP_INFO << "netlink: from " << static_cast<int>(current_state_) << " to "
-                 << static_cast<int>(_state) << ", if=" << net_if_index_for_address_
-                 << ", mc=" << multicast_route_found_ << ", count=" << net_if_flags_.size();
+    VSOMEIP_INFO << "netlink: from " << static_cast<int>(current_state_) << " to " << static_cast<int>(_state)
+                 << ", if=" << net_if_index_for_address_ << ", mc=" << multicast_route_found_ << ", count=" << net_if_flags_.size();
 
     if (current_state_ == state_e::INIT) {
         current_state_ = state_e::RESET;
@@ -130,8 +128,7 @@ void netlink_connector::set_state(state_e _state) {
         char ifname[IF_NAMESIZE];
 
         if (net_if_index_for_address_ > 0) {
-            if (if_indextoname(static_cast<unsigned>(net_if_index_for_address_), ifname)
-                == nullptr) {
+            if (if_indextoname(static_cast<unsigned>(net_if_index_for_address_), ifname) == nullptr) {
                 ::strncpy(ifname, "error", IF_NAMESIZE - 1);
             }
         } else {
@@ -165,98 +162,90 @@ void netlink_connector::set_state(state_e _state) {
     current_state_ = _state;
 }
 
-void netlink_connector::receive_cbk(boost::system::error_code const &_error,
-                 std::size_t _bytes) {
+void netlink_connector::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
     bool error_detected = false;
 
     if (!_error) {
         size_t len = _bytes;
-        struct nlmsghdr *nlh = (struct nlmsghdr *)&recv_buffer_[0];
+        struct nlmsghdr* nlh = (struct nlmsghdr*)&recv_buffer_[0];
 
         while (NLMSG_OK(nlh, len)) {
             switch (nlh->nlmsg_type) {
-                case RTM_NEWADDR: {
-                    // New Address information
-                    auto ifa = static_cast<const struct ifaddrmsg*>(NLMSG_DATA(nlh));
-                    if (has_address(ifa, IFA_PAYLOAD(nlh))) {
-                        net_if_index_for_address_ = static_cast<int>(ifa->ifa_index);
-                        auto its_if = net_if_flags_.find(net_if_index_for_address_);
-                        if (its_if != net_if_flags_.end()) {
-                            if ((its_if->second & IFF_UP) &&
-                                    (is_requiring_link_ ? (its_if->second & IFF_RUNNING) : true)) {
-                                set_state(multicast_route_found_ ? state_e::UP_MULTICAST
-                                                                 : state_e::UP);
-                            } else {
-                                set_state(state_e::DOWN);
-                            }
-                        } else {
-                            set_state(state_e::DOWN);
-                        }
-                    }
-                    break;
-                }
-                case RTM_NEWLINK: {
-                    // New Interface information
-                    auto ifi = static_cast<const struct ifinfomsg*>(NLMSG_DATA(nlh));
-                    net_if_flags_[ifi->ifi_index] = ifi->ifi_flags;
-                    if (net_if_index_for_address_ == ifi->ifi_index) {
-                        if ((ifi->ifi_flags & IFF_UP) &&
-                            (is_requiring_link_ ? (ifi->ifi_flags & IFF_RUNNING) : true)) {
+            case RTM_NEWADDR: {
+                // New Address information
+                auto ifa = static_cast<const struct ifaddrmsg*>(NLMSG_DATA(nlh));
+                if (has_address(ifa, IFA_PAYLOAD(nlh))) {
+                    net_if_index_for_address_ = static_cast<int>(ifa->ifa_index);
+                    auto its_if = net_if_flags_.find(net_if_index_for_address_);
+                    if (its_if != net_if_flags_.end()) {
+                        if ((its_if->second & IFF_UP) && (is_requiring_link_ ? (its_if->second & IFF_RUNNING) : true)) {
                             set_state(multicast_route_found_ ? state_e::UP_MULTICAST : state_e::UP);
                         } else {
                             set_state(state_e::DOWN);
                         }
+                    } else {
+                        set_state(state_e::DOWN);
                     }
-                    break;
                 }
-                case RTM_NEWROUTE: {
-                    auto routemsg = static_cast<const struct rtmsg*>(NLMSG_DATA(nlh));
-                    std::string its_route_name;
-                    if (check_sd_multicast_route_match(routemsg, RTM_PAYLOAD(nlh),
-                            &its_route_name)) {
-                        multicast_route_found_ = true;
-                        set_state(current_state_ == state_e::UP ? state_e::UP_MULTICAST
-                                                                : current_state_);
+                break;
+            }
+            case RTM_NEWLINK: {
+                // New Interface information
+                auto ifi = static_cast<const struct ifinfomsg*>(NLMSG_DATA(nlh));
+                net_if_flags_[ifi->ifi_index] = ifi->ifi_flags;
+                if (net_if_index_for_address_ == ifi->ifi_index) {
+                    if ((ifi->ifi_flags & IFF_UP) && (is_requiring_link_ ? (ifi->ifi_flags & IFF_RUNNING) : true)) {
+                        set_state(multicast_route_found_ ? state_e::UP_MULTICAST : state_e::UP);
+                    } else {
+                        set_state(state_e::DOWN);
                     }
-                    break;
                 }
-                case RTM_DELROUTE: {
-                    auto routemsg = static_cast<const struct rtmsg*>(NLMSG_DATA(nlh));
-                    std::string its_route_name;
-                    if (check_sd_multicast_route_match(routemsg, RTM_PAYLOAD(nlh),
-                            &its_route_name)) {
-                        multicast_route_found_ = true;
-                        set_state(current_state_ == state_e::UP_MULTICAST ? state_e::UP
-                                                                          : state_e::DOWN);
-                    }
-                    break;
+                break;
+            }
+            case RTM_NEWROUTE: {
+                auto routemsg = static_cast<const struct rtmsg*>(NLMSG_DATA(nlh));
+                std::string its_route_name;
+                if (check_sd_multicast_route_match(routemsg, RTM_PAYLOAD(nlh), &its_route_name)) {
+                    multicast_route_found_ = true;
+                    set_state(current_state_ == state_e::UP ? state_e::UP_MULTICAST : current_state_);
                 }
-                case RTM_DELADDR: {
-                    auto ifa = static_cast<const struct ifaddrmsg*>(NLMSG_DATA(nlh));
-                    if (net_if_index_for_address_ == static_cast<int>(ifa->ifa_index)) {
-                        set_state(state_e::RESET);
-                    }
-                    break;
+                break;
+            }
+            case RTM_DELROUTE: {
+                auto routemsg = static_cast<const struct rtmsg*>(NLMSG_DATA(nlh));
+                std::string its_route_name;
+                if (check_sd_multicast_route_match(routemsg, RTM_PAYLOAD(nlh), &its_route_name)) {
+                    multicast_route_found_ = true;
+                    set_state(current_state_ == state_e::UP_MULTICAST ? state_e::UP : state_e::DOWN);
                 }
-                case RTM_DELLINK: {
-                    auto ifi = static_cast<const struct ifinfomsg*>(NLMSG_DATA(nlh));
-                    if (net_if_index_for_address_ == ifi->ifi_index) {
-                        set_state(state_e::RESET);
-                    }
-                    break;
+                break;
+            }
+            case RTM_DELADDR: {
+                auto ifa = static_cast<const struct ifaddrmsg*>(NLMSG_DATA(nlh));
+                if (net_if_index_for_address_ == static_cast<int>(ifa->ifa_index)) {
+                    set_state(state_e::RESET);
                 }
-                case NLMSG_ERROR: {
-                    struct nlmsgerr *errmsg = (nlmsgerr *)NLMSG_DATA(nlh);
-                    if (errmsg->error != 0) {
-                        VSOMEIP_ERROR << "NLMSG_ERROR received" << errmsg->error;
-                        error_detected = true;
-                    }
-                    break;
+                break;
+            }
+            case RTM_DELLINK: {
+                auto ifi = static_cast<const struct ifinfomsg*>(NLMSG_DATA(nlh));
+                if (net_if_index_for_address_ == ifi->ifi_index) {
+                    set_state(state_e::RESET);
                 }
-                case NLMSG_DONE:
-                case NLMSG_NOOP:
-                default:
-                    break;
+                break;
+            }
+            case NLMSG_ERROR: {
+                struct nlmsgerr* errmsg = (nlmsgerr*)NLMSG_DATA(nlh);
+                if (errmsg->error != 0) {
+                    VSOMEIP_ERROR << "NLMSG_ERROR received" << errmsg->error;
+                    error_detected = true;
+                }
+                break;
+            }
+            case NLMSG_DONE:
+            case NLMSG_NOOP:
+            default:
+                break;
             }
             nlh = NLMSG_NEXT(nlh, len);
         }
@@ -279,12 +268,11 @@ void netlink_connector::receive_cbk(boost::system::error_code const &_error,
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_.is_open()) {
         socket_.async_receive(boost::asio::buffer(&recv_buffer_[0], recv_buffer_.size()),
-                              std::bind(&netlink_connector::receive_cbk, shared_from_this(),
-                                        std::placeholders::_1, std::placeholders::_2));
+                              std::bind(&netlink_connector::receive_cbk, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 }
 
-void netlink_connector::send_cbk(boost::system::error_code const &_error, std::size_t _bytes) {
+void netlink_connector::send_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
     // TODO: fix thread safety and then handle send errors, or
     // replace asynchronous send by synchronous send
 
@@ -321,12 +309,11 @@ void netlink_connector::send_ifa_request(std::uint32_t _retry) {
 
     {
         std::lock_guard its_lock(socket_mutex_);
-        socket_.async_send(
-                boost::asio::buffer(get_address_msg.get(), get_address_msg->nlhdr.nlmsg_len),
-                [this, data = get_address_msg](auto... args) mutable {
-                    send_cbk(args...);
-                    data.reset();
-                });
+        socket_.async_send(boost::asio::buffer(get_address_msg.get(), get_address_msg->nlhdr.nlmsg_len),
+                           [this, data = get_address_msg](auto... args) mutable {
+                               send_cbk(args...);
+                               data.reset();
+                           });
     }
 }
 
@@ -340,8 +327,7 @@ void netlink_connector::send_ifi_request(std::uint32_t _retry) {
 
     auto get_link_msg = std::make_shared<netlink_link_msg>();
     memset(get_link_msg.get(), 0, sizeof(*get_link_msg));
-    get_link_msg->nlhdr.nlmsg_len = NLMSG_LENGTH(NLMSG_ALIGN(sizeof(struct ifinfomsg))
-                                                 + RTA_ALIGN(sizeof(get_link_msg->filter))
+    get_link_msg->nlhdr.nlmsg_len = NLMSG_LENGTH(NLMSG_ALIGN(sizeof(struct ifinfomsg)) + RTA_ALIGN(sizeof(get_link_msg->filter))
                                                  + RTA_ALIGN(sizeof(get_link_msg->filter_value)));
     get_link_msg->nlhdr.nlmsg_flags = NLM_F_REQUEST;
     get_link_msg->nlhdr.nlmsg_type = RTM_GETLINK;
@@ -398,31 +384,26 @@ void netlink_connector::send_rt_request(std::uint32_t _retry) {
 
 bool netlink_connector::has_address(const struct ifaddrmsg* ifa_struct, size_t length) const {
     auto retrta = static_cast<const struct rtattr*>(IFA_RTA(ifa_struct));
-    while RTA_OK(retrta, length) {
-        if (retrta->rta_type == IFA_ADDRESS) {
-            if (address_.is_v4() && RTA_PAYLOAD(retrta) == sizeof(struct in_addr)
-                && ::memcmp(RTA_DATA(retrta), address_.to_v4().to_bytes().data(),
-                            sizeof(struct in_addr))
-                        == 0) {
-                return true;
-            } else if (address_.is_v6() && RTA_PAYLOAD(retrta) == sizeof(struct in6_addr)
-                       && ::memcmp(RTA_DATA(retrta), address_.to_v6().to_bytes().data(),
-                                   sizeof(struct in6_addr))
-                               == 0) {
-                return true;
+    while
+        RTA_OK(retrta, length) {
+            if (retrta->rta_type == IFA_ADDRESS) {
+                if (address_.is_v4() && RTA_PAYLOAD(retrta) == sizeof(struct in_addr)
+                    && ::memcmp(RTA_DATA(retrta), address_.to_v4().to_bytes().data(), sizeof(struct in_addr)) == 0) {
+                    return true;
+                } else if (address_.is_v6() && RTA_PAYLOAD(retrta) == sizeof(struct in6_addr)
+                           && ::memcmp(RTA_DATA(retrta), address_.to_v6().to_bytes().data(), sizeof(struct in6_addr)) == 0) {
+                    return true;
+                }
             }
+            retrta = RTA_NEXT(retrta, length);
         }
-        retrta = RTA_NEXT(retrta, length);
-    }
 
     return false;
 }
 
-bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _routemsg,
-                                                       size_t _length,
-                                                       std::string* _routename) const {
-    struct rtattr *retrta;
-    retrta = static_cast<struct rtattr *>(RTM_RTA(_routemsg));
+bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _routemsg, size_t _length, std::string* _routename) const {
+    struct rtattr* retrta;
+    retrta = static_cast<struct rtattr*>(RTM_RTA(_routemsg));
     int if_index(0);
     char if_name[IF_NAMESIZE] = "n/a";
     char address[INET6_ADDRSTRLEN] = "n/a";
@@ -438,21 +419,21 @@ bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _rout
                 for (int i = 31; i > 31 - _routemsg->rtm_dst_len; i--) {
                     netmask |= static_cast<std::uint32_t>(1 << i);
                 }
-                const std::uint32_t dst_addr = ntohl(*((std::uint32_t *)RTA_DATA(retrta)));
+                const std::uint32_t dst_addr = ntohl(*((std::uint32_t*)RTA_DATA(retrta)));
                 const std::uint32_t dst_net = (dst_addr & netmask);
                 const auto sd_addr = multicast_address_.to_v4().to_uint();
                 const std::uint32_t sd_net = (sd_addr & netmask);
                 matches_sd_multicast = !(dst_net ^ sd_net);
             } else if (rtattr_length == 16 && multicast_address_.is_v6()) { // IPv6 route
                 inet_ntop(AF_INET6, RTA_DATA(retrta), address, sizeof(address));
-                std::uint32_t netmask2[4] = {0,0,0,0};
+                std::uint32_t netmask2[4] = {0, 0, 0, 0};
                 for (int i = 127; i > 127 - _routemsg->rtm_dst_len; i--) {
                     if (i > 95) {
-                        netmask2[0] |= static_cast<std::uint32_t>(1 << (i-96));
+                        netmask2[0] |= static_cast<std::uint32_t>(1 << (i - 96));
                     } else if (i > 63) {
-                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i-64));
+                        netmask2[1] |= static_cast<std::uint32_t>(1 << (i - 64));
                     } else if (i > 31) {
-                        netmask2[2] |= static_cast<std::uint32_t>(1 << (i-32));
+                        netmask2[2] |= static_cast<std::uint32_t>(1 << (i - 32));
                     } else {
                         netmask2[3] |= static_cast<std::uint32_t>(1 << i);
                     }
@@ -474,8 +455,8 @@ bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _rout
                 }
             }
         } else if (retrta->rta_type == RTA_OIF) {
-            if_index = *(int *)(RTA_DATA(retrta));
-            if_indextoname(static_cast<unsigned int>(if_index),if_name);
+            if_index = *(int*)(RTA_DATA(retrta));
+            if_indextoname(static_cast<unsigned int>(if_index), if_name);
         } else if (retrta->rta_type == RTA_GATEWAY) {
             size_t rtattr_length = RTA_PAYLOAD(retrta);
             if (rtattr_length == 4) {
@@ -488,8 +469,7 @@ bool netlink_connector::check_sd_multicast_route_match(const struct rtmsg* _rout
     }
     if (matches_sd_multicast && net_if_index_for_address_ == if_index) {
         std::stringstream stream;
-        stream << address << "/" <<  (static_cast<uint32_t>(_routemsg->rtm_dst_len))
-                << " if: " << if_name << " gw: " << gateway;
+        stream << address << "/" << (static_cast<uint32_t>(_routemsg->rtm_dst_len)) << " if: " << if_name << " gw: " << gateway;
         *_routename = stream.str();
         return true;
     }

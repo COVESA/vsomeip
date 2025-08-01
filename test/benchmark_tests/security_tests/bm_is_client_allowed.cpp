@@ -8,22 +8,22 @@
 #include <common/utility.hpp>
 
 namespace {
-    vsomeip_v3::client_t client = 1;
+vsomeip_v3::client_t client = 1;
 
-    vsomeip_v3::uid_t uid_1 = 4003031;
-    vsomeip_v3::gid_t gid_1 = 4003031;
-    vsomeip_sec_ip_addr_t host_address = 0;
-    vsomeip_v3::service_t  service_1 = 0xf913;
+vsomeip_v3::uid_t uid_1 = 4003031;
+vsomeip_v3::gid_t gid_1 = 4003031;
+vsomeip_sec_ip_addr_t host_address = 0;
+vsomeip_v3::service_t service_1 = 0xf913;
 
-    vsomeip_v3::instance_t instance = 0x03;
-    vsomeip_v3::method_t method = 0x04;
+vsomeip_v3::instance_t instance = 0x03;
+vsomeip_v3::method_t method = 0x04;
 
-    vsomeip_v3::gid_t invalid_uid = 1;
-    vsomeip_v3::gid_t invalid_gid = 1;
+vsomeip_v3::gid_t invalid_uid = 1;
+vsomeip_v3::gid_t invalid_gid = 1;
 
-    vsomeip_v3::gid_t deny_uid  = 9999;
-    vsomeip_v3::gid_t deny_gid  = 9999;
-    vsomeip_v3::service_t deny_service = 0x40;
+vsomeip_v3::gid_t deny_uid = 9999;
+vsomeip_v3::gid_t deny_gid = 9999;
+vsomeip_v3::service_t deny_service = 0x40;
 }
 
 static void BM_is_client_allowed_policies_not_loaded(benchmark::State& state) {
@@ -31,15 +31,14 @@ static void BM_is_client_allowed_policies_not_loaded(benchmark::State& state) {
 
     vsomeip_sec_client_t its_sec_client_invalid = utility::create_uds_client(invalid_uid, invalid_gid, host_address);
 
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         its_manager->is_client_allowed(&its_sec_client_invalid, service_1, instance, method);
     }
 }
 
 static void BM_is_client_allowed_policies_loaded_valid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -58,7 +57,7 @@ static void BM_is_client_allowed_policies_loaded_valid_values(benchmark::State& 
 
 static void BM_is_client_allowed_cache_policies_loaded(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -78,7 +77,7 @@ static void BM_is_client_allowed_cache_policies_loaded(benchmark::State& state) 
 
 static void BM_is_client_allowed_policies_loaded_invalid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -96,7 +95,7 @@ static void BM_is_client_allowed_policies_loaded_invalid_values(benchmark::State
 
 static void BM_is_client_allowed_policies_loaded_deny_valid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -114,7 +113,7 @@ static void BM_is_client_allowed_policies_loaded_deny_valid_values(benchmark::St
 
 static void BM_is_client_allowed_policies_loaded_audit_mode_valid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -133,7 +132,7 @@ static void BM_is_client_allowed_policies_loaded_audit_mode_valid_values(benchma
 
 static void BM_is_client_allowed_cache_policies_loaded_audit_mode(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -154,7 +153,7 @@ static void BM_is_client_allowed_cache_policies_loaded_audit_mode(benchmark::Sta
 
 static void BM_is_client_allowed_policies_loaded_audit_mode_invalid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -173,7 +172,7 @@ static void BM_is_client_allowed_policies_loaded_audit_mode_invalid_values(bench
 
 static void BM_is_client_allowed_policies_loaded_audit_mode_deny_valid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> its_manager(new vsomeip_v3::policy_manager_impl);
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;

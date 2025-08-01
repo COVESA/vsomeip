@@ -16,14 +16,11 @@
 #include <chrono>
 #include <deque>
 
-class npdu_test_service
-{
+class npdu_test_service {
 public:
-    npdu_test_service(vsomeip::service_t _service_id,
-                            vsomeip::instance_t _instance_id,
-                            std::array<vsomeip::method_t, 4> _method_ids,
-                            std::array<std::chrono::nanoseconds, 4> _debounce_times,
-                            std::array<std::chrono::nanoseconds, 4> _max_retention_times);
+    npdu_test_service(vsomeip::service_t _service_id, vsomeip::instance_t _instance_id, std::array<vsomeip::method_t, 4> _method_ids,
+                      std::array<std::chrono::nanoseconds, 4> _debounce_times,
+                      std::array<std::chrono::nanoseconds, 4> _max_retention_times);
     void init();
     void start();
     void stop();
@@ -31,13 +28,16 @@ public:
     void stop_offer();
     void join_shutdown_thread();
     void on_state(vsomeip::state_type_e _state);
-    template<int method_idx> void on_message(const std::shared_ptr<vsomeip::message> &_request);
-    void on_message_shutdown(const std::shared_ptr<vsomeip::message> &_request);
+    template<int method_idx>
+    void on_message(const std::shared_ptr<vsomeip::message>& _request);
+    void on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request);
     void run();
 
 private:
-    template<int method_idx> void check_times();
-    template <int method_idx> void register_message_handler();
+    template<int method_idx>
+    void check_times();
+    template<int method_idx>
+    void register_message_handler();
 
 private:
     std::shared_ptr<vsomeip::application> app_;

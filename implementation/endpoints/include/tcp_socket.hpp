@@ -27,8 +27,7 @@ public:
     [[nodiscard]] virtual bool is_open() const = 0;
     [[nodiscard]] virtual int native_handle() = 0;
 
-    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type,
-                      boost::system::error_code&) = 0;
+    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type, boost::system::error_code&) = 0;
     virtual void bind(boost::asio::ip::tcp::endpoint const&, boost::system::error_code&) = 0;
 
     virtual void close(boost::system::error_code&) = 0;
@@ -51,25 +50,21 @@ public:
     virtual ~tcp_socket() = default;
 
     virtual void cancel(boost::system::error_code&) = 0;
-    virtual void shutdown(boost::asio::ip::tcp::socket::shutdown_type,
-                          boost::system::error_code&) = 0;
+    virtual void shutdown(boost::asio::ip::tcp::socket::shutdown_type, boost::system::error_code&) = 0;
 
     virtual boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code&) const = 0;
     virtual boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code&) const = 0;
 
     virtual void set_option(boost::asio::ip::tcp::no_delay, boost::system::error_code&) = 0;
-    virtual void set_option(boost::asio::ip::tcp::socket::keep_alive,
-                            boost::system::error_code&) = 0;
+    virtual void set_option(boost::asio::ip::tcp::socket::keep_alive, boost::system::error_code&) = 0;
     virtual void set_option(boost::asio::ip::tcp::socket::linger, boost::system::error_code&) = 0;
-    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address,
-                            boost::system::error_code&) = 0;
+    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address, boost::system::error_code&) = 0;
 
     virtual void async_connect(boost::asio::ip::tcp::endpoint const&, connect_handler) = 0;
     virtual void async_receive(boost::asio::mutable_buffer, rw_handler) = 0;
     // usually the ConstBufferSequence is a template parameter
     virtual void async_write(std::vector<boost::asio::const_buffer> const&, rw_handler) = 0;
-    virtual void async_write(boost::asio::const_buffer const& b, completion_condition cc,
-                             rw_handler handler) = 0;
+    virtual void async_write(boost::asio::const_buffer const& b, completion_condition cc, rw_handler handler) = 0;
 #if defined(__linux__) || defined(ANDROID)
     /**
      * abstraction for setting the linux specific tcp option
@@ -103,8 +98,7 @@ public:
  **/
 class tcp_acceptor : public tcp_base_socket {
 public:
-    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address,
-                            boost::system::error_code&) = 0;
+    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address, boost::system::error_code&) = 0;
 
 #if defined(__linux__) || defined(ANDROID)
     /**

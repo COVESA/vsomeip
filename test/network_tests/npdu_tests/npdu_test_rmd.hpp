@@ -23,7 +23,7 @@ public:
     void start();
     void stop();
     void on_state(vsomeip::state_type_e _state);
-    void on_message_shutdown(const std::shared_ptr<vsomeip::message> &_request);
+    void on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request);
     void join_shutdown_thread();
     void run();
 
@@ -39,7 +39,6 @@ private:
     bool blocked2_;
     std::thread offer_thread_;
     std::thread shutdown_thread_;
-
 };
 
 #endif /* NPDU_TESTS_NPDUTESTROUTINGMANAGERDAEMON_HPP_ */

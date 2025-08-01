@@ -15,7 +15,8 @@ TEST(registration_check_test, test) {
 
     // 2: Wait for the service app to register to the routing host
     while (!test_timer.has_elapsed()) {
-        if (service_app.is_registered()) break;
+        if (service_app.is_registered())
+            break;
         std::this_thread::sleep_for(SLEEP_TIME);
     }
     // 3: Validate that the service app is registered

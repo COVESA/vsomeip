@@ -10,18 +10,18 @@
 #include "../../../implementation/utility/include/bithelper.hpp"
 
 namespace {
-    const std::uint8_t uint8_num1= 1;
-    const std::uint8_t uint8_num2 = 2;
-    const std::uint8_t uint8_num3 = 3;
-    const std::uint16_t uint16_num1= 1;
-    const std::uint16_t uint16_num2 = 2;
-    const std::uint16_t uint16_num3 = 3;
-    const std::uint32_t uint32_num1= 1;
-    const std::uint32_t uint32_num2 = 2;
-    const std::uint32_t uint32_num3 = 3;
+const std::uint8_t uint8_num1 = 1;
+const std::uint8_t uint8_num2 = 2;
+const std::uint8_t uint8_num3 = 3;
+const std::uint16_t uint16_num1 = 1;
+const std::uint16_t uint16_num2 = 2;
+const std::uint16_t uint16_num3 = 3;
+const std::uint32_t uint32_num1 = 1;
+const std::uint32_t uint32_num2 = 2;
+const std::uint32_t uint32_num3 = 3;
 
-    bool omit_last_byte = true;
-    bool dont_omit_last_byte = false;
+bool omit_last_byte = true;
+bool dont_omit_last_byte = false;
 }
 
 TEST(serialize_test, serialize_from_serializable_pointer) {
@@ -35,11 +35,10 @@ TEST(serialize_test, serialize_from_serializable_pointer) {
     ASSERT_EQ(its_serializer->get_size(), 4);
 }
 
-
 TEST(serialize_test, serialize_from_uint8) {
     std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
 
-    //add 1 2 3 to the data of the serializer.
+    // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint8_num1));
     ASSERT_TRUE(its_serializer->serialize(uint8_num2));
     ASSERT_TRUE(its_serializer->serialize(uint8_num3));
@@ -54,7 +53,7 @@ TEST(serialize_test, serialize_from_uint8) {
 TEST(serialize_test, serialize_from_uint16) {
     std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
 
-    //add 1 2 3 to the data of the serializer.
+    // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint16_num1));
     ASSERT_TRUE(its_serializer->serialize(uint16_num2));
     ASSERT_TRUE(its_serializer->serialize(uint16_num3));
@@ -78,16 +77,19 @@ TEST(serialize_test, serialize_from_uint16) {
 TEST(serialize_test, serialize_from_uint32_omit_last_byte) {
     std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
 
-    //add 1 2 3 to the data of the serializer.
+    // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint32_num1, omit_last_byte));
     ASSERT_TRUE(its_serializer->serialize(uint32_num2, omit_last_byte));
     ASSERT_TRUE(its_serializer->serialize(uint32_num3, omit_last_byte));
 
     // Rebuilding the uint32_t from 3 uint8_t words, since 4th byte is omited.
     // Create arrays to pass to bithelper.
-    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num1_{0, its_serializer->get_data()[0], its_serializer->get_data()[1], its_serializer->get_data()[2]};
-    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num2_{0, its_serializer->get_data()[3], its_serializer->get_data()[4], its_serializer->get_data()[5]};
-    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num3_{0, its_serializer->get_data()[6], its_serializer->get_data()[7], its_serializer->get_data()[8]};
+    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num1_{0, its_serializer->get_data()[0], its_serializer->get_data()[1],
+                                                                       its_serializer->get_data()[2]};
+    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num2_{0, its_serializer->get_data()[3], its_serializer->get_data()[4],
+                                                                       its_serializer->get_data()[5]};
+    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num3_{0, its_serializer->get_data()[6], its_serializer->get_data()[7],
+                                                                       its_serializer->get_data()[8]};
 
     // Create uint32_t from bytes.
     const std::uint32_t reconstructed_num1 = vsomeip_v3::bithelper::read_uint32_be(uint32_array_reconstructed_num1_.data());
@@ -104,16 +106,19 @@ TEST(serialize_test, serialize_from_uint32_omit_last_byte) {
 TEST(serialize_test, serialize_from_uint32_dont_omit_last_byte) {
     std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
 
-    //add 1 2 3 to the data of the serializer.
+    // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint32_num1, dont_omit_last_byte));
     ASSERT_TRUE(its_serializer->serialize(uint32_num2, dont_omit_last_byte));
     ASSERT_TRUE(its_serializer->serialize(uint32_num3, dont_omit_last_byte));
 
     // Rebuilding the uint32_t from 4 uint8_t words.
     // Create arrays to pass to bithelper.
-    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num1_{its_serializer->get_data()[0], its_serializer->get_data()[1], its_serializer->get_data()[2], its_serializer->get_data()[3]};
-    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num2_{its_serializer->get_data()[4], its_serializer->get_data()[5], its_serializer->get_data()[6], its_serializer->get_data()[7]};
-    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num3_{its_serializer->get_data()[8], its_serializer->get_data()[9], its_serializer->get_data()[10], its_serializer->get_data()[11]};
+    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num1_{its_serializer->get_data()[0], its_serializer->get_data()[1],
+                                                                       its_serializer->get_data()[2], its_serializer->get_data()[3]};
+    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num2_{its_serializer->get_data()[4], its_serializer->get_data()[5],
+                                                                       its_serializer->get_data()[6], its_serializer->get_data()[7]};
+    std::array<vsomeip_v3::byte_t, 4> uint32_array_reconstructed_num3_{its_serializer->get_data()[8], its_serializer->get_data()[9],
+                                                                       its_serializer->get_data()[10], its_serializer->get_data()[11]};
 
     // Create uint32_t from bytes.
     const std::uint32_t reconstructed_num1 = vsomeip_v3::bithelper::read_uint32_be(uint32_array_reconstructed_num1_.data());
@@ -172,7 +177,7 @@ TEST(serialize_test, serializer_reset) {
 }
 
 TEST(serialize_test, serializer_reset_shrink) {
-    //Not sure how this is supposed to go.
+    // Not sure how this is supposed to go.
     std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
 
     ASSERT_TRUE(its_serializer->serialize(uint8_num1));

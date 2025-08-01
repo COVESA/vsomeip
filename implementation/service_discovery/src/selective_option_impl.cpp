@@ -17,15 +17,12 @@ selective_option_impl::selective_option_impl() {
     type_ = option_type_e::SELECTIVE;
 }
 
-selective_option_impl::~selective_option_impl() {
-}
+selective_option_impl::~selective_option_impl() { }
 
-bool
-selective_option_impl::equals(const option_impl &_other) const {
+bool selective_option_impl::equals(const option_impl& _other) const {
     bool is_equal(option_impl::equals(_other));
     if (is_equal) {
-        const selective_option_impl &its_other
-            = dynamic_cast<const selective_option_impl &>(_other);
+        const selective_option_impl& its_other = dynamic_cast<const selective_option_impl&>(_other);
         is_equal = (clients_ == its_other.clients_);
     }
     return is_equal;
@@ -36,7 +33,7 @@ std::set<client_t> selective_option_impl::get_clients() const {
     return its_clients;
 }
 
-void selective_option_impl::set_clients(const std::set<client_t> &_clients) {
+void selective_option_impl::set_clients(const std::set<client_t>& _clients) {
     clients_ = _clients;
     length_ = uint16_t(1 + clients_.size() * sizeof(client_t));
 }
@@ -63,16 +60,16 @@ bool selective_option_impl::has_client(client_t _client) {
     return (find_client != clients_.end());
 }
 
-bool selective_option_impl::serialize(vsomeip_v3::serializer *_to) const {
+bool selective_option_impl::serialize(vsomeip_v3::serializer* _to) const {
     bool is_successful = option_impl::serialize(_to);
     if (is_successful) {
-        for (auto &its_client : clients_)
+        for (auto& its_client : clients_)
             _to->serialize(its_client);
     }
     return is_successful;
 }
 
-bool selective_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
+bool selective_option_impl::deserialize(vsomeip_v3::deserializer* _from) {
     bool is_successful = option_impl::deserialize(_from);
     if (is_successful) {
         uint16_t i = 1;

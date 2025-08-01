@@ -17,8 +17,7 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class payload_test_service
-{
+class payload_test_service {
 public:
     payload_test_service();
     bool init();
@@ -28,8 +27,8 @@ public:
     void stop_offer();
     void join_offer_thread();
     void on_state(vsomeip::state_type_e _state);
-    void on_message(const std::shared_ptr<vsomeip::message> &_request);
-    void on_message_shutdown(const std::shared_ptr<vsomeip::message> &_request);
+    void on_message(const std::shared_ptr<vsomeip::message>& _request);
+    void on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request);
     void run();
 
 private:
