@@ -19,10 +19,9 @@
 namespace vsomeip_v3 {
 namespace e2e {
 
-class e2e_provider_impl :
-        public e2e_provider,
-        public plugin_impl<e2e_provider_impl>,
-        public std::enable_shared_from_this<e2e_provider_impl> {
+class e2e_provider_impl : public e2e_provider,
+                          public plugin_impl<e2e_provider_impl>,
+                          public std::enable_shared_from_this<e2e_provider_impl> {
 public:
     VSOMEIP_EXPORT e2e_provider_impl();
     VSOMEIP_EXPORT ~e2e_provider_impl();
@@ -34,11 +33,9 @@ public:
 
     VSOMEIP_EXPORT std::size_t get_protection_base(e2exf::data_identifier_t _id) const override;
 
-    VSOMEIP_EXPORT void protect(e2exf::data_identifier_t id,
-            e2e_buffer &_buffer, instance_t _instance) override;
-    VSOMEIP_EXPORT void check(e2exf::data_identifier_t id,
-            const e2e_buffer &_buffer, instance_t _instance,
-            profile_interface::check_status_t &_generic_check_status) override;
+    VSOMEIP_EXPORT void protect(e2exf::data_identifier_t id, e2e_buffer& _buffer, instance_t _instance) override;
+    VSOMEIP_EXPORT void check(e2exf::data_identifier_t id, const e2e_buffer& _buffer, instance_t _instance,
+                              profile_interface::check_status_t& _generic_check_status) override;
 
 private:
     std::map<e2exf::data_identifier_t, std::shared_ptr<profile_interface::protector>> custom_protectors_;
@@ -70,4 +67,4 @@ private:
 } // namespace e2e
 } // namespace vsomeip_v3
 
-#endif  // VSOMEIP_V3_E2E_PROVIDER_IMPL_HPP
+#endif // VSOMEIP_V3_E2E_PROVIDER_IMPL_HPP

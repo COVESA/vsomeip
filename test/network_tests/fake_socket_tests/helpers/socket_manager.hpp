@@ -48,18 +48,14 @@ public:
      * with the memory address of some boost::asio::io_context.
      * @see socket_manager::add()
      */
-    [[nodiscard]] bool
-    await_assignment(std::string const& _app,
-                     std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+    [[nodiscard]] bool await_assignment(std::string const& _app, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
      * Waits until either the timeout expires, or the application associated
      * with this name called async_accept on some fake_acceptor.
      * Useful to await the start of the routing application.
      */
-    [[nodiscard]] bool
-    await_connectable(std::string const& _app,
-                      std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+    [[nodiscard]] bool await_connectable(std::string const& _app, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
      * Waits until either the timeout expires, or the application associated
@@ -69,8 +65,7 @@ public:
      * a fake_tcp_acceptor with some endpoint and that _from called async_connect
      * with some fake_tcp_socket towards this very endpoint.
      */
-    [[nodiscard]] bool await_connection(std::string const& _from, std::string const& _to,
-                                        std::chrono::milliseconds _timeout);
+    [[nodiscard]] bool await_connection(std::string const& _from, std::string const& _to, std::chrono::milliseconds _timeout);
 
     /**
      * Counts how often the directed connection was established.
@@ -81,17 +76,14 @@ public:
      * Searches for a directed connection _from_name to _to_name and calls
      * fake_tcp_socket_handle::disconnect and accumulates the result.
      */
-    [[nodiscard]] bool disconnect(std::string const& _from_name,
-                                  std::optional<boost::system::error_code> _from_error,
-                                  std::string const& _to_name,
-                                  std::optional<boost::system::error_code> _to_error);
+    [[nodiscard]] bool disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
+                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error);
 
     /**
      * Injects the handed over errors on connections attemps to _app_name.
      * The first error in the vector is the first to be injected.
      **/
-    void report_on_connect(std::string const& _app_name,
-                           std::vector<boost::system::error_code> _next_errors);
+    void report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors);
 
     /**
      * Ignores connection attemps towards _app_name for _number_of_ignored_connections
@@ -112,8 +104,7 @@ public:
      *
      * @return false, if the connection does not exist.
      **/
-    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to,
-                                                bool _delay);
+    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay);
 
     /**
      * searches for the _from -> _to connected sockets and demands from _from to block execution
@@ -122,10 +113,8 @@ public:
      *
      * @return true, if all non nullopts could be forwarded
      **/
-    [[nodiscard]] bool block_on_close_for(std::string const& _from,
-                                          std::optional<std::chrono::milliseconds> _from_block_time,
-                                          std::string const& _to,
-                                          std::optional<std::chrono::milliseconds> _to_block_time);
+    [[nodiscard]] bool block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
+                                          std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time);
 
     /**
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
@@ -151,15 +140,13 @@ public:
      * associates the fake_tcp_acceptor_handle to the endpoint. This allows fake_tcp_socket_handles
      * to try to connect to the acceptor.
      **/
-    [[nodiscard]] bool bind_acceptor(boost::asio::ip::tcp::endpoint const& _ep,
-                                     std::weak_ptr<fake_tcp_acceptor_handle> _state);
+    [[nodiscard]] bool bind_acceptor(boost::asio::ip::tcp::endpoint const& _ep, std::weak_ptr<fake_tcp_acceptor_handle> _state);
 
     /**
      * Searches for a fake_tcp_acceptor_handle @see socket_manager::bind_acceptor(),
      * and forwards the connect request from the passed in handle.
      **/
-    void connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _state,
-                 connect_handler _handler);
+    void connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _state, connect_handler _handler);
 
     /**
      * Helper to let the socket_manager know that some acceptor started to wait for connections.
@@ -172,18 +159,14 @@ private:
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
     std::condition_variable connection_cv_;
-    std::atomic<fd_t> next_fd_ {1};
+    std::atomic<fd_t> next_fd_{1};
     std::map<fd_t, std::weak_ptr<fake_tcp_socket_handle>> fd_to_handle_;
     std::map<fd_t, std::weak_ptr<fake_tcp_acceptor_handle>> fd_to_acceptor_states_;
-    std::map<boost::asio::ip::tcp::endpoint, std::weak_ptr<fake_tcp_acceptor_handle>>
-            ep_to_acceptor_states_;
+    std::map<boost::asio::ip::tcp::endpoint, std::weak_ptr<fake_tcp_acceptor_handle>> ep_to_acceptor_states_;
     std::map<std::string, boost::asio::io_context*> name_to_context_;
     std::map<boost::asio::io_context*, std::string> context_to_name_;
     std::map<boost::asio::io_context*, std::vector<fd_t>> context_to_fd_;
-    std::map<
-            std::string,
-            std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>>>
-            app_names_to_connection;
+    std::map<std::string, std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>>> app_names_to_connection;
     std::map<std::string, size_t> connection_name_to_connection_count_;
     // these timers are not supposed to ever expire.
     // Instead the callback lifetime of these timers ensures that

@@ -5,8 +5,7 @@
 #include "registration_check_service.hpp"
 
 service::service() :
-    vsomeip_app(vsomeip::runtime::get()->create_application()),
-    registration_state(vsomeip::state_type_e::ST_DEREGISTERED) { }
+    vsomeip_app(vsomeip::runtime::get()->create_application()), registration_state(vsomeip::state_type_e::ST_DEREGISTERED) { }
 
 service::~service() {
     stop();
@@ -41,12 +40,9 @@ void service::on_state(vsomeip::state_type_e _state) {
     auto prev_state = registration_state.load();
     registration_state = _state;
 
-    VSOMEIP_INFO << __func__ << " Application " << vsomeip_app->get_name()
-                << " changed state from "
-                << (prev_state == vsomeip::state_type_e::ST_REGISTERED ? 
-                "registered." : "deregistered.") << " to "
-                << (_state == vsomeip::state_type_e::ST_REGISTERED ? 
-                "registered." : "deregistered.");
+    VSOMEIP_INFO << __func__ << " Application " << vsomeip_app->get_name() << " changed state from "
+                 << (prev_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.") << " to "
+                 << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 }
 
 bool service::is_registered() {

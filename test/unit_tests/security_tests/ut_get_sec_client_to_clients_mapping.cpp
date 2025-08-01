@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <common/utility.hpp>
 
-namespace{
+namespace {
 vsomeip_v3::client_t client = 10;
 vsomeip_v3::uid_t uid_1 = 4003030;
 vsomeip_v3::gid_t gid_1 = 4003032;
@@ -16,8 +16,7 @@ vsomeip_v3::gid_t gid_2 = 1;
 vsomeip_sec_ip_addr_t host_address = 0;
 }
 
-TEST(get_sec_client_to_clients_mapping, test)
-{
+TEST(get_sec_client_to_clients_mapping, test) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     std::set<vsomeip_v3::client_t> clients_1;

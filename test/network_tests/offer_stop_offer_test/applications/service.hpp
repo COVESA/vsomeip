@@ -67,8 +67,7 @@ private:
     /// @param service Service that had its availability state changed
     /// @param instance Instance that had its availability state changed
     /// @param is_available New availability state
-    void on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
-                         bool is_available);
+    void on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available);
 
     /// @brief handler for application registration state change.
     ///

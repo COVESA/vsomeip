@@ -8,9 +8,8 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-request::request(major_version_t _major, minor_version_t _minor, ttl_t _ttl)
-        : major_(_major), minor_(_minor), ttl_(_ttl), sent_counter_(0) {
-}
+request::request(major_version_t _major, minor_version_t _minor, ttl_t _ttl) :
+    major_(_major), minor_(_minor), ttl_(_ttl), sent_counter_(0) { }
 
 major_version_t request::get_major() const {
     return major_;
@@ -44,5 +43,5 @@ void request::set_sent_counter(uint8_t _sent_counter) {
     sent_counter_ = _sent_counter;
 }
 
-}  // namespace sd
-}  // namespace vsomeip_v3
+} // namespace sd
+} // namespace vsomeip_v3

@@ -26,7 +26,7 @@ TEST(someip_application_init_test, multithread_init) {
     for (std::uint32_t t = 0; t < thread_count; ++t) {
         vsomeip_applications.emplace_back([&start_cv, &start_mutex, &start, t] {
             {
-                std::unique_lock lk {start_mutex};
+                std::unique_lock lk{start_mutex};
                 start_cv.wait(lk, [&start] { return start.load(); });
             }
             std::stringstream app_name;
@@ -39,7 +39,7 @@ TEST(someip_application_init_test, multithread_init) {
 
     // Start the init threads
     {
-        std::scoped_lock lk {start_mutex};
+        std::scoped_lock lk{start_mutex};
         start = true;
         start_cv.notify_all();
     }

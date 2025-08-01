@@ -17,15 +17,16 @@
 #include "../../message/include/message_base_impl.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 
-#  if _MSC_VER >= 1300
+#if _MSC_VER >= 1300
 /*
-* Diamond inheritance is used for the vsomeip::message_base base class.
-* The Microsoft compiler put warning (C4250) using a desired c++ feature: "Delegating to a sister class"
-* A powerful technique that arises from using virtual inheritance is to delegate a method from a class in another class
-* by using a common abstract base class. This is also called cross delegation.
-*/
-#    pragma warning( disable : 4250 )
-#  endif
+ * Diamond inheritance is used for the vsomeip::message_base base class.
+ * The Microsoft compiler put warning (C4250) using a desired c++ feature: "Delegating to a sister
+ * class" A powerful technique that arises from using virtual inheritance is to delegate a method
+ * from a class in another class by using a common abstract base class. This is also called cross
+ * delegation.
+ */
+#pragma warning(disable : 4250)
+#endif
 
 namespace vsomeip_v3 {
 namespace sd {
@@ -40,8 +41,7 @@ class load_balancing_option_impl;
 class protection_option_impl;
 class selective_option_impl;
 
-class message_impl
-        : public vsomeip_v3::message, public vsomeip_v3::message_base_impl {
+class message_impl : public vsomeip_v3::message, public vsomeip_v3::message_base_impl {
 public:
     typedef std::vector<std::shared_ptr<entry_impl>> entries_t;
     typedef std::vector<std::shared_ptr<option_impl>> options_t;
@@ -68,17 +68,15 @@ public:
     bool has_entry() const;
     bool has_option() const;
 
-    const entries_t & get_entries() const;
-    const options_t & get_options() const;
+    const entries_t& get_entries() const;
+    const options_t& get_options() const;
 
-    bool add_entry_data(const std::shared_ptr<entry_impl> &_entry,
-            const std::vector<std::shared_ptr<option_impl> > &_options,
-            const std::shared_ptr<entry_impl> &_other = nullptr);
+    bool add_entry_data(const std::shared_ptr<entry_impl>& _entry, const std::vector<std::shared_ptr<option_impl>>& _options,
+                        const std::shared_ptr<entry_impl>& _other = nullptr);
 
-    std::shared_ptr<option_impl> find_option(
-            const std::shared_ptr<option_impl> &_option) const;
+    std::shared_ptr<option_impl> find_option(const std::shared_ptr<option_impl>& _option) const;
 
-    int16_t get_option_index(const std::shared_ptr<option_impl> &_option) const;
+    int16_t get_option_index(const std::shared_ptr<option_impl>& _option) const;
     std::shared_ptr<option_impl> get_option(int16_t _index) const;
     uint32_t get_options_length();
 
@@ -89,8 +87,8 @@ public:
     void set_check_result(uint8_t _check_result);
     bool is_valid_crc() const;
 
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
     length_t get_someip_length() const;
 
@@ -106,8 +104,8 @@ public:
     std::string get_env() const;
 
 private:
-    entry_impl * deserialize_entry(vsomeip_v3::deserializer *_from);
-    option_impl * deserialize_option(vsomeip_v3::deserializer *_from);
+    entry_impl* deserialize_entry(vsomeip_v3::deserializer* _from);
+    option_impl* deserialize_option(vsomeip_v3::deserializer* _from);
 
 private:
     flags_t flags_;

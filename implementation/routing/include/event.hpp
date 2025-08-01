@@ -20,9 +20,7 @@
 #include <vsomeip/function_types.hpp>
 #include <vsomeip/payload.hpp>
 
-
 namespace vsomeip_v3 {
-
 
 class endpoint;
 class endpoint_definition;
@@ -32,10 +30,9 @@ class routing_manager;
 
 struct debounce_filter_impl_t;
 
-class event
-        : public std::enable_shared_from_this<event> {
+class event : public std::enable_shared_from_this<event> {
 public:
-    event(routing_manager *_routing, bool _is_shadow = false);
+    event(routing_manager* _routing, bool _is_shadow = false);
 
     service_t get_service() const;
     void set_service(service_t _service);
@@ -51,20 +48,17 @@ public:
 
     std::shared_ptr<payload> get_payload() const;
 
-    void set_payload(const std::shared_ptr<payload> &_payload,
-            const client_t _client, bool _force);
+    void set_payload(const std::shared_ptr<payload>& _payload, const client_t _client, bool _force);
 
-    void set_payload(const std::shared_ptr<payload> &_payload,
-            const client_t _client,
-            const std::shared_ptr<endpoint_definition>& _target, bool _force);
+    void set_payload(const std::shared_ptr<payload>& _payload, const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                     bool _force);
 
-    bool prepare_update_payload(const std::shared_ptr<payload> &_payload,
-            bool _force);
+    bool prepare_update_payload(const std::shared_ptr<payload>& _payload, bool _force);
     void update_payload();
 
-    bool set_payload_notify_pending(const std::shared_ptr<payload> &_payload);
+    bool set_payload_notify_pending(const std::shared_ptr<payload>& _payload);
 
-    void set_payload(const std::shared_ptr<payload> &_payload, bool _force);
+    void set_payload(const std::shared_ptr<payload>& _payload, bool _force);
     void unset_payload(bool _force = false);
 
     event_type_e get_type() const;
@@ -80,35 +74,29 @@ public:
     bool is_set() const;
 
     // SIP_RPC_357
-    void set_update_cycle(std::chrono::milliseconds &_cycle);
+    void set_update_cycle(std::chrono::milliseconds& _cycle);
     void set_change_resets_cycle(bool _change_resets_cycle);
 
     // SIP_RPC_358
     void set_update_on_change(bool _is_active);
 
     // SIP_RPC_359 (epsilon change)
-    void set_epsilon_change_function(
-            const epsilon_change_func_t &_epsilon_change_func);
+    void set_epsilon_change_function(const epsilon_change_func_t& _epsilon_change_func);
 
     std::set<eventgroup_t> get_eventgroups() const;
     std::set<eventgroup_t> get_eventgroups(client_t _client) const;
     void add_eventgroup(eventgroup_t _eventgroup);
-    void set_eventgroups(const std::set<eventgroup_t> &_eventgroups);
+    void set_eventgroups(const std::set<eventgroup_t>& _eventgroups);
 
-    void notify_one(client_t _client,
-            const std::shared_ptr<endpoint_definition> &_target);
+    void notify_one(client_t _client, const std::shared_ptr<endpoint_definition>& _target);
     void notify_one(client_t _client, bool _force);
 
-
-    bool add_subscriber(eventgroup_t _eventgroup,
-            const std::shared_ptr<debounce_filter_impl_t> &_filter,
-            client_t _client, bool _force);
+    bool add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client, bool _force);
     void remove_subscriber(eventgroup_t _eventgroup, client_t _client);
     bool has_subscriber(eventgroup_t _eventgroup, client_t _client);
     std::set<client_t> get_subscribers();
     std::set<client_t> get_filtered_subscribers(bool _force);
-    std::set<client_t> update_and_get_filtered_subscribers(
-            const std::shared_ptr<payload> &_payload, bool _force);
+    std::set<client_t> update_and_get_filtered_subscribers(const std::shared_ptr<payload>& _payload, bool _force);
     VSOMEIP_EXPORT std::set<client_t> get_subscribers(eventgroup_t _eventgroup);
     void clear_subscribers();
 
@@ -125,34 +113,30 @@ public:
 
     bool is_subscribed(client_t _client);
 
-    void remove_pending(const std::shared_ptr<endpoint_definition> &_target);
+    void remove_pending(const std::shared_ptr<endpoint_definition>& _target);
 
     void set_session();
 
 private:
-    void update_cbk(boost::system::error_code const &_error);
+    void update_cbk(boost::system::error_code const& _error);
     void notify(bool _force);
-    void notify(client_t _client,
-            const std::shared_ptr<endpoint_definition> &_target);
+    void notify(client_t _client, const std::shared_ptr<endpoint_definition>& _target);
 
     void start_cycle();
     void stop_cycle();
 
-    bool has_changed(const std::shared_ptr<payload> &_lhs,
-            const std::shared_ptr<payload> &_rhs) const;
+    bool has_changed(const std::shared_ptr<payload>& _lhs, const std::shared_ptr<payload>& _rhs) const;
 
     void notify_one_unlocked(client_t _client, bool _force);
-    void notify_one_unlocked(client_t _client,
-            const std::shared_ptr<endpoint_definition> &_target);
+    void notify_one_unlocked(client_t _client, const std::shared_ptr<endpoint_definition>& _target);
 
-    bool prepare_update_payload_unlocked(
-            const std::shared_ptr<payload> &_payload, bool _force);
+    bool prepare_update_payload_unlocked(const std::shared_ptr<payload>& _payload, bool _force);
     void update_payload_unlocked();
 
-    void get_pending_updates(const std::set<client_t> &_clients);
+    void get_pending_updates(const std::set<client_t>& _clients);
 
 private:
-    routing_manager *routing_;
+    routing_manager* routing_;
     mutable std::mutex mutex_;
 
     std::shared_ptr<message> current_;
@@ -167,7 +151,7 @@ private:
     std::atomic<bool> is_updating_on_change_;
 
     mutable std::mutex eventgroups_mutex_;
-    std::map<eventgroup_t, std::set<client_t> > eventgroups_;
+    std::map<eventgroup_t, std::set<client_t>> eventgroups_;
 
     std::atomic<bool> is_set_;
     std::atomic<bool> is_provided_;
@@ -183,12 +167,12 @@ private:
 
     std::atomic<reliability_type_e> reliability_;
 
-    std::set<std::shared_ptr<endpoint_definition> > pending_;
+    std::set<std::shared_ptr<endpoint_definition>> pending_;
 
     std::mutex filters_mutex_;
     std::map<client_t, epsilon_change_func_t> filters_;
 };
 
-}  // namespace vsomeip_v3
+} // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_EVENT_IMPL_HPP_

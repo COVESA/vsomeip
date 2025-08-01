@@ -15,17 +15,17 @@ namespace vsomeip {
 
 class message;
 
-typedef std::function< void (state_type_e) > state_handler_t;
-typedef std::function< void (const std::shared_ptr< message > &) > message_handler_t;
-typedef std::function< void (service_t, instance_t, bool) > availability_handler_t;
-typedef std::function< bool (client_t, bool) > subscription_handler_t;
-typedef std::function< void (const uint16_t) > error_handler_t;
-typedef std::function< void (const service_t, const instance_t, const eventgroup_t,
-                             const event_t, const uint16_t) > subscription_status_handler_t;
-typedef std::function< void (client_t, bool, std::function< void (const bool) > )> async_subscription_handler_t;
+typedef std::function<void(state_type_e)> state_handler_t;
+typedef std::function<void(const std::shared_ptr<message>&)> message_handler_t;
+typedef std::function<void(service_t, instance_t, bool)> availability_handler_t;
+typedef std::function<bool(client_t, bool)> subscription_handler_t;
+typedef std::function<void(const uint16_t)> error_handler_t;
+typedef std::function<void(const service_t, const instance_t, const eventgroup_t, const event_t, const uint16_t)>
+        subscription_status_handler_t;
+typedef std::function<void(client_t, bool, std::function<void(const bool)>)> async_subscription_handler_t;
 
-typedef std::function< void (const std::vector<std::pair<service_t, instance_t>> &_services) > offered_services_handler_t;
-typedef std::function< void () > watchdog_handler_t;
+typedef std::function<void(const std::vector<std::pair<service_t, instance_t>>& _services)> offered_services_handler_t;
+typedef std::function<void()> watchdog_handler_t;
 
 struct ip_address_t {
     union {
@@ -56,10 +56,7 @@ struct ip_address_t {
         }
     }
 
-    bool operator!=(const ip_address_t& _other) const {
-        return !(*this == _other);
-    }
-
+    bool operator!=(const ip_address_t& _other) const { return !(*this == _other); }
 };
 typedef std::function<bool(const ip_address_t&)> offer_acceptance_handler_t;
 typedef std::function<void(const ip_address_t&)> reboot_notification_handler_t;

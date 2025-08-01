@@ -41,7 +41,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
     struct iovec iov[2];
     union {
         struct cmsghdr cmh;
-        char   control[CMSG_SPACE(sizeof(struct ucred))];
+        char control[CMSG_SPACE(sizeof(struct ucred))];
     } control_un;
 
     // We don't need address of peer as we using connect
@@ -77,8 +77,8 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
     }
 
     struct cmsghdr* cmhp = CMSG_FIRSTHDR(&msgh);
-    if (cmhp == NULL || cmhp->cmsg_len != CMSG_LEN(sizeof(struct ucred))
-            || cmhp->cmsg_level != SOL_SOCKET || cmhp->cmsg_type != SCM_CREDENTIALS) {
+    if (cmhp == NULL || cmhp->cmsg_len != CMSG_LEN(sizeof(struct ucred)) || cmhp->cmsg_level != SOL_SOCKET
+        || cmhp->cmsg_type != SCM_CREDENTIALS) {
         VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Receiving credentials failed. Invalid data.";
         return boost::none;
     }

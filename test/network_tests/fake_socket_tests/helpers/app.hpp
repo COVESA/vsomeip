@@ -109,8 +109,7 @@ public:
      * 2. uses the _payload_creator to fill the response
      * 3. dispatch the response with vsomeip::application::send()
      */
-    void answer_request(request const& r,
-                        std::function<std::vector<unsigned char>()> payload_creator);
+    void answer_request(request const& r, std::function<std::vector<unsigned char>()> payload_creator);
 
     /**
      * Forwards the event payload to the vsomeip::application::notify()
@@ -137,13 +136,12 @@ public:
 private:
     void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message>& _message);
-    void on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance,
-                                        vsomeip::eventgroup_t _eventgroup, vsomeip::event_t _event,
-                                        uint16_t error_code);
+    void on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
+                                        vsomeip::event_t _event, uint16_t error_code);
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);
     void offer(event_ids const& _ei, vsomeip::event_type_e _et);
 
-    bool is_running_ {false};
+    bool is_running_{false};
     std::shared_ptr<vsomeip::application> app_;
     std::thread runner_;
 };

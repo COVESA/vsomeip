@@ -26,22 +26,18 @@ bool client_t::init() {
         return false;
     }
 
-    vsomeip_app->register_message_handler(
-            SERVICE_ID, INSTANCE_ID, METHOD_ID,
-            std::bind(&client_t::on_message, this, std::placeholders::_1));
-    vsomeip_app->register_message_handler(
-            OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
-            std::bind(&client_t::on_message, this, std::placeholders::_1));
+    vsomeip_app->register_message_handler(SERVICE_ID, INSTANCE_ID, METHOD_ID,
+                                          std::bind(&client_t::on_message, this, std::placeholders::_1));
+    vsomeip_app->register_message_handler(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
+                                          std::bind(&client_t::on_message, this, std::placeholders::_1));
     vsomeip_app->request_service(SERVICE_ID, INSTANCE_ID);
 
     vsomeip_app->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
-            std::bind(&client_t::on_availability, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3));
+            std::bind(&client_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     vsomeip_app->register_availability_handler(
             OTHER_SERVICE_ID, OTHER_INSTANCE_ID,
-            std::bind(&client_t::on_availability, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3));
+            std::bind(&client_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     vsomeip_app->request_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID);
 
     return true;
@@ -58,8 +54,7 @@ void client_t::stop() {
     }
 }
 
-std::future<bool> client_t::request(bool is_tcp, vsomeip::service_t service,
-                                    vsomeip::instance_t instance, vsomeip::method_t method) {
+std::future<bool> client_t::request(bool is_tcp, vsomeip::service_t service, vsomeip::instance_t instance, vsomeip::method_t method) {
     auto promise_response = std::promise<bool>();
     auto future_response = std::future<bool>(promise_response.get_future());
 
@@ -98,18 +93,15 @@ void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     std::scoped_lock lk(availability_mutex);
 
     if (message->get_payload()->get_data()) {
-        VSOMEIP_INFO << "client_t::" << __func__ << ": "
-                     << static_cast<int>(message->get_payload()->get_data()[0]) << " from 0x"
+        VSOMEIP_INFO << "client_t::" << __func__ << ": " << static_cast<int>(message->get_payload()->get_data()[0]) << " from 0x"
                      << std::hex << std::setfill('0') << std::setw(4) << message->get_service();
     } else {
         VSOMEIP_WARNING << "client_t::" << __func__ << ": Empty payload for service "
-                        << " from 0x" << std::hex << std::setfill('0') << std::setw(4)
-                        << message->get_service();
+                        << " from 0x" << std::hex << std::setfill('0') << std::setw(4) << message->get_service();
     }
 
     for (auto it = pending_requests.begin(); it != pending_requests.end(); ++it) {
-        if (it->service == message->get_service() && it->instance == message->get_instance()
-            && it->method == message->get_method()) {
+        if (it->service == message->get_service() && it->instance == message->get_instance() && it->method == message->get_method()) {
             // set promise true as request was received and remove the pending_response
             it->promise_response.set_value(true);
             pending_requests.erase(it);
@@ -118,13 +110,11 @@ void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     }
 }
 
-void client_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
-                               bool is_available) {
+void client_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available) {
     std::scoped_lock lk(availability_mutex);
 
-    VSOMEIP_INFO << "client_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0')
-                 << std::hex << service << "." << instance << "] is "
-                 << (is_available ? "available." : "NOT available.");
+    VSOMEIP_INFO << "client_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance
+                 << "] is " << (is_available ? "available." : "NOT available.");
 
     availability_table[service] = is_available;
 
@@ -132,8 +122,7 @@ void client_t::on_availability(vsomeip::service_t service, vsomeip::instance_t i
     if (!is_available) {
         pending_requests.erase(std::remove_if(pending_requests.begin(), pending_requests.end(),
                                               [&](client_request_t& request) {
-                                                  bool should_remove = (request.service == service)
-                                                          && (request.instance == instance);
+                                                  bool should_remove = (request.service == service) && (request.instance == instance);
                                                   if (should_remove) {
                                                       request.promise_response.set_value(true);
                                                   }

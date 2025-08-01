@@ -11,16 +11,11 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-remove_security_policy_command::remove_security_policy_command()
-    : command(id_e::REMOVE_SECURITY_POLICY_ID) {
-}
+remove_security_policy_command::remove_security_policy_command() : command(id_e::REMOVE_SECURITY_POLICY_ID) { }
 
-void
-remove_security_policy_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void remove_security_policy_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE + sizeof(update_id_)
-            + sizeof(uid_) + sizeof(gid_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(update_id_) + sizeof(uid_) + sizeof(gid_));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -48,12 +43,9 @@ remove_security_policy_command::serialize(std::vector<byte_t> &_buffer,
     std::memcpy(&_buffer[its_offset], &gid_, sizeof(gid_));
 }
 
-void
-remove_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void remove_security_policy_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    if (COMMAND_HEADER_SIZE + sizeof(update_id_)
-            + sizeof(uid_) + sizeof(gid_t) > _buffer.size()) {
+    if (COMMAND_HEADER_SIZE + sizeof(update_id_) + sizeof(uid_) + sizeof(gid_t) > _buffer.size()) {
 
         _error = error_e::ERROR_NOT_ENOUGH_BYTES;
         return;
@@ -73,39 +65,32 @@ remove_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
     std::memcpy(&gid_, &_buffer[its_offset], sizeof(gid_));
 }
 
-uint32_t
-remove_security_policy_command::get_update_id() const {
+uint32_t remove_security_policy_command::get_update_id() const {
 
     return update_id_;
 }
 
-void
-remove_security_policy_command::set_update_id(uint32_t _update_id) {
+void remove_security_policy_command::set_update_id(uint32_t _update_id) {
 
     update_id_ = _update_id;
 }
 
-
-uid_t
-remove_security_policy_command::get_uid() const {
+uid_t remove_security_policy_command::get_uid() const {
 
     return uid_;
 }
 
-void
-remove_security_policy_command::set_uid(uid_t _uid) {
+void remove_security_policy_command::set_uid(uid_t _uid) {
 
     uid_ = _uid;
 }
 
-gid_t
-remove_security_policy_command::get_gid() const {
+gid_t remove_security_policy_command::get_gid() const {
 
     return gid_;
 }
 
-void
-remove_security_policy_command::set_gid(gid_t _gid) {
+void remove_security_policy_command::set_gid(gid_t _gid) {
 
     gid_ = _gid;
 }

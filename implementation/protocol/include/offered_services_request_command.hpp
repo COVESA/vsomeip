@@ -11,14 +11,13 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class offered_services_request_command
-    : public command {
+class offered_services_request_command : public command {
 
 public:
     offered_services_request_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     offer_type_e get_offer_type() const;
     void set_offer_type(offer_type_e _offer_type);

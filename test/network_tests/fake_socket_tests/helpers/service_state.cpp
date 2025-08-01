@@ -37,13 +37,11 @@ static char const* to_string(vsomeip_v3::message_type_e m) {
 }
 
 std::ostream& operator<<(std::ostream& o, service_instance const& s) {
-    return o << "Service: [" << std::hex << std::setfill('0') << std::setw(4) << s.service_ << "."
-             << s.instance_ << "]";
+    return o << "Service: [" << std::hex << std::setfill('0') << std::setw(4) << s.service_ << "." << s.instance_ << "]";
 }
 
 std::ostream& operator<<(std::ostream& o, client_session const& c) {
-    return o << "Client/Session: [" << std::hex << std::setfill('0') << std::setw(4) << c.client_
-             << '/' << c.session_ << ']';
+    return o << "Client/Session: [" << std::hex << std::setfill('0') << std::setw(4) << c.client_ << '/' << c.session_ << ']';
 }
 
 std::ostream& operator<<(std::ostream& o, message const& n) {
@@ -67,9 +65,8 @@ std::ostream& operator<<(std::ostream& o, std::vector<unsigned char> const& s) {
 }
 
 std::ostream& operator<<(std::ostream& o, request const& s) {
-    return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.service_instance_.service_
-             << "." << std::setw(4) << s.service_instance_.instance_ << '.' << std::setw(4)
-             << s.method_ << '.' << to_string(s.message_type_) << "]" << std::dec;
+    return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.service_instance_.service_ << "." << std::setw(4)
+             << s.service_instance_.instance_ << '.' << std::setw(4) << s.method_ << '.' << to_string(s.message_type_) << "]" << std::dec;
 }
 
 std::ostream& operator<<(std::ostream& o, service_state const& s) {
@@ -77,9 +74,8 @@ std::ostream& operator<<(std::ostream& o, service_state const& s) {
 }
 
 std::ostream& operator<<(std::ostream& o, event_ids const& s) {
-    return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.si_.service_ << "."
-             << std::setw(4) << s.si_.instance_ << '.' << std::setw(4) << s.eventgroup_id_ << '.'
-             << std::setw(4) << s.event_id_ << "]" << std::dec;
+    return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.si_.service_ << "." << std::setw(4) << s.si_.instance_ << '.'
+             << std::setw(4) << s.eventgroup_id_ << '.' << std::setw(4) << s.event_id_ << "]" << std::dec;
 }
 
 std::ostream& operator<<(std::ostream& o, event_subscription const& s) {

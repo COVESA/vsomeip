@@ -18,11 +18,10 @@ namespace vsomeip {
 
 class message;
 
-class message_base_impl
-        : virtual public message_base {
+class message_base_impl : virtual public message_base {
 
 public:
-    VSOMEIP_EXPORT message_base_impl(const std::shared_ptr<vsomeip_v3::message> &_impl);
+    VSOMEIP_EXPORT message_base_impl(const std::shared_ptr<vsomeip_v3::message>& _impl);
     VSOMEIP_EXPORT virtual ~message_base_impl();
 
     VSOMEIP_EXPORT message_t get_message() const;
@@ -64,8 +63,8 @@ public:
     VSOMEIP_EXPORT virtual bool is_initial() const;
     VSOMEIP_EXPORT virtual void set_initial(bool _is_initial);
 
-    //VSOMEIP_EXPORT message * get_owner() const;
-    //VSOMEIP_EXPORT void set_owner(message *_owner);
+    // VSOMEIP_EXPORT message * get_owner() const;
+    // VSOMEIP_EXPORT void set_owner(message *_owner);
 
     VSOMEIP_EXPORT bool is_valid_crc() const;
     VSOMEIP_EXPORT void set_is_valid_crc(bool _is_valid_crc);
@@ -73,7 +72,7 @@ public:
     inline std::shared_ptr<vsomeip_v3::message> get_impl() const { return impl_; }
 
 protected:
-    //message *owner_;
+    // message *owner_;
     std::shared_ptr<vsomeip_v3::message> impl_;
 };
 

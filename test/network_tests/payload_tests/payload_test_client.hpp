@@ -21,8 +21,7 @@
 
 #include "stopwatch.hpp"
 
-class payload_test_client
-{
+class payload_test_client {
 public:
     payload_test_client(bool _use_tcp, bool _call_service_sync, std::uint32_t _sliding_window_size);
     bool init();
@@ -30,9 +29,8 @@ public:
     void stop();
     void join_sender_thread();
     void on_state(vsomeip::state_type_e _state);
-    void on_availability(vsomeip::service_t _service,
-            vsomeip::instance_t _instance, bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_response);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _response);
     void send();
     void run();
 
@@ -66,7 +64,6 @@ private:
     std::condition_variable all_msg_acknowledged_cv_;
 
     std::thread sender_;
-
 };
 
 #endif /* PAYLOADTESTCLIENT_HPP_ */

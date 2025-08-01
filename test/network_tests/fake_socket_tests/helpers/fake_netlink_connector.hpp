@@ -17,16 +17,13 @@ namespace vsomeip_v3::testing {
 /**
  * Fake impl that will report that the interface is available immediately.
  **/
-class fake_netlink_connector : public abstract_netlink_connector,
-                               public std::enable_shared_from_this<fake_netlink_connector> {
+class fake_netlink_connector : public abstract_netlink_connector, public std::enable_shared_from_this<fake_netlink_connector> {
 public:
     fake_netlink_connector(boost::asio::io_context& _io) : io_(_io) { }
     ~fake_netlink_connector() { stop(); }
 
 private:
-    virtual void register_net_if_changes_handler(const net_if_changed_handler_t& _handler) {
-        handler_ = _handler;
-    }
+    virtual void register_net_if_changes_handler(const net_if_changed_handler_t& _handler) { handler_ = _handler; }
     virtual void unregister_net_if_changes_handler() { handler_ = nullptr; }
     virtual void start() {
         boost::asio::post(io_, [self = weak_from_this()] {

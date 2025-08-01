@@ -8,12 +8,12 @@
 #include <common/utility.hpp>
 
 namespace {
-    vsomeip_v3::client_t client = 1;
-    vsomeip_v3::uid_t invalid_uid = 1;
-    vsomeip_v3::uid_t valid_uid = 4004201;
-    vsomeip_v3::gid_t invalid_gid = 1;
-    vsomeip_v3::gid_t valid_gid = 4004200;
-    vsomeip_sec_ip_addr_t host_address = 0;
+vsomeip_v3::client_t client = 1;
+vsomeip_v3::uid_t invalid_uid = 1;
+vsomeip_v3::uid_t valid_uid = 4004201;
+vsomeip_v3::gid_t invalid_gid = 1;
+vsomeip_v3::gid_t valid_gid = 4004200;
+vsomeip_sec_ip_addr_t host_address = 0;
 }
 
 static void BM_check_credentials_policies_not_loaded(benchmark::State& state) {

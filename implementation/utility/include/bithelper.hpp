@@ -18,7 +18,7 @@ class bithelper {
 public:
     bithelper() = delete;
 
-    //Write Methods
+    // Write Methods
     inline static void write_uint16_be(uint16_t _value, uint8_t* _buffer) {
         if (get_endianness() != endianess_e::be) {
             _value = swap_endianness(_value);
@@ -61,7 +61,7 @@ public:
         std::memcpy(_buffer, reinterpret_cast<const uint8_t*>(&_value), sizeof(_value));
     }
 
-    //Read Methods
+    // Read Methods
     inline static uint16_t read_uint16_be(const uint8_t* _buffer) {
         uint16_t value = 0;
         std::memcpy(&value, _buffer, sizeof(value));
@@ -98,15 +98,11 @@ public:
         return get_endianness() == endianess_e::le ? value : swap_endianness(value);
     }
 
-    inline static uint16_t read_high_word(uint32_t input) {
-        return uint16_t((input >> 16) & 0xFFFF);
-    }
+    inline static uint16_t read_high_word(uint32_t input) { return uint16_t((input >> 16) & 0xFFFF); }
 
-    inline static uint16_t read_low_word(uint32_t input) {
-        return uint16_t((input) & 0xFFFF);
-    }
+    inline static uint16_t read_low_word(uint32_t input) { return uint16_t((input) & 0xFFFF); }
 
-    template <typename T>
+    template<typename T>
     static T swap_endianness(T _value) {
         static_assert(std::is_integral<T>::value, "Only integral types can be swapped");
         T swapped{};

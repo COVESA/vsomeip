@@ -10,35 +10,28 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-remote_subscription_ack::remote_subscription_ack(const boost::asio::ip::address &_address)
-    : is_complete_(false),
-      is_done_(false),
-      target_address_(_address) {
+remote_subscription_ack::remote_subscription_ack(const boost::asio::ip::address& _address) :
+    is_complete_(false), is_done_(false), target_address_(_address) {
     messages_.push_back(std::make_shared<message_impl>());
 }
 
-bool
-remote_subscription_ack::is_complete() const {
+bool remote_subscription_ack::is_complete() const {
     return is_complete_;
 }
 
-void
-remote_subscription_ack::complete() {
+void remote_subscription_ack::complete() {
     is_complete_ = true;
 }
 
-bool
-remote_subscription_ack::is_done() const {
+bool remote_subscription_ack::is_done() const {
     return is_done_;
 }
 
-void
-remote_subscription_ack::done() {
+void remote_subscription_ack::done() {
     is_done_ = true;
 }
 
-std::vector<std::shared_ptr<message_impl> >
-remote_subscription_ack::get_messages() const {
+std::vector<std::shared_ptr<message_impl>> remote_subscription_ack::get_messages() const {
     return messages_;
 }
 
@@ -51,35 +44,28 @@ std::shared_ptr<message_impl> remote_subscription_ack::add_message() {
     return messages_.back();
 }
 
-boost::asio::ip::address
-remote_subscription_ack::get_target_address() const {
+boost::asio::ip::address remote_subscription_ack::get_target_address() const {
     return target_address_;
 }
 
-bool
-remote_subscription_ack::is_pending() const {
+bool remote_subscription_ack::is_pending() const {
     for (const auto& its_subscription : subscriptions_) {
-        if (its_subscription->is_pending()
-                && its_subscription->get_answers() != 0) {
+        if (its_subscription->is_pending() && its_subscription->get_answers() != 0) {
             return true;
         }
     }
     return false;
 }
 
-std::set<std::shared_ptr<remote_subscription> >
-remote_subscription_ack::get_subscriptions() const {
+std::set<std::shared_ptr<remote_subscription>> remote_subscription_ack::get_subscriptions() const {
     return subscriptions_;
 }
 
-void
-remote_subscription_ack::add_subscription(
-        const std::shared_ptr<remote_subscription> &_subscription) {
+void remote_subscription_ack::add_subscription(const std::shared_ptr<remote_subscription>& _subscription) {
     subscriptions_.insert(_subscription);
 }
 
-bool
-remote_subscription_ack::has_subscription() const {
+bool remote_subscription_ack::has_subscription() const {
     return (0 < subscriptions_.size());
 }
 

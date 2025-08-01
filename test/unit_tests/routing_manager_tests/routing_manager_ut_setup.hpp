@@ -15,8 +15,8 @@
 
 #include "mocks/mock_routing_manager_host.hpp"
 
-class routing_manager_ut_setup : public testing::Test{
-protected :
+class routing_manager_ut_setup : public testing::Test {
+protected:
     mock_routing_manager_host mock_host_;
     vsomeip_v3::routing_manager_impl* its_manager;
     const std::string name_ = "RandomName";

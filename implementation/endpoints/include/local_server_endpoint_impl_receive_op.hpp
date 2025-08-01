@@ -15,47 +15,28 @@ namespace vsomeip_v3 {
 namespace local_endpoint_receive_op {
 
 typedef boost::asio::local::stream_protocol::socket socket_type_t;
-typedef std::function<
-    void (boost::system::error_code const &_error, size_t _size,
-          const std::uint32_t &, const std::uint32_t &)> receive_handler_t;
+typedef std::function<void(boost::system::error_code const& _error, size_t _size, const std::uint32_t&, const std::uint32_t&)>
+        receive_handler_t;
 
-struct storage :
-    public std::enable_shared_from_this<storage>
-{
-    socket_type_t &socket_;
+struct storage : public std::enable_shared_from_this<storage> {
+    socket_type_t& socket_;
     receive_handler_t handler_;
-    byte_t *buffer_ = nullptr;
+    byte_t* buffer_ = nullptr;
     size_t length_;
     uid_t uid_ = ANY_UID;
     gid_t gid_ = ANY_GID;
     size_t bytes_;
 
-    storage(
-        socket_type_t &_socket,
-        receive_handler_t _handler,
-        byte_t *_buffer,
-        size_t _length,
-        uid_t _uid,
-        gid_t _gid,
-        size_t _bytes
-    ) : socket_(_socket),
-        handler_(_handler),
-        buffer_(_buffer),
-        length_(_length),
-        uid_(_uid),
-        gid_(_gid),
-        bytes_(_bytes)
-    {}
+    storage(socket_type_t& _socket, receive_handler_t _handler, byte_t* _buffer, size_t _length, uid_t _uid, gid_t _gid, size_t _bytes) :
+        socket_(_socket), handler_(_handler), buffer_(_buffer), length_(_length), uid_(_uid), gid_(_gid), bytes_(_bytes) { }
 };
 
-inline
-std::function<void(boost::system::error_code _error)>
-receive_cb (std::shared_ptr<storage> _data) {
+inline std::function<void(boost::system::error_code _error)> receive_cb(std::shared_ptr<storage> _data) {
     return [_data](boost::system::error_code _error) {
         if (!_error) {
             if (!_data->socket_.native_non_blocking())
                 _data->socket_.native_non_blocking(true, _error);
-            #if defined(__linux__)
+#if defined(__linux__)
             for (;;) {
                 ssize_t its_result;
                 int its_flags(0);
@@ -67,7 +48,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 union {
                     struct cmsghdr cmh;
-                    char   control[CMSG_SPACE(sizeof(struct ucred))];
+                    char control[CMSG_SPACE(sizeof(struct ucred))];
                 } control_un;
 
                 // Set 'control_un' to describe ancillary data that we want to receive
@@ -85,15 +66,13 @@ receive_cb (std::shared_ptr<storage> _data) {
                 // Call recvmsg and handle its result
                 errno = 0;
                 its_result = ::recvmsg(_data->socket_.native_handle(), &its_header, its_flags);
-                _error = boost::system::error_code(its_result < 0 ? errno : 0,
-                        boost::asio::error::get_system_category());
+                _error = boost::system::error_code(its_result < 0 ? errno : 0, boost::asio::error::get_system_category());
                 _data->bytes_ += _error ? 0 : static_cast<size_t>(its_result);
 
                 if (_error == boost::asio::error::interrupted)
                     continue;
 
-                if (_error == boost::asio::error::would_block
-                        || _error == boost::asio::error::try_again) {
+                if (_error == boost::asio::error::would_block || _error == boost::asio::error::try_again) {
                     _data->socket_.async_wait(socket_type_t::wait_read, receive_cb(_data));
                     return;
                 }
@@ -105,16 +84,12 @@ receive_cb (std::shared_ptr<storage> _data) {
                     _error = boost::asio::error::eof;
 
                 // Extract credentials (UID/GID)
-                struct ucred *its_credentials;
-                for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&its_header);
-                     cmsg != NULL;
-                     cmsg = CMSG_NXTHDR(&its_header, cmsg))
-                {
-                    if (cmsg->cmsg_level == SOL_SOCKET
-                        && cmsg->cmsg_type == SCM_CREDENTIALS
+                struct ucred* its_credentials;
+                for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&its_header); cmsg != NULL; cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
+                    if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_CREDENTIALS
                         && cmsg->cmsg_len == CMSG_LEN(sizeof(struct ucred))) {
 
-                        its_credentials = (struct ucred *) CMSG_DATA(cmsg);
+                        its_credentials = (struct ucred*)CMSG_DATA(cmsg);
                         if (its_credentials) {
                             _data->uid_ = its_credentials->uid;
                             _data->gid_ = its_credentials->gid;
@@ -125,7 +100,7 @@ receive_cb (std::shared_ptr<storage> _data) {
 
                 break;
             }
-            #endif
+#endif
         }
 
         // Call the handler

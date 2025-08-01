@@ -36,12 +36,12 @@ struct service {
     npdu_time_configuration_t debounce_times_requests_;
     npdu_time_configuration_t debounce_times_responses_;
 
-    std::map<event_t, std::shared_ptr<event> > events_;
-    std::map<eventgroup_t, std::shared_ptr<eventgroup> > eventgroups_;
+    std::map<event_t, std::shared_ptr<event>> events_;
+    std::map<eventgroup_t, std::shared_ptr<eventgroup>> eventgroups_;
 
     // SOME/IP-TP
-    std::map<method_t, std::pair<uint16_t, uint32_t> > tp_client_config_;
-    std::map<method_t, std::pair<uint16_t, uint32_t> > tp_service_config_;
+    std::map<method_t, std::pair<uint16_t, uint32_t>> tp_client_config_;
+    std::map<method_t, std::pair<uint16_t, uint32_t>> tp_service_config_;
 };
 
 } // namespace cfg

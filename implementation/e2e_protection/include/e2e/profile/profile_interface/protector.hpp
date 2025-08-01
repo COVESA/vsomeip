@@ -17,8 +17,7 @@ namespace profile_interface {
 
 class protector : public profile_interface {
 public:
-    virtual void protect(e2e_buffer &_buffer,
-            instance_t _instance) = 0;
+    virtual void protect(e2e_buffer& _buffer, instance_t _instance) = 0;
 };
 
 } // namespace profile_interface

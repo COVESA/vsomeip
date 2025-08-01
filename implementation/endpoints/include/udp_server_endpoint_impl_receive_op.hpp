@@ -28,9 +28,8 @@ namespace udp_endpoint_receive_op {
 
 using socket_type_t = boost::asio::ip::udp::socket;
 using endpoint_type_t = boost::asio::ip::udp::endpoint;
-using receive_handler_t =
-        std::function<void(boost::system::error_code const&, size_t,
-                           const boost::asio::ip::udp::endpoint&, const boost::asio::ip::address&)>;
+using receive_handler_t = std::function<void(boost::system::error_code const&, size_t, const boost::asio::ip::udp::endpoint&,
+                                             const boost::asio::ip::address&)>;
 
 struct storage : public std::enable_shared_from_this<storage> {
     std::weak_ptr<socket_type_t> socket_;
@@ -41,21 +40,19 @@ struct storage : public std::enable_shared_from_this<storage> {
     boost::asio::ip::address destination_;
     size_t bytes_;
 
-    storage(std::weak_ptr<socket_type_t> _socket, receive_handler_t _handler, byte_t* _buffer,
-            size_t _length, bool _is_v4, boost::asio::ip::address _destination, size_t _bytes) :
-        socket_(std::move(_socket)), handler_(std::move(_handler)), buffer_(_buffer),
-        length_(_length), is_v4_(_is_v4), destination_(std::move(_destination)), bytes_(_bytes) { }
+    storage(std::weak_ptr<socket_type_t> _socket, receive_handler_t _handler, byte_t* _buffer, size_t _length, bool _is_v4,
+            boost::asio::ip::address _destination, size_t _bytes) :
+        socket_(std::move(_socket)), handler_(std::move(_handler)), buffer_(_buffer), length_(_length), is_v4_(_is_v4),
+        destination_(std::move(_destination)), bytes_(_bytes) { }
 
-    static bool receive_cb(const std::shared_ptr<storage>& _data,
-                           boost::system::error_code _error_code) {
+    static bool receive_cb(const std::shared_ptr<storage>& _data, boost::system::error_code _error_code) {
         endpoint_type_t sender;
 
         if (!_error_code) {
 
             auto multicast_socket = _data->socket_.lock();
             if (!multicast_socket) {
-                VSOMEIP_WARNING
-                        << "udp_endpoint_receive_op::receive_cb: multicast_socket has expired!";
+                VSOMEIP_WARNING << "udp_endpoint_receive_op::receive_cb: multicast_socket has expired!";
                 return false;
             }
 
@@ -68,14 +65,13 @@ struct storage : public std::enable_shared_from_this<storage> {
                 GUID WSARecvMsg_GUID = WSAID_WSARECVMSG;
                 LPFN_WSARECVMSG WSARecvMsg;
                 DWORD its_bytes;
-                SOCKET its_socket {multicast_socket->native_handle()};
+                SOCKET its_socket{multicast_socket->native_handle()};
 
-                WSAIoctl(its_socket, SIO_GET_EXTENSION_FUNCTION_POINTER, &WSARecvMsg_GUID,
-                         sizeof WSARecvMsg_GUID, &WSARecvMsg, sizeof WSARecvMsg, &its_bytes,
-                         nullptr, nullptr);
+                WSAIoctl(its_socket, SIO_GET_EXTENSION_FUNCTION_POINTER, &WSARecvMsg_GUID, sizeof WSARecvMsg_GUID, &WSARecvMsg,
+                         sizeof WSARecvMsg, &its_bytes, nullptr, nullptr);
 
                 int its_result;
-                int its_flags {0};
+                int its_flags{0};
 
                 WSABUF its_buf;
                 WSAMSG its_msg;
@@ -119,15 +115,13 @@ struct storage : public std::enable_shared_from_this<storage> {
                 errno = 0;
                 its_result = WSARecvMsg(its_socket, &its_msg, &its_bytes, nullptr, nullptr);
 
-                _error_code = boost::system::error_code(its_result < 0 ? errno : 0,
-                                                        boost::asio::error::get_system_category());
+                _error_code = boost::system::error_code(its_result < 0 ? errno : 0, boost::asio::error::get_system_category());
                 _data->bytes_ += _error_code ? 0 : static_cast<size_t>(its_bytes);
 
                 if (_error_code == boost::asio::error::interrupted)
                     continue;
 
-                if (_error_code == boost::asio::error::would_block
-                    || _error_code == boost::asio::error::in_progress
+                if (_error_code == boost::asio::error::would_block || _error_code == boost::asio::error::in_progress
                     || _error_code == boost::asio::error::try_again) {
                     return true;
                 }
@@ -147,16 +141,14 @@ struct storage : public std::enable_shared_from_this<storage> {
 
                     // destination
                     struct in_pktinfo* its_pktinfo_v4;
-                    for (struct cmsghdr* cmsg = WSA_CMSG_FIRSTHDR(&its_msg); cmsg != nullptr;
-                         cmsg = WSA_CMSG_NXTHDR(&its_msg, cmsg)) {
+                    for (struct cmsghdr* cmsg = WSA_CMSG_FIRSTHDR(&its_msg); cmsg != nullptr; cmsg = WSA_CMSG_NXTHDR(&its_msg, cmsg)) {
 
                         if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO
                             && cmsg->cmsg_len == CMSG_LEN(sizeof(*its_pktinfo_v4))) {
 
                             its_pktinfo_v4 = (struct in_pktinfo*)WSA_CMSG_DATA(cmsg);
                             if (its_pktinfo_v4) {
-                                _data->destination_ = boost::asio::ip::address_v4(
-                                        ntohl(its_pktinfo_v4->ipi_addr.s_addr));
+                                _data->destination_ = boost::asio::ip::address_v4(ntohl(its_pktinfo_v4->ipi_addr.s_addr));
                                 break;
                             }
                         }
@@ -172,8 +164,7 @@ struct storage : public std::enable_shared_from_this<storage> {
                     sender = endpoint_type_t(its_sender_address, its_sender_port);
 
                     struct in6_pktinfo* its_pktinfo_v6;
-                    for (struct cmsghdr* cmsg = WSA_CMSG_FIRSTHDR(&its_msg); cmsg != nullptr;
-                         cmsg = CMSG_NXTHDR(&its_msg, cmsg)) {
+                    for (struct cmsghdr* cmsg = WSA_CMSG_FIRSTHDR(&its_msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&its_msg, cmsg)) {
 
                         if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO
                             && cmsg->cmsg_len == WSA_CMSG_LEN(sizeof(*its_pktinfo_v6))) {
@@ -191,8 +182,8 @@ struct storage : public std::enable_shared_from_this<storage> {
 
                 break;
 #else
-                ssize_t its_result {-1};
-                int its_flags {0};
+                ssize_t its_result{-1};
+                int its_flags{0};
 
                 // Create control elements
                 struct msghdr its_header = {};
@@ -209,8 +200,7 @@ struct storage : public std::enable_shared_from_this<storage> {
                 // Sender & destination address info
                 struct sockaddr_in addr_v4 = {};
                 struct sockaddr_in6 addr_v6 = {};
-                uint8_t control_data[CMSG_SPACE(
-                        std::max(sizeof(struct in_pktinfo), sizeof(struct in6_pktinfo)))];
+                uint8_t control_data[CMSG_SPACE(std::max(sizeof(struct in_pktinfo), sizeof(struct in6_pktinfo)))];
 
                 // Prepare
                 if (_data->is_v4_) {
@@ -231,16 +221,14 @@ struct storage : public std::enable_shared_from_this<storage> {
                 errno = 0;
                 its_result = ::recvmsg(multicast_socket->native_handle(), &its_header, its_flags);
 
-                _error_code = boost::system::error_code(its_result < 0 ? errno : 0,
-                                                        boost::asio::error::get_system_category());
+                _error_code = boost::system::error_code(its_result < 0 ? errno : 0, boost::asio::error::get_system_category());
                 _data->bytes_ += _error_code ? 0 : static_cast<size_t>(its_result);
 
                 if (_error_code == boost::asio::error::interrupted) {
                     continue;
                 }
 
-                if (_error_code == boost::asio::error::would_block
-                    || _error_code == boost::asio::error::in_progress
+                if (_error_code == boost::asio::error::would_block || _error_code == boost::asio::error::in_progress
                     || _error_code == boost::asio::error::try_again) {
                     return true;
                 }
@@ -261,17 +249,14 @@ struct storage : public std::enable_shared_from_this<storage> {
                     sender = endpoint_type_t(its_sender_address, its_sender_port);
 
                     // destination
-                    for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&its_header); cmsg != nullptr;
-                         cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
+                    for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&its_header); cmsg != nullptr; cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
 
                         if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO
                             && cmsg->cmsg_len == CMSG_LEN(sizeof(struct in_pktinfo))) {
 
-                            auto its_pktinfo_v4 =
-                                    reinterpret_cast<const struct in_pktinfo*>(CMSG_DATA(cmsg));
+                            auto its_pktinfo_v4 = reinterpret_cast<const struct in_pktinfo*>(CMSG_DATA(cmsg));
                             if (its_pktinfo_v4) {
-                                _data->destination_ = boost::asio::ip::address_v4(
-                                        ntohl(its_pktinfo_v4->ipi_addr.s_addr));
+                                _data->destination_ = boost::asio::ip::address_v4(ntohl(its_pktinfo_v4->ipi_addr.s_addr));
                                 break;
                             }
                         }
@@ -287,14 +272,12 @@ struct storage : public std::enable_shared_from_this<storage> {
                     in_port_t its_sender_port(ntohs(addr_v6.sin6_port));
                     sender = endpoint_type_t(its_sender_address, its_sender_port);
 
-                    for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&its_header); cmsg != nullptr;
-                         cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
+                    for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&its_header); cmsg != nullptr; cmsg = CMSG_NXTHDR(&its_header, cmsg)) {
 
                         if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO
                             && cmsg->cmsg_len == CMSG_LEN(sizeof(struct in6_pktinfo))) {
 
-                            auto its_pktinfo_v6 =
-                                    reinterpret_cast<const struct in6_pktinfo*>(CMSG_DATA(cmsg));
+                            auto its_pktinfo_v6 = reinterpret_cast<const struct in6_pktinfo*>(CMSG_DATA(cmsg));
                             if (its_pktinfo_v6) {
                                 for (size_t i = 0; i < its_bytes.size(); i++) {
                                     its_bytes[i] = its_pktinfo_v6->ipi6_addr.s6_addr[i];

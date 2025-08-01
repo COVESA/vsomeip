@@ -13,13 +13,12 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-class ip_option_impl
-        : public option_impl {
+class ip_option_impl : public option_impl {
 public:
     ip_option_impl();
     ip_option_impl(const uint16_t _port, const bool _is_reliable);
     virtual ~ip_option_impl();
-    bool equals(const option_impl &_other) const;
+    bool equals(const option_impl& _other) const;
 
     uint16_t get_port() const;
     void set_port(uint16_t _port);
@@ -29,8 +28,8 @@ public:
 
     virtual bool is_multicast() const = 0;
 
-    virtual bool serialize(vsomeip_v3::serializer *_to) const = 0;
-    virtual bool deserialize(vsomeip_v3::deserializer *_from) = 0;
+    virtual bool serialize(vsomeip_v3::serializer* _to) const = 0;
+    virtual bool deserialize(vsomeip_v3::deserializer* _from) = 0;
 
 protected:
     layer_four_protocol_e protocol_;
@@ -41,4 +40,3 @@ protected:
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_SD_IP_OPTION_IMPL_HPP_
-

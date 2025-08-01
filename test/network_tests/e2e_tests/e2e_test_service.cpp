@@ -15,12 +15,8 @@ std::vector<std::vector<vsomeip::byte_t>> payloads_custom_profile_;
 std::map<vsomeip::method_t, uint32_t> received_requests_counters_;
 
 e2e_test_service::e2e_test_service() :
-    app_(vsomeip::runtime::get()->create_application()),
-    is_registered_(false),
-    blocked_(false),
-    number_of_received_messages_(0),
-    offer_thread_(std::bind(&e2e_test_service::run, this)) {
-}
+    app_(vsomeip::runtime::get()->create_application()), is_registered_(false), blocked_(false), number_of_received_messages_(0),
+    offer_thread_(std::bind(&e2e_test_service::run, this)) { }
 
 bool e2e_test_service::init() {
     std::lock_guard<std::mutex> its_lock(mutex_);
@@ -30,26 +26,19 @@ bool e2e_test_service::init() {
         return false;
     }
     // profile01 CRC8 Method ID: 0x8421
-    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
-            std::bind(&e2e_test_service::on_message, this,
-                    std::placeholders::_1));
+    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                                   vsomeip_test::TEST_SERVICE_METHOD_ID,
+                                   std::bind(&e2e_test_service::on_message, this, std::placeholders::_1));
 
     // custom profile CRC32 Method ID: 0x6543
-    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x6543,
-            std::bind(&e2e_test_service::on_message, this,
-                    std::placeholders::_1));
+    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x6543,
+                                   std::bind(&e2e_test_service::on_message, this, std::placeholders::_1));
 
-    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-            vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-            vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN,
-            std::bind(&e2e_test_service::on_message_shutdown, this,
-                    std::placeholders::_1));
+    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                                   vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN,
+                                   std::bind(&e2e_test_service::on_message_shutdown, this, std::placeholders::_1));
 
-    app_->register_state_handler(
-            std::bind(&e2e_test_service::on_state, this,
-                    std::placeholders::_1));
+    app_->register_state_handler(std::bind(&e2e_test_service::on_state, this, std::placeholders::_1));
 
     // offer field 0x8001 eventgroup 0x01
     std::set<vsomeip::eventgroup_t> its_eventgroups;
@@ -60,38 +49,34 @@ bool e2e_test_service::init() {
     its_eventgroups_2.insert(0x02);
 
     // profile01 CRC8 Event ID: 0x8001
-    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8001), its_eventgroups,
-                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
+                      its_eventgroups, vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
+                      vsomeip::reliability_type_e::RT_UNRELIABLE);
 
     // set value to field which gets filled by e2e protection  with CRC on sending
     // after e2e protection the payload for first event should look like:
     // {{0xa4, 0xa1, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff}
-    std::shared_ptr<vsomeip::payload> its_payload =
-            vsomeip::runtime::get()->create_payload();
+    std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
     vsomeip::byte_t its_data[8] = {0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff};
     its_payload->set_data(its_data, 8);
 
-    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-            static_cast<vsomeip::event_t>(0x8001), its_payload);
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
+                 its_payload);
 
     // custom profile CRC32 Event ID: 0x8002
-    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8002), its_eventgroups_2,
-                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8002),
+                      its_eventgroups_2, vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
+                      vsomeip::reliability_type_e::RT_UNRELIABLE);
 
     // set value to field which gets filled by e2e protection  with CRC on sending
     // after e2e protection the payload for first event should look like:
     // {{0x89, 0x0e, 0xbc, 0x80, 0xff, 0xff, 0x00, 0x32}
-    std::shared_ptr<vsomeip::payload> its_payload_8002 =
-            vsomeip::runtime::get()->create_payload();
+    std::shared_ptr<vsomeip::payload> its_payload_8002 = vsomeip::runtime::get()->create_payload();
     vsomeip::byte_t its_data_8002[8] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x32};
     its_payload_8002->set_data(its_data_8002, 8);
 
-    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-            static_cast<vsomeip::event_t>(0x8002), its_payload_8002);
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8002),
+                 its_payload_8002);
 
     return true;
 }
@@ -123,19 +108,17 @@ void e2e_test_service::stop_offer() {
 
 void e2e_test_service::on_state(vsomeip::state_type_e _state) {
     VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-            << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." :
-                    "deregistered.");
+                 << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
-    if(_state == vsomeip::state_type_e::ST_REGISTERED) {
-        if(!is_registered_) {
+    if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+        if (!is_registered_) {
             is_registered_ = true;
             std::lock_guard<std::mutex> its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();
         }
-    }
-    else {
+    } else {
         is_registered_ = false;
     }
 }
@@ -144,53 +127,49 @@ void e2e_test_service::on_message(const std::shared_ptr<vsomeip::message>& _requ
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_SERVICE_ID, _request->get_service());
     ASSERT_EQ(vsomeip_test::TEST_SERVICE_INSTANCE_ID, _request->get_instance());
 
-    VSOMEIP_INFO << "Received a message with Client/Session [" 
-        << std::hex << std::setfill('0') 
-        << std::setw(4) << _request->get_client() << "/"
-        << std::setw(4) << _request->get_session() << "] method: "
-        << std::setw(4) << _request->get_method() ;
+    VSOMEIP_INFO << "Received a message with Client/Session [" << std::hex << std::setfill('0') << std::setw(4) << _request->get_client()
+                 << "/" << std::setw(4) << _request->get_session() << "] method: " << std::setw(4) << _request->get_method();
 
-    std::shared_ptr<vsomeip::message> its_response =
-            vsomeip::runtime::get()->create_response(_request);
-    std::shared_ptr< vsomeip::payload > its_vsomeip_payload =
-            vsomeip::runtime::get()->create_payload();
-    std::shared_ptr<vsomeip::payload> its_event_payload =
-            vsomeip::runtime::get()->create_payload();
+    std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_request);
+    std::shared_ptr<vsomeip::payload> its_vsomeip_payload = vsomeip::runtime::get()->create_payload();
+    std::shared_ptr<vsomeip::payload> its_event_payload = vsomeip::runtime::get()->create_payload();
 
     // send fixed payload for profile 01 CRC8
     if (_request->get_method() == vsomeip_test::TEST_SERVICE_METHOD_ID) {
-        its_vsomeip_payload->set_data(payloads_profile_01_[received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
+        its_vsomeip_payload->set_data(payloads_profile_01_[received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID]
+                                                           % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
         its_response->set_payload(its_vsomeip_payload);
         app_->send(its_response);
 
         // set value to field which gets filled by e2e protection with CRC on sending
-        vsomeip::byte_t its_data[8] = {0x00, 0x00, (uint8_t)received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID], 0xff, 0xff, 0xff, 0xff, 0xff};
+        vsomeip::byte_t its_data[8] = {
+                0x00, 0x00, (uint8_t)received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID], 0xff, 0xff, 0xff, 0xff, 0xff};
         its_event_payload->set_data(its_data, 8);
-        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8001), its_event_payload);
+        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
+                     its_event_payload);
         received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID]++;
     } else if (_request->get_method() == 0x6543) {
-        //send fixed payload for custom profile CRC32
-        its_vsomeip_payload->set_data(payloads_custom_profile_[received_requests_counters_[0x6543] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
+        // send fixed payload for custom profile CRC32
+        its_vsomeip_payload->set_data(
+                payloads_custom_profile_[received_requests_counters_[0x6543] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
         its_response->set_payload(its_vsomeip_payload);
         app_->send(its_response);
 
         // set value to field which gets filled by e2e protection with 4 byte CRC 32 on sending
         vsomeip::byte_t its_data[8] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, (uint8_t)received_requests_counters_[0x6543], 0x32};
         its_event_payload->set_data(its_data, 8);
-        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                static_cast<vsomeip::event_t>(0x8002), its_event_payload);
+        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8002),
+                     its_event_payload);
         received_requests_counters_[0x6543]++;
     }
 
     number_of_received_messages_++;
-    if(number_of_received_messages_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND * 2) {
+    if (number_of_received_messages_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND * 2) {
         VSOMEIP_INFO << "Received all messages!";
     }
 }
 
-void e2e_test_service::on_message_shutdown(
-        const std::shared_ptr<vsomeip::message>& _request) {
+void e2e_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request) {
     (void)_request;
     VSOMEIP_INFO << "Shutdown method was called, going down now.";
     stop();
@@ -200,7 +179,7 @@ void e2e_test_service::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
     while (!blocked_)
         condition_.wait(its_lock);
-   offer();
+    offer();
 }
 
 TEST(someip_e2e_test, basic_subscribe_request_response) {
@@ -267,32 +246,24 @@ int main(int argc, char** argv) {
     std::string help("--help");
 
     int i = 1;
-    while (i < argc)
-    {
-        if(test_remote == argv[i])
-        {
+    while (i < argc) {
+        if (test_remote == argv[i]) {
             is_remote_test = true;
-        }
-        else if(test_local == argv[i])
-        {
+        } else if (test_local == argv[i]) {
             is_remote_test = false;
-        }
-        else if(test_allow_remote_client == argv[i])
-        {
+        } else if (test_allow_remote_client == argv[i]) {
             remote_client_allowed = true;
-        }
-        else if(test_deny_remote_client == argv[i])
-        {
+        } else if (test_deny_remote_client == argv[i]) {
             remote_client_allowed = false;
-        }
-        else if(help == argv[i])
-        {
+        } else if (help == argv[i]) {
             VSOMEIP_INFO << "Parameters:\n"
-            << "--remote: Run test between two hosts\n"
-            << "--local: Run test locally\n"
-            << "--allow: test is started with a policy that allows remote messages sent by this test client to the service\n"
-            << "--deny: test is started with a policy that denies remote messages sent by this test client to the service\n"
-            << "--help: print this help";
+                         << "--remote: Run test between two hosts\n"
+                         << "--local: Run test locally\n"
+                         << "--allow: test is started with a policy that allows remote messages "
+                            "sent by this test client to the service\n"
+                         << "--deny: test is started with a policy that denies remote messages "
+                            "sent by this test client to the service\n"
+                         << "--help: print this help";
         }
         i++;
     }

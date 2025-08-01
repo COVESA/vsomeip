@@ -21,4 +21,3 @@ enum class error_code_e : uint8_t {
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_ERROR_HPP_
-

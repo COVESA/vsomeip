@@ -84,9 +84,7 @@ struct base_fake_socket_fixture : ::testing::Test {
      * @ret true, if the application is awaiting a connection within the passed in timeout,
      *      false, else.
      */
-    [[nodiscard]] bool
-    await_connectable(std::string const& _name,
-                      std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+    [[nodiscard]] bool await_connectable(std::string const& _name, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
      * Waits until _timeout expires or the application identified by _from and _to established a
@@ -95,9 +93,8 @@ struct base_fake_socket_fixture : ::testing::Test {
      * @ret true, if the application is awaiting a connection within the passed in timeout,
      *      false, else.
      */
-    [[nodiscard]] bool
-    await_connection(std::string const& _from, std::string const& _to,
-                     std::chrono::milliseconds _timeout = std::chrono::seconds(1));
+    [[nodiscard]] bool await_connection(std::string const& _from, std::string const& _to,
+                                        std::chrono::milliseconds _timeout = std::chrono::seconds(1));
 
     /**
      * Searches for a connection in which _from_name connected to an accepting _to_name.
@@ -113,10 +110,8 @@ struct base_fake_socket_fixture : ::testing::Test {
      * @ret true, if the passed in errors were successfully injected (note two nullopts are always
      *successfully injected) false, else
      **/
-    [[nodiscard]] bool disconnect(std::string const& _from_name,
-                                  std::optional<boost::system::error_code> _from_error,
-                                  std::string const& _to_name,
-                                  std::optional<boost::system::error_code> _to_error);
+    [[nodiscard]] bool disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
+                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error);
 
     /**
      * @see socket_manager::connection_count()
@@ -126,8 +121,7 @@ struct base_fake_socket_fixture : ::testing::Test {
     /**
      * @see socket_manager::report_on_connect()
      **/
-    void report_on_connect(std::string const& _app_name,
-                           std::vector<boost::system::error_code> _next_errors);
+    void report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors);
 
     /**
      * @see socket_manager::ignore_connections()
@@ -142,20 +136,17 @@ struct base_fake_socket_fixture : ::testing::Test {
     /**
      * @see socket_manager::delay_message_processing()
      **/
-    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to,
-                                                bool _delay);
+    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay);
 
     /**
      * @see socket_manager::block_on_close_for()
      **/
-    [[nodiscard]] bool block_on_close_for(std::string const& _from,
-                                          std::optional<std::chrono::milliseconds> _from_block_time,
-                                          std::string const& _to,
-                                          std::optional<std::chrono::milliseconds> _to_block_time);
+    [[nodiscard]] bool block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
+                                          std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time);
 
 private:
     static std::shared_ptr<fake_socket_factory> factory_;
-    std::shared_ptr<socket_manager> socket_manager_ {std::make_shared<socket_manager>()};
+    std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
     std::map<std::string, std::unique_ptr<app>> name_to_client_;
 };
 }

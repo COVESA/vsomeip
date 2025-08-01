@@ -6,8 +6,7 @@
 
 #include <vsomeip/application.hpp>
 
-struct applet : public std::enable_shared_from_this<applet>
-{
+struct applet : public std::enable_shared_from_this<applet> {
 protected:
     std::shared_ptr<vsomeip_v3::application> application;
 

@@ -9,11 +9,8 @@ namespace vsomeip_v3 {
 namespace cfg {
 
 struct watchdog {
-    watchdog()
-        : is_enabeled_(false),
-          timeout_in_ms_(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT),
-          missing_pongs_allowed_(VSOMEIP_DEFAULT_MAX_MISSING_PONGS) {
-    }
+    watchdog() :
+        is_enabeled_(false), timeout_in_ms_(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT), missing_pongs_allowed_(VSOMEIP_DEFAULT_MAX_MISSING_PONGS) { }
 
     bool is_enabeled_;
     uint32_t timeout_in_ms_;

@@ -26,8 +26,7 @@ char const* to_string(socket_role role) {
 }
 
 std::ostream& operator<<(std::ostream& o, socket_id const& _id) {
-    return o << "{fd: " << _id.fd_ << ", role: " << to_string(_id.role_)
-             << ", app: " << _id.app_name_ << "}";
+    return o << "{fd: " << _id.fd_ << ", role: " << to_string(_id.role_) << ", app: " << _id.app_name_ << "}";
 }
 
 fake_tcp_socket_handle::fake_tcp_socket_handle(boost::asio::io_context& _io) : io_(_io) { }
@@ -65,9 +64,7 @@ void fake_tcp_socket_handle::close() {
         protocol_type_ = std::nullopt;
         if (receptor_) {
             TEST_LOG << "[fake-socket] posting operation_aborted on: " << socket_id_;
-            boost::asio::post(io_, [handler = std::move(receptor_->handler_)] {
-                handler(boost::asio::error::operation_aborted, 0);
-            });
+            boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::operation_aborted, 0); });
             receptor_ = std::nullopt;
         }
         return remote;
@@ -80,8 +77,7 @@ void fake_tcp_socket_handle::close() {
         return block_on_close_time_;
     }();
     if (block_time) {
-        TEST_LOG << "[fake-socket] delaying close procesesing for: " << socket_id_
-                 << " by: " << block_time->count() << "ms";
+        TEST_LOG << "[fake-socket] delaying close procesesing for: " << socket_id_ << " by: " << block_time->count() << "ms";
         std::this_thread::sleep_for(*block_time);
         TEST_LOG << "[fake-socket] continuing close procesesing for: " << socket_id_;
     }
@@ -114,33 +110,28 @@ boost::asio::ip::tcp::endpoint fake_tcp_socket_handle::remote_endpoint() {
 
 void fake_tcp_socket_handle::disconnect(std::optional<boost::system::error_code> _ec) {
     auto const lock = std::scoped_lock(mtx_);
-    TEST_LOG << "[fake-socket] calling disconnect on: " << socket_id_
-             << " with: " << (_ec ? _ec->message() : "nullopt");
+    TEST_LOG << "[fake-socket] calling disconnect on: " << socket_id_ << " with: " << (_ec ? _ec->message() : "nullopt");
     connected_socket_ = {};
     if (!_ec) {
         return;
     }
     if (!receptor_) {
-        TEST_LOG << "[fake-socket] Error on disconnect on: " << socket_id_
-                 << " no receptor set, stashing the error: " << _ec->message();
+        TEST_LOG << "[fake-socket] Error on disconnect on: " << socket_id_ << " no receptor set, stashing the error: " << _ec->message();
         stashed_ec_ = _ec;
         return;
     }
-    boost::asio::post(io_,
-                      [ec = *_ec, handler = std::move(receptor_->handler_)] { handler(ec, 0); });
+    boost::asio::post(io_, [ec = *_ec, handler = std::move(receptor_->handler_)] { handler(ec, 0); });
     receptor_ = std::nullopt;
     return;
 }
 void fake_tcp_socket_handle::delay_processing(bool _delay) {
     auto const lock = std::scoped_lock(mtx_);
-    TEST_LOG << "[fake-socket] setting delay_processing: " << (_delay ? "true" : "false")
-             << " on: " << socket_id_;
+    TEST_LOG << "[fake-socket] setting delay_processing: " << (_delay ? "true" : "false") << " on: " << socket_id_;
     delay_processing_ = _delay;
     update_reception();
 }
 
-void fake_tcp_socket_handle::block_on_close_for(
-        std::optional<std::chrono::milliseconds> _block_time) {
+void fake_tcp_socket_handle::block_on_close_for(std::optional<std::chrono::milliseconds> _block_time) {
     auto const lock = std::scoped_lock(mtx_);
     block_on_close_time_ = _block_time;
 }
@@ -154,28 +145,23 @@ void fake_tcp_socket_handle::inner_close() {
         // managed, and could be implicitly deleted by the io_context in production
         // code, but within the test this "only" means that the io_context went
         // out of scope :/.
-        boost::asio::post(io_, [handler = std::move(receptor_->handler_)] {
-            handler(boost::asio::error::connection_reset, 0);
-        });
+        boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
         receptor_ = std::nullopt;
     } else {
-        TEST_LOG << "[fake-socket] WARNING: calling inner_close on: " << socket_id_
-                 << " could not forward the connection_reset";
+        TEST_LOG << "[fake-socket] WARNING: calling inner_close on: " << socket_id_ << " could not forward the connection_reset";
     }
     connected_socket_ = {};
 }
 
-void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep,
-                                     connect_handler _handler) {
+void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, connect_handler _handler) {
     auto sm = [&]() -> std::shared_ptr<socket_manager> {
         auto const lock = std::scoped_lock(mtx_);
         return socket_manager_.lock();
     }();
 
     if (sm) {
-        sm->connect(_ep, *this, [this, h = std::move(_handler)](auto ec) {
-            boost::asio::post(io_, [handler = std::move(h), ec] { handler(ec); });
-        });
+        sm->connect(_ep, *this,
+                    [this, h = std::move(_handler)](auto ec) { boost::asio::post(io_, [handler = std::move(h), ec] { handler(ec); }); });
         return;
     }
     boost::asio::post(io_, [handler = std::move(_handler)] {
@@ -209,8 +195,7 @@ void fake_tcp_socket_handle::clear_handler() {
     _connecting.remote_ep_ = local_ep_;
     _connecting.socket_id_.role_ = socket_role::sender;
 
-    TEST_LOG << "[fake-socket] Established connection: " << _connecting.socket_id_ << " -> "
-             << socket_id_;
+    TEST_LOG << "[fake-socket] Established connection: " << _connecting.socket_id_ << " -> " << socket_id_;
     return true;
 }
 
@@ -231,8 +216,7 @@ void fake_tcp_socket_handle::clear_handler() {
     return to_connected.get() == this && connected_socket.get() == to.get();
 }
 
-void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const& _buffer,
-                                   rw_handler _handler) {
+void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const& _buffer, rw_handler _handler) {
     auto receiver = [&]() -> std::shared_ptr<fake_tcp_socket_handle> {
         auto const lock = std::scoped_lock(mtx_);
         return connected_socket_.lock();
@@ -253,31 +237,25 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
     });
 }
 
-void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer,
-                                           rw_handler _handler) {
+void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) {
     auto const lock = std::scoped_lock(mtx_);
     if (stashed_ec_) {
-        TEST_LOG << "[fake-socket] Injecting on: " << socket_id_
-                 << ", the stashed error: " << stashed_ec_->message();
-        boost::asio::post(io_,
-                          [ec = *stashed_ec_, handler = std::move(_handler)] { handler(ec, 0); });
+        TEST_LOG << "[fake-socket] Injecting on: " << socket_id_ << ", the stashed error: " << stashed_ec_->message();
+        boost::asio::post(io_, [ec = *stashed_ec_, handler = std::move(_handler)] { handler(ec, 0); });
         stashed_ec_ = std::nullopt;
     }
     if (auto remote = connected_socket_.lock(); !remote) {
         TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
-        boost::asio::post(io_, [handler = std::move(_handler)] {
-            handler(boost::asio::error::connection_reset, 0);
-        });
+        boost::asio::post(io_, [handler = std::move(_handler)] { handler(boost::asio::error::connection_reset, 0); });
         return;
     }
-    receptor_ = Receptor {std::move(_buffer), std::move(_handler)};
+    receptor_ = Receptor{std::move(_buffer), std::move(_handler)};
     update_reception();
 }
 
 size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer) {
     size_t const incoming_size =
-            std::accumulate(_buffer.begin(), _buffer.end(), 0,
-                            [](auto last, auto const& bf) { return last + bf.size(); });
+            std::accumulate(_buffer.begin(), _buffer.end(), 0, [](auto last, auto const& bf) { return last + bf.size(); });
     auto const lock = std::scoped_lock(mtx_);
     input_data_.reserve(input_data_.size() + incoming_size);
     for (auto const& buffer : _buffer) {
@@ -301,8 +279,7 @@ void fake_tcp_socket_handle::update_reception() {
         return;
     }
     if (receptor_->buffer_.size() < input_data_.size()) {
-        TEST_LOG << "[fake-socket] Input data too much for buffer, chopping input for: "
-                 << socket_id_ << "(r: " << input_data_.size()
+        TEST_LOG << "[fake-socket] Input data too much for buffer, chopping input for: " << socket_id_ << "(r: " << input_data_.size()
                  << " bytes, buffer_size: " << receptor_->buffer_.size() << " bytes)";
     }
 
@@ -387,16 +364,15 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
         });
         return;
     }
-    TEST_LOG << "[fake-acceptor] fd: " << fd_
-             << ", is awaiting connections with fd: " << fake_socket->state_->fd();
-    connection_ = connection {fake_socket->state_, std::move(_handler)};
+    TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", is awaiting connections with fd: " << fake_socket->state_->fd();
+    connection_ = connection{fake_socket->state_, std::move(_handler)};
     if (auto const sm = socket_manager_.lock(); sm) {
         sm->awaiting();
     }
 }
 
-[[nodiscard]] std::shared_ptr<fake_tcp_socket_handle>
-fake_tcp_acceptor_handle::connect(fake_tcp_socket_handle& _state, connect_handler _handler) {
+[[nodiscard]] std::shared_ptr<fake_tcp_socket_handle> fake_tcp_acceptor_handle::connect(fake_tcp_socket_handle& _state,
+                                                                                        connect_handler _handler) {
     // because the socket_handle will never call the acceptor there is no risk of a dead-lock,
     // in case the mutex of the acceptor is hold while invoking methods from a socket_handle.
     auto const lock = std::scoped_lock(mtx_);

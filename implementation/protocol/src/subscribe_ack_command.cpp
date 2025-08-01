@@ -8,10 +8,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-subscribe_ack_command::subscribe_ack_command()
-    : subscribe_ack_command_base(id_e::SUBSCRIBE_ACK_ID) {
-
-}
+subscribe_ack_command::subscribe_ack_command() : subscribe_ack_command_base(id_e::SUBSCRIBE_ACK_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

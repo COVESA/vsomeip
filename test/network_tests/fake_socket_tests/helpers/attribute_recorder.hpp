@@ -36,8 +36,7 @@ public:
     }
 
     template<typename Predicate>
-    [[nodiscard]] bool wait_for(Predicate p,
-                                std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+    [[nodiscard]] bool wait_for(Predicate p, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
         auto lock = std::unique_lock(mtx_);
         if (p(record_)) {
             return true;
@@ -45,12 +44,10 @@ public:
         return cv_.wait_for(lock, timeout, [&] { return p(record_); });
     }
 
-    [[nodiscard]] bool wait_for(Value const& _value,
-                                std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+    [[nodiscard]] bool wait_for(Value const& _value, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
         return wait_for(
                 [&](auto const& record) {
-                    return std::any_of(record.begin(), record.end(),
-                                       [&](auto const& rec) { return rec == _value; });
+                    return std::any_of(record.begin(), record.end(), [&](auto const& rec) { return rec == _value; });
                 },
                 timeout);
     }

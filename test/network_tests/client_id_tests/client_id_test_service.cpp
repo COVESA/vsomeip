@@ -21,46 +21,33 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-
 class client_id_test_service : public vsomeip_utilities::base_logger {
 public:
     client_id_test_service(struct client_id_test::service_info _service_info) :
-            vsomeip_utilities::base_logger("CITS", "CLIENT ID TEST SERVICE"),
-            service_info_(_service_info),
-            app_(vsomeip::runtime::get()->create_application()),
-            blocked_(false),
-            offer_thread_(std::bind(&client_id_test_service::run, this)),
-            stopped_(false),
-            stop_thread_(std::bind(&client_id_test_service::wait_for_stop, this)) {
+        vsomeip_utilities::base_logger("CITS", "CLIENT ID TEST SERVICE"), service_info_(_service_info),
+        app_(vsomeip::runtime::get()->create_application()), blocked_(false), offer_thread_(std::bind(&client_id_test_service::run, this)),
+        stopped_(false), stop_thread_(std::bind(&client_id_test_service::wait_for_stop, this)) {
         if (!app_->init()) {
             offer_thread_.detach();
             stop_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&client_id_test_service::on_state, this,
-                        std::placeholders::_1));
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.method_id,
-                std::bind(&client_id_test_service::on_request, this,
-                        std::placeholders::_1));
-        app_->register_message_handler(vsomeip::ANY_SERVICE,
-                service_info_.instance_id, vsomeip::ANY_METHOD,
-                std::bind(&client_id_test_service::on_response, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&client_id_test_service::on_state, this, std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.method_id,
+                                       std::bind(&client_id_test_service::on_request, this, std::placeholders::_1));
+        app_->register_message_handler(vsomeip::ANY_SERVICE, service_info_.instance_id, vsomeip::ANY_METHOD,
+                                       std::bind(&client_id_test_service::on_response, this, std::placeholders::_1));
 
-        for(const auto& i : client_id_test::service_infos) {
-            if ((i.service_id == service_info_.service_id
-                    && i.instance_id == service_info_.instance_id)
-                    || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
+        for (const auto& i : client_id_test::service_infos) {
+            if ((i.service_id == service_info_.service_id && i.instance_id == service_info_.instance_id)
+                || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                 continue;
             }
             app_->request_service(i.service_id, i.instance_id);
             app_->register_availability_handler(i.service_id, i.instance_id,
-                    std::bind(&client_id_test_service::on_availability, this,
-                            std::placeholders::_1, std::placeholders::_2,
-                            std::placeholders::_3));
+                                                std::bind(&client_id_test_service::on_availability, this, std::placeholders::_1,
+                                                          std::placeholders::_2, std::placeholders::_3));
 
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             other_services_received_response_[std::make_pair(i.service_id, i.method_id)] = 0;
@@ -79,18 +66,13 @@ public:
         }
     }
 
-    void offer() {
-        app_->offer_service(service_info_.service_id, service_info_.instance_id);
-    }
+    void offer() { app_->offer_service(service_info_.service_id, service_info_.instance_id); }
 
-    void stop_offer() {
-        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
-    }
+    void stop_offer() { app_->stop_offer_service(service_info_.service_id, service_info_.instance_id); }
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -99,25 +81,19 @@ public:
         }
     }
 
-    void on_availability(vsomeip::service_t _service,
-                         vsomeip::instance_t _instance, bool _is_available) {
-        if(_is_available) {
-            VSOMEIP_INFO
-            << std::hex << std::setfill('0') << "[" 
-            << std::setw(4) << service_info_.service_id << "] Service ["
-            << std::setw(4) << _service << "." << _instance << "] is "
-            << (_is_available ? "available." : "NOT available.");
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+        if (_is_available) {
+            VSOMEIP_INFO << std::hex << std::setfill('0') << "[" << std::setw(4) << service_info_.service_id << "] Service ["
+                         << std::setw(4) << _service << "." << _instance << "] is " << (_is_available ? "available." : "NOT available.");
 
             auto its_service = other_services_available_.find(std::make_pair(_service, _instance));
-            if(its_service != other_services_available_.end()) {
+            if (its_service != other_services_available_.end()) {
                 its_service->second = true;
             }
 
-            if(std::all_of(other_services_available_.cbegin(),
-                           other_services_available_.cend(),
-                           [](const std::map<std::pair<vsomeip::service_t,
-                                   vsomeip::instance_t>, bool>::value_type& v) {
-                                return v.second;})) {
+            if (std::all_of(
+                        other_services_available_.cbegin(), other_services_available_.cend(),
+                        [](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; })) {
                 std::lock_guard<std::mutex> its_lock(mutex_);
                 blocked_ = true;
                 condition_.notify_one();
@@ -125,20 +101,16 @@ public:
         }
     }
 
-    void on_request(const std::shared_ptr<vsomeip::message> &_message) {
-        if(_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST) {
-            VSOMEIP_DEBUG
-            << std::hex << std::setfill('0') << "[" 
-            << std::setw(4) << service_info_.service_id
-            << "] Received a request with Client/Session [" 
-            << std::setw(4) << _message->get_client() << "/"
-            << std::setw(4) << _message->get_session() << "]";
-            std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()
-            ->create_response(_message);
+    void on_request(const std::shared_ptr<vsomeip::message>& _message) {
+        if (_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST) {
+            VSOMEIP_DEBUG << std::hex << std::setfill('0') << "[" << std::setw(4) << service_info_.service_id
+                          << "] Received a request with Client/Session [" << std::setw(4) << _message->get_client() << "/" << std::setw(4)
+                          << _message->get_session() << "]";
+            std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_message);
             app_->send(its_response);
 
             other_services_received_request_[_message->get_client()]++;
-            if(all_responses_and_requests_received()) {
+            if (all_responses_and_requests_received()) {
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 stopped_ = true;
                 stop_condition_.notify_one();
@@ -146,20 +118,15 @@ public:
         }
     }
 
-    void on_response(const std::shared_ptr<vsomeip::message> &_message) {
-        if(_message->get_message_type() == vsomeip::message_type_e::MT_RESPONSE) {
-            VSOMEIP_DEBUG
-            << std::hex << std::setfill('0') << "[" 
-            << std::setw(4) << service_info_.service_id
-            << "] Received a response with Client/Session [" 
-            << std::setw(4) << _message->get_client() << "/"
-            << std::setw(4) << _message->get_session() << "] from Service/Method ["
-            << std::setw(4) << _message->get_service() << "/" 
-            << std::setw(4) << _message->get_method() << "]";
-            other_services_received_response_[std::make_pair(_message->get_service(),
-                                                             _message->get_method())]++;
+    void on_response(const std::shared_ptr<vsomeip::message>& _message) {
+        if (_message->get_message_type() == vsomeip::message_type_e::MT_RESPONSE) {
+            VSOMEIP_DEBUG << std::hex << std::setfill('0') << "[" << std::setw(4) << service_info_.service_id
+                          << "] Received a response with Client/Session [" << std::setw(4) << _message->get_client() << "/" << std::setw(4)
+                          << _message->get_session() << "] from Service/Method [" << std::setw(4) << _message->get_service() << "/"
+                          << std::setw(4) << _message->get_method() << "]";
+            other_services_received_response_[std::make_pair(_message->get_service(), _message->get_method())]++;
 
-            if(all_responses_and_requests_received()) {
+            if (all_responses_and_requests_received()) {
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 stopped_ = true;
                 stop_condition_.notify_one();
@@ -168,17 +135,15 @@ public:
     }
 
     bool all_responses_and_requests_received() {
-        const bool responses = std::all_of(
-               other_services_received_response_.cbegin(),
-               other_services_received_response_.cend(),
-               [](const std::map<std::pair<vsomeip::service_t,
-                       vsomeip::method_t>, std::uint32_t>::value_type& v)
-               { return v.second == client_id_test::messages_to_send;});
-        const bool requests = std::all_of(
-                other_services_received_request_.cbegin(),
-                other_services_received_request_.cend(),
-                [](const std::map<vsomeip::client_t, std::uint32_t>::value_type& v)
-                { return v.second == client_id_test::messages_to_send;});
+        const bool responses =
+                std::all_of(other_services_received_response_.cbegin(), other_services_received_response_.cend(),
+                            [](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
+                                return v.second == client_id_test::messages_to_send;
+                            });
+        const bool requests = std::all_of(other_services_received_request_.cbegin(), other_services_received_request_.cend(),
+                                          [](const std::map<vsomeip::client_t, std::uint32_t>::value_type& v) {
+                                              return v.second == client_id_test::messages_to_send;
+                                          });
         return (responses && requests);
     }
 
@@ -189,24 +154,20 @@ public:
         }
         blocked_ = false;
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
-                    << service_info_.service_id << "] Offering";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
-
 
         while (!blocked_) {
             condition_.wait(its_lock);
         }
         blocked_ = false;
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id << "] Sending";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Sending";
         // send a message to all other services
         for (int var = 0; var < client_id_test::messages_to_send; ++var) {
-            for(const client_id_test::service_info& i: client_id_test::service_infos) {
-                if ((i.service_id == service_info_.service_id
-                                && i.instance_id == service_info_.instance_id)
-                        || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
+            for (const client_id_test::service_info& i : client_id_test::service_infos) {
+                if ((i.service_id == service_info_.service_id && i.instance_id == service_info_.instance_id)
+                    || (i.service_id == 0xFFFF && i.instance_id == 0xFFFF)) {
                     continue;
                 }
                 std::shared_ptr<vsomeip::message> msg = vsomeip::runtime::get()->create_request();
@@ -214,12 +175,9 @@ public:
                 msg->set_instance(i.instance_id);
                 msg->set_method(i.method_id);
                 app_->send(msg);
-                VSOMEIP_DEBUG << "[" 
-                        << std::hex << std::setfill('0')
-                        << std::setw(4) << service_info_.service_id
-                        << "] Sending a request to Service/Method ["
-                        << std::setw(4) << i.service_id << "/" 
-                        << std::setw(4) << i.instance_id << "]";
+                VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
+                              << "] Sending a request to Service/Method [" << std::setw(4) << i.service_id << "/" << std::setw(4)
+                              << i.instance_id << "]";
             }
         }
 
@@ -234,9 +192,8 @@ public:
         while (!stopped_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id
-                << "] Received responses and requests from all other services, going down";
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
+                     << "] Received responses and requests from all other services, going down";
 
         // let offer thread exit
         {
@@ -270,17 +227,14 @@ private:
 
 static int service_number;
 
-TEST(someip_client_id_test, send_ten_messages_to_service)
-{
-    client_id_test_service its_sample(
-            client_id_test::service_infos[static_cast<size_t>(service_number)]);
+TEST(someip_client_id_test, send_ten_messages_to_service) {
+    client_id_test_service its_sample(client_id_test::service_infos[static_cast<size_t>(service_number)]);
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    if(argc < 2) {
+    if (argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
         return 1;

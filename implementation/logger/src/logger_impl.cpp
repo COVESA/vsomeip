@@ -16,18 +16,17 @@ namespace logger {
 std::mutex logger_impl::mutex__;
 std::string logger_impl::app_name__;
 
-void
-logger_impl::init(const std::shared_ptr<configuration> &_configuration) {
-    std::scoped_lock its_lock {mutex__};
+void logger_impl::init(const std::shared_ptr<configuration>& _configuration) {
+    std::scoped_lock its_lock{mutex__};
     auto its_logger = logger_impl::get();
     its_logger->set_configuration(_configuration);
 
-    const char *its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
+    const char* its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
     app_name__ = (nullptr != its_name) ? its_name : "";
 
 #ifdef USE_DLT
-#   define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
-#   define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME            "vSomeIP context"
+#define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
+#define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME            "vSomeIP context"
 
 #ifndef ANDROID
     std::string its_context_id = runtime::get_property("LogContext");
@@ -63,7 +62,7 @@ bool logger_impl::has_file_log() const {
 }
 
 std::string logger_impl::get_logfile() const {
-    std::scoped_lock its_lock {configuration_mutex_};
+    std::scoped_lock its_lock{configuration_mutex_};
     return cfg_file_name;
 }
 
@@ -78,7 +77,7 @@ std::unique_lock<std::mutex> logger_impl::get_app_name_lock() const {
 
 void logger_impl::set_configuration(const std::shared_ptr<configuration>& _configuration) {
 
-    std::scoped_lock its_lock {configuration_mutex_};
+    std::scoped_lock its_lock{configuration_mutex_};
     if (_configuration) {
         cfg_level = _configuration->get_loglevel();
         cfg_console_enabled = _configuration->has_console_log();
@@ -90,8 +89,7 @@ void logger_impl::set_configuration(const std::shared_ptr<configuration>& _confi
 
 #ifdef USE_DLT
 #ifndef ANDROID
-void
-logger_impl::log(level_e _level, const char *_data) {
+void logger_impl::log(level_e _level, const char* _data) {
 
     // Prepare log level
     DltLogLevelType its_level;
@@ -118,24 +116,23 @@ logger_impl::log(level_e _level, const char *_data) {
         its_level = DLT_LOG_DEFAULT;
     };
 
-    std::scoped_lock its_lock {dlt_context_mutex_};
+    std::scoped_lock its_lock{dlt_context_mutex_};
     DLT_LOG_STRING(dlt_, its_level, _data);
 }
 
 void logger_impl::register_context(const std::string& _context_id) {
-    std::scoped_lock its_lock {dlt_context_mutex_};
+    std::scoped_lock its_lock{dlt_context_mutex_};
     DLT_REGISTER_CONTEXT(dlt_, _context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
 }
 #endif
 #endif
 
-static std::shared_ptr<logger_impl> *the_logger_ptr__(nullptr);
+static std::shared_ptr<logger_impl>* the_logger_ptr__(nullptr);
 static std::mutex the_logger_mutex__;
 
-std::shared_ptr<logger_impl>
-logger_impl::get() {
+std::shared_ptr<logger_impl> logger_impl::get() {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    std::scoped_lock its_lock {the_logger_mutex__};
+    std::scoped_lock its_lock{the_logger_mutex__};
 #endif
     if (the_logger_ptr__ == nullptr) {
         the_logger_ptr__ = new std::shared_ptr<logger_impl>();
@@ -151,8 +148,7 @@ logger_impl::get() {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 static void logger_impl_teardown(void) __attribute__((destructor));
-static void logger_impl_teardown(void)
-{
+static void logger_impl_teardown(void) {
     // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
     // Since this function only runs on the main thread, no mutex should be needed. Leaving a
     // comment pending a refactor.

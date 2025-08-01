@@ -28,9 +28,8 @@ public:
     void set_manager(std::shared_ptr<socket_manager> const& _sm) { socket_manager_ = _sm; }
 
 private:
-    std::shared_ptr<abstract_netlink_connector>
-    create_netlink_connector(boost::asio::io_context& _io, const boost::asio::ip::address&,
-                             const boost::asio::ip::address&, bool) override {
+    std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io, const boost::asio::ip::address&,
+                                                                         const boost::asio::ip::address&, bool) override {
         return std::make_shared<fake_netlink_connector>(_io);
     }
 
@@ -42,8 +41,7 @@ private:
         }
         return nullptr;
     }
-    virtual std::unique_ptr<tcp_acceptor>
-    create_tcp_acceptor(boost::asio::io_context& _io) override {
+    virtual std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override {
         if (auto sm = socket_manager_.lock()) {
             auto state = std::make_shared<fake_tcp_acceptor_handle>(_io);
             sm->add_acceptor(state, &_io);

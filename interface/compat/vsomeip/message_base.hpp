@@ -30,11 +30,9 @@ namespace vsomeip {
  * the message classes within ::vsomeip and vsomeip::sd that add the
  * payload representations for regular and Service Discovery messages.
  */
-class message_base
-        : public serializable,
-          public deserializable {
+class message_base : public serializable, public deserializable {
 public:
-    VSOMEIP_EXPORT virtual ~message_base() {};
+    VSOMEIP_EXPORT virtual ~message_base(){};
 
     /**
      * \brief Returns the message identifier.
@@ -201,7 +199,6 @@ public:
      * \brief Set whether or not the CRC value received is valid.
      */
     VSOMEIP_EXPORT virtual void set_is_valid_crc(bool _is_valid_crc) = 0;
-
 };
 
 /** @} */

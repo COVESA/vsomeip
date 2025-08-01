@@ -20,11 +20,10 @@ namespace vsomeip_v3 {
 
 class endpoint_definition {
 public:
-    VSOMEIP_EXPORT static std::shared_ptr<endpoint_definition> get(
-            const boost::asio::ip::address &_address,
-            uint16_t _port, bool _is_reliable, service_t _service, instance_t _instance);
+    VSOMEIP_EXPORT static std::shared_ptr<endpoint_definition> get(const boost::asio::ip::address& _address, uint16_t _port,
+                                                                   bool _is_reliable, service_t _service, instance_t _instance);
 
-    VSOMEIP_EXPORT const boost::asio::ip::address &get_address() const;
+    VSOMEIP_EXPORT const boost::asio::ip::address& get_address() const;
 
     VSOMEIP_EXPORT uint16_t get_port() const;
 
@@ -33,9 +32,8 @@ public:
 
     VSOMEIP_EXPORT bool is_reliable() const;
 
-    VSOMEIP_EXPORT endpoint_definition(
-            const boost::asio::ip::address &_address,
-            uint16_t _port, bool _is_reliable);
+    VSOMEIP_EXPORT endpoint_definition(const boost::asio::ip::address& _address, uint16_t _port, bool _is_reliable);
+
 private:
     boost::asio::ip::address address_;
     uint16_t port_;
@@ -43,9 +41,8 @@ private:
     bool is_reliable_;
 
     static std::mutex definitions_mutex_;
-    static std::map<
-        std::tuple<service_t, instance_t, boost::asio::ip::address, uint16_t, bool>,
-        std::shared_ptr<endpoint_definition> > definitions_;
+    static std::map<std::tuple<service_t, instance_t, boost::asio::ip::address, uint16_t, bool>, std::shared_ptr<endpoint_definition>>
+            definitions_;
 };
 
 } // namespace vsomeip_v3

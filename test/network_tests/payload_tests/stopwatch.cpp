@@ -8,10 +8,8 @@
 #include <cassert>
 #include <ctime>
 
-
 #define USEC_PER_SEC  1000000ULL
 #define NSEC_PER_USEC 1000ULL
-
 
 stop_watch::usec_t stop_watch::get_total_elapsed_microseconds() const {
     usec_t elapsed = total_elapsed_;
@@ -37,5 +35,5 @@ stop_watch::usec_t stop_watch::now() {
     assert(!ret);
     static_cast<void>(ret); // prevent warning in release build
 
-    return (usec_t) ts.tv_sec * USEC_PER_SEC + (usec_t) ts.tv_nsec / NSEC_PER_USEC;
+    return (usec_t)ts.tv_sec * USEC_PER_SEC + (usec_t)ts.tv_nsec / NSEC_PER_USEC;
 }

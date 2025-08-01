@@ -11,9 +11,8 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-enum class option_type_e
-    : uint8_t {
-        CONFIGURATION = 0x1,
+enum class option_type_e : uint8_t {
+    CONFIGURATION = 0x1,
     LOAD_BALANCING = 0x2,
     PROTECTION = 0x3,
     IP4_ENDPOINT = 0x4,
@@ -24,9 +23,8 @@ enum class option_type_e
     UNKNOWN = 0xFF
 };
 
-enum class entry_type_e
-    : uint8_t {
-        FIND_SERVICE = 0x00,
+enum class entry_type_e : uint8_t {
+    FIND_SERVICE = 0x00,
     OFFER_SERVICE = 0x01,
     STOP_OFFER_SERVICE = 0x01,
     REQUEST_SERVICE = 0x2,
@@ -40,12 +38,7 @@ enum class entry_type_e
     UNKNOWN = 0xFF
 };
 
-enum class layer_four_protocol_e
-    : uint8_t {
-        TCP = 0x06,
-        UDP = 0x11,
-        UNKNOWN = 0xFF
-};
+enum class layer_four_protocol_e : uint8_t { TCP = 0x06, UDP = 0x11, UNKNOWN = 0xFF };
 
 } // namespace sd
 } // namespace vsomeip_v3

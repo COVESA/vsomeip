@@ -16,25 +16,12 @@ vsomeip::service_t Service_ID = 0x1111;
 vsomeip::instance_t Instance_ID = 0x1;
 
 struct availability_handler_test_steps {
-    enum registration_status {
-        STATE_REGISTERED = 0x00,
-        STATE_NOT_REGISTERED = 0x01,
-        STATE_DEREGISTERED = 0x02
-    };
-    enum offering_status {
-        OFFERS_SENT = 0x00,
-        OFFERS_NOT_SENT = 0x01,
-        STOP_OFFERS_SENT = 0x02,
-        STOP_OFFERS_NOT_SENT = 0x03
-    };
+    enum registration_status { STATE_REGISTERED = 0x00, STATE_NOT_REGISTERED = 0x01, STATE_DEREGISTERED = 0x02 };
+    enum offering_status { OFFERS_SENT = 0x00, OFFERS_NOT_SENT = 0x01, STOP_OFFERS_SENT = 0x02, STOP_OFFERS_NOT_SENT = 0x03 };
     enum reregistering_status { REREGISTER_DONE = 0x00, REREGISTER_NOT_DONE = 0x01 };
     enum requesting_status { REQUESTS_SENT = 0x00, REQUESTS_NOT_SENT = 0x01 };
     enum releasing_status { SERVICES_RELEASED = 0x00, SERVICES_NOT_RELEASED = 0x01 };
-    enum availability_received_status {
-        AVAILABILITY_RECEIVED = 0x00,
-        UNAVAILABILITY_RECEIVED = 0x01,
-        AVAILABILITY_NOT_RECEIVED = 0x02
-    };
+    enum availability_received_status { AVAILABILITY_RECEIVED = 0x00, UNAVAILABILITY_RECEIVED = 0x01, AVAILABILITY_NOT_RECEIVED = 0x02 };
 
     boost::interprocess::interprocess_mutex service_mutex_;
     boost::interprocess::interprocess_mutex client_mutex_;
@@ -54,26 +41,21 @@ class availability_handler_utils {
 public:
     // To be used on test_manager side
     template<typename T>
-    static void wait_and_check_unlocked(
-            boost::interprocess::interprocess_condition& cv,
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock,
-            int timeout_s, T &value_to_check, T expected_value) {
-        boost::posix_time::ptime timeout = boost::posix_time::second_clock::local_time()
-                + boost::posix_time::seconds(timeout_s);
+    static void wait_and_check_unlocked(boost::interprocess::interprocess_condition& cv,
+                                        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock, int timeout_s,
+                                        T& value_to_check, T expected_value) {
+        boost::posix_time::ptime timeout = boost::posix_time::second_clock::local_time() + boost::posix_time::seconds(timeout_s);
 
         cv.timed_wait(its_lock, timeout, [&] { return value_to_check == expected_value; });
 
         ASSERT_EQ(value_to_check, expected_value);
     }
 
-    static void notify_component_unlocked(boost::interprocess::interprocess_condition &cv) {
-        cv.notify_one();
-    }
+    static void notify_component_unlocked(boost::interprocess::interprocess_condition& cv) { cv.notify_one(); }
 
     // To be used on components side
-    static void notify_and_wait_unlocked(
-            boost::interprocess::interprocess_condition &cv,
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> &its_lock) {
+    static void notify_and_wait_unlocked(boost::interprocess::interprocess_condition& cv,
+                                         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock) {
 
         cv.notify_one();
 

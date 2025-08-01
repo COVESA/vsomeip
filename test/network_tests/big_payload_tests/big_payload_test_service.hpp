@@ -18,9 +18,7 @@
 #include "big_payload_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
 
-
-class big_payload_test_service
-{
+class big_payload_test_service {
 public:
     big_payload_test_service(big_payload_test::test_mode _test_mode);
     bool init();
@@ -31,7 +29,7 @@ public:
     void join_offer_thread();
     void detach_offer_thread();
     void on_state(vsomeip::state_type_e _state);
-    void on_message(const std::shared_ptr<vsomeip::message> &_request);
+    void on_message(const std::shared_ptr<vsomeip::message>& _request);
     void run();
 
 private:

@@ -12,18 +12,12 @@ VSOMEIP_PLUGIN(vsomeip_v3::configuration_plugin_impl)
 
 namespace vsomeip_v3 {
 
-configuration_plugin_impl::configuration_plugin_impl()
-    : plugin_impl("vsomeip-configuration-plugin",
-            VSOMEIP_CONFIG_PLUGIN_VERSION,
-            plugin_type_e::CONFIGURATION_PLUGIN) {
-}
+configuration_plugin_impl::configuration_plugin_impl() :
+    plugin_impl("vsomeip-configuration-plugin", VSOMEIP_CONFIG_PLUGIN_VERSION, plugin_type_e::CONFIGURATION_PLUGIN) { }
 
-configuration_plugin_impl::~configuration_plugin_impl() {
-}
+configuration_plugin_impl::~configuration_plugin_impl() { }
 
-std::shared_ptr<configuration>
-configuration_plugin_impl::get_configuration(const std::string &_name,
-        const std::string &_path) {
+std::shared_ptr<configuration> configuration_plugin_impl::get_configuration(const std::string& _name, const std::string& _path) {
 
     std::shared_ptr<cfg::configuration_impl> its_configuration;
     std::scoped_lock its_lock(mutex_);
@@ -39,7 +33,7 @@ configuration_plugin_impl::get_configuration(const std::string &_name,
     return its_configuration;
 }
 
-bool configuration_plugin_impl::remove_configuration(const std::string & _name) {
+bool configuration_plugin_impl::remove_configuration(const std::string& _name) {
     std::scoped_lock its_lock(mutex_);
     return configurations_.erase(_name) > 0;
 }

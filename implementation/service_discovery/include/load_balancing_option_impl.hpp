@@ -12,12 +12,12 @@
 namespace vsomeip_v3 {
 namespace sd {
 
-class load_balancing_option_impl: public option_impl {
+class load_balancing_option_impl : public option_impl {
 public:
     load_balancing_option_impl();
     virtual ~load_balancing_option_impl();
 
-    bool equals(const option_impl &_other) const;
+    bool equals(const option_impl& _other) const;
 
     priority_t get_priority() const;
     void set_priority(priority_t _priority);
@@ -25,8 +25,8 @@ public:
     weight_t get_weight() const;
     void set_weight(weight_t _weight);
 
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
 private:
     priority_t priority_;
@@ -37,4 +37,3 @@ private:
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_SD_LOAD_BALANCING_OPTION_IMPL_HPP_
-

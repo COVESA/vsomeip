@@ -28,24 +28,20 @@
 
 namespace vsomeip_v3 {
 
-local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
-        const std::shared_ptr<endpoint_host>& _endpoint_host,
-        const std::shared_ptr<routing_host>& _routing_host,
-        boost::asio::io_context &_io,
-        const std::shared_ptr<configuration>& _configuration,
-        bool _is_routing_endpoint)
-    : local_uds_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
-      acceptor_(_io),
-      buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()),
-      is_routing_endpoint_(_is_routing_endpoint) {
+local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+                                                               const std::shared_ptr<routing_host>& _routing_host,
+                                                               boost::asio::io_context& _io,
+                                                               const std::shared_ptr<configuration>& _configuration,
+                                                               bool _is_routing_endpoint) :
+    local_uds_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration), acceptor_(_io),
+    buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()), is_routing_endpoint_(_is_routing_endpoint) {
     is_supporting_magic_cookies_ = false;
 
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
 
-void local_uds_server_endpoint_impl::init(const endpoint_type& _local,
-                                          boost::system::error_code& _error) {
+void local_uds_server_endpoint_impl::init(const endpoint_type& _local, boost::system::error_code& _error) {
     std::scoped_lock its_lock{acceptor_mutex_};
     acceptor_.open(_local.protocol(), _error);
     if (_error)
@@ -54,8 +50,7 @@ void local_uds_server_endpoint_impl::init(const endpoint_type& _local,
     init_helper(_local, _error);
 }
 
-void local_uds_server_endpoint_impl::init(const endpoint_type& _local, const int _socket,
-                                          boost::system::error_code& _error) {
+void local_uds_server_endpoint_impl::init(const endpoint_type& _local, const int _socket, boost::system::error_code& _error) {
     std::scoped_lock its_lock{acceptor_mutex_};
     acceptor_.assign(_local.protocol(), _socket, _error);
     if (_error)
@@ -64,8 +59,7 @@ void local_uds_server_endpoint_impl::init(const endpoint_type& _local, const int
     init_helper(_local, _error);
 }
 
-void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local,
-                                                 boost::system::error_code& _error) {
+void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local, boost::system::error_code& _error) {
     acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _error);
     if (_error)
         return;
@@ -79,15 +73,13 @@ void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local,
         return;
 
 #ifndef __QNX__
-    if (chmod(_local.path().c_str(),
-            static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
+    if (chmod(_local.path().c_str(), static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
         VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
     credentials::activate_credentials(acceptor_.native_handle());
 #endif
 
     local_ = _local;
-
 }
 
 void local_uds_server_endpoint_impl::deinit() {
@@ -99,25 +91,15 @@ void local_uds_server_endpoint_impl::deinit() {
 void local_uds_server_endpoint_impl::start() {
     std::scoped_lock its_lock{acceptor_mutex_};
     if (acceptor_.is_open()) {
-        connection::ptr new_connection = connection::create(
-                std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(
-                        shared_from_this()), max_message_size_,
-                        buffer_shrink_threshold_,
-                        io_);
+        connection::ptr new_connection = connection::create(std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this()),
+                                                            max_message_size_, buffer_shrink_threshold_, io_);
 
         {
             std::unique_lock its_lock_inner{new_connection->get_socket_lock()};
-            acceptor_.async_accept(
-                new_connection->get_socket(),
-                std::bind(
-                    &local_uds_server_endpoint_impl::accept_cbk,
-                    std::dynamic_pointer_cast<
-                        local_uds_server_endpoint_impl
-                    >(shared_from_this()),
-                    new_connection,
-                    std::placeholders::_1
-                )
-            );
+            acceptor_.async_accept(new_connection->get_socket(),
+                                   std::bind(&local_uds_server_endpoint_impl::accept_cbk,
+                                             std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this()), new_connection,
+                                             std::placeholders::_1));
         }
     }
 }
@@ -134,7 +116,7 @@ void local_uds_server_endpoint_impl::stop() {
     }
     {
         std::scoped_lock its_lock{connections_mutex_};
-        for (const auto &c : connections_) {
+        for (const auto& c : connections_) {
             c.second->stop();
         }
         connections_.clear();
@@ -145,7 +127,7 @@ bool local_uds_server_endpoint_impl::is_local() const {
     return true;
 }
 
-bool local_uds_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) {
+bool local_uds_server_endpoint_impl::send(const uint8_t* _data, uint32_t _size) {
 #if 0
     std::stringstream msg;
     msg << "lse::send ";
@@ -179,9 +161,7 @@ bool local_uds_server_endpoint_impl::send(const uint8_t *_data, uint32_t _size) 
     return true;
 }
 
-bool local_uds_server_endpoint_impl::send_to(
-        const std::shared_ptr<endpoint_definition> _target,
-        const byte_t *_data, uint32_t _size) {
+bool local_uds_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
 
     (void)_target;
     (void)_data;
@@ -189,9 +169,7 @@ bool local_uds_server_endpoint_impl::send_to(
     return false;
 }
 
-bool local_uds_server_endpoint_impl::send_error(
-        const std::shared_ptr<endpoint_definition> _target,
-        const byte_t *_data, uint32_t _size) {
+bool local_uds_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
 
     (void)_target;
     (void)_data;
@@ -199,8 +177,7 @@ bool local_uds_server_endpoint_impl::send_error(
     return false;
 }
 
-bool local_uds_server_endpoint_impl::send_queued(
-        const target_data_iterator_type _it) {
+bool local_uds_server_endpoint_impl::send_queued(const target_data_iterator_type _it) {
 
     (void)_it;
 
@@ -211,15 +188,12 @@ void local_uds_server_endpoint_impl::receive() {
     // intentionally left empty
 }
 
-bool local_uds_server_endpoint_impl::get_default_target(
-        service_t,
-        local_uds_server_endpoint_impl::endpoint_type &) const {
+bool local_uds_server_endpoint_impl::get_default_target(service_t, local_uds_server_endpoint_impl::endpoint_type&) const {
 
     return false;
 }
 
-bool local_uds_server_endpoint_impl::add_connection(const client_t &_client,
-        const std::shared_ptr<connection> &_connection) {
+bool local_uds_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
 
     bool ret = false;
     std::scoped_lock its_lock{connections_mutex_};
@@ -229,35 +203,28 @@ bool local_uds_server_endpoint_impl::add_connection(const client_t &_client,
         ret = true;
     } else {
         VSOMEIP_WARNING << "Attempt to add already existing "
-            "connection to client " << std::hex << _client;
+                           "connection to client "
+                        << std::hex << _client;
     }
     return ret;
 }
 
-void local_uds_server_endpoint_impl::remove_connection(
-        const client_t &_client) {
+void local_uds_server_endpoint_impl::remove_connection(const client_t& _client) {
 
     std::scoped_lock its_lock{connections_mutex_};
     connections_.erase(_client);
 }
 
-void local_uds_server_endpoint_impl::accept_cbk(
-        connection::ptr _connection, boost::system::error_code const &_error) {
-    if (_error != boost::asio::error::bad_descriptor
-            && _error != boost::asio::error::operation_aborted
-            && _error != boost::asio::error::no_descriptors) {
+void local_uds_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::system::error_code const& _error) {
+    if (_error != boost::asio::error::bad_descriptor && _error != boost::asio::error::operation_aborted
+        && _error != boost::asio::error::no_descriptors) {
         start();
     } else if (_error == boost::asio::error::no_descriptors) {
-        VSOMEIP_ERROR << "local_usd_server_endpoint_impl::accept_cbk: "
-                << _error.message() << " (" << std::dec << _error.value()
-                << ") Will try to accept again in 1000ms";
-        auto its_timer =
-                std::make_shared<boost::asio::steady_timer>(io_,
-                        std::chrono::milliseconds(1000));
-        auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(
-                shared_from_this());
-        its_timer->async_wait([its_timer, its_ep]
-                               (const boost::system::error_code& _error_inner) {
+        VSOMEIP_ERROR << "local_usd_server_endpoint_impl::accept_cbk: " << _error.message() << " (" << std::dec << _error.value()
+                      << ") Will try to accept again in 1000ms";
+        auto its_timer = std::make_shared<boost::asio::steady_timer>(io_, std::chrono::milliseconds(1000));
+        auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this());
+        its_timer->async_wait([its_timer, its_ep](const boost::system::error_code& _error_inner) {
             if (!_error_inner) {
                 its_ep->start();
             }
@@ -275,7 +242,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
         its_sec_client.user = ANY_UID;
         its_sec_client.group = ANY_GID;
 
-        socket_type &its_socket = _connection->get_socket();
+        socket_type& its_socket = _connection->get_socket();
         if (auto creds = credentials::receive_credentials(its_socket.native_handle())) {
 
             its_client = std::get<0>(*creds);
@@ -285,7 +252,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
             its_sec_client.group = std::get<2>(*creds);
         } else {
             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_host->get_client()
-                    << " is rejecting new connection because client credentials couldn't be received!";
+                            << " is rejecting new connection because client credentials couldn't "
+                               "be received!";
             boost::system::error_code er;
             its_socket.shutdown(its_socket.shutdown_both, er);
             its_socket.close(er);
@@ -294,12 +262,11 @@ void local_uds_server_endpoint_impl::accept_cbk(
 
         if (its_host && configuration_->is_security_enabled()) {
             if (!configuration_->check_routing_credentials(its_client, &its_sec_client)) {
-                VSOMEIP_WARNING << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x"
-                        << std::hex << its_client
-                        << " uid/gid= " << std::dec
-                        << its_sec_client.user << "/"
-                        << its_sec_client.group
-                        << " because passed credentials do not match with routing manager credentials!";
+                VSOMEIP_WARNING << "vSomeIP Security: Rejecting new connection with routing "
+                                   "manager client ID 0x"
+                                << std::hex << its_client << " uid/gid= " << std::dec << its_sec_client.user << "/" << its_sec_client.group
+                                << " because passed credentials do not match with routing manager "
+                                   "credentials!";
                 boost::system::error_code er;
                 its_socket.shutdown(its_socket.shutdown_both, er);
                 its_socket.close(er);
@@ -316,12 +283,10 @@ void local_uds_server_endpoint_impl::accept_cbk(
                     // rm_impl receives VSOMEIP_CLIENT_UNSET initially -> check later
                     const auto found_client = connections_.find(its_client);
                     if (found_client != connections_.end()) {
-                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
-                                << its_host->get_client() << " is rejecting new connection with client ID 0x"
-                                << its_client << " uid/gid= " << std::dec
-                                << its_sec_client.user << "/"
-                                << its_sec_client.group
-                                << " because of already existing connection using same client ID";
+                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_host->get_client()
+                                        << " is rejecting new connection with client ID 0x" << its_client << " uid/gid= " << std::dec
+                                        << its_sec_client.user << "/" << its_sec_client.group
+                                        << " because of already existing connection using same client ID";
                         boost::system::error_code er;
                         its_socket.shutdown(its_socket.shutdown_both, er);
                         its_socket.close(er);
@@ -333,16 +298,15 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 std::shared_ptr<routing_host> its_routing_host = routing_host_.lock();
                 its_routing_host->add_known_client(its_client, its_client_host);
 
-               if (!configuration_->get_policy_manager()->check_credentials(its_client, &its_sec_client)) {
-                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
-                             << its_host->get_client() << " received client credentials from client 0x"
-                             << its_client << " which violates the security policy : uid/gid="
-                             << std::dec << its_sec_client.user << "/"
-                             << its_sec_client.group;
-                     boost::system::error_code er;
-                     its_socket.shutdown(its_socket.shutdown_both, er);
-                     its_socket.close(er);
-                     return;
+                if (!configuration_->get_policy_manager()->check_credentials(its_client, &its_sec_client)) {
+                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_host->get_client()
+                                    << " received client credentials from client 0x" << its_client
+                                    << " which violates the security policy : uid/gid=" << std::dec << its_sec_client.user << "/"
+                                    << its_sec_client.group;
+                    boost::system::error_code er;
+                    its_socket.shutdown(its_socket.shutdown_both, er);
+                    its_socket.close(er);
+                    return;
                 }
                 // rm_impl receives VSOMEIP_CLIENT_UNSET initially -> set later
                 _connection->set_bound_client(its_client);
@@ -369,27 +333,14 @@ void local_uds_server_endpoint_impl::accept_cbk(
 // class local_service_impl::connection
 ///////////////////////////////////////////////////////////////////////////////
 
-local_uds_server_endpoint_impl::connection::connection(
-        const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
-        std::uint32_t _max_message_size,
-        std::uint32_t _initial_recv_buffer_size,
-        std::uint32_t _buffer_shrink_threshold,
-        boost::asio::io_context &_io)
-    : socket_(_io),
-      server_(_server),
-      recv_buffer_size_initial_(_initial_recv_buffer_size + 8),
-      max_message_size_(_max_message_size),
-      recv_buffer_(recv_buffer_size_initial_, 0),
-      recv_buffer_size_(0),
-      missing_capacity_(0),
-      shrink_count_(0),
-      buffer_shrink_threshold_(_buffer_shrink_threshold),
-      bound_client_(VSOMEIP_CLIENT_UNSET),
-      bound_client_host_(""),
-      assigned_client_(false),
-      is_stopped_(true) {
-    if (_server->is_routing_endpoint_ &&
-            !_server->configuration_->is_security_enabled()) {
+local_uds_server_endpoint_impl::connection::connection(const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
+                                                       std::uint32_t _max_message_size, std::uint32_t _initial_recv_buffer_size,
+                                                       std::uint32_t _buffer_shrink_threshold, boost::asio::io_context& _io) :
+    socket_(_io), server_(_server), recv_buffer_size_initial_(_initial_recv_buffer_size + 8), max_message_size_(_max_message_size),
+    recv_buffer_(recv_buffer_size_initial_, 0), recv_buffer_size_(0), missing_capacity_(0), shrink_count_(0),
+    buffer_shrink_threshold_(_buffer_shrink_threshold), bound_client_(VSOMEIP_CLIENT_UNSET), bound_client_host_(""),
+    assigned_client_(false), is_stopped_(true) {
+    if (_server->is_routing_endpoint_ && !_server->configuration_->is_security_enabled()) {
         assigned_client_ = true;
     }
 
@@ -398,25 +349,19 @@ local_uds_server_endpoint_impl::connection::connection(
 }
 
 local_uds_server_endpoint_impl::connection::ptr
-local_uds_server_endpoint_impl::connection::create(
-        const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
-        std::uint32_t _max_message_size,
-        std::uint32_t _buffer_shrink_threshold,
-        boost::asio::io_context &_io) {
-    const std::uint32_t its_initial_buffer_size
-                = static_cast<std::uint32_t>(protocol::COMMAND_HEADER_SIZE
-                        + sizeof(instance_t) + sizeof(bool) + sizeof(bool));
-    return ptr(new connection(_server, _max_message_size, its_initial_buffer_size,
-            _buffer_shrink_threshold, _io));
+local_uds_server_endpoint_impl::connection::create(const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
+                                                   std::uint32_t _max_message_size, std::uint32_t _buffer_shrink_threshold,
+                                                   boost::asio::io_context& _io) {
+    const std::uint32_t its_initial_buffer_size =
+            static_cast<std::uint32_t>(protocol::COMMAND_HEADER_SIZE + sizeof(instance_t) + sizeof(bool) + sizeof(bool));
+    return ptr(new connection(_server, _max_message_size, its_initial_buffer_size, _buffer_shrink_threshold, _io));
 }
 
-local_uds_server_endpoint_impl::socket_type &
-local_uds_server_endpoint_impl::connection::get_socket() {
+local_uds_server_endpoint_impl::socket_type& local_uds_server_endpoint_impl::connection::get_socket() {
     return socket_;
 }
 
-std::unique_lock<std::mutex>
-local_uds_server_endpoint_impl::connection::get_socket_lock() {
+std::unique_lock<std::mutex> local_uds_server_endpoint_impl::connection::get_socket_lock() {
     return std::unique_lock<std::mutex>(socket_mutex_);
 }
 
@@ -426,8 +371,7 @@ void local_uds_server_endpoint_impl::connection::start() {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
             VSOMEIP_ERROR << __func__ << "Received buffer size is greater than the buffer capacity!"
-                << " recv_buffer_size_: " << recv_buffer_size_
-                << " its_capacity: " << its_capacity;
+                          << " recv_buffer_size_: " << recv_buffer_size_ << " its_capacity: " << its_capacity;
             return;
         }
         size_t left_buffer_size = its_capacity - recv_buffer_size_;
@@ -445,9 +389,7 @@ void local_uds_server_endpoint_impl::connection::start() {
                 }
                 left_buffer_size = missing_capacity_;
                 missing_capacity_ = 0;
-            } else if (buffer_shrink_threshold_
-                    && shrink_count_ > buffer_shrink_threshold_
-                    && recv_buffer_size_ == 0) {
+            } else if (buffer_shrink_threshold_ && shrink_count_ > buffer_shrink_threshold_ && recv_buffer_size_ == 0) {
                 // In this case, make the resize to recv_buffer_size_initial_
                 recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                 recv_buffer_.shrink_to_fit();
@@ -455,7 +397,7 @@ void local_uds_server_endpoint_impl::connection::start() {
                 left_buffer_size = recv_buffer_size_initial_;
                 shrink_count_ = 0;
             }
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             handle_recv_buffer_exception(e);
             // don't start receiving again
             return;
@@ -463,21 +405,11 @@ void local_uds_server_endpoint_impl::connection::start() {
 
         is_stopped_ = false;
         auto its_storage = std::make_shared<local_endpoint_receive_op::storage>(
-            socket_,
-            std::bind(
-                &local_uds_server_endpoint_impl::connection::receive_cbk,
-                shared_from_this(),
-                std::placeholders::_1,
-                std::placeholders::_2,
-                std::placeholders::_3,
-                std::placeholders::_4
-            ),
-            &recv_buffer_[recv_buffer_size_],
-            left_buffer_size,
-            std::numeric_limits<uid_t>::max(),
-            std::numeric_limits<gid_t>::max(),
-            std::numeric_limits<std::size_t>::min()
-        );
+                socket_,
+                std::bind(&local_uds_server_endpoint_impl::connection::receive_cbk, shared_from_this(), std::placeholders::_1,
+                          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
+                &recv_buffer_[recv_buffer_size_], left_buffer_size, std::numeric_limits<uid_t>::max(), std::numeric_limits<gid_t>::max(),
+                std::numeric_limits<std::size_t>::min());
 
         socket_.async_wait(socket_type::wait_read, local_endpoint_receive_op::receive_cb(its_storage));
     }
@@ -488,26 +420,25 @@ void local_uds_server_endpoint_impl::connection::stop() {
     is_stopped_ = true;
     if (socket_.is_open()) {
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
-                          << "' (" << errno << ") " << get_path_local();
+            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno)) << "' (" << errno << ") "
+                          << get_path_local();
         }
         boost::system::error_code its_error;
         socket_.cancel(its_error);
     }
 }
 
-void local_uds_server_endpoint_impl::connection::send_queued(
-        const message_buffer_ptr_t& _buffer) {
+void local_uds_server_endpoint_impl::connection::send_queued(const message_buffer_ptr_t& _buffer) {
 
     std::shared_ptr<local_uds_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
         VSOMEIP_TRACE << "local_uds_server_endpoint_impl::connection::send_queued "
-                " couldn't lock server_";
+                         " couldn't lock server_";
         return;
     }
 
-    static const byte_t its_start_tag[] = { 0x67, 0x37, 0x6D, 0x07 };
-    static const byte_t its_end_tag[] = { 0x07, 0x6D, 0x37, 0x67 };
+    static const byte_t its_start_tag[] = {0x67, 0x37, 0x6D, 0x07};
+    static const byte_t its_end_tag[] = {0x07, 0x6D, 0x37, 0x67};
     std::vector<boost::asio::const_buffer> bufs;
 
 #if 0
@@ -525,22 +456,13 @@ void local_uds_server_endpoint_impl::connection::send_queued(
 
     {
         std::scoped_lock its_lock{socket_mutex_};
-        boost::asio::async_write(
-            socket_,
-            bufs,
-            std::bind(
-                &local_uds_server_endpoint_impl::connection::send_cbk,
-                shared_from_this(),
-                _buffer,
-                std::placeholders::_1,
-                std::placeholders::_2
-            )
-        );
+        boost::asio::async_write(socket_, bufs,
+                                 std::bind(&local_uds_server_endpoint_impl::connection::send_cbk, shared_from_this(), _buffer,
+                                           std::placeholders::_1, std::placeholders::_2));
     }
 }
 
-client_t local_uds_server_endpoint_impl::assign_client(
-        const byte_t *_data, uint32_t _size) {
+client_t local_uds_server_endpoint_impl::assign_client(const byte_t* _data, uint32_t _size) {
 
     std::vector<byte_t> its_data(_data, _data + _size);
 
@@ -549,18 +471,15 @@ client_t local_uds_server_endpoint_impl::assign_client(
 
     its_command.deserialize(its_data, its_error);
     if (its_error != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR << __func__
-                << ": assign client command deserialization failed ("
-                << std::dec << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR << __func__ << ": assign client command deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         return VSOMEIP_CLIENT_UNSET;
     }
 
-    return utility::request_client_id(configuration_,
-            its_command.get_name(), its_command.get_client());
+    return utility::request_client_id(configuration_, its_command.get_name(), its_command.get_client());
 }
 
 void local_uds_server_endpoint_impl::disconnect_from(const client_t _client) {
-    std::scoped_lock lock {connections_mutex_};
+    std::scoped_lock lock{connections_mutex_};
     if (connections_.find(_client) == connections_.end()) {
         return;
     }
@@ -568,10 +487,9 @@ void local_uds_server_endpoint_impl::disconnect_from(const client_t _client) {
     connections_.erase(_client);
 }
 
-void local_uds_server_endpoint_impl::get_configured_times_from_endpoint(
-        service_t _service,
-        method_t _method, std::chrono::nanoseconds *_debouncing,
-        std::chrono::nanoseconds *_maximum_retention) const {
+void local_uds_server_endpoint_impl::get_configured_times_from_endpoint(service_t _service, method_t _method,
+                                                                        std::chrono::nanoseconds* _debouncing,
+                                                                        std::chrono::nanoseconds* _maximum_retention) const {
     (void)_service;
     (void)_method;
     (void)_debouncing;
@@ -579,22 +497,20 @@ void local_uds_server_endpoint_impl::get_configured_times_from_endpoint(
     VSOMEIP_ERROR << "local_uds_server_endpoint_impl::get_configured_times_from_endpoint.";
 }
 
-void local_uds_server_endpoint_impl::connection::send_cbk(const message_buffer_ptr_t _buffer,
-        boost::system::error_code const &_error, std::size_t _bytes) {
+void local_uds_server_endpoint_impl::connection::send_cbk(const message_buffer_ptr_t _buffer, boost::system::error_code const& _error,
+                                                          std::size_t _bytes) {
     (void)_buffer;
     (void)_bytes;
     if (_error)
         VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message();
 }
 
-void local_uds_server_endpoint_impl::connection::receive_cbk(
-        boost::system::error_code const &_error, std::size_t _bytes,
-        uid_t const &_uid, gid_t const &_gid)
-{
+void local_uds_server_endpoint_impl::connection::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes, uid_t const& _uid,
+                                                             gid_t const& _gid) {
     std::shared_ptr<local_uds_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
         VSOMEIP_TRACE << "local_uds_server_endpoint_impl::connection::receive_cbk "
-                " couldn't lock server_";
+                         " couldn't lock server_";
         return;
     }
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
@@ -603,10 +519,8 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
 
     std::shared_ptr<vsomeip_v3::configuration> its_config = its_server->configuration_;
     if (_error == boost::asio::error::operation_aborted) {
-        if (its_server->is_routing_endpoint_ &&
-                bound_client_ != VSOMEIP_CLIENT_UNSET && its_config) {
-            utility::release_client_id(its_config->get_network(),
-                    bound_client_);
+        if (its_server->is_routing_endpoint_ && bound_client_ != VSOMEIP_CLIENT_UNSET && its_config) {
+            utility::release_client_id(its_config->get_network(), bound_client_);
             set_bound_client(VSOMEIP_CLIENT_UNSET);
         }
 
@@ -648,11 +562,9 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                 VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
                 return;
             }
-            while (its_start + 3 < recv_buffer_size_ + its_iteration_gap &&
-                (recv_buffer_[its_start] != 0x67 ||
-                recv_buffer_[its_start+1] != 0x37 ||
-                recv_buffer_[its_start+2] != 0x6d ||
-                recv_buffer_[its_start+3] != 0x07)) {
+            while (its_start + 3 < recv_buffer_size_ + its_iteration_gap
+                   && (recv_buffer_[its_start] != 0x67 || recv_buffer_[its_start + 1] != 0x37 || recv_buffer_[its_start + 2] != 0x6d
+                       || recv_buffer_[its_start + 3] != 0x07)) {
                 its_start++;
             }
 
@@ -669,13 +581,11 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                 } else {
                     its_end = its_start;
                 }
-                if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED
-                        && its_command_size > max_message_size_) {
+                if (its_command_size && max_message_size_ != MESSAGE_SIZE_UNLIMITED && its_command_size > max_message_size_) {
                     std::scoped_lock its_lock{socket_mutex_};
                     VSOMEIP_ERROR << "Received a local message which exceeds "
-                          << "maximum message size (" << std::dec << its_command_size
-                          << ") aborting! local: " << get_path_local() << " remote: "
-                          << get_path_remote();
+                                  << "maximum message size (" << std::dec << its_command_size << ") aborting! local: " << get_path_local()
+                                  << " remote: " << get_path_remote();
                     recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                     recv_buffer_.shrink_to_fit();
                     return;
@@ -684,56 +594,45 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                     VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
                     return;
                 }
-                while (its_end + 3 < recv_buffer_size_ + its_iteration_gap &&
-                    (recv_buffer_[its_end] != 0x07 ||
-                    recv_buffer_[its_end+1] != 0x6d ||
-                    recv_buffer_[its_end+2] != 0x37 ||
-                    recv_buffer_[its_end+3] != 0x67)) {
-                    its_end ++;
+                while (its_end + 3 < recv_buffer_size_ + its_iteration_gap
+                       && (recv_buffer_[its_end] != 0x07 || recv_buffer_[its_end + 1] != 0x6d || recv_buffer_[its_end + 2] != 0x37
+                           || recv_buffer_[its_end + 3] != 0x67)) {
+                    its_end++;
                 }
                 if (its_end + 4 < its_end) {
                     VSOMEIP_ERROR << "buffer overflow in local server endpoint ~> abort!";
                     return;
                 }
                 // check if we received a full message
-                if (recv_buffer_size_ + its_iteration_gap < its_end + 4
-                        || recv_buffer_[its_end] != 0x07
-                        || recv_buffer_[its_end+1] != 0x6d
-                        || recv_buffer_[its_end+2] != 0x37
-                        || recv_buffer_[its_end+3] != 0x67) {
+                if (recv_buffer_size_ + its_iteration_gap < its_end + 4 || recv_buffer_[its_end] != 0x07
+                    || recv_buffer_[its_end + 1] != 0x6d || recv_buffer_[its_end + 2] != 0x37 || recv_buffer_[its_end + 3] != 0x67) {
                     // command (1 Byte) + version (2 Byte) + client id (2 Byte)
                     // + command size (4 Byte) + data itself + stop tag (4 byte)
                     // = 13 Bytes not covered in command size.
                     // If need to change the recv_buffer_, change the value of missing_capacity_
                     // in this if/else, otherwise it is 0
-                    if (its_start - its_iteration_gap + its_command_size
-                            + protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE  > recv_buffer_size_) {
-                        missing_capacity_ =
-                                std::uint32_t(its_start) - std::uint32_t(its_iteration_gap)
-                                + its_command_size + std::uint32_t(protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE)
-                                - std::uint32_t(recv_buffer_size_);
+                    if (its_start - its_iteration_gap + its_command_size + protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE
+                        > recv_buffer_size_) {
+                        missing_capacity_ = std::uint32_t(its_start) - std::uint32_t(its_iteration_gap) + its_command_size
+                                + std::uint32_t(protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE) - std::uint32_t(recv_buffer_size_);
                     } else if (recv_buffer_size_ < protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE) {
                         // to little data to read out the command size
-                        // minimal amount of data needed to read out command size = header + tag size
-                        missing_capacity_ = static_cast<std::uint32_t>(
-                                protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE - recv_buffer_size_);
+                        // minimal amount of data needed to read out command size = header + tag
+                        // size
+                        missing_capacity_ =
+                                static_cast<std::uint32_t>(protocol::COMMAND_HEADER_SIZE + protocol::TAG_SIZE - recv_buffer_size_);
                     } else {
                         std::stringstream local_msg;
                         local_msg << std::hex << std::setfill('0');
-                        for (std::size_t i = its_iteration_gap;
-                                i < recv_buffer_size_ + its_iteration_gap &&
-                                i - its_iteration_gap < 32; i++) {
-                            local_msg << std::setw(2) << static_cast<int> (recv_buffer_[i]) << " ";
+                        for (std::size_t i = its_iteration_gap; i < recv_buffer_size_ + its_iteration_gap && i - its_iteration_gap < 32;
+                             i++) {
+                            local_msg << std::setw(2) << static_cast<int>(recv_buffer_[i]) << " ";
                         }
-                        VSOMEIP_ERROR << "lse::c<" << this
-                                << ">rcb: recv_buffer_size is: " << std::dec
-                                << recv_buffer_size_ << " but couldn't read "
-                                "out command size. recv_buffer_capacity: "
-                                << std::dec << recv_buffer_.capacity()
-                                << " its_iteration_gap: " << std::dec
-                                << its_iteration_gap << " bound client: 0x"
-                                << std::hex << bound_client_ << " buffer: "
-                                << local_msg.str();
+                        VSOMEIP_ERROR << "lse::c<" << this << ">rcb: recv_buffer_size is: " << std::dec << recv_buffer_size_
+                                      << " but couldn't read "
+                                         "out command size. recv_buffer_capacity: "
+                                      << std::dec << recv_buffer_.capacity() << " its_iteration_gap: " << std::dec << its_iteration_gap
+                                      << " bound client: 0x" << std::hex << bound_client_ << " buffer: " << local_msg.str();
                         recv_buffer_size_ = 0;
                         missing_capacity_ = 0;
                         its_iteration_gap = 0;
@@ -742,21 +641,16 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                 }
             }
 
-            if (!message_is_empty &&
-                its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
+            if (!message_is_empty && its_end + 3 < recv_buffer_size_ + its_iteration_gap) {
 
-                if (its_server->is_routing_endpoint_
-                        && recv_buffer_[its_start] == byte_t(protocol::id_e::ASSIGN_CLIENT_ID)) {
-                    client_t its_client = its_server->assign_client(
-                            &recv_buffer_[its_start], uint32_t(its_end - its_start));
+                if (its_server->is_routing_endpoint_ && recv_buffer_[its_start] == byte_t(protocol::id_e::ASSIGN_CLIENT_ID)) {
+                    client_t its_client = its_server->assign_client(&recv_buffer_[its_start], uint32_t(its_end - its_start));
 
                     if (!its_server->add_connection(its_client, shared_from_this())) {
-                        VSOMEIP_WARNING
-                                << std::hex << "Client 0x" << its_host->get_client()
-                                << " is rejecting new connection with client ID 0x" << its_client
-                                << " uid/gid= " << std::dec << sec_client_.user << "/"
-                                << sec_client_.group
-                                << " because of already existing connection using same client ID";
+                        VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
+                                        << " is rejecting new connection with client ID 0x" << its_client << " uid/gid= " << std::dec
+                                        << sec_client_.user << "/" << sec_client_.group
+                                        << " because of already existing connection using same client ID";
 
                         stop();
                         return;
@@ -765,16 +659,13 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                     its_host->add_known_client(its_client, get_bound_client_host());
 
                     if (its_config && its_config->is_security_enabled()) {
-                        if (!its_server->configuration_->get_policy_manager()->check_credentials(
-                                    its_client, &sec_client_)) {
+                        if (!its_server->configuration_->get_policy_manager()->check_credentials(its_client, &sec_client_)) {
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                                    << " received client credentials from client 0x" << its_client
-                                    << " which violates the security policy : uid/gid="
-                                    << std::dec << sec_client_.user << "/"
-                                    << sec_client_.group;
+                                            << " received client credentials from client 0x" << its_client
+                                            << " which violates the security policy : uid/gid=" << std::dec << sec_client_.user << "/"
+                                            << sec_client_.group;
                             its_server->remove_connection(its_client);
-                            utility::release_client_id(its_config->get_network(),
-                                    its_client);
+                            utility::release_client_id(its_config->get_network(), its_client);
                             stop();
                             return;
                         }
@@ -791,21 +682,20 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                     its_sec_client.user = _uid;
                     its_sec_client.group = _gid;
 
-                    its_host->on_message(&recv_buffer_[its_start],
-                                         uint32_t(its_end - its_start), its_server.get(),
-                                         false, bound_client_, &its_sec_client);
+                    its_host->on_message(&recv_buffer_[its_start], uint32_t(its_end - its_start), its_server.get(), false, bound_client_,
+                                         &its_sec_client);
                 } else {
                     VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                            << " didn't receive VSOMEIP_ASSIGN_CLIENT as first message";
+                                    << " didn't receive VSOMEIP_ASSIGN_CLIENT as first message";
                 }
-                #if 0
+#if 0
                         std::stringstream local_msg;
                         local_msg << "lse::c<" << this << ">rcb::thunk: ";
                         for (std::size_t i = its_start; i < its_end; i++)
                             local_msg << std::hex << std::setfill('0') << std::setw(2)
                                 << static_cast<int>( recv_buffer_[i] << " ";
                         VSOMEIP_INFO << local_msg.str();
-                #endif
+#endif
                 calculate_shrink_count();
                 recv_buffer_size_ -= (its_end + 4 - its_iteration_gap);
                 missing_capacity_ = 0;
@@ -820,8 +710,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                         recv_buffer_[i] = recv_buffer_[i + its_iteration_gap];
                     }
                     // Still more capacity needed after shifting everything to front?
-                    if (missing_capacity_ &&
-                            missing_capacity_ <= recv_buffer_.capacity() - recv_buffer_size_) {
+                    if (missing_capacity_ && missing_capacity_ <= recv_buffer_.capacity() - recv_buffer_size_) {
                         missing_capacity_ = 0;
                     }
                 } else if (message_is_empty) {
@@ -832,23 +721,19 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
-    if (is_stopped_ || is_error || _error == boost::asio::error::eof
-        || _error == boost::asio::error::timed_out || _error == boost::asio::error::bad_descriptor
-        || _error == boost::asio::error::connection_reset) {
-        VSOMEIP_INFO << "lusei::receive_cbk closing connection due to is_stopped " << is_stopped_
-                     << ", error '" << _error.message() << "', is_error " << is_error
-                     << ", endpoint > " << this;
+    if (is_stopped_ || is_error || _error == boost::asio::error::eof || _error == boost::asio::error::timed_out
+        || _error == boost::asio::error::bad_descriptor || _error == boost::asio::error::connection_reset) {
+        VSOMEIP_INFO << "lusei::receive_cbk closing connection due to is_stopped " << is_stopped_ << ", error '" << _error.message()
+                     << "', is_error " << is_error << ", endpoint > " << this;
 
         shutdown_and_close();
         if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
             its_server->remove_connection(bound_client_);
-            its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(
-                    bound_client_);
+            its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
         }
     } else {
         if (_error) {
-            VSOMEIP_WARNING << "lusei::receive_cbk received err '" << _error.message()
-                            << "', endpoint > " << this;
+            VSOMEIP_WARNING << "lusei::receive_cbk received err '" << _error.message() << "', endpoint > " << this;
         }
 
         // schedule next read
@@ -864,8 +749,7 @@ client_t local_uds_server_endpoint_impl::connection::get_bound_client() const {
     return bound_client_;
 }
 
-void local_uds_server_endpoint_impl::connection::set_bound_client_host(
-        const std::string &_bound_client_host) {
+void local_uds_server_endpoint_impl::connection::set_bound_client_host(const std::string& _bound_client_host) {
 
     bound_client_host_ = _bound_client_host;
 }
@@ -874,9 +758,7 @@ std::string local_uds_server_endpoint_impl::connection::get_bound_client_host() 
     return bound_client_host_;
 }
 
-
-void local_uds_server_endpoint_impl::connection::set_bound_sec_client(
-        const vsomeip_sec_client_t &_sec_client) {
+void local_uds_server_endpoint_impl::connection::set_bound_sec_client(const vsomeip_sec_client_t& _sec_client) {
 
     sec_client_ = _sec_client;
 }
@@ -917,16 +799,13 @@ std::string local_uds_server_endpoint_impl::connection::get_path_remote() const 
     return its_remote_path;
 }
 
-void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(
-        const std::exception &_e) {
+void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(const std::exception& _e) {
     std::stringstream its_message;
-    its_message << "local_uds_server_endpoint_impl::connection catched exception"
-            << _e.what() << " local: " << get_path_local() << " remote: "
-            << get_path_remote() << " shutting down connection. Start of buffer: "
-            << std::hex << std::setfill('0');
+    its_message << "local_uds_server_endpoint_impl::connection catched exception" << _e.what() << " local: " << get_path_local()
+                << " remote: " << get_path_remote() << " shutting down connection. Start of buffer: " << std::hex << std::setfill('0');
 
     for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
-        its_message << std::setw(2) << static_cast<int> (recv_buffer_[i]) << " ";
+        its_message << std::setw(2) << static_cast<int>(recv_buffer_[i]) << " ";
     }
 
     its_message << " Last 16 Bytes captured: ";
@@ -937,10 +816,9 @@ void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(
     recv_buffer_.clear();
     if (socket_.is_open()) {
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
-                          << "' (" << errno << ") " << get_path_local();
+            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno)) << "' (" << errno << ") "
+                          << get_path_local();
         }
-
     }
 
     if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
@@ -951,19 +829,16 @@ void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(
     }
 }
 
-std::size_t
-local_uds_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
+std::size_t local_uds_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
     return recv_buffer_.capacity();
 }
 
-void
-local_uds_server_endpoint_impl::connection::shutdown_and_close() {
+void local_uds_server_endpoint_impl::connection::shutdown_and_close() {
     std::scoped_lock its_lock{socket_mutex_};
     shutdown_and_close_unlocked();
 }
 
-void
-local_uds_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
+void local_uds_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
     boost::system::error_code its_error;
     socket_.shutdown(socket_.shutdown_both, its_error);
     socket_.close(its_error);
@@ -979,10 +854,9 @@ void local_uds_server_endpoint_impl::print_status() {
 
     std::string its_local_path(local_.path());
 
-    VSOMEIP_INFO << "status lse: " << its_local_path << " connections: "
-            << std::dec << its_connections.size() << " targets: "
-            << std::dec << targets_.size();
-    for (const auto &c : its_connections) {
+    VSOMEIP_INFO << "status lse: " << its_local_path << " connections: " << std::dec << its_connections.size() << " targets: " << std::dec
+                 << targets_.size();
+    for (const auto& c : its_connections) {
         std::string its_remote_path; // TODO: construct the path
 
         std::size_t its_recv_size(0);
@@ -991,20 +865,17 @@ void local_uds_server_endpoint_impl::print_status() {
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
 
-        VSOMEIP_INFO << "status lse: client: " << its_remote_path
-                << " recv_buffer: " << std::dec << its_recv_size;
+        VSOMEIP_INFO << "status lse: client: " << its_remote_path << " recv_buffer: " << std::dec << its_recv_size;
     }
 }
 
-std::string local_uds_server_endpoint_impl::get_remote_information(
-        const target_data_iterator_type _it) const {
+std::string local_uds_server_endpoint_impl::get_remote_information(const target_data_iterator_type _it) const {
 
     (void)_it;
     return "local";
 }
 
-std::string local_uds_server_endpoint_impl::get_remote_information(
-        const endpoint_type& _remote) const {
+std::string local_uds_server_endpoint_impl::get_remote_information(const endpoint_type& _remote) const {
 
     (void)_remote;
     return "local";
@@ -1025,8 +896,7 @@ void local_uds_server_endpoint_impl::set_local_port(std::uint16_t _port) {
     // Intentionally left empty
 }
 
-bool local_uds_server_endpoint_impl::check_packetizer_space(message_buffer_ptr_t* _packetizer,
-                                                            std::uint32_t _size) const {
+bool local_uds_server_endpoint_impl::check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const {
     if ((*_packetizer)->size() + _size < (*_packetizer)->size()) {
         VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";
         return false;
@@ -1034,11 +904,9 @@ bool local_uds_server_endpoint_impl::check_packetizer_space(message_buffer_ptr_t
     return true;
 }
 
-bool local_uds_server_endpoint_impl::queue_train_buffer(target_data_iterator_type _it,
-                                                        message_buffer_ptr_t* _packetizer,
+bool local_uds_server_endpoint_impl::queue_train_buffer(target_data_iterator_type _it, message_buffer_ptr_t* _packetizer,
                                                         std::uint32_t _size) const {
-    if ((*_packetizer)->size() + _size > max_message_size_
-            && !(*_packetizer)->empty()) {
+    if ((*_packetizer)->size() + _size > max_message_size_ && !(*_packetizer)->empty()) {
         _it->second.queue_.push_back(std::make_pair(*_packetizer, 0));
         _it->second.queue_size_ += (*_packetizer)->size();
         *_packetizer = std::make_shared<message_buffer_t>();
@@ -1046,9 +914,7 @@ bool local_uds_server_endpoint_impl::queue_train_buffer(target_data_iterator_typ
     return true;
 }
 
-void
-local_uds_server_endpoint_impl::send_client_identifier(
-        const client_t &_client) {
+void local_uds_server_endpoint_impl::send_client_identifier(const client_t& _client) {
 
     protocol::assign_client_ack_command its_command;
     its_command.set_client(VSOMEIP_ROUTING_CLIENT);
@@ -1059,9 +925,7 @@ local_uds_server_endpoint_impl::send_client_identifier(
     its_command.serialize(its_buffer, its_error);
     if (its_error != protocol::error_e::ERROR_OK) {
 
-        VSOMEIP_ERROR << __func__
-                << ": assign client ack command serialization failed ("
-                << std::dec << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR << __func__ << ": assign client ack command serialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         return;
     }
 

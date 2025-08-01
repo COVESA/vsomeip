@@ -10,8 +10,7 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class someip_header_factory_test: public ::testing::Test
-{
+class someip_header_factory_test : public ::testing::Test {
 protected:
     std::shared_ptr<vsomeip::message> request_;
     std::shared_ptr<vsomeip::message> response_;
@@ -27,8 +26,7 @@ protected:
     vsomeip::session_t session_id_ = vsomeip_test::TEST_INITIAL_SESSION_ID;
 };
 
-TEST_F(someip_header_factory_test, create_request_test)
-{
+TEST_F(someip_header_factory_test, create_request_test) {
     ASSERT_TRUE(request_.get() == nullptr);
     request_ = vsomeip::runtime::get()->create_request();
 
@@ -44,11 +42,9 @@ TEST_F(someip_header_factory_test, create_request_test)
     // Check the return code
     // this shall be 0x00 (E_OK) according to the spec. TR_SOMEIP_00058
     ASSERT_EQ(request_->get_return_code(), vsomeip::return_code_e::E_OK);
-
 }
 
-TEST_F(someip_header_factory_test, create_request_and_response_test)
-{
+TEST_F(someip_header_factory_test, create_request_and_response_test) {
     ASSERT_TRUE(request_.get() == nullptr);
     request_ = vsomeip::runtime::get()->create_request();
     // check that returned shared_ptr is not null
@@ -89,11 +85,9 @@ TEST_F(someip_header_factory_test, create_request_and_response_test)
     // this shall be 0x00 (E_OK) according to the spec. TR_SOMEIP_00058
     // and TR_SOMEIP_00191
     ASSERT_EQ(response_->get_return_code(), vsomeip::return_code_e::E_OK);
-
 }
 
-TEST_F(someip_header_factory_test, create_notification_test)
-{
+TEST_F(someip_header_factory_test, create_notification_test) {
     ASSERT_TRUE(notification_.get() == nullptr);
     notification_ = vsomeip::runtime::get()->create_notification();
 
@@ -112,8 +106,7 @@ TEST_F(someip_header_factory_test, create_notification_test)
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

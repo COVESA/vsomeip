@@ -23,20 +23,19 @@ class endpoint_host;
 class routing_host;
 
 template<typename Protocol>
-class endpoint_impl: public virtual endpoint {
+class endpoint_impl : public virtual endpoint {
 public:
     typedef typename Protocol::endpoint endpoint_type;
 
-    endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-                  const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
-                  const std::shared_ptr<configuration>& _configuration);
+    endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
+                  boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
     endpoint_impl(endpoint_impl<Protocol> const&) = delete;
     endpoint_impl(endpoint_impl<Protocol> const&&) = delete;
     virtual ~endpoint_impl() = default;
 
     void enable_magic_cookies();
 
-    void add_default_target(service_t, const std::string &, uint16_t);
+    void add_default_target(service_t, const std::string&, uint16_t);
     void remove_default_target(service_t);
     void remove_stop_handler(service_t);
 
@@ -44,7 +43,7 @@ public:
     virtual void set_local_port(uint16_t _port) = 0;
     virtual bool is_reliable() const = 0;
 
-    void register_error_handler(const error_handler_t &_error_handler);
+    void register_error_handler(const error_handler_t& _error_handler);
     virtual void print_status() = 0;
 
     virtual size_t get_queue_size() const = 0;
@@ -56,18 +55,14 @@ public:
     virtual void restart(bool _force) = 0;
 
 protected:
-    uint32_t find_magic_cookie(byte_t *_buffer, size_t _size);
+    uint32_t find_magic_cookie(byte_t* _buffer, size_t _size);
     instance_t get_instance(service_t _service);
 
 protected:
-    enum class cms_ret_e : uint8_t {
-        MSG_TOO_BIG,
-        MSG_OK,
-        MSG_WAS_SPLIT
-    };
+    enum class cms_ret_e : uint8_t { MSG_TOO_BIG, MSG_OK, MSG_WAS_SPLIT };
 
     // Reference to service context
-    boost::asio::io_context &io_;
+    boost::asio::io_context& io_;
 
     // References to hosts
     std::weak_ptr<endpoint_host> endpoint_host_;

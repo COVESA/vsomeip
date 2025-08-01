@@ -14,14 +14,14 @@ namespace vsomeip_v3 {
 
 std::map<std::string, std::string> runtime_impl::properties_;
 
-std::string runtime_impl::get_property(const std::string &_name) {
+std::string runtime_impl::get_property(const std::string& _name) {
     auto found_property = properties_.find(_name);
     if (found_property != properties_.end())
         return found_property->second;
     return "";
 }
 
-void runtime_impl::set_property(const std::string &_name, const std::string &_value) {
+void runtime_impl::set_property(const std::string& _name, const std::string& _value) {
     properties_[_name] = _value;
 }
 
@@ -35,9 +35,8 @@ std::shared_ptr<application> runtime_impl::create_application(const std::string&
     return create_application(_name, "");
 }
 
-std::shared_ptr<application> runtime_impl::create_application(const std::string& _name,
-                                                              const std::string& _path) {
-    std::scoped_lock its_lock {applications_mutex_};
+std::shared_ptr<application> runtime_impl::create_application(const std::string& _name, const std::string& _path) {
+    std::scoped_lock its_lock{applications_mutex_};
     static std::uint32_t postfix_id = 0;
     std::string its_name = _name;
     auto found_application = applications_.find(_name);
@@ -59,7 +58,7 @@ std::shared_ptr<message> runtime_impl::create_message(bool _reliable) const {
 }
 
 std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
-   auto its_request = std::make_shared<message_impl>();
+    auto its_request = std::make_shared<message_impl>();
     its_request->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_request->set_message_type(message_type_e::MT_REQUEST);
     its_request->set_return_code(return_code_e::E_OK);
@@ -68,8 +67,7 @@ std::shared_ptr<message> runtime_impl::create_request(bool _reliable) const {
     return its_request;
 }
 
-std::shared_ptr<message> runtime_impl::create_response(
-        const std::shared_ptr<message> &_request) const {
+std::shared_ptr<message> runtime_impl::create_response(const std::shared_ptr<message>& _request) const {
     auto its_response = std::make_shared<message_impl>();
     its_response->set_service(_request->get_service());
     its_response->set_instance(_request->get_instance());
@@ -83,8 +81,7 @@ std::shared_ptr<message> runtime_impl::create_response(
     return its_response;
 }
 
-std::shared_ptr<message> runtime_impl::create_notification(
-        bool _reliable) const {
+std::shared_ptr<message> runtime_impl::create_notification(bool _reliable) const {
     auto its_notification = std::make_shared<message_impl>();
     its_notification->set_protocol_version(VSOMEIP_PROTOCOL_VERSION);
     its_notification->set_message_type(message_type_e::MT_NOTIFICATION);
@@ -98,30 +95,26 @@ std::shared_ptr<payload> runtime_impl::create_payload() const {
     return std::make_shared<payload_impl>();
 }
 
-std::shared_ptr<payload> runtime_impl::create_payload(const byte_t *_data,
-        uint32_t _size) const {
+std::shared_ptr<payload> runtime_impl::create_payload(const byte_t* _data, uint32_t _size) const {
     return std::make_shared<payload_impl>(_data, _size);
 }
 
-std::shared_ptr<payload> runtime_impl::create_payload(
-        const std::vector<byte_t> &_data) const {
+std::shared_ptr<payload> runtime_impl::create_payload(const std::vector<byte_t>& _data) const {
     return std::make_shared<payload_impl>(_data);
 }
 
-std::shared_ptr<application> runtime_impl::get_application(
-        const std::string &_name) const {
-    std::scoped_lock its_lock {applications_mutex_};
+std::shared_ptr<application> runtime_impl::get_application(const std::string& _name) const {
+    std::scoped_lock its_lock{applications_mutex_};
     auto found_application = applications_.find(_name);
-    if(found_application != applications_.end())
+    if (found_application != applications_.end())
         return found_application->second.lock();
     return nullptr;
 }
 
-void runtime_impl::remove_application(
-        const std::string &_name) {
-    std::scoped_lock its_lock {applications_mutex_};
+void runtime_impl::remove_application(const std::string& _name) {
+    std::scoped_lock its_lock{applications_mutex_};
     auto found_application = applications_.find(_name);
-    if(found_application != applications_.end()) {
+    if (found_application != applications_.end()) {
         applications_.erase(_name);
     }
 }

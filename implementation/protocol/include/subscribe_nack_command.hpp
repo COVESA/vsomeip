@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class subscribe_nack_command
-    : public subscribe_ack_command_base {
+class subscribe_nack_command : public subscribe_ack_command_base {
 
 public:
     subscribe_nack_command();

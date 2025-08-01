@@ -51,8 +51,7 @@ void routingmanagerd_stop(int _signal) {
         routing_state = vsomeip::routing_state_e::RS_RESUMED;
         break;
 
-    default:
-        ;
+    default:;
     };
 
     std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
@@ -73,8 +72,7 @@ int routingmanagerd_process(bool _is_quiet) {
     (void)_is_quiet;
 #endif
 
-    std::shared_ptr<vsomeip::runtime> its_runtime
-        = vsomeip::runtime::get();
+    std::shared_ptr<vsomeip::runtime> its_runtime = vsomeip::runtime::get();
 
     if (!its_runtime) {
         return -1;
@@ -107,10 +105,8 @@ int routingmanagerd_process(bool _is_quiet) {
             if (stop_application) {
                 its_application->stop();
                 return;
-            } else if (routing_state == vsomeip::routing_state_e::RS_RESUMED ||
-                    routing_state == vsomeip::routing_state_e::RS_SUSPENDED){
-                VSOMEIP_INFO << "Received signal for setting routing_state to: 0x"
-                       << std::hex << static_cast<int>(routing_state );
+            } else if (routing_state == vsomeip::routing_state_e::RS_RESUMED || routing_state == vsomeip::routing_state_e::RS_SUSPENDED) {
+                VSOMEIP_INFO << "Received signal for setting routing_state to: 0x" << std::hex << static_cast<int>(routing_state);
                 its_application->set_routing_state(routing_state);
             }
         }
@@ -157,7 +153,7 @@ int routingmanagerd_process(bool _is_quiet) {
  *
  * and start processing.
  */
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Block all signals
     sigset_t mask;
@@ -174,9 +170,7 @@ int main(int argc, char **argv) {
             } else if (its_argument == "-q" || its_argument == "--quiet") {
                 is_quiet = true;
             } else if (its_argument == "-h" || its_argument == "--help") {
-                std::cout << "usage: "
-                        << argv[0] << " [-h|--help][-d|--daemonize][-q|--quiet]"
-                        << std::endl;
+                std::cout << "usage: " << argv[0] << " [-h|--help][-d|--daemonize][-q|--quiet]" << std::endl;
                 return 0;
             }
         }

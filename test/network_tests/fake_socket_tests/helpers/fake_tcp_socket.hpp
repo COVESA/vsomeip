@@ -27,8 +27,7 @@ class fake_tcp_acceptor_handle;
  **/
 class fake_tcp_socket : public tcp_socket {
 public:
-    explicit fake_tcp_socket(std::shared_ptr<fake_tcp_socket_handle> _state) :
-        state_(std::move(_state)) { }
+    explicit fake_tcp_socket(std::shared_ptr<fake_tcp_socket_handle> _state) : state_(std::move(_state)) { }
 
 private:
     [[nodiscard]] bool is_open() const { return state_->is_open(); }
@@ -42,14 +41,12 @@ private:
         return -1;
     }
 
-    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type _type,
-                      boost::system::error_code& _ec) override {
+    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type _type, boost::system::error_code& _ec) override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         state_->open(_type);
     }
 
-    virtual void bind(boost::asio::ip::tcp::endpoint const& _ep,
-                      boost::system::error_code& _ec) override {
+    virtual void bind(boost::asio::ip::tcp::endpoint const& _ep, boost::system::error_code& _ec) override {
         if (!state_->bind(_ep)) {
             _ec = boost::asio::error::address_in_use;
             return;
@@ -67,44 +64,37 @@ private:
         state_->cancel();
     }
 
-    virtual void shutdown(boost::asio::ip::tcp::socket::shutdown_type,
-                          boost::system::error_code& _ec) override {
+    virtual void shutdown(boost::asio::ip::tcp::socket::shutdown_type, boost::system::error_code& _ec) override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         state_->shutdown();
     }
 
-    virtual boost::asio::ip::tcp::endpoint
-    local_endpoint(boost::system::error_code& _ec) const override {
+    virtual boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code& _ec) const override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         return state_->local_endpoint();
     }
 
-    virtual boost::asio::ip::tcp::endpoint
-    remote_endpoint(boost::system::error_code& _ec) const override {
+    virtual boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code& _ec) const override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         return state_->remote_endpoint();
     }
 
-    virtual void set_option(boost::asio::ip::tcp::no_delay,
-                            boost::system::error_code& _ec) override {
+    virtual void set_option(boost::asio::ip::tcp::no_delay, boost::system::error_code& _ec) override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         set_no_delay_ = true;
     }
 
-    virtual void set_option(boost::asio::ip::tcp::socket::keep_alive,
-                            boost::system::error_code& _ec) override {
+    virtual void set_option(boost::asio::ip::tcp::socket::keep_alive, boost::system::error_code& _ec) override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         set_keep_alive_ = true;
     }
 
-    virtual void set_option(boost::asio::ip::tcp::socket::linger,
-                            boost::system::error_code& _ec) override {
+    virtual void set_option(boost::asio::ip::tcp::socket::linger, boost::system::error_code& _ec) override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         set_linger_ = true;
     }
 
-    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address,
-                            boost::system::error_code& _ec) override {
+    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address, boost::system::error_code& _ec) override {
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         set_reuse_address_ = true;
     }
@@ -125,8 +115,7 @@ private:
     [[nodiscard]] bool can_read_fd_flags() override { return true; }
 #endif
 
-    virtual void async_connect(boost::asio::ip::tcp::endpoint const& _ep,
-                               connect_handler handler) override {
+    virtual void async_connect(boost::asio::ip::tcp::endpoint const& _ep, connect_handler handler) override {
         state_->connect(_ep, std::move(handler));
     }
 
@@ -134,20 +123,18 @@ private:
         state_->async_receive(std::move(_buffer), std::move(_handler));
     }
 
-    virtual void async_write(std::vector<boost::asio::const_buffer> const& _buffer,
-                             rw_handler _handler) override {
+    virtual void async_write(std::vector<boost::asio::const_buffer> const& _buffer, rw_handler _handler) override {
         state_->write(_buffer, std::move(_handler));
     }
 
-    virtual void async_write(boost::asio::const_buffer const&, completion_condition,
-                             rw_handler) override { }
+    virtual void async_write(boost::asio::const_buffer const&, completion_condition, rw_handler) override { }
 
     friend class fake_tcp_acceptor_handle;
     std::shared_ptr<fake_tcp_socket_handle> state_;
-    bool set_no_delay_ {false};
-    bool set_keep_alive_ {false};
-    bool set_linger_ {false};
-    bool set_reuse_address_ {false};
+    bool set_no_delay_{false};
+    bool set_keep_alive_{false};
+    bool set_linger_{false};
+    bool set_reuse_address_{false};
     std::optional<unsigned int> set_user_timeout_;
     std::optional<std::string> bound_device_;
 };
@@ -162,8 +149,7 @@ private:
  **/
 class fake_tcp_acceptor : public tcp_acceptor {
 public:
-    explicit fake_tcp_acceptor(std::shared_ptr<fake_tcp_acceptor_handle> _state) :
-        state_(std::move(_state)) { }
+    explicit fake_tcp_acceptor(std::shared_ptr<fake_tcp_acceptor_handle> _state) : state_(std::move(_state)) { }
 
     ~fake_tcp_acceptor() = default;
 
@@ -178,14 +164,12 @@ private:
         return -1;
     }
 
-    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type,
-                      boost::system::error_code& _ec) override {
+    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type, boost::system::error_code& _ec) override {
 
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         state_->open();
     }
-    virtual void bind(boost::asio::ip::tcp::endpoint const& _ep,
-                      boost::system::error_code& _ec) override {
+    virtual void bind(boost::asio::ip::tcp::endpoint const& _ep, boost::system::error_code& _ec) override {
         if (!state_->bind(_ep)) {
             _ec = boost::asio::error::address_in_use;
             return;
@@ -197,8 +181,7 @@ private:
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
         state_->close();
     }
-    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address,
-                            boost::system::error_code& _ec) override {
+    virtual void set_option(boost::asio::ip::tcp::socket::reuse_address, boost::system::error_code& _ec) override {
 
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
     }
@@ -211,9 +194,7 @@ private:
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
     }
 
-    virtual void async_accept(tcp_socket& socket, connect_handler handler) override {
-        state_->async_accept(socket, std::move(handler));
-    }
+    virtual void async_accept(tcp_socket& socket, connect_handler handler) override { state_->async_accept(socket, std::move(handler)); }
 
     std::shared_ptr<fake_tcp_acceptor_handle> state_;
 };

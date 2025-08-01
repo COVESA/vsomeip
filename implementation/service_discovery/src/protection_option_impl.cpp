@@ -17,18 +17,14 @@ protection_option_impl::protection_option_impl() {
     crc_ = 0;
 }
 
-protection_option_impl::~protection_option_impl() {
-}
+protection_option_impl::~protection_option_impl() { }
 
-bool
-protection_option_impl::equals(const option_impl &_other) const {
+bool protection_option_impl::equals(const option_impl& _other) const {
     bool is_equal(option_impl::equals(_other));
 
     if (is_equal) {
-        const protection_option_impl &its_other
-            = dynamic_cast<const protection_option_impl &>(_other);
-        is_equal = (counter_ == its_other.counter_
-                && crc_ == its_other.crc_);
+        const protection_option_impl& its_other = dynamic_cast<const protection_option_impl&>(_other);
+        is_equal = (counter_ == its_other.counter_ && crc_ == its_other.crc_);
     }
 
     return is_equal;
@@ -50,16 +46,14 @@ void protection_option_impl::set_crc(crc_t _crc) {
     crc_ = _crc;
 }
 
-bool protection_option_impl::serialize(vsomeip_v3::serializer *_to) const {
+bool protection_option_impl::serialize(vsomeip_v3::serializer* _to) const {
     bool is_successful = option_impl::serialize(_to);
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint32_t>(counter_));
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint32_t>(crc_));
+    is_successful = is_successful && _to->serialize(static_cast<uint32_t>(counter_));
+    is_successful = is_successful && _to->serialize(static_cast<uint32_t>(crc_));
     return is_successful;
 }
 
-bool protection_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
+bool protection_option_impl::deserialize(vsomeip_v3::deserializer* _from) {
     bool is_successful = option_impl::deserialize(_from);
 
     uint32_t its_alive_counter = 0;

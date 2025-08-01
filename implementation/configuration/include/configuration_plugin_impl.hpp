@@ -16,24 +16,21 @@
 namespace vsomeip_v3 {
 namespace cfg {
 
-    class configuration_impl;
+class configuration_impl;
 
 } // namespace cfg
 
-class configuration_plugin_impl
-    : public configuration_plugin,
-      public plugin_impl<configuration_plugin_impl> {
+class configuration_plugin_impl : public configuration_plugin, public plugin_impl<configuration_plugin_impl> {
 public:
     configuration_plugin_impl();
     virtual ~configuration_plugin_impl();
 
-    std::shared_ptr<configuration> get_configuration(const std::string &_name,
-            const std::string &_path);
-    bool remove_configuration(const std::string &_name);
+    std::shared_ptr<configuration> get_configuration(const std::string& _name, const std::string& _path);
+    bool remove_configuration(const std::string& _name);
 
 private:
     std::mutex mutex_;
-    std::map<std::string, std::shared_ptr<cfg::configuration_impl> > configurations_;
+    std::map<std::string, std::shared_ptr<cfg::configuration_impl>> configurations_;
 };
 
 } // namespace vsomeip_v3

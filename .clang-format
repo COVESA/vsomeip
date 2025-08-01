@@ -16,7 +16,8 @@ Standard: c++17
 # Column width is limited to 100 in accordance with Qt Coding Style.
 # https://wiki.qt.io/Qt_Coding_Style
 # Note that this may be changed at some point in the future.
-ColumnLimit: 100
+ColumnLimit: 140
+
 # How much weight do extra characters after the line length limit have.
 # PenaltyExcessCharacter: 4
 
@@ -46,6 +47,9 @@ ContinuationIndentWidth: 8
 
 # No spaces inside the braced list.
 Cpp11BracedListStyle: true
+
+# No spaces before a braced list
+SpaceBeforeCpp11BracedList: false
 
 # No indentation for namespaces.
 NamespaceIndentation: None

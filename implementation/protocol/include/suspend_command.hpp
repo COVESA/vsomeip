@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class suspend_command
-    : public simple_command {
+class suspend_command : public simple_command {
 
 public:
     suspend_command();

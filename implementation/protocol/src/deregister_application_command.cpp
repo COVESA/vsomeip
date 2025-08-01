@@ -10,10 +10,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-deregister_application_command::deregister_application_command()
-    : simple_command(id_e::DEREGISTER_APPLICATION_ID) {
-
-}
+deregister_application_command::deregister_application_command() : simple_command(id_e::DEREGISTER_APPLICATION_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

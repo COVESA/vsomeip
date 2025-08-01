@@ -5,25 +5,20 @@
 
 #include <common/utility.hpp>
 
-void
-utility::load_policy_data(std::string _input,
-    std::vector<vsomeip_v3::configuration_element> &_elements,
-    std::set<std::string> &_failed) {
+void utility::load_policy_data(std::string _input, std::vector<vsomeip_v3::configuration_element>& _elements,
+                               std::set<std::string>& _failed) {
 
     boost::property_tree::ptree its_tree;
     try {
         boost::property_tree::json_parser::read_json(_input, its_tree);
-        _elements.push_back({ _input, its_tree });
-    }
-    catch (boost::property_tree::json_parser_error &e) {
+        _elements.push_back({_input, its_tree});
+    } catch (boost::property_tree::json_parser_error& e) {
         _failed.insert(_input);
     }
 }
 
-void
-utility::read_data(const std::set<std::string> &_input,
-    std::vector<vsomeip_v3::configuration_element> &_elements,
-    std::set<std::string> &_failed) {
+void utility::read_data(const std::set<std::string>& _input, std::vector<vsomeip_v3::configuration_element>& _elements,
+                        std::set<std::string>& _failed) {
 
     for (auto i : _input) {
         if (vsomeip_v3::utility::is_file(i)) {
@@ -31,9 +26,7 @@ utility::read_data(const std::set<std::string> &_input,
         } else if (vsomeip_v3::utility::is_folder(i)) {
             std::map<std::string, bool> its_names;
             boost::filesystem::path its_path(i);
-            for (auto j = boost::filesystem::directory_iterator(its_path);
-                    j != boost::filesystem::directory_iterator();
-                    j++) {
+            for (auto j = boost::filesystem::directory_iterator(its_path); j != boost::filesystem::directory_iterator(); j++) {
                 std::string name = j->path().string() + "/vsomeip_security.json";
                 if (vsomeip_v3::utility::is_file(name))
                     its_names[name] = true;
@@ -45,16 +38,13 @@ utility::read_data(const std::set<std::string> &_input,
     }
 }
 
-std::set<std::string>
-utility::get_all_files_in_dir(const std::string &_dir_path,
-        const std::vector<std::string> &_dir_skip_list) {
+std::set<std::string> utility::get_all_files_in_dir(const std::string& _dir_path, const std::vector<std::string>& _dir_skip_list) {
 
     // Create a vector of string
     std::set<std::string> list_of_files;
     try {
         // Check if given path exists and points to a directory
-        if (boost::filesystem::exists(_dir_path)
-                && boost::filesystem::is_directory(_dir_path)) {
+        if (boost::filesystem::exists(_dir_path) && boost::filesystem::is_directory(_dir_path)) {
             // Create a Recursive Directory Iterator object and points to the
             // starting of directory
             boost::filesystem::recursive_directory_iterator iter(_dir_path);
@@ -65,9 +55,7 @@ utility::get_all_files_in_dir(const std::string &_dir_path,
                 // Check if current entry is a directory and if exists in
                 // skip list
                 if (boost::filesystem::is_directory(iter->path())
-                        && (std::find(_dir_skip_list.begin(),
-                                _dir_skip_list.end(), iter->path().filename())
-                                != _dir_skip_list.end())) {
+                    && (std::find(_dir_skip_list.begin(), _dir_skip_list.end(), iter->path().filename()) != _dir_skip_list.end())) {
                     // Boost Filesystem  API to skip current directory iteration
 #if VSOMEIP_BOOST_VERSION < 108100
                     iter.no_push();
@@ -86,76 +74,58 @@ utility::get_all_files_in_dir(const std::string &_dir_path,
                 }
             }
         }
-    }
-    catch (std::system_error & e) {
+    } catch (std::system_error& e) {
         std::cerr << "Exception :: " << e.what();
     }
     return list_of_files;
 }
 
-std::string
-utility::get_policies_path() {
+std::string utility::get_policies_path() {
 
-    return boost::filesystem::canonical(
-            boost::filesystem::current_path()).string()
-            + "/test/common/examples_policies";
+    return boost::filesystem::canonical(boost::filesystem::current_path()).string() + "/test/common/examples_policies";
 }
 
-vsomeip_sec_client_t
-utility::create_uds_client(uid_t user, gid_t group, vsomeip_sec_ip_addr_t host) {
-    vsomeip_sec_client_t result{ user, group, host, VSOMEIP_SEC_PORT_UNUSED };
+vsomeip_sec_client_t utility::create_uds_client(uid_t user, gid_t group, vsomeip_sec_ip_addr_t host) {
+    vsomeip_sec_client_t result{user, group, host, VSOMEIP_SEC_PORT_UNUSED};
     return result;
 }
 
-void
-utility::force_check_credentials(
-        std::vector<vsomeip_v3::configuration_element> &_policy_elements,
-        std::string _value) {
+void utility::force_check_credentials(std::vector<vsomeip_v3::configuration_element>& _policy_elements, std::string _value) {
 
-    for(auto &i : _policy_elements) {
+    for (auto& i : _policy_elements) {
         try {
-            boost::property_tree::ptree &security
-                = i.tree_.get_child("security");
-            boost::property_tree::ptree &credentials
-                = security.get_child("check_credentials");
+            boost::property_tree::ptree& security = i.tree_.get_child("security");
+            boost::property_tree::ptree& credentials = security.get_child("check_credentials");
             if (credentials.get_value<std::string>().compare(_value)) {
                 security.erase("check_credentials");
                 security.put("check_credentials", _value);
             }
-        }
-        catch(...) {}
+        } catch (...) { }
     }
-        }
+}
 
-void utility::get_policy_uids(vsomeip_v3::configuration_element &_policy_element,
-                              std::vector<vsomeip_v3::uid_t> &_out_uids)
-{
+void utility::get_policy_uids(vsomeip_v3::configuration_element& _policy_element, std::vector<vsomeip_v3::uid_t>& _out_uids) {
     try {
         std::vector<std::string> user_ids;
         auto policy_tree = _policy_element.tree_.get_child("security.policies");
         for (auto policy_node : policy_tree) {
-            auto optional_credential_node =
-                    policy_node.second.get_child_optional("credentials.uid");
+            auto optional_credential_node = policy_node.second.get_child_optional("credentials.uid");
             if (optional_credential_node) {
-                auto optional_user_id =
-                        optional_credential_node.get().get_value_optional<std::string>();
+                auto optional_user_id = optional_credential_node.get().get_value_optional<std::string>();
                 if (optional_user_id) {
                     user_ids.push_back(optional_user_id.get());
                 }
             }
         }
-        for (const std::string &uid_string : user_ids) {
+        for (const std::string& uid_string : user_ids) {
             _out_uids.push_back((vsomeip_v3::uid_t)std::strtoul(uid_string.c_str(), NULL, 0));
         }
     } catch (...) {
-        std::cerr << "Caught exception while reading user ids in policy element \""
-                  << _policy_element.name_ << "\"!" << std::endl;
+        std::cerr << "Caught exception while reading user ids in policy element \"" << _policy_element.name_ << "\"!" << std::endl;
     }
 }
 
-void utility::get_policy_services(vsomeip_v3::configuration_element &_policy_element,
-                                  std::vector<vsomeip_v3::service_t> &_out_services)
-{
+void utility::get_policy_services(vsomeip_v3::configuration_element& _policy_element, std::vector<vsomeip_v3::service_t>& _out_services) {
     try {
         std::vector<std::string> services;
         auto policy_tree = _policy_element.tree_.get_child("security.policies");
@@ -163,9 +133,8 @@ void utility::get_policy_services(vsomeip_v3::configuration_element &_policy_ele
             // Get allowed request services.
             auto allow_requests = policy_node.second.get_child_optional("allow.requests");
             if (allow_requests) {
-                for (auto &request_node : allow_requests.get()) {
-                    auto optional_service = request_node.second.get_child("service")
-                                                    .get_value_optional<std::string>();
+                for (auto& request_node : allow_requests.get()) {
+                    auto optional_service = request_node.second.get_child("service").get_value_optional<std::string>();
                     if (optional_service) {
                         services.push_back(optional_service.get());
                     }
@@ -174,28 +143,23 @@ void utility::get_policy_services(vsomeip_v3::configuration_element &_policy_ele
             // Get denied request services.
             auto deny_requests = policy_node.second.get_child_optional("deny.requests");
             if (deny_requests) {
-                for (auto &request_node : deny_requests.get()) {
-                    auto optional_service = request_node.second.get_child("service")
-                                                    .get_value_optional<std::string>();
+                for (auto& request_node : deny_requests.get()) {
+                    auto optional_service = request_node.second.get_child("service").get_value_optional<std::string>();
                     if (optional_service) {
                         services.push_back(optional_service.get());
                     }
                 }
             }
         }
-        for (const std::string &service_str : services) {
-            _out_services.push_back(
-                    (vsomeip_v3::service_t)std::strtoul(service_str.c_str(), NULL, 0));
+        for (const std::string& service_str : services) {
+            _out_services.push_back((vsomeip_v3::service_t)std::strtoul(service_str.c_str(), NULL, 0));
         }
     } catch (...) {
-        std::cerr << "Caught exception while reading services in policy element \""
-                  << _policy_element.name_ << "\"!" << std::endl;
+        std::cerr << "Caught exception while reading services in policy element \"" << _policy_element.name_ << "\"!" << std::endl;
     }
 }
 
-void utility::add_security_whitelist(vsomeip_v3::configuration_element &_policy_element,
-                                     const bool _check_whitelist)
-{
+void utility::add_security_whitelist(vsomeip_v3::configuration_element& _policy_element, const bool _check_whitelist) {
     std::vector<vsomeip_v3::uid_t> user_ids;
     get_policy_uids(_policy_element, user_ids);
 
@@ -205,11 +169,8 @@ void utility::add_security_whitelist(vsomeip_v3::configuration_element &_policy_
     add_security_whitelist(_policy_element, user_ids, services, _check_whitelist);
 }
 
-void utility::add_security_whitelist(vsomeip_v3::configuration_element &_policy_element,
-                                     const std::vector<vsomeip_v3::uid_t> &_user_ids,
-                                     const std::vector<vsomeip_v3::service_t> &_services,
-                                     const bool _check_whitelist)
-{
+void utility::add_security_whitelist(vsomeip_v3::configuration_element& _policy_element, const std::vector<vsomeip_v3::uid_t>& _user_ids,
+                                     const std::vector<vsomeip_v3::service_t>& _services, const bool _check_whitelist) {
     // Add the user ids to the whitelist.
     boost::property_tree::ptree id_array_node;
     for (auto user_id : _user_ids) {

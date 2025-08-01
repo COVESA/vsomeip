@@ -11,27 +11,26 @@
 
 namespace vsomeip {
 
-class payload_impl
-        : public payload {
+class payload_impl : public payload {
 
 public:
-    payload_impl(const std::shared_ptr<vsomeip_v3::payload> &_impl);
+    payload_impl(const std::shared_ptr<vsomeip_v3::payload>& _impl);
     ~payload_impl();
 
-    bool operator ==(const payload &_other);
+    bool operator==(const payload& _other);
 
-    byte_t * get_data();
-    const byte_t * get_data() const;
+    byte_t* get_data();
+    const byte_t* get_data() const;
 
-    void set_data(const byte_t *_data, length_t _length);
-    void set_data(const std::vector<byte_t> &_data);
-    void set_data(std::vector<byte_t> &&_data);
+    void set_data(const byte_t* _data, length_t _length);
+    void set_data(const std::vector<byte_t>& _data);
+    void set_data(std::vector<byte_t>&& _data);
 
     length_t get_length() const;
     void set_capacity(length_t _length);
 
-    bool deserialize(deserializer *_from);
-    bool serialize(serializer *_to) const;
+    bool deserialize(deserializer* _from);
+    bool serialize(serializer* _to) const;
 
     // Wraps
     inline std::shared_ptr<vsomeip_v3::payload> get_impl() const { return impl_; }

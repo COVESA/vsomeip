@@ -52,10 +52,9 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
     } remover;
 
     // Create a shared memory object.
-    boost::interprocess::shared_memory_object shm(
-            boost::interprocess::open_or_create, // only create
-            "AvailabilityHandlerSteps", // name
-            boost::interprocess::read_write // read-write mode
+    boost::interprocess::shared_memory_object shm(boost::interprocess::open_or_create, // only create
+                                                  "AvailabilityHandlerSteps", // name
+                                                  boost::interprocess::read_write // read-write mode
     );
 
     int seconds_to_timeout = 5;
@@ -65,9 +64,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
         shm.truncate(sizeof(availability_handler::availability_handler_test_steps));
 
         // Map the whole shared memory in this process
-        boost::interprocess::mapped_region region(
-                shm, // What to map
-                boost::interprocess::read_write // Map it as read-write
+        boost::interprocess::mapped_region region(shm, // What to map
+                                                  boost::interprocess::read_write // Map it as read-write
         );
 
         void* addr = region.get_address();
@@ -79,8 +77,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
         std::string exec_cmd_client = "./availability_handler_test_client_starter.sh";
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    service_lock(availability_handler_shared_->service_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
+                    availability_handler_shared_->service_mutex_);
 
             std::cout << "S1 Launching Service" << std::endl;
             ASSERT_EQ(system(exec_cmd_service.c_str()), 0);
@@ -88,8 +86,7 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
             std::cout << "S1 - Waiting for service to register..." << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
                     availability_handler_shared_->service_cv_, service_lock, seconds_to_timeout,
-                    availability_handler_shared_->service_status_,
-                    availability_handler::availability_handler_test_steps::STATE_REGISTERED);
+                    availability_handler_shared_->service_status_, availability_handler::availability_handler_test_steps::STATE_REGISTERED);
 
             std::cout << "Notify S1 - Service registered." << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
@@ -97,20 +94,18 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
             std::cout << "S2 - Waiting for offers to be sent." << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
                     availability_handler_shared_->service_cv_, service_lock, seconds_to_timeout,
-                    availability_handler_shared_->offer_status_,
-                    availability_handler::availability_handler_test_steps::OFFERS_SENT);
+                    availability_handler_shared_->offer_status_, availability_handler::availability_handler_test_steps::OFFERS_SENT);
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    client_lock(availability_handler_shared_->client_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> client_lock(
+                    availability_handler_shared_->client_mutex_);
 
             std::cout << "C1 Launching client and register the availability handler" << std::endl;
             ASSERT_EQ(system(exec_cmd_client.c_str()), 0);
 
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
-                    availability_handler_shared_->client_cv_, client_lock, seconds_to_timeout,
-                    availability_handler_shared_->client_status_,
+                    availability_handler_shared_->client_cv_, client_lock, seconds_to_timeout, availability_handler_shared_->client_status_,
                     availability_handler::availability_handler_test_steps::STATE_REGISTERED);
 
             std::cout << "C1 - Waiting to receive the NOT AVAILABLE (UNKNOWN state)." << std::endl;
@@ -125,8 +120,7 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
             std::cout << "C2 - Waiting for requests to be sent." << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
                     availability_handler_shared_->client_cv_, client_lock, seconds_to_timeout,
-                    availability_handler_shared_->request_status_,
-                    availability_handler::availability_handler_test_steps::REQUESTS_SENT);
+                    availability_handler_shared_->request_status_, availability_handler::availability_handler_test_steps::REQUESTS_SENT);
 
             std::cout << "C2 - Waiting for availability to be received." << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
@@ -151,22 +145,21 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    service_lock(availability_handler_shared_->service_mutex_);
-        
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
+                    availability_handler_shared_->service_mutex_);
+
             std::cout << "Notify S2 - Client availability received." << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
 
             std::cout << "S3 - Waiting for stop offers to be sent" << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
                     availability_handler_shared_->service_cv_, service_lock, seconds_to_timeout,
-                    availability_handler_shared_->offer_status_,
-                    availability_handler::availability_handler_test_steps::STOP_OFFERS_SENT);
+                    availability_handler_shared_->offer_status_, availability_handler::availability_handler_test_steps::STOP_OFFERS_SENT);
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    client_lock(availability_handler_shared_->client_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> client_lock(
+                    availability_handler_shared_->client_mutex_);
 
             std::cout << "C5 - Waiting for unavailability to be received." << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
@@ -176,22 +169,21 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    service_lock(availability_handler_shared_->service_mutex_);
-        
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
+                    availability_handler_shared_->service_mutex_);
+
             std::cout << "Notify S3 - Client unavailability received." << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
 
             std::cout << "S4 - Waiting for offers to be sent" << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
                     availability_handler_shared_->service_cv_, service_lock, seconds_to_timeout,
-                    availability_handler_shared_->offer_status_,
-                    availability_handler::availability_handler_test_steps::OFFERS_SENT);
+                    availability_handler_shared_->offer_status_, availability_handler::availability_handler_test_steps::OFFERS_SENT);
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                client_lock(availability_handler_shared_->client_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> client_lock(
+                    availability_handler_shared_->client_mutex_);
 
             std::cout << "C6 - Waiting for availability to be received." << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
@@ -201,8 +193,8 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    service_lock(availability_handler_shared_->service_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
+                    availability_handler_shared_->service_mutex_);
 
             std::cout << "Notify S4 - Client availability received again" << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
@@ -210,28 +202,26 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
             std::cout << "S5 - Waiting for stop offers to be sent" << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
                     availability_handler_shared_->service_cv_, service_lock, seconds_to_timeout,
-                    availability_handler_shared_->offer_status_,
-                    availability_handler::availability_handler_test_steps::STOP_OFFERS_SENT);
+                    availability_handler_shared_->offer_status_, availability_handler::availability_handler_test_steps::STOP_OFFERS_SENT);
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                client_lock(availability_handler_shared_->client_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> client_lock(
+                    availability_handler_shared_->client_mutex_);
 
             std::cout << "Notify C6 - Services are being released." << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->client_cv_);
 
             std::cout << "C7 - Waiting for client to be deregistered" << std::endl;
             availability_handler::availability_handler_utils::wait_and_check_unlocked(
-                    availability_handler_shared_->client_cv_, client_lock, seconds_to_timeout,
-                    availability_handler_shared_->client_status_,
+                    availability_handler_shared_->client_cv_, client_lock, seconds_to_timeout, availability_handler_shared_->client_status_,
                     availability_handler::availability_handler_test_steps::STATE_DEREGISTERED);
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    service_lock(availability_handler_shared_->service_mutex_);
-        
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
+                    availability_handler_shared_->service_mutex_);
+
             std::cout << "Notify S5 - Client is deregistered." << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
 
@@ -243,12 +233,14 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
         }
 
         {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    service_lock(availability_handler_shared_->service_mutex_);
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>
-                    client_lock(availability_handler_shared_->client_mutex_);
- 
-            std::cout << "Notify both - Service is deregistered. All applications deregistered going down." << std::endl;
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
+                    availability_handler_shared_->service_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> client_lock(
+                    availability_handler_shared_->client_mutex_);
+
+            std::cout << "Notify both - Service is deregistered. All applications deregistered "
+                         "going down."
+                      << std::endl;
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->client_cv_);
             availability_handler::availability_handler_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
         }

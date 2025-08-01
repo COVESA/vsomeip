@@ -25,48 +25,31 @@
 class initial_event_test_stop_service : public vsomeip_utilities::base_logger {
 public:
     initial_event_test_stop_service(struct initial_event_test::service_info _service_info, bool _is_master) :
-            vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST STOP SERVICE"),
-            service_info_(_service_info),
-            is_master_(_is_master),
-            app_(vsomeip::runtime::get()->create_application()),
-            wait_until_registered_(true),
-            wait_until_stop_service_other_node_available_(true),
-            wait_for_stop_(true),
-            called_other_node_(false) {
+        vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST STOP SERVICE"), service_info_(_service_info), is_master_(_is_master),
+        app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
+        wait_until_stop_service_other_node_available_(true), wait_for_stop_(true), called_other_node_(false) {
 
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&initial_event_test_stop_service::on_state, this,
-                        std::placeholders::_1));
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.method_id,
-                std::bind(&initial_event_test_stop_service::on_shutdown_method_called, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&initial_event_test_stop_service::on_state, this, std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.method_id,
+                                       std::bind(&initial_event_test_stop_service::on_shutdown_method_called, this, std::placeholders::_1));
 
         // register availability for all other services and request their event.
         if (is_master_) {
-            app_->request_service(
-                    initial_event_test::stop_service_slave.service_id,
-                    initial_event_test::stop_service_slave.instance_id);
-            app_->register_availability_handler(
-                    initial_event_test::stop_service_slave.service_id,
-                    initial_event_test::stop_service_slave.instance_id,
-                    std::bind(&initial_event_test_stop_service::on_availability,
-                            this, std::placeholders::_1, std::placeholders::_2,
-                            std::placeholders::_3));
+            app_->request_service(initial_event_test::stop_service_slave.service_id, initial_event_test::stop_service_slave.instance_id);
+            app_->register_availability_handler(initial_event_test::stop_service_slave.service_id,
+                                                initial_event_test::stop_service_slave.instance_id,
+                                                std::bind(&initial_event_test_stop_service::on_availability, this, std::placeholders::_1,
+                                                          std::placeholders::_2, std::placeholders::_3));
         } else {
-            app_->request_service(
-                    initial_event_test::stop_service_master.service_id,
-                    initial_event_test::stop_service_master.instance_id);
-            app_->register_availability_handler(
-                    initial_event_test::stop_service_master.service_id,
-                    initial_event_test::stop_service_master.instance_id,
-                    std::bind(&initial_event_test_stop_service::on_availability,
-                            this, std::placeholders::_1, std::placeholders::_2,
-                            std::placeholders::_3));
+            app_->request_service(initial_event_test::stop_service_master.service_id, initial_event_test::stop_service_master.instance_id);
+            app_->register_availability_handler(initial_event_test::stop_service_master.service_id,
+                                                initial_event_test::stop_service_master.instance_id,
+                                                std::bind(&initial_event_test_stop_service::on_availability, this, std::placeholders::_1,
+                                                          std::placeholders::_2, std::placeholders::_3));
         }
 
         stop_thread_ = std::thread(std::bind(&initial_event_test_stop_service::wait_for_stop, this));
@@ -86,32 +69,24 @@ public:
 
     void offer() {
         if (is_master_) {
-            app_->offer_service(
-                    initial_event_test::stop_service_master.service_id,
-                    initial_event_test::stop_service_master.instance_id);
+            app_->offer_service(initial_event_test::stop_service_master.service_id, initial_event_test::stop_service_master.instance_id);
         } else {
-            app_->offer_service(
-                    initial_event_test::stop_service_slave.service_id,
-                    initial_event_test::stop_service_slave.instance_id);
+            app_->offer_service(initial_event_test::stop_service_slave.service_id, initial_event_test::stop_service_slave.instance_id);
         }
     }
 
     void stop_offer() {
         if (is_master_) {
-            app_->stop_offer_service(
-                    initial_event_test::stop_service_master.service_id,
-                    initial_event_test::stop_service_master.instance_id);
+            app_->stop_offer_service(initial_event_test::stop_service_master.service_id,
+                                     initial_event_test::stop_service_master.instance_id);
         } else {
-            app_->stop_offer_service(
-                    initial_event_test::stop_service_slave.service_id,
-                    initial_event_test::stop_service_slave.instance_id);
+            app_->stop_offer_service(initial_event_test::stop_service_slave.service_id, initial_event_test::stop_service_slave.instance_id);
         }
     }
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -120,22 +95,19 @@ public:
         }
     }
 
-    void on_availability(vsomeip::service_t _service,
-            vsomeip::instance_t _instance, bool _is_available) {
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         bool notify(false);
-        if(_is_available) {
-            VSOMEIP_INFO << "[" << std::hex << std::setfill('0') 
-                    << std::setw(4) << service_info_.service_id << "] Service ["
-                    << std::setw(4) << _service
-                    << "." << _instance << "] is available.";
-            if(is_master_) {
-                if(_service == initial_event_test::stop_service_slave.service_id
-                        && _instance == initial_event_test::stop_service_slave.instance_id) {
+        if (_is_available) {
+            VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Service ["
+                         << std::setw(4) << _service << "." << _instance << "] is available.";
+            if (is_master_) {
+                if (_service == initial_event_test::stop_service_slave.service_id
+                    && _instance == initial_event_test::stop_service_slave.instance_id) {
                     notify = true;
                 }
             } else {
-                if(_service == initial_event_test::stop_service_master.service_id
-                        && _instance == initial_event_test::stop_service_master.instance_id) {
+                if (_service == initial_event_test::stop_service_master.service_id
+                    && _instance == initial_event_test::stop_service_master.instance_id) {
                     notify = true;
                 }
             }
@@ -147,12 +119,10 @@ public:
         }
     }
 
-    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
-        if(_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST_NO_RETURN) {
-            VSOMEIP_DEBUG << "Received a request with Client/Session [" 
-            << std::hex << std::setfill('0') 
-            << std::setw(4) << _message->get_client() << "/"
-            << std::setw(4) << _message->get_session() << "] shutdown method called";
+    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
+        if (_message->get_message_type() == vsomeip::message_type_e::MT_REQUEST_NO_RETURN) {
+            VSOMEIP_DEBUG << "Received a request with Client/Session [" << std::hex << std::setfill('0') << std::setw(4)
+                          << _message->get_client() << "/" << std::setw(4) << _message->get_session() << "] shutdown method called";
 
             std::lock_guard<std::mutex> its_lock(stop_mutex_);
             wait_for_stop_ = false;
@@ -168,8 +138,7 @@ public:
             }
         }
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id << "] Offering";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
 
         {
@@ -179,12 +148,12 @@ public:
             }
         }
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id << "] Calling shutdown method on remote side";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
+                      << "] Calling shutdown method on remote side";
 
         std::shared_ptr<vsomeip::message> msg(vsomeip::runtime::get()->create_request());
         msg->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
-        if(is_master_) {
+        if (is_master_) {
             msg->set_service(initial_event_test::stop_service_slave.service_id);
             msg->set_instance(initial_event_test::stop_service_slave.instance_id);
             msg->set_method(initial_event_test::stop_service_slave.method_id);
@@ -195,8 +164,9 @@ public:
         }
         app_->send(msg);
         // time to be sure the sent message is sent by routing manager,
-        // otherwise , if the deregistration request is received before the message outs of routing manager
-        // the socket returns as bad description and the other client will not received the message
+        // otherwise , if the deregistration request is received before the message outs of routing
+        // manager the socket returns as bad description and the other client will not received the
+        // message
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         called_other_node_ = true;
     }
@@ -210,11 +180,9 @@ public:
                 stop_condition_.wait(its_lock);
             }
         }
-        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" 
-                << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id
-                << "] shutdown method was called, going down";
-        while(!called_other_node_) {
+        VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" << std::hex << std::setfill('0') << std::setw(4)
+                     << service_info_.service_id << "] shutdown method was called, going down";
+        while (!called_other_node_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
 
@@ -253,9 +221,8 @@ private:
 
 static bool is_master = false;
 
-TEST(someip_initial_event_test, wait_for_stop_method_to_be_called)
-{
-    if(is_master) {
+TEST(someip_initial_event_test, wait_for_stop_method_to_be_called) {
+    if (is_master) {
         initial_event_test_stop_service its_sample(initial_event_test::stop_service_master, is_master);
     } else {
         initial_event_test_stop_service its_sample(initial_event_test::stop_service_slave, is_master);
@@ -263,10 +230,9 @@ TEST(someip_initial_event_test, wait_for_stop_method_to_be_called)
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    if(argc < 2) {
+    if (argc < 2) {
         std::cerr << "Please specify a valid type, like: " << argv[0] << " MASTER" << std::endl;
         std::cerr << "Valid types are in the range of [MASTER,SLAVE]" << std::endl;
         return 1;
@@ -274,7 +240,7 @@ int main(int argc, char** argv)
 
     if (argc >= 2 && std::string("MASTER") == std::string(argv[1])) {
         is_master = true;
-    } else if (argc >= 2 && std::string("SLAVE") == std::string(argv[1])){
+    } else if (argc >= 2 && std::string("SLAVE") == std::string(argv[1])) {
         is_master = false;
     }
     return RUN_ALL_TESTS();

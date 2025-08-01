@@ -16,34 +16,28 @@
 
 namespace vsomeip_v3 {
 
-message_impl::message_impl()
-    : payload_(runtime::get()->create_payload()),
-      check_result_ {0},
-      sec_client_ {ANY_UID, ANY_GID, 0, VSOMEIP_SEC_PORT_UNUSED} {
-}
+message_impl::message_impl() :
+    payload_(runtime::get()->create_payload()), check_result_{0}, sec_client_{ANY_UID, ANY_GID, 0, VSOMEIP_SEC_PORT_UNUSED} { }
 
-message_impl::~message_impl() {
-}
+message_impl::~message_impl() { }
 
 length_t message_impl::get_length() const {
-    return (VSOMEIP_SOMEIP_HEADER_SIZE
-            + (payload_ ? payload_->get_length() : 0));
+    return (VSOMEIP_SOMEIP_HEADER_SIZE + (payload_ ? payload_->get_length() : 0));
 }
 
-std::shared_ptr< payload > message_impl::get_payload() const {
+std::shared_ptr<payload> message_impl::get_payload() const {
     return payload_;
 }
 
-void message_impl::set_payload(std::shared_ptr< payload > _payload) {
+void message_impl::set_payload(std::shared_ptr<payload> _payload) {
     payload_ = _payload;
 }
 
-bool message_impl::serialize(serializer *_to) const {
-    return (header_.serialize(_to)
-            && (payload_ ? payload_->serialize(_to) : true));
+bool message_impl::serialize(serializer* _to) const {
+    return (header_.serialize(_to) && (payload_ ? payload_->serialize(_to) : true));
 }
 
-bool message_impl::deserialize(deserializer *_from) {
+bool message_impl::deserialize(deserializer* _from) {
     payload_ = runtime::get()->create_payload();
     bool is_successful = header_.deserialize(_from);
     if (is_successful) {
@@ -80,7 +74,7 @@ vsomeip_sec_client_t message_impl::get_sec_client() const {
     return sec_client_;
 }
 
-void message_impl::set_sec_client(const vsomeip_sec_client_t &_sec_client) {
+void message_impl::set_sec_client(const vsomeip_sec_client_t& _sec_client) {
 
     sec_client_ = _sec_client;
 }
@@ -89,7 +83,7 @@ std::string message_impl::get_env() const {
     return env_;
 }
 
-void message_impl::set_env(const std::string &_env) {
+void message_impl::set_env(const std::string& _env) {
     env_ = _env;
 }
 

@@ -10,11 +10,9 @@
 
 class test_timer_t {
 public:
-    test_timer_t(std::chrono::milliseconds target_) :
-        target(target_), start(std::chrono::high_resolution_clock::now()) { }
+    test_timer_t(std::chrono::milliseconds target_) : target(target_), start(std::chrono::high_resolution_clock::now()) { }
     test_timer_t(std::chrono::seconds target_) :
-        target(std::chrono::duration_cast<std::chrono::milliseconds>(target_)),
-        start(std::chrono::high_resolution_clock::now()) { }
+        target(std::chrono::duration_cast<std::chrono::milliseconds>(target_)), start(std::chrono::high_resolution_clock::now()) { }
 
     bool has_elapsed() {
         const auto current = std::chrono::high_resolution_clock::now();

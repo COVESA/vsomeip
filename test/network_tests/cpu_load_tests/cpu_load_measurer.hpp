@@ -20,6 +20,7 @@ private:
     std::uint64_t read_proc_stat(std::uint64_t* _idle);
     std::uint64_t read_proc_pid_stat();
     bool read_clock_ticks();
+
 private:
     std::uint32_t pid_;
     std::uint64_t jiffies_complete_start_;

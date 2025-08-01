@@ -39,8 +39,7 @@ struct simulation_netlink_fixture : public ::testing::Test {
     size_t recv_buffer_cursor_;
 
     void SetUp() override {
-        connector_ = std::make_shared<vsomeip_v3::netlink_connector>(context_, listening_address_,
-                                                                     multicast_address_);
+        connector_ = std::make_shared<vsomeip_v3::netlink_connector>(context_, listening_address_, multicast_address_);
         recv_buffer_cursor_ = 0;
     }
 
@@ -89,8 +88,7 @@ struct simulation_netlink_fixture : public ::testing::Test {
         }
 
         recv_buffer_cursor_ = NLMSG_ALIGN(recv_buffer_cursor_);
-        std::transform(message_.begin(), message_.end(),
-                       connector_->recv_buffer_.begin() + static_cast<int32_t>(recv_buffer_cursor_),
+        std::transform(message_.begin(), message_.end(), connector_->recv_buffer_.begin() + static_cast<int32_t>(recv_buffer_cursor_),
                        [](std::byte v) -> uint8_t { return static_cast<uint8_t>(v); });
         recv_buffer_cursor_ += message_.size();
     }
@@ -114,12 +112,11 @@ void ipv4_netlink_fixture::simulate_localhost_availability() {
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWADDR);
     auto addrmsg = nl_append<struct ifaddrmsg>();
@@ -164,12 +161,11 @@ TEST_F(ipv4_netlink_fixture, start_stop) {
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string _name, bool _available) {
-                if (_interface && _name == "lo") {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string _name, bool _available) {
+        if (_interface && _name == "lo") {
+            localhost_available = _available;
+        }
+    });
 
     // TODO: NetLink incorrectly handles double start, it
     // doesn't wait until the previous operations have been
@@ -189,12 +185,11 @@ TEST_F(ipv4_netlink_fixture, address_availability) {
 
     bool localhost_available = true;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_DELADDR);
     auto addrmsg = nl_append<struct ifaddrmsg>();
@@ -228,12 +223,11 @@ TEST_F(ipv4_netlink_fixture, interface_availability) {
 
     bool localhost_available = true;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWLINK);
     auto interfacemsg = nl_append<struct ifinfomsg>();
@@ -274,12 +268,11 @@ TEST_F(ipv4_netlink_fixture, interface_down) {
 
     bool localhost_available = true;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWLINK);
     auto interfacemsg = nl_append<struct ifinfomsg>();
@@ -309,12 +302,11 @@ TEST_F(ipv4_netlink_fixture, address_available_after_interface) {
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWLINK);
     auto interfacemsg = nl_append<struct ifinfomsg>();
@@ -347,12 +339,11 @@ TEST_F(ipv4_netlink_fixture, address_available_after_interface_not_up_and_runnin
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWLINK);
     auto interfacemsg = nl_append<struct ifinfomsg>();
@@ -382,8 +373,7 @@ TEST_F(ipv4_netlink_fixture, address_available_after_interface_not_up_and_runnin
 
 TEST_F(ipv4_netlink_fixture, start_error_and_stop) {
     int calls_count = 0;
-    connector_->register_net_if_changes_handler([&](bool /*_interface*/, std::string /*_name*/,
-                                                    bool /*_available*/) { calls_count += 1; });
+    connector_->register_net_if_changes_handler([&](bool /*_interface*/, std::string /*_name*/, bool /*_available*/) { calls_count += 1; });
     EXPECT_NO_THROW(connector_->start());
     EXPECT_NO_THROW(connector_->send_cbk(boost::asio::error::connection_aborted, 0));
     EXPECT_NO_THROW(connector_->stop());
@@ -399,12 +389,11 @@ TEST_F(ipv4_netlink_fixture, start_error_and_stop) {
 TEST_F(ipv4_netlink_fixture, receive_cbk_error) {
     simulate_localhost_availability();
     bool interface_available = true;
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    interface_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            interface_available = _available;
+        }
+    });
     connector_->receive_cbk(boost::asio::error::already_open, recv_buffer_cursor_);
     EXPECT_FALSE(interface_available);
 }
@@ -414,12 +403,11 @@ TEST_F(ipv4_netlink_fixture, recover_after_first_request_generate_error) {
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string _name, bool _available) {
-                if (_interface && _name == "lo") {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string _name, bool _available) {
+        if (_interface && _name == "lo") {
+            localhost_available = _available;
+        }
+    });
 
     boost::system::error_code ec;
 
@@ -509,12 +497,11 @@ TEST_F(ipv4_netlink_fixture, broken_packet) {
 
     bool localhost_available = true;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWADDR);
     auto addrmsg = nl_append<struct ifaddrmsg>();
@@ -533,12 +520,11 @@ TEST_F(ipv4_netlink_fixture, multicast_route_available) {
 
     bool multicast_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (!_interface) {
-                    multicast_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (!_interface) {
+            multicast_available = _available;
+        }
+    });
 
     // First route with the wrong interface index
     nl_new_message_(RTM_NEWROUTE);
@@ -598,14 +584,13 @@ TEST_F(ipv4_netlink_fixture, multicast_down_when_address_removed) {
     bool multicast_available = false;
     bool localhost_available = true;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (_interface) {
-                    localhost_available = _available;
-                } else {
-                    multicast_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (_interface) {
+            localhost_available = _available;
+        } else {
+            multicast_available = _available;
+        }
+    });
 
     // Route available
     nl_new_message_(RTM_NEWROUTE);
@@ -644,12 +629,11 @@ TEST_F(ipv4_netlink_fixture, default_route_available_on_another_interface) {
 
     bool multicast_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (!_interface) {
-                    multicast_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (!_interface) {
+            multicast_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWROUTE);
     auto routemsg = nl_append<struct rtmsg>();
@@ -673,12 +657,11 @@ TEST_F(ipv4_netlink_fixture, default_route_available_on_expected_interface) {
 
     bool multicast_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (!_interface) {
-                    multicast_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (!_interface) {
+            multicast_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWROUTE);
     auto routemsg = nl_append<struct rtmsg>();
@@ -702,12 +685,11 @@ TEST_F(ipv4_netlink_fixture, default_route_with_gateway_on_expected_interface) {
 
     bool multicast_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (!_interface) {
-                    multicast_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (!_interface) {
+            multicast_available = _available;
+        }
+    });
 
     nl_new_message_(RTM_NEWROUTE);
     auto routemsg = nl_append<struct rtmsg>();
@@ -731,9 +713,7 @@ TEST_F(ipv4_netlink_fixture, default_route_with_gateway_on_expected_interface) {
 }
 
 struct ipv4_no_multicast_netlink_fixture : public simulation_netlink_fixture {
-    ipv4_no_multicast_netlink_fixture() {
-        listening_address_ = boost::asio::ip::address_v4(ipv4_netlink_fixture::IP_ADDR);
-    }
+    ipv4_no_multicast_netlink_fixture() { listening_address_ = boost::asio::ip::address_v4(ipv4_netlink_fixture::IP_ADDR); }
 };
 
 TEST_F(ipv4_no_multicast_netlink_fixture, start_stop) {
@@ -741,12 +721,11 @@ TEST_F(ipv4_no_multicast_netlink_fixture, start_stop) {
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string _name, bool _available) {
-                if (_interface && _name == "lo") {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string _name, bool _available) {
+        if (_interface && _name == "lo") {
+            localhost_available = _available;
+        }
+    });
 
     EXPECT_NO_THROW(connector_->start());
     while (!localhost_available) {
@@ -768,12 +747,11 @@ TEST_F(ipv6_netlink_fixture, start_stop) {
 
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string _name, bool _available) {
-                if (_interface && _name == "lo") {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string _name, bool _available) {
+        if (_interface && _name == "lo") {
+            localhost_available = _available;
+        }
+    });
 
     EXPECT_NO_THROW(connector_->start());
     while (!localhost_available) {
@@ -789,14 +767,13 @@ TEST_F(ipv6_netlink_fixture, multicast_route_available) {
     bool multicast_available = false;
     bool localhost_available = false;
 
-    connector_->register_net_if_changes_handler(
-            [&](bool _interface, std::string /*_name*/, bool _available) {
-                if (!_interface) {
-                    multicast_available = _available;
-                } else {
-                    localhost_available = _available;
-                }
-            });
+    connector_->register_net_if_changes_handler([&](bool _interface, std::string /*_name*/, bool _available) {
+        if (!_interface) {
+            multicast_available = _available;
+        } else {
+            localhost_available = _available;
+        }
+    });
 
     EXPECT_NO_THROW(connector_->start());
     while (!localhost_available) {
@@ -815,10 +792,8 @@ TEST_F(ipv6_netlink_fixture, multicast_route_available) {
     routemsg->rtm_protocol = RTPROT_STATIC;
     routemsg->rtm_scope = RT_SCOPE_HOST;
     routemsg->rtm_type = RTN_MULTICAST;
-    *nl_add_attribute<struct in6_addr>(RTA_DST) =
-            *reinterpret_cast<struct in6_addr*>(ipv6addr.to_bytes().data());
-    *nl_add_attribute<struct in6_addr>(RTA_GATEWAY) =
-            *reinterpret_cast<struct in6_addr*>(ipv6addr.to_bytes().data());
+    *nl_add_attribute<struct in6_addr>(RTA_DST) = *reinterpret_cast<struct in6_addr*>(ipv6addr.to_bytes().data());
+    *nl_add_attribute<struct in6_addr>(RTA_GATEWAY) = *reinterpret_cast<struct in6_addr*>(ipv6addr.to_bytes().data());
     *nl_add_attribute<int>(RTA_OIF) = connector_->net_if_index_for_address_;
     nl_copy_to_recv_buffer(true);
     connector_->receive_cbk(boost::system::error_code(), recv_buffer_cursor_);
