@@ -1,0 +1,106 @@
+gett@Ubuntu-22  ~/tut/vsomeip/vsomeip_goitom/Apps/vlan-apps/build   vlan_udp_test ±  reqv_samp
+2025-07-31 14:41:36.703879 client-sample [info] Using configuration file: "../../../config/vsomeip-udp-client.json".
+2025-07-31 14:41:36.705694 client-sample [info] Parsed vsomeip configuration in 10ms
+2025-07-31 14:41:36.705746 client-sample [info] Configuration module loaded.
+2025-07-31 14:41:36.705759 client-sample [info] Security disabled!
+2025-07-31 14:41:36.705782 client-sample [info] Initializing vsomeip (3.5.6) application "client-sample".
+2025-07-31 14:41:36.706320 client-sample [info] Instantiating routing manager [Host].
+2025-07-31 14:41:36.706831 client-sample [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-07-31 14:41:36.707536 client-sample [info] Service Discovery enabled. Trying to load module.
+2025-07-31 14:41:36.713640 client-sample [info] Service Discovery module loaded.
+2025-07-31 14:41:36.714591 client-sample [info] Application(client-sample, 1343) is initialized (11, 100).
+Client settings [protocol=UDP:quiet=false:cycle=1000]
+2025-07-31 14:41:36.714682 client-sample [info] Starting vsomeip application "client-sample" (1343) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-31 14:41:36.714823 client-sample [debug] Thread created. Number of active threads for client-sample : 1
+2025-07-31 14:41:36.715064 client-sample [info] Client [1343] routes unicast:192.168.10.2, netmask:255.255.255.0
+2025-07-31 14:41:36.715220 client-sample [info] Watchdog is disabled!
+2025-07-31 14:41:36.715305 client-sample [info] shutdown thread id from application: 1343 (client-sample) is: 7140aebfc640 TID: 24657
+2025-07-31 14:41:36.715320 client-sample [info] main dispatch thread id from application: 1343 (client-sample) is: 7140af3fd640 TID: 24656
+Service [1234.5678] is NOT available.
+Service [1235.5678] is NOT available.
+2025-07-31 14:41:36.719013 client-sample [info] REQUEST(1343): [1234.5678:255.4294967295]
+2025-07-31 14:41:36.722712 client-sample [info] io thread id from application: 1343 (client-sample) is: 7140b0f12b80 TID: 24653
+2025-07-31 14:41:36.722871 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-07-31 14:41:36.722916 client-sample [warning] Network interface "enp0s3.10" state changed: up
+2025-07-31 14:41:36.722949 client-sample [warning] Route "default route (0.0.0.0/0) if: enp0s3.10 gw: 192.168.10.1" state changed: up
+2025-07-31 14:41:36.723020 client-sample [info] init: Attempting to set IP_MULTICAST_TTL...
+2025-07-31 14:41:36.723034 client-sample [info] init: IP_MULTICAST_TTL set to 64
+2025-07-31 14:41:36.723043 client-sample [info] init: IP_MULTICAST_LOOP enabled
+2025-07-31 14:41:36.723087 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6058304da700
+2025-07-31 14:41:36.724915 client-sample [info] SOME/IP routing ready.
+2025-07-31 14:41:36.725050 client-sample [info] io thread id from application: 1343 (client-sample) is: 7140ad3f9640 TID: 24660
+2025-07-31 14:41:36.725842 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-31 14:41:36.739507 client-sample [info] create_local_server: Listening @ /tmp/vsomeip-1343
+2025-07-31 14:41:36.841405 client-sample [info] endpoint_manager_impl::create_remote_client: 192.168.20.2:30509 reliable: 0 using local port: 0
+2025-07-31 14:41:36.843207 client-sample [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.20.2:30509
+2025-07-31 14:41:36.843464 client-sample [debug] ON_OFFER_SERVICE(0000): [1234.5678:0.0]
+Service [1234.5678] is available.
+Client/Session [1343/0001] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0001]
+2025-07-31 14:41:37.257344 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/0002] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0002]
+Client/Session [1343/0003] sent a request to Service [1234.5678]
+2025-07-31 14:41:38.912402 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Received a response from Service [1234.5678] to Client/Session [1343/0003]
+Client/Session [1343/0004] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0004]
+Client/Session [1343/0005] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0005]
+Client/Session [1343/0006] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0006]
+2025-07-31 14:41:42.114838 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/0007] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0007]
+Client/Session [1343/0008] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0008]
+Client/Session [1343/0009] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0009]
+Client/Session [1343/000a] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/000a]
+2025-07-31 14:41:45.936712 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+2025-07-31 14:41:45.936837 client-sample [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x6058304e70d0 socket state > 0
+Service [1234.5678] is NOT available.
+2025-07-31 14:41:46.726279 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-07-31 14:41:50.341391 client-sample [warning] Didn't receive a multicast SD message for 4400ms.
+2025-07-31 14:41:50.341456 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6058304da700
+2025-07-31 14:41:50.341474 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6058304da700
+2025-07-31 14:41:50.343684 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-31 14:41:54.742231 client-sample [warning] Didn't receive a multicast SD message for 4400ms.
+2025-07-31 14:41:54.742289 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6058304da700
+2025-07-31 14:41:54.742304 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6058304da700
+2025-07-31 14:41:54.744755 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-31 14:41:56.727571 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-07-31 14:41:57.329288 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+2025-07-31 14:41:57.329401 client-sample [info] endpoint_manager_impl::create_remote_client: 192.168.20.2:30509 reliable: 0 using local port: 0
+2025-07-31 14:41:57.329434 client-sample [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.20.2:30509
+Service [1234.5678] is available.
+2025-07-31 14:41:57.329555 client-sample [debug] ON_OFFER_SERVICE(0000): [1234.5678:0.0]
+2025-07-31 14:41:57.774890 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/000b] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/000b]
+2025-07-31 14:41:58.282311 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/000c] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/000c]
+2025-07-31 14:41:59.090562 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/000d] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/000d]
+2025-07-31 14:42:00.686697 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/000e] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/000e]
+Client/Session [1343/000f] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/000f]
+Client/Session [1343/0010] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0010]
+2025-07-31 14:42:03.925809 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Client/Session [1343/0011] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0011]
+Client/Session [1343/0012] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0012]
+Client/Session [1343/0013] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0013]
+^C2025-07-31 14:42:06.243291 client-sample [info] RELEASE(1343): [1234.5678]
+2025-07-31 14:42:06.243743 client-sample [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x71409c001f10 socket state > 0
+2025-07-31 14:42:06.727910 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-07-31 14:42:06.967249 client-sample [info] Stopping vsomeip application "client-sample" (1343).
+2025-07-31 14:42:06.970138 client-sample [debug] Thread destroyed. Number of active threads for client-sample : 0

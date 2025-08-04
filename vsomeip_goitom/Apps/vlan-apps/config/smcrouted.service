@@ -1,0 +1,12 @@
+[Unit]
+Description=SMCRoute Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/local/sbin/smcrouted -n -f /usr/local/etc/smcroute.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,157 @@
+2025-06-16 15:03:15.390899 [info] Using configuration file: "../../vsomeip_goitom/config/vsomeip-udp-client.json".
+2025-06-16 15:03:15.391066 [info] Parsed vsomeip configuration in 0ms
+2025-06-16 15:03:15.391080 [info] Configuration module loaded.
+2025-06-16 15:03:15.391088 [info] Security disabled!
+2025-06-16 15:03:15.391093 [info] Initializing vsomeip (3.5.5) application "client-sample".
+2025-06-16 15:03:15.391146 [info] Instantiating routing manager [Host].
+2025-06-16 15:03:15.393851 [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-06-16 15:03:15.393970 [info] Service Discovery enabled. Trying to load module.
+2025-06-16 15:03:15.394179 [info] Service Discovery module loaded.
+2025-06-16 15:03:15.394302 [info] Application(client-sample, 1343) is initialized (11, 100).
+2025-06-16 15:03:15.394374 [info] Starting vsomeip application "client-sample" (1343) using 2 threads I/O nice 0 boost event loop period 0
+2025-06-16 15:03:15.394501 [debug] Thread created. Number of active threads for client-sample : 1
+2025-06-16 15:03:15.394542 [info] main dispatch thread id from application: 1343 (client-sample) is: 7556153fd640 TID: 15775
+2025-06-16 15:03:15.394595 [info] Client [1343] routes unicast:0.0.0.0, netmask:255.255.255.0
+2025-06-16 15:03:15.394721 [info] shutdown thread id from application: 1343 (client-sample) is: 755614bfc640 TID: 15776
+2025-06-16 15:03:15.395100 [info] Watchdog is disabled!
+2025-06-16 15:03:15.395747 [info] io thread id from application: 1343 (client-sample) is: 755616ecfb80 TID: 15772
+2025-06-16 15:03:15.395812 [info] io thread id from application: 1343 (client-sample) is: 75560effd640 TID: 15779
+2025-06-16 15:03:15.395852 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:03:15.395750 [info] REQUEST(1343): [1234.5678:255.4294967295]
+2025-06-16 15:03:15.396336 [info] create_local_server: Listening @ /tmp/vsomeip-1343
+2025-06-16 15:03:25.396857 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:03:35.398576 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:03:45.403099 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:03:55.404644 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:04:05.407145 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:04:15.413503 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:04:25.422700 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:04:35.423594 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:04:45.425082 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:04:55.429207 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:05:05.435851 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:05:15.436959 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:05:25.438115 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:05:35.442759 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:05:45.444125 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:05:55.446610 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:06:05.450108 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:06:15.451065 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:06:25.452683 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:06:35.454025 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:06:45.455080 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:06:55.461496 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:07:05.465687 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:07:10.839332 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:11.088058 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:11.088674 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:11.089221 [debug] Thread destroyed. Number of active threads for client-sample : 0
+2025-06-16 15:07:11.325175 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:11.325375 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:11.604684 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:11.604886 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:12.858885 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:16.487314 [info] Using configuration file: "../../vsomeip_goitom/config/vsomeip-udp-client.json".
+2025-06-16 15:07:16.487501 [info] Parsed vsomeip configuration in 0ms
+2025-06-16 15:07:16.487565 [info] Configuration module loaded.
+2025-06-16 15:07:16.487579 [info] Security disabled!
+2025-06-16 15:07:16.487585 [info] Initializing vsomeip (3.5.5) application "client-sample".
+2025-06-16 15:07:16.488072 [info] Instantiating routing manager [Host].
+2025-06-16 15:07:16.488391 [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-06-16 15:07:16.488517 [info] Service Discovery enabled. Trying to load module.
+2025-06-16 15:07:16.488700 [info] Service Discovery module loaded.
+2025-06-16 15:07:16.488824 [info] Application(client-sample, 1343) is initialized (11, 100).
+2025-06-16 15:07:16.488908 [info] Starting vsomeip application "client-sample" (1343) using 2 threads I/O nice 0 boost event loop period 0
+2025-06-16 15:07:16.488994 [debug] Thread created. Number of active threads for client-sample : 1
+2025-06-16 15:07:16.489075 [info] main dispatch thread id from application: 1343 (client-sample) is: 77d3305fd640 TID: 15953
+2025-06-16 15:07:16.489096 [info] Client [1343] routes unicast:0.0.0.0, netmask:255.255.255.0
+2025-06-16 15:07:16.489200 [info] shutdown thread id from application: 1343 (client-sample) is: 77d32fdfc640 TID: 15954
+2025-06-16 15:07:16.489472 [info] Watchdog is disabled!
+2025-06-16 15:07:16.489679 [info] REQUEST(1343): [1234.5678:255.4294967295]
+2025-06-16 15:07:16.489832 [info] create_local_server: Listening @ /tmp/vsomeip-1343
+2025-06-16 15:07:16.489838 [info] io thread id from application: 1343 (client-sample) is: 77d32e5f9640 TID: 15957
+2025-06-16 15:07:16.489899 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:07:16.489707 [info] io thread id from application: 1343 (client-sample) is: 77d3320e7b80 TID: 15950
+2025-06-16 15:07:26.491687 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:07:36.492975 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:07:44.221101 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:44.468400 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:44.468614 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:44.469734 [debug] Thread destroyed. Number of active threads for client-sample : 0
+2025-06-16 15:07:44.669141 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:44.669635 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:44.888276 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:44.888518 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:45.091404 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:45.091758 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:45.296435 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:45.296680 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:45.515762 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:45.515911 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:45.757124 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:07:45.757335 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:07:46.227818 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:18:06.389922 [info] Using configuration file: "../../vsomeip_goitom/config/vsomeip-udp-client.json".
+2025-06-16 15:18:06.390163 [info] Parsed vsomeip configuration in 0ms
+2025-06-16 15:18:06.390282 [info] Configuration module loaded.
+2025-06-16 15:18:06.390301 [info] Security disabled!
+2025-06-16 15:18:06.390340 [info] Initializing vsomeip (3.5.5) application "client-sample".
+2025-06-16 15:18:06.390437 [info] Instantiating routing manager [Host].
+2025-06-16 15:18:06.390563 [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-06-16 15:18:06.390680 [info] Service Discovery enabled. Trying to load module.
+2025-06-16 15:18:06.390895 [info] Service Discovery module loaded.
+2025-06-16 15:18:06.391036 [info] Application(client-sample, 1343) is initialized (11, 100).
+2025-06-16 15:18:06.391083 [info] Starting vsomeip application "client-sample" (1343) using 2 threads I/O nice 0 boost event loop period 0
+2025-06-16 15:18:06.391168 [debug] Thread created. Number of active threads for client-sample : 1
+2025-06-16 15:18:06.391244 [info] Client [1343] routes unicast:0.0.0.0, netmask:255.255.255.0
+2025-06-16 15:18:06.391242 [info] main dispatch thread id from application: 1343 (client-sample) is: 7e3c579fd640 TID: 16310
+2025-06-16 15:18:06.391559 [info] Watchdog is disabled!
+2025-06-16 15:18:06.391254 [info] shutdown thread id from application: 1343 (client-sample) is: 7e3c571fc640 TID: 16311
+2025-06-16 15:18:06.391780 [info] io thread id from application: 1343 (client-sample) is: 7e3c59577b80 TID: 16307
+2025-06-16 15:18:06.391817 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:18:06.391840 [info] io thread id from application: 1343 (client-sample) is: 7e3c559f9640 TID: 16314
+2025-06-16 15:18:06.391851 [info] REQUEST(1343): [1234.5678:255.4294967295]
+2025-06-16 15:18:06.392065 [info] create_local_server: Listening @ /tmp/vsomeip-1343
+2025-06-16 15:18:16.393339 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:18:26.397480 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:18:36.398121 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:18:46.400629 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:18:56.403599 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:19:06.407692 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:19:16.409093 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:19:26.411017 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:19:36.411520 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:19:46.414599 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:19:56.415980 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:20:06.417897 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:20:16.419156 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:20:26.432293 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:20:36.433939 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:20:46.434991 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:20:56.437121 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:21:06.439084 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:21:16.441323 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:21:26.442279 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:21:36.444194 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:21:46.445992 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:21:56.446132 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:22:06.450568 [info] vSomeIP 3.5.5 | (default)
+2025-06-16 15:22:07.588344 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:07.808833 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:07.809214 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:07.810738 [debug] Thread destroyed. Number of active threads for client-sample : 0
+2025-06-16 15:22:08.011271 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:08.011405 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:08.213952 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:08.214063 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:08.423109 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:08.423199 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:08.655326 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:08.655412 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:08.904822 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:08.904936 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:09.144659 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:09.144780 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:09.386418 [info] RELEASE(1343): [1234.5678]
+2025-06-16 15:22:09.386528 [info] Stopping vsomeip application "client-sample" (1343).
+2025-06-16 15:22:09.591098 [info] Stopping vsomeip application "client-sample" (1343).

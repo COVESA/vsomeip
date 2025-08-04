@@ -37,6 +37,8 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(
     unicast_recv_buffer_(VSOMEIP_MAX_UDP_MESSAGE_SIZE, 0), is_v4_(false), multicast_id_(0),
     netmask_(_configuration->get_netmask()),
     prefix_(_configuration->get_prefix()),
+    has_cross_vlan_multicast_(_configuration->has_cross_vlan_multicast()),
+    multicast_ttl_(_configuration->get_cross_vlan_multicast_ttl()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(
             _configuration->get_max_message_size_unreliable(), _io)),
     tp_cleanup_timer_(_io), is_stopped_(true), on_unicast_sent_ {nullptr},
@@ -78,6 +80,38 @@ void udp_server_endpoint_impl::init(const endpoint_type& _local,
             return;
         }
 
+/* VSOMEIP_INFO << __func__ << ": multicast_ttl_:" << multicast_ttl_;
+
+#ifdef _WIN32
+    VSOMEIP_INFO << __func__ << ": _WIN32 is defined!";
+#else
+    VSOMEIP_INFO << __func__ << ": _WIN32 is NOT defined!";
+#endif */
+
+#ifndef _WIN32
+         //VSOMEIP_INFO << __func__ << ": is_v4_ = " << is_v4_;
+         //VSOMEIP_INFO << __func__ << ": _local.address().is_v4()= " <<_local.address().is_v4();
+        //if (_local.address().is_v4()&& unicast_socket_) {
+        if(has_cross_vlan_multicast_) {
+            VSOMEIP_INFO << __func__ << ": Attempting to set IP_MULTICAST_TTL...";
+            //int ttl_value = 64;
+            u_char loop = 1;
+            int fd = unicast_socket_->native_handle();
+
+            if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, &multicast_ttl_, sizeof(multicast_ttl_)) < 0) {
+                VSOMEIP_WARNING << __func__ << ": unable to set IP_MULTICAST_TTL (errno=" << errno << ")";
+            } else {
+                VSOMEIP_INFO << __func__ << ": IP_MULTICAST_TTL set to 64";
+            }
+
+            if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0) {
+                VSOMEIP_WARNING << __func__ << ": unable to set IP_MULTICAST_LOOP (errno=" << errno << ")";
+            } else {
+                VSOMEIP_INFO << __func__ << ": IP_MULTICAST_LOOP enabled";
+            }
+        }
+#endif
+ 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
@@ -822,6 +856,11 @@ void udp_server_endpoint_impl::on_message_received(boost::system::error_code con
 }
 
 bool udp_server_endpoint_impl::is_same_subnet(const boost::asio::ip::address& _address) const {
+
+    VSOMEIP_INFO << "has_cross_vlan_multicast_:" << __func__ <<" "<< has_cross_vlan_multicast_;
+    if(has_cross_vlan_multicast_)
+        return true; // Accept all addresses as "same subnet"
+
     bool is_same(true);
 
     if (_address.is_v4()) {

@@ -1,0 +1,43 @@
+{
+    "unicast" : "192.168.20.2",
+    "netmask" : "255.255.255.0",
+    "logging" :
+    {
+        "level" : "debug",
+        "console" : "true",
+        "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
+        "dlt" : "false"
+    },
+    "applications" :
+    [
+        {
+            "name" : "service-sample",
+            "id" : "0x1277"
+        }
+    ],
+    "services" :
+    [
+        {
+            "service" : "0x1234",
+            "instance" : "0x5678",
+            "unreliable" : "30509"
+        }
+    ],
+    "multicast_ttl": 64,
+    "allow_cross_vlan_multicast": true,
+    "routing" : "service-sample",
+    "service-discovery" :
+    {
+        "enable" : "true",
+        "multicast" : "224.244.224.245",
+        "port" : "30490",
+        "protocol" : "udp",
+        "initial_delay_min" : "10",
+        "initial_delay_max" : "100",
+        "repetitions_base_delay" : "200",
+        "repetitions_max" : "5",
+        "ttl" : "5",
+        "cyclic_offer_delay" : "4000",
+        "request_response_delay" : "3000"
+    }
+}

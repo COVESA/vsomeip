@@ -49,6 +49,7 @@ configuration_impl::configuration_impl(const std::string& _path) :
     default_unicast_ {"local"}, is_loaded_ {false}, is_logging_loaded_ {false},
     prefix_ {VSOMEIP_PREFIX}, diagnosis_ {VSOMEIP_DIAGNOSIS_ADDRESS}, diagnosis_mask_ {0xFF00},
     has_console_log_ {true}, has_file_log_ {false}, has_dlt_log_ {false},
+    has_cross_vlan_multicast_{false}, multicast_ttl_{VSOMEIP_MULTICAST_DEFAULT_TTL},
     logfile_ {"/tmp/vsomeip.log"}, loglevel_ {vsomeip_v3::logger::level_e::LL_INFO},
     is_sd_enabled_ {VSOMEIP_SD_DEFAULT_ENABLED}, sd_protocol_ {VSOMEIP_SD_DEFAULT_PROTOCOL},
     sd_multicast_ {VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_ {VSOMEIP_SD_DEFAULT_PORT},
@@ -112,7 +113,7 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     default_unicast_ {_other.default_unicast_}, is_loaded_ {_other.is_loaded_},
     is_logging_loaded_ {_other.is_logging_loaded_}, mandatory_ {_other.mandatory_},
     has_console_log_ {_other.has_console_log_.load()}, has_file_log_ {_other.has_file_log_.load()},
-    has_dlt_log_ {_other.has_dlt_log_.load()},
+    has_dlt_log_ {_other.has_dlt_log_.load()}, has_cross_vlan_multicast_{_other.has_cross_vlan_multicast_.load()},
     max_configured_message_size_ {_other.max_configured_message_size_},
     max_local_message_size_ {_other.max_local_message_size_},
     max_reliable_message_size_ {_other.max_reliable_message_size_},
@@ -199,6 +200,8 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
 
     ttl_factors_offers_ = _other.ttl_factors_offers_;
     ttl_factors_subscriptions_ = _other.ttl_factors_subscriptions_;
+
+    multicast_ttl_ = _other.multicast_ttl_;
 
     debounces_ = _other.debounces_;
     endpoint_queue_limits_ = _other.endpoint_queue_limits_;
@@ -582,6 +585,8 @@ bool configuration_impl::load_data(const std::vector<configuration_element> &_el
             load_unicast_address(e);
             load_netmask(e);
             load_device(e);
+            load_cross_vlan_multicast(e);
+            load_cross_vlan_multicast_ttl(e),
             load_service_discovery(e);
             load_npdu_default_timings(e);
             load_internal_services(e);
@@ -1631,6 +1636,39 @@ void configuration_impl::load_network(const configuration_element &_element) {
         }
     } catch (...) {
         // intentionally left empty
+    }
+}
+
+void configuration_impl::load_cross_vlan_multicast(const configuration_element &_element) {
+    try {
+        auto its_value = _element.tree_.get_optional<bool>("allow_cross_vlan_multicast");
+
+        if (is_configured_[ET_CROSS_VLAN]) {
+            VSOMEIP_WARNING << "Multiple definitions for cross vlan multicast. "
+                    "Ignoring definition from " << _element.name_;
+        } else {
+            has_cross_vlan_multicast_ = its_value.value(); // default to false
+            is_configured_[ET_CROSS_VLAN] = true;
+        }
+    } catch (...) {
+        // intentionally left empty!
+    }
+}
+
+void configuration_impl::load_cross_vlan_multicast_ttl(const configuration_element &_element) {
+    try {
+        auto its_value = _element.tree_.get_optional<ttl_t>("multicast_ttl");
+
+        if (is_configured_[ET_MULTICAST_TTL]) {
+            VSOMEIP_WARNING << "Multiple definitions for multicast ttl. "
+                            << "Ignoring definition from " << _element.name_;
+        } else {
+            // Use value from config if present, otherwise default to 1
+            multicast_ttl_ = its_value.value();
+            is_configured_[ET_MULTICAST_TTL] = true;
+        }
+    } catch (...) {
+        // intentionally left empty!
     }
 }
 
@@ -3055,6 +3093,14 @@ const std::string & configuration_impl::get_logfile() const {
 vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
     std::unique_lock<std::mutex> its_lock(mutex_loglevel_);
     return loglevel_;
+}
+
+bool configuration_impl::has_cross_vlan_multicast() const {
+    return has_cross_vlan_multicast_;
+}
+
+ttl_t configuration_impl::get_cross_vlan_multicast_ttl()const {
+    return multicast_ttl_;
 }
 
 std::string configuration_impl::get_unicast_address(service_t _service,

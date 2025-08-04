@@ -103,6 +103,10 @@ public:
     VSOMEIP_EXPORT const std::string & get_logfile() const;
     VSOMEIP_EXPORT vsomeip_v3::logger::level_e get_loglevel() const;
 
+        //VLANs
+    VSOMEIP_EXPORT bool has_cross_vlan_multicast()const;
+    VSOMEIP_EXPORT ttl_t get_cross_vlan_multicast_ttl() const;
+
     VSOMEIP_EXPORT std::string get_unicast_address(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT uint16_t get_reliable_port(service_t _service, instance_t _instance) const;
@@ -385,6 +389,10 @@ private:
     void load_network(const configuration_element &_element);
     void load_device(const configuration_element &_element);
 
+        //VLANs
+    void load_cross_vlan_multicast(const configuration_element &_element);
+    void load_cross_vlan_multicast_ttl(const configuration_element &_element);
+
     void load_unicast_address(const configuration_element &_element);
     void load_netmask(const configuration_element &_element);
     void load_diagnosis_address(const configuration_element &_element);
@@ -516,6 +524,10 @@ protected:
     std::atomic_bool has_console_log_;
     std::atomic_bool has_file_log_;
     std::atomic_bool has_dlt_log_;
+    
+    std::atomic_bool has_cross_vlan_multicast_;
+    ttl_t multicast_ttl_;
+
     std::string logfile_;
     mutable std::mutex mutex_loglevel_;
     vsomeip_v3::logger::level_e loglevel_;
@@ -590,6 +602,8 @@ protected:
         ET_LOGGING_FILE,
         ET_LOGGING_DLT,
         ET_LOGGING_LEVEL,
+        ET_CROSS_VLAN,
+        ET_MULTICAST_TTL,
         ET_ROUTING,
         ET_SERVICE_DISCOVERY_ENABLE,
         ET_SERVICE_DISCOVERY_PROTOCOL,

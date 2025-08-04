@@ -139,6 +139,8 @@
 #define MAX_ENDPOINT_WAIT_INTERVAL              160
 #define SUM_ENDPOINT_WAIT_INTERVAL              500
 
+#define VSOMEIP_MULTICAST_DEFAULT_TTL            1
+
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <pthread.h>
 #endif

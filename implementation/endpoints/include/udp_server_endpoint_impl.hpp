@@ -138,6 +138,9 @@ private:
     boost::asio::ip::address netmask_;
     unsigned short prefix_;
 
+    std::atomic<bool> has_cross_vlan_multicast_;
+    ttl_t multicast_ttl_;
+
     std::uint16_t local_port_;
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;

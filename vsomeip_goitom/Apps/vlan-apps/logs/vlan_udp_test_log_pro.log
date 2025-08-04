@@ -1,0 +1,79 @@
+ gett@Ubuntu-22  ~/tut/vsomeip/vsomeip_goitom/Apps/vlan-apps/build   vlan_udp_test  reqv_samp
+2025-07-29 14:07:45.352910 client-sample [info] Using configuration file: "../../../config/vsomeip-udp-client.json".
+2025-07-29 14:07:45.353619 client-sample [info] Parsed vsomeip configuration in 0ms
+2025-07-29 14:07:45.353636 client-sample [info] Configuration module loaded.
+2025-07-29 14:07:45.353641 client-sample [info] Security disabled!
+2025-07-29 14:07:45.353652 client-sample [info] Initializing vsomeip (3.5.6) application "client-sample".
+2025-07-29 14:07:45.353692 client-sample [info] Instantiating routing manager [Host].
+2025-07-29 14:07:45.353819 client-sample [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-07-29 14:07:45.353871 client-sample [info] Service Discovery enabled. Trying to load module.
+2025-07-29 14:07:45.354162 client-sample [info] Service Discovery module loaded.
+2025-07-29 14:07:45.354264 client-sample [info] Application(client-sample, 1343) is initialized (11, 100).
+Client settings [protocol=UDP:quiet=false:cycle=1000]
+2025-07-29 14:07:45.354332 client-sample [info] Starting vsomeip application "client-sample" (1343) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-29 14:07:45.354382 client-sample [debug] Thread created. Number of active threads for client-sample : 1
+2025-07-29 14:07:45.354572 client-sample [info] Client [1343] routes unicast:192.168.10.2, netmask:255.255.255.0
+2025-07-29 14:07:45.354681 client-sample [info] shutdown thread id from application: 1343 (client-sample) is: 768caebfc640 TID: 16672
+2025-07-29 14:07:45.355126 client-sample [info] Watchdog is disabled!
+2025-07-29 14:07:45.357933 client-sample [info] main dispatch thread id from application: 1343 (client-sample) is: 768caf3fd640 TID: 16671
+Service [1234.5678] is NOT available.
+Service [1235.5678] is NOT available.
+2025-07-29 14:07:45.360449 client-sample [info] REQUEST(1343): [1234.5678:255.4294967295]
+2025-07-29 14:07:45.360487 client-sample [info] io thread id from application: 1343 (client-sample) is: 768cb0f37b80 TID: 16668
+2025-07-29 14:07:45.360727 client-sample [info] create_local_server: Listening @ /tmp/vsomeip-1343
+2025-07-29 14:07:45.361009 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-07-29 14:07:45.361093 client-sample [warning] Network interface "enp0s3.10" state changed: up
+2025-07-29 14:07:45.361363 client-sample [warning] Route "default route (0.0.0.0/0) if: enp0s3.10 gw: 192.168.10.1" state changed: up
+2025-07-29 14:07:45.361599 client-sample [info] init: _WIN32 is NOT defined!
+2025-07-29 14:07:45.361642 client-sample [info] init: is_v4_ = 0
+2025-07-29 14:07:45.361661 client-sample [info] init: _local.address().is_v4()= 1
+2025-07-29 14:07:45.361677 client-sample [info] init: Attempting to set IP_MULTICAST_TTL...
+2025-07-29 14:07:45.361695 client-sample [info] init: IP_MULTICAST_TTL set to 64
+2025-07-29 14:07:45.361754 client-sample [info] init: IP_MULTICAST_LOOP enabled
+2025-07-29 14:07:45.361925 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:45.362047 client-sample [info] SOME/IP routing ready.
+2025-07-29 14:07:45.361065 client-sample [info] io thread id from application: 1343 (client-sample) is: 768cad3f9640 TID: 16675
+2025-07-29 14:07:45.362165 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-29 14:07:45.657823 client-sample [info] endpoint_manager_impl::create_remote_client: 192.168.20.2:30509 reliable: 0 using local port: 0
+2025-07-29 14:07:45.657949 client-sample [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.20.2:30509
+2025-07-29 14:07:45.658067 client-sample [debug] ON_OFFER_SERVICE(0000): [1234.5678:0.0]
+Service [1234.5678] is available.
+Client/Session [1343/0001] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0001]
+Client/Session [1343/0002] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0002]
+2025-07-29 14:07:47.563532 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-07-29 14:07:47.563766 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:47.563833 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:47.564430 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+Client/Session [1343/0003] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0003]
+Client/Session [1343/0004] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [1343/0004]
+2025-07-29 14:07:49.368035 client-sample [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x768c9c001ca0 socket state > 0
+2025-07-29 14:07:49.368081 client-sample [info] update_routing_info: elapsed=1000 : delete service/instance 1234.5678
+Service [1234.5678] is NOT available.
+2025-07-29 14:07:49.768160 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-07-29 14:07:49.768211 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:49.768265 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:49.769128 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-29 14:07:51.968748 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-07-29 14:07:51.968808 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:51.968822 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:51.969815 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-29 14:07:54.175364 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-07-29 14:07:54.175447 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:54.175566 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:54.186885 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-29 14:07:55.361356 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-07-29 14:07:56.381271 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-07-29 14:07:56.381324 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:56.381374 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:56.384294 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-07-29 14:07:58.582728 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-07-29 14:07:58.582775 client-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:58.582825 client-sample [info] Joining to multicast group 224.244.224.245 from 192.168.10.2:30490 endpoint 0x6078798f0b50
+2025-07-29 14:07:58.583289 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+^C2025-07-29 14:07:58.924611 client-sample [info] RELEASE(1343): [1234.5678]
+2025-07-29 14:07:59.678091 client-sample [info] Stopping vsomeip application "client-sample" (1343).
+2025-07-29 14:07:59.679220 client-sample [debug] Thread destroyed. Number of active threads for client-sample : 0
