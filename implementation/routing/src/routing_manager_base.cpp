@@ -618,12 +618,17 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
                     its_unrefed_event = its_event;
                     search->second.erase(found_event);
                 } else if (_is_provided) {
+                    its_event->unset_payload(false);
                     its_event->set_provided(false);
                 }
             }
         }
     }
     if (its_unrefed_event) {
+        if(_is_provided){
+            its_unrefed_event->unset_payload(false);
+            its_unrefed_event->set_provided(false);
+        }
         auto its_eventgroups = its_unrefed_event->get_eventgroups();
         for (auto eg : its_eventgroups) {
             std::shared_ptr<eventgroupinfo> its_eventgroup_info
