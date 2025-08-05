@@ -1,0 +1,31 @@
+@startuml
+
+Actor service_consumer as SC
+
+participant routing_manager as RM
+
+SC -> RM : registration process
+
+RM --\ SC : REGISTER_ACK
+
+loop While test timer hasnt elapsed
+
+  alt If service is available
+
+    SC -> RM : REQUEST
+
+    RM --\ SC : RESPONSE
+    
+    note right
+      service_consumer will wait for
+      a reponse from routing_manager
+    end note
+  end
+
+end
+
+SC -> SC : check that service was available at least once
+
+SC -> SC : check that a request was sent at least once
+
+@enduml
