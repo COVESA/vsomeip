@@ -462,8 +462,8 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
     }
 
     // Current queue size is bigger than the maximum queue size
-    if (_endpoint_data.queue_size_ >= endpoint_impl<Protocol>::queue_limit_) {
-        size_t its_error_queue_size{_endpoint_data.queue_size_};
+    if (_endpoint_data.queue_size_ > endpoint_impl<Protocol>::queue_limit_) {
+        size_t its_error_queue_size {_endpoint_data.queue_size_};
         recalculate_queue_size(_endpoint_data);
 
         VSOMEIP_WARNING << __func__ << ": Detected possible queue size underflow (" << std::dec << its_error_queue_size
