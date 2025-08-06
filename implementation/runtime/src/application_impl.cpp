@@ -51,6 +51,9 @@ std::mutex application_impl::app_counter_mutex__;
 
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
     runtime_{runtime::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+    start_thread_{0},
+#endif
     work_{std::make_shared<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(io_.get_executor())},
     routing_{nullptr}, state_{state_type_e::ST_DEREGISTERED}, security_mode_{security_mode_e::SM_ON},
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
@@ -349,11 +352,12 @@ bool application_impl::init() {
 
 void application_impl::start() {
 #if defined(__linux__) || defined(ANDROID)
+    // only set threadname if calling thread isn't the main thread
     if (getpid() != static_cast<pid_t>(syscall(SYS_gettid))) {
-        // only set threadname if calling thread isn't the main thread
+        start_thread_ = pthread_self();
         std::stringstream s;
         s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << 0;
-        pthread_setname_np(pthread_self(), s.str().c_str());
+        pthread_setname_np(start_thread_, s.str().c_str());
     }
 #endif
     {
@@ -451,7 +455,7 @@ void application_impl::start() {
                     }
                 }
             });
-            io_threads_.insert(its_thread);
+            io_threads_.push_back(its_thread);
         }
     }
 
@@ -1380,6 +1384,57 @@ client_t application_impl::get_client() const {
 
 void application_impl::set_client(const client_t& _client) {
     client_ = _client;
+
+    // it is through `set_client` that the routing host assign a client-id via ASSIGN_CLIENT_ACK_ID
+    // unfortunately, threads often (but not always, it is racy!) start before this point, and use
+    // the default client-id (0xffff) for the thread names
+
+    // therefore re-assign all of the thread names. It also helps in case of a client-id
+    // re-assignment
+
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+    // start thread
+    if (start_thread_ != 0) {
+        std::stringstream s;
+        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << 0;
+        pthread_setname_np(start_thread_, s.str().c_str());
+    }
+    // io thread(s)
+    {
+        std::scoped_lock its_lock{start_stop_mutex_};
+        for (size_t i = 0; i < io_threads_.size(); ++i) {
+            std::stringstream s;
+            s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1;
+
+            pthread_setname_np(io_threads_[i]->native_handle(), s.str().c_str());
+        }
+    }
+    // dispatch thread(s)
+    {
+        std::scoped_lock its_lock{dispatcher_mutex_};
+
+        // cannot distinguish main vs secondary dispatchers, so name them all equally
+        // they are not numbered anyhow, and secondary dispatchers are temporary - there is likely
+        // none at all
+        std::stringstream s;
+        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch";
+
+        for (const auto& [id, thread] : dispatchers_) {
+            pthread_setname_np(thread->native_handle(), s.str().c_str());
+        }
+    }
+    // stop thread
+    {
+        std::scoped_lock its_lock{start_stop_mutex_};
+
+        std::stringstream s;
+        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown";
+
+        if (stop_thread_.joinable()) {
+            pthread_setname_np(stop_thread_.native_handle(), s.str().c_str());
+        }
+    }
+#endif
 }
 
 session_t application_impl::get_session(bool _is_request) {
