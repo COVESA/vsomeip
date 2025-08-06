@@ -296,11 +296,15 @@ private:
 
     std::string name_;
 
-    std::string path_;
+    const std::string path_;
     std::shared_ptr<configuration> configuration_;
 
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+    pthread_t start_thread_;
+#endif
+
     boost::asio::io_context io_;
-    std::set<std::shared_ptr<std::thread>> io_threads_;
+    std::vector<std::shared_ptr<std::thread>> io_threads_;
     std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_;
 
     // Proxy to or the Routing Manager itself
