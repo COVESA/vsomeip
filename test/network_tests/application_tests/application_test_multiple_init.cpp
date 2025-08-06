@@ -15,33 +15,45 @@
 /// @brief This test validates that no data race occurs when calling vsomeip::application_impl::init
 ///        on multiple applications, within the same process.
 TEST(someip_application_init_test, multithread_init) {
-    constexpr std::uint32_t thread_count = 128;
+    constexpr uint32_t thread_count = 128;
+
     std::vector<std::thread> vsomeip_applications;
+    std::mutex mutex;
+    std::condition_variable job_cv;
+    std::condition_variable seq_cv;
+    uint32_t ready_cnt = 0;
+    uint32_t stop_cnt = 0;
 
-    std::condition_variable start_cv;
-    std::mutex start_mutex;
-    std::atomic_bool start = false;
-
-    // Prepare the init threads
     for (std::uint32_t t = 0; t < thread_count; ++t) {
-        vsomeip_applications.emplace_back([&start_cv, &start_mutex, &start, t] {
+        vsomeip_applications.emplace_back([&job_cv, &seq_cv, &mutex, &ready_cnt, &stop_cnt, t] {
             {
-                std::unique_lock lk{start_mutex};
-                start_cv.wait(lk, [&start] { return start.load(); });
+                std::unique_lock lk {mutex};
+                ready_cnt += 1;
+                seq_cv.notify_one();
+                job_cv.wait(lk, [&ready_cnt] { return ready_cnt == thread_count; });
             }
+
             std::stringstream app_name;
             app_name << "vsomeip_app_" << t;
             auto vsomeip_app = vsomeip::runtime::get()->create_application(app_name.str());
 
             EXPECT_TRUE(vsomeip_app->init()); // EXPECT also no crash
+
+            {
+                std::unique_lock lk {mutex};
+                stop_cnt += 1;
+                seq_cv.notify_one();
+                job_cv.wait(lk, [&stop_cnt] { return stop_cnt == thread_count; });
+            }
         });
     }
 
-    // Start the init threads
     {
-        std::scoped_lock lk{start_mutex};
-        start = true;
-        start_cv.notify_all();
+        std::unique_lock lk {mutex};
+        seq_cv.wait(lk, [&ready_cnt] { return ready_cnt == thread_count; });
+        job_cv.notify_all();
+        seq_cv.wait(lk, [&stop_cnt] { return stop_cnt == thread_count; });
+        job_cv.notify_all();
     }
 
     // After test -> join threads
