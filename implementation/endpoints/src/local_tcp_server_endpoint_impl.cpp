@@ -113,7 +113,7 @@ void local_tcp_server_endpoint_impl::start() {
                         io_);
 
         {
-            std::unique_lock<std::mutex> its_lock_inner(new_connection->get_socket_lock());
+            std::unique_lock its_lock_inner{new_connection->get_socket_lock()};
             acceptor_->async_accept(
                     new_connection->get_socket(),
                     std::bind(&local_tcp_server_endpoint_impl::accept_cbk,
