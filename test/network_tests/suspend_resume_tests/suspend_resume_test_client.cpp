@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -20,7 +21,7 @@ class suspend_resume_test_client : public vsomeip_utilities::base_logger {
 public:
     suspend_resume_test_client() :
         vsomeip_utilities::base_logger("SRTC", "SUSPEND RESUME TEST CLIENT"), name_("suspend_resume_test_client"),
-        app_(vsomeip::runtime::get()->create_application(name_)), has_received_(false),
+        app_(vsomeip::runtime::get()->create_application(name_)), started_{false}, has_received_(false),
         runner_(std::bind(&suspend_resume_test_client::run, this)) { }
 
     void run_test() {
@@ -101,6 +102,7 @@ private:
     void start() {
 
         app_->init();
+        started_ = true;
         cv_.notify_one();
     }
 
@@ -108,7 +110,7 @@ private:
 
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            cv_.wait(its_lock);
+            cv_.wait(its_lock, [this] { return started_.load(); });
         }
 
         app_->start();
@@ -150,7 +152,6 @@ private:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
-
         if (_message->get_service() == TEST_SERVICE && _message->get_instance() == TEST_INSTANCE && _message->get_method() == TEST_EVENT) {
 
             VSOMEIP_DEBUG << __func__ << ": Received event.";
@@ -220,6 +221,7 @@ private: // members
     std::shared_ptr<vsomeip::application> app_;
     std::mutex mutex_;
     std::condition_variable cv_;
+    std::atomic<bool> started_;
     bool has_received_;
     std::thread runner_;
 };
