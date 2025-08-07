@@ -1092,9 +1092,14 @@ void routing_manager_base::remove_local(client_t _client,
         for (const auto& s : local_services_) {
             for (const auto& i : s.second) {
                 if (std::get<2>(i.second) == _client) {
-                    its_services.insert({s.first, i.first});
-                    host_->on_availability(s.first, i.first, availability_state_e::AS_UNAVAILABLE, std::get<0>(i.second),
-                                           std::get<1>(i.second));
+                    service_t its_service = s.first;
+                    instance_t its_instance = i.first;
+                    auto [its_major, its_minor, unused] = i.second;
+                    its_services.insert({its_service, its_instance});
+                    host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
+                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ["
+                                 << std::setw(4) << its_service << "." << std::setw(4) << its_instance << ":" << std::dec
+                                 << static_cast<int>(its_major) << "." << std::dec << its_minor << "]";
                 }
             }
         }
