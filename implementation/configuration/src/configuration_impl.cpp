@@ -5,6 +5,7 @@
 
 #include <cctype>
 #include <fstream>
+#include <filesystem>
 #include <functional>
 #include <limits>
 #include <mutex>
@@ -16,7 +17,6 @@
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 
 #include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -444,9 +444,9 @@ void configuration_impl::read_data(const std::set<std::string>& _input, std::vec
             // specific configuration file names to overwrite generic
             // (or generated) parts of the configuration.
             std::map<std::string, bool> its_names;
-            boost::filesystem::path its_path(i);
-            for (auto j = boost::filesystem::directory_iterator(its_path); j != boost::filesystem::directory_iterator(); j++) {
-                if (!boost::filesystem::is_directory(j->path())) {
+            std::filesystem::path its_path(i);
+            for (auto j = std::filesystem::directory_iterator(its_path); j != std::filesystem::directory_iterator(); j++) {
+                if (!std::filesystem::is_directory(j->path())) {
                     its_names[j->path().string()] = _mandatory_only;
                 } else if (_read_second_level) {
                     //_read_second_level to read the second level folders only after
