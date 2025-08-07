@@ -1785,8 +1785,8 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 on_stop_offer_service(its_service, its_instance, its_major, its_minor);
                 host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
                 VSOMEIP_INFO << "ON_UNAVAILABLE(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): [" << std::setw(4)
-                             << its_service << "." << std::setw(4) << its_instance << ":" << std::dec << int(its_major) << "." << std::dec
-                             << its_minor << "]";
+                             << its_service << "." << std::setw(4) << its_instance << ":" << std::dec << static_cast<int>(its_major) << "."
+                             << std::dec << its_minor << "]";
             }
             break;
         }
