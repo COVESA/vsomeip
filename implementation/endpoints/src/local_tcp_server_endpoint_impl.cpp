@@ -273,9 +273,21 @@ void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
 #if defined(__linux__) || defined(ANDROID)
                 // set a user timeout
                 // along the keep alives, this ensures connection closes if endpoint is unreachable
-                unsigned int opt = LOCAL_TCP_USER_TIMEOUT;
-                if (!new_connection_socket.set_user_timeout(opt)) {
+                if (!new_connection_socket.set_user_timeout(configuration_->get_local_tcp_user_timeout())) {
                     VSOMEIP_WARNING << "ltsei::" << __func__ << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
+                }
+
+                // override kernel settings
+                // unfortunate, but there are plenty of custom keep-alive settings, and need to
+                // enforce some sanity here
+                if (!new_connection_socket.set_keepidle(configuration_->get_local_tcp_keepidle())) {
+                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": could not setsockopt(TCP_KEEPIDLE), errno " << errno;
+                }
+                if (!new_connection_socket.set_keepintvl(configuration_->get_local_tcp_keepintvl())) {
+                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": could not setsockopt(TCP_KEEPINTVL), errno " << errno;
+                }
+                if (!new_connection_socket.set_keepcnt(configuration_->get_local_tcp_keepcnt())) {
+                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": could not setsockopt(TCP_KEEPCNT), errno " << errno;
                 }
 #endif
             }

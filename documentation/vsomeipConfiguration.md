@@ -12,6 +12,7 @@
 - [Dispatching](#dispatching)
 - [Payload Sizes](#payload-sizes)
 - [Endpoint Queue Sizes](#endpoint-queue-sizes)
+- [Network options](#network-options)
 - [TCP Restart Settings](#tcp-restart-settings)
 - [Permissions](#permissions)
 - [Security](#security)
@@ -372,7 +373,23 @@ Define default settings for the maximum number of (additional) dispatchers and t
 - **endpoint-queue-limit-local** - Setting to limit the maximum allowed size in bytes of cached outgoing messages for local communication (message queue size per endpoint). By default the queue size for node internal communication is `unlimited`. It can be limited via this setting.
 
 
+## Network options
+
+These are low-level options that affect the parameters of TCP connections. In the case of `local-tcp-*`, it only affects connections between different hosts, e.g., between a guest and host. Refer to `Routing`.
+
+- **network-options**
+    - **local-tcp-user-timeout** (optional) - The configured TCP_USER_TIMEOUT, in milliseconds. Refer to RFC 5482. The default value is `3000` ms.
+    - **local-tcp-keepidle** (optional) - The configured TCP_KEEPIDLE, in seconds. Refer to tcp(7). The default value is `1` s.
+    - **local-tcp-keepintvl** (optional) - The configured TCP_KEEPINTVL, in seconds. Refer to tcp(7). The default value is `1` s.
+    - **local-tcp-keepcnt** (optional) - The configured TCP_KEEPCNT, in seconds. Refer to tcp(7). The default value is `3` s.
+    - **external-tcp-user-timeout** (optional) - The configured TCP_USER_TIMEOUT, in milliseconds. Refer to RFC 5482. The default value is `3000` ms.
+    - **external-tcp-keepidle** (optional) - The configured TCP_KEEPIDLE, in seconds. Refer to tcp(7). The default value is `1` s.
+    - **external-tcp-keepintvl** (optional) - The configured TCP_KEEPINTVL, in seconds. Refer to tcp(7). The default value is `1` s.
+    - **external-tcp-keepcnt** (optional) - The configured TCP_KEEPCNT, in seconds. Refer to tcp(7). The default value is `3` s.
+
 ## TCP Restart Settings
+
+These are options that affect the restart behavior of (external) TCP connections
 
 - **tcp-restart-aborts-max** - Setting to limit the number of TCP client endpoint restart aborts due to unfinished TCP handshake. After the limit is reached, a forced restart of the TCP client endpoint is done if the connection attempt is still pending. The default value is `5`.
 - **tcp-connect-time-max** - Setting to define the maximum time until the TCP client endpoint connection attempt should be finished. If tcp-connect-time-max is elapsed, the TCP client endpoint is forcefully restarted if the connection attempt is still pending. The default value is `5000` ms.

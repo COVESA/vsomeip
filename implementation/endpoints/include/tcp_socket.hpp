@@ -72,6 +72,24 @@ public:
      * On error errno will be set.
      **/
     [[nodiscard]] virtual bool set_user_timeout(unsigned int) = 0;
+    /**
+     * abstraction for setting the linux specific tcp option
+     * TCP_KEEPIDLE.
+     * On error errno will be set.
+     **/
+    [[nodiscard]] virtual bool set_keepidle(uint32_t) = 0;
+    /**
+     * abstraction for setting the linux specific tcp option
+     * TCP_KEEPINTVL.
+     * On error errno will be set.
+     **/
+    [[nodiscard]] virtual bool set_keepintvl(uint32_t) = 0;
+    /**
+     * abstraction for setting the linux specific tcp option
+     * TCP_KEEPCNT.
+     * On error errno will be set.
+     **/
+    [[nodiscard]] virtual bool set_keepcnt(uint32_t) = 0;
 #endif
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     /**

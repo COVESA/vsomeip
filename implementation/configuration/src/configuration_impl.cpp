@@ -63,6 +63,10 @@ configuration_impl::configuration_impl(const std::string& _path) :
     log_version_interval_{VSOMEIP_DEFAULT_LOG_INTERVAL}, permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_{"vsomeip"},
     e2e_enabled_{false}, log_memory_{false}, log_memory_interval_{0}, log_status_{false}, log_status_interval_{0},
     endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED}, endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED},
+    local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
+    local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
+    external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
+    external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
     tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS}, tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME},
     has_issued_methods_warning_{false}, has_issued_clients_warning_{false}, udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
     npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO}, npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
@@ -508,6 +512,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_shutdown_timeout(e);
             load_payload_sizes(e);
             load_endpoint_queue_sizes(e);
+            load_network_options(e);
             load_tcp_restart_settings(e);
             load_permissions(e);
             load_security(e);
@@ -4461,6 +4466,75 @@ std::shared_ptr<debounce_filter_impl_t> configuration_impl::get_debounce(const s
         }
     }
     return nullptr;
+}
+
+void configuration_impl::load_network_options(const configuration_element& _element) {
+    try {
+        auto its_service_discovery = _element.tree_.get_child("network-options");
+        for (auto i = its_service_discovery.begin(); i != its_service_discovery.end(); ++i) {
+
+            std::string its_key(i->first);
+            uint32_t param = 0;
+            try {
+                param = static_cast<uint32_t>(std::stoul(i->second.data().c_str(), nullptr, 10));
+            } catch (const std::exception& e) {
+                VSOMEIP_ERROR << __func__ << ": could not stoul '" << i->second.data() << "' due to " << e.what();
+                continue;
+            }
+
+            if (its_key == "local-tcp-user-timeout") {
+                local_tcp_user_timeout_ = param;
+            } else if (its_key == "local-tcp-keepidle") {
+                local_tcp_keepidle_ = param;
+            } else if (its_key == "local-tcp-keepintvl") {
+                local_tcp_keepintvl_ = param;
+            } else if (its_key == "local-tcp-keepcnt") {
+                local_tcp_keepcnt_ = param;
+            } else if (its_key == "external-tcp-user-timeout") {
+                external_tcp_user_timeout_ = param;
+            } else if (its_key == "external-tcp-keepidle") {
+                external_tcp_keepidle_ = param;
+            } else if (its_key == "external-tcp-keepintvl") {
+                external_tcp_keepintvl_ = param;
+            } else if (its_key == "external-tcp-keepcnt") {
+                external_tcp_keepcnt_ = param;
+            }
+        }
+    } catch (const std::exception&) {
+        // intentionally left empty
+    }
+}
+
+uint32_t configuration_impl::get_local_tcp_user_timeout() const {
+    return local_tcp_user_timeout_;
+}
+
+uint32_t configuration_impl::get_local_tcp_keepidle() const {
+    return local_tcp_keepidle_;
+}
+
+uint32_t configuration_impl::get_local_tcp_keepintvl() const {
+    return local_tcp_keepintvl_;
+}
+
+uint32_t configuration_impl::get_local_tcp_keepcnt() const {
+    return local_tcp_keepcnt_;
+}
+
+uint32_t configuration_impl::get_external_tcp_user_timeout() const {
+    return external_tcp_user_timeout_;
+}
+
+uint32_t configuration_impl::get_external_tcp_keepidle() const {
+    return external_tcp_keepidle_;
+}
+
+uint32_t configuration_impl::get_external_tcp_keepintvl() const {
+    return external_tcp_keepintvl_;
+}
+
+uint32_t configuration_impl::get_external_tcp_keepcnt() const {
+    return external_tcp_keepcnt_;
 }
 
 void configuration_impl::load_tcp_restart_settings(const configuration_element& _element) {

@@ -122,6 +122,33 @@ std::string loglevel_to_string(vsomeip::logger::level_e& _level) {
     }
 }
 
+void write_config(std::string config_file, std::string content) {
+    std::ofstream conf(config_file);
+    conf << content;
+    conf.close();
+}
+
+std::shared_ptr<vsomeip::configuration> load_config(std::string key, std::string config_file) {
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+    setenv("VSOMEIP_CONFIGURATION", config_file.c_str(), 1);
+#else
+    _putenv_s("VSOMEIP_CONFIGURATION", config_file.c_str()
+#endif
+
+    // `configuration_plugin_impl` does caching based on `key`, so each test needs to pass a
+    // different value
+    std::shared_ptr<vsomeip::configuration> conf;
+    auto plugin = vsomeip::plugin_manager::get()->get_plugin(vsomeip::plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+    if (plugin) {
+        auto conf_plugin = std::dynamic_pointer_cast<vsomeip::configuration_plugin>(plugin);
+        if (conf_plugin) {
+            conf = conf_plugin->get_configuration(key, "");
+        }
+    }
+
+    return conf;
+}
+
 void check_file(const std::string& _config_file, const std::string& _expected_unicast_address, bool _expected_has_console,
                 bool _expected_has_file, bool _expected_has_dlt, bool _expected_version_logging_enabled,
                 uint32_t _expected_version_logging_interval, std::size_t _expected_global_request_debounce_time,
@@ -700,6 +727,86 @@ TEST(configuration_test, check_deprecated_config_file) {
                EXPECTED_DEPRECATED_INITIAL_DELAY_MIN, EXPECTED_DEPRECATED_INITIAL_DELAY_MAX, EXPECTED_DEPRECATED_REPETITIONS_BASE_DELAY,
                EXPECTED_DEPRECATED_REPETITIONS_MAX, EXPECTED_DEPRECATED_TTL, EXPECTED_CYCLIC_OFFER_DELAY,
                EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
+}
+
+TEST(configuration_test, default_values) {
+    /// check loading of a default configuration
+    // e.g., no file at all
+
+    std::string path = "";
+    std::shared_ptr<vsomeip::configuration> conf = load_config("default_values", path);
+    ASSERT_TRUE(conf);
+
+    // check a few default values
+    EXPECT_EQ(conf->get_diagnosis_address(), VSOMEIP_DIAGNOSIS_ADDRESS);
+
+    EXPECT_EQ(conf->get_local_tcp_user_timeout(), VSOMEIP_DEFAULT_TCP_USER_TIMEOUT);
+    EXPECT_EQ(conf->get_local_tcp_keepidle(), VSOMEIP_DEFAULT_TCP_KEEPIDLE);
+    EXPECT_EQ(conf->get_local_tcp_keepintvl(), VSOMEIP_DEFAULT_TCP_KEEPINTVL);
+    EXPECT_EQ(conf->get_local_tcp_keepcnt(), VSOMEIP_DEFAULT_TCP_KEEPCNT);
+
+    EXPECT_EQ(conf->get_external_tcp_user_timeout(), VSOMEIP_DEFAULT_TCP_USER_TIMEOUT);
+    EXPECT_EQ(conf->get_external_tcp_keepidle(), VSOMEIP_DEFAULT_TCP_KEEPIDLE);
+    EXPECT_EQ(conf->get_external_tcp_keepintvl(), VSOMEIP_DEFAULT_TCP_KEEPINTVL);
+    EXPECT_EQ(conf->get_external_tcp_keepcnt(), VSOMEIP_DEFAULT_TCP_KEEPCNT);
+}
+
+TEST(configuration_test, bad_env) {
+    /// check that pointing to a broken file still loads default configuration
+
+    std::shared_ptr<vsomeip::configuration> conf = load_config("bad_env", "does_not_exist.json");
+    ASSERT_TRUE(conf);
+
+    EXPECT_EQ(conf->get_diagnosis_address(), VSOMEIP_DIAGNOSIS_ADDRESS);
+}
+
+TEST(configuration_test, diagnostic_address) {
+    /// check that using a custom diagnostic address works
+
+    write_config("diag.json", R"(
+{
+    "diagnosis": "0x63"
+}
+    )");
+
+    std::shared_ptr<vsomeip::configuration> conf = load_config("diagnostic_address", "diag.json");
+    ASSERT_TRUE(conf);
+
+    EXPECT_EQ(conf->get_diagnosis_address(), 0x63);
+    EXPECT_NE(conf->get_diagnosis_address(), VSOMEIP_DIAGNOSIS_ADDRESS);
+}
+
+TEST(configuration_test, network_options) {
+    /// check that using a custom network options works
+
+    // nonsense values obviously, does not matter
+    write_config("network_options.json", R"(
+{
+    "network-options": {
+        "local-tcp-user-timeout": 1,
+        "local-tcp-keepidle": 2,
+        "local-tcp-keepintvl": 3,
+        "local-tcp-keepcnt": 4,
+        "external-tcp-user-timeout": 5,
+        "external-tcp-keepidle": 6,
+        "external-tcp-keepintvl": 7,
+        "external-tcp-keepcnt": 8
+    }
+}
+    )");
+
+    std::shared_ptr<vsomeip::configuration> conf = load_config("network_options", "network_options.json");
+    ASSERT_TRUE(conf);
+
+    EXPECT_EQ(conf->get_local_tcp_user_timeout(), 1);
+    EXPECT_EQ(conf->get_local_tcp_keepidle(), 2);
+    EXPECT_EQ(conf->get_local_tcp_keepintvl(), 3);
+    EXPECT_EQ(conf->get_local_tcp_keepcnt(), 4);
+
+    EXPECT_EQ(conf->get_external_tcp_user_timeout(), 5);
+    EXPECT_EQ(conf->get_external_tcp_keepidle(), 6);
+    EXPECT_EQ(conf->get_external_tcp_keepintvl(), 7);
+    EXPECT_EQ(conf->get_external_tcp_keepcnt(), 8);
 }
 
 int main(int argc, char** argv) {
