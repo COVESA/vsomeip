@@ -25,8 +25,8 @@ void utility::read_data(const std::set<std::string>& _input, std::vector<vsomeip
             load_policy_data(i, _elements, _failed);
         } else if (vsomeip_v3::utility::is_folder(i)) {
             std::map<std::string, bool> its_names;
-            boost::filesystem::path its_path(i);
-            for (auto j = boost::filesystem::directory_iterator(its_path); j != boost::filesystem::directory_iterator(); j++) {
+            std::filesystem::path its_path(i);
+            for (auto j = std::filesystem::directory_iterator(its_path); j != std::filesystem::directory_iterator(); j++) {
                 std::string name = j->path().string() + "/vsomeip_security.json";
                 if (vsomeip_v3::utility::is_file(name))
                     its_names[name] = true;
@@ -44,29 +44,25 @@ std::set<std::string> utility::get_all_files_in_dir(const std::string& _dir_path
     std::set<std::string> list_of_files;
     try {
         // Check if given path exists and points to a directory
-        if (boost::filesystem::exists(_dir_path) && boost::filesystem::is_directory(_dir_path)) {
+        if (std::filesystem::exists(_dir_path) && std::filesystem::is_directory(_dir_path)) {
             // Create a Recursive Directory Iterator object and points to the
             // starting of directory
-            boost::filesystem::recursive_directory_iterator iter(_dir_path);
+            std::filesystem::recursive_directory_iterator iter(_dir_path);
             // Create a Recursive Directory Iterator object pointing to end.
-            boost::filesystem::recursive_directory_iterator end;
+            std::filesystem::recursive_directory_iterator end;
             // Iterate till end
             while (iter != end) {
                 // Check if current entry is a directory and if exists in
                 // skip list
-                if (boost::filesystem::is_directory(iter->path())
+                if (std::filesystem::is_directory(iter->path())
                     && (std::find(_dir_skip_list.begin(), _dir_skip_list.end(), iter->path().filename()) != _dir_skip_list.end())) {
                     // Boost Filesystem  API to skip current directory iteration
-#if VSOMEIP_BOOST_VERSION < 108100
-                    iter.no_push();
-#else
                     iter.disable_recursion_pending();
-#endif
                 } else {
                     // Add the name in vector
                     list_of_files.insert(iter->path().string());
                 }
-                boost::system::error_code ec;
+                std::error_code ec;
                 // Increment the iterator to point to next entry in recursive iteration
                 iter.increment(ec);
                 if (ec) {
@@ -82,7 +78,7 @@ std::set<std::string> utility::get_all_files_in_dir(const std::string& _dir_path
 
 std::string utility::get_policies_path() {
 
-    return boost::filesystem::canonical(boost::filesystem::current_path()).string() + "/test/common/examples_policies";
+    return std::filesystem::canonical(std::filesystem::current_path()).string() + "/test/common/examples_policies";
 }
 
 vsomeip_sec_client_t utility::create_uds_client(uid_t user, gid_t group, vsomeip_sec_ip_addr_t host) {

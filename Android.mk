@@ -93,8 +93,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
     libboost_system \
-    libboost_thread \
-    libboost_filesystem \
+    libboost_thread
 
 LOCAL_CFLAGS :=  \
     -std=c++17 \
@@ -146,7 +145,6 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libboost_system \
     libboost_thread \
-    libboost_filesystem \
     libvsomeip3_dlt \
 
 LOCAL_CFLAGS := \
@@ -194,7 +192,6 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libboost_system \
     libboost_thread \
-    libboost_filesystem \
     libvsomeip3_dlt \
 
 LOCAL_CFLAGS :=  \

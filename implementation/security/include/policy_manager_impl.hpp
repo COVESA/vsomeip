@@ -6,13 +6,13 @@
 #ifndef VSOMEIP_V3_SECURITY_POLICY_MANAGER_IMPL_HPP_
 #define VSOMEIP_V3_SECURITY_POLICY_MANAGER_IMPL_HPP_
 
+#include <filesystem>
 #include <map>
 #include <mutex>
 #include <unordered_set>
 #include <vector>
 
 #include <boost/property_tree/ptree.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
 #include <vsomeip/export.hpp>
