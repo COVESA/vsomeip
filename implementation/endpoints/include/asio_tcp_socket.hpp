@@ -39,6 +39,18 @@ private:
     [[nodiscard]] bool set_user_timeout(unsigned int timeout) override {
         return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != -1;
     }
+    [[nodiscard]] bool set_keepidle(uint32_t idle) override {
+        auto opt = static_cast<int>(idle);
+        return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_KEEPIDLE, &opt, sizeof(opt)) != -1;
+    }
+    [[nodiscard]] bool set_keepintvl(uint32_t interval) override {
+        auto opt = static_cast<int>(interval);
+        return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_KEEPINTVL, &opt, sizeof(opt)) != -1;
+    }
+    [[nodiscard]] bool set_keepcnt(uint32_t count) override {
+        auto opt = static_cast<int>(count);
+        return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_KEEPCNT, &opt, sizeof(opt)) != -1;
+    }
 #endif
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     [[nodiscard]] bool bind_to_device(std::string const& _device) override {

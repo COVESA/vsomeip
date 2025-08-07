@@ -222,6 +222,16 @@ public:
     virtual endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const = 0;
     virtual endpoint_queue_limit_t get_endpoint_queue_limit_local() const = 0;
 
+    // Network options
+    virtual uint32_t get_local_tcp_user_timeout() const = 0;
+    virtual uint32_t get_local_tcp_keepidle() const = 0;
+    virtual uint32_t get_local_tcp_keepintvl() const = 0;
+    virtual uint32_t get_local_tcp_keepcnt() const = 0;
+    virtual uint32_t get_external_tcp_user_timeout() const = 0;
+    virtual uint32_t get_external_tcp_keepidle() const = 0;
+    virtual uint32_t get_external_tcp_keepintvl() const = 0;
+    virtual uint32_t get_external_tcp_keepcnt() const = 0;
+
     virtual std::uint32_t get_max_tcp_restart_aborts() const = 0;
     virtual std::uint32_t get_max_tcp_connect_time() const = 0;
 
