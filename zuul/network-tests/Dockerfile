@@ -43,7 +43,7 @@ RUN wget https://archives.boost.io/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST
     tar -zxvf boost_sources.tar.gz;\
     cd boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH};\
     ./bootstrap.sh --prefix=/usr;\
-    ./b2 install valgrind=on --with-system --with-log --with-filesystem --with-thread
+    ./b2 install valgrind=on --with-system --with-log --with-thread
 
 # Build dlt-daemon
 ADD dlt-daemon /home/source

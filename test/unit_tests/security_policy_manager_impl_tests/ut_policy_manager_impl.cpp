@@ -1893,15 +1893,15 @@ TEST(security_policy_manager_test, get_security_config_folder) {
     const std::string tmp = final_path.str();
     const char* final_path_string = tmp.c_str();
 
-    boost::system::error_code ec;
+    std::error_code ec;
     // Create the directory.
-    boost::filesystem::create_directory(final_path_string, ec);
+    std::filesystem::create_directory(final_path_string, ec);
 
     // Test method. Since the folder now exists we expect to get the path returned.
     ASSERT_EQ(its_policy_manager->get_security_config_folder(folder_path), final_path_string);
 
     // Clean up, remove directory.
-    boost::filesystem::remove_all(final_path_string, ec);
+    std::filesystem::remove_all(final_path_string, ec);
 }
 
 TEST(security_policy_manager_test, is_policy_extension_loaded) {
@@ -1940,9 +1940,9 @@ TEST(security_policy_manager_test, is_policy_extension_loaded) {
     const std::string tmp2 = final_path2.str();
     const char* final_path_string2 = tmp2.c_str();
 
-    boost::system::error_code ec;
+    std::error_code ec;
     // Create the directory.
-    boost::filesystem::create_directory(final_path_string, ec);
+    std::filesystem::create_directory(final_path_string, ec);
 
     // Create a policy element setting check_credentials to true.
     const std::string element_name = "random";
@@ -1994,5 +1994,5 @@ TEST(security_policy_manager_test, is_policy_extension_loaded) {
               vsomeip_v3::policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_NOT_LOADED);
 
     // Clean up, remove directory.
-    boost::filesystem::remove_all(final_path_string, ec);
+    std::filesystem::remove_all(final_path_string, ec);
 }
