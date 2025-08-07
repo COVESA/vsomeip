@@ -96,14 +96,16 @@ private:
     }
 
     void stop() {
-        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
+        {
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
 
-        app_->release_service(SERVICE_ID, INSTANCE_ID);
+            app_->release_service(SERVICE_ID, INSTANCE_ID);
 
-        availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
+            availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
 
-        app_->clear_all_handler();
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+            app_->clear_all_handler();
+            availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        }
 
         app_->stop();
 
