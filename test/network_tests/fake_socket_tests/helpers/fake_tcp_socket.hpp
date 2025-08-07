@@ -104,6 +104,18 @@ private:
         set_user_timeout_ = _timeout;
         return true;
     }
+    [[nodiscard]] virtual bool set_keepidle(uint32_t idle) {
+        set_keep_alive_idle_ = idle;
+        return true;
+    }
+    [[nodiscard]] virtual bool set_keepintvl(uint32_t interval) {
+        set_keep_alive_interval_ = interval;
+        return true;
+    }
+    [[nodiscard]] virtual bool set_keepcnt(uint32_t count) {
+        set_keep_alive_count_ = count;
+        return true;
+    }
 #endif
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
@@ -133,6 +145,9 @@ private:
     std::shared_ptr<fake_tcp_socket_handle> state_;
     bool set_no_delay_{false};
     bool set_keep_alive_{false};
+    std::optional<uint32_t> set_keep_alive_idle_;
+    std::optional<uint32_t> set_keep_alive_interval_;
+    std::optional<uint32_t> set_keep_alive_count_;
     bool set_linger_{false};
     bool set_reuse_address_{false};
     std::optional<unsigned int> set_user_timeout_;

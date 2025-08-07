@@ -143,11 +143,27 @@ void tcp_client_endpoint_impl::connect() {
 #if defined(__linux__) || defined(ANDROID)
         // set a user timeout
         // along the keep alives, this ensures connection closes if endpoint is unreachable
-        unsigned int opt = VSOMEIP_TCP_USER_TIMEOUT;
+        auto opt = VSOMEIP_TCP_USER_TIMEOUT;
         if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &opt, sizeof(opt)) == -1) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: could not "
                                "setsockopt(TCP_USER_TIMEOUT), errno "
                             << errno;
+        }
+
+        // override kernel settings
+        // unfortunate, but there are plenty of custom keep-alive settings, and need to
+        // enforce some sanity here
+        auto opt2 = static_cast<int>(configuration_->get_external_tcp_keepidle());
+        if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_KEEPIDLE, &opt2, sizeof(opt2)) == -1) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: could not setsockopt(TCP_KEEPIDLE), errno " << errno;
+        }
+        opt2 = static_cast<int>(configuration_->get_external_tcp_keepintvl());
+        if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_KEEPINTVL, &opt2, sizeof(opt2)) == -1) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: could not setsockopt(TCP_KEEPINTVL), errno " << errno;
+        }
+        opt2 = static_cast<int>(configuration_->get_external_tcp_keepcnt());
+        if (setsockopt(socket_->native_handle(), IPPROTO_TCP, TCP_KEEPCNT, &opt2, sizeof(opt2)) == -1) {
+            VSOMEIP_WARNING << "tcp_client_endpoint::connect: could not setsockopt(TCP_KEEPCNT), errno " << errno;
         }
 #endif
 
