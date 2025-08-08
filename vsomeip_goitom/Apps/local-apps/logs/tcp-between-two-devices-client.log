@@ -1,0 +1,76 @@
+2025-08-08 13:26:00.608921 client-sample [info] Using configuration file: "../config/vsomeip-local-tcp-client.json".
+2025-08-08 13:26:00.609035 client-sample [info] Parsed vsomeip configuration in 0ms
+2025-08-08 13:26:00.609046 client-sample [info] Configuration module loaded.
+2025-08-08 13:26:00.609050 client-sample [info] Security disabled!
+2025-08-08 13:26:00.609057 client-sample [info] Initializing vsomeip (3.5.6) application "service-sample".
+2025-08-08 13:26:00.609161 client-sample [info] Instantiating routing manager [Host].
+2025-08-08 13:26:00.609234 client-sample [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-08-08 13:26:00.609324 client-sample [info] Service Discovery enabled. Trying to load module.
+2025-08-08 13:26:00.609468 client-sample [info] Service Discovery module loaded.
+2025-08-08 13:26:00.609551 client-sample [info] Application(service-sample, 0100) is initialized (11, 100).
+Client settings [protocol=UDP:quiet=false:cycle=1000]
+2025-08-08 13:26:00.609588 client-sample [info] Starting vsomeip application "service-sample" (0100) using 2 threads I/O nice 0 boost event loop period 0
+2025-08-08 13:26:00.609652 client-sample [info] Client [0100] routes unicast:192.168.10.4, netmask:255.255.255.0
+2025-08-08 13:26:00.609754 client-sample [info] Watchdog is disabled!
+2025-08-08 13:26:00.609948 client-sample [info] io thread id from application: 0100 (service-sample) is: 7254ca8d7b80 TID: 8103
+2025-08-08 13:26:00.610001 client-sample [info] vSomeIP 3.5.6 | (default)
+2025-08-08 13:26:00.610558 client-sample [warning] Network interface "enp0s3" state changed: up
+2025-08-08 13:26:00.610589 client-sample [warning] Route "default route (0.0.0.0/0) if: enp0s3 gw: 192.168.10.4" state changed: up
+2025-08-08 13:26:00.610626 client-sample [info] Joining to multicast group 224.0.0.1 from 192.168.10.4:30490 endpoint 0x5feed838b8c0
+2025-08-08 13:26:00.610639 client-sample [info] SOME/IP routing ready.
+2025-08-08 13:26:00.610648 client-sample [info] shutdown thread id from application: 0100 (service-sample) is: 7254c85fc640 TID: 8107
+2025-08-08 13:26:00.610696 client-sample [info] io thread id from application: 0100 (service-sample) is: 7254c6df9640 TID: 8110
+2025-08-08 13:26:00.610766 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+2025-08-08 13:26:00.610847 client-sample [info] main dispatch thread id from application: 0100 (service-sample) is: 7254c8dfd640 TID: 8106
+Service [1234.5678] is NOT available.
+Service [1235.5678] is NOT available.
+2025-08-08 13:26:00.611039 client-sample [info] REQUEST(0100): [1234.5678:255.4294967295]
+2025-08-08 13:26:00.611206 client-sample [info] create_local_server: Listening @ /tmp/vsomeip-100
+2025-08-08 13:26:00.654405 client-sample [info] endpoint_manager_impl::create_remote_client: 192.168.10.1:30509 reliable: 1 using local port: 0
+2025-08-08 13:26:00.654480 client-sample [warning] tce::connect:connecting to: local:192.168.10.4:33257 remote: 192.168.10.1:30509
+2025-08-08 13:26:00.664264 client-sample [info] cei::wait_connecting_cbk: endpoint > 0x5feed8392270 socket state > 2
+Service [1234.5678] is available.
+Client/Session [0100/0001] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0001]
+2025-08-08 13:26:01.136679 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 0
+Client/Session [0100/0002] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0002]
+Client/Session [0100/0003] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0003]
+2025-08-08 13:26:02.736120 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 0
+Client/Session [0100/0004] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0004]
+Client/Session [0100/0005] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0005]
+2025-08-08 13:26:04.937124 client-sample [warning] Didn't receive a multicast SD message for 2200ms.
+2025-08-08 13:26:04.937176 client-sample [info] Leaving the multicast group 224.0.0.1 from 192.168.10.4:30490 endpoint 0x5feed838b8c0
+2025-08-08 13:26:04.937188 client-sample [info] Joining to multicast group 224.0.0.1 from 192.168.10.4:30490 endpoint 0x5feed838b8c0
+2025-08-08 13:26:04.937330 client-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 212992 (1703936) local port:30490
+Client/Session [0100/0006] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0006]
+2025-08-08 13:26:05.713022 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 0
+Client/Session [0100/0007] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0007]
+Client/Session [0100/0008] sent a request to Service [1234.5678]
+2025-08-08 13:26:07.715795 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 0
+Received a response from Service [1234.5678] to Client/Session [0100/0008]
+Client/Session [0100/0009] sent a request to Service [1234.5678]
+Received a response from Service [1234.5678] to Client/Session [0100/0009]
+Client/Session [0100/000a] sent a request to Service [1234.5678]
+2025-08-08 13:26:09.714989 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 0
+Received a response from Service [1234.5678] to Client/Session [0100/000a]
+2025-08-08 13:26:09.737732 client-sample [warning] tcp_client_endpoint receive_cbk: End of file(2) local: 192.168.10.4:33257 remote: 192.168.10.1:30509
+2025-08-08 13:26:09.737793 client-sample [warning] tcp_client_endpoint receive_cbk restarting.
+2025-08-08 13:26:09.737800 client-sample [warning] cei::shutdown_and_close_socket_unlocked: socket shutdown error (107): Transport endpoint is not connected endpoint > 0x5feed8392270 socket state > 3
+2025-08-08 13:26:09.737825 client-sample [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x5feed8392270 socket state > 0
+2025-08-08 13:26:09.737845 client-sample [warning] service_endpoint_disconnected: lost connection to remote service: [1234.5678]
+2025-08-08 13:26:09.737849 client-sample [warning] cei::shutdown_and_close_socket_unlocked: socket was not open  endpoint > 0x5feed8392270 socket state > 1
+2025-08-08 13:26:09.737853 client-sample [warning] cei::shutdown_and_close_socket_unlocked: socket has been reset  endpoint > 0x5feed8392270 socket state > 0
+2025-08-08 13:26:09.737856 client-sample [warning] tce::restart: local:  remote: 192.168.10.1:30509
+2025-08-08 13:26:09.737873 client-sample [info] has_cross_vlan_multicast_:is_same_subnet 0
+Service [1234.5678] is NOT available.
+2025-08-08 13:26:09.738001 client-sample [warning] cei::shutdown_and_close_socket_unlocked: socket was not open  endpoint > 0x5feed8392270 socket state > 1
+2025-08-08 13:26:09.738011 client-sample [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x5feed8392270 socket state > 0
+2025-08-08 13:26:10.610832 client-sample [info] vSomeIP 3.5.6 | (default)
+^C2025-08-08 13:26:11.014116 client-sample [info] RELEASE(0100): [1234.5678]
+2025-08-08 13:26:11.703015 client-sample [info] Stopping vsomeip application "service-sample" (0100).
