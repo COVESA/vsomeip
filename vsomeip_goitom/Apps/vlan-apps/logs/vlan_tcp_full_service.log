@@ -1,0 +1,66 @@
+2025-08-08 15:49:10.024050 service-sample [info] Using configuration file: "../config/vsomeip-tcp-service.json".
+2025-08-08 15:49:10.024094 service-sample [info] Parsed vsomeip configuration in 0ms
+2025-08-08 15:49:10.024100 service-sample [info] Configuration module loaded.
+2025-08-08 15:49:10.024103 service-sample [info] Security disabled!
+2025-08-08 15:49:10.024108 service-sample [info] Initializing vsomeip (3.5.6) application "service-sample".
+2025-08-08 15:49:10.024216 service-sample [info] Instantiating routing manager [Host].
+2025-08-08 15:49:10.024325 service-sample [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-08-08 15:49:10.024493 service-sample [info] Service Discovery enabled. Trying to load module.
+2025-08-08 15:49:10.024647 service-sample [info] Service Discovery module loaded.
+2025-08-08 15:49:10.024931 service-sample [info] Application(service-sample, 1277) is initialized (11, 100).
+Static routing OFF
+2025-08-08 15:49:10.025230 service-sample [info] Starting vsomeip application "service-sample" (1277) using 2 threads I/O nice 0 boost event loop period 0
+2025-08-08 15:49:10.025570 service-sample [info] main dispatch thread id from application: 1277 (service-sample) is: 7a33e3bfd640 TID: 5159
+2025-08-08 15:49:10.025697 service-sample [debug] Thread created. Number of active threads for service-sample : 1
+2025-08-08 15:49:10.025826 service-sample [info] Client [1277] routes unicast:192.168.20.2, netmask:255.255.255.0
+2025-08-08 15:49:10.026089 service-sample [info] Watchdog is disabled!
+2025-08-08 15:49:10.026323 service-sample [info] io thread id from application: 1277 (service-sample) is: 7a33e5750b80 TID: 5156
+2025-08-08 15:49:10.026368 service-sample [info] vSomeIP 3.5.6 | (default)
+2025-08-08 15:49:10.026406 service-sample [warning] Network interface "enp0s3.20" state changed: up
+2025-08-08 15:49:10.026386 service-sample [info] io thread id from application: 1277 (service-sample) is: 7a33e1bf9640 TID: 5163
+2025-08-08 15:49:10.026431 service-sample [warning] Route "default route (0.0.0.0/0) if: enp0s3.20 gw: 192.168.20.1" state changed: up
+2025-08-08 15:49:10.026554 service-sample [info] init: Attempting to set IP_MULTICAST_TTL...
+2025-08-08 15:49:10.026560 service-sample [info] init: IP_MULTICAST_TTL set to 64
+2025-08-08 15:49:10.026563 service-sample [info] init: IP_MULTICAST_LOOP enabled
+2025-08-08 15:49:10.026572 service-sample [info] udp_server_endpoint_impl: SO_RCVBUFFORCE successful.
+2025-08-08 15:49:10.026584 service-sample [info] Joining to multicast group 224.244.224.245 from 192.168.20.2:30490 endpoint 0x64a6b364aa90
+2025-08-08 15:49:10.026625 service-sample [info] SOME/IP routing ready.
+2025-08-08 15:49:10.026644 service-sample [info] shutdown thread id from application: 1277 (service-sample) is: 7a33e33fc640 TID: 5160
+Application service-sample is registered.
+2025-08-08 15:49:10.026882 service-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUFFORCE: successful.
+2025-08-08 15:49:10.026893 service-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 1703936 (1703936) local port:30490
+2025-08-08 15:49:10.027154 service-sample [debug] ON_OFFER_SERVICE(1277): [1234.5678:0.0]
+2025-08-08 15:49:10.027224 service-sample [info] create_local_server: Listening @ /tmp/vsomeip-1277
+2025-08-08 15:49:10.027239 service-sample [info] OFFER(1277): [1234.5678:0.0] (true)
+2025-08-08 15:49:10.027244 service-sample [info] Port configuration missing for [1235.5678]. Service is internal.
+2025-08-08 15:49:10.027247 service-sample [debug] ON_OFFER_SERVICE(1277): [1235.5678:0.0]
+2025-08-08 15:49:10.027249 service-sample [info] OFFER(1277): [1235.5678:0.0] (true)
+2025-08-08 15:49:11.348410 service-sample [info] has_cross_vlan_multicast_:is_same_subnet 1
+Received a message with Client/Session [1343/0001]
+Received a message with Client/Session [1343/0002]
+Received a message with Client/Session [1343/0003]
+Received a message with Client/Session [1343/0004]
+Received a message with Client/Session [1343/0005]
+2025-08-08 15:49:15.748982 service-sample [warning] Didn't receive a multicast SD message for 4400ms.
+2025-08-08 15:49:15.749053 service-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.20.2:30490 endpoint 0x64a6b364aa90
+2025-08-08 15:49:15.749070 service-sample [info] Joining to multicast group 224.244.224.245 from 192.168.20.2:30490 endpoint 0x64a6b364aa90
+2025-08-08 15:49:15.749335 service-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUFFORCE: successful.
+2025-08-08 15:49:15.749375 service-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 1703936 (1703936) local port:30490
+Received a message with Client/Session [1343/0006]
+Received a message with Client/Session [1343/0007]
+Received a message with Client/Session [1343/0008]
+Received a message with Client/Session [1343/0009]
+2025-08-08 15:49:20.031154 service-sample [info] vSomeIP 3.5.6 | (default)
+2025-08-08 15:49:20.160503 service-sample [warning] Didn't receive a multicast SD message for 4400ms.
+2025-08-08 15:49:20.160536 service-sample [info] Leaving the multicast group 224.244.224.245 from 192.168.20.2:30490 endpoint 0x64a6b364aa90
+2025-08-08 15:49:20.160549 service-sample [info] Joining to multicast group 224.244.224.245 from 192.168.20.2:30490 endpoint 0x64a6b364aa90
+2025-08-08 15:49:20.160844 service-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUFFORCE: successful.
+2025-08-08 15:49:20.160857 service-sample [info] udp_server_endpoint_impl<multicast>: SO_RCVBUF is: 1703936 (1703936) local port:30490
+Received a message with Client/Session [1343/000a]
+2025-08-08 15:49:20.452097 service-sample [info] STOP OFFER(1277): [1234.5678:0.0] (true)
+2025-08-08 15:49:20.452150 service-sample [info] STOP OFFER(1277): [1235.5678:0.0] (true)
+^C2025-08-08 15:49:21.664970 service-sample [info] STOP OFFER(1277): [1234.5678:0.0] (true)
+2025-08-08 15:49:21.665003 service-sample [warning] stop_offer_service received STOP_OFFER(1277): [1234.5678:0.0] for remote service --> ignore
+2025-08-08 15:49:21.665010 service-sample [info] STOP OFFER(1277): [1235.5678:0.0] (true)
+2025-08-08 15:49:22.529163 service-sample [info] Stopping vsomeip application "service-sample" (1277).
+2025-08-08 15:49:22.529437 service-sample [debug] Thread destroyed. Number of active threads for service-sample : 0
