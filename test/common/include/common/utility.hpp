@@ -3,8 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <filesystem>
-
 #include <vsomeip/vsomeip.hpp>
 
 #include "../../../implementation/configuration/include/configuration_impl.hpp"
@@ -17,6 +15,7 @@
 // <boost/property_tree/json_parser.hpp>
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 
+#include <boost/filesystem.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
