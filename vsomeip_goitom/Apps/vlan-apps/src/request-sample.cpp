@@ -60,6 +60,8 @@ public:
         request_->set_service(SAMPLE_SERVICE_ID);
         request_->set_instance(SAMPLE_INSTANCE_ID);
         request_->set_method(SAMPLE_METHOD_ID);
+        // TCP
+        request_->set_reliable(true);
 
         std::shared_ptr< vsomeip::payload > its_payload = vsomeip::runtime::get()->create_payload();
         std::vector< vsomeip::byte_t > its_payload_data;
