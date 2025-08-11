@@ -66,13 +66,7 @@ routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, con
     host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), client_id_timer_(_host->get_io()), root_(nullptr),
     local_receiver_(nullptr), configuration_(_configuration), is_socket_activated_(false), client_registration_running_(false),
     max_local_message_size_(configuration_->get_max_message_size_local()),
-    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0)
-#if defined(__linux__) || defined(ANDROID)
-    ,
-    is_local_link_available_(false)
-#endif
-{
-}
+    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
 
@@ -99,23 +93,12 @@ void routing_manager_stub::start() {
                                               std::dynamic_pointer_cast<routing_manager_stub>(shared_from_this()), std::placeholders::_1));
     }
 
-#if defined(__linux__) || defined(ANDROID)
-    if (configuration_->is_local_routing()) {
-#else
-    {
-#endif // __linux__ || ANDROID
-        if (!root_) {
-            // application has been stopped and started again
-            init_routing_endpoint();
-        }
-        if (root_) {
-            root_->start();
-        }
-#if defined(__linux__) || defined(ANDROID)
-    } else {
-        if (local_link_connector_)
-            local_link_connector_->start();
-#endif
+    if (!root_) {
+        // application has been stopped and started again
+        init_routing_endpoint();
+    }
+    if (root_) {
+        root_->start();
     }
 
     client_registration_running_ = true;
@@ -177,11 +160,6 @@ void routing_manager_stub::stop() {
     }
 
     bool is_local_routing(configuration_->is_local_routing());
-
-#if defined(__linux__) || defined(ANDROID)
-    if (local_link_connector_)
-        local_link_connector_->stop();
-#endif // __linux__ || ANDROID
 
     if (!is_socket_activated_) {
         root_->stop();
@@ -993,81 +971,12 @@ bool routing_manager_stub::new_client_to_process() {
 }
 
 void routing_manager_stub::init_routing_endpoint() {
+    bool is_successful = host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
 
-#if defined(__linux__) || defined(ANDROID)
-    if (configuration_->is_local_routing()) {
-#else
-    {
-#endif // __linux__ || ANDROID
-        bool is_successful = host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
-
-        if (!is_successful) {
-            VSOMEIP_WARNING << "Routing root creating (partially) failed. Please check your configuration.";
-        }
-#if defined(__linux__) || defined(ANDROID)
-    } else {
-        auto its_host_address = configuration_->get_routing_host_address();
-        local_link_connector_ = abstract_socket_factory::get()->create_netlink_connector(io_, its_host_address, boost::asio::ip::address(),
-                                                                                         false); // routing host doesn't need link up
-        if (local_link_connector_) {
-            local_link_connector_->register_net_if_changes_handler(std::bind(
-                    &routing_manager_stub::on_net_state_change, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-        }
-#endif // __linux__ || ANDROID
+    if (!is_successful) {
+        VSOMEIP_WARNING << "Routing root creating (partially) failed. Please check your configuration.";
     }
 }
-
-#if defined(__linux__) || defined(ANDROID)
-void routing_manager_stub::on_net_state_change(bool _is_interface, const std::string& _name, bool _is_available) {
-
-    // No changes in the link availability
-    if (_is_available == is_local_link_available_)
-        return;
-
-    VSOMEIP_INFO << "rms::" << __func__ << ": ThreadID: " << std::hex << std::this_thread::get_id() << " - " << std::boolalpha
-                 << _is_interface << " " << _name << " " << std::boolalpha << _is_available;
-
-    if (_is_interface) {
-        if (_is_available) {
-            if (!is_local_link_available_) {
-                is_local_link_available_ = true;
-                if (!root_)
-                    (void)host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
-                if (root_) {
-                    VSOMEIP_INFO << __func__ << ": Starting routing root.";
-                    root_->start();
-                } else
-                    VSOMEIP_WARNING << "Routing root creating (partially) failed. "
-                                       "Please check your configuration.";
-            }
-        } else {
-            if (is_local_link_available_) {
-                is_local_link_available_ = false;
-                VSOMEIP_INFO << __func__ << ": Stopping routing root.";
-                root_->stop();
-                root_.reset();
-
-                std::unordered_set<client_t> its_clients_to_inform;
-                auto its_epm = host_->get_endpoint_manager();
-                if (its_epm) {
-                    its_clients_to_inform = its_epm->get_connected_clients();
-                }
-
-                for (const auto client : its_clients_to_inform) {
-                    if (client != VSOMEIP_ROUTING_CLIENT) {
-                        host_->remove_local(client, false);
-                    }
-                }
-
-                std::scoped_lock its_lock(routing_info_mutex_);
-                routing_info_.clear();
-                host_->clear_local_services();
-                connection_matrix_.clear();
-            }
-        }
-    }
-}
-#endif // __linux__ || ANDROID
 
 void routing_manager_stub::on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                             minor_version_t _minor) {
