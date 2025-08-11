@@ -9,10 +9,10 @@
 #include <sys/types.h>
 
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <pthread.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <string.h>
 #include <sys/dcmd_ip.h>
 #include <sys/netmgr.h>

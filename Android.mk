@@ -121,6 +121,11 @@ LOCAL_LDFLAGS := \
     -Wl,-wrap,socket \
     -Wl,-wrap,accept \
     -Wl,-wrap,open \
+    -Wl,-wrap,close \
+    -Wl,-wrap,recvfrom \
+    -Wl,-wrap,recvmsg \
+    -Wl,-wrap,sendto \
+    -Wl,-wrap,sendmsg \
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -219,5 +224,10 @@ LOCAL_CFLAGS :=  \
     -Wl,-wrap,socket \
     -Wl,-wrap,accept \
     -Wl,-wrap,open \
+    -Wl,-wrap,close \
+    -Wl,-wrap,recvfrom \
+    -Wl,-wrap,recvmsg \
+    -Wl,-wrap,sendto \
+    -Wl,-wrap,sendmsg \
 
 include $(BUILD_SHARED_LIBRARY)

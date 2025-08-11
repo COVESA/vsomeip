@@ -5,7 +5,7 @@
 
 #include <sstream>
 #include <vector>
-#include <stdlib.h>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 
