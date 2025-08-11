@@ -13,7 +13,7 @@
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 
 namespace vsomeip_v3::testing {
 static std::string const routingmanager_name_{"routingmanagerd"};
