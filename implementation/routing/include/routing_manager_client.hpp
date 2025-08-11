@@ -24,9 +24,6 @@ namespace vsomeip_v3 {
 
 class configuration;
 class event;
-#ifdef __linux__
-class abstract_netlink_connector;
-#endif
 class routing_manager_host;
 
 namespace protocol {

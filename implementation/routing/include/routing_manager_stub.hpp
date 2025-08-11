@@ -32,9 +32,6 @@
 namespace vsomeip_v3 {
 
 class configuration;
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-class abstract_netlink_connector;
-#endif // __linux__ || ANDROID
 class routing_manager_stub_host;
 
 struct debounce_filter_impl_t;
@@ -187,10 +184,6 @@ private:
     void add_pending_security_update_handler(pending_security_update_id_t _id, const security_update_handler_t& _handler);
     void add_pending_security_update_timer(pending_security_update_id_t _id);
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    void on_net_state_change(bool _is_interface, const std::string& _name, bool _is_available);
-#endif
-
 private:
     routing_manager_stub_host* host_;
     boost::asio::io_context& io_;
@@ -245,13 +238,6 @@ private:
 
     mutable std::mutex requester_policies_mutex_;
     std::map<uint32_t, std::map<uint32_t, std::set<std::shared_ptr<policy>>>> requester_policies_;
-
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    // netlink connector for internal network
-    // (replacement for Unix Domain Sockets if configured)
-    std::shared_ptr<abstract_netlink_connector> local_link_connector_;
-    bool is_local_link_available_;
-#endif
 };
 
 } // namespace vsomeip_v3
