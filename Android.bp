@@ -88,7 +88,12 @@ cc_library_shared {
     ldflags: [
         "-Wl,-wrap,socket",
         "-Wl,-wrap,accept",
-        "-Wl,-wrap,open"
+        "-Wl,-wrap,open",
+        "-Wl,-wrap,close",
+        "-Wl,-wrap,recvfrom",
+        "-Wl,-wrap,recvmsg",
+        "-Wl,-wrap,sendto",
+        "-Wl,-wrap,sendmsg"
     ],
 
     rtti: true,
