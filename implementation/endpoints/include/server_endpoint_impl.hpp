@@ -95,7 +95,9 @@ public:
     void remove_stop_handler(service_t _service);
 
 protected:
+    // The caller must hold the `mutex_` lock
     virtual bool send_intern(endpoint_type _target, const byte_t* _data, uint32_t _port);
+    // The caller must hold the `mutex_` lock
     virtual bool send_queued(const target_data_iterator_type _it) = 0;
     virtual void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
                                                     std::chrono::nanoseconds* _maximum_retention) const = 0;
@@ -105,13 +107,18 @@ protected:
     virtual void print_status() = 0;
 
     bool check_message_size(std::uint32_t _size) const;
+    // The caller must hold the `mutex_` lock
     typename endpoint_impl<Protocol>::cms_ret_e segment_message(const std::uint8_t* const _data, std::uint32_t _size,
                                                                 const endpoint_type& _target);
+    // The caller must hold the `mutex_` lock
     bool check_queue_limit(const uint8_t* _data, std::uint32_t _size, endpoint_data_type& _endpoint_data) const;
+    // The caller must hold the `mutex_` lock
     bool queue_train(const target_data_iterator_type _it, const std::shared_ptr<train>& _train);
 
+    // The caller must hold the `mutex_` lock
     void send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time, const endpoint_type& _target);
 
+    // The caller must hold the `mutex_` lock
     target_data_iterator_type find_or_create_target_unlocked(endpoint_type _target);
 
     static clients_key_t to_clients_key(service_t its_service, method_t its_method, client_t its_client);
@@ -138,6 +145,7 @@ private:
     void start_dispatch_timer(target_data_iterator_type _it, const std::chrono::steady_clock::time_point& _now);
     void cancel_dispatch_timer(target_data_iterator_type _it);
 
+    // The caller must hold the `mutex_` lock
     void recalculate_queue_size(endpoint_data_type& _data) const;
 };
 
