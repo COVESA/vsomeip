@@ -355,7 +355,9 @@ bool udp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition
 }
 
 bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
-    std::scoped_lock its_lock(sync_);
+    // The `mutex_` lock must be hold when modifying the `targets_` list or
+    // any field inside this list (`_target` points to this list).
+    std::scoped_lock its_lock(mutex_, sync_);
 
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
@@ -375,6 +377,8 @@ bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
 }
 
 bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) {
+    // The caller hold the lock on `mutex_`
+
     std::scoped_lock its_lock(sync_);
     bool result = false;
     if (unicast_socket_) {
@@ -386,8 +390,9 @@ bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
 }
 
 bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_type _it) {
+    // The caller hold two locks: `mutex_` and `sync_` in that order
+
     const auto its_entry = _it->second.queue_.front();
-    // The caller must hold the lock
 
 #if 0
     std::stringstream msg;
@@ -769,7 +774,7 @@ bool udp_server_endpoint_impl::is_same_subnet_unlocked(const boost::asio::ip::ad
 }
 
 void udp_server_endpoint_impl::print_status() {
-    std::scoped_lock its_lock(sync_);
+    std::scoped_lock its_lock(mutex_, sync_);
 
     VSOMEIP_ERROR << instance_name_ << "status use: " << std::dec << local_port_ << " number targets: " << std::dec << targets_.size()
                   << " recv_buffer: " << std::dec << unicast_recv_buffer_.capacity() << " multicast_recv_buffer: " << std::dec
