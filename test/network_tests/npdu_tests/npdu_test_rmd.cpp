@@ -24,6 +24,7 @@ void npdu_test_rmd::init() {
     app_->init();
 
 #ifdef RMD_CLIENT_SIDE
+    app_->request_service(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE, npdu_test::RMD_INSTANCE_ID);
     app_->register_message_handler(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE,
 #elif defined(RMD_SERVICE_SIDE)
     app_->register_message_handler(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE,

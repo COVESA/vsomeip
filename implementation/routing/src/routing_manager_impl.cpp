@@ -752,6 +752,19 @@ void routing_manager_impl::unsubscribe(client_t _client, const vsomeip_sec_clien
 }
 
 bool routing_manager_impl::send(client_t _client, std::shared_ptr<message> _message, bool _force) {
+    if (utility::is_request(_message->get_message_type())) {
+        if (stub_ && !stub_->is_remotely_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
+            VSOMEIP_WARNING << std::hex << std::setfill('0') << "rmi:: " << __func__ << " {_client=" << _client
+                            << " _message=" << std::setw(4) << _message->get_service() << "." << std::setw(4)
+                            << _message->get_method() << "." << std::setw(2) << static_cast<int>(_message->get_message_type())
+                            << "." << std::setw(2) << static_cast<int>(_message->get_return_code())
+                            << " _force=" << _force << "}: Remote service not available. instance=" << std::setw(4)
+                            << _message->get_instance() << " version=" << std::setw(4) << _message->get_interface_version();
+            if (!_force) {
+                return false;
+            }
+        }
+    }
 
     return routing_manager_base::send(_client, _message, _force);
 }
@@ -2138,8 +2151,8 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 if (ep->is_established() && stub_
                     && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                          its_info->get_minor())) {
-                    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
                     stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
+                    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
                     if (discovery_) {
                         discovery_->on_endpoint_connected(_service, _instance, ep);
                     }
@@ -2180,9 +2193,9 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
         if (!is_reliable_known && !tcp_inserted) {
             // UDP only service can be marked as available instantly
             if (has_requester_unlocked(_service, _instance, _major, _minor)) {
-                on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
                 if (stub_)
                     stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
+                on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
             } else {
                 on_availability(_service, _instance, availability_state_e::AS_OFFERED, _major, _minor);
             }
@@ -2199,8 +2212,8 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
             if (_reliable_port == ILLEGAL_PORT && !is_reliable_known && stub_
                 && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                      its_info->get_minor())) {
-                on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
                 stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
+                on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
                 if (discovery_) {
                     std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
                     if (ep && ep->is_established()) {
@@ -4001,9 +4014,9 @@ void routing_manager_impl::service_endpoint_connected(service_t _service, instan
     if (!_unreliable_only) {
         // Mark only TCP-only and TCP+UDP services available here
         // UDP-only services are already marked as available in add_routing_info
-        on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
         if (stub_)
             stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
+        on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
     }
 
     auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
