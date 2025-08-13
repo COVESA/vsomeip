@@ -314,7 +314,7 @@ bool application_impl::init() {
 
         routing_->init();
 
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
         // Tracing
         std::shared_ptr<trace::connector_impl> its_connector
             = trace::connector_impl::get();

@@ -10,9 +10,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif
 #endif
 
 namespace vsomeip_test
