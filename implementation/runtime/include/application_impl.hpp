@@ -348,7 +348,6 @@ private:
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
     // Signals
     boost::asio::signal_set signals_;
-    bool catched_signal_;
 #endif
 
     // Handlers
@@ -387,9 +386,6 @@ private:
     std::condition_variable block_stop_cv_;
     std::mutex block_stop_mutex_;
     bool block_stop_condition_;
-
-    static uint32_t app_counter__;
-    static std::mutex app_counter_mutex__;
 
     bool is_routing_manager_host_;
 

@@ -46,9 +46,6 @@ namespace vsomeip_v3 {
 configuration::~configuration() { }
 #endif
 
-uint32_t application_impl::app_counter__ = 0;
-std::mutex application_impl::app_counter_mutex__;
-
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
     runtime_{runtime::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
@@ -57,7 +54,7 @@ application_impl::application_impl(const std::string& _name, const std::string& 
     work_{std::make_shared<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(io_.get_executor())},
     routing_{nullptr}, state_{state_type_e::ST_DEREGISTERED}, security_mode_{security_mode_e::SM_ON},
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    signals_{io_, SIGINT, SIGTERM}, catched_signal_{false},
+    signals_{io_, SIGINT, SIGTERM},
 #endif
     is_dispatching_{false}, max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS}, max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME},
     dispatcher_counter_{0}, max_detached_thread_wait_time{VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS}, stopped_{false},
@@ -118,7 +115,8 @@ application_impl::~application_impl() {
 bool application_impl::init() {
     std::scoped_lock its_initialized_lock{initialize_mutex_};
     if (is_initialized_) {
-        VSOMEIP_WARNING << "Trying to initialize an already initialized application.";
+        VSOMEIP_WARNING << "Trying to initialize already-initialized application \"" << name_ << "\" (" << std::hex << std::setfill('0')
+                        << std::setw(4) << client_ << ")";
         return true;
     }
 
@@ -317,7 +315,6 @@ bool application_impl::init() {
                 switch (_signal) {
                 case SIGTERM:
                 case SIGINT:
-                    catched_signal_ = true;
                     stop();
                     break;
                 default:
@@ -363,7 +360,8 @@ void application_impl::start() {
     {
         std::scoped_lock its_initialized_lock{initialize_mutex_};
         if (!is_initialized_) {
-            VSOMEIP_ERROR << "Trying to start an unintialized application.";
+            VSOMEIP_ERROR << "Trying to start uninitialized application \"" << name_ << "\" (" << std::hex << std::setfill('0')
+                          << std::setw(4) << client_ << ")";
             return;
         }
      }
@@ -377,7 +375,8 @@ void application_impl::start() {
         if (io_.stopped()) {
             io_.restart();
         } else if (stop_thread_.joinable()) {
-            VSOMEIP_ERROR << "Trying to start an already started application.";
+            VSOMEIP_ERROR << "Trying to start already started application \"" << name_ << "\" (" << std::hex << std::setfill('0')
+                          << std::setw(4) << client_ << ")";
             return;
         }
         if (stopped_) {
@@ -470,10 +469,6 @@ void application_impl::start() {
             }
         }
     }
-    {
-        std::scoped_lock its_app_lock{app_counter_mutex__};
-        app_counter__++;
-    }
     VSOMEIP_INFO << "io thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
                  << ") is: " << std::this_thread::get_id()
 #if defined(__linux__) || defined(ANDROID)
@@ -507,10 +502,6 @@ void application_impl::start() {
     {
         std::scoped_lock its_lock{start_stop_mutex_};
         stopped_ = false;
-    }
-    {
-        std::scoped_lock its_app_lock{app_counter_mutex__};
-        app_counter__--;
     }
 }
 
