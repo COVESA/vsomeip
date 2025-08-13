@@ -57,6 +57,8 @@ void npdu_test_client::init() {
     register_message_handler_for_all_service_methods<2>();
     register_message_handler_for_all_service_methods<3>();
 
+    app_->request_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID);
+
     request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     if (!wait_for_replies_)

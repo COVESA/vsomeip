@@ -2418,4 +2418,29 @@ void routing_manager_stub::remove_subscriptions(port_t _local_port, const boost:
     // dummy method to implement routing_host interface
 }
 
+
+bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance,
+                                        major_version_t _major) const {
+    std::scoped_lock its_lock{routing_info_mutex_};
+    for (const auto& [client, its_info] : routing_info_) {
+        auto its_service = its_info.second.find(_service);
+        if (its_service != its_info.second.end()) {
+            if (_instance == ANY_INSTANCE) {
+                return true;
+            }
+            auto its_instance = its_service->second.find(_instance);
+            if (its_instance != its_service->second.end()) {
+                if (_major == ANY_MAJOR || _major == DEFAULT_MAJOR) {
+                    return true;
+                }
+                if (_major == std::get<0>(its_instance->second)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 } // namespace vsomeip_v3
