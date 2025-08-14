@@ -55,6 +55,7 @@ jobs:
           boost_version: 1.83.0
           platform: windows
           boost_install_dir: C:\runner
+          link: static  
           toolset: msvc
           arch: x86
           cache: true
