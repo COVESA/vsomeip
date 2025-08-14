@@ -149,6 +149,8 @@ void react(int fd, const char* func) {
     // libdlt (or well, stdout/stderr in case of no libdlt..)
     VSOMEIP_FATAL << func << "(" << fd << ") failed with errno EBADF, descriptor leak!";
 
+    // Backtrace is not supported on android NDK, to be checked in the future
+#if !defined(ANDROID_CI_BUILD)
     void* callstack[128];
     int nframes = backtrace(callstack, 128);
     char** symbols = backtrace_symbols(callstack, nframes);
@@ -162,6 +164,7 @@ void react(int fd, const char* func) {
 
     // see backtrace(3), caller needs to free memory after use, `backtrace` will malloc it
     free(symbols);
+#endif
 }
 
 #endif
