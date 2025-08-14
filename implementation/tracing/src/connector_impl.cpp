@@ -18,7 +18,7 @@
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/bithelper.hpp"
 
-#ifdef ANDROID
+#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
 #include <utils/Log.h>
 
 #ifdef ALOGI
@@ -265,7 +265,7 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
                 // This should never happen!
                 VSOMEIP_ERROR << "tracing: found channel without DLT context!";
             }
-#else
+#elif !defined(ANDROID_CI_BUILD)
             std::stringstream ss;
             ss << "TC:";
             for (int i = 0; i < _header_size; i++) {
