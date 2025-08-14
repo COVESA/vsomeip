@@ -97,7 +97,6 @@ endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 ############################################My lib link flags####################################
 # Options
 ################################################################################
-
 # DLT
 if (DISABLE_DLT)
 set (VSOMEIP_ENABLE_DLT 0)
@@ -189,7 +188,7 @@ find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     include_directories(${Boost_INCLUDE_DIR} )
 else()
-    include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+    include_directories(SYSTEM ${Boost_INCLUDE_DIRS} )
 endif()
 
 if(Boost_FOUND)
@@ -272,6 +271,9 @@ if (MSVC)
     add_compile_options(/MD$<$<CONFIG:Debug>:d>)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
+elseif(ANDROID_CI_BUILD)
+    set( USE_RT "")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CI_BUILD -Wno-format-security -Wno-conversion -Wno-error -Wno-inconsistent-missing-override")
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")

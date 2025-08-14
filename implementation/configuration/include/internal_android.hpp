@@ -34,6 +34,9 @@
 
 // VSOMEIP_BASE_PATH should be specified in Android.bp or/and Android.mk file via c/c++ compiler
 // flags. #define VSOMEIP_BASE_PATH                       "/storage/"
+#ifdef ANDROID_CI_BUILD
+#define VSOMEIP_BASE_PATH                       "/tmp/"
+#endif
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
 

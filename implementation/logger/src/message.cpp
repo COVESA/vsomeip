@@ -9,7 +9,7 @@
 #include <iomanip>
 #include <iostream>
 
-#ifdef ANDROID
+#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
 #include <utils/Log.h>
 
 #ifdef ALOGE
@@ -128,7 +128,7 @@ message::~message() try {
                           << ":" << std::setw(2) << its_time.tm_min << ":" << std::setw(2) << its_time.tm_sec << "." << std::setw(6)
                           << its_ms << " " << its_logger->get_app_name() << " [" << its_level << "] " << buffer_.data_.str() << std::endl;
             }
-#else
+#elif !defined(ANDROID_CI_BUILD)
             std::string app = runtime::get_property("LogApplication");
 
             switch (level_) {
