@@ -7,9 +7,7 @@
 #define VSOMEIP_V3_TRACE_CONNECTOR_HPP_
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif
 #endif
 
 #include <mutex>
@@ -74,10 +72,8 @@ private:
     std::mutex configure_mutex_;
 
 #ifdef USE_DLT
-#ifndef ANDROID
     std::map<std::string, std::shared_ptr<DltContext>> contexts_;
     mutable std::mutex contexts_mutex_;
-#endif
 #endif
 
 };

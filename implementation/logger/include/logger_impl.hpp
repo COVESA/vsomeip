@@ -11,9 +11,7 @@
 #include <atomic>
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif
 #endif
 
 #include <vsomeip/internal/logger.hpp>
@@ -62,10 +60,8 @@ private:
     std::string cfg_file_name {""};
 
 #ifdef USE_DLT
-#ifndef ANDROID
     std::mutex dlt_context_mutex_;
     DLT_DECLARE_CONTEXT(dlt_)
-#endif
 #endif
 };
 

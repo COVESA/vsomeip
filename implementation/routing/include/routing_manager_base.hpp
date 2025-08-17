@@ -35,7 +35,7 @@
 
 namespace vsomeip_v3 {
 
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
 namespace trace {
 class connector_impl;
 } // namespace trace
@@ -354,7 +354,7 @@ protected:
 
     std::atomic<routing_state_e> routing_state_;
 
-#ifdef USE_DLT
+#if defined(USE_DLT) || defined(TRACE_TO_LOGS)
     std::shared_ptr<trace::connector_impl> tc_;
 #endif
 
