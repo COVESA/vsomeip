@@ -1,5 +1,97 @@
 Changes
 =======
+v3.5.7
+- global
+  - Update deprecated boost::asio APIs
+  - Update documentation regarding the vsomeip configurations
+  - Addresses most shadowing variables
+  - Fixes some old style C-casts
+
+- routing_manager_base
+  - Always send initial event on subscription
+
+- routing_manager_impl
+  - The rule vsomeip_sec_policy_is_client_allowed_to_access_member, was considered to be redundant,
+    therefore it is now removed.
+  - Consistently execute/schedule the action (sending, processing a received message), before trace
+    the message.
+  - Ensure to unsubscribe non selective events.
+  - Clear multicast only for last subscriber
+
+- routing_manager_stub
+  - Fix SIGSEGV on application register that cna happen if an application sends
+    REGISTER_APPLICATION_ID without giving a non-zero port, when using local TCP.
+  - Fix client registration thread names.
+  - Enforce a client reconnect by dropping the connection client->routingd
+
+- routing_manager_client
+  - Replace an erase from know_clients map call with the appropriate function.
+  - Make client id show as hex value, in logs
+  - Consistently execute/schedule the action (sending, processing a received message), before trace
+    the message.
+  - Close all connections on "client error".
+  - Drop use of netlink and use IP_FREEBIND, for linux and android platforms
+  - Ensure client process only once the registration
+  - Update security offer rule for messages
+
+- endpoints
+  - local communication
+    - Added missing timeout handling on connection timeout.
+    - Fix use of bound client
+    - Change the order how a connection is cleaned-up.
+  - external communication
+    - Add predicate to condition variables.
+    - udp_server_endpoint_impl refactoring
+  - local and external communication
+    - Set TCP_USER_TIMEOUT on connections, which causes a connection to timeout when data
+      remains unacknowledged for more than a certain amount of time.
+    - Remove the exponential timer increase from connection.
+    - Handle not_socket error on send_cbk.
+    - Set was_not_connected to true if not established or connected when send_cbk is called.
+    - Close all connections on "client error".
+  - netlink
+    - optimize get link request by filtering the output
+    - optimize bind parameters to the data really needed
+    - fix IPv6 handling
+    - improve error handling
+    - reduce buffer size
+
+- service_discovery
+  - Rename IPV3 to IPV4
+
+- application
+  - GCC 15 requires stdint.h to be explicitly imported.
+  - Add logs to registering of subscription handlers.
+  - Add predicate to condition variables.
+
+- configurations
+  - Allow to set any service/instance on supress missing events.
+  - Use application name instead of client identifier for specific debouncing configurations.
+
+- plugin
+  - Remove unused load_plugins
+
+- tests
+  - network_tests
+    - Enables Valgrind (massif and memcheck) and removes Valgrind Helgrind.
+    - Fix issues with certain Valgrind memcheck tests where Valgrind can't follow TLS memory until
+      the thread is completely destroyed, therefore can't confirm whether the thread cleans it up
+      after exit, hence it marks it "possibly lost".
+    - Fix security tests false positives, in tests that have the missing check for the exit codes in
+      the .sh starter script.
+    - Added new test to verify if the availability handler is working correctly.
+    - Added new test to validate local tcp client registration sequence.
+    - Added tests for local tcp communication with fault injection
+    - Fix offer_stop_offer_test by leaving the trigger if the (Un)Available to the end of the process
+  - unit_tests
+    - Fix unit tests failling on Windows
+
+- examples
+  - Fix examples on Windows and set them as voting
+
+- documentation
+  - Add extra documentation for routing info command
+
 v3.5.6
 - routing_manager_client
   - Forcing the ON_AVAILABLE log and send subscription of requested services even if availability was
