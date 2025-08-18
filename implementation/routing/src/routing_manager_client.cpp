@@ -905,8 +905,11 @@ void routing_manager_client::on_connect(const std::shared_ptr<endpoint>& _endpoi
 }
 
 void routing_manager_client::on_disconnect(const std::shared_ptr<endpoint>& _endpoint) {
-    if (_endpoint != sender_) {
-        return;
+    {
+        std::scoped_lock its_sender_lock{sender_mutex_};
+        if (_endpoint != sender_) {
+            return;
+        }
     }
     is_connected_ = false;
 

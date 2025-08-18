@@ -193,7 +193,7 @@ private:
     bool keepalive_is_alive_;
     std::mutex keepalive_mutex_;
 
-    mutable std::mutex sender_mutex_;
+    mutable std::recursive_mutex sender_mutex_;
     std::shared_ptr<endpoint> sender_; // --> stub
 
     mutable std::mutex receiver_mutex_;
