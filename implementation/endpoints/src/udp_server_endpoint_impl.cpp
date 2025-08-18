@@ -291,12 +291,20 @@ void udp_server_endpoint_impl::receive_unicast_unlocked() {
         unicast_socket_->async_receive_from(
                 boost::asio::buffer(&unicast_recv_buffer_[0], max_message_size_), unicast_remote_,
                 [self = shared_ptr(), lifecycle_idx = lifecycle_idx_.load()](boost::system::error_code const& _error, std::size_t _bytes) {
+                    bool repeat = false;
+
                     if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
                         && _error != boost::asio::error::connection_reset && _error != boost::asio::error::operation_aborted) {
                         self->on_unicast_received(_error, _bytes);
+
                         std::scoped_lock its_lock(self->sync_);
-                        self->receive_unicast_unlocked();
-                    } else {
+                        if (lifecycle_idx == self->lifecycle_idx_.load()) {
+                            self->receive_unicast_unlocked();
+                            repeat = true;
+                        }
+                    }
+
+                    if (!repeat) {
                         VSOMEIP_WARNING << self->instance_name_
                                         << "receive_unicast_unlocked: stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
                                         << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
@@ -324,12 +332,20 @@ void udp_server_endpoint_impl::receive_multicast_unlocked() {
         multicast_socket_->async_wait(
                 socket_type::wait_read,
                 [self = shared_ptr(), its_storage, lifecycle_idx = lifecycle_idx_.load()](boost::system::error_code const& _error) {
+                    bool repeat = false;
+
                     if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
                         && _error != boost::asio::error::connection_reset && _error != boost::asio::error::operation_aborted) {
                         udp_endpoint_receive_op::storage::receive_cb(its_storage, _error);
+
                         std::scoped_lock its_lock(self->sync_);
-                        self->receive_multicast_unlocked();
-                    } else {
+                        if (lifecycle_idx == self->lifecycle_idx_.load()) {
+                            self->receive_multicast_unlocked();
+                            repeat = true;
+                        }
+                    }
+
+                    if (!repeat) {
                         VSOMEIP_WARNING << self->instance_name_
                                         << "receive_multicast_unlocked: stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
                                         << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
