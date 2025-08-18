@@ -12,11 +12,10 @@ class routing_manager;
 
 class routing_manager_adapter {
 public:
-    virtual ~routing_manager_adapter() {
-    }
+    virtual ~routing_manager_adapter() { }
 
-    virtual routing_manager * get_manager() = 0;
-    virtual void process_command(const byte_t *_data, length_t _length) = 0;
+    virtual routing_manager* get_manager() = 0;
+    virtual void process_command(const byte_t* _data, length_t _length) = 0;
 };
 
 } // namespace vsomeip_v3

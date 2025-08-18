@@ -46,7 +46,7 @@ class policy_manager;
  */
 class application {
 public:
-    virtual ~application() {}
+    virtual ~application() { }
 
     /**
      *
@@ -64,7 +64,7 @@ public:
      * \return Application name
      *
      */
-    virtual const std::string & get_name() const = 0;
+    virtual const std::string& get_name() const = 0;
 
     /**
      *
@@ -168,9 +168,8 @@ public:
      * \param _minor Minor service version (Default: 0).
      *
      */
-    virtual void offer_service(service_t _service, instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
-                    DEFAULT_MINOR) = 0;
+    virtual void offer_service(service_t _service, instance_t _instance, major_version_t _major = DEFAULT_MAJOR,
+                               minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     /**
      *
@@ -184,9 +183,8 @@ public:
      * \param _minor Minor service version (Default: 0).
      *
      */
-    virtual void stop_offer_service(service_t _service, instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
-                    DEFAULT_MINOR) = 0;
+    virtual void stop_offer_service(service_t _service, instance_t _instance, major_version_t _major = DEFAULT_MAJOR,
+                                    minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     /**
      *
@@ -220,14 +218,11 @@ public:
      * instance's reliability configuration. This parameter has no effect for
      * events of local services.
      */
-    virtual void offer_event(service_t _service, instance_t _instance,
-            event_t _notifier, const std::set<eventgroup_t> &_eventgroups,
-            event_type_e _type = event_type_e::ET_EVENT,
-            std::chrono::milliseconds _cycle =std::chrono::milliseconds::zero(),
-            bool _change_resets_cycle = false,
-            bool _update_on_change = true,
-            const epsilon_change_func_t &_epsilon_change_func = nullptr,
-            reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
+    virtual void offer_event(service_t _service, instance_t _instance, event_t _notifier, const std::set<eventgroup_t>& _eventgroups,
+                             event_type_e _type = event_type_e::ET_EVENT,
+                             std::chrono::milliseconds _cycle = std::chrono::milliseconds::zero(), bool _change_resets_cycle = false,
+                             bool _update_on_change = true, const epsilon_change_func_t& _epsilon_change_func = nullptr,
+                             reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
 
     /**
      *
@@ -243,8 +238,7 @@ public:
      * \param _event Event identifier of the offered event.
      *
      */
-    virtual void stop_offer_event(service_t _service,
-            instance_t _instance, event_t _event) = 0;
+    virtual void stop_offer_event(service_t _service, instance_t _instance, event_t _event) = 0;
 
     /**
      *
@@ -261,9 +255,8 @@ public:
      * \param _minor Minor service version (Default: 0xFFFFFF).
      *
      */
-    virtual void request_service(service_t _service, instance_t _instance,
-            major_version_t _major = ANY_MAJOR,
-            minor_version_t _minor = ANY_MINOR) = 0;
+    virtual void request_service(service_t _service, instance_t _instance, major_version_t _major = ANY_MAJOR,
+                                 minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -313,10 +306,9 @@ public:
      * belong to the eventgroup. Otherwise, neither event type nor reliability
      * type are known which might result in missing events.
      */
-    virtual void request_event(service_t _service, instance_t _instance,
-            event_t _event, const std::set<eventgroup_t> &_eventgroups,
-            event_type_e _type = event_type_e::ET_EVENT,
-            reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
+    virtual void request_event(service_t _service, instance_t _instance, event_t _event, const std::set<eventgroup_t>& _eventgroups,
+                               event_type_e _type = event_type_e::ET_EVENT,
+                               reliability_type_e _reliability = reliability_type_e::RT_UNKNOWN) = 0;
     /**
      *
      * \brief Unregister the application as user of an event or field.
@@ -331,8 +323,7 @@ public:
      * \param _event Event identifier of the event or field.
      * .
      */
-    virtual void release_event(service_t _service, instance_t _instance,
-            event_t _event) = 0;
+    virtual void release_event(service_t _service, instance_t _instance, event_t _event) = 0;
 
     /**
      *
@@ -358,9 +349,8 @@ public:
      * \param _event All (Default) or a specific event.
      *
      */
-    virtual void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
-            event_t _event = ANY_EVENT) = 0;
+    virtual void subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
+                           event_t _event = ANY_EVENT) = 0;
 
     /**
      *
@@ -373,8 +363,7 @@ public:
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      *
      */
-    virtual void unsubscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup) = 0;
+    virtual void unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     /**
      *
@@ -391,16 +380,13 @@ public:
      * minor version.
      *
      */
-    virtual bool is_available(service_t _service, instance_t _instance,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
+    virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major = ANY_MAJOR,
+                              minor_version_t _minor = ANY_MINOR) const = 0;
 
-    typedef std::map<service_t,
-                std::map<instance_t,
-                    std::map<major_version_t, minor_version_t >>> available_t;
+    typedef std::map<service_t, std::map<instance_t, std::map<major_version_t, minor_version_t>>> available_t;
 
-    virtual bool are_available(available_t &_available,
-            service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
+    virtual bool are_available(available_t& _available, service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
+                               major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
 
     /**
      *
@@ -436,9 +422,8 @@ public:
      * \param _payload Serialized payload of the event.
      *
      */
-    virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            bool _force = false) const = 0;
+    virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
+                        bool _force = false) const = 0;
 
     /**
      *
@@ -461,9 +446,8 @@ public:
      * \param _client Target client.
      *
      */
-    virtual void notify_one(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-                bool _force = false) const = 0;
+    virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+                            bool _force = false) const = 0;
 
     /**
      *
@@ -477,7 +461,7 @@ public:
      * \param _handler Handler function to be called on state change.
      *
      */
-    virtual void register_state_handler(const state_handler_t &_handler) = 0;
+    virtual void register_state_handler(const state_handler_t& _handler) = 0;
 
     /**
      *
@@ -517,9 +501,8 @@ public:
      * parameters.
      *
      */
-    virtual void register_message_handler(service_t _service,
-            instance_t _instance, method_t _method,
-            const message_handler_t &_handler) = 0;
+    virtual void register_message_handler(service_t _service, instance_t _instance, method_t _method,
+                                          const message_handler_t& _handler) = 0;
     /**
      *
      * \brief Unregisters the message handler for the specified service
@@ -535,8 +518,7 @@ public:
      * to be handled. Can be set to ANY_METHOD to unregister a handler for
      * all methods and events.
      */
-    virtual void unregister_message_handler(service_t _service,
-            instance_t _instance, method_t _method) = 0;
+    virtual void unregister_message_handler(service_t _service, instance_t _instance, method_t _method) = 0;
 
     /**
      *
@@ -560,9 +542,8 @@ public:
      * DEFAULT_MINOR and can be set to ANY_MINOR.
      *
      */
-    virtual void register_availability_handler(service_t _service,
-            instance_t _instance, const availability_handler_t &_handler,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
+    virtual void register_availability_handler(service_t _service, instance_t _instance, const availability_handler_t& _handler,
+                                               major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -577,9 +558,8 @@ public:
      * \param _minor Minor service version. The parameter defaults to
      * DEFAULT_MINOR and can be set to ANY_MINOR.     *
      */
-    virtual void unregister_availability_handler(service_t _service,
-            instance_t _instance,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
+    virtual void unregister_availability_handler(service_t _service, instance_t _instance, major_version_t _major = ANY_MAJOR,
+                                                 minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -601,9 +581,8 @@ public:
      *
      */
     VSOMEIP_DEPRECATED_UID_GID
-    virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            const subscription_handler_t &_handler) = 0;
+    virtual void register_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                               const subscription_handler_t& _handler) = 0;
 
     /**
      *
@@ -628,9 +607,8 @@ public:
      *
      */
     VSOMEIP_DEPRECATED_UID_GID
-    virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            const async_subscription_handler_t &_handler) = 0;
+    virtual void register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                     const async_subscription_handler_t& _handler) = 0;
 
     /**
      *
@@ -644,8 +622,7 @@ public:
      * subscription state is to be monitored.
      *
      */
-    virtual void unregister_subscription_handler(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
+    virtual void unregister_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     /**
      *
@@ -678,7 +655,7 @@ public:
      *
      * \param _routing_state the current routing state
      */
-    virtual  void set_routing_state(routing_state_e _routing_state) = 0;
+    virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
     /**
      *
@@ -691,8 +668,7 @@ public:
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      * \param _event Event to unsubscribe (pass ANY_EVENT for all events of the eventgroup)
      */
-    virtual void unsubscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, event_t _event) = 0;
+    virtual void unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     /**
      *
@@ -714,9 +690,8 @@ public:
      * \param _is_selective Flag to enable calling the provided handler if the
      * subscription is answered with a SUBSCRIBE_NACK.
      */
-    virtual void register_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler, bool _is_selective = false) = 0;
+    virtual void register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                                      subscription_status_handler_t _handler, bool _is_selective = false) = 0;
 
     /**
      *
@@ -731,8 +706,8 @@ public:
      * \param _event Event identifier of the event for which the handler should
      * be removed.
      */
-    virtual void unregister_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
+    virtual void unregister_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                        event_t _event) = 0;
 
     /**
      *
@@ -742,10 +717,11 @@ public:
      * all at the routing manager registered services on this node get returned in a vector of
      * service / instance pairs depending on the given _offer_type.
      *
-     * \param _offer_type type of offered services to be returned (OT_LOCAL = 0x00, OT_REMOTE = 0x01, OT_ALL = 0x02)
-     * \param offered_services_handler_t handler which gets called with a vector of service instance pairs that are currently offered
+     * \param _offer_type type of offered services to be returned (OT_LOCAL = 0x00, OT_REMOTE =
+     * 0x01, OT_ALL = 0x02) \param offered_services_handler_t handler which gets called with a
+     * vector of service instance pairs that are currently offered
      */
-    virtual void get_offered_services_async(offer_type_e _offer_type, const offered_services_handler_t &_handler) = 0;
+    virtual void get_offered_services_async(offer_type_e _offer_type, const offered_services_handler_t& _handler) = 0;
 
     /**
      *
@@ -772,7 +748,7 @@ public:
      * \param _handler A watchdog handler, pass nullptr to deactivate.
      * \param _interval Call interval in seconds, pass std::chrono::seconds::zero() to deactivate.
      */
-    virtual void set_watchdog_handler(const watchdog_handler_t &_handler, std::chrono::seconds _interval) = 0;
+    virtual void set_watchdog_handler(const watchdog_handler_t& _handler, std::chrono::seconds _interval) = 0;
 
     /**
      *  \brief Enables or disables calling of registered acceptance
@@ -786,9 +762,7 @@ public:
      *  \param _path Path which indicates need for offer acceptance
      *  \param _enable enable or disable calling of offer acceptance handler
      */
-    virtual void set_sd_acceptance_required(const remote_info_t& _remote,
-                                            const std::string& _path,
-                                            bool _enable) = 0;
+    virtual void set_sd_acceptance_required(const remote_info_t& _remote, const std::string& _path, bool _enable) = 0;
 
     /**
      *  \brief Enables or disables calling of registered acceptance
@@ -802,8 +776,7 @@ public:
      *  \param _enable enable or disable calling of offer acceptance handler
      */
     typedef std::map<remote_info_t, std::string> sd_acceptance_map_type_t;
-    virtual void set_sd_acceptance_required(
-            const sd_acceptance_map_type_t& _remotes, bool _enable) = 0;
+    virtual void set_sd_acceptance_required(const sd_acceptance_map_type_t& _remotes, bool _enable) = 0;
 
     /**
      * \brief Returns all configured remote info which require calling of
@@ -826,7 +799,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_sd_acceptance_handler(const sd_acceptance_handler_t &_handler) = 0;
+    virtual void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called upon detection of a
@@ -837,8 +810,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_reboot_notification_handler(
-            const reboot_notification_handler_t &_handler) = 0;
+    virtual void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called when the routing reached
@@ -849,8 +821,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_routing_ready_handler(
-            const routing_ready_handler_t &_handler) = 0;
+    virtual void register_routing_ready_handler(const routing_ready_handler_t& _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called when the routing state
@@ -861,8 +832,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_routing_state_handler(
-            const routing_state_handler_t &_handler) = 0;
+    virtual void register_routing_state_handler(const routing_state_handler_t& _handler) = 0;
 
     /**
      * \brief Update service configuration to offer a local service on the
@@ -882,12 +852,8 @@ public:
      * \param _magic_cookies_enabled Flag to enable magic cookies
      * \param _offer Offer the service or stop offering it remotely
      */
-    virtual bool update_service_configuration(service_t _service,
-                                              instance_t _instance,
-                                              std::uint16_t _port,
-                                              bool _reliable,
-                                              bool _magic_cookies_enabled,
-                                              bool _offer) = 0;
+    virtual bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+                                              bool _magic_cookies_enabled, bool _offer) = 0;
 
     /**
      * \brief Update security configuration of routing manager and all local clients
@@ -902,11 +868,8 @@ public:
      * \param _handler handler which gets called after all clients have
      *                 confirmed the policy update
      */
-    virtual void update_security_policy_configuration(uint32_t _uid,
-                                                      uint32_t _gid,
-                                                      std::shared_ptr<policy> _policy,
-                                                      std::shared_ptr<payload> _payload,
-                                                      const security_update_handler_t &_handler) = 0;
+    virtual void update_security_policy_configuration(uint32_t _uid, uint32_t _gid, std::shared_ptr<policy> _policy,
+                                                      std::shared_ptr<payload> _payload, const security_update_handler_t& _handler) = 0;
 
     /**
      * \brief Remove a security configuration for routing manager and all local clients
@@ -920,9 +883,7 @@ public:
      * \param _handler handler which gets called after all clients have
      *                 confirmed the policy removal
      */
-    virtual void remove_security_policy_configuration(uint32_t _uid,
-                                                      uint32_t _gid,
-                                                      const security_update_handler_t &_handler) = 0;
+    virtual void remove_security_policy_configuration(uint32_t _uid, uint32_t _gid, const security_update_handler_t& _handler) = 0;
 
     /**
      *
@@ -944,9 +905,8 @@ public:
      *
      */
     VSOMEIP_DEPRECATED_UID_GID
-    virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            const subscription_handler_ext_t &_handler) = 0;
+    virtual void register_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                               const subscription_handler_ext_t& _handler) = 0;
 
     /**
      *
@@ -971,10 +931,8 @@ public:
      *
      */
     VSOMEIP_DEPRECATED_UID_GID
-    virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            const async_subscription_handler_ext_t &_handler) = 0;
-
+    virtual void register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                     const async_subscription_handler_ext_t& _handler) = 0;
 
     /**
      *
@@ -1001,9 +959,8 @@ public:
      * \param _filter Filter configuration to decide whether or not an
      * incoming event will be forwarded to the application.
      */
-    virtual void subscribe_with_debounce(service_t _service, instance_t _instance,
-                eventgroup_t _eventgroup, major_version_t _major,
-                event_t _event, const debounce_filter_t &_filter) = 0;
+    virtual void subscribe_with_debounce(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
+                                         event_t _event, const debounce_filter_t& _filter) = 0;
 
     /**
      * \brief Registers a handler which will be called upon reception of
@@ -1015,16 +972,14 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_message_acceptance_handler(const message_acceptance_handler_t &_handler) = 0;
+    virtual void register_message_acceptance_handler(const message_acceptance_handler_t& _handler) = 0;
 
     /**
      * \brief Get the configuration additional data of an application plugin
      *
      * \return The configuration additional data of an application plugin
      */
-    virtual std::map<std::string, std::string> get_additional_data(
-            const std::string &_plugin_name) = 0;
-
+    virtual std::map<std::string, std::string> get_additional_data(const std::string& _plugin_name) = 0;
 
     /**
      *
@@ -1048,9 +1003,8 @@ public:
      * DEFAULT_MINOR and can be set to ANY_MINOR.
      *
      */
-    virtual void register_availability_handler(service_t _service,
-            instance_t _instance, const availability_state_handler_t &_handler,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
+    virtual void register_availability_handler(service_t _service, instance_t _instance, const availability_state_handler_t& _handler,
+                                               major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) = 0;
 
     /**
      *
@@ -1072,9 +1026,8 @@ public:
      * handler decides if the subscription is accepted or not.
      *
      */
-    virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            const subscription_handler_sec_t &_handler) = 0;
+    virtual void register_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                               const subscription_handler_sec_t& _handler) = 0;
 
     /**
      *
@@ -1099,9 +1052,8 @@ public:
      * subscription is accepted or not.
      *
      */
-    virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            async_subscription_handler_sec_t _handler) = 0;
+    virtual void register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                     async_subscription_handler_sec_t _handler) = 0;
 
     /**
      *
@@ -1135,10 +1087,8 @@ public:
      * \param _type Replace, append to or prepend to the current handler (if
      * any).
      */
-    virtual void register_message_handler_ext(service_t _service,
-            instance_t _instance, method_t _method,
-            const message_handler_t &_handler,
-			handler_registration_type_e _type) = 0;
+    virtual void register_message_handler_ext(service_t _service, instance_t _instance, method_t _method, const message_handler_t& _handler,
+                                              handler_registration_type_e _type) = 0;
 
     /**
      * \brief Get the configuration

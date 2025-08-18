@@ -13,34 +13,34 @@ namespace vsomeip_v3 {
 
 #ifdef _WIN32
 
-    // Windows: CriticalSection uses win32 CRITICAL_SECTION.
-    // Interface mimics std::mutex so we can use it in
-    // conjunction with std::unique_lock.
-    class CriticalSection final {
-    public:
-        CriticalSection();
-        ~CriticalSection();
+// Windows: CriticalSection uses win32 CRITICAL_SECTION.
+// Interface mimics std::mutex so we can use it in
+// conjunction with std::unique_lock.
+class CriticalSection final {
+public:
+    CriticalSection();
+    ~CriticalSection();
 
-        // prevent copying
-        CriticalSection(const CriticalSection&) = delete;
-        CriticalSection& operator=(const CriticalSection&) = delete;
+    // prevent copying
+    CriticalSection(const CriticalSection&) = delete;
+    CriticalSection& operator=(const CriticalSection&) = delete;
 
-        void lock();
-        void unlock();
-        bool try_lock();
+    void lock();
+    void unlock();
+    bool try_lock();
 
-    private:
-        struct Impl;
-        std::unique_ptr<Impl> m_impl;
-    };
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
+};
 
 #else
 
-    // Linux: CriticalSection is a type alias for std::mutex.
-    using CriticalSection = std::mutex;
+// Linux: CriticalSection is a type alias for std::mutex.
+using CriticalSection = std::mutex;
 
 #endif
 
 } // namespace vsomeip_v3
 
-#endif //VSOMEIP_V3_CRITICALSECTION_HPP
+#endif // VSOMEIP_V3_CRITICALSECTION_HPP

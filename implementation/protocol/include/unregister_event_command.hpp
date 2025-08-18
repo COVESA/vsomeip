@@ -19,13 +19,12 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class unregister_event_command
-    : public command {
+class unregister_event_command : public command {
 public:
     unregister_event_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
     service_t get_service() const;

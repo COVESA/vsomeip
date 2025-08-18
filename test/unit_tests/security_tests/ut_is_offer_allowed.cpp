@@ -6,7 +6,7 @@
 #include <memory>
 #include <gtest/gtest.h>
 #include <common/utility.hpp>
-namespace{
+namespace {
 
 vsomeip_v3::uid_t uid_1 = 4003016;
 vsomeip_v3::gid_t gid_1 = 4003016;
@@ -23,12 +23,11 @@ vsomeip_v3::gid_t invalid_gid = 1;
 vsomeip_v3::uid_t ANY_UID = 0xFFFFFFFF;
 vsomeip_v3::gid_t ANY_GID = 0xFFFFFFFF;
 
-vsomeip_v3::gid_t deny_uid  = 9000;
-vsomeip_v3::gid_t deny_gid  = 9000;
+vsomeip_v3::gid_t deny_uid = 9000;
+vsomeip_v3::gid_t deny_gid = 9000;
 }
 
-TEST(is_offer_allowed, check_no_policies_loaded)
-{
+TEST(is_offer_allowed, check_no_policies_loaded) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     ASSERT_FALSE(security->is_enabled());
@@ -39,8 +38,7 @@ TEST(is_offer_allowed, check_no_policies_loaded)
     EXPECT_TRUE(security->is_offer_allowed(&its_sec_client_invalid, service_1, instance));
 }
 
-TEST(is_offer_allowed, check_policies_loaded)
-{
+TEST(is_offer_allowed, check_policies_loaded) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // force load of some policies
@@ -53,8 +51,7 @@ TEST(is_offer_allowed, check_policies_loaded)
     ASSERT_TRUE(policy_elements.size() > 0);
     ASSERT_TRUE(its_failed.size() == 0);
 
-    for (const auto &e : policy_elements)
-    {
+    for (const auto& e : policy_elements) {
         security->load(e, false);
     }
 
@@ -98,8 +95,7 @@ TEST(is_offer_allowed, check_policies_loaded)
 // To activate the 'Audit Mode' the 'security' object has to be included in the
 // json file but the 'check_credentials' switch has to be set to false.
 
-TEST(is_offer_allowed, check_policies_loaded_in_audit_mode)
-{
+TEST(is_offer_allowed, check_policies_loaded_in_audit_mode) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // create security clients
@@ -122,8 +118,7 @@ TEST(is_offer_allowed, check_policies_loaded_in_audit_mode)
 
     utility::force_check_credentials(policy_elements, "false");
 
-    for (const auto &e : policy_elements)
-    {
+    for (const auto& e : policy_elements) {
         security->load(e, false);
     }
 

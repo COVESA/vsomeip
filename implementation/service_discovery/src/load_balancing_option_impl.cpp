@@ -17,18 +17,14 @@ load_balancing_option_impl::load_balancing_option_impl() {
     weight_ = 0;
 }
 
-load_balancing_option_impl::~load_balancing_option_impl() {
-}
+load_balancing_option_impl::~load_balancing_option_impl() { }
 
-bool
-load_balancing_option_impl::equals(const option_impl &_other) const {
+bool load_balancing_option_impl::equals(const option_impl& _other) const {
     bool is_equal(option_impl::equals(_other));
 
     if (is_equal) {
-        const load_balancing_option_impl &its_other
-            = dynamic_cast<const load_balancing_option_impl &>(_other);
-        is_equal = (priority_ == its_other.priority_
-            && weight_ == its_other.weight_);
+        const load_balancing_option_impl& its_other = dynamic_cast<const load_balancing_option_impl&>(_other);
+        is_equal = (priority_ == its_other.priority_ && weight_ == its_other.weight_);
     }
 
     return is_equal;
@@ -50,16 +46,14 @@ void load_balancing_option_impl::set_weight(weight_t _weight) {
     weight_ = _weight;
 }
 
-bool load_balancing_option_impl::serialize(vsomeip_v3::serializer *_to) const {
+bool load_balancing_option_impl::serialize(vsomeip_v3::serializer* _to) const {
     bool is_successful = option_impl::serialize(_to);
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint16_t>(priority_));
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint16_t>(weight_));
+    is_successful = is_successful && _to->serialize(static_cast<uint16_t>(priority_));
+    is_successful = is_successful && _to->serialize(static_cast<uint16_t>(weight_));
     return is_successful;
 }
 
-bool load_balancing_option_impl::deserialize(vsomeip_v3::deserializer *_from) {
+bool load_balancing_option_impl::deserialize(vsomeip_v3::deserializer* _from) {
     bool is_successful = option_impl::deserialize(_from);
 
     uint16_t tmp_priority = 0;

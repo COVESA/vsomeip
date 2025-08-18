@@ -22,10 +22,10 @@ class test_service : public vsomeip_utilities::base_vsip_app {
 private:
     std::condition_variable condition_wait_start;
     std::mutex mutex;
-    bool received_message {false};
+    bool received_message{false};
     std::chrono::time_point<std::chrono::system_clock> start_time;
-    bool event_1_sent_messages {false};
-    bool event_2_sent_messages {false};
+    bool event_1_sent_messages{false};
+    bool event_2_sent_messages{false};
 
     void on_start(const std::shared_ptr<vsomeip::message> /*&_message*/);
     void on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/);

@@ -23,14 +23,15 @@
 class routing_restart_test_client {
 public:
     routing_restart_test_client();
+    ~routing_restart_test_client();
+
     bool init();
     void start();
     void stop();
 
     void on_state(vsomeip::state_type_e _state);
-    void on_availability(vsomeip::service_t _service,
-            vsomeip::instance_t _instance, bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_response);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _response);
 
     void run();
     void join_sender_thread();

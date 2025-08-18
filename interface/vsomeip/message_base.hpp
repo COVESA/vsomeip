@@ -31,11 +31,9 @@ namespace vsomeip_v3 {
  * the message classes within ::vsomeip and vsomeip::sd that add the
  * payload representations for regular and Service Discovery messages.
  */
-class message_base
-        : public serializable,
-          public deserializable {
+class message_base : public serializable, public deserializable {
 public:
-    VSOMEIP_EXPORT virtual ~message_base() {};
+    VSOMEIP_EXPORT virtual ~message_base(){};
 
     /**
      * \brief Returns the message identifier.
@@ -192,7 +190,6 @@ public:
      * \brief Set whether or not the message is an initial event.
      */
     VSOMEIP_EXPORT virtual void set_initial(bool _is_initial) = 0;
-
 };
 
 } // namespace vsomeip_v3

@@ -23,18 +23,15 @@
 #endif
 
 template<class T_>
-std::function<T_> security_load_function(void *_library, std::string const &_name) {
-    void *its_function;
+std::function<T_> security_load_function(void* _library, std::string const& _name) {
+    void* its_function;
 #ifdef _WIN32
     its_function = GetProcAddress(reinterpret_cast<HMODULE>(_library), _name.c_str());
 #else
     its_function = dlsym(_library, _name.c_str());
 #endif
     if (!its_function) {
-        VSOMEIP_ERROR << __func__
-                  << ": security library misses \""
-                  << _name
-                  << "\" function.";
+        VSOMEIP_ERROR << __func__ << ": security library misses \"" << _name << "\" function.";
         return nullptr;
     }
 
@@ -59,41 +56,34 @@ std::function<T_> security_load_function(void *_library, std::string const &_nam
 
 namespace vsomeip_v3 {
 
-security::security(std::shared_ptr<policy_manager_impl> _policy_manager):
-    policy_manager_(_policy_manager) {
+security::security(std::shared_ptr<policy_manager_impl> _policy_manager) : policy_manager_(_policy_manager) {
 
-    initialize = [&]() -> vsomeip_sec_policy_result_t {
-        return default_initialize();
-    };
+    initialize = [&]() -> vsomeip_sec_policy_result_t { return default_initialize(); };
 
-    authenticate_router = [&](const vsomeip_sec_client_t *_server) -> vsomeip_sec_acl_result_t {
+    authenticate_router = [&](const vsomeip_sec_client_t* _server) -> vsomeip_sec_acl_result_t {
         return default_authenticate_router(_server);
     };
 
-    is_client_allowed_to_offer = [&](const vsomeip_sec_client_t *_client,
-        vsomeip_sec_service_id_t _service, vsomeip_sec_instance_id_t _instance) -> vsomeip_sec_acl_result_t {
+    is_client_allowed_to_offer = [&](const vsomeip_sec_client_t* _client, vsomeip_sec_service_id_t _service,
+                                     vsomeip_sec_instance_id_t _instance) -> vsomeip_sec_acl_result_t {
         return default_is_client_allowed_to_offer(_client, _service, _instance);
     };
 
-    is_client_allowed_to_request = [&](const vsomeip_sec_client_t *_client,
-        vsomeip_sec_service_id_t _service, vsomeip_sec_instance_id_t _instance) -> vsomeip_sec_acl_result_t {
-            return default_is_client_allowed_to_request(_client, _service, _instance);
+    is_client_allowed_to_request = [&](const vsomeip_sec_client_t* _client, vsomeip_sec_service_id_t _service,
+                                       vsomeip_sec_instance_id_t _instance) -> vsomeip_sec_acl_result_t {
+        return default_is_client_allowed_to_request(_client, _service, _instance);
     };
 
-    is_client_allowed_to_access_member = [&](const vsomeip_sec_client_t *_client,
-        vsomeip_sec_service_id_t _service, vsomeip_sec_instance_id_t _instance,
-        vsomeip_sec_member_id_t _member) -> vsomeip_sec_acl_result_t {
-            return default_is_client_allowed_to_access_member(_client, _service,
-                    _instance, _member);
+    is_client_allowed_to_access_member = [&](const vsomeip_sec_client_t* _client, vsomeip_sec_service_id_t _service,
+                                             vsomeip_sec_instance_id_t _instance,
+                                             vsomeip_sec_member_id_t _member) -> vsomeip_sec_acl_result_t {
+        return default_is_client_allowed_to_access_member(_client, _service, _instance, _member);
     };
 
-    sync_client = [&](vsomeip_sec_client_t *_client) {
-        return default_sync_client(_client);
-    };
+    sync_client = [&](vsomeip_sec_client_t* _client) { return default_sync_client(_client); };
 }
 
-bool
-security::load() {
+bool security::load() {
     if (auto its_manager = plugin_manager::get()) {
         if (auto its_library = its_manager->load_library(VSOMEIP_SEC_LIBRARY)) {
 
@@ -129,13 +119,11 @@ security::load() {
 //
 // Default interface implementation
 //
-vsomeip_sec_policy_result_t
-security::default_initialize() {
+vsomeip_sec_policy_result_t security::default_initialize() {
     return VSOMEIP_SEC_POLICY_OK;
 }
 
-vsomeip_sec_acl_result_t
-security::default_authenticate_router(const vsomeip_sec_client_t *_server) {
+vsomeip_sec_acl_result_t security::default_authenticate_router(const vsomeip_sec_client_t* _server) {
 
     if (_server && _server->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
@@ -146,9 +134,9 @@ security::default_authenticate_router(const vsomeip_sec_client_t *_server) {
         return VSOMEIP_SEC_PERM_DENIED;
 }
 
-vsomeip_sec_acl_result_t
-security::default_is_client_allowed_to_offer(const vsomeip_sec_client_t *_client,
-        vsomeip_sec_service_id_t _service, vsomeip_sec_instance_id_t _instance) {
+vsomeip_sec_acl_result_t security::default_is_client_allowed_to_offer(const vsomeip_sec_client_t* _client,
+                                                                      vsomeip_sec_service_id_t _service,
+                                                                      vsomeip_sec_instance_id_t _instance) {
 
     if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
@@ -159,9 +147,9 @@ security::default_is_client_allowed_to_offer(const vsomeip_sec_client_t *_client
         return VSOMEIP_SEC_PERM_DENIED;
 }
 
-vsomeip_sec_acl_result_t
-security::default_is_client_allowed_to_request(const vsomeip_sec_client_t *_client,
-        vsomeip_sec_service_id_t _service, vsomeip_sec_instance_id_t _instance) {
+vsomeip_sec_acl_result_t security::default_is_client_allowed_to_request(const vsomeip_sec_client_t* _client,
+                                                                        vsomeip_sec_service_id_t _service,
+                                                                        vsomeip_sec_instance_id_t _instance) {
 
     if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
@@ -172,10 +160,10 @@ security::default_is_client_allowed_to_request(const vsomeip_sec_client_t *_clie
         return VSOMEIP_SEC_PERM_DENIED;
 }
 
-vsomeip_sec_acl_result_t
-security::default_is_client_allowed_to_access_member(const vsomeip_sec_client_t *_client,
-        vsomeip_sec_service_id_t _service, vsomeip_sec_instance_id_t _instance,
-        vsomeip_sec_member_id_t _member) {
+vsomeip_sec_acl_result_t security::default_is_client_allowed_to_access_member(const vsomeip_sec_client_t* _client,
+                                                                              vsomeip_sec_service_id_t _service,
+                                                                              vsomeip_sec_instance_id_t _instance,
+                                                                              vsomeip_sec_member_id_t _member) {
 
     if (_client && _client->port != VSOMEIP_SEC_PORT_UNUSED)
         return VSOMEIP_SEC_OK;
@@ -186,8 +174,7 @@ security::default_is_client_allowed_to_access_member(const vsomeip_sec_client_t 
         return VSOMEIP_SEC_PERM_DENIED;
 }
 
-void
-security::default_sync_client(vsomeip_sec_client_t *_client) {
+void security::default_sync_client(vsomeip_sec_client_t* _client) {
     (void)_client;
 }
 

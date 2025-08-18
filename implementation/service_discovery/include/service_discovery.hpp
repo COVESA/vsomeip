@@ -24,58 +24,45 @@ namespace sd {
 
 class service_discovery {
 public:
-    virtual ~service_discovery() {
-    }
+    virtual ~service_discovery() { }
 
-    virtual boost::asio::io_context &get_io() = 0;
+    virtual boost::asio::io_context& get_io() = 0;
 
     virtual void init() = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
 
-    virtual void request_service(service_t _service, instance_t _instance,
-            major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
+    virtual void request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl) = 0;
     virtual void release_service(service_t _service, instance_t _instance) = 0;
 
-    virtual void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major,
-            ttl_t _ttl, client_t _client,
-            const std::shared_ptr<eventgroupinfo>& _info) = 0;
-    virtual void unsubscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, client_t _client) = 0;
+    virtual void subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl,
+                           client_t _client, const std::shared_ptr<eventgroupinfo>& _info) = 0;
+    virtual void unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client) = 0;
     virtual void unsubscribe_all(service_t _service, instance_t _instance) = 0;
     virtual void unsubscribe_all_on_suspend() = 0;
     virtual void reset_request_sent_counter(service_t _service, instance_t _instance) = 0;
 
     virtual bool send(bool _is_announcing) = 0;
 
-    virtual void on_message(const byte_t *_data, length_t _length,
-            const boost::asio::ip::address &_sender,
-            bool _is_multicast) = 0;
+    virtual void on_message(const byte_t* _data, length_t _length, const boost::asio::ip::address& _sender, bool _is_multicast) = 0;
 
-    virtual void
-    sent_messages(const byte_t* _data, length_t _size,
-                  const boost::asio::ip::address& _remote_address = boost::asio::ip::address()) = 0;
+    virtual void sent_messages(const byte_t* _data, length_t _size,
+                               const boost::asio::ip::address& _remote_address = boost::asio::ip::address()) = 0;
 
-    virtual void on_endpoint_connected(
-            service_t _service, instance_t _instance,
-            const std::shared_ptr<endpoint> &_endpoint) = 0;
+    virtual void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<endpoint>& _endpoint) = 0;
 
-    virtual void offer_service(const std::shared_ptr<serviceinfo> &_info) = 0;
-    virtual bool stop_offer_service(const std::shared_ptr<serviceinfo> &_info, bool _send) = 0;
-    virtual bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>> &_infos) = 0;
+    virtual void offer_service(const std::shared_ptr<serviceinfo>& _info) = 0;
+    virtual bool stop_offer_service(const std::shared_ptr<serviceinfo>& _info, bool _send) = 0;
+    virtual bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>>& _infos) = 0;
 
     virtual void set_diagnosis_mode(const bool _activate) = 0;
 
     virtual bool get_diagnosis_mode() = 0;
 
-    virtual void update_remote_subscription(
-            const std::shared_ptr<remote_subscription> &_subscription) = 0;
+    virtual void update_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription) = 0;
 
-    virtual void register_sd_acceptance_handler(
-            const sd_acceptance_handler_t &_handler) = 0;
-    virtual void register_reboot_notification_handler(
-            const reboot_notification_handler_t &_handler) = 0;
+    virtual void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) = 0;
+    virtual void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) = 0;
     virtual std::recursive_mutex& get_subscribed_mutex() = 0;
 };
 

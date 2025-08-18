@@ -18,21 +18,11 @@ namespace cfg {
 struct e2e {
     typedef std::map<std::string, std::string> custom_parameters_t;
 
-    e2e() :
-        variant(""),
-        profile(""),
-        service_id(0),
-        event_id(0) {
-    }
+    e2e() : variant(""), profile(""), service_id(0), event_id(0) { }
 
-    e2e(const std::string &_variant, const std::string &_profile, service_t _service_id,
-        event_t _event_id, custom_parameters_t&& _custom_parameters) :
-        variant(_variant),
-        profile(_profile),
-        service_id(_service_id),
-        event_id(_event_id),
-        custom_parameters(_custom_parameters) {
-    }
+    e2e(const std::string& _variant, const std::string& _profile, service_t _service_id, event_t _event_id,
+        custom_parameters_t&& _custom_parameters) :
+        variant(_variant), profile(_profile), service_id(_service_id), event_id(_event_id), custom_parameters(_custom_parameters) { }
 
     // common config
     std::string variant;

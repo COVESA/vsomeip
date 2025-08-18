@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:22.04
 SHELL ["/bin/bash", "-xec"]
 RUN export DEBIAN_FRONTEND=noninteractive;\
     apt-get update;\

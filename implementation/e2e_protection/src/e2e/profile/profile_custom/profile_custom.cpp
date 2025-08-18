@@ -10,13 +10,14 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_custom {
 
-uint32_t profile_custom::compute_crc(const profile_config &_config, const e2e_buffer &_buffer) {
-    uint32_t computed_crc = e2e_crc::calculate_profile_custom(buffer_view(_buffer, static_cast<size_t>(_config.crc_offset_ + 4), _buffer.size()));
+uint32_t profile_custom::compute_crc(const profile_config& _config, const e2e_buffer& _buffer) {
+    uint32_t computed_crc =
+            e2e_crc::calculate_profile_custom(buffer_view(_buffer, static_cast<size_t>(_config.crc_offset_ + 4), _buffer.size()));
     return computed_crc;
 }
 
-bool profile_custom::is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer) {
-   return ((_config.crc_offset_ + 4U) <=_buffer.size());
+bool profile_custom::is_buffer_length_valid(const profile_config& _config, const e2e_buffer& _buffer) {
+    return ((_config.crc_offset_ + 4U) <= _buffer.size());
 }
 
 } // namespace profile_custom

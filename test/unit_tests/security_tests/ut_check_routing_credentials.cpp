@@ -18,7 +18,7 @@ vsomeip_sec_ip_addr_t host_address = 0;
 TEST(check_routing_credentials, check_policies_loaded) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -27,7 +27,7 @@ TEST(check_routing_credentials, check_policies_loaded) {
     for (const auto& e : policy_elements)
         security->load(e, false);
 
-    //check if the load worked
+    // check if the load worked
     ASSERT_TRUE(policy_elements.size() > 0);
     ASSERT_TRUE(its_failed.size() == 0);
 
@@ -37,16 +37,16 @@ TEST(check_routing_credentials, check_policies_loaded) {
     vsomeip_sec_client_t its_sec_client_valid_uid_invalid_gid = utility::create_uds_client(valid_uid, invalid_gid, host_address);
     vsomeip_sec_client_t its_sec_client_invalid_uid_valid_gid = utility::create_uds_client(invalid_uid, valid_gid, host_address);
 
-    //valid uid and gid -> the check must return true
+    // valid uid and gid -> the check must return true
     EXPECT_TRUE(security->check_routing_credentials(&its_sec_client_valid));
 
-    //invalid gid and valid gid -> the check must return false
+    // invalid gid and valid gid -> the check must return false
     EXPECT_FALSE(security->check_routing_credentials(&its_sec_client_valid_uid_invalid_gid));
 
-    //invalid uid and valid gid -> the check must return false
+    // invalid uid and valid gid -> the check must return false
     EXPECT_FALSE(security->check_routing_credentials(&its_sec_client_invalid_uid_valid_gid));
 
-    //invalid uid and gid -> the check must return false
+    // invalid uid and gid -> the check must return false
     EXPECT_FALSE(security->check_routing_credentials(&its_sec_client_invalid));
 }
 
@@ -58,7 +58,7 @@ TEST(check_routing_credentials, check_policies_loaded) {
 TEST(check_routing_credentials, check_policies_loaded_lazy_load) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
-    //force load of some policies
+    // force load of some policies
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
     std::vector<std::string> dir_skip;
@@ -68,7 +68,7 @@ TEST(check_routing_credentials, check_policies_loaded_lazy_load) {
     for (const auto& e : policy_elements)
         security->load(e, true);
 
-    //check if the load worked
+    // check if the load worked
     ASSERT_TRUE(policy_elements.size() > 0);
     ASSERT_TRUE(its_failed.size() == 0);
 
@@ -78,7 +78,7 @@ TEST(check_routing_credentials, check_policies_loaded_lazy_load) {
     vsomeip_sec_client_t its_sec_client_valid_uid_invalid_gid = utility::create_uds_client(valid_uid, invalid_gid, host_address);
     vsomeip_sec_client_t its_sec_client_invalid_uid_valid_gid = utility::create_uds_client(invalid_uid, valid_gid, host_address);
 
-    //expect check_routing_credentials_ false so method always returns true
+    // expect check_routing_credentials_ false so method always returns true
     EXPECT_TRUE(security->check_routing_credentials(&its_sec_client_valid));
     EXPECT_TRUE(security->check_routing_credentials(&its_sec_client_valid_uid_invalid_gid));
     EXPECT_TRUE(security->check_routing_credentials(&its_sec_client_invalid_uid_valid_gid));

@@ -4,25 +4,16 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-register_event::register_event(service_t service, instance_t instance,
-                    event_t event, event_type_e event_type,
-                    bool is_provided, reliability_type_e reliability,
-                    bool is_cyclic, uint16_t num_eventg,
-                    const std::set<eventgroup_t> &eventgroups):
-            service_(service), instance_(instance), event_(event),
-            event_type_(event_type), is_provided_(is_provided),
-            reliability_(reliability), is_cyclic_(is_cyclic),
-            num_eventg_(num_eventg), eventgroups_(eventgroups) {
-}
+register_event::register_event(service_t service, instance_t instance, event_t event, event_type_e event_type, bool is_provided,
+                               reliability_type_e reliability, bool is_cyclic, uint16_t num_eventg,
+                               const std::set<eventgroup_t>& eventgroups) :
+    service_(service), instance_(instance), event_(event), event_type_(event_type), is_provided_(is_provided), reliability_(reliability),
+    is_cyclic_(is_cyclic), num_eventg_(num_eventg), eventgroups_(eventgroups) { }
 
-void
-register_event::serialize(std::vector<byte_t> &_buffer, size_t &_offset, error_e &_error) const {
+void register_event::serialize(std::vector<byte_t>& _buffer, size_t& _offset, error_e& _error) const {
 
-    size_t its_size(_offset
-                    + sizeof(service_) + sizeof(instance_)
-                    + sizeof(event_) + sizeof(event_type_)
-                    + sizeof(is_provided_) + sizeof(reliability_)
-                    + sizeof(is_cyclic_) + sizeof(num_eventg_));
+    size_t its_size(_offset + sizeof(service_) + sizeof(instance_) + sizeof(event_) + sizeof(event_type_) + sizeof(is_provided_)
+                    + sizeof(reliability_) + sizeof(is_cyclic_) + sizeof(num_eventg_));
 
     // First check: Does the static part of the data fit into the buffer?
     if (_buffer.size() < its_size) {
@@ -59,14 +50,10 @@ register_event::serialize(std::vector<byte_t> &_buffer, size_t &_offset, error_e
     }
 }
 
-void
-register_event::deserialize(const std::vector<byte_t> &_buffer, size_t &_offset, error_e &_error) {
+void register_event::deserialize(const std::vector<byte_t>& _buffer, size_t& _offset, error_e& _error) {
 
-    size_t its_size(_offset
-                    + sizeof(service_) + sizeof(instance_)
-                    + sizeof(event_) + sizeof(event_type_)
-                    + sizeof(is_provided_) + sizeof(reliability_)
-                    + sizeof(is_cyclic_) + sizeof(num_eventg_));
+    size_t its_size(_offset + sizeof(service_) + sizeof(instance_) + sizeof(event_) + sizeof(event_type_) + sizeof(is_provided_)
+                    + sizeof(reliability_) + sizeof(is_cyclic_) + sizeof(num_eventg_));
 
     // First check: Does the buffer contain the full static part of the data?
     if (_buffer.size() < its_size) {
@@ -107,11 +94,10 @@ register_event::deserialize(const std::vector<byte_t> &_buffer, size_t &_offset,
     }
 }
 
-void
-register_event::set_eventgroups(const std::set<eventgroup_t> &_eventgroups) {
+void register_event::set_eventgroups(const std::set<eventgroup_t>& _eventgroups) {
 
     eventgroups_ = _eventgroups;
-    num_eventg_ = (uint16_t)eventgroups_.size();
+    num_eventg_ = static_cast<uint16_t>(eventgroups_.size());
 }
 
 } // namespace protocol

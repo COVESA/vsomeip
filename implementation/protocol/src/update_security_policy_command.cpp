@@ -11,27 +11,20 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-update_security_policy_command::update_security_policy_command(
-        bool _is_internal)
-    : command(_is_internal ?
-            id_e::UPDATE_SECURITY_POLICY_INT_ID :
-            id_e::UPDATE_SECURITY_POLICY_ID) {
-}
+update_security_policy_command::update_security_policy_command(bool _is_internal) :
+    command(_is_internal ? id_e::UPDATE_SECURITY_POLICY_INT_ID : id_e::UPDATE_SECURITY_POLICY_ID) { }
 
-void
-update_security_policy_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void update_security_policy_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
     std::vector<byte_t> its_policy_data;
     if (policy_) {
-         if (policy_->serialize(its_policy_data)) {
-             _error = error_e::ERROR_UNKNOWN;
-             return;
-         }
+        if (policy_->serialize(its_policy_data)) {
+            _error = error_e::ERROR_UNKNOWN;
+            return;
+        }
     }
 
-    size_t its_size(COMMAND_HEADER_SIZE + sizeof(update_id_)
-            + its_policy_data.size());
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(update_id_) + its_policy_data.size());
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -54,13 +47,10 @@ update_security_policy_command::serialize(std::vector<byte_t> &_buffer,
     size_t its_offset(COMMAND_HEADER_SIZE);
     std::memcpy(&_buffer[its_offset], &update_id_, sizeof(update_id_));
     its_offset += sizeof(update_id_);
-    std::memcpy(&_buffer[its_offset],
-            &its_policy_data[0], its_policy_data.size());
+    std::memcpy(&_buffer[its_offset], &its_policy_data[0], its_policy_data.size());
 }
 
-void
-update_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void update_security_policy_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
     if (COMMAND_HEADER_SIZE + sizeof(update_id_) > _buffer.size()) {
 
@@ -74,16 +64,12 @@ update_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
         return;
 
     // deserialize payload
-    std::memcpy(&update_id_, &_buffer[COMMAND_POSITION_PAYLOAD],
-            sizeof(update_id_));
+    std::memcpy(&update_id_, &_buffer[COMMAND_POSITION_PAYLOAD], sizeof(update_id_));
     policy_ = std::make_shared<policy>();
-    const byte_t *its_policy_data
-        = &_buffer[COMMAND_HEADER_SIZE + sizeof(update_id_)];
-    uint32_t its_policy_size
-        = uint32_t(_buffer.size() - COMMAND_HEADER_SIZE - sizeof(update_id_));
+    const byte_t* its_policy_data = &_buffer[COMMAND_HEADER_SIZE + sizeof(update_id_)];
+    uint32_t its_policy_size = uint32_t(_buffer.size() - COMMAND_HEADER_SIZE - sizeof(update_id_));
 
-    if (its_policy_size == 0
-            || !policy_->deserialize(its_policy_data, its_policy_size)) {
+    if (its_policy_size == 0 || !policy_->deserialize(its_policy_data, its_policy_size)) {
 
         _error = error_e::ERROR_UNKNOWN;
         policy_.reset();
@@ -91,27 +77,22 @@ update_security_policy_command::deserialize(const std::vector<byte_t> &_buffer,
     }
 }
 
-uint32_t
-update_security_policy_command::get_update_id() const {
+uint32_t update_security_policy_command::get_update_id() const {
 
     return update_id_;
 }
 
-void
-update_security_policy_command::set_update_id(uint32_t _update_id) {
+void update_security_policy_command::set_update_id(uint32_t _update_id) {
 
     update_id_ = _update_id;
 }
 
-std::shared_ptr<policy>
-update_security_policy_command::get_policy() const {
+std::shared_ptr<policy> update_security_policy_command::get_policy() const {
 
     return policy_;
 }
 
-void
-update_security_policy_command::set_policy(
-        const std::shared_ptr<policy> &_policy) {
+void update_security_policy_command::set_policy(const std::shared_ptr<policy>& _policy) {
 
     policy_ = _policy;
 }

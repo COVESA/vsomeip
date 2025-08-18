@@ -86,4 +86,3 @@ private:
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_SD_SUBSCRIPTION_HPP_
-

@@ -19,8 +19,7 @@ namespace profile_interface {
 
 class checker : public profile_interface {
 public:
-    virtual void check(const e2e_buffer &_buffer, instance_t _instance,
-            check_status_t &_generic_check_status) = 0;
+    virtual void check(const e2e_buffer& _buffer, instance_t _instance, check_status_t& _generic_check_status) = 0;
 };
 
 } // namespace profile_interface

@@ -25,72 +25,52 @@
 
 class pending_subscription_test_service : public vsomeip_utilities::base_logger {
 public:
-    pending_subscription_test_service(struct pending_subscription_test::service_info _service_info, pending_subscription_test::test_mode_e _testmode) :
-            vsomeip_utilities::base_logger("PSTS", "PENDING SUBSCRIPTION TEST SERVICE"),
-            service_info_(_service_info),
-            testmode_(_testmode),
-            app_(vsomeip::runtime::get()->create_application("pending_subscription_test_service")),
-            wait_until_registered_(true),
-            wait_until_shutdown_method_called_(true),
-            subscription_accepted_asynchronous_(false),
-            subscription_accepted_synchronous_(false),
-            offer_thread_(std::bind(&pending_subscription_test_service::run, this)) {
+    pending_subscription_test_service(struct pending_subscription_test::service_info _service_info,
+                                      pending_subscription_test::test_mode_e _testmode) :
+        vsomeip_utilities::base_logger("PSTS", "PENDING SUBSCRIPTION TEST SERVICE"), service_info_(_service_info), testmode_(_testmode),
+        app_(vsomeip::runtime::get()->create_application("pending_subscription_test_service")), wait_until_registered_(true),
+        wait_until_shutdown_method_called_(true), subscription_accepted_asynchronous_(false), subscription_accepted_synchronous_(false),
+        offer_thread_(std::bind(&pending_subscription_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&pending_subscription_test_service::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&pending_subscription_test_service::on_state, this, std::placeholders::_1));
 
         // offer field
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(_service_info.eventgroup_id);
-        app_->offer_event(service_info_.service_id, 0x1,
-                    service_info_.event_id,
-                    its_eventgroups, vsomeip::event_type_e::ET_FIELD,
-                    std::chrono::milliseconds::zero(),
-                    false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->offer_event(service_info_.service_id, 0x1, service_info_.event_id, its_eventgroups, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
 
         its_eventgroups.clear();
-        its_eventgroups.insert(static_cast<vsomeip::eventgroup_t>(_service_info.eventgroup_id+1u));
+        its_eventgroups.insert(static_cast<vsomeip::eventgroup_t>(_service_info.eventgroup_id + 1u));
 
-        app_->offer_event(service_info_.service_id, 0x1,
-                static_cast<vsomeip::event_t>(service_info_.event_id+1u),
-                its_eventgroups, vsomeip::event_type_e::ET_FIELD,
-                std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->offer_event(service_info_.service_id, 0x1, static_cast<vsomeip::event_t>(service_info_.event_id + 1u), its_eventgroups,
+                          vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
+                          vsomeip::reliability_type_e::RT_UNRELIABLE);
 
-        app_->register_message_handler(vsomeip::ANY_SERVICE,
-                vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
-                std::bind(&pending_subscription_test_service::on_shutdown_method_called, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(
+                vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
+                std::bind(&pending_subscription_test_service::on_shutdown_method_called, this, std::placeholders::_1));
 
-        app_->register_message_handler(vsomeip::ANY_SERVICE,
-                vsomeip::ANY_INSTANCE, service_info_.notify_method_id,
-                std::bind(&pending_subscription_test_service::on_notify_method_called, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, service_info_.notify_method_id,
+                                       std::bind(&pending_subscription_test_service::on_notify_method_called, this, std::placeholders::_1));
 
-        app_->register_async_subscription_handler(service_info_.service_id,
-                0x1, service_info_.eventgroup_id,
-                std::bind(&pending_subscription_test_service::subscription_handler_async,
-                          this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
-                          std::placeholders::_4, std::placeholders::_5));
-        app_->register_subscription_handler(service_info_.service_id,
-                0x1, static_cast<vsomeip::eventgroup_t>(service_info_.eventgroup_id+1u),
-                std::bind(&pending_subscription_test_service::subscription_handler,
-                          this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
-                          std::placeholders::_4));
+        app_->register_async_subscription_handler(service_info_.service_id, 0x1, service_info_.eventgroup_id,
+                                                  std::bind(&pending_subscription_test_service::subscription_handler_async, this,
+                                                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                                                            std::placeholders::_4, std::placeholders::_5));
+        app_->register_subscription_handler(service_info_.service_id, 0x1,
+                                            static_cast<vsomeip::eventgroup_t>(service_info_.eventgroup_id + 1u),
+                                            std::bind(&pending_subscription_test_service::subscription_handler, this, std::placeholders::_1,
+                                                      std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
         app_->start();
     }
 
-    ~pending_subscription_test_service() {
-        offer_thread_.join();
-    }
+    ~pending_subscription_test_service() { offer_thread_.join(); }
 
-    void offer() {
-        app_->offer_service(service_info_.service_id, 0x1);
-    }
+    void offer() { app_->offer_service(service_info_.service_id, 0x1); }
 
     void stop() {
         app_->stop_offer_service(service_info_.service_id, 0x1);
@@ -100,8 +80,7 @@ public:
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -110,7 +89,7 @@ public:
         }
     }
 
-    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         app_->send(vsomeip::runtime::get()->create_response(_message));
         VSOMEIP_WARNING << "************************************************************";
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
@@ -120,27 +99,24 @@ public:
         condition_.notify_one();
     }
 
-    void on_notify_method_called(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_notify_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         (void)_message;
         std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
-        its_payload->set_data( {0xDD});
-        app_->notify(service_info_.service_id, service_info_.instance_id,
-                service_info_.event_id, its_payload);
-        app_->notify(service_info_.service_id, service_info_.instance_id,
-                static_cast<vsomeip::event_t>(service_info_.event_id + 1u) , its_payload);
+        its_payload->set_data({0xDD});
+        app_->notify(service_info_.service_id, service_info_.instance_id, service_info_.event_id, its_payload);
+        app_->notify(service_info_.service_id, service_info_.instance_id, static_cast<vsomeip::event_t>(service_info_.event_id + 1u),
+                     its_payload);
         notify_method_called_.set_value(true);
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Running";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << service_info_.service_id << "] Offering";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
 
         if (testmode_ == pending_subscription_test::test_mode_e::REQUEST_TO_SD) {
@@ -153,18 +129,18 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         switch (testmode_) {
-            case pending_subscription_test::test_mode_e::SUBSCRIBE:
-                async_subscription_handler_(true);
-                break;
-            case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE:
-            case pending_subscription_test::test_mode_e::UNSUBSCRIBE:
-            case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK:
-            case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT:
-            case pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED:
-            case pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE:
-            case pending_subscription_test::test_mode_e::REQUEST_TO_SD:
-            default:
-                break;
+        case pending_subscription_test::test_mode_e::SUBSCRIBE:
+            async_subscription_handler_(true);
+            break;
+        case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE:
+        case pending_subscription_test::test_mode_e::UNSUBSCRIBE:
+        case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_NACK:
+        case pending_subscription_test::test_mode_e::SUBSCRIBE_UNSUBSCRIBE_SAME_PORT:
+        case pending_subscription_test::test_mode_e::SUBSCRIBE_RESUBSCRIBE_MIXED:
+        case pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE:
+        case pending_subscription_test::test_mode_e::REQUEST_TO_SD:
+        default:
+            break;
         }
 
         std::future<bool> itsFuture = notify_method_called_.get_future();
@@ -180,8 +156,8 @@ public:
         stop();
     }
 
-    void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid,
-                                    bool _subscribed, const std::function<void(const bool)>& _cbk) {
+    void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed,
+                                    const std::function<void(const bool)>& _cbk) {
         (void)_uid;
         (void)_gid;
         VSOMEIP_WARNING << __func__ << " " << std::hex << _client << " subscribed." << _subscribed;
@@ -247,14 +223,14 @@ public:
             EXPECT_TRUE(_subscribed);
             _cbk(true);
             subscription_accepted_asynchronous_ = true;
-        }  else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE) {
+        } else if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE) {
             static int was_called = 0;
             was_called++;
             EXPECT_EQ(1, was_called);
             EXPECT_TRUE(_subscribed);
             subscription_accepted_asynchronous_ = true;
-            // this test doesn't subscribe to the second eventgroup which is handled by the asynchronous
-            // subscription handler, set it to true here:
+            // this test doesn't subscribe to the second eventgroup which is handled by the
+            // asynchronous subscription handler, set it to true here:
             subscription_accepted_synchronous_ = true;
             _cbk(true);
         }
@@ -351,20 +327,18 @@ private:
 
 pending_subscription_test::test_mode_e its_testmode(pending_subscription_test::test_mode_e::SUBSCRIBE);
 
-TEST(someip_pending_subscription_test, block_subscription_handler)
-{
+TEST(someip_pending_subscription_test, block_subscription_handler) {
     pending_subscription_test_service its_sample(pending_subscription_test::service, its_testmode);
 }
 
-
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
-        std::cerr << "Please pass a test mode to this binary like: "
-                << argv[0] << " SUBSCRIBE" << std::endl;
-        std::cerr << "Testmodes are [SUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE, UNSUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE_NACK, SUBSCRIBE_UNSUBSCRIBE_SAME_PORT]" << std::endl;
+        std::cerr << "Please pass a test mode to this binary like: " << argv[0] << " SUBSCRIBE" << std::endl;
+        std::cerr << "Testmodes are [SUBSCRIBE, SUBSCRIBE_UNSUBSCRIBE, UNSUBSCRIBE, "
+                     "SUBSCRIBE_UNSUBSCRIBE_NACK, SUBSCRIBE_UNSUBSCRIBE_SAME_PORT]"
+                  << std::endl;
         exit(1);
     }
 

@@ -10,6 +10,9 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
+# Initialize error tracking
+FAIL=0
+
 export VSOMEIP_CONFIGURATION=/vsomeip/
 export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
@@ -20,12 +23,14 @@ sleep 1
 
 export VSOMEIP_APPLICATION_NAME=service-sample
 ./lazy_load_test_service &
+PID_SERVICE=$!
 
 sleep 1
 
 export VSOMEIP_CONFIGURATION=lazy_load_test_service_config.json
 export VSOMEIP_APPLICATION_NAME=client-sample_normal
 ./lazy_load_test_client &
+PID_CLIENT=$!
 
 sleep 2
 
@@ -33,8 +38,25 @@ export VSOMEIP_CONFIGURATION=/vsomeip/
 export VSOMEIP_APPLICATION_NAME=client-sample-lazy
 # start lazy client with linux user id 1 and group id 1 to use the 1_1 folder in extensions
 setpriv --reuid=1 --regid=1 --clear-groups ./lazy_load_test_lazy_client
+PID_LAZY_CLIENT=$!
+
+wait $PID_LAZY_CLIENT || FAIL=$(($FAIL+1))
 
 sleep 1
 
+# Terminate the daemon
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
+
+# Check service exit status
+wait $PID_SERVICE || FAIL=$(($FAIL+1))
+
+# Check client exit status
+wait $PID_CLIENT || FAIL=$(($FAIL+1))
+
+# Return overall status
+if [ $FAIL -ne 0 ]; then
+    exit $FAIL
+else
+    exit 0
+fi

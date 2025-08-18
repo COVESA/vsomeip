@@ -6,11 +6,8 @@
 #include <vsomeip/internal/logger.hpp>
 #include "debounce_frequency_test_service.hpp"
 
-uint64_t
-elapsedMilliseconds(const std::chrono::time_point<std::chrono::system_clock>& _start_time) {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()
-                                                                 - _start_time)
-            .count();
+uint64_t elapsedMilliseconds(const std::chrono::time_point<std::chrono::system_clock>& _start_time) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - _start_time).count();
 }
 
 void test_service::on_start(const std::shared_ptr<vsomeip::message> /*&_message*/) {
@@ -23,26 +20,22 @@ void test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/
     VSOMEIP_INFO << "service: " << __func__ << ": Received a STOP command.";
 }
 
-test_service::test_service(const char* app_name_, const char* app_id_) :
-    vsomeip_utilities::base_vsip_app(app_name_, app_id_) {
+test_service::test_service(const char* app_name_, const char* app_id_) : vsomeip_utilities::base_vsip_app(app_name_, app_id_) {
     _app->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,
                                    std::bind(&test_service::on_start, this, std::placeholders::_1));
     _app->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_STOP_METHOD,
                                    std::bind(&test_service::on_stop, this, std::placeholders::_1));
-    _app->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT, {DEBOUNCE_EVENTGROUP},
-                      vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false,
-                      true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
-    _app->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, {DEBOUNCE_EVENTGROUP},
-                      vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false,
-                      true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+    _app->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                      std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+    _app->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                      std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
     _app->offer_service(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_MAJOR, DEBOUNCE_MINOR);
 }
 
 // Send the debounce events with different frequencies, but configured with the same debounce time
 void test_service::send_messages() {
     std::unique_lock<std::mutex> lk(mutex);
-    if (condition_wait_start.wait_for(lk, std::chrono::milliseconds(2000),
-                                      [=] { return received_message; })) {
+    if (condition_wait_start.wait_for(lk, std::chrono::seconds(4), [=] { return received_message; })) {
 
         VSOMEIP_INFO << "service: " << __func__ << ": Starting test ";
         start_time = std::chrono::system_clock::now();

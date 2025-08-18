@@ -13,8 +13,7 @@
 
 namespace vsomeip_v3 {
 
-class message_base_impl
-        : virtual public message_base {
+class message_base_impl : virtual public message_base {
 public:
     VSOMEIP_EXPORT message_base_impl();
     VSOMEIP_EXPORT virtual ~message_base_impl();
@@ -57,8 +56,8 @@ public:
     VSOMEIP_EXPORT bool is_initial() const;
     VSOMEIP_EXPORT void set_initial(bool _is_initial);
 
-    VSOMEIP_EXPORT message * get_owner() const;
-    VSOMEIP_EXPORT void set_owner(message *_owner);
+    VSOMEIP_EXPORT message* get_owner() const;
+    VSOMEIP_EXPORT void set_owner(message* _owner);
 
 protected: // members
     message_header_impl header_;

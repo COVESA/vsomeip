@@ -18,12 +18,10 @@ namespace protocol {
 class routing_info_entry {
 public:
     routing_info_entry();
-    routing_info_entry(const routing_info_entry &_source);
+    routing_info_entry(const routing_info_entry& _source);
 
-    void serialize(std::vector<byte_t> &_buffer, size_t &_index,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, size_t &_index,
-            error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, size_t& _index, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, size_t& _index, error_e& _error);
 
     routing_info_entry_type_e get_type() const;
     void set_type(routing_info_entry_type_e _type);
@@ -34,13 +32,13 @@ public:
     void set_client(client_t _client);
 
     boost::asio::ip::address get_address() const;
-    void set_address(const boost::asio::ip::address &_address);
+    void set_address(const boost::asio::ip::address& _address);
 
     port_t get_port() const;
     void set_port(port_t _port);
 
-    const std::vector<service> &get_services() const;
-    void add_service(const service &_service);
+    const std::vector<service>& get_services() const;
+    void add_service(const service& _service);
 
 private:
     routing_info_entry_type_e type_;

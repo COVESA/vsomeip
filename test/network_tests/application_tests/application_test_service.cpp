@@ -26,34 +26,25 @@
 class application_test_service : public vsomeip_utilities::base_logger {
 public:
     application_test_service(struct application_test::service_info _service_info) :
-            vsomeip_utilities::base_logger("APTS", "APPLICATION TEST SERVICE"),
-            service_info_(_service_info),
-            // service with number 1 uses "routingmanagerd" as application name
-            // this way the same json file can be reused for all local tests
-            // including the ones with routingmanagerd
-            app_(vsomeip::runtime::get()->create_application("service")),
-            wait_until_registered_(true),
-            stop_called_(false),
-            offer_thread_(std::bind(&application_test_service::run, this)) {
+        vsomeip_utilities::base_logger("APTS", "APPLICATION TEST SERVICE"), service_info_(_service_info),
+        // service with number 1 uses "routingmanagerd" as application name
+        // this way the same json file can be reused for all local tests
+        // including the ones with routingmanagerd
+        app_(vsomeip::runtime::get()->create_application("service")), wait_until_registered_(true), stop_called_(false),
+        offer_thread_(std::bind(&application_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "[Service] Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&application_test_service::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&application_test_service::on_state, this, std::placeholders::_1));
 
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.method_id,
-                std::bind(&application_test_service::on_request, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.method_id,
+                                       std::bind(&application_test_service::on_request, this, std::placeholders::_1));
 
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.shutdown_method_id,
-                std::bind(&application_test_service::on_shutdown_method_called, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.shutdown_method_id,
+                                       std::bind(&application_test_service::on_shutdown_method_called, this, std::placeholders::_1));
         std::promise<bool> its_promise;
-        application_thread_ = std::thread([&](){
+        application_thread_ = std::thread([&]() {
             its_promise.set_value(true);
             app_->start();
         });
@@ -66,16 +57,13 @@ public:
         application_thread_.join();
     }
 
-
     void offer() {
-        app_->offer_service(service_info_.service_id, service_info_.instance_id,
-                service_info_.major_version, service_info_.minor_version);
+        app_->offer_service(service_info_.service_id, service_info_.instance_id, service_info_.major_version, service_info_.minor_version);
     }
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "[Service] Application " << app_->get_name() << " is "
-                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered."
-                                                                        : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -84,37 +72,33 @@ public:
         }
     }
 
-    void on_request(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_request(const std::shared_ptr<vsomeip::message>& _message) {
         app_->send(vsomeip::runtime::get()->create_response(_message));
-        VSOMEIP_INFO << "[Service] Received a request with Client/Session [" << std::setw(4)
-                     << std::setfill('0') << std::hex << _message->get_client() << "/"
-                     << std::setw(4) << std::setfill('0') << std::hex << _message->get_session()
-                     << "]";
+        VSOMEIP_INFO << "[Service] Received a request with Client/Session [" << std::hex << std::setfill('0') << std::setw(4)
+                     << _message->get_client() << "/" << std::setw(4) << _message->get_session() << "]";
     }
 
-    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         (void)_message;
         stop();
     }
 
     void stop() {
         stop_called_ = true;
-        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id,
-                service_info_.major_version, service_info_.minor_version);
+        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id, service_info_.major_version,
+                                 service_info_.minor_version);
         app_->clear_all_handler();
         app_->stop();
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[Service] [" << std::setw(4) << std::setfill('0') << std::hex
-                      << service_info_.service_id << "] is running";
+        VSOMEIP_DEBUG << "[Service] [" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] is running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_ && !stop_called_) {
             condition_.wait_for(its_lock, std::chrono::milliseconds(100));
         }
 
-        VSOMEIP_DEBUG << "[Service] [" << std::setw(4) << std::setfill('0') << std::hex
-                      << service_info_.service_id << "] is offering";
+        VSOMEIP_DEBUG << "[Service] [" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] is offering";
         offer();
     }
 

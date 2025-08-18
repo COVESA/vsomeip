@@ -6,18 +6,18 @@
 #include <iomanip>
 
 #ifdef _WIN32
-    #include <iostream>
-    #include <tchar.h>
-    #include <intrin.h>
+#include <iostream>
+#include <tchar.h>
+#include <intrin.h>
 #else
-    #include <dlfcn.h>
-    #include <errno.h>
-    #include <signal.h>
-    #include <unistd.h>
-    #include <fcntl.h>
-    #include <sys/mman.h>
-    #include <thread>
-    #include <sstream>
+#include <dlfcn.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <thread>
+#include <sstream>
 #endif
 
 #include <sys/stat.h>
@@ -35,31 +35,31 @@ namespace vsomeip_v3 {
 std::mutex utility::mutex__;
 std::map<std::string, utility::data_t> utility::data__;
 
-utility::data_t::data_t()
-    : next_client_(VSOMEIP_CLIENT_UNSET),
+utility::data_t::data_t() :
+    next_client_(VSOMEIP_CLIENT_UNSET),
 #ifdef _WIN32
-        lock_handle_(INVALID_HANDLE_VALUE)
+    lock_handle_(INVALID_HANDLE_VALUE)
 #else
-        lock_fd_(-1)
+    lock_fd_(-1)
 #endif
-{}
+{
+}
 
-uint64_t utility::get_message_size(const byte_t *_data, size_t _size) {
+uint64_t utility::get_message_size(const byte_t* _data, size_t _size) {
     uint64_t its_size(0);
     if (VSOMEIP_SOMEIP_HEADER_SIZE <= _size) {
-        its_size = VSOMEIP_SOMEIP_HEADER_SIZE
-                + bithelper::read_uint32_be(&_data[4]);
+        its_size = VSOMEIP_SOMEIP_HEADER_SIZE + bithelper::read_uint32_be(&_data[4]);
     }
     return its_size;
 }
 
-uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
-    if(_size <= VSOMEIP_FULL_HEADER_SIZE)
+uint32_t utility::get_payload_size(const byte_t* _data, uint32_t _size) {
+    if (_size <= VSOMEIP_FULL_HEADER_SIZE)
         return 0;
 
     uint32_t length_ = bithelper::read_uint32_be(&_data[4]);
 
-    if(length_ <= VSOMEIP_SOMEIP_HEADER_SIZE)
+    if (length_ <= VSOMEIP_SOMEIP_HEADER_SIZE)
         return 0;
 
     if (_size != (VSOMEIP_SOMEIP_HEADER_SIZE + length_))
@@ -68,7 +68,7 @@ uint32_t utility::get_payload_size(const byte_t *_data, uint32_t _size) {
     return length_ - VSOMEIP_SOMEIP_HEADER_SIZE;
 }
 
-bool utility::is_routing_manager(const std::string &_network) {
+bool utility::is_routing_manager(const std::string& _network) {
     // Only the first caller can become routing manager.
     // Therefore, subsequent calls can be immediately answered...
     std::lock_guard<std::mutex> its_lock(mutex__);
@@ -85,13 +85,74 @@ bool utility::is_routing_manager(const std::string &_network) {
         std::wstring its_lockfile(its_tmp_folder);
         std::string its_network(_network + ".lck");
         its_lockfile.append(its_network.begin(), its_network.end());
-        r.first->second.lock_handle_ = CreateFileW(its_lockfile.c_str(), GENERIC_READ, 0, NULL, CREATE_NEW, 0, NULL);
+        r.first->second.lock_handle_ = CreateFileW(its_lockfile.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+
         if (r.first->second.lock_handle_ == INVALID_HANDLE_VALUE) {
-            VSOMEIP_ERROR << __func__ << ": CreateFileW failed: " << std::hex << GetLastError();
+            DWORD error = GetLastError();
+            if (error == ERROR_FILE_EXISTS) {
+                // Check if the process that created the lock file is still running
+                HANDLE existing_file = CreateFileW(its_lockfile.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+                if (existing_file != INVALID_HANDLE_VALUE) {
+                    DWORD pid = 0;
+                    DWORD bytes_read = 0;
+                    bool process_active = false;
+
+                    if (ReadFile(existing_file, &pid, sizeof(pid), &bytes_read, NULL) && bytes_read == sizeof(pid)) {
+                        // Check if process is still running
+                        HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+                        if (process_handle != NULL) {
+                            DWORD exit_code;
+                            if (GetExitCodeProcess(process_handle, &exit_code) && exit_code == STILL_ACTIVE) {
+                                process_active = true;
+                            }
+                            CloseHandle(process_handle);
+                        }
+
+                        if (!process_active) {
+                            // Process doesn't exist, remove stale lock file and try again
+                            VSOMEIP_DEBUG << __func__ << ": Removing stale lock file (PID " << pid << " no longer exists)";
+                            CloseHandle(existing_file);
+                            if (DeleteFileW(its_lockfile.c_str()) != 0) {
+                                r.first->second.lock_handle_ =
+                                        CreateFileW(its_lockfile.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+                            }
+                        } else {
+                            // Process still active - cannot become HOST
+                            VSOMEIP_DEBUG << __func__ << ": Another process (" << pid << ") is already routing manager";
+                            CloseHandle(existing_file);
+                            r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
+                        }
+                    } else {
+                        // Corrupted file - try to remove it
+                        CloseHandle(existing_file);
+                        if (DeleteFileW(its_lockfile.c_str()) != 0) {
+                            r.first->second.lock_handle_ =
+                                    CreateFileW(its_lockfile.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+                        }
+                    }
+                } else {
+                    // Cannot open existing file - might be in use
+                    VSOMEIP_ERROR << __func__ << ": Cannot access existing lock file";
+                    r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
+                }
+            } else {
+                // Other error creating file
+                VSOMEIP_ERROR << __func__ << ": CreateFileW failed: " << std::hex << error;
+                r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
+            }
+        }
+
+        // Write current PID to the lock file
+        if (r.first->second.lock_handle_ != INVALID_HANDLE_VALUE) {
+            DWORD current_pid = GetCurrentProcessId();
+            DWORD bytes_written = 0;
+            WriteFile(r.first->second.lock_handle_, &current_pid, sizeof(current_pid), &bytes_written, NULL);
+        } else {
+            // Failed to create lock file
+            r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
         }
     } else {
-        VSOMEIP_ERROR << __func__ << ": Could not get temp folder: "
-                << std::hex << GetLastError();
+        VSOMEIP_ERROR << __func__ << ": Could not get temp folder: " << std::hex << GetLastError();
         r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
     }
 
@@ -101,22 +162,21 @@ bool utility::is_routing_manager(const std::string &_network) {
     std::string its_lockfile(its_base_path + ".lck");
     int its_lock_ctrl(-1);
 
-    struct flock its_lock_data = { F_WRLCK, SEEK_SET, 0, 0, 0 };
+    struct flock its_lock_data = {F_WRLCK, SEEK_SET, 0, 0, 0};
 
     r.first->second.lock_fd_ = open(its_lockfile.c_str(), O_WRONLY | O_CREAT, S_IWUSR | S_IWGRP);
     if (-1 != r.first->second.lock_fd_) {
         its_lock_data.l_pid = getpid();
         its_lock_ctrl = fcntl(r.first->second.lock_fd_, F_SETLK, &its_lock_data);
     } else {
-        VSOMEIP_ERROR << __func__
-                << ": Could not open " << its_lockfile << ": " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": Could not open " << its_lockfile << ": " << std::strerror(errno);
     }
 
     return (its_lock_ctrl != -1);
 #endif
 }
 
-void utility::remove_lockfile(const std::string &_network) {
+void utility::remove_lockfile(const std::string& _network) {
     std::lock_guard<std::mutex> its_lock(mutex__);
 
     auto r = data__.find(_network);
@@ -126,8 +186,7 @@ void utility::remove_lockfile(const std::string &_network) {
 #ifdef _WIN32
     if (r->second.lock_handle_ != INVALID_HANDLE_VALUE) {
         if (CloseHandle(r->second.lock_handle_) == 0) {
-            VSOMEIP_ERROR << __func__ << ": CloseHandle failed."
-                    << std::hex << GetLastError();
+            VSOMEIP_ERROR << __func__ << ": CloseHandle failed." << std::hex << GetLastError();
         }
         wchar_t its_tmp_folder[MAX_PATH];
         if (GetTempPathW(MAX_PATH, its_tmp_folder)) {
@@ -135,13 +194,10 @@ void utility::remove_lockfile(const std::string &_network) {
             std::string its_network(_network + ".lck");
             its_lockfile.append(its_network.begin(), its_network.end());
             if (DeleteFileW(its_lockfile.c_str()) == 0) {
-                VSOMEIP_ERROR << __func__ << ": DeleteFileW failed: "
-                        << std::hex << GetLastError();
-
+                VSOMEIP_ERROR << __func__ << ": DeleteFileW failed: " << std::hex << GetLastError();
             }
         } else {
-            VSOMEIP_ERROR << __func__ << ": Could not get temp folder."
-                    << std::hex << GetLastError();
+            VSOMEIP_ERROR << __func__ << ": Could not get temp folder." << std::hex << GetLastError();
         }
     }
 #else
@@ -149,25 +205,23 @@ void utility::remove_lockfile(const std::string &_network) {
     std::string its_lockfile(its_base_path + ".lck");
 
     if (r->second.lock_fd_ != -1) {
-       if (close(r->second.lock_fd_) == -1) {
-           VSOMEIP_ERROR << __func__ << ": Could not close lock_fd__"
-                   << std::strerror(errno);
-       }
+        if (close(r->second.lock_fd_) == -1) {
+            VSOMEIP_ERROR << __func__ << ": Could not close lock_fd__" << std::strerror(errno);
+        }
     }
     if (remove(its_lockfile.c_str()) == -1) {
-        VSOMEIP_ERROR << __func__ << ": Could not remove " << its_lockfile
-                << ": " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": Could not remove " << its_lockfile << ": " << std::strerror(errno);
     }
 #endif
     data__.erase(_network);
 }
 
-bool utility::exists(const std::string &_path) {
+bool utility::exists(const std::string& _path) {
     struct stat its_stat;
     return (stat(_path.c_str(), &its_stat) == 0);
 }
 
-bool utility::is_file(const std::string &_path) {
+bool utility::is_file(const std::string& _path) {
     struct stat its_stat;
     if (stat(_path.c_str(), &its_stat) == 0) {
         if (its_stat.st_mode & S_IFREG)
@@ -176,7 +230,7 @@ bool utility::is_file(const std::string &_path) {
     return false;
 }
 
-bool utility::is_folder(const std::string &_path) {
+bool utility::is_folder(const std::string& _path) {
     struct stat its_stat;
     if (stat(_path.c_str(), &its_stat) == 0) {
         if (its_stat.st_mode & S_IFDIR)
@@ -185,21 +239,18 @@ bool utility::is_folder(const std::string &_path) {
     return false;
 }
 
-std::string utility::get_base_path(const std::string &_network) {
+std::string utility::get_base_path(const std::string& _network) {
     return std::string(VSOMEIP_BASE_PATH + _network + "-");
 }
 
-client_t
-utility::request_client_id(
-        const std::shared_ptr<configuration> &_config,
-        const std::string &_name, client_t _client) {
+client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, const std::string& _name, client_t _client) {
     std::lock_guard<std::mutex> its_lock(mutex__);
     static const std::uint16_t its_max_num_clients = get_max_client_number(_config);
 
     static const std::uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
     static const std::uint16_t its_client_mask = static_cast<std::uint16_t>(~its_diagnosis_mask);
-    static const client_t its_masked_diagnosis_address = static_cast<client_t>(
-            (_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
+    static const client_t its_masked_diagnosis_address =
+            static_cast<client_t>((_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
     static const client_t its_biggest_client = its_masked_diagnosis_address | its_client_mask;
     static const client_t its_smallest_client = its_masked_diagnosis_address;
 
@@ -224,12 +275,8 @@ utility::request_client_id(
                 return _client;
             }
 
-            VSOMEIP_WARNING << "Requested client identifier "
-                    << std::setw(4) << std::setfill('0')
-                    << std::hex << _client
-                    << " is already used by application \""
-                    << its_iterator->second
-                    << "\".";
+            VSOMEIP_WARNING << "Requested client identifier " << std::hex << std::setfill('0') << std::setw(4) << _client
+                            << " is already used by application \"" << its_iterator->second << "\".";
             // intentionally fall through
         }
     }
@@ -240,35 +287,34 @@ utility::request_client_id(
     }
     std::uint16_t increase_count = 0;
     do {
-        r->second.next_client_ = (r->second.next_client_
-                & static_cast<std::uint16_t>(~its_client_mask)) // save diagnosis address bits
+        r->second.next_client_ = (r->second.next_client_ & static_cast<std::uint16_t>(~its_client_mask)) // save diagnosis address bits
                 | (static_cast<std::uint16_t>((r->second.next_client_ // set all diagnosis address bits to one
-                        | static_cast<std::uint16_t>(~its_client_mask)) + 1u) //  and add one to the result
-                                & its_client_mask); // set the diagnosis address bits to zero again
+                                               | static_cast<std::uint16_t>(~its_client_mask))
+                                              + 1u) //  and add one to the result
+                   & its_client_mask); // set the diagnosis address bits to zero again
         if (increase_count++ == its_max_num_clients) {
-            VSOMEIP_ERROR << __func__ << " no free client IDs left! "
-                    "Max amount of possible concurrent active vsomeip "
-                    "applications reached ("  << std::dec << r->second.used_clients_.size()
-                    << ").";
+            VSOMEIP_ERROR << __func__
+                          << " no free client IDs left! "
+                             "Max amount of possible concurrent active vsomeip "
+                             "applications reached ("
+                          << std::dec << r->second.used_clients_.size() << ").";
             return VSOMEIP_CLIENT_UNSET;
         }
     } while (r->second.used_clients_.find(r->second.next_client_) != r->second.used_clients_.end()
-            || _config->is_configured_client_id(r->second.next_client_));
+             || _config->is_configured_client_id(r->second.next_client_));
 
     r->second.used_clients_[r->second.next_client_] = _name;
     return r->second.next_client_;
 }
 
-void
-utility::release_client_id(const std::string &_network, client_t _client) {
+void utility::release_client_id(const std::string& _network, client_t _client) {
     std::lock_guard<std::mutex> its_lock(mutex__);
     auto r = data__.find(_network);
     if (r != data__.end())
         r->second.used_clients_.erase(_client);
 }
 
-std::set<client_t>
-utility::get_used_client_ids(const std::string &_network) {
+std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
     std::lock_guard<std::mutex> its_lock(mutex__);
     std::set<client_t> its_used_clients;
     auto r = data__.find(_network);
@@ -279,7 +325,7 @@ utility::get_used_client_ids(const std::string &_network) {
     return its_used_clients;
 }
 
-void utility::reset_client_ids(const std::string &_network) {
+void utility::reset_client_ids(const std::string& _network) {
     std::lock_guard<std::mutex> its_lock(mutex__);
     auto r = data__.find(_network);
     if (r != data__.end()) {
@@ -300,8 +346,7 @@ void utility::set_thread_niceness(int _nice) noexcept {
 #endif
 }
 
-std::uint16_t utility::get_max_client_number(
-        const std::shared_ptr<configuration> &_config) {
+std::uint16_t utility::get_max_client_number(const std::shared_ptr<configuration>& _config) {
     std::uint16_t its_max_clients(0);
     const int bits_for_clients =
 #ifdef _WIN32
@@ -309,7 +354,7 @@ std::uint16_t utility::get_max_client_number(
 #else
             __builtin_popcount(
 #endif
-            static_cast<std::uint16_t>(~_config->get_diagnosis_mask()));
+                    static_cast<std::uint16_t>(~_config->get_diagnosis_mask()));
     for (int var = 0; var < bits_for_clients; ++var) {
         its_max_clients = static_cast<std::uint16_t>(its_max_clients | (1 << var));
     }

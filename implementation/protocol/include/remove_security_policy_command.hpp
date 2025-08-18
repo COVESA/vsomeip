@@ -11,13 +11,12 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class remove_security_policy_command
-    : public command {
+class remove_security_policy_command : public command {
 public:
     remove_security_policy_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
     uint32_t get_update_id() const;

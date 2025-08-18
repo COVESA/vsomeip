@@ -25,100 +25,73 @@
 class second_address_test_client : public vsomeip_utilities::base_logger {
 public:
     second_address_test_client(struct second_address_test::service_info _service_info, bool _use_tcp) :
-            vsomeip_utilities::base_logger("SATC", "SECOND ADDRESS TEST CLIENT"),
-            service_info_(_service_info),
-            use_tcp_(_use_tcp),
-            app_(vsomeip::runtime::get()->create_application("second_address_test_client")),
-            send_thread_(std::bind(&second_address_test_client::send, this)) {
+        vsomeip_utilities::base_logger("SATC", "SECOND ADDRESS TEST CLIENT"), service_info_(_service_info), use_tcp_(_use_tcp),
+        app_(vsomeip::runtime::get()->create_application("second_address_test_client")),
+        send_thread_(std::bind(&second_address_test_client::send, this)) {
 
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
 
-        app_->register_state_handler(
-                std::bind(&second_address_test_client::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&second_address_test_client::on_state, this, std::placeholders::_1));
 
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.request_method_id,
-                std::bind(&second_address_test_client::on_message, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.request_method_id,
+                                       std::bind(&second_address_test_client::on_message, this, std::placeholders::_1));
 
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.event_id,
-                std::bind(&second_address_test_client::on_notification, this,
-                        std::placeholders::_1, false));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.event_id,
+                                       std::bind(&second_address_test_client::on_notification, this, std::placeholders::_1, false));
 
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.selective_event_id,
-                std::bind(&second_address_test_client::on_notification, this,
-                        std::placeholders::_1, true));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.selective_event_id,
+                                       std::bind(&second_address_test_client::on_notification, this, std::placeholders::_1, true));
 
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.shutdown_method_id,
-                std::bind(&second_address_test_client::on_shutdown_method_called, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.shutdown_method_id,
+                                       std::bind(&second_address_test_client::on_shutdown_method_called, this, std::placeholders::_1));
 
         // register availability for all other services and request their event.
-        app_->register_availability_handler(service_info_.service_id,
-                service_info_.instance_id,
-                std::bind(&second_address_test_client::on_availability, this,
-                        std::placeholders::_1, std::placeholders::_2,
-                        std::placeholders::_3));
+        app_->register_availability_handler(service_info_.service_id, service_info_.instance_id,
+                                            std::bind(&second_address_test_client::on_availability, this, std::placeholders::_1,
+                                                      std::placeholders::_2, std::placeholders::_3));
 
-        app_->request_service(service_info_.service_id,
-                service_info_.instance_id);
+        app_->request_service(service_info_.service_id, service_info_.instance_id);
 
-        app_->register_subscription_status_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.eventgroup_id,
-                service_info_.event_id,
-                std::bind(&second_address_test_client::on_subscription_status_changed, this,
-                          std::placeholders::_1, std::placeholders::_2,
-                          std::placeholders::_3, std::placeholders::_4,
-                          std::placeholders::_5, false));
+        app_->register_subscription_status_handler(
+                service_info_.service_id, service_info_.instance_id, service_info_.eventgroup_id, service_info_.event_id,
+                std::bind(&second_address_test_client::on_subscription_status_changed, this, std::placeholders::_1, std::placeholders::_2,
+                          std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, false));
 
-        app_->register_subscription_status_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.selective_eventgroup_id,
-                service_info_.selective_event_id,
-                std::bind(&second_address_test_client::on_subscription_status_changed, this,
-                          std::placeholders::_1, std::placeholders::_2,
-                          std::placeholders::_3, std::placeholders::_4,
-                          std::placeholders::_5, true));
+        app_->register_subscription_status_handler(service_info_.service_id, service_info_.instance_id,
+                                                   service_info_.selective_eventgroup_id, service_info_.selective_event_id,
+                                                   std::bind(&second_address_test_client::on_subscription_status_changed, this,
+                                                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                                                             std::placeholders::_4, std::placeholders::_5, true));
 
         app_->start();
     }
 
-    ~second_address_test_client() {
-        send_thread_.join();
-    }
+    ~second_address_test_client() { send_thread_.join(); }
 
     void subscribe() {
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(service_info_.eventgroup_id);
 
-        app_->request_event(service_info_.service_id,
-                service_info_.instance_id, service_info_.event_id,
-                its_eventgroups, vsomeip::event_type_e::ET_EVENT);
+        app_->request_event(service_info_.service_id, service_info_.instance_id, service_info_.event_id, its_eventgroups,
+                            vsomeip::event_type_e::ET_EVENT);
 
         its_eventgroups.clear();
         its_eventgroups.insert(service_info_.selective_eventgroup_id);
 
-        app_->request_event(service_info_.service_id,
-                service_info_.instance_id, service_info_.selective_event_id,
-                its_eventgroups, vsomeip::event_type_e::ET_SELECTIVE_EVENT);
+        app_->request_event(service_info_.service_id, service_info_.instance_id, service_info_.selective_event_id, its_eventgroups,
+                            vsomeip::event_type_e::ET_SELECTIVE_EVENT);
 
-        app_->subscribe(service_info_.service_id, service_info_.instance_id,
-                service_info_.eventgroup_id);
+        app_->subscribe(service_info_.service_id, service_info_.instance_id, service_info_.eventgroup_id);
 
-        app_->subscribe(service_info_.service_id, service_info_.instance_id,
-                service_info_.selective_eventgroup_id);
+        app_->subscribe(service_info_.service_id, service_info_.instance_id, service_info_.selective_eventgroup_id);
     }
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_DEBUG << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered" : "deregistered") << " on client.";
+                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered" : "deregistered") << " on client.";
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -127,12 +100,10 @@ public:
         }
     }
 
-    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
-            bool _is_available) {
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
 
-        VSOMEIP_DEBUG << "Service [" << std::setw(4)
-            << std::setfill('0') << std::hex << _service << "." << _instance
-            << "] is " << (_is_available ? "available":"not available") << " on client.";
+        VSOMEIP_DEBUG << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
+                      << (_is_available ? "available" : "not available") << " on client.";
 
         if (_is_available) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -141,7 +112,7 @@ public:
         }
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.request_method_id, _message->get_method());
@@ -157,8 +128,7 @@ public:
         condition_.notify_one();
     }
 
-    void on_notification(const std::shared_ptr<vsomeip::message> &_message,
-            bool _selective) {
+    void on_notification(const std::shared_ptr<vsomeip::message>& _message, bool _selective) {
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
 
@@ -185,11 +155,8 @@ public:
         }
     }
 
-    void on_subscription_status_changed(const vsomeip::service_t _service,
-                                        const vsomeip::instance_t _instance,
-                                        const vsomeip::eventgroup_t _eventgroup,
-                                        const vsomeip::event_t _event,
-                                        const uint16_t error_code,
+    void on_subscription_status_changed(const vsomeip::service_t _service, const vsomeip::instance_t _instance,
+                                        const vsomeip::eventgroup_t _eventgroup, const vsomeip::event_t _event, const uint16_t error_code,
                                         bool _selective) {
 
         VSOMEIP_DEBUG << "Subscription status changed on client";
@@ -220,7 +187,7 @@ public:
         }
     }
 
-    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.shutdown_method_id, _message->get_method());
@@ -251,7 +218,7 @@ public:
         VSOMEIP_DEBUG << "Client sending request messages";
 
         for (std::uint32_t index = 0; index < second_address_test::number_of_messages_to_send; index++) {
-            vsomeip::byte_t *msg_payload = reinterpret_cast<vsomeip::byte_t *>(&index);
+            vsomeip::byte_t* msg_payload = reinterpret_cast<vsomeip::byte_t*>(&index);
             its_payload->set_data(msg_payload, sizeof(index));
             its_message->set_payload(its_payload);
             app_->send(its_message);
@@ -304,7 +271,6 @@ public:
         app_->stop();
     }
 
-
 private:
     struct second_address_test::service_info service_info_;
     bool use_tcp_;
@@ -330,14 +296,12 @@ private:
 
 static bool use_tcp = false;
 
-TEST(someip_event_test, communicate_using_second_address)
-{
+TEST(someip_event_test, communicate_using_second_address) {
     second_address_test_client its_sample(second_address_test::service, use_tcp);
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a communication mode, like: " << argv[0] << " TCP" << std::endl;
@@ -345,9 +309,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (std::string("TCP")== std::string(argv[1])) {
+    if (std::string("TCP") == std::string(argv[1])) {
         use_tcp = true;
-    } else if (std::string("UDP")== std::string(argv[1])) {
+    } else if (std::string("UDP") == std::string(argv[1])) {
         use_tcp = false;
     }
 

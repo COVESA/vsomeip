@@ -18,8 +18,7 @@ vsomeip_v3::gid_t gid = 4003032;
 vsomeip_sec_ip_addr_t host_address = 0;
 }
 
-TEST(get_clients, test)
-{
+TEST(get_clients, test) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     vsomeip_sec_client_t its_sec_client_uid_gid = utility::create_uds_client(uid, gid, host_address);

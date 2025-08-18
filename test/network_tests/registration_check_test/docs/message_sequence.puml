@@ -1,0 +1,9 @@
+@startuml
+Daemon <-> Client: 1. TCP Handshake
+Client -> Daemon: 2. Assign Client (VSOMEIP)
+Daemon --> Client: 3. Assign Client (VSOMEIP) TCP ACK
+Daemon -> Client: 4. Assign Client ACK (VSOMEIP)
+Client --> Daemon: 5. Assign Client ACK (VSOMEIP) TCP ACK
+Client -> Daemon: 6. Register Application (VSOMEIP)
+Daemon --> Client: 7. Register Application TCP ACK (VSOMEIP)
+@enduml

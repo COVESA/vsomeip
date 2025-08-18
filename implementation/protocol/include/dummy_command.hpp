@@ -6,20 +6,14 @@
 #ifndef VSOMEIP_V3_PROTOCOL_DUMMY_COMMAND_HPP_
 #define VSOMEIP_V3_PROTOCOL_DUMMY_COMMAND_HPP_
 
-#include "command.hpp"
+#include "simple_command.hpp"
 
 namespace vsomeip_v3 {
 namespace protocol {
 
-class dummy_command
-    : public command {
+class dummy_command : public simple_command {
 public:
     dummy_command();
-
-    void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
 };
 
 } // namespace protocol

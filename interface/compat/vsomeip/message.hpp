@@ -30,9 +30,9 @@ class payload;
  * are represented by message objects.
  */
 
-class message: virtual public message_base {
+class message : virtual public message_base {
 public:
-    virtual ~message() {}
+    virtual ~message() { }
 
     /**
      * \brief Returns a pointer to the message payload.

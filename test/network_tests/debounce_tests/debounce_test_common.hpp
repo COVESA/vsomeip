@@ -19,11 +19,6 @@ const vsomeip::eventgroup_t DEBOUNCE_EVENTGROUP = 0x0005;
 const vsomeip::major_version_t DEBOUNCE_MAJOR = 0x01;
 const vsomeip::minor_version_t DEBOUNCE_MINOR = 0x01;
 
-enum debounce_test_id_e : uint8_t {
-    DTI_FLAT = 0x00,
-    DTI_INCREASE = 0x01,
-    DTI_DECREASE = 0x02,
-    DTI_MASK = 0x03
-};
+enum debounce_test_id_e : uint8_t { DTI_FLAT = 0x00, DTI_INCREASE = 0x01, DTI_DECREASE = 0x02, DTI_MASK = 0x03 };
 
 #endif // DEBOUNCE_TEST_COMMON_HPP_

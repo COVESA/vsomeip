@@ -18,13 +18,12 @@ class protector final : public e2e::profile_interface::protector {
 public:
     protector(void) = delete;
 
-    explicit protector(const profile_config &_config) : config_(_config){};
+    explicit protector(const profile_config& _config) : config_(_config) {};
 
-    void protect(e2e_buffer &_buffer, instance_t _instance) override final;
+    void protect(e2e_buffer& _buffer, instance_t _instance) override final;
 
 private:
-
-    void write_crc(e2e_buffer &_buffer, uint32_t _computed_crc);
+    void write_crc(e2e_buffer& _buffer, uint32_t _computed_crc);
 
 private:
     profile_config config_;

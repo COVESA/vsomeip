@@ -11,14 +11,10 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class simple_command
-    : public command {
+class simple_command : public command {
 public:
-
-    void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 protected:
     simple_command(id_e _id);

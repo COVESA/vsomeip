@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class ping_command
-    : public simple_command {
+class ping_command : public simple_command {
 
 public:
     ping_command();

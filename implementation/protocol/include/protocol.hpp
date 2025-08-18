@@ -83,26 +83,14 @@ struct service {
     major_version_t major_;
     minor_version_t minor_;
 
-    service()
-        : service_(ANY_SERVICE),
-          instance_(ANY_INSTANCE),
-          major_(ANY_MAJOR),
-          minor_(ANY_MINOR) {
-    }
+    service() : service_(ANY_SERVICE), instance_(ANY_INSTANCE), major_(ANY_MAJOR), minor_(ANY_MINOR) { }
 
-    service(service_t _service, instance_t _instance,
-            major_version_t _major, minor_version_t _minor)
-        : service_(_service),
-          instance_(_instance),
-          major_(_major),
-          minor_(_minor) {
-    }
+    service(service_t _service, instance_t _instance, major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) :
+        service_(_service), instance_(_instance), major_(_major), minor_(_minor) { }
 
-    bool operator<(const service &_other) const {
+    bool operator<(const service& _other) const {
 
-        return (service_ < _other.service_
-                || (service_ == _other.service_
-                        && instance_ < _other.instance_));
+        return (service_ < _other.service_ || (service_ == _other.service_ && instance_ < _other.instance_));
     }
 };
 
@@ -127,12 +115,12 @@ static inline id_e get_command(byte_t _byte) {
     return its_id;
 }
 
-static inline bool operator==(const byte_t &_lhs, const id_e &_rhs) {
+static inline bool operator==(const byte_t& _lhs, const id_e& _rhs) {
 
     return (_lhs == static_cast<byte_t>(_rhs));
 }
 
-static inline bool operator==(const id_e &_lhs, const byte_t &_rhs) {
+static inline bool operator==(const id_e& _lhs, const byte_t& _rhs) {
 
     return (_rhs == _lhs);
 }

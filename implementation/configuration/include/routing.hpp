@@ -25,9 +25,9 @@ struct routing_host_t {
     boost::asio::ip::address unicast_;
     port_t port_;
 
-    routing_host_t() : port_(VSOMEIP_ROUTING_HOST_PORT_DEFAULT) {}
+    routing_host_t() : port_(VSOMEIP_ROUTING_HOST_PORT_DEFAULT) { }
 
-    routing_host_t &operator=(const routing_host_t &_other) {
+    routing_host_t& operator=(const routing_host_t& _other) {
         name_ = _other.name_;
         unicast_ = _other.unicast_;
         port_ = _other.port_;
@@ -38,11 +38,9 @@ struct routing_host_t {
 
 struct routing_guests_t {
     boost::asio::ip::address unicast_;
-    std::map<std::pair<uid_t, gid_t>,
-        std::set<std::pair<port_t, port_t> >
-    > ports_;
+    std::map<std::pair<uid_t, gid_t>, std::set<std::pair<port_t, port_t>>> ports_;
 
-    routing_guests_t &operator=(const routing_guests_t &_other) {
+    routing_guests_t& operator=(const routing_guests_t& _other) {
         unicast_ = _other.unicast_;
         ports_ = _other.ports_;
 
@@ -56,9 +54,9 @@ struct routing_t {
     routing_host_t host_;
     routing_guests_t guests_;
 
-    routing_t() : is_enabled_(true) {}
+    routing_t() : is_enabled_(true) { }
 
-    routing_t &operator=(const routing_t &_other) {
+    routing_t& operator=(const routing_t& _other) {
         is_enabled_ = _other.is_enabled_;
         host_ = _other.host_;
         guests_ = _other.guests_;

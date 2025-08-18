@@ -32,11 +32,11 @@ public:
     VSOMEIP_EXPORT remote_subscription();
     VSOMEIP_EXPORT ~remote_subscription();
 
-    bool operator==(const remote_subscription &_other) const;
-    bool equals(const std::shared_ptr<remote_subscription> &_other) const;
-    bool address_equals(const std::shared_ptr<remote_subscription> &_other) const;
+    bool operator==(const remote_subscription& _other) const;
+    bool equals(const std::shared_ptr<remote_subscription>& _other) const;
+    bool address_equals(const std::shared_ptr<remote_subscription>& _other) const;
 
-    VSOMEIP_EXPORT void reset(const std::set<client_t> &_clients);
+    VSOMEIP_EXPORT void reset(const std::set<client_t>& _clients);
 
     VSOMEIP_EXPORT bool is_initial() const;
     VSOMEIP_EXPORT void set_initial(const bool _is_initial);
@@ -48,10 +48,10 @@ public:
     void set_id(const remote_subscription_id_t _id);
 
     VSOMEIP_EXPORT std::shared_ptr<remote_subscription> get_parent() const;
-    void set_parent(const std::shared_ptr<remote_subscription> &_parent);
+    void set_parent(const std::shared_ptr<remote_subscription>& _parent);
 
     VSOMEIP_EXPORT std::shared_ptr<eventgroupinfo> get_eventgroupinfo() const;
-    VSOMEIP_EXPORT void set_eventgroupinfo(const std::shared_ptr<eventgroupinfo> &_info);
+    VSOMEIP_EXPORT void set_eventgroupinfo(const std::shared_ptr<eventgroupinfo>& _info);
 
     VSOMEIP_EXPORT ttl_t get_ttl() const;
     VSOMEIP_EXPORT void set_ttl(const ttl_t _ttl);
@@ -68,37 +68,36 @@ public:
     void remove_client(const client_t _client);
 
     VSOMEIP_EXPORT remote_subscription_state_e get_client_state(const client_t _client) const;
-    void set_client_state(const client_t _client,
-            remote_subscription_state_e _state);
+    void set_client_state(const client_t _client, remote_subscription_state_e _state);
     void set_all_client_states(remote_subscription_state_e _state);
 
     std::chrono::steady_clock::time_point get_expiration(const client_t _client) const;
 
     VSOMEIP_EXPORT std::shared_ptr<endpoint_definition> get_subscriber() const;
-    VSOMEIP_EXPORT void set_subscriber(const std::shared_ptr<endpoint_definition> &_subscriber);
+    VSOMEIP_EXPORT void set_subscriber(const std::shared_ptr<endpoint_definition>& _subscriber);
 
     VSOMEIP_EXPORT std::shared_ptr<endpoint_definition> get_reliable() const;
-    VSOMEIP_EXPORT void set_reliable(const std::shared_ptr<endpoint_definition> &_reliable);
+    VSOMEIP_EXPORT void set_reliable(const std::shared_ptr<endpoint_definition>& _reliable);
 
     VSOMEIP_EXPORT std::shared_ptr<endpoint_definition> get_unreliable() const;
-    VSOMEIP_EXPORT void set_unreliable(const std::shared_ptr<endpoint_definition> &_unreliable);
+    VSOMEIP_EXPORT void set_unreliable(const std::shared_ptr<endpoint_definition>& _unreliable);
 
     VSOMEIP_EXPORT bool is_pending() const;
     bool is_acknowledged() const;
 
-    std::set<client_t> update(const std::set<client_t> &_clients,
-            const std::chrono::steady_clock::time_point &_timepoint,
-            const bool _is_subscribe);
+    std::set<client_t> update(const std::set<client_t>& _clients, const std::chrono::steady_clock::time_point& _timepoint,
+                              const bool _is_subscribe);
 
     VSOMEIP_EXPORT std::uint32_t get_answers() const;
     VSOMEIP_EXPORT void set_answers(const std::uint32_t _answers);
 
-    VSOMEIP_EXPORT bool get_ip_address(boost::asio::ip::address &_address) const;
+    VSOMEIP_EXPORT bool get_ip_address(boost::asio::ip::address& _address) const;
 
     bool is_expired() const;
     void set_expired();
     bool is_forwarded() const;
     void set_forwarded();
+    void clear_destiny();
 
 private:
     std::atomic<remote_subscription_id_t> id_;
@@ -112,11 +111,7 @@ private:
     std::uint16_t reserved_;
     std::uint8_t counter_;
 
-    std::map<client_t,
-        std::pair<remote_subscription_state_e,
-            std::chrono::steady_clock::time_point
-        >
-    > clients_;
+    std::map<client_t, std::pair<remote_subscription_state_e, std::chrono::steady_clock::time_point>> clients_;
 
     // The endpoint that sent(!) the subscription
     std::shared_ptr<endpoint_definition> subscriber_;
@@ -140,11 +135,7 @@ private:
      * - expiration, if expire_subscriptions() runs first
      * - forwarding, if on_remote_subscribe() runs first
      */
-    enum struct destiny : std::uint8_t {
-        none,
-        expire,
-        forward
-    };
+    enum struct destiny : std::uint8_t { none, expire, forward };
     std::atomic<destiny> final_destination_;
 };
 

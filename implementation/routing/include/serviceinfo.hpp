@@ -22,9 +22,8 @@ class endpoint;
 
 class serviceinfo {
 public:
-    VSOMEIP_EXPORT serviceinfo(service_t _service, instance_t _instance,
-            major_version_t _major, minor_version_t _minor,
-            ttl_t _ttl, bool _is_local);
+    VSOMEIP_EXPORT serviceinfo(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
+                               bool _is_local);
     VSOMEIP_EXPORT serviceinfo(const serviceinfo& _other);
     VSOMEIP_EXPORT ~serviceinfo();
 
@@ -41,8 +40,7 @@ public:
     VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _precise_ttl);
 
     VSOMEIP_EXPORT std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
-    VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<endpoint>& _endpoint,
-            bool _reliable);
+    VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable);
 
     VSOMEIP_EXPORT void add_client(client_t _client);
     VSOMEIP_EXPORT void remove_client(client_t _client);
@@ -83,11 +81,10 @@ private:
     // when at least one offer is sent from SD, otherwise will be sent a NACK
     // this is needed to avoid desynchronizations triggered by high CPU load
     std::atomic_bool accepting_remote_subscription_; // offers sent to multicast
-    std::set<std::string, std::less<>>
-            accepting_remote_subscription_from_; // offers sent by unicast
+    std::set<std::string, std::less<>> accepting_remote_subscription_from_; // offers sent by unicast
     std::mutex accepting_remote_mutex;
 };
 
-}  // namespace vsomeip_v3
+} // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_SERVICEINFO_HPP_

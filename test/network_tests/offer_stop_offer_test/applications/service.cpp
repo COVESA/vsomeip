@@ -13,8 +13,8 @@ constexpr std::size_t PAYLOAD_SIZE = 1000UL;
 
 service_t::service_t() :
     vsomeip_utilities::base_logger("SRV", "VSOMEIP SERVICE PROVIDER"),
-    vsomeip_app(vsomeip::runtime::get()->create_application("service-sample")),
-    payload(std::vector<uint8_t>(PAYLOAD_SIZE, 0)) {
+    vsomeip_app(vsomeip::runtime::get()->create_application("service-sample")), payload(std::vector<uint8_t>(PAYLOAD_SIZE, 0)),
+    app_registration_state(vsomeip::state_type_e::ST_DEREGISTERED) {
 
     availability_table[SERVICE_ID] = false;
     availability_table[OTHER_SERVICE_ID] = false;
@@ -30,26 +30,22 @@ bool service_t::init() {
         return false;
     }
 
-    vsomeip_app->register_message_handler(
-            SERVICE_ID, INSTANCE_ID, METHOD_ID,
-            std::bind(&service_t::on_message, this, std::placeholders::_1));
-    vsomeip_app->register_message_handler(
-            OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
-            std::bind(&service_t::on_message, this, std::placeholders::_1));
+    vsomeip_app->register_message_handler(SERVICE_ID, INSTANCE_ID, METHOD_ID,
+                                          std::bind(&service_t::on_message, this, std::placeholders::_1));
+    vsomeip_app->register_message_handler(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
+                                          std::bind(&service_t::on_message, this, std::placeholders::_1));
+
+    vsomeip_app->register_state_handler(std::bind(&service_t::on_state, this, std::placeholders::_1));
 
     vsomeip_app->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
-            std::bind(&service_t::on_availability, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3));
+            std::bind(&service_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     vsomeip_app->register_availability_handler(
             OTHER_SERVICE_ID, OTHER_INSTANCE_ID,
-            std::bind(&service_t::on_availability, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3));
+            std::bind(&service_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-    vsomeip_app->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID},
-                             vsomeip::event_type_e::ET_FIELD);
-    vsomeip_app->offer_event(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID},
-                             vsomeip::event_type_e::ET_FIELD);
+    vsomeip_app->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip::event_type_e::ET_FIELD);
+    vsomeip_app->offer_event(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip::event_type_e::ET_FIELD);
 
     vsomeip_app->request_service(SERVICE_ID, INSTANCE_ID);
     vsomeip_app->request_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID);
@@ -71,41 +67,39 @@ void service_t::stop() {
 std::future<bool> service_t::offer() {
     // Lock the entire function to not allow the on_availability callback to interfier while the
     // offer is being created
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
+
+    promise_availability = std::promise<bool>();
+    auto future_availability = std::future<bool>(promise_availability.get_future());
+    is_offering = true;
 
     VSOMEIP_INFO << "service_t::" << __func__;
     vsomeip_app->offer_service(SERVICE_ID, INSTANCE_ID, 0, 0);
     vsomeip_app->offer_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, 0, 0);
 
-    promise_availability = std::promise<bool>();
-    auto future_availability = std::future<bool>(promise_availability.get_future());
-
-    is_offering = true;
     return future_availability;
 }
 
 std::future<bool> service_t::stop_offer() {
     // Lock the entire function to not allow the on_availability callback to interfier while the
     // offer is being created
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
+
+    promise_availability = std::promise<bool>();
+    auto future_availability = std::future<bool>(promise_availability.get_future());
+    is_offering = false;
 
     VSOMEIP_INFO << "service_t::" << __func__;
     vsomeip_app->stop_offer_service(SERVICE_ID, INSTANCE_ID, 0, 0);
     vsomeip_app->stop_offer_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, 0, 0);
-
-    promise_availability = std::promise<bool>();
-    auto future_availability = std::future<bool>(promise_availability.get_future());
-
-    is_offering = false;
     return future_availability;
 }
 
 void service_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
-    std::lock_guard<std::mutex> lk(availability_mutex);
+    std::scoped_lock lk(availability_mutex);
 
     payload.at(0)++;
-    VSOMEIP_INFO << "service_t::" << __func__ << ": [" << std::hex << message->get_service() << "] "
-                 << static_cast<int>(payload.at(0));
+    VSOMEIP_INFO << "service_t::" << __func__ << ": [" << std::hex << message->get_service() << "] " << static_cast<int>(payload.at(0));
 
     auto vsomeip_payload = vsomeip::runtime::get()->create_payload(payload);
     auto its_response = vsomeip::runtime::get()->create_response(message);
@@ -114,13 +108,11 @@ void service_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     vsomeip_app->send(its_response);
 }
 
-void service_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
-                                bool is_available) {
-    std::lock_guard<std::mutex> lk(availability_mutex);
+void service_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available) {
+    std::scoped_lock lk(availability_mutex);
 
-    VSOMEIP_INFO << "service_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0')
-                 << std::hex << service << "." << instance << "] is "
-                 << (is_available ? "available." : "NOT available.");
+    VSOMEIP_INFO << "service_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance
+                 << "] is " << (is_available ? "available." : "NOT available.");
 
     availability_table[service] = is_available;
 
@@ -135,4 +127,18 @@ void service_t::on_availability(vsomeip::service_t service, vsomeip::instance_t 
         // If all services are -> set promise
         promise_availability.set_value(is_offering);
     }
+}
+
+void service_t::on_state(vsomeip::state_type_e state) {
+    app_registration_state = state;
+    if (!is_registered()) {
+        std::scoped_lock lk(availability_mutex);
+        // we are no longer register -> unlock the promise
+        is_offering = false;
+        promise_availability.set_value(is_offering);
+    }
+}
+
+bool service_t::is_registered() const {
+    return app_registration_state == vsomeip::state_type_e::ST_REGISTERED;
 }

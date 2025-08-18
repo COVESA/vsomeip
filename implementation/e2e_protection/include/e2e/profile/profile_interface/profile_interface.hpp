@@ -13,12 +13,11 @@ namespace e2e {
 namespace profile_interface {
 
 typedef uint8_t check_status_t;
-enum generic_check_status : check_status_t { E2E_OK, E2E_WRONG_CRC, E2E_ERROR};
-
+enum generic_check_status : check_status_t { E2E_OK, E2E_WRONG_CRC, E2E_ERROR };
 
 class profile_interface {
 public:
-    virtual ~profile_interface() {}
+    virtual ~profile_interface() { }
 };
 
 } // namespace profile_interface

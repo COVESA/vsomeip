@@ -23,8 +23,7 @@ TEST(CyclicEventTest, ServiceNotifiesClient) {
 
     // Handle a shutdown method call.
     application->register_message_handler(SERVICE_ID, INSTANCE_ID, METHOD_ID,
-                                          [runtime, application, &shutdown_promise](
-                                                  const std::shared_ptr<vsomeip::message> message) {
+                                          [runtime, application, &shutdown_promise](const std::shared_ptr<vsomeip::message> message) {
                                               VSOMEIP_INFO << "Received shutdown request.";
 
                                               auto response = runtime->create_response(message);
@@ -35,8 +34,7 @@ TEST(CyclicEventTest, ServiceNotifiesClient) {
 
     // Offer the test service.
     application->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
-    application->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID},
-                             vsomeip_v3::event_type_e::ET_FIELD);
+    application->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip_v3::event_type_e::ET_FIELD);
 
     // Start the vsomeip application.
     std::thread worker_thread([application] { application->start(); });

@@ -8,10 +8,8 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-offered_services_response_command::offered_services_response_command()
-    : multiple_services_command_base(id_e::OFFERED_SERVICES_RESPONSE_ID) {
-
-}
+offered_services_response_command::offered_services_response_command() :
+    multiple_services_command_base(id_e::OFFERED_SERVICES_RESPONSE_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

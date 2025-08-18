@@ -11,15 +11,12 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class send_command
-    : public command {
+class send_command : public command {
 public:
     send_command(id_e _id);
 
-    void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     instance_t get_instance() const;
     void set_instance(instance_t _instance);
@@ -35,10 +32,9 @@ public:
 
     // TODO: Optimize this as the vector might be huge!
     std::vector<byte_t> get_message() const;
-    void set_message(const std::vector<byte_t> &_message);
+    void set_message(const std::vector<byte_t>& _message);
 
 private:
-
     instance_t instance_;
     bool is_reliable_;
     uint8_t status_; // TODO: DO WE REALLY NEED THIS?

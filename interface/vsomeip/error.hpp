@@ -18,9 +18,6 @@ enum class error_code_e : uint8_t {
     SERVICE_PROPERTY_MISMATCH
 };
 
-extern const char *ERROR_INFO[];
-
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_ERROR_HPP_
-

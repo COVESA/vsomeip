@@ -13,10 +13,8 @@ set(configuration_files
     application_test_daemon.json
     application_test_no_dispatch_threads.json
     application_test_no_dispatch_threads_daemon.json
-    application_test_dispatch_threads.json
     application_test_starter.sh
-    application_test_dispatch_threads_starter.sh
-    application_test_dispatch_threads_executor_starter.sh
+    application_test_multiple_init.sh
 )
 configure_files("${configuration_files}")
 
@@ -30,25 +28,18 @@ add_executable(application_test_multiple_init
     application_test_multiple_init.cpp
 )
 
-# Add the test executable for application_test_dispatch_threads_executor
-add_executable(application_test_dispatch_threads_executor
-    application_test_dispatch_threads_executor.cpp
-)
-
-# Add the test executable for application_test_dispatch_threads
-add_executable(application_test_dispatch_threads
-    application_test_dispatch_threads.cpp
-)
-
 # Add build dependencies and link libraries to executables.
 set(executable_targets
     application_test
     application_test_multiple_init
-    application_test_dispatch_threads
-    application_test_dispatch_threads_executor
 )
 targets_add_default_dependencies("${executable_targets}")
 targets_link_default_libraries("${executable_targets}")
+
+# Skip valgrind
+if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/application_test*,*/routingmanagerd)
+endif()
 
 # Add custom test command.
 add_custom_test(
@@ -60,14 +51,7 @@ add_custom_test(
 # Add custom test command.
 add_custom_test(
     NAME application_test_multiple_init
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init
-    TIMEOUT 180
-)
-
-# Add custom test command.
-add_custom_test(
-    NAME application_test_dispatch_threads_executor
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_dispatch_threads_executor_starter.sh
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init.sh
     TIMEOUT 180
 )
 

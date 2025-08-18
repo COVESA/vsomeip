@@ -16,21 +16,19 @@ struct policy;
 
 namespace protocol {
 
-class update_security_credentials_command
-    : public command {
+class update_security_credentials_command : public command {
 public:
     update_security_credentials_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
-    std::set<std::pair<uid_t, gid_t> > get_credentials() const;
-    void set_credentials(
-            const std::set<std::pair<uid_t, gid_t> > &_credentials);
+    std::set<std::pair<uid_t, gid_t>> get_credentials() const;
+    void set_credentials(const std::set<std::pair<uid_t, gid_t>>& _credentials);
 
 private:
-    std::set<std::pair<uid_t, gid_t> > credentials_;
+    std::set<std::pair<uid_t, gid_t>> credentials_;
 };
 
 } // namespace protocol

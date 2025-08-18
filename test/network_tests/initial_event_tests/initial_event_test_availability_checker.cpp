@@ -23,47 +23,36 @@
 
 class initial_event_test_availability_checker : public vsomeip_utilities::base_logger {
 public:
-    initial_event_test_availability_checker(int _client_number,
-                              std::array<initial_event_test::service_info, 7> _service_infos) :
-            vsomeip_utilities::base_logger("IETC", "INITIAL EVENT TEST AVAILABILITY CHECKER"),
-            client_number_(_client_number),
-            service_infos_(_service_infos),
-            app_(vsomeip::runtime::get()->create_application()),
-            wait_until_registered_(true),
-            wait_for_stop_(true),
-            stop_thread_(std::bind(&initial_event_test_availability_checker::wait_for_stop, this)) {
+    initial_event_test_availability_checker(int _client_number, std::array<initial_event_test::service_info, 7> _service_infos) :
+        vsomeip_utilities::base_logger("IETC", "INITIAL EVENT TEST AVAILABILITY CHECKER"), client_number_(_client_number),
+        service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
+        wait_for_stop_(true), stop_thread_(std::bind(&initial_event_test_availability_checker::wait_for_stop, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&initial_event_test_availability_checker::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&initial_event_test_availability_checker::on_state, this, std::placeholders::_1));
 
         // register availability for all other services and request their event.
-        for(const auto& i : service_infos_) {
+        for (const auto& i : service_infos_) {
             if (i.service_id == 0xFFFF && i.instance_id == 0xFFFF) {
                 continue;
             }
             other_services_available_[std::make_pair(i.service_id, i.instance_id)] = false;
             app_->register_availability_handler(i.service_id, i.instance_id,
-                    std::bind(&initial_event_test_availability_checker::on_availability, this,
-                            std::placeholders::_1, std::placeholders::_2,
-                            std::placeholders::_3));
+                                                std::bind(&initial_event_test_availability_checker::on_availability, this,
+                                                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
             app_->request_service(i.service_id, i.instance_id);
         }
 
         app_->start();
     }
 
-    ~initial_event_test_availability_checker() {
-        stop_thread_.join();
-    }
+    ~initial_event_test_availability_checker() { stop_thread_.join(); }
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -72,26 +61,20 @@ public:
         }
     }
 
-    void on_availability(vsomeip::service_t _service,
-                         vsomeip::instance_t _instance, bool _is_available) {
-        if(_is_available) {
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+        if (_is_available) {
             auto its_service = other_services_available_.find(std::make_pair(_service, _instance));
-            if(its_service != other_services_available_.end()) {
-                if(its_service->second != _is_available) {
-                its_service->second = true;
-                VSOMEIP_DEBUG << "[" << std::setw(4) << std::setfill('0') << std::hex
-                        << client_number_ << "] Service ["
-                << std::setw(4) << std::setfill('0') << std::hex << _service << "." << _instance
-                << "] is available.";
-
+            if (its_service != other_services_available_.end()) {
+                if (its_service->second != _is_available) {
+                    its_service->second = true;
+                    VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] Service [" << std::setw(4)
+                                  << _service << "." << _instance << "] is available.";
                 }
             }
 
-            if(std::all_of(other_services_available_.cbegin(),
-                           other_services_available_.cend(),
-                           [](const std::map<std::pair<vsomeip::service_t,
-                                   vsomeip::instance_t>, bool>::value_type& v) {
-                                return v.second;})) {
+            if (std::all_of(
+                        other_services_available_.cbegin(), other_services_available_.cend(),
+                        [](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; })) {
 
                 std::lock_guard<std::mutex> its_lock(stop_mutex_);
                 wait_for_stop_ = false;
@@ -105,8 +88,8 @@ public:
         while (wait_for_stop_) {
             stop_condition_.wait(its_lock);
         }
-        VSOMEIP_INFO << "[" << std::setw(4) << std::setfill('0') << std::hex
-                << client_number_ << "] all services are available. Going down";
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_
+                     << "] all services are available. Going down";
         app_->clear_all_handler();
         app_->stop();
     }
@@ -130,25 +113,23 @@ private:
 static int client_number;
 static bool use_same_service_id;
 
-TEST(someip_initial_event_test, wait_for_availability_and_exit)
-{
-    if(use_same_service_id) {
-        initial_event_test_availability_checker its_sample(client_number,
-                initial_event_test::service_infos_same_service_id);
+TEST(someip_initial_event_test, wait_for_availability_and_exit) {
+    if (use_same_service_id) {
+        initial_event_test_availability_checker its_sample(client_number, initial_event_test::service_infos_same_service_id);
     } else {
-        initial_event_test_availability_checker its_sample(client_number,
-                initial_event_test::service_infos);
+        initial_event_test_availability_checker its_sample(client_number, initial_event_test::service_infos);
     }
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    if(argc < 2) {
+    if (argc < 2) {
         std::cerr << "Please specify a client number and subscription type, like: " << argv[0] << " 2 SAME_SERVICE_ID" << std::endl;
         std::cerr << "Valid client numbers are from 0 to 0xFFFF" << std::endl;
-        std::cerr << "If SAME_SERVICE_ID is specified as third parameter the test is run w/ multiple instances of the same service" << std::endl;
+        std::cerr << "If SAME_SERVICE_ID is specified as third parameter the test is run w/ "
+                     "multiple instances of the same service"
+                  << std::endl;
         return 1;
     }
 

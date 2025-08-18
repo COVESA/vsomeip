@@ -18,7 +18,7 @@ namespace e2exf {
 
 using data_identifier_t = std::pair<service_t, event_t>;
 
-std::ostream &operator<<(std::ostream &_os, const e2exf::data_identifier_t &_data_identifier);
+std::ostream& operator<<(std::ostream& _os, const e2exf::data_identifier_t& _data_identifier);
 
 } // namespace e2exf
 } // namespace vsomeip_v3

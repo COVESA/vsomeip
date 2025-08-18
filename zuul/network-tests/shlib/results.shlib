@@ -65,7 +65,30 @@ function gen-core-backtraces
 	do
 		prog=${core#/tmp/core.}
 		prog=${prog//!/\/}
-		gdb -ex 'thread apply all bt' -ex 'set pagination 0' -batch "$prog" "$core" | tee "$outputs_folder/backtrace.${prog##*/}"
+		# shellcheck disable=SC2016
+		gdb \
+			-ex 'set pagination 0' \
+			-ex 'set height 0' \
+			-ex 'echo \n[inferior]\n' \
+			-ex 'info inferior' \
+			-ex 'echo \n[Backtrace]\n' \
+			-ex 'bt full' \
+			-ex 'echo \n[Stack dump]\n' \
+			-ex 'x/40x $sp' \
+			-ex 'echo \n[source]\n' \
+			-ex 'info source' \
+			-ex 'echo \n[threads]\n' \
+			-ex 'info threads' \
+			-ex 'echo \n[thread backtraces]\n' \
+			-ex 'thread apply all where' \
+			-ex 'echo \n[Registers]\n' \
+			-ex 'info all-registers' \
+			-ex 'echo \n[libs]\n' \
+			-ex 'info sharedlibrary' \
+			-ex 'echo \n[files]\n' \
+			-ex 'info file' \
+			-ex 'echo \n[Cached Traces]\n' \
+			-batch "${prog%.*}" "$core" | tee "$outputs_folder/backtrace.${prog##*/}"
 		cp -v "$core" "$outputs_folder/core.${prog##*/}"
 	done
 	shopt -u nullglob

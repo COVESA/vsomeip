@@ -24,23 +24,21 @@ struct profile_config;
 
 class profile_05 {
 public:
-    static uint16_t compute_crc(const profile_config &_config, const e2e_buffer &_buffer);
+    static uint16_t compute_crc(const profile_config& _config, const e2e_buffer& _buffer);
 
-    static bool is_buffer_length_valid(const profile_config &_config, const e2e_buffer &_buffer);
+    static bool is_buffer_length_valid(const profile_config& _config, const e2e_buffer& _buffer);
 };
 
 struct profile_config {
     profile_config() = delete;
 
-    profile_config(uint32_t _data_id, uint16_t _data_length,
-            size_t _offset, uint16_t _max_delta_counter)
+    profile_config(uint32_t _data_id, uint16_t _data_length, size_t _offset, uint16_t _max_delta_counter)
 
-        : data_id_(_data_id), data_length_(_data_length),
-          offset_(_offset), max_delta_counter_(_max_delta_counter),
-          base_(VSOMEIP_SOMEIP_HEADER_SIZE) {
-    }
-    profile_config(const profile_config &_config) = default;
-    profile_config &operator=(const profile_config &_config) = default;
+        :
+        data_id_(_data_id), data_length_(_data_length), offset_(_offset), max_delta_counter_(_max_delta_counter),
+        base_(VSOMEIP_SOMEIP_HEADER_SIZE) { }
+    profile_config(const profile_config& _config) = default;
+    profile_config& operator=(const profile_config& _config) = default;
 
     uint32_t data_id_;
     uint16_t data_length_;

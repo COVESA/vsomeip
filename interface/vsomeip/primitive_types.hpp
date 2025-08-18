@@ -41,8 +41,6 @@ typedef uint8_t interface_version_t;
 typedef uint8_t byte_t;
 typedef uint16_t diagnosis_t;
 
-typedef uint16_t port_t;
-
 // Addresses
 typedef std::array<byte_t, 4> ipv4_address_t;
 typedef std::array<byte_t, 16> ipv6_address_t;
@@ -57,11 +55,11 @@ typedef std::uint32_t pending_remote_offer_id_t;
 typedef std::uint32_t pending_security_update_id_t;
 
 #if defined(_WIN32)
-    typedef std::uint32_t uid_t;
-    typedef std::uint32_t gid_t;
+typedef std::uint32_t uid_t;
+typedef std::uint32_t gid_t;
 #else
-    typedef ::uid_t uid_t;
-    typedef ::uid_t gid_t;
+typedef ::uid_t uid_t;
+typedef ::uid_t gid_t;
 #endif
 
 } // namespace vsomeip_v3

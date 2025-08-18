@@ -26,7 +26,7 @@ namespace sd {
 class option_impl;
 class message_impl;
 
-class entry_impl: public message_element_impl {
+class entry_impl : public message_element_impl {
 public:
     virtual ~entry_impl();
 
@@ -45,16 +45,16 @@ public:
     ttl_t get_ttl() const;
     void set_ttl(ttl_t _ttl);
 
-    const std::vector<uint8_t> & get_options(uint8_t _run) const;
-    void assign_option(const std::shared_ptr<option_impl> &_option);
+    const std::vector<uint8_t>& get_options(uint8_t _run) const;
+    void assign_option(const std::shared_ptr<option_impl>& _option);
 
     bool is_service_entry() const;
     bool is_eventgroup_entry() const;
 
     void set_type(entry_type_e _type);
 
-    virtual bool serialize(vsomeip_v3::serializer *_to) const;
-    virtual bool deserialize(vsomeip_v3::deserializer *_from);
+    virtual bool serialize(vsomeip_v3::serializer* _to) const;
+    virtual bool deserialize(vsomeip_v3::deserializer* _from);
 
     uint8_t get_num_options(uint8_t _run) const;
 
@@ -72,7 +72,7 @@ protected:
     std::uint8_t index2_;
 
     entry_impl();
-    entry_impl(const entry_impl &_entry);
+    entry_impl(const entry_impl& _entry);
 };
 
 } // namespace sd

@@ -20,18 +20,17 @@ class protector final : public e2e::profile_interface::protector {
 public:
     protector(void) = delete;
 
-    explicit protector(const profile_config &_config)
-        : config_(_config) {}
+    explicit protector(const profile_config& _config) : config_(_config) { }
 
-    void protect(e2e_buffer &_buffer, instance_t _instance) override final;
+    void protect(e2e_buffer& _buffer, instance_t _instance) override final;
 
 private:
-    bool verify_inputs(e2e_buffer &_buffer);
+    bool verify_inputs(e2e_buffer& _buffer);
     uint16_t get_counter(instance_t _instance) const;
     void increment_counter(instance_t _instance);
 
-    void write_16(e2e_buffer &_buffer, uint16_t _data, size_t _index);
-    void write_32(e2e_buffer &_buffer, uint32_t _data, size_t _index);
+    void write_16(e2e_buffer& _buffer, uint16_t _data, size_t _index);
+    void write_32(e2e_buffer& _buffer, uint32_t _data, size_t _index);
 
 private:
     profile_config config_;

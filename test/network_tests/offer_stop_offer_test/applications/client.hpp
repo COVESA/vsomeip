@@ -45,9 +45,7 @@ public:
     /// @param method Method to send the request to.
     ///
     /// @return returns a future that will notify that responde to this requests was received
-    std::future<bool> request(bool is_tcp, vsomeip::service_t service,
-                                               vsomeip::instance_t instance,
-                                               vsomeip::method_t method);
+    std::future<bool> request(bool is_tcp, vsomeip::service_t service, vsomeip::instance_t instance, vsomeip::method_t method);
 
     /// @brief Check if both services are available
     ///
@@ -65,8 +63,7 @@ private:
     /// @param service Service that had its availability state changed
     /// @param instance Instance that had its availability state changed
     /// @param is_available New availability state
-    void on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
-                         bool is_available);
+    void on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available);
 
     /// @brief vsomeip app interface
     std::shared_ptr<vsomeip::application> vsomeip_app;
@@ -98,7 +95,6 @@ private:
     /// @brief List to hold the current client_request_t awaiting responses.
     ///        client_request_t are removed after the response is received and promise is set.
     std::list<client_request_t> pending_requests;
-
 };
 
 #endif // VSOMEIP_CLIENT_HPP

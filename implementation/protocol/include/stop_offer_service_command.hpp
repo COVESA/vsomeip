@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class stop_offer_service_command
-    : public service_command_base {
+class stop_offer_service_command : public service_command_base {
 
 public:
     stop_offer_service_command();

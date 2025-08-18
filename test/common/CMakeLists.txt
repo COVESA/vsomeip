@@ -12,6 +12,12 @@ file (GLOB SRC src/*.cpp)
 file (GLOB INC include/common/*.hpp, include/common/vsomeip_app_utilities/*.hpp)
 
 # ----------------------------------------------------------------------------
+# Copy all files from examples_policies directory to the build directory
+# ----------------------------------------------------------------------------
+file(GLOB EXAMPLES_POLICIES_FILES "${CMAKE_CURRENT_SOURCE_DIR}/examples_policies/*")
+file(COPY ${EXAMPLES_POLICIES_FILES} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/examples_policies")
+
+# ----------------------------------------------------------------------------
 # Declare the library
 # ----------------------------------------------------------------------------
 add_library (
@@ -27,6 +33,7 @@ TARGET_LINK_LIBRARIES (
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
 )
 
 # ----------------------------------------------------------------------------

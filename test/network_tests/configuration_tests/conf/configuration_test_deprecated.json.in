@@ -309,8 +309,8 @@
         {
             "service" : "8888",
             "instance" : "1",
-            "unreliable" : [ 40000, 40001 ],
-            "reliable" : [ 40000, 40001 ]
+            "unreliable" : [ 34510, 34511 ],
+            "reliable" : [ 34510, 34511 ]
         }
     ],
     "tcp-restart-aborts-max" : "15",
@@ -532,6 +532,7 @@
         "protocol" : "udp",
         "multicast" : "224.212.244.223",
         "port" : "30666",
-        "offer_debounce_time" : "1000"
+        "offer_debounce_time" : "1000",
+        "wait_route_netlink_notification" : "true"
     }
 }

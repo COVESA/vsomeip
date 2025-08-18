@@ -26,40 +26,27 @@
 class application_test_client : public vsomeip_utilities::base_logger {
 public:
     application_test_client(struct application_test::service_info _service_info) :
-            vsomeip_utilities::base_logger("APTC", "APPLICATION TEST CLIENT"),
-            service_info_(_service_info),
-            app_(vsomeip::runtime::get()->create_application("client")),
-            wait_until_registered_(true),
-            wait_until_service_available_(true),
-            wait_for_stop_(true),
-            received_responses_(0),
-            sent_requests_(0),
-            stop_called_(false),
-            stop_thread_(std::bind(&application_test_client::wait_for_stop, this)),
-            send_thread_(std::bind(&application_test_client::send, this)) {
+        vsomeip_utilities::base_logger("APTC", "APPLICATION TEST CLIENT"), service_info_(_service_info),
+        app_(vsomeip::runtime::get()->create_application("client")), wait_until_registered_(true), wait_until_service_available_(true),
+        wait_for_stop_(true), received_responses_(0), sent_requests_(0), stop_called_(false),
+        stop_thread_(std::bind(&application_test_client::wait_for_stop, this)),
+        send_thread_(std::bind(&application_test_client::send, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "[Client] Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&application_test_client::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&application_test_client::on_state, this, std::placeholders::_1));
 
-        app_->register_message_handler(vsomeip::ANY_SERVICE,
-                vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
-                std::bind(&application_test_client::on_message, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
+                                       std::bind(&application_test_client::on_message, this, std::placeholders::_1));
 
         // register availability for all other services and request their event.
-        app_->register_availability_handler(service_info_.service_id,
-                service_info_.instance_id,
-                std::bind(&application_test_client::on_availability, this,
-                        std::placeholders::_1, std::placeholders::_2,
-                        std::placeholders::_3));
-        app_->request_service(service_info_.service_id,
-                service_info_.instance_id);
+        app_->register_availability_handler(service_info_.service_id, service_info_.instance_id,
+                                            std::bind(&application_test_client::on_availability, this, std::placeholders::_1,
+                                                      std::placeholders::_2, std::placeholders::_3));
+        app_->request_service(service_info_.service_id, service_info_.instance_id);
         std::promise<bool> its_promise;
-        application_thread_ = std::thread([&](){
+        application_thread_ = std::thread([&]() {
             its_promise.set_value(true);
             app_->start();
         });
@@ -75,22 +62,19 @@ public:
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "[Client] Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::scoped_lock its_lock {mutex_};
+            std::scoped_lock its_lock{mutex_};
             wait_until_registered_ = false;
             condition_.notify_one();
         }
     }
 
-    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance,
-                         bool _is_available) {
-        VSOMEIP_INFO << "[Client] Service [" << std::setw(4) << std::setfill('0') << std::hex
-                     << _service << "." << _instance << "] is "
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+        VSOMEIP_INFO << "[Client] Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available" : "not available") << ".";
-        std::scoped_lock its_lock {mutex_};
+        std::scoped_lock its_lock{mutex_};
         if (_is_available) {
             wait_until_service_available_ = false;
             condition_.notify_one();
@@ -105,9 +89,8 @@ public:
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
-        VSOMEIP_INFO << "[Client] Received a response with Client/Session [" << std::setfill('0')
-                     << std::hex << std::setw(4) << _message->get_client() << "/" << std::setw(4)
-                     << _message->get_session() << "]";
+        VSOMEIP_INFO << "Received a response with Client/Session [" << std::hex << std::setfill('0') << std::setw(4)
+                     << _message->get_client() << "/" << std::setw(4) << _message->get_session() << "]";
     }
 
     void send() {
@@ -116,7 +99,7 @@ public:
             condition_.wait_for(its_lock, std::chrono::milliseconds(100));
         }
 
-        while (wait_until_service_available_  && !stop_called_) {
+        while (wait_until_service_available_ && !stop_called_) {
             condition_.wait_for(its_lock, std::chrono::milliseconds(100));
         }
         its_lock.unlock();
@@ -124,10 +107,9 @@ public:
 
         for (;;) {
             {
-                std::scoped_lock its_lock {mutex_};
+                std::scoped_lock its_lock{mutex_};
                 if (!wait_until_service_available_ && !stop_called_) {
-                    std::shared_ptr<vsomeip::message> its_req =
-                            vsomeip::runtime::get()->create_request();
+                    std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
                     its_req->set_service(service_info_.service_id);
                     its_req->set_instance(service_info_.instance_id);
                     its_req->set_method(service_info_.method_id);
@@ -156,11 +138,10 @@ public:
 
     void stop(bool check) {
         stop_called_ = true;
-        std::scoped_lock its_lock {stop_mutex_};
+        std::scoped_lock its_lock{stop_mutex_};
         wait_for_stop_ = false;
-        VSOMEIP_INFO << "[Client] Going down. Sent " << sent_requests_
-                << " requests and received " << received_responses_
-                << " responses. Delta: " << sent_requests_ - received_responses_;
+        VSOMEIP_INFO << "[Client] Going down. Sent " << sent_requests_ << " requests and received " << received_responses_
+                     << " responses. Delta: " << sent_requests_ - received_responses_;
 
         if (check) {
             while (sent_requests_ == 0 || sent_requests_ < received_responses_) {

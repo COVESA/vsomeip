@@ -9,7 +9,7 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_custom {
 
-void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+void protector::protect(e2e_buffer& _buffer, instance_t _instance) {
 
     (void)_instance;
 
@@ -23,7 +23,7 @@ void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
     }
 }
 
-void protector::write_crc(e2e_buffer &_buffer, uint32_t _computed_crc) {
+void protector::write_crc(e2e_buffer& _buffer, uint32_t _computed_crc) {
     _buffer[config_.crc_offset_] = static_cast<uint8_t>(_computed_crc >> 24U);
     _buffer[config_.crc_offset_ + 1U] = static_cast<uint8_t>(_computed_crc >> 16U);
     _buffer[config_.crc_offset_ + 2U] = static_cast<uint8_t>(_computed_crc >> 8U);

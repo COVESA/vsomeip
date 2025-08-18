@@ -7,7 +7,7 @@
 #define VSOMEIP_COMPAT_MESSAGE_IMPL_HPP_
 
 #if _MSC_VER >= 1300
-#    pragma warning( disable : 4250 )
+#pragma warning(disable : 4250)
 #endif
 
 #include <compat/vsomeip/message.hpp>
@@ -17,19 +17,17 @@ namespace vsomeip {
 
 class payload;
 
-class message_impl
-        : virtual public message_base_impl,
-          virtual public message {
+class message_impl : virtual public message_base_impl, virtual public message {
 
 public:
-    VSOMEIP_EXPORT message_impl(const std::shared_ptr<vsomeip_v3::message> &_impl);
+    VSOMEIP_EXPORT message_impl(const std::shared_ptr<vsomeip_v3::message>& _impl);
     VSOMEIP_EXPORT virtual ~message_impl();
 
-    VSOMEIP_EXPORT std::shared_ptr< payload > get_payload() const;
-    VSOMEIP_EXPORT void set_payload(std::shared_ptr< payload > _payload);
+    VSOMEIP_EXPORT std::shared_ptr<payload> get_payload() const;
+    VSOMEIP_EXPORT void set_payload(std::shared_ptr<payload> _payload);
 
-    VSOMEIP_EXPORT bool serialize(serializer *_to) const;
-    VSOMEIP_EXPORT bool deserialize(deserializer *_from);
+    VSOMEIP_EXPORT bool serialize(serializer* _to) const;
+    VSOMEIP_EXPORT bool deserialize(deserializer* _from);
 };
 
 } // namespace vsomeip

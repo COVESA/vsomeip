@@ -12,6 +12,7 @@
             "interval" : "15"
         }
     },
+    "request_debounce_time" : "33",
     "watchdog" :
     {
         "enable" : "true",
@@ -298,8 +299,8 @@
         {
             "service" : "8888",
             "instance" : "1",
-            "unreliable" : [ 40000, 40001 ],
-            "reliable" : [ 40000, 40001 ]
+            "unreliable" : [ 34510, 34511 ],
+            "reliable" : [ 34510, 34511 ]
         }
     ],
     "tcp-restart-aborts-max" : "15",
@@ -528,6 +529,7 @@
         "ttl" : "13",
         "cyclic_offer_delay" : "2132",
         "request_response_delay" : "1111",
-        "offer_debounce_time" : "1000"
+        "offer_debounce_time" : "1000",
+        "wait_route_netlink_notification" : "true"
     }
 }

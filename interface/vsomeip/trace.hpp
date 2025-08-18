@@ -33,7 +33,7 @@ extern const filter_id_t FILTER_ID_ERROR;
 /**
  * \brief The default channel id "TC".
  */
-extern const char *VSOMEIP_TC_DEFAULT_CHANNEL_ID;
+extern const char* VSOMEIP_TC_DEFAULT_CHANNEL_ID;
 
 /**
  * \brief Filters contain at least one match that specified
@@ -80,9 +80,7 @@ public:
      * \return Filter identifier of the added filter or
      * FILTER_ID_ERROR if adding failed.
      */
-    virtual filter_id_t add_filter(
-            const match_t &_match,
-            bool _is_positive = true) = 0;
+    virtual filter_id_t add_filter(const match_t& _match, bool _is_positive = true) = 0;
 
     /**
      * \brief Add a filter to the channel.
@@ -101,9 +99,7 @@ public:
      * \return Filter identifier of the added filter or
      * FILTER_ID_ERROR if adding failed.
      */
-    virtual filter_id_t add_filter(
-            const std::vector<match_t> &_matches,
-            bool _is_positive = true) = 0;
+    virtual filter_id_t add_filter(const std::vector<match_t>& _matches, bool _is_positive = true) = 0;
 
     /**
      * \brief Add a filter to the channel.
@@ -128,9 +124,7 @@ public:
      * \return Filter identifier of the added filter or
      * FILTER_ID_ERROR if adding failed.
      */
-    virtual filter_id_t add_filter(
-            const match_t &_from, const match_t &_to,
-            bool _is_positive = true) = 0;
+    virtual filter_id_t add_filter(const match_t& _from, const match_t& _to, bool _is_positive = true) = 0;
 
     /**
      * \brief Remove a filter from the channel.
@@ -141,8 +135,7 @@ public:
      * \param _id Filter identifier of the filter that shall
      * be removed.
      */
-    virtual void remove_filter(
-            filter_id_t _id) = 0;
+    virtual void remove_filter(filter_id_t _id) = 0;
 };
 
 /**
@@ -177,9 +170,7 @@ public:
      * another trace channel with the given identifier does
      * already exist.
      */
-    virtual std::shared_ptr<channel> add_channel(
-            const std::string &_id,
-            const std::string &_name) = 0;
+    virtual std::shared_ptr<channel> add_channel(const std::string& _id, const std::string& _name) = 0;
 
     /**
      * \brief Remove a trace channel from the connector.
@@ -193,8 +184,7 @@ public:
      *  it could not be removed, because it is the default trace
      *  channel.
      */
-    virtual bool remove_channel(
-            const std::string &_id) = 0;
+    virtual bool remove_channel(const std::string& _id) = 0;
 
     /**
      * \brief Get a trace channel from the connector.
@@ -206,8 +196,7 @@ public:
      * \return Shared pointer to the created trace channel or
      * nullptr if the trace channel does not exist.
      */
-    virtual std::shared_ptr<channel> get_channel(
-            const std::string &_id = VSOMEIP_TC_DEFAULT_CHANNEL_ID) const = 0;
+    virtual std::shared_ptr<channel> get_channel(const std::string& _id = VSOMEIP_TC_DEFAULT_CHANNEL_ID) const = 0;
 };
 
 } // namespace trace

@@ -42,7 +42,7 @@ struct policy;
  */
 class application {
 public:
-    virtual ~application() {}
+    virtual ~application() { }
 
     /**
      *
@@ -60,7 +60,7 @@ public:
      * \return Application name
      *
      */
-    virtual const std::string & get_name() const = 0;
+    virtual const std::string& get_name() const = 0;
 
     /**
      *
@@ -148,9 +148,8 @@ public:
      * \param _minor Minor service version (Default: 0).
      *
      */
-    virtual void offer_service(service_t _service, instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
-                    DEFAULT_MINOR) = 0;
+    virtual void offer_service(service_t _service, instance_t _instance, major_version_t _major = DEFAULT_MAJOR,
+                               minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     /**
      *
@@ -164,9 +163,8 @@ public:
      * \param _minor Minor service version (Default: 0).
      *
      */
-    virtual void stop_offer_service(service_t _service, instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor =
-                    DEFAULT_MINOR) = 0;
+    virtual void stop_offer_service(service_t _service, instance_t _instance, major_version_t _major = DEFAULT_MAJOR,
+                                    minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     /**
      *
@@ -187,10 +185,8 @@ public:
      * \param _is_field Selector for event or field.
      *
      */
-    virtual void offer_event(service_t _service,
-            instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field) = 0;
+    virtual void offer_event(service_t _service, instance_t _instance, event_t _event, const std::set<eventgroup_t>& _eventgroups,
+                             bool _is_field) = 0;
 
     /**
      *
@@ -206,8 +202,7 @@ public:
      * \param _event Event identifier of the offered event.
      *
      */
-    virtual void stop_offer_event(service_t _service,
-            instance_t _instance, event_t _event) = 0;
+    virtual void stop_offer_event(service_t _service, instance_t _instance, event_t _event) = 0;
 
     /**
      *
@@ -226,10 +221,8 @@ public:
      * used for the communication of this application to the service instance.
      *
      */
-    virtual void request_service(service_t _service, instance_t _instance,
-            major_version_t _major = ANY_MAJOR,
-            minor_version_t _minor = ANY_MINOR,
-            bool _use_exclusive_proxy = false) = 0;
+    virtual void request_service(service_t _service, instance_t _instance, major_version_t _major = ANY_MAJOR,
+                                 minor_version_t _minor = ANY_MINOR, bool _use_exclusive_proxy = false) = 0;
 
     /**
      *
@@ -267,9 +260,8 @@ public:
      * \param _is_field Pure event (false) or field (true).
      *
      */
-    virtual void request_event(service_t _service, instance_t _instance,
-            event_t _event, const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field) = 0;
+    virtual void request_event(service_t _service, instance_t _instance, event_t _event, const std::set<eventgroup_t>& _eventgroups,
+                               bool _is_field) = 0;
     /**
      *
      * \brief Unregister the application as user of an event or field.
@@ -284,8 +276,7 @@ public:
      * \param _event Event identifier of the event or field.
      * .
      */
-    virtual void release_event(service_t _service, instance_t _instance,
-            event_t _event) = 0;
+    virtual void release_event(service_t _service, instance_t _instance, event_t _event) = 0;
 
     /**
      *
@@ -312,10 +303,9 @@ public:
      * \param _event All (Default) or a specific event.
      *
      */
-    virtual void subscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
-            subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
-            event_t _event = ANY_EVENT) = 0;
+    virtual void subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major = DEFAULT_MAJOR,
+                           subscription_type_e _subscription_type = subscription_type_e::SU_RELIABLE_AND_UNRELIABLE,
+                           event_t _event = ANY_EVENT) = 0;
 
     /**
      *
@@ -328,8 +318,7 @@ public:
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      *
      */
-    virtual void unsubscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup) = 0;
+    virtual void unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     /**
      *
@@ -346,8 +335,8 @@ public:
      * minor version.
      *
      */
-    virtual bool is_available(service_t _service, instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) const = 0;
+    virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major = DEFAULT_MAJOR,
+                              minor_version_t _minor = DEFAULT_MINOR) const = 0;
 
     /**
      *
@@ -385,8 +374,7 @@ public:
      * \param _payload Serialized payload of the event.
      *
      */
-    virtual void notify(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload) const = 0;
+    virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload) const = 0;
 
     /**
      *
@@ -409,9 +397,8 @@ public:
      * \param _client Target client.
      *
      */
-    virtual void notify_one(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload,
-                client_t _client) const = 0;
+    virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
+                            client_t _client) const = 0;
 
     /**
      *
@@ -465,9 +452,7 @@ public:
      * parameters.
      *
      */
-    virtual void register_message_handler(service_t _service,
-            instance_t _instance, method_t _method,
-            message_handler_t _handler) = 0;
+    virtual void register_message_handler(service_t _service, instance_t _instance, method_t _method, message_handler_t _handler) = 0;
     /**
      *
      * \brief Unregisters the message handler for the specified service
@@ -483,8 +468,7 @@ public:
      * to be handled. Can be set to ANY_METHOD to unregister a handler for
      * all methods and events.
      */
-    virtual void unregister_message_handler(service_t _service,
-            instance_t _instance, method_t _method) = 0;
+    virtual void unregister_message_handler(service_t _service, instance_t _instance, method_t _method) = 0;
 
     /**
      *
@@ -508,9 +492,8 @@ public:
      * DEFAULT_MINOR and can be set to ANY_MINOR.
      *
      */
-    virtual void register_availability_handler(service_t _service,
-            instance_t _instance, availability_handler_t _handler,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+    virtual void register_availability_handler(service_t _service, instance_t _instance, availability_handler_t _handler,
+                                               major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     /**
      *
@@ -526,9 +509,8 @@ public:
      * \param _minor Minor service version. The parameter defaults to
      * DEFAULT_MINOR and can be set to ANY_MINOR.     *
      */
-    virtual void unregister_availability_handler(service_t _service,
-            instance_t _instance,
-            major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+    virtual void unregister_availability_handler(service_t _service, instance_t _instance, major_version_t _major = DEFAULT_MAJOR,
+                                                 minor_version_t _minor = DEFAULT_MINOR) = 0;
 
     /**
      *
@@ -548,9 +530,8 @@ public:
      * \param _handler Callback that shall be called.
      *
      */
-    virtual void register_subscription_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            subscription_handler_t _handler) = 0;
+    virtual void register_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                               subscription_handler_t _handler) = 0;
 
     /**
      *
@@ -564,8 +545,7 @@ public:
      * subscription state is to be monitored.
      *
      */
-    virtual void unregister_subscription_handler(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
+    virtual void unregister_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     // [Un]Register handler for subscription errors
     /**
@@ -585,9 +565,8 @@ public:
      * \param _handler Callback that shall be called.
      *
      */
-    virtual void register_subscription_error_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup,
-            error_handler_t _handler) = 0;
+    virtual void register_subscription_error_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                     error_handler_t _handler) = 0;
 
     /**
      *
@@ -601,8 +580,7 @@ public:
      * error callback shall be removed.
      *
      */
-    virtual void unregister_subscription_error_handler(service_t _service,
-                instance_t _instance, eventgroup_t _eventgroup) = 0;
+    virtual void unregister_subscription_error_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     /**
      *
@@ -666,13 +644,9 @@ public:
      * Note: The different versions of offer_event exist for compatibility
      * reasons. They will be merged with the next major vsomeip version.
      */
-    virtual void offer_event(service_t _service,
-            instance_t _instance, event_t _event,
-            const std::set<eventgroup_t> &_eventgroups,
-            bool _is_field,
-            std::chrono::milliseconds _cycle,
-            bool _change_resets_cycle,
-            const epsilon_change_func_t &_epsilon_change_func) = 0;
+    virtual void offer_event(service_t _service, instance_t _instance, event_t _event, const std::set<eventgroup_t>& _eventgroups,
+                             bool _is_field, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+                             const epsilon_change_func_t& _epsilon_change_func) = 0;
 
     /**
      *
@@ -698,9 +672,7 @@ public:
      * Note: The different versions of notify do exist for compatibility
      * reasons. They will be merged with the next major vsomeip release.
      */
-    virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            bool _force) const = 0;
+    virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force) const = 0;
 
     /**
      *
@@ -727,11 +699,10 @@ public:
      * Note: The different versions of notify_one do exist for compatibility
      * reasons. They will be merged with the next major vsomeip release.
      */
-    virtual void notify_one(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            client_t _client, bool _force) const = 0;
+    virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+                            bool _force) const = 0;
 
-    typedef std::map<service_t, std::map<instance_t, std::map<major_version_t, minor_version_t >>> available_t;
+    typedef std::map<service_t, std::map<instance_t, std::map<major_version_t, minor_version_t>>> available_t;
     /**
      * \brief Returns all available instances that match the given combination
      * of service, instance and version.
@@ -753,9 +724,8 @@ public:
      * \param _minor_version Minor version(s) of the service instance that
      * are checked
      */
-    virtual bool are_available(available_t &_available,
-            service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
-            major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
+    virtual bool are_available(available_t& _available, service_t _service = ANY_SERVICE, instance_t _instance = ANY_INSTANCE,
+                               major_version_t _major = ANY_MAJOR, minor_version_t _minor = ANY_MINOR) const = 0;
 
     /**
      *
@@ -782,9 +752,8 @@ public:
      * Note: The different versions of notify do exist for compatibility
      * reasons. They will be merged with the next major vsomeip release.
      */
-    virtual void notify(service_t _service, instance_t _instance,
-            event_t _event, std::shared_ptr<payload> _payload,
-            bool _force, bool _flush) const = 0;
+    virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force,
+                        bool _flush) const = 0;
 
     /**
      *
@@ -812,9 +781,8 @@ public:
      * Note: The different versions of notify_one do exist for compatibility
      * reasons. They will be merged with the next major vsomeip release.
      */
-    virtual void notify_one(service_t _service, instance_t _instance,
-                event_t _event, std::shared_ptr<payload> _payload,
-                client_t _client, bool _force, bool _flush) const = 0;
+    virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+                            bool _force, bool _flush) const = 0;
 
     /**
      * \brief Set the current routing state.
@@ -826,7 +794,7 @@ public:
      *
      * \param _routing_state the current routing state
      */
-    virtual  void set_routing_state(routing_state_e _routing_state) = 0;
+    virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
     /**
      *
@@ -839,9 +807,7 @@ public:
      * \param _eventgroup Eventgroup identifier of the eventgroup.
      * \param _event Event to unsubscribe (pass ANY_EVENT for all events of the eventgroup)
      */
-    virtual void unsubscribe(service_t _service, instance_t _instance,
-            eventgroup_t _eventgroup, event_t _event) = 0;
-
+    virtual void unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     /**
      *
@@ -860,9 +826,8 @@ public:
      * \param _handler A subscription status handler which will be called by vSomeIP
      * as a follow of application::subscribe.
      */
-    virtual void register_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler) = 0;
+    virtual void register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                                      subscription_status_handler_t _handler) = 0;
 
     /**
      *
@@ -883,9 +848,8 @@ public:
      * \param _is_selective Flag to enable calling the provided handler if the
      * subscription is answered with a SUBSCRIBE_NACK.
      */
-    virtual void register_subscription_status_handler(service_t _service,
-            instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-            subscription_status_handler_t _handler, bool _is_selective) = 0;
+    virtual void register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                                      subscription_status_handler_t _handler, bool _is_selective) = 0;
 
     /**
      *
@@ -895,8 +859,9 @@ public:
      * all at the routing manager registered services on this node get returned in a vector of
      * service / instance pairs depending on the given _offer_type.
      *
-     * \param _offer_type type of offered services to be returned (OT_LOCAL = 0x00, OT_REMOTE = 0x01, OT_ALL = 0x02)
-     * \param offered_services_handler_t handler which gets called with a vector of service instance pairs that are currently offered
+     * \param _offer_type type of offered services to be returned (OT_LOCAL = 0x00, OT_REMOTE =
+     * 0x01, OT_ALL = 0x02) \param offered_services_handler_t handler which gets called with a
+     * vector of service instance pairs that are currently offered
      */
     virtual void get_offered_services_async(offer_type_e _offer_type, offered_services_handler_t _handler) = 0;
 
@@ -927,7 +892,7 @@ public:
      */
     virtual void set_watchdog_handler(watchdog_handler_t _handler, std::chrono::seconds _interval) = 0;
 
-   /**
+    /**
      *
      * \brief Registers a subscription handler.
      *
@@ -945,9 +910,8 @@ public:
      * \param _handler Callback that shall be called.
      *
      */
-    virtual void register_async_subscription_handler(
-            service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-            async_subscription_handler_t _handler) = 0;
+    virtual void register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                     async_subscription_handler_t _handler) = 0;
 
     /**
      *  \brief Enables or disables calling of registered offer acceptance
@@ -961,9 +925,7 @@ public:
      *  \param _path Path which indicates need for offer acceptance
      *  \param _enable enable or disable calling of offer acceptance handler
      */
-    virtual void set_offer_acceptance_required(ip_address_t _address,
-                                               const std::string _path,
-                                               bool _enable) = 0;
+    virtual void set_offer_acceptance_required(ip_address_t _address, const std::string _path, bool _enable) = 0;
 
     /**
      * \brief Returns all configured IP addresses which require calling of
@@ -986,8 +948,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_offer_acceptance_handler(
-            offer_acceptance_handler_t _handler) = 0;
+    virtual void register_offer_acceptance_handler(offer_acceptance_handler_t _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called upon detection of a
@@ -998,8 +959,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_reboot_notification_handler(
-            reboot_notification_handler_t _handler) = 0;
+    virtual void register_reboot_notification_handler(reboot_notification_handler_t _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called when the routing reached
@@ -1010,8 +970,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_routing_ready_handler(
-            routing_ready_handler_t _handler) = 0;
+    virtual void register_routing_ready_handler(routing_ready_handler_t _handler) = 0;
 
     /**
      * \brief Registers a handler which will be called when the routing state
@@ -1022,8 +981,7 @@ public:
      *
      * \param _handler The handler to be called
      */
-    virtual void register_routing_state_handler(
-            routing_state_handler_t _handler) = 0;
+    virtual void register_routing_state_handler(routing_state_handler_t _handler) = 0;
 
     /**
      * \brief Update service configuration to offer a local service on the
@@ -1043,12 +1001,8 @@ public:
      * \param _magic_cookies_enabled Flag to enable magic cookies
      * \param _offer Offer the service or stop offering it remotely
      */
-    virtual bool update_service_configuration(service_t _service,
-                                              instance_t _instance,
-                                              std::uint16_t _port,
-                                              bool _reliable,
-                                              bool _magic_cookies_enabled,
-                                              bool _offer) = 0;
+    virtual bool update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
+                                              bool _magic_cookies_enabled, bool _offer) = 0;
 
     /**
      * \brief Update security configuration of routing manager and all local clients
@@ -1063,11 +1017,8 @@ public:
      * \param _handler handler which gets called after all clients have
      *                 confirmed the policy update
      */
-    virtual void update_security_policy_configuration(uint32_t _uid,
-                                                      uint32_t _gid,
-                                                      std::shared_ptr<policy> _policy,
-                                                      std::shared_ptr<payload> _payload,
-                                                      security_update_handler_t _handler) = 0;
+    virtual void update_security_policy_configuration(uint32_t _uid, uint32_t _gid, std::shared_ptr<policy> _policy,
+                                                      std::shared_ptr<payload> _payload, security_update_handler_t _handler) = 0;
 
     /**
      * \brief Remove a security configuration for routing manager and all local clients
@@ -1081,9 +1032,7 @@ public:
      * \param _handler handler which gets called after all clients have
      *                 confirmed the policy removal
      */
-    virtual void remove_security_policy_configuration(uint32_t _uid,
-                                                      uint32_t _gid,
-                                                      security_update_handler_t _handler) = 0;
+    virtual void remove_security_policy_configuration(uint32_t _uid, uint32_t _gid, security_update_handler_t _handler) = 0;
 };
 
 /** @} */

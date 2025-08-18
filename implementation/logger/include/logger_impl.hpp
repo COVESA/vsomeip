@@ -26,7 +26,7 @@ namespace logger {
 
 class logger_impl {
 public:
-    VSOMEIP_IMPORT_EXPORT static void init(const std::shared_ptr<configuration> &_configuration);
+    VSOMEIP_IMPORT_EXPORT static void init(const std::shared_ptr<configuration>& _configuration);
     static std::shared_ptr<logger_impl> get();
 
     logger_impl() = default;
@@ -55,11 +55,11 @@ private:
     static std::string app_name__;
 
     mutable std::mutex configuration_mutex_;
-    std::atomic<level_e> cfg_level {level_e::LL_NONE};
-    std::atomic_bool cfg_console_enabled {false};
-    std::atomic_bool cfg_dlt_enabled {false};
-    std::atomic_bool cfg_file_enabled {false};
-    std::string cfg_file_name {""};
+    std::atomic<level_e> cfg_level{level_e::LL_NONE};
+    std::atomic_bool cfg_console_enabled{false};
+    std::atomic_bool cfg_dlt_enabled{false};
+    std::atomic_bool cfg_file_enabled{false};
+    std::string cfg_file_name{""};
 
 #ifdef USE_DLT
 #ifndef ANDROID

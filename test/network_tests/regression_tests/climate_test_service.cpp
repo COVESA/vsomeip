@@ -19,15 +19,9 @@
 class service_sample {
 public:
     service_sample(struct climate_test::service_info _service_info) :
-            app_(vsomeip::runtime::get()->create_application()),
-            blocked_(false),
-            running_(true),
-            is_offered_(false),
-            is_second_(false),
-            offer_thread_(std::bind(&service_sample::run, this)),
-            notify_thread_(std::bind(&service_sample::notify, this)),
-            service_info_(_service_info) {
-    }
+        app_(vsomeip::runtime::get()->create_application()), blocked_(false), running_(true), is_offered_(false), is_second_(false),
+        offer_thread_(std::bind(&service_sample::run, this)), notify_thread_(std::bind(&service_sample::notify, this)),
+        service_info_(_service_info) { }
 
     bool init() {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -36,33 +30,19 @@ public:
             std::cerr << "Couldn't initialize application" << std::endl;
             return false;
         }
-        app_->register_state_handler(
-                std::bind(&service_sample::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&service_sample::on_state, this, std::placeholders::_1));
 
-        app_->register_message_handler(
-                service_info_.service_id,
-                service_info_.instance_id,
-                service_info_.get_method_id,
-                std::bind(&service_sample::on_message, this,
-                          std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.get_method_id,
+                                       std::bind(&service_sample::on_message, this, std::placeholders::_1));
 
-        app_->register_message_handler(
-                service_info_.service_id,
-                service_info_.instance_id,
-                service_info_.shutdown_method_id,
-                std::bind(&service_sample::on_shutdown_message, this,
-                          std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.shutdown_method_id,
+                                       std::bind(&service_sample::on_shutdown_message, this, std::placeholders::_1));
 
         std::set<vsomeip::eventgroup_t> its_groups;
         its_groups.insert(service_info_.eventgroup_id);
-        app_->offer_event(
-                service_info_.service_id,
-                service_info_.instance_id,
-                service_info_.event_id,
-                its_groups,
-                vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(),
-                false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
+        app_->offer_event(service_info_.service_id, service_info_.instance_id, service_info_.event_id, its_groups,
+                          vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
+                          vsomeip::reliability_type_e::RT_UNKNOWN);
         {
             std::lock_guard<std::mutex> its_lock(payload_mutex_);
             payload_ = vsomeip::runtime::get()->create_payload();
@@ -73,9 +53,7 @@ public:
         return true;
     }
 
-    void start() {
-        app_->start();
-    }
+    void start() { app_->start(); }
 
     void stop() {
         {
@@ -117,11 +95,10 @@ public:
 
     void on_state(vsomeip::state_type_e _state) {
         std::cout << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.") << std::endl;
+                  << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.") << std::endl;
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         // Triger second part of the test, offer and stop offer service
         (void)_message;
         stop_offer();
@@ -131,7 +108,7 @@ public:
         notify_condition_.notify_one();
     }
 
-    void on_shutdown_message(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_shutdown_message(const std::shared_ptr<vsomeip::message>& _message) {
         // Test concluded, stop the service
         (void)_message;
         stop_offer();
@@ -154,8 +131,7 @@ public:
         for (uint8_t i = 0; i < 3; ++i) {
             if (is_offer) {
                 offer();
-            }
-            else {
+            } else {
                 stop_offer();
             }
             is_offer = !is_offer;
@@ -165,7 +141,7 @@ public:
 
     void notify() {
 
-        vsomeip::byte_t its_data[]{ 0x00, 0x01, 0x02, 0x03, 0x04};
+        vsomeip::byte_t its_data[]{0x00, 0x01, 0x02, 0x03, 0x04};
         uint32_t its_size = 5;
 
         while (running_) {
@@ -212,9 +188,7 @@ private:
     struct climate_test::service_info service_info_;
 };
 
-
-TEST(someip_subscribe_notify_test_example, run_service)
-{
+TEST(someip_subscribe_notify_test_example, run_service) {
     service_sample its_sample(climate_test::service);
 
     if (its_sample.init()) {
@@ -222,10 +196,8 @@ TEST(someip_subscribe_notify_test_example, run_service)
     }
 }
 
-
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

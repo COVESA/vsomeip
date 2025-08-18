@@ -13,8 +13,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class subscribe_ack_command_base
-    : public command {
+class subscribe_ack_command_base : public command {
 
 public:
     service_t get_service() const;
@@ -35,10 +34,8 @@ public:
     pending_id_t get_pending_id() const;
     void set_pending_id(pending_id_t _pending_id);
 
-    void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 protected:
     subscribe_ack_command_base(id_e _id);

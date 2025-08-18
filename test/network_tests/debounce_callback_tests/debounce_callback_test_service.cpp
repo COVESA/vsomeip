@@ -15,20 +15,14 @@ bool debounce_test_service::init() {
 
     bool is_initialized = app_->init();
     if (is_initialized) {
-        app_->register_message_handler(
-                DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,
-                std::bind(&debounce_test_service::on_start, this, std::placeholders::_1));
-        app_->register_message_handler(
-                DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_STOP_METHOD,
-                std::bind(&debounce_test_service::on_stop, this, std::placeholders::_1));
-        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT,
-                          {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
-                          std::chrono::milliseconds::zero(), false, true, nullptr,
-                          vsomeip::reliability_type_e::RT_UNRELIABLE);
-        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2,
-                          {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
-                          std::chrono::milliseconds::zero(), false, true, nullptr,
-                          vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,
+                                       std::bind(&debounce_test_service::on_start, this, std::placeholders::_1));
+        app_->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_STOP_METHOD,
+                                       std::bind(&debounce_test_service::on_stop, this, std::placeholders::_1));
+        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->offer_service(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_MAJOR, DEBOUNCE_MINOR);
     }
     return is_initialized;
@@ -50,7 +44,7 @@ void debounce_test_service::run() {
 
     {
         std::unique_lock<std::mutex> its_lock(run_mutex_);
-        auto its_result = run_condition_.wait_for(its_lock, std::chrono::milliseconds(5000));
+        auto its_result = run_condition_.wait_for(its_lock, std::chrono::seconds(10));
         if (its_result == std::cv_status::timeout)
             return;
     }

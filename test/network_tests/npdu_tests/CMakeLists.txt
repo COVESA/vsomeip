@@ -126,14 +126,12 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     add_custom_test(
         NAME npdu_test_udp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh UDP sync
-        TIMEOUT 840
     )
 
     # Add custom test command.
     add_custom_test(
         NAME npdu_test_tcp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh TCP sync
-        TIMEOUT 840
     )
 
 endif()

@@ -8,10 +8,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-offer_service_command::offer_service_command()
-    : service_command_base(id_e::OFFER_SERVICE_ID) {
-
-}
+offer_service_command::offer_service_command() : service_command_base(id_e::OFFER_SERVICE_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

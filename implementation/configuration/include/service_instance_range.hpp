@@ -12,10 +12,10 @@ namespace vsomeip_v3 {
 namespace cfg {
 
 struct service_instance_range {
-        service_t first_service_;
-        service_t last_service_;
-        instance_t first_instance_;
-        instance_t last_instance_;
+    service_t first_service_;
+    service_t last_service_;
+    instance_t first_instance_;
+    instance_t last_instance_;
 };
 
 } // namespace cfg
