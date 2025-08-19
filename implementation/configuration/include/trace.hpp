@@ -22,10 +22,7 @@ struct trace_channel {
 };
 
 struct trace_filter {
-    trace_filter()
-        : ftype_(vsomeip_v3::trace::filter_type_e::POSITIVE),
-          is_range_(false) {
-    }
+    trace_filter() : ftype_(vsomeip_v3::trace::filter_type_e::POSITIVE), is_range_(false) { }
 
     std::vector<trace_channel_t> channels_;
     vsomeip_v3::trace::filter_type_e ftype_;
@@ -34,12 +31,7 @@ struct trace_filter {
 };
 
 struct trace {
-    trace()
-        : is_enabled_(false),
-          is_sd_enabled_(false),
-          channels_(),
-          filters_() {
-    }
+    trace() : is_enabled_(false), is_sd_enabled_(false), channels_(), filters_() { }
 
     bool is_enabled_;
     bool is_sd_enabled_;

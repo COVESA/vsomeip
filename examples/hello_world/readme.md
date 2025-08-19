@@ -6,27 +6,57 @@
 Build instructions for Hello World example
 ------------------------------------------
 
-1. Build whole project at first:
-________________________________
-cd <root directory of vSomeIP-Lib>$:
+## Linux Build Instructions
 
+1. Build whole project at first:
+
+```batch
+cd <root directory of vSomeIP-Lib>$:
 mkdir build
 cd build
 cmake ..
 make
 sudo make install
+```
 
 2. Build hello_world target
-___________________________
+```batch
 cd <root directory of vSomeIP-Lib>/examples/hello_world$:
-
 mkdir build
 cd build
 cmake ..
 make
+```
+
+## Windows Build Instructions
+
+1. Build whole project at first:
+```batch
+cd <root directory of vSomeIP-Lib>
+rmdir /s /q build
+mkdir build
+cd build
+cmake .. -A x64 -DCMAKE_INSTALL_PREFIX="$YOUR_PATH"
+cmake --build . --config Release
+cmake --build . --config Release --target install
+```
+
+2. Build hello_world target:
+```batch
+cd <root directory of vSomeIP-Lib>/examples/hello_world
+rmdir /s /q build
+mkdir build
+cd build
+cmake .. -A x64 -DCMAKE_PREFIX_PATH="$YOUR_PATH"
+cmake --build . --config Release
+```
+
+Note: Replace "Release" with "Debug" for debug builds.
 
 Running Hello World Example
 ---------------------------
+
+## Linux
 
 The Hello World Example should be run on the same host.
 The network addresses within the configuration files need to be adapted to match
@@ -35,14 +65,55 @@ the devices addresses.
 To start the hello world client and service from their build-directory do:
 
 HOST1:
+```bash
 VSOMEIP_CONFIGURATION=../helloworld-local.json \
 VSOMEIP_APPLICATION_NAME=hello_world_service \
 ./hello_world_service
+```
 
 HOST1:
+```bash
 VSOMEIP_CONFIGURATION=../helloworld-local.json \
 VSOMEIP_APPLICATION_NAME=hello_world_client \
 ./hello_world_client
+```
+
+## Windows
+
+The Hello World Example should be run on the same host.
+The network addresses within the configuration files need to be adapted to match
+the devices addresses.
+
+HOST1:
+Note: You may need to define the path of the DLLs to run the examples
+```batch
+set "PATH=<root directory of vSomeIP-Lib>\build\Release;<root directory of vSomeIP-Lib>\build\test\common;<root directory of boost instalation>\lib64-msvc-14.2;%PATH%"
+```
+```batch
+set "VSOMEIP_CONFIGURATION=<root directory of vSomeIP-Lib>\examples\hello_world\helloworld-local.json"
+set "VSOMEIP_APPLICATION_NAME=hello_world_service"
+cd /d <root directory of vSomeIP-Lib>\examples\hello_world\build\Release
+hello_world_service.exe
+```
+
+HOST1:
+Note: You may need to define the path of the DLLs to run the examples
+```batch
+set "PATH=<root directory of vSomeIP-Lib>\build\Release;<root directory of vSomeIP-Lib>\build\test\common;<root directory of boost instalation>\lib64-msvc-14.2;%PATH%"
+```
+```batch
+set "VSOMEIP_CONFIGURATION=<root directory of vSomeIP-Lib>\examples\hello_world\helloworld-local.json"
+set "VSOMEIP_APPLICATION_NAME=hello_world_client"
+cd /d <root directory of vSomeIP-Lib>\examples\hello_world\build\Release
+hello_world_client.exe
+```
+
+### Notes for Windows:
+- Replace `<root directory of vSomeIP-Lib>` with your actual vsomeip-lib path
+- Replace `$YOUR_PATH` with your actual installation path
+- Replace "Release" with "Debug" for debug builds
+- Both applications need to be running simultaneously for communication to work
+- Ensure all paths match your actual installation directories
 
 Expected output service
 -----------------------

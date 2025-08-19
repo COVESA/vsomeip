@@ -13,7 +13,7 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile05 {
 
-void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+void protector::protect(e2e_buffer& _buffer, instance_t _instance) {
 
     (void)_instance;
 
@@ -32,19 +32,18 @@ void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
         uint16_t its_crc = profile_05::compute_crc(config_, _buffer);
         bithelper::write_uint16_be(its_crc, &_buffer[config_.offset_]);
 
-        // increment the Counter (new value will be used in the next invocation of E2E_P05Protect()),
+        // increment the Counter (new value will be used in the next invocation of
+        // E2E_P05Protect()),
         increment_counter(_instance);
     }
 }
 
-void
-protector::write_counter(e2e_buffer &_buffer, uint8_t _data, size_t _index) {
+void protector::write_counter(e2e_buffer& _buffer, uint8_t _data, size_t _index) {
 
     _buffer[config_.offset_ + _index] = _data;
 }
 
-uint8_t
-protector::get_counter(instance_t _instance) const {
+uint8_t protector::get_counter(instance_t _instance) const {
 
     uint8_t its_counter(0);
 
@@ -55,8 +54,7 @@ protector::get_counter(instance_t _instance) const {
     return its_counter;
 }
 
-void
-protector::increment_counter(instance_t _instance) {
+void protector::increment_counter(instance_t _instance) {
 
     auto find_counter = counter_.find(_instance);
     if (find_counter != counter_.end())

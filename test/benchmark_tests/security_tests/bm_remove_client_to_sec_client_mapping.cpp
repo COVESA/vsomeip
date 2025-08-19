@@ -7,7 +7,7 @@
 
 #include <common/utility.hpp>
 
-namespace{
+namespace {
 vsomeip_v3::client_t client = 10;
 vsomeip_v3::uid_t uid = 4003030;
 vsomeip_v3::gid_t gid = 4003032;
@@ -16,8 +16,7 @@ vsomeip_sec_ip_addr_t host_address = 0;
 std::pair<uint32_t, uint32_t> client_uid_gid{uid, gid};
 }
 
-static void BM_remove_client_to_sec_client_mapping_invalid_values(benchmark::State &state)
-{
+static void BM_remove_client_to_sec_client_mapping_invalid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid, gid, host_address);
@@ -31,8 +30,7 @@ static void BM_remove_client_to_sec_client_mapping_invalid_values(benchmark::Sta
     }
 }
 
-static void BM_remove_client_to_sec_client_mapping_valid_values(benchmark::State &state)
-{
+static void BM_remove_client_to_sec_client_mapping_valid_values(benchmark::State& state) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     vsomeip_sec_client_t its_sec_client = utility::create_uds_client(uid, gid, host_address);

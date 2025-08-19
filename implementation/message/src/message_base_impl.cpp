@@ -8,27 +8,23 @@
 
 namespace vsomeip_v3 {
 
-message_base_impl::message_base_impl()
-    : is_reliable_(false),
-      is_initial_(false) {
+message_base_impl::message_base_impl() : is_reliable_(false), is_initial_(false) {
     header_.set_owner(this);
 }
 
-message_base_impl::~message_base_impl() {
-}
+message_base_impl::~message_base_impl() { }
 
 // header interface
 message_t message_base_impl::get_message() const {
-    const uint8_t header_message[] = {static_cast<uint8_t>((header_.service_ & 0xFF00) >> 8),
-                                      static_cast<uint8_t>( header_.service_ & 0x00FF),
-                                      static_cast<uint8_t>((header_.method_  & 0xFF00) >> 8),
-                                      static_cast<uint8_t>( header_.method_  & 0x00FF)};
+    const uint8_t header_message[] = {
+            static_cast<uint8_t>((header_.service_ & 0xFF00) >> 8), static_cast<uint8_t>(header_.service_ & 0x00FF),
+            static_cast<uint8_t>((header_.method_ & 0xFF00) >> 8), static_cast<uint8_t>(header_.method_ & 0x00FF)};
     return bithelper::read_uint32_be(header_message);
 }
 
 void message_base_impl::set_message(message_t _message) {
     header_.service_ = bithelper::read_high_word(_message);
-    header_.method_  = bithelper::read_low_word(_message);
+    header_.method_ = bithelper::read_low_word(_message);
 }
 
 service_t message_base_impl::get_service() const {
@@ -56,10 +52,9 @@ void message_base_impl::set_method(method_t _method) {
 }
 
 request_t message_base_impl::get_request() const {
-    const uint8_t header_message[] = {static_cast<uint8_t>((header_.client_  & 0xFF00) >> 8),
-                                      static_cast<uint8_t>( header_.client_  & 0x00FF),
+    const uint8_t header_message[] = {static_cast<uint8_t>((header_.client_ & 0xFF00) >> 8), static_cast<uint8_t>(header_.client_ & 0x00FF),
                                       static_cast<uint8_t>((header_.session_ & 0xFF00) >> 8),
-                                      static_cast<uint8_t>( header_.session_ & 0x00FF)};
+                                      static_cast<uint8_t>(header_.session_ & 0x00FF)};
     return bithelper::read_uint32_be(header_message);
 }
 

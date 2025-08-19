@@ -90,9 +90,6 @@ SET(TEST_GID "${TEST_GID_DEFAULT_VALUE}" CACHE STRING
 SET(TEST_SECURITY "ON" CACHE BOOL
 "Controls whether security tests should run or not")
 
-SET(TEST_SKIP_VALGRIND_TRACKING "ON" CACHE BOOL
-"Controls if valgrind subprocesses tracking skipping is enabled or not for dedicated network tests")
-
 if((${TEST_UID} STREQUAL ${TEST_UID_DEFAULT_VALUE}) OR
    (${TEST_GID}  STREQUAL ${TEST_GID_DEFAULT_VALUE}) OR
    DISABLE_SECURITY)

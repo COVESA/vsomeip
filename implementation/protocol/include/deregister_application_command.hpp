@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class deregister_application_command
-    : public simple_command {
+class deregister_application_command : public simple_command {
 
 public:
     deregister_application_command();

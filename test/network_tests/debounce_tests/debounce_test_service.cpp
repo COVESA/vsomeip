@@ -15,24 +15,16 @@ bool debounce_test_service::init() {
 
     bool is_initialized = app_->init();
     if (is_initialized) {
-        app_->register_message_handler(
-                DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,
-                std::bind(&debounce_test_service::on_start, this, std::placeholders::_1));
-        app_->register_message_handler(
-                DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_STOP_METHOD,
-                std::bind(&debounce_test_service::on_stop, this, std::placeholders::_1));
-        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT,
-                          {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
-                          std::chrono::milliseconds::zero(), false, true, nullptr,
-                          vsomeip::reliability_type_e::RT_UNRELIABLE);
-        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2,
-                          {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
-                          std::chrono::milliseconds::zero(), false, true, nullptr,
-                          vsomeip::reliability_type_e::RT_UNRELIABLE);
-        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_4,
-                          {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
-                          std::chrono::milliseconds::zero(), false, true, nullptr,
-                          vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,
+                                       std::bind(&debounce_test_service::on_start, this, std::placeholders::_1));
+        app_->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_STOP_METHOD,
+                                       std::bind(&debounce_test_service::on_stop, this, std::placeholders::_1));
+        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
+        app_->offer_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_4, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+                          std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->offer_service(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_MAJOR, DEBOUNCE_MINOR);
     }
     return is_initialized;
@@ -152,16 +144,14 @@ void debounce_test_service::start_test() {
         its_payload->set_data({0x08, 0x02, 0x03, 0x04, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B});
         app_->notify(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, its_payload);
 
-        its_payload->set_data(
-                {0x09, 0x02, 0x03, 0x04, 0x01, 0x07, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C});
+        its_payload->set_data({0x09, 0x02, 0x03, 0x04, 0x01, 0x07, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C});
         app_->notify(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, its_payload);
     }
 
     if (test_id_ == debounce_test_id_e::DTI_DECREASE) {
         auto its_payload = vsomeip::runtime::get()->create_payload();
 
-        its_payload->set_data(
-                {0x00, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C});
+        its_payload->set_data({0x00, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C});
         app_->notify(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, its_payload);
 
         its_payload->set_data({0x01, 0x02, 0x03, 0x04, 0x05, 0x07, 0x07, 0x08, 0x09, 0x0A, 0x0B});

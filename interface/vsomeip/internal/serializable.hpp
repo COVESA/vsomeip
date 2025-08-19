@@ -17,12 +17,12 @@ class serializer;
  */
 class serializable {
 public:
-    VSOMEIP_EXPORT virtual ~serializable() {}
+    VSOMEIP_EXPORT virtual ~serializable() { }
 
     /**
      * \brief serialize the content of the object
      */
-    VSOMEIP_EXPORT virtual bool serialize(serializer *_to) const = 0;
+    VSOMEIP_EXPORT virtual bool serialize(serializer* _to) const = 0;
 };
 
 } // namespace vsomeip_v3

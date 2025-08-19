@@ -43,9 +43,13 @@ if (TEST_SECURITY)
     targets_add_default_dependencies("${executables}")
 
 # Skip valgrind
-    if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "" AND TEST_SKIP_VALGRIND_TRACKING)
+    if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
         set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/lazy_load_test_*,*/routingmanagerd)
     endif()
+
+    # logs won't be generated for this test as there is one application which
+    # will run as uid:1 gid:1, which is not allowed to write to the log file
+    list(FILTER TEST_ENTRYPOINT EXCLUDE REGEX "^--log-file=") 
 
     # Add custom test command.
     add_custom_test(

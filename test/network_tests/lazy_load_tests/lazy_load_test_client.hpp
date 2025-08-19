@@ -24,9 +24,8 @@ public:
     void stop();
 
     void on_state(vsomeip::state_type_e _state);
-    void on_availability(vsomeip::service_t _service,
-            vsomeip::instance_t _instance, bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_response);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _response);
 
     void run();
     void join_sender_thread();
@@ -55,7 +54,6 @@ private:
     const std::uint16_t EVENT_TO_REFUSE = 0x8002;
 
     const std::uint16_t NUMBER_OF_MESSAGES_TO_SEND = 10;
-
 };
 
 #endif // LAZY_LOAD_TEST_CLIENT_HPP

@@ -17,21 +17,15 @@ namespace cfg {
 struct eventgroup;
 
 struct event {
-    event(event_t _id, bool _is_field, reliability_type_e _reliability,
-            std::chrono::milliseconds _cycle, bool _change_resets_cycle,
-            bool _update_on_change)
-        : id_(_id),
-          is_field_(_is_field),
-          reliability_(_reliability),
-          cycle_(_cycle),
-          change_resets_cycle_(_change_resets_cycle),
-          update_on_change_(_update_on_change) {
-    }
+    event(event_t _id, bool _is_field, reliability_type_e _reliability, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
+          bool _update_on_change) :
+        id_(_id), is_field_(_is_field), reliability_(_reliability), cycle_(_cycle), change_resets_cycle_(_change_resets_cycle),
+        update_on_change_(_update_on_change) { }
 
     event_t id_;
     bool is_field_;
     reliability_type_e reliability_;
-    std::vector<std::weak_ptr<eventgroup> > groups_;
+    std::vector<std::weak_ptr<eventgroup>> groups_;
 
     std::chrono::milliseconds cycle_;
     bool change_resets_cycle_;

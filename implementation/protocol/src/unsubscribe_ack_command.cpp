@@ -12,69 +12,52 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-unsubscribe_ack_command::unsubscribe_ack_command()
-    : command(id_e::UNSUBSCRIBE_ACK_ID),
-      service_(ANY_SERVICE),
-      instance_(ANY_INSTANCE),
-      eventgroup_(0),
-      pending_id_(0) {
-}
+unsubscribe_ack_command::unsubscribe_ack_command() :
+    command(id_e::UNSUBSCRIBE_ACK_ID), service_(ANY_SERVICE), instance_(ANY_INSTANCE), eventgroup_(0), pending_id_(0) { }
 
-service_t
-unsubscribe_ack_command::get_service() const {
+service_t unsubscribe_ack_command::get_service() const {
 
     return service_;
 }
 
-void
-unsubscribe_ack_command::set_service(service_t _service) {
+void unsubscribe_ack_command::set_service(service_t _service) {
 
     service_ = _service;
 }
 
-instance_t
-unsubscribe_ack_command::get_instance() const {
+instance_t unsubscribe_ack_command::get_instance() const {
 
     return instance_;
 }
 
-void
-unsubscribe_ack_command::set_instance(instance_t _instance) {
+void unsubscribe_ack_command::set_instance(instance_t _instance) {
 
     instance_ = _instance;
 }
 
-eventgroup_t
-unsubscribe_ack_command::get_eventgroup() const {
+eventgroup_t unsubscribe_ack_command::get_eventgroup() const {
 
     return eventgroup_;
 }
 
-void
-unsubscribe_ack_command::set_eventgroup(eventgroup_t _eventgroup) {
+void unsubscribe_ack_command::set_eventgroup(eventgroup_t _eventgroup) {
 
     eventgroup_ = _eventgroup;
 }
 
-pending_id_t
-unsubscribe_ack_command::get_pending_id() const {
+pending_id_t unsubscribe_ack_command::get_pending_id() const {
 
     return pending_id_;
 }
 
-void
-unsubscribe_ack_command::set_pending_id(pending_id_t _pending_id) {
+void unsubscribe_ack_command::set_pending_id(pending_id_t _pending_id) {
 
     pending_id_ = _pending_id;
 }
 
-void
-unsubscribe_ack_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void unsubscribe_ack_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(pending_id_));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -104,13 +87,9 @@ unsubscribe_ack_command::serialize(std::vector<byte_t> &_buffer,
     std::memcpy(&_buffer[its_offset], &pending_id_, sizeof(pending_id_));
 }
 
-void
-unsubscribe_ack_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void unsubscribe_ack_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(pending_id_));
 
     if (its_size > _buffer.size()) {
 
@@ -132,7 +111,6 @@ unsubscribe_ack_command::deserialize(const std::vector<byte_t> &_buffer,
     std::memcpy(&eventgroup_, &_buffer[its_offset], sizeof(eventgroup_));
     its_offset += sizeof(eventgroup_);
     std::memcpy(&pending_id_, &_buffer[its_offset], sizeof(pending_id_));
-
 }
 
 } // namespace protocol

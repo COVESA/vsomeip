@@ -19,13 +19,8 @@
 class service_sample {
 public:
     service_sample(bool _use_static_routing) :
-            app_(vsomeip::runtime::get()->create_application()),
-            is_registered_(false),
-            use_static_routing_(_use_static_routing),
-            blocked_(false),
-            running_(true),
-            offer_thread_(std::bind(&service_sample::run, this)) {
-    }
+        app_(vsomeip::runtime::get()->create_application()), is_registered_(false), use_static_routing_(_use_static_routing),
+        blocked_(false), running_(true), offer_thread_(std::bind(&service_sample::run, this)) { }
 
     bool init() {
         std::lock_guard<std::mutex> its_lock(mutex_);
@@ -34,22 +29,15 @@ public:
             std::cerr << "Couldn't initialize application" << std::endl;
             return false;
         }
-        app_->register_state_handler(
-                std::bind(&service_sample::on_state, this,
-                        std::placeholders::_1));
-        app_->register_message_handler(
-                SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
-                std::bind(&service_sample::on_message, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&service_sample::on_state, this, std::placeholders::_1));
+        app_->register_message_handler(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_METHOD_ID,
+                                       std::bind(&service_sample::on_message, this, std::placeholders::_1));
 
-        std::cout << "Static routing " << (use_static_routing_ ? "ON" : "OFF")
-                  << std::endl;
+        std::cout << "Static routing " << (use_static_routing_ ? "ON" : "OFF") << std::endl;
         return true;
     }
 
-    void start() {
-        app_->start();
-    }
+    void start() { app_->start(); }
 
     void stop() {
         running_ = false;
@@ -79,9 +67,7 @@ public:
 
     void on_state(vsomeip::state_type_e _state) {
         std::cout << "Application " << app_->get_name() << " is "
-                << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                        "registered." : "deregistered.")
-                << std::endl;
+                  << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.") << std::endl;
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             if (!is_registered_) {
@@ -94,18 +80,13 @@ public:
         }
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_request) {
-        std::cout << "Received a message with Client/Session ["
-		  << std::hex << std::setfill('0')
-		  << std::setw(4) << _request->get_client() << "/"
-		  << std::setw(4) << _request->get_session() << "]"
-		  << std::endl;
+    void on_message(const std::shared_ptr<vsomeip::message>& _request) {
+        std::cout << "Received a message with Client/Session [" << std::hex << std::setfill('0') << std::setw(4) << _request->get_client()
+                  << "/" << std::setw(4) << _request->get_session() << "]" << std::endl;
 
-        std::shared_ptr<vsomeip::message> its_response
-            = vsomeip::runtime::get()->create_response(_request);
+        std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_request);
 
-        std::shared_ptr<vsomeip::payload> its_payload
-            = vsomeip::runtime::get()->create_payload();
+        std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
         std::vector<vsomeip::byte_t> its_payload_data;
         for (std::size_t i = 0; i < 120; ++i)
             its_payload_data.push_back(vsomeip::byte_t(i % 256));
@@ -124,7 +105,8 @@ public:
 
         if (use_static_routing_) {
             offer();
-            while (running_);
+            while (running_)
+                ;
         } else {
             while (running_) {
                 if (is_offer)
@@ -154,15 +136,14 @@ private:
 };
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    service_sample *its_sample_ptr(nullptr);
-    void handle_signal(int _signal) {
-        if (its_sample_ptr != nullptr &&
-                (_signal == SIGINT || _signal == SIGTERM))
-            its_sample_ptr->stop();
-    }
+service_sample* its_sample_ptr(nullptr);
+void handle_signal(int _signal) {
+    if (its_sample_ptr != nullptr && (_signal == SIGINT || _signal == SIGTERM))
+        its_sample_ptr->stop();
+}
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     bool use_static_routing(false);
 
     std::string static_routing_enable("--static-routing");

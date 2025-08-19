@@ -10,13 +10,12 @@
 #include "../../../implementation/message/include/serializer.hpp"
 
 namespace {
-    const std::uint8_t array_size = 4;
-    const std::uint32_t buffer_shrink_threshold = 1;
-    const vsomeip_v3::byte_t byte1 = 1;
-    const vsomeip_v3::byte_t byte2 = 2;
-    const vsomeip_v3::byte_t byte3 = 3;
-    const vsomeip_v3::byte_t byte4 = 4;
-
+const std::uint8_t array_size = 4;
+const std::uint32_t buffer_shrink_threshold = 1;
+const vsomeip_v3::byte_t byte1 = 1;
+const vsomeip_v3::byte_t byte2 = 2;
+const vsomeip_v3::byte_t byte3 = 3;
+const vsomeip_v3::byte_t byte4 = 4;
 }
 
 TEST(payload_impl_test, equalequal_operator) {

@@ -36,13 +36,9 @@
     {
         "host" :
         {
-            "name" : "big_payload_test_client",
-            "unicast" : "@TEST_IP_MASTER@",
+            "name" : "big_payload_test_service",
+            "unicast" : "@TEST_IP_SLAVE@",
             "port" : "31490"
-        },
-        "guests" :
-        {
-            "unicast" : "@TEST_IP_SLAVE@"
         }
     },
     "service-discovery":

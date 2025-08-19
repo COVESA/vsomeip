@@ -19,16 +19,14 @@ public:
     profile_01_checker(void) = delete;
 
     // [SWS_E2E_00389] initialize state
-    explicit profile_01_checker(const profile_config &_config) :
-            config_(_config) {}
+    explicit profile_01_checker(const profile_config& _config) : config_(_config) { }
 
-    void check(const e2e_buffer &_buffer, instance_t _instance,
-            e2e::profile_interface::check_status_t &_generic_check_status) override final;
+    void check(const e2e_buffer& _buffer, instance_t _instance,
+               e2e::profile_interface::check_status_t& _generic_check_status) override final;
 
 private:
     profile_config config_;
     std::mutex check_mutex_;
-
 };
 
 } // namespace profile01

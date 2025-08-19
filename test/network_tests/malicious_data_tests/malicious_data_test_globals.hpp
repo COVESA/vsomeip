@@ -18,16 +18,9 @@ struct service_info {
     vsomeip::method_t notify_method_id;
 };
 
-struct service_info service = { 0x3344, 0x1, 0x1111, 0x8002, 0x1, 0x1404, 0x4242 };
+struct service_info service = {0x3344, 0x1, 0x1111, 0x8002, 0x1, 0x1404, 0x4242};
 
-enum test_mode_e {
-    MALICIOUS_EVENTS,
-    PROTOCOL_VERSION,
-    MESSAGE_TYPE,
-    RETURN_CODE,
-    WRONG_HEADER_FIELDS_UDP
-};
-
+enum test_mode_e { MALICIOUS_EVENTS, PROTOCOL_VERSION, MESSAGE_TYPE, RETURN_CODE, WRONG_HEADER_FIELDS_UDP };
 }
 
 #endif /* MALICIOUS_DATA_TEST_GLOBALS_HPP_ */

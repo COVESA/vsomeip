@@ -20,23 +20,21 @@
 
 namespace vsomeip_utilities {
 
-std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(
-        vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip_v3::method_t _method,
-        vsomeip_v3::interface_version_t _interface, vsomeip_v3::message_type_e _message_type);
+std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::service_t _service, vsomeip::instance_t _instance,
+                                                                  vsomeip_v3::method_t _method, vsomeip_v3::interface_version_t _interface,
+                                                                  vsomeip_v3::message_type_e _message_type);
 
-class base_logger
-{
+class base_logger {
 public:
-    const char *_dlt_application_id = nullptr;
-    const char *_dlt_application_name = nullptr;
+    const char* _dlt_application_id = nullptr;
+    const char* _dlt_application_name = nullptr;
 
-    base_logger(const char *dlt_application_id, const char *dlt_application_name);
+    base_logger(const char* dlt_application_id, const char* dlt_application_name);
 
     ~base_logger();
 };
 
-class base_vsip_app: public base_logger
-{
+class base_vsip_app : public base_logger {
 protected:
     std::shared_ptr<vsomeip::application> _app;
     std::thread _run_thread;
@@ -44,7 +42,7 @@ protected:
     void run();
 
 public:
-    base_vsip_app(const char *app_name_, const char *app_id_);
+    base_vsip_app(const char* app_name_, const char* app_id_);
     ~base_vsip_app();
 };
 }

@@ -7,13 +7,11 @@
 
 #include <common/utility.hpp>
 
-namespace
-{
-    std::string configuration_file{"/vsomeip/vsomeip_policy_extensions.json"}; // set configuration file policy extension
+namespace {
+std::string configuration_file{"/vsomeip/vsomeip_policy_extensions.json"}; // set configuration file policy extension
 }
 
-static void BM_configuration_element(benchmark::State &state)
-{
+static void BM_configuration_element(benchmark::State& state) {
     // Test object path
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
@@ -23,19 +21,15 @@ static void BM_configuration_element(benchmark::State &state)
     // After load try again and check size
     std::set<std::string> its_failed;
     std::vector<std::string> dir_skip;
-    utility::read_data(utility::get_all_files_in_dir(
-                           utility::get_policies_path(), dir_skip),
-                       full_element, its_failed);
+    utility::read_data(utility::get_all_files_in_dir(utility::get_policies_path(), dir_skip), full_element, its_failed);
 
     // Load element and force lazy load = false
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         security->load(full_element.at(0), false);
     }
 }
 
-static void BM_lazy_load(benchmark::State &state)
-{
+static void BM_lazy_load(benchmark::State& state) {
     // Test object path
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
@@ -46,12 +40,9 @@ static void BM_lazy_load(benchmark::State &state)
     // Load
     std::set<std::string> its_failed;
     std::vector<std::string> dir_skip;
-    utility::read_data(utility::get_all_files_in_dir(
-                           utility::get_policies_path(), dir_skip),
-                       element, its_failed);
+    utility::read_data(utility::get_all_files_in_dir(utility::get_policies_path(), dir_skip), element, its_failed);
 
-    for (auto _ : state)
-    {
+    for (auto _ : state) {
         security->load(element.at(0), lazy_load);
     }
 }

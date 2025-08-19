@@ -18,28 +18,29 @@ namespace vsomeip_v3 {
 
 class message;
 
-typedef std::function< void (state_type_e) > state_handler_t;
-typedef std::function< void (const std::shared_ptr< message > &) > message_handler_t;
-typedef std::function< void (service_t, instance_t, bool) > availability_handler_t;
-typedef std::function< void (service_t, instance_t, availability_state_e) > availability_state_handler_t;
-VSOMEIP_DEPRECATED_UID_GID typedef std::function< bool (client_t, uid_t, gid_t, bool) > subscription_handler_t;
-VSOMEIP_DEPRECATED_UID_GID typedef std::function< bool (client_t, uid_t, gid_t, const std::string &, bool) > subscription_handler_ext_t;
-typedef std::function< void (const uint16_t) > error_handler_t;
-typedef std::function< void (const service_t, const instance_t, const eventgroup_t,
-                             const event_t, const uint16_t) > subscription_status_handler_t;
-VSOMEIP_DEPRECATED_UID_GID typedef std::function< void (client_t, uid_t, gid_t, bool,
-            std::function< void (const bool) > )> async_subscription_handler_t;
-VSOMEIP_DEPRECATED_UID_GID typedef std::function< void (client_t, uid_t, gid_t, const std::string &, bool,
-            std::function< void (const bool) > )> async_subscription_handler_ext_t;
+typedef std::function<void(state_type_e)> state_handler_t;
+typedef std::function<void(const std::shared_ptr<message>&)> message_handler_t;
+typedef std::function<void(service_t, instance_t, bool)> availability_handler_t;
+typedef std::function<void(service_t, instance_t, availability_state_e)> availability_state_handler_t;
+VSOMEIP_DEPRECATED_UID_GID typedef std::function<bool(client_t, uid_t, gid_t, bool)> subscription_handler_t;
+VSOMEIP_DEPRECATED_UID_GID typedef std::function<bool(client_t, uid_t, gid_t, const std::string&, bool)> subscription_handler_ext_t;
+typedef std::function<void(const uint16_t)> error_handler_t;
+typedef std::function<void(const service_t, const instance_t, const eventgroup_t, const event_t, const uint16_t)>
+        subscription_status_handler_t;
+VSOMEIP_DEPRECATED_UID_GID typedef std::function<void(client_t, uid_t, gid_t, bool, std::function<void(const bool)>)>
+        async_subscription_handler_t;
+VSOMEIP_DEPRECATED_UID_GID typedef std::function<void(client_t, uid_t, gid_t, const std::string&, bool, std::function<void(const bool)>)>
+        async_subscription_handler_ext_t;
 
-typedef std::function< void (const std::vector<std::pair<service_t, instance_t>> &_services) > offered_services_handler_t;
-typedef std::function< void () > watchdog_handler_t;
+typedef std::function<void(const std::vector<std::pair<service_t, instance_t>>& _services)> offered_services_handler_t;
+typedef std::function<void()> watchdog_handler_t;
 
 /*
  * vsomeip_sec_client_t-aware subscription handlers
  */
-using subscription_handler_sec_t       = std::function<bool(client_t, const vsomeip_sec_client_t*, const std::string&, bool)>;
-using async_subscription_handler_sec_t = std::function<void(client_t, const vsomeip_sec_client_t*, const std::string&, bool, std::function<void(bool)>)>;
+using subscription_handler_sec_t = std::function<bool(client_t, const vsomeip_sec_client_t*, const std::string&, bool)>;
+using async_subscription_handler_sec_t =
+        std::function<void(client_t, const vsomeip_sec_client_t*, const std::string&, bool, std::function<void(bool)>)>;
 
 struct ip_address_t {
     union {
@@ -70,10 +71,7 @@ struct ip_address_t {
         }
     }
 
-    bool operator!=(const ip_address_t& _other) const {
-        return !(*this == _other);
-    }
-
+    bool operator!=(const ip_address_t& _other) const { return !(*this == _other); }
 };
 
 struct remote_info_t {
@@ -84,9 +82,8 @@ struct remote_info_t {
     bool is_reliable_;
 
     bool operator<(const remote_info_t& _other) const {
-        return std::tie(ip_, first_, last_, is_range_, is_reliable_) <
-                std::tie(_other.ip_, _other.first_, _other.last_,
-                         _other.is_range_, _other.is_reliable_);
+        return std::tie(ip_, first_, last_, is_range_, is_reliable_)
+                < std::tie(_other.ip_, _other.first_, _other.last_, _other.is_range_, _other.is_reliable_);
     }
 };
 

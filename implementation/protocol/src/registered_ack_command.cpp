@@ -8,10 +8,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-registered_ack_command::registered_ack_command()
-    : simple_command(id_e::REGISTERED_ACK_ID) {
-
-}
+registered_ack_command::registered_ack_command() : simple_command(id_e::REGISTERED_ACK_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

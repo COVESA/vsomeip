@@ -1,0 +1,34 @@
+#!/bin/bash
+# Copyright (C) 2015-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+set -e -o pipefail
+cleanup() {
+    echo "Cleaning up..."
+    [[ -n "$PID_VSOMEIPD" ]] && kill -9 "$PID_VSOMEIPD" 2>/dev/null || true
+    [[ -n "$PID_PROXY" ]] && kill -9 "$PID_PROXY" 2>/dev/null || true
+    iptables -D OUTPUT -j NFQUEUE --queue-num 0 2>/dev/null || true
+}
+
+trap cleanup EXIT
+
+export VSOMEIP_CONFIGURATION=registration_check_config.json
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
+# start daemon
+../../../examples/routingmanagerd/routingmanagerd &
+PID_VSOMEIPD=$!
+
+sleep 1
+
+export PYTHONUNBUFFERED=1
+python3 ./someip_sequence_checker.py &>someip_sequence_checker_output.txt &
+PID_PROXY=$!
+
+sleep 1
+
+export VSOMEIP_APPLICATION_NAME=service-sample
+./registration_check_test
+TEST_RESULT=$?
+
+exit $TEST_RESULT

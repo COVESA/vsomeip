@@ -28,7 +28,7 @@ entry_impl::entry_impl() {
     index2_ = 0;
 }
 
-entry_impl::entry_impl(const entry_impl &_entry) {
+entry_impl::entry_impl(const entry_impl& _entry) {
     type_ = _entry.type_;
     major_version_ = _entry.major_version_;
     service_ = _entry.service_;
@@ -40,8 +40,7 @@ entry_impl::entry_impl(const entry_impl &_entry) {
     index2_ = _entry.index2_;
 }
 
-entry_impl::~entry_impl() {
-}
+entry_impl::~entry_impl() { }
 
 entry_type_e entry_impl::get_type() const {
     return type_;
@@ -83,7 +82,7 @@ void entry_impl::set_ttl(ttl_t _ttl) {
     ttl_ = _ttl;
 }
 
-const std::vector<uint8_t> & entry_impl::get_options(uint8_t _run) const {
+const std::vector<uint8_t>& entry_impl::get_options(uint8_t _run) const {
     static std::vector<uint8_t> invalid_options;
     if (_run > 0 && _run <= VSOMEIP_MAX_OPTION_RUN)
         return options_[_run - 1];
@@ -91,33 +90,29 @@ const std::vector<uint8_t> & entry_impl::get_options(uint8_t _run) const {
     return invalid_options;
 }
 
-void entry_impl::assign_option(const std::shared_ptr<option_impl> &_option) {
+void entry_impl::assign_option(const std::shared_ptr<option_impl>& _option) {
     int16_t i = get_owning_message()->get_option_index(_option);
     if (i > -1 && i < 256) {
         uint8_t its_index = static_cast<uint8_t>(i);
-        if (options_[0].empty() ||
-                options_[0][0] == its_index + 1 ||
-                options_[0][options_[0].size() - 1] + 1 == its_index) {
+        if (options_[0].empty() || options_[0][0] == its_index + 1 || options_[0][options_[0].size() - 1] + 1 == its_index) {
             options_[0].push_back(its_index);
             std::sort(options_[0].begin(), options_[0].end());
             num_options_[0]++;
-        } else if (options_[1].empty() ||
-                options_[1][0] == its_index + 1 ||
-                options_[1][options_[1].size() - 1] + 1 == its_index) {
+        } else if (options_[1].empty() || options_[1][0] == its_index + 1 || options_[1][options_[1].size() - 1] + 1 == its_index) {
             options_[1].push_back(its_index);
             std::sort(options_[1].begin(), options_[1].end());
             num_options_[1]++;
         } else {
-            VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of endpoint options reached!";
+            VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of "
+                               "endpoint options reached!";
         }
     } else {
         VSOMEIP_ERROR << "Option could not be found.";
     }
 }
 
-bool entry_impl::serialize(vsomeip_v3::serializer *_to) const {
-    bool is_successful = (0 != _to
-            && _to->serialize(static_cast<uint8_t>(type_)));
+bool entry_impl::serialize(vsomeip_v3::serializer* _to) const {
+    bool is_successful = (0 != _to && _to->serialize(static_cast<uint8_t>(type_)));
 
     uint8_t index_first_option_run = 0;
     if (options_[0].size() > 0)
@@ -129,20 +124,17 @@ bool entry_impl::serialize(vsomeip_v3::serializer *_to) const {
         index_second_option_run = options_[1][0];
     is_successful = is_successful && _to->serialize(index_second_option_run);
 
-    uint8_t number_of_options = uint8_t((((uint8_t) options_[0].size()) << 4)
-            | (((uint8_t) options_[1].size()) & 0x0F));
+    uint8_t number_of_options = uint8_t((((uint8_t)options_[0].size()) << 4) | (((uint8_t)options_[1].size()) & 0x0F));
     is_successful = is_successful && _to->serialize(number_of_options);
 
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint16_t>(service_));
+    is_successful = is_successful && _to->serialize(static_cast<uint16_t>(service_));
 
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint16_t>(instance_));
+    is_successful = is_successful && _to->serialize(static_cast<uint16_t>(instance_));
 
     return is_successful;
 }
 
-bool entry_impl::deserialize(vsomeip_v3::deserializer *_from) {
+bool entry_impl::deserialize(vsomeip_v3::deserializer* _from) {
     bool is_successful = (0 != _from);
 
     uint8_t its_type(0);
@@ -180,15 +172,14 @@ bool entry_impl::is_service_entry() const {
 }
 
 bool entry_impl::is_eventgroup_entry() const {
-    return (type_ >= entry_type_e::FIND_EVENT_GROUP
-            && type_ <= entry_type_e::SUBSCRIBE_EVENTGROUP_ACK);
+    return (type_ >= entry_type_e::FIND_EVENT_GROUP && type_ <= entry_type_e::SUBSCRIBE_EVENTGROUP_ACK);
 }
 
 uint8_t entry_impl::get_num_options(uint8_t _run) const {
     if (_run < 1 || _run > VSOMEIP_MAX_OPTION_RUN) {
         return 0x0;
     }
-    return num_options_[_run-1];
+    return num_options_[_run - 1];
 }
 
 } // namespace sd

@@ -15,8 +15,7 @@
 #endif
 #endif
 
-namespace vsomeip_test
-{
+namespace vsomeip_test {
 
 // Service
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID = 0x1234;
@@ -31,13 +30,12 @@ constexpr vsomeip::client_t TEST_CLIENT_CLIENT_ID = 0x1255;
 // Client external
 constexpr vsomeip::client_t TEST_CLIENT_EXTERNAL_CLIENT_ID = 0x1644;
 
-
 constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND = 10;
 constexpr vsomeip::session_t TEST_INITIAL_SESSION_ID = 0x1;
 
 constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_PAYLOAD_TESTS = 1000;
 constexpr vsomeip::byte_t PAYLOAD_TEST_DATA = 0xDD;
-constexpr std::uint32_t MAX_PAYLOADSIZE = 1024*128;
+constexpr std::uint32_t MAX_PAYLOADSIZE = 1024 * 128;
 // TR_SOMEIP_00061
 constexpr std::uint32_t MAX_PAYLOADSIZE_UDP = 1400;
 

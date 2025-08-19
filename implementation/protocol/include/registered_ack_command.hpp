@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class registered_ack_command
-    : public simple_command {
+class registered_ack_command : public simple_command {
 
 public:
     registered_ack_command();

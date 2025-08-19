@@ -24,23 +24,18 @@ struct profile_config;
 
 class profile_04 {
 public:
-    static uint32_t compute_crc(const profile_config &_config, const e2e_buffer &_buffer);
+    static uint32_t compute_crc(const profile_config& _config, const e2e_buffer& _buffer);
 };
 
 // [SWS_E2E_00200]
 struct profile_config {
     profile_config() = delete;
 
-    profile_config(uint32_t _data_id, size_t _offset,
-            size_t _min_data_length, size_t _max_data_length,
-            uint16_t _max_delta_counter)
-        : data_id_(_data_id), offset_(_offset),
-          min_data_length_(_min_data_length), max_data_length_(_max_data_length),
-          max_delta_counter_(_max_delta_counter),
-          base_(VSOMEIP_SOMEIP_HEADER_SIZE) {
-    }
-    profile_config(const profile_config &_config) = default;
-    profile_config &operator=(const profile_config &_config) = default;
+    profile_config(uint32_t _data_id, size_t _offset, size_t _min_data_length, size_t _max_data_length, uint16_t _max_delta_counter) :
+        data_id_(_data_id), offset_(_offset), min_data_length_(_min_data_length), max_data_length_(_max_data_length),
+        max_delta_counter_(_max_delta_counter), base_(VSOMEIP_SOMEIP_HEADER_SIZE) { }
+    profile_config(const profile_config& _config) = default;
+    profile_config& operator=(const profile_config& _config) = default;
 
     // [SWS_E2E_00334]
     uint32_t data_id_;

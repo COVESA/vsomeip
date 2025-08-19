@@ -16,19 +16,17 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class register_events_command
-    : public command {
+class register_events_command : public command {
 public:
-
     register_events_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     std::size_t get_num_registrations() const;
 
-    bool add_registration(const register_event &_register_event);
-    bool get_registration_at(std::size_t _position, register_event & _reg) const;
+    bool add_registration(const register_event& _register_event);
+    bool get_registration_at(std::size_t _position, register_event& _reg) const;
 
 private:
     std::vector<register_event> registrations_;

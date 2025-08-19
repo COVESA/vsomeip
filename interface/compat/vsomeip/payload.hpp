@@ -28,27 +28,27 @@ namespace vsomeip {
  * \brief This class implements an array of bytes to be used as
  * payload for SOME/IP messages.
  *
-*/
-class payload: public serializable, public deserializable {
+ */
+class payload : public serializable, public deserializable {
 public:
-    VSOMEIP_EXPORT virtual ~payload() {}
+    VSOMEIP_EXPORT virtual ~payload() { }
 
     /**
      * \brief Returns true if the given payload is equal to this one.
      *
      * \param _other Payload that shall be compared to this payload.
      */
-    VSOMEIP_EXPORT virtual bool operator ==(const payload &_other) = 0;
+    VSOMEIP_EXPORT virtual bool operator==(const payload& _other) = 0;
 
     /**
      * \brief Returns pointer to the payload content
      */
-    VSOMEIP_EXPORT virtual byte_t * get_data() = 0;
+    VSOMEIP_EXPORT virtual byte_t* get_data() = 0;
 
     /**
      * \brief Returns constant pointer to the payload content
      */
-    VSOMEIP_EXPORT virtual const byte_t * get_data() const = 0;
+    VSOMEIP_EXPORT virtual const byte_t* get_data() const = 0;
 
     /**
      * \brief Copies the given data array to the payload object.
@@ -59,8 +59,7 @@ public:
      * \param _data Pointer to a data buffer.
      * \param _length Length of the data buffer.
      */
-    VSOMEIP_EXPORT virtual void set_data(const byte_t *_data,
-            length_t _length) = 0;
+    VSOMEIP_EXPORT virtual void set_data(const byte_t* _data, length_t _length) = 0;
 
     /**
      * \brief Copies the given data array to the payload object.
@@ -70,8 +69,7 @@ public:
      *
      * \param _data Vector containing the data
      */
-    VSOMEIP_EXPORT virtual void set_data(
-            const std::vector<byte_t> &_data) = 0;
+    VSOMEIP_EXPORT virtual void set_data(const std::vector<byte_t>& _data) = 0;
 
     /**
      * \brief Returns the length of the payload content.
@@ -94,8 +92,7 @@ public:
      *
      * \param _data Vector containing the data
      */
-    VSOMEIP_EXPORT virtual void set_data(
-            std::vector<byte_t> &&_data) = 0;    
+    VSOMEIP_EXPORT virtual void set_data(std::vector<byte_t>&& _data) = 0;
 };
 
 /** @} */

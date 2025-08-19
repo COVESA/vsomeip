@@ -12,19 +12,18 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class routing_info_command
-    : public command {
+class routing_info_command : public command {
 public:
     routing_info_command();
 
     // command
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
-    const std::vector<routing_info_entry> &get_entries() const;
-    void set_entries(std::vector<routing_info_entry> &&_entries);
-    void add_entry(const routing_info_entry &_entry);
+    const std::vector<routing_info_entry>& get_entries() const;
+    void set_entries(std::vector<routing_info_entry>&& _entries);
+    void add_entry(const routing_info_entry& _entry);
 
 private:
     std::vector<routing_info_entry> entries_;

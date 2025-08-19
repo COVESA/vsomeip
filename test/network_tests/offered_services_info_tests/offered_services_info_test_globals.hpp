@@ -21,9 +21,8 @@ uint8_t num_all_offered_services = 5;
 uint8_t num_local_offered_services = 2;
 uint8_t num_remote_offered_services = 3;
 
-
-struct service_info service         = { 0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404 };
-struct service_info remote_service  = { 0x2222, 0x2, 0x2222, 0x2222, 0x2000, 0x2808 };
+struct service_info service = {0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404};
+struct service_info remote_service = {0x2222, 0x2, 0x2222, 0x2222, 0x2000, 0x2808};
 }
 
 #endif /* OFFER_TEST_GLOBALS_HPP_ */

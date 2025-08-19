@@ -11,13 +11,12 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class resend_provided_events_command
-    : public command {
+class resend_provided_events_command : public command {
 public:
     resend_provided_events_command();
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
     pending_remote_offer_id_t get_remote_offer_id() const;

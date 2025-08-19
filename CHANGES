@@ -1,5 +1,189 @@
 Changes
 =======
+v3.5.7
+- global
+  - Update deprecated boost::asio APIs
+  - Update documentation regarding the vsomeip configurations
+  - Addresses most shadowing variables
+  - Fixes some old style C-casts
+
+- routing_manager_base
+  - Always send initial event on subscription
+
+- routing_manager_impl
+  - The rule vsomeip_sec_policy_is_client_allowed_to_access_member, was considered to be redundant,
+    therefore it is now removed.
+  - Consistently execute/schedule the action (sending, processing a received message), before trace
+    the message.
+  - Ensure to unsubscribe non selective events.
+  - Clear multicast only for last subscriber
+
+- routing_manager_stub
+  - Fix SIGSEGV on application register that cna happen if an application sends
+    REGISTER_APPLICATION_ID without giving a non-zero port, when using local TCP.
+  - Fix client registration thread names.
+  - Enforce a client reconnect by dropping the connection client->routingd
+
+- routing_manager_client
+  - Replace an erase from know_clients map call with the appropriate function.
+  - Make client id show as hex value, in logs
+  - Consistently execute/schedule the action (sending, processing a received message), before trace
+    the message.
+  - Close all connections on "client error".
+  - Drop use of netlink and use IP_FREEBIND, for linux and android platforms
+  - Ensure client process only once the registration
+  - Update security offer rule for messages
+
+- endpoints
+  - local communication
+    - Added missing timeout handling on connection timeout.
+    - Fix use of bound client
+    - Change the order how a connection is cleaned-up.
+  - external communication
+    - Add predicate to condition variables.
+    - udp_server_endpoint_impl refactoring
+  - local and external communication
+    - Set TCP_USER_TIMEOUT on connections, which causes a connection to timeout when data
+      remains unacknowledged for more than a certain amount of time.
+    - Remove the exponential timer increase from connection.
+    - Handle not_socket error on send_cbk.
+    - Set was_not_connected to true if not established or connected when send_cbk is called.
+    - Close all connections on "client error".
+  - netlink
+    - optimize get link request by filtering the output
+    - optimize bind parameters to the data really needed
+    - fix IPv6 handling
+    - improve error handling
+    - reduce buffer size
+
+- service_discovery
+  - Rename IPV3 to IPV4
+
+- application
+  - GCC 15 requires stdint.h to be explicitly imported.
+  - Add logs to registering of subscription handlers.
+  - Add predicate to condition variables.
+
+- configurations
+  - Allow to set any service/instance on supress missing events.
+  - Use application name instead of client identifier for specific debouncing configurations.
+
+- plugin
+  - Remove unused load_plugins
+
+- tests
+  - network_tests
+    - Enables Valgrind (massif and memcheck) and removes Valgrind Helgrind.
+    - Fix issues with certain Valgrind memcheck tests where Valgrind can't follow TLS memory until
+      the thread is completely destroyed, therefore can't confirm whether the thread cleans it up
+      after exit, hence it marks it "possibly lost".
+    - Fix security tests false positives, in tests that have the missing check for the exit codes in
+      the .sh starter script.
+    - Added new test to verify if the availability handler is working correctly.
+    - Added new test to validate local tcp client registration sequence.
+    - Added tests for local tcp communication with fault injection
+    - Fix offer_stop_offer_test by leaving the trigger if the (Un)Available to the end of the process
+  - unit_tests
+    - Fix unit tests failling on Windows
+
+- examples
+  - Fix examples on Windows and set them as voting
+
+- documentation
+  - Add extra documentation for routing info command
+
+v3.5.6
+- routing_manager_client
+  - Forcing the ON_AVAILABLE log and send subscription of requested services even if availability was
+    previously known.
+	- Remove pending subscription entry right after calling on_subscription from application impl - race
+    condition
+	- Add missing mutex on request_debounce_timeout_ck and reset request_debounce_timer_running_ if
+    requests_to_debounce_ is empty - race condition (issue: missing request)
+	- lock registration_state_mutex_ before sending subscribes and unsubscribes - race condition
+	- re-request service availability triggers from the routing host when a client loses the connection
+    to a service provider
+
+- routing_manager_impl
+	- Convert pending_sd_offers_ from vector to set to avoid repeated service entries.
+
+- routing_manager_stub
+	- Send a `config_command` to share the _client hostname with the _target application. the
+    config_command message is only sent after the routing_info is sent, thereby guaranteeing
+    that the routing_info is processed first.
+	- Send ADD_CLIENT command to all the client registered, without considering if they are
+    requesting services from this client.
+
+- routing_manager_base
+	- Added a change to add_known_client so that the order of calling config_command and
+    routing_info_command would not matter. This change only has impact when the clients adds itself
+    as a known_client and was made to safeguard its hostname.
+
+- endpoints
+	- local comunication
+		- Force endpoint to perform port assignment when local network interface becomes unavailable.
+		- Check on local_tcp_client and local_uds_client if socket is open before sending.
+		- Do not call shutdown_and_close_socket if socket state is connecting - race condition
+		- A condition variable was implemented on local-tcp_client endpoint to notify the stop process
+      to exit the 10ms wait if an EOF is received in receive_cbk, since the queue is cleared in this case.
+    - Ensuring the lifetime of message_buffer_ptr on uds.
+	- external communication
+		- A state machine was created to cascade the stop -> init + start The goal was to ensure that
+      the udp_server endpoint waits on both unicast and multicast  stop, and after they are both stopped,
+      and the flag restarting is set, the init and start can be called. (issue: Bad File Descriptor)
+		- Syncronize the join and leave process of udp server multicast sockets. also (issue: in some situations
+      after STR, vsomeip will not join the multicast group used by service discovery).
+		- leave and join multicast address only starts when network is ready. (issue: join/leave multicast was
+      causing CPU load, because this process starts when network is not ready).
+		- Remove use of linger-with-timeout in tse, which fixes blocking socket operations
+		- Ensure "shutdown_and_close" is called on "stop".
+	- local and external communication
+		- Endpoints would start every time find_or_create_local would execute, even if endpoint already existed.
+		- Fix is_sending_ status
+		- Increase mutex_ scope to include was_not_connected flag on connect (issue: REMOTE_ERROR on response)
+		- cancel_and_connect_cbk was updated to only report the connection as successfully terminated when
+      cancel_and_connect_cbk is called without error. Previously, it was reporting the connection as successfully
+      terminated even when there was a connection error, preventing the endpoint from being.
+restarted.
+
+- netlink
+	- Removes the interface index when we get a RTM_DELLINK.
+	- Added an option to consider the reset of sd_route_set_ when interface goes down. This is enabled by default.
+
+- security
+	- For each received response/notification, call is_client_allowed_to_offer to check whether the sending client
+    is allowed to offer the service. This is done only for internal TCP communication; for UDS the check is done
+    with the bound client.
+
+- service discovery
+	- Fix multicast threshold for initial events.
+	- Stop find/offer debounce timers when the service discovery is stopped.
+	- Added a mecaism on start of SD, to try rejooin the multicast address if any message was received by 1.1s
+    (default timer) (issue: in some situations after STR, vsomeip will not join the multicast group used by
+    service discovery).
+
+- IO threads
+	- To mitigate IO threads exit and stalled threads, a solution in which the io_context object processing is
+    ran for determined duration was developed. This feature is disable by default and can be enable by
+    configurations.
+
+- configurations
+	- Added configuration to enable io thread mitigation.
+	- Enable configuration of client-specific debouncing.
+	- Allow global configuration of maximum (additional) dispatchers and dispatch time.
+	- Unspecify catch exception for boost exceptions.
+	- Added configuration to consider the reset of sd_route_set_ when interface goes down. This is enabled by
+    default.
+	- Enable global configuration of request debounce time.
+	- Support multiple IPsec activation files per connection.
+
+- application_impl
+	- Fix host assignment with non-local routing: add SO_REUSEADDR to the non-local routing host check
+
+- runtime
+	- Remove the get_mutex_ from runtime_impl - This mutex is not needed, as the static initialization of the
+    shared_ptr is atomic. (issue: tombstone in application shutdown)
+
 v3.5.5
 - Fix build issue on Ubuntu 24.04
 - Fixing change that was introduced on Fix for Find messages commit

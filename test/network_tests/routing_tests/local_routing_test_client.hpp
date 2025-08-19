@@ -18,8 +18,7 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class local_routing_test_client
-{
+class local_routing_test_client {
 public:
     local_routing_test_client(bool _use_tcp);
     bool init();
@@ -27,9 +26,8 @@ public:
     void stop();
     void join_sender_thread();
     void on_state(vsomeip::state_type_e _state);
-    void on_availability(vsomeip::service_t _service,
-            vsomeip::instance_t _instance, bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_response);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _response);
     void send();
     void run();
 

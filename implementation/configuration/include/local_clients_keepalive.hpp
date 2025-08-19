@@ -10,8 +10,7 @@ namespace vsomeip_v3 {
 namespace cfg {
 
 struct local_clients_keepalive {
-    local_clients_keepalive() :
-        is_enabled_(false), time_in_ms_(VSOMEIP_DEFAULT_LOCAL_CLIENTS_KEEPALIVE_TIME) { }
+    local_clients_keepalive() : is_enabled_(false), time_in_ms_(VSOMEIP_DEFAULT_LOCAL_CLIENTS_KEEPALIVE_TIME) { }
 
     bool is_enabled_;
     std::chrono::milliseconds time_in_ms_;

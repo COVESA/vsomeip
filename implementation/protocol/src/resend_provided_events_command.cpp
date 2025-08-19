@@ -10,14 +10,9 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-resend_provided_events_command::resend_provided_events_command()
-    : command(id_e::RESEND_PROVIDED_EVENTS_ID) {
+resend_provided_events_command::resend_provided_events_command() : command(id_e::RESEND_PROVIDED_EVENTS_ID) { }
 
-}
-
-void
-resend_provided_events_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void resend_provided_events_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + sizeof(remote_offer_id_));
 
@@ -39,13 +34,10 @@ resend_provided_events_command::serialize(std::vector<byte_t> &_buffer,
         return;
 
     // serialize payload
-    std::memcpy(&_buffer[COMMAND_POSITION_PAYLOAD], &remote_offer_id_,
-            sizeof(remote_offer_id_));
+    std::memcpy(&_buffer[COMMAND_POSITION_PAYLOAD], &remote_offer_id_, sizeof(remote_offer_id_));
 }
 
-void
-resend_provided_events_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void resend_provided_events_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
     if (COMMAND_HEADER_SIZE + sizeof(remote_offer_id_) > _buffer.size()) {
 
@@ -59,19 +51,15 @@ resend_provided_events_command::deserialize(const std::vector<byte_t> &_buffer,
         return;
 
     // deserialize payload
-    std::memcpy(&remote_offer_id_, &_buffer[COMMAND_POSITION_PAYLOAD],
-            sizeof(remote_offer_id_));
+    std::memcpy(&remote_offer_id_, &_buffer[COMMAND_POSITION_PAYLOAD], sizeof(remote_offer_id_));
 }
 
-pending_remote_offer_id_t
-resend_provided_events_command::get_remote_offer_id() const {
+pending_remote_offer_id_t resend_provided_events_command::get_remote_offer_id() const {
 
     return remote_offer_id_;
 }
 
-void
-resend_provided_events_command::set_remote_offer_id(
-        pending_remote_offer_id_t _remote_offer_id) {
+void resend_provided_events_command::set_remote_offer_id(pending_remote_offer_id_t _remote_offer_id) {
 
     remote_offer_id_ = _remote_offer_id;
 }

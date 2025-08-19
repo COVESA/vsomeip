@@ -8,7 +8,7 @@
 
 namespace vsomeip_v3 {
 
-std::ostream &operator<<(std::ostream &_os, const e2e_buffer &_buffer) {
+std::ostream& operator<<(std::ostream& _os, const e2e_buffer& _buffer) {
     for (auto b : _buffer) {
         if (isupper(b)) {
             _os << b;

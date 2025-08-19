@@ -19,23 +19,23 @@ class deserializer;
 
 namespace sd {
 
-class selective_option_impl: public option_impl {
+class selective_option_impl : public option_impl {
 
 public:
     selective_option_impl();
     virtual ~selective_option_impl();
 
-    bool equals(const option_impl &_other) const;
+    bool equals(const option_impl& _other) const;
 
     std::set<client_t> get_clients() const;
-    void set_clients(const std::set<client_t> &_clients);
+    void set_clients(const std::set<client_t>& _clients);
     bool add_client(client_t _client);
     bool remove_client(client_t _client);
     bool has_clients() const;
     bool has_client(client_t _client);
 
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
 private:
     std::set<client_t> clients_;

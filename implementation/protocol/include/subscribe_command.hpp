@@ -16,19 +16,16 @@ struct debounce_filter_impl_t;
 
 namespace protocol {
 
-class subscribe_command
-    : public subscribe_command_base {
+class subscribe_command : public subscribe_command_base {
 
 public:
     subscribe_command();
 
     std::shared_ptr<debounce_filter_impl_t> get_filter() const;
-    void set_filter(const std::shared_ptr<debounce_filter_impl_t> &_filter);
+    void set_filter(const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
-    void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 private:
     std::shared_ptr<debounce_filter_impl_t> filter_;

@@ -19,8 +19,7 @@
 #include "big_payload_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
 
-class big_payload_test_client
-{
+class big_payload_test_client {
 public:
     big_payload_test_client(bool _use_tcp, big_payload_test::test_mode _random_mode);
     bool init();
@@ -28,9 +27,8 @@ public:
     void stop();
     void join_sender_thread();
     void on_state(vsomeip::state_type_e _state);
-    void on_availability(vsomeip::service_t _service,
-            vsomeip::instance_t _instance, bool _is_available);
-    void on_message(const std::shared_ptr<vsomeip::message> &_response);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
+    void on_message(const std::shared_ptr<vsomeip::message>& _response);
     void send();
     void run();
 

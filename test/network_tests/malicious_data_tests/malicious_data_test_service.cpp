@@ -26,47 +26,31 @@
 class malicious_data_test_service : public vsomeip_utilities::base_logger {
 public:
     malicious_data_test_service(struct malicious_data_test::service_info _service_info, malicious_data_test::test_mode_e _testmode) :
-            vsomeip_utilities::base_logger("MDTS", "MALICIOUS DATA TEST SERVICE"),
-            service_info_(_service_info),
-            testmode_(_testmode),
-            app_(vsomeip::runtime::get()->create_application("malicious_data_test_service")),
-            wait_until_registered_(true),
-            wait_until_shutdown_method_called_(true),
-            received_events_(0),
-            received_methodcalls_(0),
-            offer_thread_(std::bind(&malicious_data_test_service::run, this)) {
+        vsomeip_utilities::base_logger("MDTS", "MALICIOUS DATA TEST SERVICE"), service_info_(_service_info), testmode_(_testmode),
+        app_(vsomeip::runtime::get()->create_application("malicious_data_test_service")), wait_until_registered_(true),
+        wait_until_shutdown_method_called_(true), received_events_(0), received_methodcalls_(0),
+        offer_thread_(std::bind(&malicious_data_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
         }
-        app_->register_state_handler(
-                std::bind(&malicious_data_test_service::on_state, this,
-                        std::placeholders::_1));
+        app_->register_state_handler(std::bind(&malicious_data_test_service::on_state, this, std::placeholders::_1));
 
         std::set<vsomeip::eventgroup_t> its_eventgroups;
         its_eventgroups.insert(_service_info.eventgroup_id);
-        app_->request_event(service_info_.service_id, service_info_.instance_id,
-                    service_info_.event_id, its_eventgroups, vsomeip::event_type_e::ET_EVENT,
-                    vsomeip::reliability_type_e::RT_UNKNOWN);
-        app_->register_message_handler(vsomeip::ANY_SERVICE,
-                vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
-                std::bind(&malicious_data_test_service::on_shutdown_method_called, this,
-                        std::placeholders::_1));
-        app_->register_message_handler(service_info_.service_id,
-                service_info_.instance_id, service_info_.event_id,
-                std::bind(&malicious_data_test_service::on_event, this,
-                        std::placeholders::_1));
+        app_->request_event(service_info_.service_id, service_info_.instance_id, service_info_.event_id, its_eventgroups,
+                            vsomeip::event_type_e::ET_EVENT, vsomeip::reliability_type_e::RT_UNKNOWN);
+        app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, service_info_.shutdown_method_id,
+                                       std::bind(&malicious_data_test_service::on_shutdown_method_called, this, std::placeholders::_1));
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.event_id,
+                                       std::bind(&malicious_data_test_service::on_event, this, std::placeholders::_1));
 
-        app_->register_message_handler(static_cast<vsomeip::service_t>(service_info_.service_id + 1u),
-                service_info_.instance_id, 0x1,
-                std::bind(&malicious_data_test_service::on_message, this,
-                        std::placeholders::_1));
+        app_->register_message_handler(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), service_info_.instance_id, 0x1,
+                                       std::bind(&malicious_data_test_service::on_message, this, std::placeholders::_1));
 
         // request service of client
         app_->request_service(service_info_.service_id, service_info_.instance_id);
-        app_->subscribe(service_info_.service_id, service_info_.instance_id,
-                service_info_.eventgroup_id, 0,
-                service_info_.event_id);
+        app_->subscribe(service_info_.service_id, service_info_.instance_id, service_info_.eventgroup_id, 0, service_info_.event_id);
 
         app_->start();
     }
@@ -79,9 +63,7 @@ public:
         offer_thread_.join();
     }
 
-    void offer() {
-        app_->offer_service(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), 0x1);
-    }
+    void offer() { app_->offer_service(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), 0x1); }
 
     void stop() {
         app_->stop_offer_service(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), 0x1);
@@ -91,8 +73,7 @@ public:
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-        << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                "registered." : "deregistered.");
+                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -101,7 +82,7 @@ public:
         }
     }
 
-    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         app_->send(vsomeip::runtime::get()->create_response(_message));
         VSOMEIP_WARNING << "************************************************************";
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
@@ -111,7 +92,7 @@ public:
         condition_.notify_one();
     }
 
-    void on_event(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_event(const std::shared_ptr<vsomeip::message>& _message) {
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.event_id, _message->get_method());
@@ -119,7 +100,7 @@ public:
         received_events_++;
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_message) {
+    void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         EXPECT_EQ(static_cast<vsomeip::service_t>(service_info_.service_id + 1u), _message->get_service());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(vsomeip::method_t(0x1), _message->get_method());
@@ -128,15 +109,13 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id << "] Running";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         while (wait_until_registered_) {
             condition_.wait(its_lock);
         }
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4)
-                << service_info_.service_id << "] Offering";
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
 
         while (wait_until_shutdown_method_called_) {
@@ -161,15 +140,12 @@ private:
 
 malicious_data_test::test_mode_e its_testmode(malicious_data_test::test_mode_e::MALICIOUS_EVENTS);
 
-TEST(someip_malicious_data_test, block_subscription_handler)
-{
+TEST(someip_malicious_data_test, block_subscription_handler) {
     malicious_data_test_service its_sample(malicious_data_test::service, its_testmode);
 }
 
-
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     std::string its_passed_testmode = argv[1];
     if (its_passed_testmode == std::string("MALICIOUS_EVENTS")) {

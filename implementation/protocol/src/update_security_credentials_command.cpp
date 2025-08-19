@@ -10,16 +10,11 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-update_security_credentials_command::update_security_credentials_command()
-    : command(id_e::UPDATE_SECURITY_CREDENTIALS_ID) {
-}
+update_security_credentials_command::update_security_credentials_command() : command(id_e::UPDATE_SECURITY_CREDENTIALS_ID) { }
 
-void
-update_security_credentials_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void update_security_credentials_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE +
-            (credentials_.size() * (sizeof(uid_t) + sizeof(gid_t))));
+    size_t its_size(COMMAND_HEADER_SIZE + (credentials_.size() * (sizeof(uid_t) + sizeof(gid_t))));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -40,7 +35,7 @@ update_security_credentials_command::serialize(std::vector<byte_t> &_buffer,
 
     // serialize payload
     size_t its_offset(COMMAND_HEADER_SIZE);
-    for (const auto &c : credentials_) {
+    for (const auto& c : credentials_) {
         std::memcpy(&_buffer[its_offset], &c.first, sizeof(c.first));
         its_offset += sizeof(c.first);
         std::memcpy(&_buffer[its_offset], &c.second, sizeof(c.second));
@@ -48,9 +43,7 @@ update_security_credentials_command::serialize(std::vector<byte_t> &_buffer,
     }
 }
 
-void
-update_security_credentials_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void update_security_credentials_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
     if (COMMAND_HEADER_SIZE > _buffer.size()) {
 
@@ -85,16 +78,12 @@ update_security_credentials_command::deserialize(const std::vector<byte_t> &_buf
     }
 }
 
-
-std::set<std::pair<uid_t, gid_t> >
-update_security_credentials_command::get_credentials() const {
+std::set<std::pair<uid_t, gid_t>> update_security_credentials_command::get_credentials() const {
 
     return credentials_;
 }
 
-void
-update_security_credentials_command::set_credentials(
-        const std::set<std::pair<uid_t, gid_t> > &_credentials) {
+void update_security_credentials_command::set_credentials(const std::set<std::pair<uid_t, gid_t>>& _credentials) {
 
     credentials_ = _credentials;
 }

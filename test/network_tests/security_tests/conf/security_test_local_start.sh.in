@@ -4,6 +4,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+# Initialize error tracking
+FAIL=0
+
 export VSOMEIP_CONFIGURATION=security_test_local_config.json
 
 export VSOMEIP_APPLICATION_NAME=routingmanagerd
@@ -15,11 +18,24 @@ sleep 1
 
 export VSOMEIP_APPLICATION_NAME=service-sample
 ./security_test_service --local &
+PID_SERVICE=$!
 
 sleep 1
 
 export VSOMEIP_APPLICATION_NAME=client-sample
 ./security_test_client --local
+PID_CLIENT=$!
+
+wait $PID_CLIENT || FAIL=$(($FAIL+1))
+
+wait $PID_SERVICE || FAIL=$(($FAIL+1))
 
 kill $PID_VSOMEIPD
-sleep 1
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
+
+# Return overall status
+if [ $FAIL -ne 0 ]; then
+    exit $FAIL
+else
+    exit 0
+fi

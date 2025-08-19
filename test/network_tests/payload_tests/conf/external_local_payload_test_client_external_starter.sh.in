@@ -99,7 +99,7 @@ export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 SERIVCE_PID=$!
 
 # The service should listen on a TCP and UDP socket now
-sleep 1
+sleep 2
 check_tcp_udp_sockets_are_open $SERIVCE_PID 2
 
 

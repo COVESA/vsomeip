@@ -26,14 +26,12 @@ public:
 
     virtual std::size_t get_protection_base(e2exf::data_identifier_t _id) const = 0;
 
-    virtual void protect(e2exf::data_identifier_t id,
-            e2e_buffer &_buffer, instance_t _instance) = 0;
-    virtual void check(e2exf::data_identifier_t id,
-            const e2e_buffer &_buffer, instance_t _instance,
-            e2e::profile_interface::check_status_t &_generic_check_status) = 0;
+    virtual void protect(e2exf::data_identifier_t id, e2e_buffer& _buffer, instance_t _instance) = 0;
+    virtual void check(e2exf::data_identifier_t id, const e2e_buffer& _buffer, instance_t _instance,
+                       e2e::profile_interface::check_status_t& _generic_check_status) = 0;
 };
 
 } // namespace e2e
 } // namespace vsomeip_v3
 
-#endif  // VSOMEIP_V3_E2E_PROVIDER_HPP
+#endif // VSOMEIP_V3_E2E_PROVIDER_HPP

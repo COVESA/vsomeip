@@ -19,23 +19,23 @@ class deserializer;
 
 namespace sd {
 
-class configuration_option_impl: public option_impl {
+class configuration_option_impl : public option_impl {
 
 public:
     configuration_option_impl();
     virtual ~configuration_option_impl();
 
-    bool equals(const option_impl &_other) const;
+    bool equals(const option_impl& _other) const;
 
-    void add_item(const std::string &_key, const std::string &_value);
-    void remove_item(const std::string &_key);
+    void add_item(const std::string& _key, const std::string& _value);
+    void remove_item(const std::string& _key);
 
     std::vector<std::string> get_keys() const;
     std::vector<std::string> get_values() const;
-    std::string get_value(const std::string &_key) const;
+    std::string get_value(const std::string& _key) const;
 
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
 private:
     std::map<std::string, std::string> configuration_;

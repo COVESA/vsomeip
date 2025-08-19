@@ -5,12 +5,11 @@
 
 #include "routing_manager_ut_setup.hpp"
 
-using ::testing::ReturnRef;
 using ::testing::Return;
+using ::testing::ReturnRef;
 
 void routing_manager_ut_setup::SetUp() {
-    configuration_ptr_ =
-        std::make_shared<vsomeip_v3::cfg::configuration_impl>("routing_manager_ut_config.json");
+    configuration_ptr_ = std::make_shared<vsomeip_v3::cfg::configuration_impl>("routing_manager_ut_config.json");
 
     EXPECT_CALL(mock_host_, get_io()).WillRepeatedly(ReturnRef(io_));
     EXPECT_CALL(mock_host_, get_name()).WillRepeatedly(ReturnRef(name_));

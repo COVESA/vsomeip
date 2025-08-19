@@ -20,16 +20,13 @@
 
 namespace vsomeip_v3 {
 
-typedef server_endpoint_impl<boost::asio::local::stream_protocol>
-        local_uds_server_endpoint_base_impl;
+typedef server_endpoint_impl<boost::asio::local::stream_protocol> local_uds_server_endpoint_base_impl;
 
-class local_uds_server_endpoint_impl: public local_uds_server_endpoint_base_impl {
+class local_uds_server_endpoint_impl : public local_uds_server_endpoint_base_impl {
 public:
-    local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
-            const std::shared_ptr<routing_host>& _routing_host,
-            boost::asio::io_context &_io,
-            const std::shared_ptr<configuration>& _configuration,
-            bool _is_routing_endpoint);
+    local_uds_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
+                                   boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration,
+                                   bool _is_routing_endpoint);
     virtual ~local_uds_server_endpoint_impl() = default;
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);
@@ -43,18 +40,14 @@ public:
 
     // this overrides server_endpoint_impl::send to disable the nPDU feature
     // for local communication
-    bool send(const uint8_t *_data, uint32_t _size);
-    bool send_to(const std::shared_ptr<endpoint_definition>,
-                 const byte_t *_data, uint32_t _size);
-    bool send_error(const std::shared_ptr<endpoint_definition> _target,
-                const byte_t *_data, uint32_t _size);
+    bool send(const uint8_t* _data, uint32_t _size);
+    bool send_to(const std::shared_ptr<endpoint_definition>, const byte_t* _data, uint32_t _size);
+    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
     bool send_queued(const target_data_iterator_type _queue_iterator);
-    void get_configured_times_from_endpoint(
-            service_t _service, method_t _method,
-            std::chrono::nanoseconds *_debouncing,
-            std::chrono::nanoseconds *_maximum_retention) const;
+    void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
+                                            std::chrono::nanoseconds* _maximum_retention) const;
 
-    bool get_default_target(service_t, endpoint_type &) const;
+    bool get_default_target(service_t, endpoint_type&) const;
 
     bool is_local() const;
 
@@ -65,19 +58,22 @@ public:
     std::uint16_t get_local_port() const;
     void set_local_port(std::uint16_t _port);
 
-    client_t assign_client(const byte_t *_data, uint32_t _size);
+    client_t assign_client(const byte_t* _data, uint32_t _size);
+
+    /// @brief Disconnects from the given client.
+    ///
+    /// @param _client ID of the remote client.
+    void disconnect_from(const client_t _client) override;
 
 private:
-    class connection: public std::enable_shared_from_this<connection> {
+    class connection : public std::enable_shared_from_this<connection> {
 
     public:
         typedef std::shared_ptr<connection> ptr;
 
-        static ptr create(const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
-                          std::uint32_t _max_message_size,
-                          std::uint32_t _buffer_shrink_threshold,
-                          boost::asio::io_context &_io);
-        socket_type & get_socket();
+        static ptr create(const std::shared_ptr<local_uds_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
+                          std::uint32_t _buffer_shrink_threshold, boost::asio::io_context& _io);
+        socket_type& get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 
         void start();
@@ -88,34 +84,30 @@ private:
         void set_bound_client(client_t _client);
         client_t get_bound_client() const;
 
-        void set_bound_client_host(const std::string &_bound_client_host);
+        void set_bound_client_host(const std::string& _bound_client_host);
         std::string get_bound_client_host() const;
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-        void set_bound_sec_client(const vsomeip_sec_client_t &_sec_client);
+        void set_bound_sec_client(const vsomeip_sec_client_t& _sec_client);
 #endif
 
         std::size_t get_recv_buffer_capacity() const;
 
     private:
-        connection(const std::shared_ptr<local_uds_server_endpoint_impl>& _server,
-                   std::uint32_t _max_message_size,
-                   std::uint32_t _initial_recv_buffer_size,
-                   std::uint32_t _buffer_shrink_threshold,
-                   boost::asio::io_context &_io);
+        connection(const std::shared_ptr<local_uds_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
+                   std::uint32_t _initial_recv_buffer_size, std::uint32_t _buffer_shrink_threshold, boost::asio::io_context& _io);
 
-        void send_cbk(const message_buffer_ptr_t _buffer,
-                boost::system::error_code const &_error, std::size_t _bytes);
-        void receive_cbk(boost::system::error_code const &_error,
-                         std::size_t _bytes
+        void send_cbk(const message_buffer_ptr_t _buffer, boost::system::error_code const& _error, std::size_t _bytes);
+        void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-                         , uid_t const &_uid, gid_t const &_gid
+                         ,
+                         uid_t const& _uid, gid_t const& _gid
 #endif
         );
         void calculate_shrink_count();
         std::string get_path_local() const;
         std::string get_path_remote() const;
-        void handle_recv_buffer_exception(const std::exception &_e);
+        void handle_recv_buffer_exception(const std::exception& _e);
         void shutdown_and_close();
         void shutdown_and_close_unlocked();
 
@@ -153,20 +145,15 @@ private:
 
 private:
     void init_helper(const endpoint_type& _local, boost::system::error_code& _error);
-    bool add_connection(const client_t &_client,
-            const std::shared_ptr<connection> &_connection);
-    void remove_connection(const client_t &_client);
-    void accept_cbk(connection::ptr _connection,
-                    boost::system::error_code const &_error);
-    std::string get_remote_information(
-            const target_data_iterator_type _queue_iterator) const;
-    std::string get_remote_information(
-            const endpoint_type& _remote) const;
+    bool add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection);
+    void remove_connection(const client_t& _client);
+    void accept_cbk(connection::ptr _connection, boost::system::error_code const& _error);
+    std::string get_remote_information(const target_data_iterator_type _queue_iterator) const;
+    std::string get_remote_information(const endpoint_type& _remote) const;
 
     bool check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const;
-    bool queue_train_buffer(target_data_iterator_type _it, message_buffer_ptr_t* _packetizer,
-                            std::uint32_t _size) const;
-    void send_client_identifier(const client_t &_client);
+    bool queue_train_buffer(target_data_iterator_type _it, message_buffer_ptr_t* _packetizer, std::uint32_t _size) const;
+    void send_client_identifier(const client_t& _client);
 };
 
 } // namespace vsomeip_v3

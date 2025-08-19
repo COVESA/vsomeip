@@ -12,96 +12,73 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-subscribe_ack_command_base::subscribe_ack_command_base(id_e _id)
-    : command(_id),
-      service_(ANY_SERVICE),
-      instance_(ANY_INSTANCE),
-      eventgroup_(0),
-      subscriber_(0),
-      event_(ANY_EVENT),
-      pending_id_(0) {
-}
+subscribe_ack_command_base::subscribe_ack_command_base(id_e _id) :
+    command(_id), service_(ANY_SERVICE), instance_(ANY_INSTANCE), eventgroup_(0), subscriber_(0), event_(ANY_EVENT), pending_id_(0) { }
 
-service_t
-subscribe_ack_command_base::get_service() const {
+service_t subscribe_ack_command_base::get_service() const {
 
     return service_;
 }
 
-void
-subscribe_ack_command_base::set_service(service_t _service) {
+void subscribe_ack_command_base::set_service(service_t _service) {
 
     service_ = _service;
 }
 
-instance_t
-subscribe_ack_command_base::get_instance() const {
+instance_t subscribe_ack_command_base::get_instance() const {
 
     return instance_;
 }
 
-void
-subscribe_ack_command_base::set_instance(instance_t _instance) {
+void subscribe_ack_command_base::set_instance(instance_t _instance) {
 
     instance_ = _instance;
 }
 
-eventgroup_t
-subscribe_ack_command_base::get_eventgroup() const {
+eventgroup_t subscribe_ack_command_base::get_eventgroup() const {
 
     return eventgroup_;
 }
 
-void
-subscribe_ack_command_base::set_eventgroup(eventgroup_t _eventgroup) {
+void subscribe_ack_command_base::set_eventgroup(eventgroup_t _eventgroup) {
 
     eventgroup_ = _eventgroup;
 }
 
-client_t
-subscribe_ack_command_base::get_subscriber() const {
+client_t subscribe_ack_command_base::get_subscriber() const {
 
     return subscriber_;
 }
 
-void
-subscribe_ack_command_base::set_subscriber(client_t _subscriber) {
+void subscribe_ack_command_base::set_subscriber(client_t _subscriber) {
 
     subscriber_ = _subscriber;
 }
 
-event_t
-subscribe_ack_command_base::get_event() const {
+event_t subscribe_ack_command_base::get_event() const {
 
     return event_;
 }
 
-void
-subscribe_ack_command_base::set_event(event_t _event) {
+void subscribe_ack_command_base::set_event(event_t _event) {
 
     event_ = _event;
 }
 
-pending_id_t
-subscribe_ack_command_base::get_pending_id() const {
+pending_id_t subscribe_ack_command_base::get_pending_id() const {
 
     return pending_id_;
 }
 
-void
-subscribe_ack_command_base::set_pending_id(pending_id_t _pending_id) {
+void subscribe_ack_command_base::set_pending_id(pending_id_t _pending_id) {
 
     pending_id_ = _pending_id;
 }
 
-void
-subscribe_ack_command_base::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void subscribe_ack_command_base::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(subscriber_)
-            + sizeof(event_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(subscriber_) + sizeof(event_)
+                    + sizeof(pending_id_));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -135,14 +112,10 @@ subscribe_ack_command_base::serialize(std::vector<byte_t> &_buffer,
     std::memcpy(&_buffer[its_offset], &pending_id_, sizeof(pending_id_));
 }
 
-void
-subscribe_ack_command_base::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void subscribe_ack_command_base::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(subscriber_)
-            + sizeof(event_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(subscriber_) + sizeof(event_)
+                    + sizeof(pending_id_));
 
     if (its_size > _buffer.size()) {
 

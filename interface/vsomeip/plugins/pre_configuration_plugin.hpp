@@ -18,7 +18,7 @@ namespace vsomeip_v3 {
  */
 class pre_configuration_plugin {
 public:
-    virtual ~pre_configuration_plugin() {}
+    virtual ~pre_configuration_plugin() { }
 
     // Plug-In should return a valid path to a vSomeIP configuration.
     // vSomeIP will use this path for config loading if such a plug-in is availablel.

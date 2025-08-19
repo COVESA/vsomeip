@@ -11,7 +11,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 5)
-set (VSOMEIP_PATCH_VERSION 5)
+set (VSOMEIP_PATCH_VERSION 7)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -75,10 +75,11 @@ endif()
 
     set(NO_DEPRECATED "")
     set(OPTIMIZE "")
-  if(NOT DEFINED _FORTIFY_SOURCE)
-      set(_FORTIFY_SOURCE 2)
-  endif()
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror -fPIE")
+
+    if(NOT DEFINED _FORTIFY_SOURCE)
+        set(_FORTIFY_SOURCE 2)
+    endif()
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -O -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror -fPIE -Wno-inconsistent-missing-override")
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
@@ -142,10 +143,6 @@ if (NOT MSVC)
         if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
             set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE} --trace-children=yes)
             add_definitions(-DBOOST_USE_VALGRIND)
-        endif ()
-
-        if (VALGRIND_TYPE STREQUAL "helgrind")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --show-error-list=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --gen-suppressions=all --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "massif")

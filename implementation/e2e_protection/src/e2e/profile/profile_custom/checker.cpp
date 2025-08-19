@@ -13,9 +13,8 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile_custom {
 
-void profile_custom_checker::check(const e2e_buffer &_buffer,
-        instance_t _instance,
-        e2e::profile_interface::check_status_t &_generic_check_status) {
+void profile_custom_checker::check(const e2e_buffer& _buffer, instance_t _instance,
+                                   e2e::profile_interface::check_status_t& _generic_check_status) {
 
     (void)_instance;
 
@@ -32,17 +31,15 @@ void profile_custom_checker::check(const e2e_buffer &_buffer,
             _generic_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
         } else {
             _generic_check_status = e2e::profile_interface::generic_check_status::E2E_WRONG_CRC;
-            VSOMEIP_INFO << std::hex << "E2E protection: CRC32 does not match: calculated CRC: "
-                    << (uint32_t) calculated_crc << " received CRC: " << (uint32_t) received_crc;
+            VSOMEIP_INFO << std::hex << "E2E protection: CRC32 does not match: calculated CRC: " << (uint32_t)calculated_crc
+                         << " received CRC: " << (uint32_t)received_crc;
         }
     }
 }
 
-uint32_t profile_custom_checker::read_crc(const e2e_buffer &_buffer) const {
-    return (static_cast<uint32_t>(_buffer[config_.crc_offset_ ]) << 24U) |
-           (static_cast<uint32_t>(_buffer[config_.crc_offset_ + 1U]) << 16U) |
-           (static_cast<uint32_t>(_buffer[config_.crc_offset_ + 2U]) << 8U) |
-           static_cast<uint32_t>(_buffer[config_.crc_offset_ + 3U]);
+uint32_t profile_custom_checker::read_crc(const e2e_buffer& _buffer) const {
+    return (static_cast<uint32_t>(_buffer[config_.crc_offset_]) << 24U) | (static_cast<uint32_t>(_buffer[config_.crc_offset_ + 1U]) << 16U)
+            | (static_cast<uint32_t>(_buffer[config_.crc_offset_ + 2U]) << 8U) | static_cast<uint32_t>(_buffer[config_.crc_offset_ + 3U]);
 }
 
 } // namespace profile_custom

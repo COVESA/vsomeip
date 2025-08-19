@@ -19,16 +19,13 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class expire_command
-    : public subscribe_command_base {
+class expire_command : public subscribe_command_base {
 
 public:
     expire_command();
 
-    void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 };
 
 } // namespace protocol

@@ -11,8 +11,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class dummy_command
-    : public simple_command {
+class dummy_command : public simple_command {
 public:
     dummy_command();
 };

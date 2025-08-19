@@ -1,11 +1,9 @@
 # vSomeIP Configurations
 
-**Updated to vSomeIP 3.5.5**
-
 <`TBD`> tags means it still needs to be checked/done.
 
-
 ## Index
+
 - [Logging](#logging)
 - [Routing](#routing)
 - [Applications](#applications)
@@ -34,73 +32,85 @@
 - [Partitions](#partitions)
 - [Suppress Events](#suppress-events)
 - [Environment Variables](#environment-variables)
+
 ---
 
 ## Logging
 
 - **logging** - Used to configure the log messages of vSomeIP
-    - **console** - Specifies whether logging via console is enabled, valid values are `true` or `false`. The default value is `true`.
-    - **file**:
-        - **enable** - Specifies whether a log file should be created, valid values are `true` or `false`. The default value is `false`.
-        - **path** - The absolute path of the log file. The default value is `/tmp/vsomeip.log`.
-    - **dlt** - Specifies whether Diagnostic Log and Trace (DLT) is enabled, valid values are `true` or `false`. The default value is `false`.
-    - **level** - Specifies the log level, valid values are `trace`, `debug`, `info`, `warning`, `error`, `fatal`. The default value is `info`.
-    - **version** - Configures logging of the vsomeip version
-        - **enable** - Enable or disable cyclic logging of vsomeip version, valid values are `true` or `false`. The default value is `true`.
-        - **interval** - Configures interval in seconds to log the vsomeip version. The default value is `10` sec.
-    - **memory_log_interval** - Configures interval in seconds in which the routing manager logs its used memory. Setting a value greater than zero enables the logging. The default value is `0` sec.
-    - **status_log_interval** - Configures interval in seconds in which the routing manager logs its internal status. Setting a value greater than zero enables the logging. The default value is `0` sec.
-    - **statistics**
-        - **interval** - How often to report statistics data (received messages/events) in ms. The minimum possible interval is `1000`, for configured values below, 1000 will be used. The default value is `10000` ms (10sec).
-        - **min-frequency** - Minimum frequency of reported events. The default value is `50` Hz.
-        - **max-messages** - Maximum number of different messages that are reported. The default value is `50`.
 
+  - **console** - Specifies whether logging via console is enabled, valid values are `true` or `false`. The default value is `true`.
+
+  - **file**:
+    - **enable** - Specifies whether a log file should be created, valid values are `true` or `false`. The default value is `false`.
+    - **path** - The absolute path of the log file. The default value is `/tmp/vsomeip.log`.
+  - **dlt** - Specifies whether Diagnostic Log and Trace (DLT) is enabled, valid values are `true` or `false`. The default value is `false`.
+  - **level** - Specifies the log level, valid values are `trace`, `debug`, `info`, `warning`, `error`, `fatal`. The default value is `info`.
+  - **version** - Configures logging of the vsomeip version
+    - **enable** - Enable or disable cyclic logging of vsomeip version, valid values are `true` or `false`. The default value is `true`.
+    - **interval** - Configures interval in seconds to log the vsomeip version. The default value is `10` sec.
+  - **memory_log_interval** - Configures interval in seconds in which the routing manager logs its used memory. Setting a value greater than zero enables the logging. The default value is `0` sec.
+  - **status_log_interval** - Configures interval in seconds in which the routing manager logs its internal status. Setting a value greater than zero enables the logging. The default value is `0` sec.
+  - **statistics**
+    - **interval** - How often to report statistics data (received messages/events) in ms. The minimum possible interval is `1000`, for configured values below, 1000 will be used. The default value is `10000` ms (10sec).
+    - **min-frequency** - Minimum frequency of reported events. The default value is `50` Hz.
+    - **max-messages** - Maximum number of different messages that are reported. The default value is `50`.
+
+<!-- markdownlint-disable MD033 -->
 <details><summary>Example of DLT logging</summary>
 
-```
+```json
 "logging" :
 {
     "level" : "debug",
     "console" : "false",
     "file" : { "enable" : "false" },
     "dlt" : "true"
-},
+}
 ```
+
 </details>
 
 ## Routing
-- **routing** (optional) - Specifies the properties of the routing. Either a string that specifies the application that hosts the routing component or a structure that specifies all properties of the routing. If the routing is not specified, the first started application will host the routing component.
-    - **host** - Properties of the routing manager.
-        - **name** - Name of the application that hosts the routing component.
-        - **uid** - User identifier of the process that runs the routing component. Must be specified if credential checks are enabled by check_credentials set to true.
-        - **gid** - Group identifier of the process that runs the routing component. Must be specified if credential checks are enabled by check_credentials set to true.
-        - **unicast** (optional) - The unicast address that shall be used by the routing manager, if the internal communication shall be done by using TCP connections.
-        - **port** (optional) - The port that shall be used by the routing manager, if the internal communication shall be done by using TCP connections.
-    - **guests** (optional) - Properties of all applications that do not host the routing component, if the internal communication shall be done using TCP connections.
-        - **unicast** - The unicast address that shall be used by the applications to connect to the routing manager. If not set, the unicast address of the host entry is used.
-        - **ports** - A set of port ranges that shall be used to connect to the routing manager per user identifier/group identifier. Either specify uid, gid and ranges, or only a set of port ranges. If uid and gid are not explicitly specified, they default to any. Each client application requires two ports, one for receiving messages from other applications and one to send messages to other applications.
-            - **uid** - User identifier
-            - **gid** - Group identifier
-            - **ranges** - Set of port ranges. Each entry consists of a `first`, `last` pair that determines the first and the last port of a port range.
-                - **first** - First port of a port range
-                - **last** - Last port of a port range
 
-            **Note:** Each configured port range must contain an even number of ports. If an even port number is configured to be the routing host port, the first port in the range must also be even. If an uneven port number is configured to be the routing host port, the first port in the range must also be uneven.
+- **routing** (optional) - Specifies the properties of the routing. Either a string that specifies the application that hosts the routing component or a structure that specifies all properties of the routing. If the routing is not specified, the first started application will host the routing component.
+
+  - **host** - Properties of the routing manager.
+    - **name** - Name of the application that hosts the routing component.
+    - **uid** - User identifier of the process that runs the routing component. Must be specified if credential checks are enabled by check_credentials set to true.
+    - **gid** - Group identifier of the process that runs the routing component. Must be specified if credential checks are enabled by check_credentials set to true.
+    - **unicast** (optional) - The unicast address that shall be used by the routing manager, if the internal communication shall be done by using TCP connections.
+    - **port** (optional) - The port that shall be used by the routing manager, if the internal communication shall be done by using TCP connections.
+  - **guests** (optional) - Properties of all applications that do not host the routing component, if the internal communication shall be done using TCP connections.
+    - **unicast** - The unicast address that shall be used by the applications to connect to the routing manager. If not set, the unicast address of the host entry is used.
+    - **ports** - A set of port ranges that shall be used to connect to the routing manager per user identifier/group identifier. Either specify uid, gid and ranges, or only a set of port ranges. If uid and gid are not explicitly specified, they default to any. Each client application requires two ports, one for receiving messages from other applications and one to send messages to other applications.
+      - **uid** - User identifier
+      - **gid** - Group identifier
+      - **ranges** - Set of port ranges. Each entry consists of a `first`, `last` pair that determines the first and the last port of a port range.
+        - **first** - First port of a port range
+        - **last** - Last port of a port range
+
+        **Note:** Each configured port range must contain an even number of ports. If an even port number is configured to be the routing host port, the first port in the range must also be even. If an uneven port number is configured to be the routing host port, the first port in the range must also be uneven.
 
 - **routing-credentials (deprecated)** - The UID / GID of the application acting as routing manager. (Must be specified if credentials checks are enabled using `check_credentials` set to `true` in order to successfully check the routing managers credentials passed on connect)
-    - **uid** - The routing managers UID.
-    - **gid** - The routing managers GID.
+  - **uid** - The routing managers UID.
+  - **gid** - The routing managers GID.
 
 <details><summary>Example of simple routing configuration</summary>
 
-```
+```json
 "routing" : "service-sample",
 ```
+
 </details>
 
 <details><summary>Example of routing using internal TCP Communication (1)</summary>
 
-```
+The following example assumes that different machines (i.e., with different IP addresses) are connected to the same network. If both clients are on the same network and share the same IP address, the service-side configuration should be applied to both.
+
+### Server side configuration
+
+```json
 "routing" : {
     "host" : {
         "name" : "service-sample",
@@ -117,13 +127,38 @@
             }
         ]
     }
+}
+```
+
+### Client side configuration
+
+```json
+
+"routing" : {
+    "host" : {
+        "unicast" : "10.0.3.1",
+        "port" : "31000"
+    },
+    "guests" : {
+        "unicast" : "10.0.3.2",
+        "ports" :
+        [
+            {
+                "first" : "1026",
+                "last" : "65535"
+            }
+        ]
+    }
 },
 ```
+
 </details>
 
 <details><summary>Example of routing using internal TCP Communication (2)</summary>
 
-```
+### Server side configuration
+
+```json
 "routing": {
     "host": {
         "name": "service-sample",
@@ -145,32 +180,59 @@
         }
         ]
     }
+}
+```
+
+### Client side configuration
+
+```json
+"routing": {
+    "host": {
+        "unicast": "10.0.3.1",
+        "port": "31000"
+    },
+    "guests": {
+        "unicast": "10.0.3.2",
+        "ports": [
+        {
+            "uid": 8205,
+            "gid": 8205,
+            "ranges": [
+            {
+                "first": 10000,
+                "last": 10019
+            }
+            ]
+        }
+        ]
+    }
 },
 ```
+
 </details>
 
 ## Applications
 
 - **applications** (array) - Contains the applications of the host system that use this config file.
-    - **name** - The name of the application.
-    - **id** - The id of the application. Usually its high byte is equal to the diagnosis address. In this case the low byte must be different from zero. Thus, if the diagnosis address is 0x63, valid values range from 0x6301 until 0x63FF. It is also possible to use id values with a high byte different from the diagnosis address.
-    - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. The default value is `10`.
-    - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100` ms.
-    - **max_detached_thread_wait_time** (optional) - The maximum time in seconds that an application will wait for a detached dispatcher thread to finish executing. The default value if not specified is `5` sec.
-    - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. The default value is `2`.
-    - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation. The default value is `0`.
-    - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is set by the global configuration variable of the same name.
-    - **plugins** (optional array) - Contains the plug-ins that should be loaded to extend the functionality of vsomeip.
-        - **name** - The name of the plug-in.
-        - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
-        - **additional** - Generic way to define configuration data for plugins.
-    - **debounce** - Client/Application specific configuration of debouncing.
-    - **has_session_handling** - Configures the session handling. Mostly used for E2E use cases when the application handles the CRC calculation over the SOME/IP header by themself, and need the ability to switch off the session handling as otherwise their calculated checksum does not match reality after vsomeip inserts the session identifier. Valid values are `true` or `false`. The default value is `true`.
-    - **event_loop_periodicity** (optional) - If set to a positive value, it enables the io_context object's event processing run_for implementation to run the loop based on duration instead of running it until the work queue has work to be done. The default value is `0` seconds, which uses the io_context run interface.
+  - **name** - The name of the application.
+  - **id** - The id of the application. Usually its high byte is equal to the diagnosis address. In this case the low byte must be different from zero. Thus, if the diagnosis address is 0x63, valid values range from 0x6301 until 0x63FF. It is also possible to use id values with a high byte different from the diagnosis address.
+  - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. The default value is `10`.
+  - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100` ms.
+  - **max_detached_thread_wait_time** (optional) - The maximum time in seconds that an application will wait for a detached dispatcher thread to finish executing. The default value if not specified is `5` sec.
+  - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. The default value is `2`.
+  - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation. The default value is `0`.
+  - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is set by the global configuration variable of the same name.
+  - **plugins** (optional array) - Contains the plug-ins that should be loaded to extend the functionality of vsomeip.
+    - **name** - The name of the plug-in.
+    - **type** - The plug-in type (valid values: `application_plugin`). An application plug-in extends the functionality on application level. It gets informed by vsomeip over the basic application states (INIT/START/STOP) and can, based on these notifications, access the standard "application"-API via the runtime.
+    - **additional** - Generic way to define configuration data for plugins.
+  - **debounce** - Client/Application specific configuration of debouncing.
+  - **has_session_handling** - Configures the session handling. Mostly used for E2E use cases when the application handles the CRC calculation over the SOME/IP header by themself, and need the ability to switch off the session handling as otherwise their calculated checksum does not match reality after vsomeip inserts the session identifier. Valid values are `true` or `false`. The default value is `true`.
+  - **event_loop_periodicity** (optional) - If set to a positive value, it enables the io_context object's event processing run_for implementation to run the loop based on duration instead of running it until the work queue has work to be done. The default value is `0` seconds, which uses the io_context run interface.
 
 <details><summary>Example of Applications configuration</summary>
 
-```
+```json
 "applications" :
 [
     {
@@ -198,6 +260,7 @@
     },
 ],
 ```
+
 </details>
 
 ## Network
@@ -215,12 +278,13 @@
 
 <details><summary>Example of Network configuration!</summary>
 
-```
+```json
 "unicast" : "10.10.3.1",
 "netmask" : "255.255.255.0",
 "diagnosis" : "0x63",
 "diagnosis_mask" : "0xF300",
 ```
+
 </details>
 
 ## Shutdown
@@ -229,9 +293,10 @@
 
 <details><summary>Example of Shutdown configuration</summary>
 
-```
+```json
 "shutdown_timeout" : 1000
 ```
+
 </details>
 
 ## Dispatching
@@ -239,8 +304,8 @@
 Define default settings for the maximum number of (additional) dispatchers and the maximum dispatch time. These default values are overwritten by application specific definitions.
 
 - **dispatching** (optional)
-    - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. The default value is `10`.
-    - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100` ms.
+  - **max_dispatchers** (optional) - The maximum number of threads that shall be used to execute the application callbacks. The default value is `10`.
+  - **max_dispatch_time** (optional) - The maximum time in ms that an application callback may consume before the callback is considered to be blocked (and an additional thread is used to execute pending callbacks if max_dispatchers is configured greater than 0). The default value if not specified is `100` ms.
 
 ## Payload Sizes
 
@@ -266,7 +331,7 @@ Define default settings for the maximum number of (additional) dispatchers and t
 
 <details><summary>Example of Payload Sizes configuration</summary>
 
-```
+```json
 "max-payload-size-local" : "52428800",
 "max-payload-size-reliable" : "52428800",
 "payload-sizes":
@@ -287,6 +352,7 @@ Define default settings for the maximum number of (additional) dispatchers and t
     }
 ],
 ```
+
 </details>
 
 ## Endpoint Queue Sizes
@@ -383,14 +449,12 @@ The `config` folder contains some addition vsomeip configuration files to run th
 Additionally there's a security test in the `test/` subfolder which can be used for further reference.
 They give a basic overview how to use the security related configuration tags described in this chapter to run a simple request/response or subscribe/notify example locally or remotely.
 
-```
+```json
 "security" :
 {
-    ...
     "policies" :
     [
         {
-            ...
             "credentials" :
             {
                 "uid" : "44",
@@ -469,6 +533,7 @@ They give a basic overview how to use the security related configuration tags de
      ]
 }
 ```
+
 </details>
 
 ### Security Policy Extensions
@@ -488,7 +553,7 @@ The following configuration parameters are available and can be defined in a fil
 
 <details><summary>Security policy extensions example</summary>
 
-```
+```json
 {
     "container_policy_extensions": [
         {
@@ -502,6 +567,7 @@ The following configuration parameters are available and can be defined in a fil
     ]
 }
 ```
+
 </details>
 
 ## Tracing
@@ -530,12 +596,13 @@ This is the minimal configuration of the Trace Connector.
 
 This just enables the tracing and all of the sent internal messages will be traced/forwarded to DLT.
 
-```
+```json
 "tracing" :
 {
     "enable" : "true"
 },
 ```
+
 </details>
 
 <details><summary>Example 2 (Using Filters)!</summary>
@@ -550,7 +617,8 @@ The general filter rules are:
 * Negative filters block matching messages. Negative filters overrule positive filters. Thus, as soon as a messages matches a negative filter it will not be forwarded.
 * The identifier '0xffff' is a wildcard that matches any service, instance or method. The keyword 'any' can be used as a replacement for '0xffff'.
 * Wildcards must not be used within range filters.
-```
+
+```json
 "tracing" :
 {
     "enable" : "true",
@@ -570,11 +638,12 @@ The general filter rules are:
     ]
 },
 ```
+
 </details>
 
 <details><summary>Other example!</summary>
 
-```
+```json
 "tracing": {
     "filters": [{
         "channel": "TC",
@@ -607,7 +676,6 @@ The general filter rules are:
 ```
 
 </details>
-
 
 ## UDP Receive Buffer Size
 
@@ -646,7 +714,7 @@ The general filter rules are:
 
 <details><summary>Service Discovery configuration</summary>
 
-```
+```json
 "service-discovery" :
 {
     "enable" : "true",
@@ -661,8 +729,8 @@ The general filter rules are:
     "ttl" : "3"
 },
 ```
-</details>
 
+</details>
 
 ## nPDU Default Timings
 
@@ -687,7 +755,7 @@ The nPDU feature specific settings are configured in the json file in the `"serv
 
 <details><summary>Simple Example</summary>
 
-```
+```json
 "services":
 [
     {
@@ -702,6 +770,7 @@ The nPDU feature specific settings are configured in the json file in the `"serv
     }
 ],
 ```
+
 </details>
 
 <details><summary>Global nPDU configurations</summary>
@@ -709,7 +778,7 @@ Additionally nPDU default timings can be configured globally.
 
 The global default timings can be overwritten via the `npdu-default-timings` json object. For example the following configuration snippet shows how to set all default timings to zero:
 
-```
+```json
     "npdu-default-timings" : {
         "debounce-time-request" : "0",
         "debounce-time-response" : "0",
@@ -717,6 +786,7 @@ The global default timings can be overwritten via the `npdu-default-timings` jso
         "max-retention-time-response" : "0"
     },
 ```
+
 </details>
 
 <details><summary>Example 1: One service with one method offered over UDP</summary>
@@ -733,11 +803,11 @@ Debounce time for responses should have a:
 - debounce time of 10 milliseconds
 - maximum retention time of 100 milliseconds
 
-```
+```json
 {
     "unicast":"192.168.1.9",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": {  },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -755,8 +825,8 @@ Debounce time for responses should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { "..." }
 }
 ```
 
@@ -766,11 +836,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 - debounce time of 20 milliseconds
 - maximum retention time of 200 milliseconds
 
-```
+```json
 {
     "unicast":"192.168.1.77",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { "..." },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -789,10 +859,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { }
 }
 ```
+
 </details>
 
 <details><summary>Example 2: One service with two methods offered over UDP</summary>
@@ -810,11 +881,11 @@ Debounce time for responses should have a:
 - debounce time of 10 milliseconds for method 0x1001 and 20 for 0x1002
 - maximum retention time of 100 milliseconds for method 0x1001 and 200 for 0x1002
 
-```
+```json
 {
     "unicast":"192.168.1.9",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -836,8 +907,8 @@ Debounce time for responses should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": "{ ... }"
 }
 ```
 
@@ -847,11 +918,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 - debounce time of 20 milliseconds for method 0x1001 and 40 for 0x1002
 - maximum retention time of 200 milliseconds for method 0x1001 and 400 for 0x1002
 
-```
+```json
 {
     "unicast":"192.168.1.77",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -874,10 +945,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { "..." }
 }
 ```
+
 </details>
 
 <details><summary>Example 3: One service with one method offered over UDP and TCP</summary>
@@ -896,11 +968,11 @@ Debounce time for responses should have a:
 - maximum retention time of 100 milliseconds
 - TCP should use the same settings as UDP
 
-```
+```json
 {
     "unicast":"192.168.1.9",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { "..." },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -923,8 +995,8 @@ Debounce time for responses should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { "..." }
 }
 ```
 
@@ -935,11 +1007,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 - maximum retention time of 200 milliseconds
 - TCP should use the same settings as UDP
 
-```
+```json
 {
     "unicast":"192.168.1.77",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { "..." },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -963,10 +1035,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { "..." }
 }
 ```
+
 </details>
 
 ## Services
@@ -1015,7 +1088,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>Services configuration</summary>
 
-```
+```json
 "services" :
 	[
 		{
@@ -1088,11 +1161,11 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 **Configuration service side:**
 
-```
+```json
 {
     "unicast":"192.168.0.1",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { "..." },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -1107,17 +1180,18 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
         }
     ],
     "max-payload-size-unreliable" : "5000",
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { "..." }
 }
 ```
 
 **Configuration client side:**
-```
+
+```json
 {
     "unicast":"192.168.0.100",
-    "logging": { [...] },
-    "applications": [ [...] ],
+    "logging": { "..." },
+    "applications": [ "..." ],
     "services":
     [
         {
@@ -1131,8 +1205,8 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             }
         }
     ],
-    "routing":"[...]",
-    "service-discovery": { [...] }
+    "routing":"...",
+    "service-discovery": { "..." }
 }
 ```
 
@@ -1140,7 +1214,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>SOME/IP TP other example</summary>
 
-```
+```json
 "services" :
 [
     {
@@ -1161,9 +1235,8 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 ],
 
 ```
+
 </details>
-
-
 
 ## Internal Services
 
@@ -1177,7 +1250,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>Internal Services configuration</summary>
 
-```
+```json
 "internal_services" :
     [
         {
@@ -1222,7 +1295,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>Simple Clients configuration</summary>
 
-```
+```json
 "clients" :
 [
     {
@@ -1232,11 +1305,12 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     }
 ],
 ```
+
 </details>
 
 <details><summary>Port mapping clients configuration</summary>
 
-```
+```json
 "clients" :
 [
     {
@@ -1253,6 +1327,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     },
 ],
 ```
+
 </details>
 
 ## Watchdog
@@ -1275,12 +1350,13 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>Selective Broadcasts Support configuration</summary>
 
-```
+```json
 "supports_selective_broadcasts" :
 {
     "address" : "10.10.3.10"
 }
 ```
+
 </details>
 
 ## E2E
@@ -1316,7 +1392,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>Simple E2E configuration</summary>
 
-```
+```json
 "e2e" :
     {
         "e2e_enabled" : "true",
@@ -1352,13 +1428,14 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
         ]
     },
 ```
+
 </details>
 
 <details><summary>E2E Profile 01 configuration</summary>
 
 **Server-side**
 
-```
+```json
 "e2e" :
 {
     "e2e_enabled" : "true",
@@ -1390,7 +1467,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 **Client-side**
 
-```
+```json
 "e2e" :
 {
     "e2e_enabled" : "true",
@@ -1426,7 +1503,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 **Server-side**
 
-```
+```json
 "e2e" :
 {
     "e2e_enabled" : "true",
@@ -1454,7 +1531,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 **Client-side**
 
-```
+```json
 "e2e" :
 {
     "e2e_enabled" : "true",
@@ -1482,7 +1559,6 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 </details>
 
-
 ## Debounce
 
 - **debounce** (optional array) - Events/fields sent by external devices will be forwarded to the applications only if a configurable function evaluates to true. The function checks whether the event/field payload has changed and whether a specified interval has been elapsed since the last forwarding.
@@ -1501,7 +1577,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 <details><summary>Debounce configuration</summary>
 
-```
+```json
 "debounce" :
 [
     {
@@ -1538,6 +1614,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     }
 ]
 ```
+
 </details>
 
 
@@ -1568,7 +1645,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 <details><summary>Acceptances configuration</summary>
 Configuration used to specify the port group 30xy from the IP 10.3.0.10 should be treated as "never-secure".
 
-```
+```json
 "acceptances" :
 [
     {
@@ -1588,6 +1665,7 @@ Configuration used to specify the port group 30xy from the IP 10.3.0.10 should b
     }
 ]
 ```
+
 </details>
 
 ## Secure Services
@@ -1606,7 +1684,7 @@ events if a single server port is used to offer many services that send many mes
 
 <details><summary>Partitions configuration</summary>
 
-```
+```json
 "partitions" :
 [
     [
@@ -1629,6 +1707,7 @@ events if a single server port is used to offer many services that send many mes
     ]
 ],
 ```
+
 </details>
 
 
@@ -1645,10 +1724,9 @@ receives an event without having a corresponding object being registered.
         - Range based hex, dec values.
         - If no events is provided, then it's assumed all events are to be ignored.
 
-
 <details><summary>Suppress Events configuration</summary>
 
-```
+```json
 "suppress_missing_event_logs" :
 [
     {
@@ -1683,8 +1761,8 @@ receives an event without having a corresponding object being registered.
     }
 ]
 ```
-</details>
 
+</details>
 
 # Environment Variables
 
@@ -1715,12 +1793,11 @@ To enable service-specific logs, provide a space- or colon-separated list of Ser
         Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001 f013.000a 1001 1002"
         Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001:f013.000a:1001:1002"
 
+- **VSOMEIP_CONFIGURATION_MODULE** - Used to load external configuration modules. Not implemented yet!
 
-- **VSOMEIP_CONFIGURATION_MODULE** - <`TBD`>
+- **VSOMEIP_E2E_PROTECTION_MODULE** - Used to load external E2E modules. Defaults to `libvsomeip3-e2e.so.@VSOMEIP_MAJOR_VERSION@`, `vsomeip3-e2e.dll`(WIN), and `libvsomeip_e2e.so` (Android).
 
-- **VSOMEIP_E2E_PROTECTION_MODULE** - <`TBD`>
-
-- **VSOMEIP_LOAD_PLUGINS** - <`TBD`>
+- **VSOMEIP_LOAD_PLUGINS** - Used to load external plugins.
 
 <details><summary>Using environment variables</summary>
 
@@ -1737,6 +1814,7 @@ export VSOMEIP_APPLICATION_NAME=my_vsomeip_client
 export VSOMEIP_CONFIGURATION=my_settings.json
 ./my_vsomeip_application
 ```
+
 </details>
 
 ---

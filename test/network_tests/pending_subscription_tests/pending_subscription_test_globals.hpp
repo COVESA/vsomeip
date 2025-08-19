@@ -18,7 +18,7 @@ struct service_info {
     vsomeip::method_t notify_method_id;
 };
 
-struct service_info service = { 0x1122, 0x1, 0x1111, 0x1111, 0x1000, 0x1404, 0x4242 };
+struct service_info service = {0x1122, 0x1, 0x1111, 0x1111, 0x1000, 0x1404, 0x4242};
 
 enum test_mode_e {
     SUBSCRIBE,
