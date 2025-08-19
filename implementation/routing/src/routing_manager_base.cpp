@@ -548,7 +548,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
 void routing_manager_base::unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided) {
     (void)_client;
     std::shared_ptr<event> its_event;
-    bool event_ref_cleared {false};
+    bool event_ref_cleared{false};
     {
         std::lock_guard<std::mutex> its_lock(events_mutex_);
         const auto search = events_.find(service_instance_t{_service, _instance});
@@ -558,22 +558,21 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
                 its_event = found_event->second;
                 its_event->remove_ref(_client, _is_provided);
                 if (!its_event->has_ref()) {
-                    event_ref_cleared=true;
+                    event_ref_cleared = true;
                     search->second.erase(found_event);
                 }
             }
         }
     }
-    if (its_event){
-        if(_is_provided){
+    if (its_event) {
+        if (_is_provided) {
             its_event->unset_payload(false);
             its_event->set_provided(false);
         }
         if (event_ref_cleared) {
             auto its_eventgroups = its_event->get_eventgroups();
             for (auto eg : its_eventgroups) {
-                std::shared_ptr<eventgroupinfo> its_eventgroup_info
-                    = find_eventgroup(_service, _instance, eg);
+                std::shared_ptr<eventgroupinfo> its_eventgroup_info = find_eventgroup(_service, _instance, eg);
                 if (its_eventgroup_info) {
                     its_eventgroup_info->remove_event(its_event);
                     if (0 == its_eventgroup_info->get_events().size()) {
