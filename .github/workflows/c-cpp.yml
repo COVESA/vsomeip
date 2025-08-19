@@ -58,7 +58,7 @@ jobs:
           link: static  
           toolset: msvc
           arch: x86
-          cache: true
+          cache: false
 
       - uses: actions/checkout@v4
 
