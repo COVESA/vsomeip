@@ -244,21 +244,15 @@ void udp_server_endpoint_impl::start_unlocked() {
     VSOMEIP_INFO << instance_name_ << "start_unlocked: start unicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
     receive_unicast_unlocked();
 
-    if (!multicast_socket_) {
-        VSOMEIP_INFO << instance_name_ << "start_unlocked: join " << joined_.size() << " groups";
+    VSOMEIP_INFO << instance_name_ << "start_unlocked: join " << joined_.size() << " groups";
 
-        auto its_endpoint_host = endpoint_host_.lock();
-        if (its_endpoint_host) {
-            for (const auto& [its_address, its_joined] : joined_) {
-                if (!its_joined) {
-                    multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(its_address)};
-
-                    its_endpoint_host->add_multicast_option(its_join_option);
-                }
-            }
+    auto its_endpoint_host = endpoint_host_.lock();
+    if (its_endpoint_host) {
+        for (const auto& [its_address, its_joined] : joined_) {
+            VSOMEIP_INFO << instance_name_ << "start_unlocked: rejoin " << its_address << ", was joined " << its_joined;
+            multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(its_address)};
+            its_endpoint_host->add_multicast_option(its_join_option);
         }
-    } else {
-        VSOMEIP_ERROR << instance_name_ << "start_unlocked: multicast already started!";
     }
 }
 
