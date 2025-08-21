@@ -202,22 +202,19 @@ bool local_tcp_server_endpoint_impl::get_default_target(service_t, local_tcp_ser
     return false;
 }
 
-bool local_tcp_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
-
-    bool ret = false;
+void local_tcp_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
     std::scoped_lock its_lock{connections_mutex_};
     auto find_connection = connections_.find(_client);
-    if (find_connection == connections_.end()) {
-        connections_[_client] = _connection;
-        ret = true;
-    } else {
-        VSOMEIP_WARNING << "Attempt to add already existing connection to client " << std::hex << _client << " endpoint > " << this;
+    if (find_connection != connections_.end()) {
+        VSOMEIP_WARNING << "Replacing already existing connection to client " << std::hex << _client
+                        << ", previous connection: " << connections_[_client] << ", new connection " << _connection << ", endpoint > "
+                        << this;
     }
-    return ret;
+
+    connections_[_client] = _connection;
 }
 
 void local_tcp_server_endpoint_impl::remove_connection(const client_t& _client) {
-
     std::scoped_lock its_lock{connections_mutex_};
     if (!connections_.erase(_client)) {
         VSOMEIP_WARNING << "Client " << std::hex << _client << " has no registered connection to "
@@ -388,6 +385,10 @@ void local_tcp_server_endpoint_impl::connection::start() {
             // don't start receiving again
             return;
         }
+
+        boost::system::error_code ec;
+        VSOMEIP_INFO << "ltsei::" << __func__ << ": accepted connection with client(" << socket_->remote_endpoint(ec).address().to_string()
+                     << ":" << socket_->remote_endpoint(ec).port() << "), endpoint > " << this;
 
         is_stopped_ = false;
         socket_->async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
@@ -621,7 +622,8 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
                                       << " but couldn't read "
                                          "out command size. recv_buffer_capacity: "
                                       << std::dec << recv_buffer_.capacity() << " its_iteration_gap: " << std::dec << its_iteration_gap
-                                      << " bound client: 0x" << std::hex << bound_client_ << " buffer: " << local_msg.str();
+                                      << " bound client: 0x" << std::hex << std::setfill('0') << std::setw(4) << bound_client_
+                                      << " buffer: " << local_msg.str();
                         recv_buffer_size_ = 0;
                         missing_capacity_ = 0;
                         its_iteration_gap = 0;
@@ -634,21 +636,11 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
 
                 if (its_server->is_routing_endpoint_ && recv_buffer_[its_start] == protocol::id_e::ASSIGN_CLIENT_ID) {
                     client_t its_client = its_server->assign_client(&recv_buffer_[its_start], uint32_t(its_end - its_start));
-                    {
-                        // order matters, register connection first, as it can fail
-                        if (!its_server->add_connection(its_client, shared_from_this())) {
-                            VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                                            << " is rejecting new connection with client ID 0x" << its_client << " uid/gid= " << std::dec
-                                            << sec_client_.user << "/" << sec_client_.group
-                                            << " because of already existing connection using same "
-                                               "client ID";
 
-                            stop();
-                            return;
-                        }
-                        its_host->add_known_client(its_client, get_bound_client_host());
-                        set_bound_client(its_client);
-                    }
+                    its_server->add_connection(its_client, shared_from_this());
+                    its_host->add_known_client(its_client, get_bound_client_host());
+                    set_bound_client(its_client);
+
                     its_server->send_client_identifier(its_client);
                     assigned_client_ = true;
                 } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
@@ -720,7 +712,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
     if (is_stopped_ || is_error || _error == boost::asio::error::eof || _error == boost::asio::error::timed_out
         || _error == boost::asio::error::bad_descriptor || _error == boost::asio::error::connection_reset) {
         VSOMEIP_INFO << "ltsei::receive_cbk closing connection due to is_stopped " << is_stopped_ << ", error '" << _error.message()
-                     << "', is_error " << is_error << "', endpoint > " << this;
+                     << "', is_error " << is_error << ", bound_client_ " << std::hex << bound_client_ << "', endpoint > " << this;
 
         shutdown_and_close();
         if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
