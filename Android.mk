@@ -101,7 +101,7 @@ LOCAL_CFLAGS :=  \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.5.7\" \
+    -DVSOMEIP_VERSION=\"3.5.8\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -159,7 +159,7 @@ LOCAL_CFLAGS := \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.5.7\" \
+    -DVSOMEIP_VERSION=\"3.5.8\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -206,8 +206,8 @@ LOCAL_CFLAGS :=  \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.5.7\" \
-    -DVSOMEIP_COMPAT_VERSION=\"3.5.7\" \
+    -DVSOMEIP_VERSION=\"3.5.8\" \
+    -DVSOMEIP_COMPAT_VERSION=\"3.5.8\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
