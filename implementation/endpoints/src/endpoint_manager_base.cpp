@@ -35,7 +35,8 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local(client_t _client) 
 }
 
 void endpoint_manager_base::remove_local(const client_t _client) {
-    VSOMEIP_INFO << "emb::" << __func__ << ": client " << std::hex << _client;
+    VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client() << ", client "
+                 << _client;
     std::shared_ptr<endpoint> its_endpoint{find_local(_client)};
     if (its_endpoint) {
         its_endpoint->register_error_handler(nullptr);
@@ -53,13 +54,31 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _
         std::scoped_lock its_lock{local_endpoint_mutex_};
         its_endpoint = find_local_unlocked(_client);
         if (!its_endpoint) {
-            VSOMEIP_INFO << "emb::" << __func__ << ": create_client " << std::hex << _client;
+            VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
+                         << ", client " << _client;
             its_endpoint = create_local_unlocked(_client);
 
             if (its_endpoint) {
                 its_endpoint->start();
+
+                // need to send some initial info, and it must be done before the _caller_ code sends something else
+                protocol::config_command its_command;
+                its_command.set_client(rm_->is_routing_manager() ? VSOMEIP_ROUTING_CLIENT : get_client());
+                its_command.insert("hostname", get_client_host());
+
+                std::vector<byte_t> its_buffer;
+                protocol::error_e its_error;
+                its_command.serialize(its_buffer, its_error);
+
+                if (its_error == protocol::error_e::ERROR_OK) {
+                    its_endpoint->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
+                } else {
+                    VSOMEIP_ERROR << "emb::" << __func__ << ": could not serialize config command, self " << std::hex << std::setfill('0')
+                                  << std::setw(4) << rm_->get_client() << ", client " << _client << ", err " << static_cast<int>(its_error);
+                }
             } else {
-                VSOMEIP_ERROR << "emb::" << __func__ << ": couldn't find or create endpoint for client " << std::hex << _client;
+                VSOMEIP_ERROR << "emb::" << __func__ << ": couldn't find or create endpoint, self " << std::hex << std::setfill('0')
+                              << std::setw(4) << rm_->get_client() << ", client " << std::hex << _client;
             }
         }
     }
@@ -93,9 +112,6 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(const std::
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (is_local_routing_) {
         try {
-            if (-1 == ::unlink(its_path.str().c_str()) && errno != ENOENT) {
-                VSOMEIP_ERROR << "endpoint_manager_base::init_receiver unlink failed (" << its_path.str() << "): " << std::strerror(errno);
-            }
             auto its_tmp{std::make_shared<local_uds_server_endpoint_impl>(shared_from_this(), _routing_host, io_, configuration_, false)};
             if (its_tmp) {
                 boost::asio::local::stream_protocol::endpoint its_local_endpoint(its_path.str());
@@ -121,7 +137,6 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(const std::
 #endif
         try {
             std::lock_guard<std::mutex> its_lock(create_local_server_endpoint_mutex_);
-            ::unlink(its_path.str().c_str());
             port_t its_port;
             std::set<port_t> its_used_ports;
             auto its_address = configuration_->get_routing_guest_address();
@@ -292,8 +307,8 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_unlocked(client_t 
 
             } catch (...) { }
         } else {
-            VSOMEIP_ERROR << __func__ << ": Cannot get guest address of client [" << std::hex << std::setfill('0') << std::setw(4)
-                          << _client << "]";
+            VSOMEIP_ERROR << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
+                          << " cannot get guest address of client [" << _client << "]";
         }
     }
 

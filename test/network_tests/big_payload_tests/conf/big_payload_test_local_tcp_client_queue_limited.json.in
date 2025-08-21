@@ -31,7 +31,7 @@
             "instance":"0x5678"
         }
     ],
-    "endpoint-queue-limit-local" : "614431",
+    "endpoint-queue-limit-local" : "614500",
     "routing":
     {
         "host" :

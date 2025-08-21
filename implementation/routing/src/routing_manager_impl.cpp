@@ -2035,13 +2035,16 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> its_clients_subscriptions;
     its_clients_subscriptions = get_subscriptions(_client);
 
+    vsomeip_sec_client_t its_sec_client;
+    configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
+
     for (const auto& s : its_clients_subscriptions) {
         auto [service, instance, eventgroup] = s;
         {
             std::scoped_lock its_lock{remote_subscription_state_mutex_};
             remote_subscription_state_.erase(std::tuple_cat(s, std::make_tuple(_client)));
         }
-        unsubscribe(_client, nullptr, service, instance, eventgroup, ANY_EVENT);
+        unsubscribe(_client, &its_sec_client, service, instance, eventgroup, ANY_EVENT);
     }
     routing_manager_base::remove_local(_client, its_clients_subscriptions, _remove_uid);
 

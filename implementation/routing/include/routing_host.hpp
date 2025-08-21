@@ -34,6 +34,7 @@ public:
 
     virtual client_t get_client() const = 0;
     virtual void add_known_client(client_t _client, const std::string& _client_host) = 0;
+    virtual void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) = 0;
 
     virtual std::string get_env(client_t _client) const = 0;
 

@@ -17,9 +17,11 @@ configure_files("${configuration_files}")
 add_executable(${PROJECT_NAME}
     helpers/app.cpp
     helpers/base_fake_socket_fixture.cpp
+    helpers/command_message.cpp
     helpers/fake_tcp_socket_handle.cpp
     helpers/service_state.cpp
     helpers/socket_manager.cpp
+    helpers/to_string.cpp
     main.cpp
     test_connection_restoration.cpp
 )
