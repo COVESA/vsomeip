@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "fake_tcp_socket_handle.hpp"
+#include "command_message.hpp"
 #include "socket_manager.hpp"
 #include "fake_tcp_socket.hpp"
 #include "test_logging.hpp"
@@ -33,6 +34,14 @@ fake_tcp_socket_handle::fake_tcp_socket_handle(boost::asio::io_context& _io) : i
 
 fake_tcp_socket_handle::~fake_tcp_socket_handle() {
     TEST_LOG << "[fake-socket] Deleting: " << socket_id_;
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+    if (!sm) {
+        return;
+    }
+    sm->remove(socket_id_.fd_);
 }
 
 void fake_tcp_socket_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm) {
@@ -138,8 +147,17 @@ void fake_tcp_socket_handle::block_on_close_for(std::optional<std::chrono::milli
 
 void fake_tcp_socket_handle::inner_close() {
     // called by the remote connected socket
-    auto const lock = std::scoped_lock(mtx_);
+    auto lock = std::unique_lock<std::mutex>(mtx_);
     TEST_LOG << "[fake-socket] calling inner_close on: " << socket_id_;
+    // the connected_socket_ can be reset even when ignoring the call,
+    // as the inner_close call implies the other socket tries to clean itself up
+    // (any usage through connected_socket_ could only work via a race condition
+    // and should be avoided).
+    connected_socket_ = {};
+    if (ignore_inner_close_) {
+        TEST_LOG << "[fake-socket] inner_close has no effect on: " << socket_id_;
+        return;
+    }
     if (receptor_) {
         // this has the potential to leak, as connected to sockets are not necessarily
         // managed, and could be implicitly deleted by the io_context in production
@@ -147,10 +165,10 @@ void fake_tcp_socket_handle::inner_close() {
         // out of scope :/.
         boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
         receptor_ = std::nullopt;
+        lock.unlock();
     } else {
         TEST_LOG << "[fake-socket] WARNING: calling inner_close on: " << socket_id_ << " could not forward the connection_reset";
     }
-    connected_socket_ = {};
 }
 
 void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, connect_handler _handler) {
@@ -233,7 +251,7 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
         if (!handler) {
             return;
         }
-        handler(boost::system::errc::make_error_code(boost::system::errc::broken_pipe), 0);
+        handler(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), 0);
     });
 }
 
@@ -257,15 +275,25 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
     size_t const incoming_size =
             std::accumulate(_buffer.begin(), _buffer.end(), 0, [](auto last, auto const& bf) { return last + bf.size(); });
     auto const lock = std::scoped_lock(mtx_);
-    input_data_.reserve(input_data_.size() + incoming_size);
+    std::vector<unsigned char> input;
+    input.reserve(incoming_size);
     for (auto const& buffer : _buffer) {
         auto first = static_cast<const char*>(buffer.data());
         auto const last = first + buffer.size();
         for (; first != last; ++first) {
-            input_data_.push_back(*first);
+            input.push_back(*first);
         }
     }
 
+    if (command_message m; parse(input, m)) {
+        TEST_LOG << "[fake-socket] " << socket_id_ << " received command_message: " << m;
+        received_command_record_.record(m.id_);
+    } else {
+        TEST_LOG << "[fake-socket] Error: unable to parse input. Size of the input: " << input.size();
+    }
+
+    input_data_.reserve(input_data_.size() + incoming_size);
+    std::copy(input.begin(), input.end(), std::back_inserter(input_data_));
     update_reception();
     return incoming_size;
 }
@@ -309,6 +337,11 @@ std::string fake_tcp_socket_handle::get_app_name() {
     return socket_id_.app_name_;
 }
 
+void fake_tcp_socket_handle::ignore_inner_close() {
+    auto const lock = std::scoped_lock(mtx_);
+    ignore_inner_close_ = true;
+}
+
 fd_t fake_tcp_socket_handle::fd() {
     auto const lock = std::scoped_lock(mtx_);
     return socket_id_.fd_;
@@ -318,6 +351,14 @@ fake_tcp_acceptor_handle::fake_tcp_acceptor_handle(boost::asio::io_context& _io)
 
 fake_tcp_acceptor_handle::~fake_tcp_acceptor_handle() {
     TEST_LOG << "[fake-acceptor] Deleting fd: " << fd_;
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+    if (!sm) {
+        return;
+    }
+    sm->remove_acceptor(fd_, endpoint_);
 }
 
 void fake_tcp_acceptor_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm) {
@@ -326,7 +367,7 @@ void fake_tcp_acceptor_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm)
     socket_manager_ = _sm;
 }
 
-[[nodiscard]] bool fake_tcp_acceptor_handle::bind(boost::asio::ip::tcp::endpoint const& ep) {
+[[nodiscard]] bool fake_tcp_acceptor_handle::bind(boost::asio::ip::tcp::endpoint const& _ep) {
     auto sm = [&]() -> std::shared_ptr<socket_manager> {
         auto const lock = std::scoped_lock(mtx_);
         return socket_manager_.lock();
@@ -334,7 +375,12 @@ void fake_tcp_acceptor_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm)
     if (!sm) {
         return false;
     }
-    return sm->bind_acceptor(ep, weak_from_this());
+    auto result = sm->bind_acceptor(_ep, weak_from_this());
+    if (result) {
+        auto const lock = std::scoped_lock(mtx_);
+        endpoint_ = _ep;
+    }
+    return result;
 }
 
 void fake_tcp_acceptor_handle::open() {
@@ -343,10 +389,13 @@ void fake_tcp_acceptor_handle::open() {
 }
 
 void fake_tcp_acceptor_handle::close() {
-    auto const lock = std::scoped_lock(mtx_);
+    auto lock = std::unique_lock<std::mutex>(mtx_);
     is_open_ = false;
     if (connection_) {
+        auto socket = connection_->socket_.lock();
         connection_ = std::nullopt;
+        lock.unlock();
+        socket.reset(); // `socket` destructor calls other code, beware of lock
     }
 }
 
@@ -356,7 +405,6 @@ void fake_tcp_acceptor_handle::close() {
 }
 
 void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler _handler) {
-    auto const lock = std::scoped_lock(mtx_);
     auto* fake_socket = dynamic_cast<fake_tcp_socket*>(&_socket);
     if (!fake_socket) {
         boost::asio::post(io_, [handler = std::move(_handler)] {
@@ -364,6 +412,16 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
         });
         return;
     }
+
+    auto lock = std::unique_lock<std::mutex>(mtx_);
+    if (connection_) {
+        auto socket = connection_->socket_.lock();
+        connection_ = std::nullopt;
+        lock.unlock();
+        socket.reset(); // `socket` destructor calls other code, beware of lock
+        lock.lock();
+    }
+
     TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", is awaiting connections with fd: " << fake_socket->state_->fd();
     connection_ = connection{fake_socket->state_, std::move(_handler)};
     if (auto const sm = socket_manager_.lock(); sm) {

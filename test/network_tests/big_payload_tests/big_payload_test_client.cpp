@@ -199,7 +199,7 @@ void big_payload_test_client::run() {
                    || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
             if (i % 2) {
                 // try to sent a too big payload for half of the messages
-                its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 1, big_payload_test::DATA_CLIENT_TO_SERVICE);
+                its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE + 2048, big_payload_test::DATA_CLIENT_TO_SERVICE);
             } else {
                 its_payload_data.assign(big_payload_test::BIG_PAYLOAD_SIZE, big_payload_test::DATA_CLIENT_TO_SERVICE);
             }

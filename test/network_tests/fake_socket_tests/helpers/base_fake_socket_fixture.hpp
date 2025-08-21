@@ -76,6 +76,12 @@ struct base_fake_socket_fixture : ::testing::Test {
     app* start_client(std::string const& _name);
 
     /**
+     * Stops the client.
+     * Note: the actual memory acquired before will be cleaned-up.
+     **/
+    void stop_client(std::string const _name);
+
+    /**
      * Waits until _timeout expires or the application identified by _name is awaiting
      * connections.application identified by _name is awaiting connections. This helper allows to
      * start the routing application up front, and only start the subsequent applications once the
@@ -143,10 +149,26 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay);
 
     /**
+     * @see socket_manager::set_ignore_inner_close()
+     **/
+    [[nodiscard]] bool set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to, bool _ignore_in_to);
+
+    /**
      * @see socket_manager::block_on_close_for()
      **/
     [[nodiscard]] bool block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
                                           std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time);
+
+    /**
+     * @see socket_manager::clear_command_record
+     **/
+    void clear_command_record(std::string const& _from, std::string const& _to);
+
+    /**
+     * @see socket_manager::wait_for_command
+     **/
+    [[nodiscard]] bool wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                        std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
 private:
     static std::shared_ptr<fake_socket_factory> factory_;

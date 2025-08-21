@@ -661,6 +661,10 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
                             client_t its_client = VSOMEIP_CLIENT_UNSET;
                             std::memcpy(&its_client, &recv_buffer_[its_start + protocol::COMMAND_POSITION_CLIENT], sizeof(client_t));
 
+                            // fill routing information from (first) message
+                            // so that a reply (response, notification, sub ack, whatever) can be provided
+                            its_host->add_guest(its_client, its_address, its_port - 1);
+                            its_host->add_known_client(its_client, "");
                             set_bound_client(its_client);
                             its_server->add_connection(its_client, shared_from_this());
                         }

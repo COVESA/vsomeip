@@ -190,19 +190,6 @@ void routing_manager_client::stop() {
             remove_local(client, true);
         }
     }
-
-    if (configuration_->is_local_routing()) {
-        std::stringstream its_client;
-        its_client << utility::get_base_path(configuration_->get_network()) << std::hex << get_client();
-#ifdef _WIN32
-        ::_unlink(its_client.str().c_str());
-#else
-
-        if (-1 == ::unlink(its_client.str().c_str())) {
-            VSOMEIP_ERROR << "routing_manager_proxy::stop unlink failed (" << its_client.str() << "): " << std::strerror(errno);
-        }
-#endif
-    }
 }
 
 std::shared_ptr<configuration> routing_manager_client::get_configuration() const {
@@ -1214,9 +1201,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                 its_pending_id = its_subscribe_command.get_pending_id();
                 auto its_filter = its_subscribe_command.get_filter();
 
-                std::unique_lock<std::mutex> its_lock(incoming_subscriptions_mutex_);
                 if (its_pending_id != PENDING_SUBSCRIPTION_ID) {
-                    its_lock.unlock();
 #ifdef VSOMEIP_ENABLE_COMPAT
                     routing_manager_base::set_incoming_subscription_state(its_client, its_service, its_instance, its_eventgroup, its_event,
                                                                           subscription_state_e::IS_SUBSCRIBING);
@@ -1263,8 +1248,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                     routing_manager_base::erase_incoming_subscription_state(its_client, its_service, its_instance, its_eventgroup,
                                                                             its_event);
 #endif
-                } else if (is_client_known(its_client)) {
-                    its_lock.unlock();
+                } else {
                     if (!is_from_routing) {
                         if (its_event == ANY_EVENT) {
                             if (!is_subscribe_to_any_event_allowed(_sec_client, its_client, its_service, its_instance, its_eventgroup)) {
@@ -1303,7 +1287,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                     routing_manager_base::set_incoming_subscription_state(its_client, its_service, its_instance, its_eventgroup, its_event,
                                                                           subscription_state_e::IS_SUBSCRIBING);
 #endif
-                    (void)ep_mgr_->find_or_create_local(its_client);
+
+                    if (is_client_known(its_client)) {
+                        (void)ep_mgr_->find_or_create_local(its_client);
+                    }
+
                     auto self = shared_from_this();
                     auto its_env = get_env(its_client);
 
@@ -1332,16 +1320,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                     routing_manager_base::erase_incoming_subscription_state(its_client, its_service, its_instance, its_eventgroup,
                                                                             its_event);
 #endif
-                } else {
-                    if (_sec_client) {
-                        // Local & not yet known subscriber ~> set pending until subscriber gets
-                        // known!
-                        subscription_data_t subscription = {its_service, its_instance, its_eventgroup, its_major,
-                                                            its_event,   its_filter,   *_sec_client};
-                        pending_incoming_subscriptions_[its_client].insert(subscription);
-                    } else {
-                        VSOMEIP_WARNING << __func__ << ": Local subscription without security info.";
-                    }
                 }
 
                 if (its_pending_id == PENDING_SUBSCRIPTION_ID) { // local subscription
@@ -1616,7 +1594,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                               << ")";
                 break;
             }
-            if (its_command.contains("hostname")) {
+            if (its_command.contains("hostname") && is_client_known(its_command.get_client())) {
                 add_known_client(its_command.get_client(), its_command.at("hostname"));
             }
             break;
@@ -1654,12 +1632,6 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
         auto its_client = e.get_client();
         switch (e.get_type()) {
         case protocol::routing_info_entry_type_e::RIE_ADD_CLIENT: {
-            auto its_address = e.get_address();
-            if (!its_address.is_unspecified()) {
-                add_guest(its_client, its_address, e.get_port());
-                add_known_client(its_client, "");
-            }
-
             if (its_client == get_client()) {
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                 if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
@@ -1707,7 +1679,6 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
         }
 
         case protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT: {
-            remove_known_client(its_client);
             if (its_client == get_client()) {
                 its_policy_manager->remove_client_to_sec_client_mapping(its_client);
                 VSOMEIP_INFO << "Application/Client " << std::hex << std::setfill('0') << std::setw(4) << get_client() << " ("
@@ -1724,26 +1695,14 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     std::scoped_lock its_lock(state_condition_mutex_);
                     state_condition_.notify_one();
                 }
-            } else if (its_client != VSOMEIP_ROUTING_CLIENT) {
-                remove_local(its_client, true);
             }
             break;
         }
 
         case protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE: {
-            auto its_address = e.get_address();
-            if (!its_address.is_unspecified()) {
-                add_guest(its_client, its_address, e.get_port());
-                add_known_client(its_client, "");
-            }
-            {
-                // Add yet unknown clients that offer services. Otherwise,
-                // the service cannot be used. The entry will be overwritten,
-                // when the offering clients connects.
-                std::scoped_lock its_lock(known_clients_mutex_);
-                if (known_clients_.find(its_client) == known_clients_.end()) {
-                    known_clients_[its_client] = "";
-                }
+            add_known_client(its_client, "");
+            if (!e.get_address().is_unspecified()) {
+                add_guest(its_client, e.get_address(), e.get_port());
             }
 
             for (const auto& s : e.get_services()) {
@@ -1799,66 +1758,6 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
             break;
         }
     }
-
-    {
-        struct subscription_info {
-            service_t service_id_;
-            instance_t instance_id_;
-            eventgroup_t eventgroup_id_;
-            client_t client_id_;
-            major_version_t major_;
-            event_t event_;
-            std::shared_ptr<debounce_filter_impl_t> filter_;
-            vsomeip_sec_client_t sec_client_;
-            std::string env_;
-        };
-        std::scoped_lock its_lock(incoming_subscriptions_mutex_);
-        std::forward_list<struct subscription_info> subscription_actions;
-        if (pending_incoming_subscriptions_.size()) {
-            {
-                std::scoped_lock its_known_clients_lock(known_clients_mutex_);
-                for (const auto& k : known_clients_) {
-                    auto its_client = pending_incoming_subscriptions_.find(k.first);
-                    if (its_client != pending_incoming_subscriptions_.end()) {
-                        for (const auto& subscription : its_client->second) {
-                            subscription_actions.push_front({subscription.service_, subscription.instance_, subscription.eventgroup_,
-                                                             k.first, subscription.major_, subscription.event_, subscription.filter_,
-                                                             subscription.sec_client_, get_env_unlocked(k.first)});
-                        }
-                    }
-                }
-            }
-            for (const subscription_info& si : subscription_actions) {
-#ifdef VSOMEIP_ENABLE_COMPAT
-                routing_manager_base::set_incoming_subscription_state(si.client_id_, si.service_id_, si.instance_id_, si.eventgroup_id_,
-                                                                      si.event_, subscription_state_e::IS_SUBSCRIBING);
-#endif
-                (void)ep_mgr_->find_or_create_local(si.client_id_);
-                auto self = shared_from_this();
-                host_->on_subscription(si.service_id_, si.instance_id_, si.eventgroup_id_, si.client_id_, &si.sec_client_, si.env_, true,
-                                       [this, self, si](const bool _subscription_accepted) {
-                                           if (!_subscription_accepted) {
-                                               send_subscribe_nack(si.client_id_, si.service_id_, si.instance_id_, si.eventgroup_id_,
-                                                                   si.event_, PENDING_SUBSCRIPTION_ID);
-                                           } else {
-                                               send_subscribe_ack(si.client_id_, si.service_id_, si.instance_id_, si.eventgroup_id_,
-                                                                  si.event_, PENDING_SUBSCRIPTION_ID);
-                                               routing_manager_base::subscribe(si.client_id_, &si.sec_client_, si.service_id_,
-                                                                               si.instance_id_, si.eventgroup_id_, si.major_, si.event_,
-                                                                               si.filter_);
-#ifdef VSOMEIP_ENABLE_COMPAT
-                                               send_pending_notify_ones(si.service_id_, si.instance_id_, si.eventgroup_id_, si.client_id_);
-#endif
-                                           }
-#ifdef VSOMEIP_ENABLE_COMPAT
-                                           routing_manager_base::erase_incoming_subscription_state(
-                                                   si.client_id_, si.service_id_, si.instance_id_, si.eventgroup_id_, si.event_);
-#endif
-                                       });
-                pending_incoming_subscriptions_.erase(si.client_id_);
-            }
-        }
-    }
 }
 
 void routing_manager_client::on_offered_services_info(protocol::offered_services_response_command& _command) {
@@ -1911,9 +1810,18 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     }
 #endif
 
-    std::scoped_lock its_sender_lock{sender_mutex_};
-    if (sender_) {
-        sender_->restart();
+    {
+        std::scoped_lock its_receiver_lock{receiver_mutex_};
+        if (receiver_) {
+            receiver_->restart(true);
+        }
+    }
+
+    {
+        std::scoped_lock its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->restart(true);
+        }
     }
 }
 

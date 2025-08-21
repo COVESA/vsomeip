@@ -643,10 +643,6 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
         } else {
             if (is_local_routing_) {
                 try {
-                    if (-1 == ::unlink(its_endpoint_path.c_str()) && errno != ENOENT) {
-                        VSOMEIP_ERROR << "endpoint_manager_impl::create_local_server unlink failed (" << its_endpoint_path
-                                      << "): " << std::strerror(errno);
-                    }
                     VSOMEIP_INFO << __func__ << ": Routing root @ " << its_endpoint_path;
 
                     auto its_root{std::make_shared<local_uds_server_endpoint_impl>(shared_from_this(), _host, io_, configuration_, true)};
@@ -673,7 +669,6 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
         }
 #else
         try {
-            ::unlink(its_endpoint_path.c_str());
             port_t port = VSOMEIP_INTERNAL_BASE_PORT;
             VSOMEIP_INFO << __func__ << ": Routing root @ " << std::dec << port;
 

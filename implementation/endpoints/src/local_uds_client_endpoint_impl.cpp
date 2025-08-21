@@ -249,16 +249,16 @@ void local_uds_client_endpoint_impl::send_magic_cookie() { }
 void local_uds_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
 
     if (_error) {
-        VSOMEIP_INFO << "local_uds_client_endpoint_impl::" << __func__ << " Error: " << _error.message();
+        VSOMEIP_INFO << "lucei::" << __func__ << ": Error: " << _error.message() << " | endpoint > " << this;
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
-        } else if (_error == boost::asio::error::eof) {
+        } else if (_error == boost::asio::error::eof || _error == boost::asio::error::connection_reset) {
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             sending_blocked_ = false;
             queue_.clear();
             queue_size_ = 0;
-        } else if (_error == boost::asio::error::connection_reset || _error == boost::asio::error::bad_descriptor) {
+        } else if (_error == boost::asio::error::bad_descriptor) {
             restart(true);
             return;
         }

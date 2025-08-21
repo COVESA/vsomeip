@@ -20,27 +20,40 @@ void socket_manager::add(std::string const& app) {
 }
 
 void socket_manager::clear_handler(std::string const& app) {
-    auto const lock = std::scoped_lock(mtx_);
-    auto const it_context = name_to_context_.find(app);
-    if (it_context == name_to_context_.end()) {
-        return;
-    }
-    auto const it_fds = context_to_fd_.find(it_context->second);
-    if (it_fds == context_to_fd_.end()) {
-        return;
-    }
-    for (auto fd : it_fds->second) {
-        auto const it_handle = fd_to_handle_.find(fd);
-        if (it_handle != fd_to_handle_.end()) {
-            if (auto handle = it_handle->second.lock(); handle) {
-                handle->clear_handler();
+    std::vector<std::shared_ptr<fake_tcp_socket_handle>> handle_to_clear;
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        if (auto const it = timers_.find(app); it != timers_.end()) {
+            it->second->cancel();
+        }
+        timers_.erase(app);
+
+        auto const it_context = name_to_context_.find(app);
+        if (it_context == name_to_context_.end()) {
+            return;
+        }
+        LOCAL_LOG << "clearing handler for io_context: " << it_context->second;
+        auto* io = it_context->second;
+        context_to_name_.erase(io);
+        name_to_context_.erase(app);
+
+        auto const it_fds = context_to_fd_.find(io);
+        if (it_fds == context_to_fd_.end()) {
+            return;
+        }
+        for (auto fd : it_fds->second) {
+            auto const it_handle = fd_to_handle_.find(fd);
+            if (it_handle != fd_to_handle_.end()) {
+                if (auto handle = it_handle->second.lock(); handle) {
+                    handle_to_clear.push_back(handle);
+                }
             }
         }
+        context_to_fd_.erase(io);
     }
-    if (auto const it = timers_.find(app); it != timers_.end()) {
-        it->second->cancel();
+    for (auto& handle : handle_to_clear) {
+        handle->clear_handler();
     }
-    timers_.erase(app);
 }
 
 void socket_manager::add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io) {
@@ -116,6 +129,7 @@ void socket_manager::try_add(boost::asio::io_context* _io, fd_t _fd, char const*
     if (auto const it = context_to_name_.find(_io); it == context_to_name_.end()) {
         for (auto& pair : name_to_context_) {
             if (!pair.second) {
+                LOCAL_LOG << "connected: \"" << pair.first << "\" with io: " << _io;
                 pair.second = _io;
                 assignment_cv_.notify_all();
                 context_to_name_[_io] = pair.first;
@@ -133,13 +147,14 @@ void socket_manager::try_add(boost::asio::io_context* _io, fd_t _fd, char const*
             }
         }
     } else {
-        LOCAL_LOG << "added fake fd: " << _fd << " (" << _type << ") to client: " << it->second;
+        LOCAL_LOG << "added fake fd: " << _fd << " (" << _type << ") to client: " << it->second << " with context: " << _io;
     }
 }
 
-void socket_manager::remove_acceptor(fd_t fd) {
+void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _ep) {
     auto const lock = std::scoped_lock(mtx_);
-    fd_to_acceptor_states_.erase(fd);
+    fd_to_acceptor_states_.erase(_fd);
+    ep_to_acceptor_states_.erase(_ep);
 }
 
 [[nodiscard]] bool socket_manager::bind_acceptor(boost::asio::ip::tcp::endpoint const& _ep,
@@ -212,15 +227,7 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
 [[nodiscard]] bool socket_manager::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
                                               std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
                                               socket_role _side_to_disconnect) {
-    auto [weak_from, weak_to] = [&]() -> std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>> {
-        auto const lock = std::scoped_lock(mtx_);
-        auto const cn = connection_name(_from_name, _to_name);
-        auto const it_connection = app_names_to_connection.find(cn);
-        if (it_connection == app_names_to_connection.end()) {
-            return {{}, {}};
-        }
-        return it_connection->second;
-    }();
+    auto [weak_from, weak_to] = get_connection(_from_name, _to_name);
 
     auto disconnect_from = [&]() -> bool {
         bool result = true;
@@ -332,20 +339,34 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
     }
 }
 [[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay) {
-    auto weak_to = [&]() -> std::weak_ptr<fake_tcp_socket_handle> {
-        auto const lock = std::scoped_lock(mtx_);
-        auto const cn = connection_name(_from, _to);
-        auto const it_connection = app_names_to_connection.find(cn);
-        if (it_connection == app_names_to_connection.end()) {
-            return {};
-        }
-        return it_connection->second.second;
-    }();
+    auto [weak_from, weak_to] = get_connection(_from, _to);
     if (auto to = weak_to.lock(); to) {
         to->delay_processing(_delay);
         return true;
     }
     return false;
+}
+
+[[nodiscard]] bool socket_manager::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,
+                                                          bool _ignore_in_to) {
+    auto [weak_from, weak_to] = get_connection(_from, _to);
+
+    bool ret = true;
+    if (_ignore_in_from) {
+        if (auto from = weak_from.lock(); from) {
+            from->ignore_inner_close();
+        } else {
+            ret = false;
+        }
+    }
+    if (_ignore_in_to) {
+        if (auto to = weak_to.lock(); to) {
+            to->ignore_inner_close();
+        } else {
+            ret = false;
+        }
+    }
+    return ret;
 }
 
 [[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
@@ -368,5 +389,33 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
         ret = false;
     }
     return ret;
+}
+
+void socket_manager::clear_command_record(std::string const& _from, std::string const& _to) {
+    auto [weak_from, weak_to] = get_connection(_from, _to);
+    if (auto to = weak_to.lock(); to) {
+        to->received_command_record_.clear();
+    }
+}
+
+[[nodiscard]] bool socket_manager::wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                                    std::chrono::milliseconds _timeout) {
+    auto [weak_from, weak_to] = get_connection(_from, _to);
+    if (auto to = weak_to.lock(); to) {
+        return to->received_command_record_.wait_for(_id, _timeout);
+    }
+    return false;
+}
+
+std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>>
+socket_manager::get_connection(std::string const& _from, std::string const& _to) {
+
+    auto const cn = connection_name(_from, _to);
+    auto const lock = std::scoped_lock(mtx_);
+    auto const it_connection = app_names_to_connection.find(cn);
+    if (it_connection == app_names_to_connection.end()) {
+        return {};
+    }
+    return it_connection->second;
 }
 }
