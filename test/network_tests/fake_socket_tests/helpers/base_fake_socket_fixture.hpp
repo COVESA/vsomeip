@@ -107,11 +107,15 @@ struct base_fake_socket_fixture : ::testing::Test {
      *requested to async_send something the passed in handler would be invoked with a broken pipe
      *error.
      *
+     * @param _side_to_disconnect Specifies which of the socket pair disconnects.
+     *                   socket_role::unspecified (default) disconnects both.
+     *
      * @ret true, if the passed in errors were successfully injected (note two nullopts are always
      *successfully injected) false, else
      **/
     [[nodiscard]] bool disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error);
+                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+                                  socket_role _side_to_disconnect = socket_role::unspecified);
 
     /**
      * @see socket_manager::connection_count()

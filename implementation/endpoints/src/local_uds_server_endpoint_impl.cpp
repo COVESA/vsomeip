@@ -193,20 +193,16 @@ bool local_uds_server_endpoint_impl::get_default_target(service_t, local_uds_ser
     return false;
 }
 
-bool local_uds_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
-
-    bool ret = false;
+void local_uds_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
     std::scoped_lock its_lock{connections_mutex_};
     auto find_connection = connections_.find(_client);
-    if (find_connection == connections_.end()) {
-        connections_[_client] = _connection;
-        ret = true;
-    } else {
-        VSOMEIP_WARNING << "Attempt to add already existing "
-                           "connection to client "
-                        << std::hex << _client;
+    if (find_connection != connections_.end()) {
+        VSOMEIP_WARNING << "Replacing already existing connection to client " << std::hex << _client
+                        << ", previous connection: " << connections_[_client] << ", new connection " << _connection << ", endpoint > "
+                        << this;
     }
-    return ret;
+
+    connections_[_client] = _connection;
 }
 
 void local_uds_server_endpoint_impl::remove_connection(const client_t& _client) {
@@ -646,16 +642,7 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(boost::system::erro
                 if (its_server->is_routing_endpoint_ && recv_buffer_[its_start] == byte_t(protocol::id_e::ASSIGN_CLIENT_ID)) {
                     client_t its_client = its_server->assign_client(&recv_buffer_[its_start], uint32_t(its_end - its_start));
 
-                    if (!its_server->add_connection(its_client, shared_from_this())) {
-                        VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
-                                        << " is rejecting new connection with client ID 0x" << its_client << " uid/gid= " << std::dec
-                                        << sec_client_.user << "/" << sec_client_.group
-                                        << " because of already existing connection using same client ID";
-
-                        stop();
-                        return;
-                    }
-
+                    its_server->add_connection(its_client, shared_from_this());
                     its_host->add_known_client(its_client, get_bound_client_host());
 
                     if (its_config && its_config->is_security_enabled()) {

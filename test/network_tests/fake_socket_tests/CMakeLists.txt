@@ -24,7 +24,7 @@ add_executable(${PROJECT_NAME}
     test_connection_restoration.cpp
 )
 
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
-
 targets_link_default_libraries("${PROJECT_NAME}")
 targets_add_default_dependencies("${PROJECT_NAME}")
+
+add_custom_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME} TIMEOUT 60)

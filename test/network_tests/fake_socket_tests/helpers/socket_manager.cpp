@@ -210,7 +210,8 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
 }
 
 [[nodiscard]] bool socket_manager::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                              std::string const& _to_name, std::optional<boost::system::error_code> _to_error) {
+                                              std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+                                              socket_role _side_to_disconnect) {
     auto [weak_from, weak_to] = [&]() -> std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>> {
         auto const lock = std::scoped_lock(mtx_);
         auto const cn = connection_name(_from_name, _to_name);
@@ -221,20 +222,43 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
         return it_connection->second;
     }();
 
+    auto disconnect_from = [&]() -> bool {
+        bool result = true;
+        if (auto from = weak_from.lock(); from) {
+            from->disconnect(_from_error);
+        } else if (_from_error) {
+            LOCAL_LOG << "The error code: \"" << _from_error->message() << "\" could not be injected into \"" << _from_name << "\"";
+            // if the error could not be injected -> error
+            result = false;
+        }
+        return result;
+    };
+    auto disconnect_to = [&]() -> bool {
+        bool result = true;
+        if (auto to = weak_to.lock(); to) {
+            to->disconnect(_to_error);
+        } else if (_to_error) {
+            LOCAL_LOG << "The error code: \"" << _to_error->message() << "\" could not be injected into \"" << _to_name << "\"";
+            result = false;
+        }
+        return result;
+    };
+
     bool result = true;
-    if (auto from = weak_from.lock(); from) {
-        from->disconnect(_from_error);
-    } else if (_from_error) {
-        LOCAL_LOG << "The error code: \"" << _from_error->message() << "\" could not be injected into \"" << _from_name << "\"";
-        // if the error could not be injected -> error
-        result = false;
+
+    switch (_side_to_disconnect) {
+    case socket_role::receiver:
+        result = disconnect_to();
+        break;
+    case socket_role::sender:
+        result = disconnect_from();
+        break;
+    case socket_role::unspecified:
+    default:
+        result = disconnect_from() && disconnect_to();
+        break;
     }
-    if (auto to = weak_to.lock(); to) {
-        to->disconnect(_to_error);
-    } else if (_to_error) {
-        LOCAL_LOG << "The error code: \"" << _to_error->message() << "\" could not be injected into \"" << _to_name << "\"";
-        result = false;
-    }
+
     return result;
 }
 

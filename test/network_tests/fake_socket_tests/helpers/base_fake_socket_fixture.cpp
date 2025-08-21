@@ -70,8 +70,9 @@ app* base_fake_socket_fixture::start_client(std::string const& _name) {
 }
 
 [[nodiscard]] bool base_fake_socket_fixture::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                                        std::string const& _to_name, std::optional<boost::system::error_code> _to_error) {
-    return socket_manager_->disconnect(_from_name, _from_error, _to_name, _to_error);
+                                                        std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+                                                        socket_role _side_to_disconnect) {
+    return socket_manager_->disconnect(_from_name, _from_error, _to_name, _to_error, _side_to_disconnect);
 }
 
 size_t base_fake_socket_fixture::connection_count(std::string const& _from, std::string const& _to) {

@@ -77,7 +77,8 @@ public:
      * fake_tcp_socket_handle::disconnect and accumulates the result.
      */
     [[nodiscard]] bool disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error);
+                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+                                  socket_role _side_to_disconnect = socket_role::unspecified);
 
     /**
      * Injects the handed over errors on connections attemps to _app_name.
