@@ -7,6 +7,8 @@
 #define VSOMEIP_V3_TESTING_SHARED_TCP_SOCKET_STATE_HPP_
 
 #include "../../../implementation/endpoints/include/tcp_socket.hpp"
+#include "attribute_recorder.hpp"
+#include "command_message.hpp"
 #include <boost/asio.hpp>
 #include <optional>
 #include <memory>
@@ -173,7 +175,16 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
     void set_app_name(std::string const& _name);
     std::string get_app_name();
 
+    /**
+     * If called, then the inner_close call is going to be ignored.
+     * This is useful to delay clean-up reactions in one side. Said reaction can then be triggered
+     * with disconnect()
+     **/
+    void ignore_inner_close();
+
     fd_t fd();
+
+    attribute_recorder<protocol::id_e> received_command_record_;
 
 private:
     void update_reception();
@@ -184,6 +195,7 @@ private:
         rw_handler handler_;
     };
 
+    bool ignore_inner_close_{false};
     bool delay_processing_{false};
     socket_id socket_id_;
     boost::asio::io_context& io_;
@@ -218,7 +230,7 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
      * Sets the local_endpoint
      * Used by the fake_tcp_acceptor.
      **/
-    [[nodiscard]] bool bind(boost::asio::ip::tcp::endpoint const& ep);
+    [[nodiscard]] bool bind(boost::asio::ip::tcp::endpoint const& _ep);
 
     /**
      * Sets the is_open attribute to true.
@@ -282,6 +294,7 @@ private:
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
     std::string app_name_;
+    boost::asio::ip::tcp::endpoint endpoint_;
 };
 }
 

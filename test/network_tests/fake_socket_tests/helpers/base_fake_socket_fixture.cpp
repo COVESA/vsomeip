@@ -55,6 +55,15 @@ app* base_fake_socket_fixture::start_client(std::string const& _name) {
     return it->second.get();
 }
 
+void base_fake_socket_fixture::stop_client(std::string const _name) {
+    auto it = name_to_client_.find(_name);
+    if (it == name_to_client_.end()) {
+        return;
+    }
+    it->second->stop();
+    name_to_client_.erase(_name);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::await_connectable(std::string const& _name, std::chrono::milliseconds _timeout) {
     auto const it = name_to_client_.find(_name);
     if (it == name_to_client_.end()) {
@@ -95,10 +104,27 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     return socket_manager_->delay_message_processing(_from, _to, _delay);
 }
 
+[[nodiscard]] bool base_fake_socket_fixture::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,
+                                                                    bool _ignore_in_to) {
+    return socket_manager_->set_ignore_inner_close(_from, _ignore_in_from, _to, _ignore_in_to);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::block_on_close_for(std::string const& _from,
                                                                 std::optional<std::chrono::milliseconds> _from_block_time,
                                                                 std::string const& _to,
                                                                 std::optional<std::chrono::milliseconds> _to_block_time) {
     return socket_manager_->block_on_close_for(_from, _from_block_time, _to, _to_block_time);
+}
+
+void base_fake_socket_fixture::clear_command_record(std::string const& _from, std::string const& _to) {
+    socket_manager_->clear_command_record(_from, _to);
+}
+
+/**
+ * @see socket_manager::wait_for_command
+ **/
+[[nodiscard]] bool base_fake_socket_fixture::wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                                              std::chrono::milliseconds _timeout) {
+    return socket_manager_->wait_for_command(_from, _to, _id, _timeout);
 }
 }

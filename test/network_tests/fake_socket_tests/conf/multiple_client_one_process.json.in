@@ -17,6 +17,16 @@
             "name" : "client",
             "id" : "0x3490",
             "max_dispatch_time" : "1000"
+        },
+        {
+            "name" : "client-one",
+            "id" : "0x3491",
+            "max_dispatch_time" : "1000"
+        },
+        {
+            "name" : "client-two",
+            "id" : "0x3492",
+            "max_dispatch_time" : "1000"
         }
     ],
     "routing" :

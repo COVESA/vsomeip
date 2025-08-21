@@ -13,6 +13,7 @@
 #include <mutex>
 #include <numeric>
 #include <vector>
+#include <sstream>
 
 namespace vsomeip_v3::testing {
 
@@ -57,10 +58,26 @@ public:
         return record_.empty() ? std::nullopt : std::optional(record_.back());
     }
 
+    std::string to_string() const {
+        auto lock = std::unique_lock(mtx_);
+        std::stringstream s;
+        for (auto const& val : record_) {
+            s << val;
+        }
+
+        return s.str();
+    }
+
 private:
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
     std::condition_variable cv_;
     std::vector<Value> record_;
 };
+
+template<typename Value>
+std::ostream& operator<<(std::ostream& _out, attribute_recorder<Value> const& _m) {
+    _out << _m.to_string();
+    return _out;
+}
 }
 #endif

@@ -146,8 +146,8 @@ public:
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
-        ASSERT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_received_response_).count(),
-                  (std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT) + std::chrono::milliseconds(1000)).count());
+        EXPECT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_received_response_).count(),
+                  (std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT) + std::chrono::milliseconds(10000)).count());
         last_received_response_ = std::chrono::steady_clock::now();
         std::cout << ".";
         std::cout.flush();

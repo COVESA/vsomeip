@@ -44,8 +44,10 @@ local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(const std::shared
 void local_uds_server_endpoint_impl::init(const endpoint_type& _local, boost::system::error_code& _error) {
     std::scoped_lock its_lock{acceptor_mutex_};
     acceptor_.open(_local.protocol(), _error);
-    if (_error)
+    if (_error) {
+        VSOMEIP_ERROR << "lusei::init: could not open() acceptor " << _local.path() << " due to err " << _error.message();
         return;
+    }
 
     init_helper(_local, _error);
 }
@@ -53,8 +55,10 @@ void local_uds_server_endpoint_impl::init(const endpoint_type& _local, boost::sy
 void local_uds_server_endpoint_impl::init(const endpoint_type& _local, const int _socket, boost::system::error_code& _error) {
     std::scoped_lock its_lock{acceptor_mutex_};
     acceptor_.assign(_local.protocol(), _socket, _error);
-    if (_error)
+    if (_error) {
+        VSOMEIP_ERROR << "lusei::init: could not open() acceptor " << _local.path() << " due to err " << _error.message();
         return;
+    }
 
     init_helper(_local, _error);
 }
@@ -64,13 +68,22 @@ void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local, bo
     if (_error)
         return;
 
+    // cleanup leftover before bind()
+    if (-1 == ::unlink(_local.path().c_str()) && errno != ENOENT) {
+        VSOMEIP_ERROR << "lusei::init_helper unlink(" << local_.path() << ") failed due to errno " << errno;
+    }
+
     acceptor_.bind(_local, _error);
-    if (_error)
+    if (_error) {
+        VSOMEIP_ERROR << "lusei::init_helper: could not bind() acceptor " << _local.path() << " due to err " << _error.message();
         return;
+    }
 
     acceptor_.listen(boost::asio::socket_base::max_listen_connections, _error);
-    if (_error)
+    if (_error) {
+        VSOMEIP_ERROR << "lusei::init_helper: could not listen() acceptor " << _local.path() << " due to err " << _error.message();
         return;
+    }
 
 #ifndef __QNX__
     if (chmod(_local.path().c_str(), static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
@@ -112,6 +125,10 @@ void local_uds_server_endpoint_impl::stop() {
         if (acceptor_.is_open()) {
             boost::system::error_code its_error;
             acceptor_.close(its_error);
+
+            if (-1 == ::unlink(local_.path().c_str())) {
+                VSOMEIP_ERROR << "lusei::stop unlink(" << local_.path() << ") failed due to errno " << errno;
+            }
         }
     }
     {
@@ -214,9 +231,13 @@ void local_uds_server_endpoint_impl::remove_connection(const client_t& _client) 
 void local_uds_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::system::error_code const& _error) {
     if (_error != boost::asio::error::bad_descriptor && _error != boost::asio::error::operation_aborted
         && _error != boost::asio::error::no_descriptors) {
+        if (_error) {
+            VSOMEIP_WARNING << "lusei::accept_cbk: err " << _error.message() << ", will start again";
+        }
+
         start();
     } else if (_error == boost::asio::error::no_descriptors) {
-        VSOMEIP_ERROR << "local_usd_server_endpoint_impl::accept_cbk: " << _error.message() << " (" << std::dec << _error.value()
+        VSOMEIP_ERROR << "lusei::accept_cbk: " << _error.message() << " (" << std::dec << _error.value()
                       << ") Will try to accept again in 1000ms";
         auto its_timer = std::make_shared<boost::asio::steady_timer>(io_, std::chrono::milliseconds(1000));
         auto its_ep = std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this());

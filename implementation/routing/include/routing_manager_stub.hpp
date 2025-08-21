@@ -102,7 +102,8 @@ public:
     void remove_requester_policies(uid_t _uid, gid_t _gid);
 #endif // !VSOMEIP_DISABLE_SECURITY
 
-    void add_known_client(client_t _client, const std::string& _client_host);
+    void add_known_client(client_t _client, const std::string& _client_host) override;
+    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
 
     std::string get_env(client_t _client) const;
 
@@ -164,7 +165,6 @@ private:
     inline void remove_source(client_t _source) { connection_matrix_.erase(_source); }
 
     void remove_client_connections(client_t _client);
-    bool new_client_to_process();
 
     void send_client_routing_info(const client_t _target, protocol::routing_info_entry& _entry);
     void send_client_routing_info(const client_t _target, std::vector<protocol::routing_info_entry>&& _entries);
@@ -212,14 +212,12 @@ private:
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
-    std::map<std::thread::id, std::shared_ptr<std::thread>> client_registration_thread_pool_;
-    std::mutex client_registration_thread_pool_mutex_;
+    std::shared_ptr<std::thread> client_registration_thread_;
     std::atomic<bool> client_registration_running_;
     std::mutex client_registration_mutex_;
     std::condition_variable client_registration_condition_;
 
     std::deque<std::pair<client_t, std::vector<registration_type_e>>> pending_client_registrations_queue_;
-    std::set<client_t> clients_in_progress_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> internal_client_ports_;
     const std::uint32_t max_local_message_size_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
