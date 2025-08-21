@@ -1,5 +1,50 @@
 Changes
 =======
+v3.5.8
+- android
+  - Possibility to build vsomeip with android NDK
+
+- routing
+  - Check if a service is available before sending a request to it
+  - Infer routing information (client-id, guest address) for a local server connection from
+    the first received message, removing the dependency of ADD_CLIENT command from the routing manager host.
+
+  - routing_manager_client
+    - Fix threading issue in the routing handler implementation
+
+  - routing_manager_stub
+    - Add missing ON_UNAVAILABLE log
+    - Drop usage of netlink
+
+- endpoints
+  - Fix queue size recheck condition.
+  - Add tcp keepalive as configurable parameter
+  - Add backtrace logs for Bad File Descriptor errors
+
+  - external communication
+    - Ensure that all accesses to targets_ are synchronised by mutex_
+    - Check that connection wasn't stopped before repeating the receive.
+    - Fix automatic multicast rejoin operations at startup
+
+  - internal communication
+    - When tcp keepalive is disabled, for clients in the same VM/SOC, the HOST never discovers that it lost the connection.
+      Add recovery mechanism for this scenario: replace the previous connection.
+
+- e2e
+  - Fix update of E2E local counters
+
+- application_impl
+  - Reassign thread names after ASSIGN_CLIENT_ACK_ID
+  - Remove leftover signal handling logic
+
+- tests
+  - network_tests
+    - Fix test someip_application_init_test.multithread_init
+    - Fix suspend resume tests
+    - Fix availability handler test
+    - Add debounce epsilon test
+    - Add new tests break_client_with_eof_before_finishing_registration and break_host_side_only_with_broken_pipe
+
 v3.5.7
 - global
   - Update deprecated boost::asio APIs
