@@ -40,6 +40,7 @@ struct test_client_helper : public base_fake_socket_fixture {
         server_->offer_field(offered_field_);
 
         client_ = start_client(client_name_);
+        ASSERT_NE(client_, nullptr);
         ASSERT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
     }
     [[nodiscard]] bool subscribe_to_event(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
@@ -292,6 +293,38 @@ TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection
 
     EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_),
                                                        std::chrono::seconds(6)));
+}
+
+TEST_F(test_client_helper, break_client_with_eof_before_finishing_registration) {
+    RecordProperty("issue", "NTWALL-700");
+
+    // Start apps manually to break the connection before the registration happens
+    routingmanagerd_ = start_client(routingmanager_name_);
+    ASSERT_NE(routingmanagerd_, nullptr);
+    ASSERT_TRUE(await_connectable(routingmanager_name_, std::chrono::seconds(6)));
+
+    client_ = start_client(client_name_);
+    ASSERT_NE(client_, nullptr);
+    ASSERT_TRUE(await_connectable(client_name_, std::chrono::seconds(6)));
+    // Do not wait for client registering and break the connection immediately
+
+    TEST_LOG << " ##### BREAKING Client connection before registration #####";
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, routingmanager_name_, boost::asio::error::eof, socket_role::sender));
+
+    ASSERT_TRUE(await_connection(client_name_, routingmanager_name_, std::chrono::seconds(6)));
+    ASSERT_TRUE(await_connection(routingmanager_name_, client_name_, std::chrono::seconds(6)));
+    EXPECT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+}
+
+TEST_F(test_client_helper, break_host_side_only_with_broken_pipe) {
+    RecordProperty("issue", "IDCEVODEV-605006");
+    start_apps();
+
+    ASSERT_TRUE(
+            disconnect(routingmanager_name_, boost::asio::error::broken_pipe, client_name_, boost::asio::error::eof, socket_role::sender));
+
+    ASSERT_TRUE(await_connection(client_name_, routingmanager_name_, std::chrono::seconds(6)));
+    ASSERT_TRUE(await_connection(routingmanager_name_, client_name_, std::chrono::seconds(6)));
 }
 
 struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
