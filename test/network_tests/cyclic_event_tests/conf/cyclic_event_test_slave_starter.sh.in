@@ -22,7 +22,7 @@ CLIENT_PID=$!
 FAIL=0
 
 # Wait for the service to finish.
-wait "$CLIENT_PID" || ((FAIL=1))
+wait "$CLIENT_PID" || FAIL=$(($FAIL+1))
 
 # Send a termination signal to the routing manager.
 kill "$DAEMON_PID"

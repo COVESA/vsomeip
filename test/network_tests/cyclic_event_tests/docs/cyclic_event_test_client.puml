@@ -1,0 +1,29 @@
+@startuml
+  Actor service_consumer as SC
+
+  participant routing_manager as RM
+
+  SC -> RM : REQUEST
+
+  RM --\ SC : ON_AVAILABLE
+
+  SC -> RM : SUBSCRIBE
+
+  RM --\ SC : SUBSCRIBE_ACK
+
+  loop for each message received
+    SC -> SC : notification_count++
+    alt if has received 3 messages
+      SC -> RM : request shutdown
+    end
+  end
+
+  note over SC
+    wait for shutdown response
+  end note
+
+  RM --\ SC : shutdown response
+
+  SC -> SC : stop
+
+@enduml

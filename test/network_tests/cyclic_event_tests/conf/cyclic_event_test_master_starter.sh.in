@@ -18,13 +18,16 @@ export VSOMEIP_APPLICATION_NAME="service-sample"
 ./cyclic_event_test_service &
 SERVICE_PID=$!
 
+SLAVE_PID=0
 # Start the test client.
 if [ -n "$USE_LXC_TEST" ]; then
     echo "starting cyclic_event_test_slave_starter.sh on slave LXC"
     ssh -tt -i "$SANDBOX_ROOT_DIR"/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@"$LXC_TEST_SLAVE_IP" "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/cyclic_event_tests; ./cyclic_event_test_slave_starter.sh\"" &
+    SLAVE_PID=$!
     echo "remote ssh job id: $!"
 elif [ -n "$USE_DOCKER" ]; then
     docker exec "$DOCKER_IMAGE" sh -c "cd $DOCKER_TESTS && ./cyclic_event_test_slave_starter.sh" &
+    SLAVE_PID=$!
 else
     cat <<EOF
 *******************************************************************************
@@ -44,8 +47,9 @@ fi
 # Whether the test failed.
 FAIL=0
 
-# Wait for the service to finish.
-wait "$SERVICE_PID" || ((FAIL=1))
+# Wait for the service and client to finish.
+wait "$SERVICE_PID" || FAIL=$(($FAIL+1))
+wait "$SLAVE_PID" || FAIL=$(($FAIL+1))
 
 # Send a termination signal to the routing manager.
 kill "$DAEMON_PID"
