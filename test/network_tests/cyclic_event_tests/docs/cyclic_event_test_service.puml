@@ -1,0 +1,21 @@
+@startuml
+  Actor service_provider as SP
+
+  participant routing_manager as RM
+
+  SP -> RM : OFFER
+
+  SP -> RM : notify
+
+  note over SP
+    wait for shutdown request
+  end note
+
+  RM --\ SP : shutdown request
+
+  SP -> RM : shutdown response
+
+  SP -> SP : sleep 500 ms
+
+  SP -> SP : stop
+@enduml
