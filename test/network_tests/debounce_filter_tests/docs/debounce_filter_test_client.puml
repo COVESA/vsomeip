@@ -1,0 +1,50 @@
+@startuml
+
+Actor service_consumer as SC
+
+participant routing_manager as RM
+
+SC -> RM : REQUEST
+
+RM --\ SC : ON_AVAILABLE
+
+SC -> RM : SUBSCRIBE
+
+RM --\ SC : SUBSCRIBE_ACK
+
+SC -> RM : REQUEST DEBOUNCE_START_METHOD
+
+loop for each message received
+  RM --\ SC : notification
+
+  SC -> SC : calculate time between\nreceived messages
+
+  SC -> SC : number of messages\nreceived is increased
+
+  SC -> SC : sum_time += elapsed_time\nfor avarage
+end
+
+note over SC
+  after 15 seconds sleep
+end note
+
+SC -> RM : UNSUBSCRIBE
+
+SC -> RM : REQUEST DEBOUNCE_STOP_METHOD
+
+note over SC
+  normal_interval
+end note
+SC -> SC : check if average_time is\nbetween 95 and 105 ms
+
+note over SC
+  large_interval
+end note
+SC -> SC : check if average_time is\nbetween 995 and 1005 ms
+
+note over SC
+  disable
+end note
+SC -> SC : check if number of received messages is 0
+
+@enduml
