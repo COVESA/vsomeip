@@ -1,0 +1,32 @@
+@startuml
+
+  Actor service_provider as SP
+
+  participant routing_manager as RM
+
+  SP -> RM : OFFER
+
+  note over SP
+    wait for DEBOUNCE_START_METHOD REQUEST
+  end note
+
+  RM --\ SP : REQUEST DEBOUNCE_START_METHOD
+
+  loop 1000 times
+
+    SP -> RM : send notification
+
+    SP -> SP : sleep 5 ms
+
+    SP -> RM : send notification
+
+    SP -> SP : sleep 5 ms
+
+  end
+
+  note over SP
+    wait for DEBOUNCE_STOP_METHOD REQUEST
+  end note
+
+  RM --\ SP : REQUEST DEBOUNCE_STOP_METHOD
+@enduml
