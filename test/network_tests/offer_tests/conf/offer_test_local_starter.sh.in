@@ -30,13 +30,17 @@ End-of-message
 
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # Start the services
+export VSOMEIP_APPLICATION_NAME="service-1"
 ./offer_test_service 1 &
 PID_SERVICE_ONE=$!
+export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_ONE=$!
+export VSOMEIP_APPLICATION_NAME="client-2"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_TWO=$!
 
+export VSOMEIP_APPLICATION_NAME="service-2"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
 
@@ -72,17 +76,22 @@ End-of-message
 
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
+export VSOMEIP_APPLICATION_NAME="routingmanagerd"
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services
+export VSOMEIP_APPLICATION_NAME="service-2"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
+export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_ONE=$!
+export VSOMEIP_APPLICATION_NAME="client-2"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_TWO=$!
 
+export VSOMEIP_APPLICATION_NAME="service-3"
 ./offer_test_service 3 &
 PID_SERVICE_THREE=$!
 
@@ -122,13 +131,16 @@ End-of-message
 
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
+export VSOMEIP_APPLICATION_NAME="routingmanagerd"
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
+export VSOMEIP_APPLICATION_NAME="service-2"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
 
 # Start a client
+export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
@@ -137,10 +149,12 @@ sleep 1
 kill -KILL $PID_SERVICE_TWO
 
 # reoffer the service
+export VSOMEIP_APPLICATION_NAME="service-3"
 ./offer_test_service 3 &
 PID_SERVICE_THREE=$!
 
 # Start another client
+export VSOMEIP_APPLICATION_NAME="client-2"
 ./offer_test_client METHODCALL &
 CLIENT_PID_TWO=$!
 
@@ -177,13 +191,16 @@ End-of-message
 
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
+export VSOMEIP_APPLICATION_NAME="routingmanagerd"
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
+export VSOMEIP_APPLICATION_NAME="service-2"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
 
 # Start a client
+export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
@@ -192,10 +209,12 @@ sleep 1
 kill -STOP $PID_SERVICE_TWO
 
 # reoffer the service
+export VSOMEIP_APPLICATION_NAME="service-3"
 ./offer_test_service 3 &
 PID_SERVICE_THREE=$!
 
 # Start another client
+export VSOMEIP_APPLICATION_NAME="client-2"
 ./offer_test_client METHODCALL &
 CLIENT_PID_TWO=$!
 
@@ -236,13 +255,16 @@ End-of-message
 
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
+export VSOMEIP_APPLICATION_NAME="routingmanagerd"
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
+export VSOMEIP_APPLICATION_NAME="service-2"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
 
 # Start a client
+export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
@@ -251,15 +273,18 @@ sleep 1
 kill -STOP $PID_SERVICE_TWO
 
 # reoffer the service
+export VSOMEIP_APPLICATION_NAME="service-3"
 ./offer_test_service 3 &
 PID_SERVICE_THREE=$!
 
 # reoffer the service again to provoke rejecting as there is
 # already a pending offer
+export VSOMEIP_APPLICATION_NAME="service-4"
 ./offer_test_service 4 &
 PID_SERVICE_FOUR=$!
 
 # Start another client
+export VSOMEIP_APPLICATION_NAME="client-2"
 ./offer_test_client METHODCALL &
 CLIENT_PID_TWO=$!
 
@@ -277,7 +302,6 @@ wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_FOUR || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
-
 
 # Check if everything went well
 if [ $FAIL -eq 0 ]
