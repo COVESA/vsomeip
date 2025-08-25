@@ -1,7 +1,9 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <signal.h>
 
 #include <chrono>
 #include <condition_variable>
@@ -23,6 +25,7 @@
 #include <common/vsomeip_app_utilities.hpp>
 
 static std::string service_number;
+static std::atomic<bool> sigusr1_raised{false};
 
 class offer_test_service : public vsomeip_utilities::base_logger {
 public:
@@ -88,7 +91,6 @@ public:
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id, 44, 4711);
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
         app_->clear_all_handler();
-        app_->stop();
     }
 
     void run() {
@@ -102,10 +104,14 @@ public:
         offer();
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Notifying";
-        while (!shutdown_method_called_) {
+        while (!shutdown_method_called_ && !sigusr1_raised) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             inc_counter_and_notify();
         }
+
+        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Exiting";
+
+        app_->stop();
     }
 
     void inc_counter_and_notify() {
@@ -138,7 +144,13 @@ TEST(someip_offer_test, notify_increasing_counter) {
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+static void sigusr1_handler(int /*signum*/) {
+    sigusr1_raised = true;
+}
+
 int main(int argc, char** argv) {
+    signal(SIGUSR1, sigusr1_handler);
+
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;
