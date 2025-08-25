@@ -133,29 +133,33 @@ private:
     }
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
-
-        static bool is_available(false);
-
         if (_service == TEST_SERVICE && _instance == TEST_INSTANCE) {
+            std::unique_lock<std::mutex> its_lock(mutex_);
 
-            VSOMEIP_DEBUG << __func__ << ": Test service is " << (_is_available ? "available." : "NOT available.");
+            VSOMEIP_DEBUG << __func__ << ": Test service is " << (_is_available ? "available" : "NOT available")
+                          << (has_received_ ? "." : ", waiting event.");
 
             if (_is_available) {
                 VSOMEIP_DEBUG << "[TEST-cli] On availability will trigger cv";
                 cv_.notify_one();
-            } else if (is_available) {
+            } else if (is_available_) {
                 VSOMEIP_DEBUG << "[TEST-cli] On availability=false, clearing has_received";
                 has_received_ = false;
             }
-            is_available = _is_available;
+            is_available_ = _is_available;
         }
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         if (_message->get_service() == TEST_SERVICE && _message->get_instance() == TEST_INSTANCE && _message->get_method() == TEST_EVENT) {
+            std::unique_lock<std::mutex> its_lock(mutex_);
 
-            VSOMEIP_DEBUG << __func__ << ": Received event.";
-            if (!has_received_) {
+            VSOMEIP_DEBUG << __func__ << ": Event received, service " << (is_available_ ? "available" : "NOT available")
+                          << (has_received_ ? "." : ", waiting event.");
+
+            if (!is_available_) {
+                VSOMEIP_ERROR << "[TEST-cli] Ignore notification received out-of-order";
+            } else if (!has_received_) {
                 has_received_ = true;
                 VSOMEIP_DEBUG << "[TEST-cli] HasReceived Changed, triggering cv";
                 cv_.notify_one();
@@ -222,7 +226,8 @@ private: // members
     std::mutex mutex_;
     std::condition_variable cv_;
     std::atomic<bool> started_;
-    bool has_received_;
+    bool has_received_{false};
+    bool is_available_{false};
     std::thread runner_;
 };
 
