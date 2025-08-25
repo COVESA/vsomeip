@@ -1,0 +1,35 @@
+@startuml
+
+Actor service_consumer as SC
+
+participant routing_manager as RM
+
+SC -> RM : REQUEST
+
+RM --\ SC : ON_AVAILABLE
+
+SC -> RM : SUBSCRIBE
+
+RM --\ SC : SUBSCRIBE ACK
+
+SC -> RM : REQUEST DEBOUNCE_START_METHOD
+
+loop for every notification from service_provider
+
+RM --\ SC : notification
+
+SC -> SC : compare received payload to expected
+
+alt if client received all responses
+
+  SC -> SC : trigger stop
+
+end
+
+SC -> RM : UNSUBSCRIBE
+
+SC -> RM : REQUEST DEBOUNCE_STOP_METHOD
+
+end
+
+@enduml

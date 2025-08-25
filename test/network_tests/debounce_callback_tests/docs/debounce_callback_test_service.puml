@@ -1,0 +1,75 @@
+@startuml
+
+Actor service_provider as SP
+
+participant routingmanager as RM
+
+SP -> RM : OFFER
+
+note over SP
+  wait for DEBOUNCE_START_METHOD request
+end note
+
+RM --\ SP : REQUEST DEBOUNCE_START_METHOD
+
+note across
+  To check if debouncer send the last message after timeout
+end note
+SP -> RM : Send notification
+SP -> SP : sleep 1 second
+SP -> RM : Send notification
+
+SP -> SP : sleep 3 seconds
+
+note across
+  To check normal function of the debouncer
+end note
+SP -> RM : Send notification
+SP -> SP : sleep 3 seconds
+SP -> RM : Send notification
+
+SP -> SP : sleep 3 seconds
+
+note across
+  To check only one message is forwarded after timeout
+end note
+SP -> RM : Send notification
+SP -> SP : sleep 0.5 seconds
+SP -> RM : Send notification
+SP -> SP : sleep 0.5 seconds
+SP -> RM : Send notification
+
+SP -> SP : sleep 3 seconds
+
+note across
+  To check the interaction when two events use the debounce
+end note
+SP -> RM : Send notification event 1
+SP -> RM : Send notification event 2
+SP -> SP : sleep 0.5 seconds
+SP -> RM : Send notification event 1
+SP -> RM : Send notification event 2
+SP -> SP : sleep 0.5 seconds
+SP -> RM : Send notification event 1
+SP -> RM : Send notification event 2
+
+SP -> SP : sleep 3 seconds
+
+note across
+  Testing with lots of messages
+end note
+
+loop 30 times
+
+SP -> RM : Send notification event 1
+SP -> RM : Send notification event 2
+SP -> SP : sleep 0.05 seconds
+end
+
+note over SP
+  wait for DEBOUNCE_STOP_METHOD request
+end note
+
+RM --\ SP : REQUEST DEBOUNCE_STOP_METHOD
+
+@enduml
