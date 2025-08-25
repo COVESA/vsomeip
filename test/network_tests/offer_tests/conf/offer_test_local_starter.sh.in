@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -46,8 +46,10 @@ wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
 wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
-kill $PID_SERVICE_TWO
-kill $PID_SERVICE_ONE
+kill -USR1 $PID_SERVICE_TWO
+kill -USR1 $PID_SERVICE_ONE
+wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_ONE || FAIL=$(($FAIL+1))
 sleep 1
 
 
@@ -90,8 +92,10 @@ wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
 wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
-kill $PID_SERVICE_THREE
-kill $PID_SERVICE_TWO
+kill -USR1 $PID_SERVICE_THREE
+kill -USR1 $PID_SERVICE_TWO
+wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 sleep 1
 kill $PID_VSOMEIPD
 sleep 1
@@ -146,7 +150,8 @@ wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
 wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
-kill $PID_SERVICE_THREE
+kill -USR1 $PID_SERVICE_THREE
+wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 sleep 1
 
@@ -201,8 +206,10 @@ wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
 kill -CONT $PID_SERVICE_TWO
-kill $PID_SERVICE_TWO
-kill $PID_SERVICE_THREE
+kill -USR1 $PID_SERVICE_TWO
+kill -USR1 $PID_SERVICE_THREE
+wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 sleep 1
 
@@ -263,9 +270,12 @@ wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
 kill -CONT $PID_SERVICE_TWO
-kill $PID_SERVICE_TWO
-kill $PID_SERVICE_THREE
-kill $PID_SERVICE_FOUR
+kill -USR1 $PID_SERVICE_TWO
+kill -USR1 $PID_SERVICE_THREE
+kill -USR1 $PID_SERVICE_FOUR
+wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
+wait $PID_SERVICE_FOUR || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 
 
