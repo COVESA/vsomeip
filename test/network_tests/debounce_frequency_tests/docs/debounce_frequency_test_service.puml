@@ -1,0 +1,39 @@
+@startuml
+
+Actor Service_provider as SP
+
+participant Routing_managerd as RM
+
+note across
+  offer both events
+endnote
+
+SP -> RM : OFFER
+
+note across
+  wait for DEBOUNCE_START_METHOD request
+endnote
+
+RM --\ SP : request DEBOUNCE_START_METHOD
+
+loop while 3 seconds haven't elapsed
+
+alt if 30 milliseconds have elapsed
+  SP -> RM : notify event1
+  SP -> SP : event_1_sent_messages = true
+end
+
+alt if 2 milliseconds have elapsed
+  SP -> RM : notify event2
+  SP -> SP : event_2_sent_messages = true
+end
+
+SP -> SP : sleep for 1 millisecond
+
+end
+
+SP -> SP : check that both events were sent
+
+RM --\ SP : request DEBOUNCE_STOP_METHOD
+
+@enduml

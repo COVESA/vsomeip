@@ -1,0 +1,47 @@
+@startuml
+
+Actor Service_consumer as SC
+
+participant Routing_managerd as RM
+
+note across
+  request and subscribe for both events
+endnote
+
+SC -> RM : REQUEST
+
+RM --\ SC : ON_AVAILABLE
+
+SC -> RM : SUBSCRIBE
+
+RM --\ SC : SUBSCRIBE_ACK
+
+note across
+  wait for service availability to send DEBOUNCE_START_METHOD request
+endnote
+
+SC -> RM : request DEBOUNCE_START_METHOD
+
+SC -> SC : sleep for 10 seconds
+
+note across
+  count number of received notifications for each event (debounce = 5 seconds)
+endnote
+
+loop for all messages received while sleeping
+  RM --\ SC : notification event1/event2
+
+  alt if event1
+    SC -> SC : event_1_recv_messages++
+  else event2
+    SC -> SC : event_2_recv_messages++
+  end
+end
+
+SC -> SC : check that only received 1\nnotification for each event
+
+SC -> RM : UNSUBSCRIBE
+
+SC -> RM : request DEBOUNCE_STOP_METHOD
+
+@enduml
