@@ -50,7 +50,6 @@ private:
     void connect();
     void receive();
     void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes);
-    void set_local_port();
     std::string get_remote_information() const;
     bool check_packetizer_space(std::uint32_t _size) const;
     bool queue_train_buffer(std::uint32_t _size);

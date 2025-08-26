@@ -353,20 +353,7 @@ void local_tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const
 }
 
 std::uint16_t local_tcp_client_endpoint_impl::get_local_port() const {
-
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
-    if (socket_->is_open()) {
-        boost::system::error_code its_error;
-        endpoint_type its_local = socket_->local_endpoint(its_error);
-        if (!its_error)
-            return its_local.port();
-    }
-
     return local_.port();
-}
-
-void local_tcp_client_endpoint_impl::set_local_port() {
-    // local_port_ is set to zero in ctor of client_endpoint_impl -> do nothing
 }
 
 void local_tcp_client_endpoint_impl::print_status() {

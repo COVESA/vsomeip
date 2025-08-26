@@ -167,6 +167,11 @@ void tcp_client_endpoint_impl::connect() {
         }
 #endif
 
+        if (local_.port() == ILLEGAL_PORT) {
+            // Let the OS assign the port
+            local_.port(0);
+        }
+
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
@@ -190,13 +195,15 @@ void tcp_client_endpoint_impl::connect() {
 
                 std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
                 if (its_host) {
+                    uint16_t local_port = ILLEGAL_PORT;
                     // set new client port depending on service / instance / remote port
-                    if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_)) {
+                    if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_, local_port)) {
                         VSOMEIP_WARNING << "tcp_client_endpoint::connect: "
                                         << "Failed to set new local port for tce: "
                                         << " local: " << local_.address().to_string() << ":" << std::dec << local_.port()
                                         << " remote:" << get_address_port_remote() << " endpoint: " << this;
                     } else {
+                        local_.port(local_port);
                         VSOMEIP_INFO << "tcp_client_endpoint::connect: "
                                      << "Using new local port for tce: "
                                      << " local: " << local_.address().to_string() << ":" << std::dec << local_.port()
@@ -222,6 +229,19 @@ void tcp_client_endpoint_impl::connect() {
                 return;
             }
         }
+
+        // update port, in case of random port allocation
+        {
+            boost::system::error_code err;
+            endpoint_type local = socket_->local_endpoint(err);
+            if (!err) {
+                local_.port(local.port());
+            } else {
+                VSOMEIP_WARNING << "tce::" << __func__ << ": could not get local port due to err "
+                                << "(" << its_error.value() << "): " << its_error.message();
+            }
+        }
+
         state_ = cei_state_e::CONNECTING;
         connect_timepoint_ = std::chrono::steady_clock::now();
         aborted_restart_count_ = 0;
@@ -355,56 +375,7 @@ bool tcp_client_endpoint_impl::get_remote_address(boost::asio::ip::address& _add
 }
 
 uint16_t tcp_client_endpoint_impl::get_local_port() const {
-
-    uint16_t its_port(0);
-
-    // Local port may be zero, if no client ports are configured
-    std::scoped_lock its_lock{socket_mutex_};
-    if (socket_->is_open()) {
-        boost::system::error_code its_error;
-        endpoint_type its_local = socket_->local_endpoint(its_error);
-        if (!its_error) {
-            its_port = its_local.port();
-            return its_port;
-        } else {
-            VSOMEIP_WARNING << "tce::" << __func__ << ": couldn't get local endpoint port "
-                            << "(" << its_error.value() << "): " << its_error.message();
-        }
-    }
-
     return local_.port();
-}
-
-void tcp_client_endpoint_impl::set_local_port() {
-    std::scoped_lock its_lock{socket_mutex_};
-    boost::system::error_code its_error;
-    if (socket_->is_open()) {
-        endpoint_type its_endpoint = socket_->local_endpoint(its_error);
-        if (!its_error) {
-            local_.port(its_endpoint.port());
-        } else {
-            VSOMEIP_WARNING << "tcp_client_endpoint_impl::set_local_port() "
-                            << " couldn't get local_endpoint: " << its_error.message();
-        }
-    } else {
-        VSOMEIP_WARNING << "tcp_client_endpoint_impl::set_local_port() "
-                        << "failed to set port because the socket is not opened";
-    }
-}
-
-void tcp_client_endpoint_impl::set_local_port(port_t _port) {
-
-    std::scoped_lock its_lock{socket_mutex_};
-    if (!socket_->is_open()) {
-        local_.port(_port);
-    } else {
-        boost::system::error_code its_error;
-        endpoint_type its_endpoint = socket_->local_endpoint(its_error);
-        if (!its_error)
-            local_.port(its_endpoint.port());
-        VSOMEIP_ERROR << "tcp_client_endpoint_impl::set_local_port() "
-                      << "Cannot change port on open socket!";
-    }
 }
 
 std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::system::error_code& _error, std::size_t _bytes_transferred,

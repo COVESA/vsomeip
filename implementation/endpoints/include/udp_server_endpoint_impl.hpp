@@ -57,7 +57,6 @@ public:
     bool get_default_target(service_t _service, endpoint_type& _target) const override;
 
     uint16_t get_local_port() const override;
-    void set_local_port(uint16_t _port) override;
     bool is_local() const override;
 
     void print_status() override;
@@ -126,8 +125,6 @@ private:
 
     boost::asio::ip::address netmask_;
     uint16_t prefix_{0};
-
-    uint16_t local_port_{0};
 
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
     boost::asio::steady_timer tp_cleanup_timer_;

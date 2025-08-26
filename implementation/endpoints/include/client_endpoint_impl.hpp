@@ -69,7 +69,6 @@ public:
     virtual std::uint16_t get_remote_port() const;
 
     std::uint16_t get_local_port() const;
-    void set_local_port(uint16_t _port);
     virtual bool is_reliable() const = 0;
 
     size_t get_queue_size() const;
@@ -145,7 +144,6 @@ protected:
     boost::asio::io_context::strand strand_;
 
 private:
-    virtual void set_local_port() = 0;
     virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;

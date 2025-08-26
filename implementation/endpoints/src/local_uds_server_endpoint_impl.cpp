@@ -898,12 +898,6 @@ std::uint16_t local_uds_server_endpoint_impl::get_local_port() const {
     return 0;
 }
 
-void local_uds_server_endpoint_impl::set_local_port(std::uint16_t _port) {
-
-    (void)_port;
-    // Intentionally left empty
-}
-
 bool local_uds_server_endpoint_impl::check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const {
     if ((*_packetizer)->size() + _size < (*_packetizer)->size()) {
         VSOMEIP_ERROR << "Overflow in packetizer addition ~> abort sending!";

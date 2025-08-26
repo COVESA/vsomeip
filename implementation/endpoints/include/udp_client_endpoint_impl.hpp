@@ -36,7 +36,6 @@ public:
     void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes, const message_buffer_ptr_t& _recv_buffer);
 
     std::uint16_t get_local_port() const;
-    void set_local_port(port_t _port);
 
     bool get_remote_address(boost::asio::ip::address& _address) const;
     std::uint16_t get_remote_port() const;
@@ -53,7 +52,6 @@ private:
                                             std::chrono::nanoseconds* _maximum_retention) const;
     void connect();
     void receive();
-    void set_local_port();
     std::string get_address_port_remote() const;
     std::string get_address_port_local() const;
     std::string get_remote_information() const;

@@ -204,11 +204,12 @@ void endpoint_manager_base::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 }
 
 bool endpoint_manager_base::on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
-                                          uint16_t _remote_port) {
+                                          uint16_t _remote_port, uint16_t& _local_port) {
 
     (void)_endpoint;
     (void)_remote_address;
     (void)_remote_port;
+    _local_port = ILLEGAL_PORT;
 
     return true;
 }

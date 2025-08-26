@@ -742,12 +742,6 @@ std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::set_local_port(port_t _port) {
-
-    (void)_port; // overwritten in IP endpoints
-}
-
-template<typename Protocol>
 void client_endpoint_impl<Protocol>::start_connect_timer() {
 
     std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);

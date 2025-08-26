@@ -40,7 +40,6 @@ public:
 
     bool get_remote_address(boost::asio::ip::address& _address) const;
     std::uint16_t get_local_port() const;
-    void set_local_port(uint16_t _port);
     std::uint16_t get_remote_port() const;
     bool is_reliable() const;
     bool is_local() const;

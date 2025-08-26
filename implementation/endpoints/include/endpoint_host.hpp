@@ -35,8 +35,8 @@ public:
 
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint) = 0;
     virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint) = 0;
-    virtual bool on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
-                               uint16_t _remote_port) = 0;
+    virtual bool on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address, uint16_t _remote_port,
+                               uint16_t& _local_port) = 0;
     virtual void on_error(const byte_t* _data, length_t _length, endpoint* const _receiver, const boost::asio::ip::address& _remote_address,
                           std::uint16_t _remote_port) = 0;
     virtual void release_port(uint16_t _port, bool _reliable) = 0;
