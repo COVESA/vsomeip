@@ -66,7 +66,6 @@ void tcp_server_endpoint_impl::init(const endpoint_type& _local, boost::system::
         return;
 
     local_ = _local;
-    local_port_ = _local.port();
 
     this->max_message_size_ = configuration_->get_max_message_size_reliable(_local.address().to_string(), _local.port());
     this->queue_limit_ = configuration_->get_endpoint_queue_limit(_local.address().to_string(), _local.port());
@@ -301,11 +300,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::sy
 
 std::uint16_t tcp_server_endpoint_impl::get_local_port() const {
 
-    return local_port_;
-}
-
-void tcp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
-    (void)_port;
+    return local_.port();
 }
 
 bool tcp_server_endpoint_impl::is_reliable() const {
@@ -343,7 +338,7 @@ tcp_server_endpoint_impl::connection::~connection() {
     if (its_server) {
         auto its_routing_host(its_server->routing_host_.lock());
         if (its_routing_host) {
-            its_routing_host->remove_subscriptions(its_server->local_port_, remote_address_, remote_port_);
+            its_routing_host->remove_subscriptions(its_server->local_.port(), remote_address_, remote_port_);
         }
     }
 }
@@ -858,7 +853,7 @@ void tcp_server_endpoint_impl::print_status() {
         its_connections = connections_;
     }
 
-    VSOMEIP_INFO << "status tse: " << std::dec << local_port_ << " connections: " << std::dec << its_connections.size()
+    VSOMEIP_INFO << "status tse: " << std::dec << local_.port() << " connections: " << std::dec << its_connections.size()
                  << " targets: " << std::dec << targets_.size();
     for (const auto& c : its_connections) {
         std::size_t its_data_size(0);

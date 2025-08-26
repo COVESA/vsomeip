@@ -47,7 +47,6 @@ public:
     bool get_default_target(service_t, endpoint_type&) const;
 
     std::uint16_t get_local_port() const;
-    void set_local_port(uint16_t _port);
     bool is_reliable() const;
     bool is_local() const;
 
@@ -132,7 +131,6 @@ private:
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
-    std::uint16_t local_port_;
     const std::chrono::milliseconds send_timeout_;
 
 private:

@@ -59,7 +59,6 @@ public:
 
     bool is_reliable() const;
     std::uint16_t get_local_port() const;
-    void set_local_port(std::uint16_t _port);
 
     client_t assign_client(const byte_t* _data, uint32_t _size);
 
@@ -135,8 +134,6 @@ private:
     connections_t connections_;
 
     const std::uint32_t buffer_shrink_threshold_;
-
-    port_t local_port_;
 
     const bool is_routing_endpoint_;
 

@@ -95,10 +95,6 @@ std::uint16_t virtual_server_endpoint_impl::get_local_port() const {
     return port_;
 }
 
-void virtual_server_endpoint_impl::set_local_port(std::uint16_t _port) {
-    port_ = _port;
-}
-
 std::uint16_t virtual_server_endpoint_impl::get_remote_port() const {
     return ILLEGAL_PORT;
 }

@@ -305,10 +305,6 @@ std::uint16_t local_uds_client_endpoint_impl::get_remote_port() const {
     return 0;
 }
 
-void local_uds_client_endpoint_impl::set_local_port() {
-    // local_port_ is set to zero in ctor of client_endpoint_impl -> do nothing
-}
-
 void local_uds_client_endpoint_impl::print_status() {
 
     std::string its_path = remote_.path();

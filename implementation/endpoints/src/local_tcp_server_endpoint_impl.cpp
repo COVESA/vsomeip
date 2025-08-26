@@ -86,7 +86,6 @@ void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, 
         return;
 
     local_ = _local;
-    local_port_ = _local.port();
 }
 
 void local_tcp_server_endpoint_impl::deinit() {
@@ -875,13 +874,7 @@ bool local_tcp_server_endpoint_impl::is_reliable() const {
 
 std::uint16_t local_tcp_server_endpoint_impl::get_local_port() const {
 
-    return local_port_;
-}
-
-void local_tcp_server_endpoint_impl::set_local_port(std::uint16_t _port) {
-
-    (void)_port;
-    // Intentionally left empty
+    return local_.port();
 }
 
 bool local_tcp_server_endpoint_impl::check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const {

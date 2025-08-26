@@ -86,7 +86,6 @@ public:
 
     virtual bool is_reliable() const = 0;
     virtual std::uint16_t get_local_port() const = 0;
-    virtual void set_local_port(uint16_t _port) = 0;
 
 public:
     void connect_cbk(boost::system::error_code const& _error);

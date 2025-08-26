@@ -33,7 +33,6 @@ public:
     void restart(bool _force);
 
     std::uint16_t get_local_port() const;
-    void set_local_port(port_t _port);
 
     bool get_remote_address(boost::asio::ip::address& _address) const;
     std::uint16_t get_remote_port() const;
@@ -60,7 +59,6 @@ private:
     std::string get_address_port_remote() const;
     std::string get_address_port_local() const;
     void handle_recv_buffer_exception(const std::exception& _e, const message_buffer_ptr_t& _recv_buffer, std::size_t _recv_buffer_size);
-    void set_local_port();
     std::size_t write_completion_condition(const boost::system::error_code& _error, std::size_t _bytes_transferred,
                                            std::size_t _bytes_to_send, service_t _service, method_t _method, client_t _client,
                                            session_t _session, const std::chrono::steady_clock::time_point _start);

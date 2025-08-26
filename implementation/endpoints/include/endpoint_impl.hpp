@@ -40,7 +40,6 @@ public:
     void remove_stop_handler(service_t);
 
     virtual std::uint16_t get_local_port() const = 0;
-    virtual void set_local_port(uint16_t _port) = 0;
     virtual bool is_reliable() const = 0;
 
     void register_error_handler(const error_handler_t& _error_handler);

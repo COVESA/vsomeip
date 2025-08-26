@@ -64,7 +64,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     // The caller must hold the lock
 
     if (unicast_socket_) {
-        if (local_port_ == _local.port() && local_.address() == _local.address()) {
+        if (local_ == _local) {
             VSOMEIP_WARNING << instance_name_ << "init_unlocked: already initialized, lifecycle_idx=" << lifecycle_idx_.load();
             return;
         }
@@ -175,16 +175,15 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 #endif
 
-    if (local_ != _local || local_port_ != _local.port()) {
+    if (local_ != _local) {
         instance_name_ += _local.address().to_string();
         instance_name_ += ":";
         instance_name_ += std::to_string(_local.port());
         instance_name_ += "::";
 
         local_ = _local;
-        local_port_ = _local.port();
 
-        queue_limit_ = configuration_->get_endpoint_queue_limit(configuration_->get_unicast_address().to_string(), local_port_);
+        queue_limit_ = configuration_->get_endpoint_queue_limit(configuration_->get_unicast_address().to_string(), local_.port());
     }
 }
 
@@ -560,11 +559,7 @@ bool udp_server_endpoint_impl::get_default_target(service_t _service, udp_server
 
 uint16_t udp_server_endpoint_impl::get_local_port() const {
     std::scoped_lock its_lock(sync_);
-    return local_port_;
-}
-
-void udp_server_endpoint_impl::set_local_port(uint16_t _port) {
-    std::ignore = _port;
+    return local_.port();
 }
 
 void udp_server_endpoint_impl::on_unicast_received(boost::system::error_code const& _error, std::size_t _bytes) {
@@ -786,7 +781,7 @@ bool udp_server_endpoint_impl::is_same_subnet_unlocked(const boost::asio::ip::ad
 void udp_server_endpoint_impl::print_status() {
     std::scoped_lock its_lock(mutex_, sync_);
 
-    VSOMEIP_ERROR << instance_name_ << "status use: " << std::dec << local_port_ << " number targets: " << std::dec << targets_.size()
+    VSOMEIP_ERROR << instance_name_ << "status use: " << std::dec << local_.port() << " number targets: " << std::dec << targets_.size()
                   << " recv_buffer: " << std::dec << unicast_recv_buffer_.capacity() << " multicast_recv_buffer: " << std::dec
                   << multicast_recv_buffer_.capacity();
 
@@ -906,9 +901,9 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
             if (!multicast_local_) {
                 if (is_v4_) {
-                    multicast_local_ = std::make_unique<endpoint_type>(boost::asio::ip::address_v4::any(), local_port_);
+                    multicast_local_ = std::make_unique<endpoint_type>(boost::asio::ip::address_v4::any(), local_.port());
                 } else { // is_v6
-                    multicast_local_ = std::make_unique<endpoint_type>(boost::asio::ip::address_v6::any(), local_port_);
+                    multicast_local_ = std::make_unique<endpoint_type>(boost::asio::ip::address_v6::any(), local_.port());
                 }
             }
 

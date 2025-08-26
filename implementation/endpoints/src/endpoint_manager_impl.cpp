@@ -876,7 +876,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
 }
 
 bool endpoint_manager_impl::on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
-                                          std::uint16_t _remote_port) {
+                                          std::uint16_t _remote_port, uint16_t& _local_port) {
 
     std::lock_guard<std::recursive_mutex> its_ep_lock(endpoint_mutex_);
     for (auto& its_service : remote_services_) {
@@ -887,14 +887,13 @@ bool endpoint_manager_impl::on_bind_error(std::shared_ptr<endpoint> _endpoint, c
                 if (found_endpoint->second == _endpoint) {
                     // get a new client port using service / instance / remote port
                     uint16_t its_old_local_port = _endpoint->get_local_port();
-                    uint16_t its_new_local_port(ILLEGAL_PORT);
+                    _local_port = ILLEGAL_PORT; // will be given as a new local port
 
                     std::unique_lock<std::mutex> its_lock(used_client_ports_mutex_);
                     std::map<bool, std::set<port_t>> its_used_client_ports;
                     get_used_client_ports(_remote_address, _remote_port, its_used_client_ports);
                     if (configuration_->get_client_port(its_service.first, its_instance.first, _remote_port, is_reliable,
-                                                        its_used_client_ports, its_new_local_port)) {
-                        _endpoint->set_local_port(its_new_local_port);
+                                                        its_used_client_ports, _local_port)) {
                         its_lock.unlock();
                         release_used_client_port(_remote_address, _remote_port, _endpoint->is_reliable(), its_old_local_port);
                         return true;
