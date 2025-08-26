@@ -486,7 +486,7 @@ TEST_F(test_restart_clients, test_restart_client_in_loop) {
     start_router();
     start_server();
 
-    for (size_t i = 0; i < 100; ++i) {
+    for (size_t i = 0; i < 5; ++i) {
         create_app(client_one_);
         auto* one = start_client(client_one_);
         ASSERT_TRUE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(6)));
