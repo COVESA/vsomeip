@@ -13,7 +13,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
 #include <dlfcn.h>
 #include <sys/syscall.h>
 #endif
@@ -48,7 +48,7 @@ configuration::~configuration() { }
 
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
     runtime_{runtime::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     start_thread_{0},
 #endif
     work_{std::make_shared<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(io_.get_executor())},
@@ -348,7 +348,7 @@ bool application_impl::init() {
 }
 
 void application_impl::start() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     // only set threadname if calling thread isn't the main thread
     if (getpid() != static_cast<pid_t>(syscall(SYS_gettid))) {
         start_thread_ = pthread_self();
@@ -393,7 +393,7 @@ void application_impl::start() {
         stopped_called_ = false;
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << std::hex << std::setfill('0') << std::setw(4) << client_
                      << ") using " << std::dec << io_thread_count << " threads"
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
                      << " I/O nice " << io_thread_nice_level
 #endif
                      << " boost event loop period " << event_loop_periodicity;
@@ -425,11 +425,11 @@ void application_impl::start() {
             auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level, event_loop_periodicity] {
                 VSOMEIP_INFO << "io thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
                              << name_ << ") is: " << std::hex << std::this_thread::get_id()
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                              << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
                         ;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                 {
                     std::stringstream s;
                     s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1;
@@ -471,7 +471,7 @@ void application_impl::start() {
     }
     VSOMEIP_INFO << "io thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
                  << ") is: " << std::this_thread::get_id()
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                  << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
@@ -1383,7 +1383,7 @@ void application_impl::set_client(const client_t& _client) {
     // therefore re-assign all of the thread names. It also helps in case of a client-id
     // re-assignment
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     // start thread
     if (start_thread_ != 0) {
         std::stringstream s;
@@ -1714,7 +1714,7 @@ routing_manager* application_impl::get_routing_manager() const {
 
 void application_impl::main_dispatch() {
     utility::set_thread_niceness(configuration_->get_io_thread_nice_level(name_));
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     {
         std::stringstream s;
         s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch";
@@ -1724,7 +1724,7 @@ void application_impl::main_dispatch() {
     const std::thread::id its_id = std::this_thread::get_id();
     VSOMEIP_INFO << "main dispatch thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
                  << name_ << ") is: " << std::hex << its_id
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                  << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
@@ -1764,7 +1764,7 @@ void application_impl::main_dispatch() {
 }
 
 void application_impl::dispatch() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     {
         std::stringstream s;
         s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_dispatch";
@@ -1774,7 +1774,7 @@ void application_impl::dispatch() {
     const std::thread::id its_id = std::this_thread::get_id();
     VSOMEIP_INFO << "dispatch thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
                  << ") is: " << std::hex << its_id
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                  << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
@@ -2043,11 +2043,11 @@ void application_impl::clear_all_handler() {
 void application_impl::shutdown() {
     VSOMEIP_INFO << "shutdown thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
                  << ") is: " << std::hex << std::this_thread::get_id()
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                  << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     boost::asio::detail::posix_signal_blocker blocker;
     {
         std::stringstream s;

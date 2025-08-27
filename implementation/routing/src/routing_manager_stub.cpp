@@ -105,7 +105,7 @@ void routing_manager_stub::start() {
     {
         std::scoped_lock its_thread_pool_lock(client_registration_mutex_);
         client_registration_thread_ = std::make_shared<std::thread>([this]() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
             std::stringstream s;
             s << std::hex << std::setfill('0') << std::setw(4) << host_->get_client() << "_reg";
             pthread_setname_np(pthread_self(), s.str().c_str());
@@ -2355,9 +2355,7 @@ void routing_manager_stub::remove_subscriptions(port_t _local_port, const boost:
     // dummy method to implement routing_host interface
 }
 
-
-bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance,
-                                        major_version_t _major) const {
+bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance, major_version_t _major) const {
     std::scoped_lock its_lock{routing_info_mutex_};
     for (const auto& [client, its_info] : routing_info_) {
         auto its_service = its_info.second.find(_service);

@@ -236,7 +236,7 @@ TEST(suspend_resume_test, fast) {
     its_client.run_test();
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
 
     VSOMEIP_DEBUG << "[TEST-cli] Starting Client";

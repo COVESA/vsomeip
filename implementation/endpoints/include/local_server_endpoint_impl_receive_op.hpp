@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 #define VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 
 #include <boost/asio/local/stream_protocol.hpp>
 #include <memory>
@@ -111,6 +111,6 @@ inline std::function<void(boost::system::error_code _error)> receive_cb(std::sha
 } // namespace local_endpoint_receive_op
 } // namespace vsomeip
 
-#endif // __linux__ || ANDROID
+#endif // __linux__
 
 #endif // VSOMEIP_V3_LOCAL_SERVER_ENDPOINT_IMPL_RECEIVE_OP_HPP_

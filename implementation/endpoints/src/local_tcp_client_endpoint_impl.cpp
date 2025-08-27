@@ -6,7 +6,7 @@
 #include <atomic>
 #include <iomanip>
 #include <sstream>
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
 #include <netinet/tcp.h>
 #endif
 
@@ -151,7 +151,7 @@ void local_tcp_client_endpoint_impl::connect() {
                                 << " state_ > " << static_cast<int>(state_.load());
             }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
             // set a user timeout
             // along the keep alives, this ensures connection closes if endpoint is unreachable
             if (!socket_->set_user_timeout(configuration_->get_local_tcp_user_timeout())) {

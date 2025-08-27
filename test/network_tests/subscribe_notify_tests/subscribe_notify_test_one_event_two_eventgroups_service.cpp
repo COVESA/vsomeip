@@ -182,7 +182,7 @@ TEST(someip_subscribe_notify_test_one_event_two_eventgroups, wait_for_attribute_
     }
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

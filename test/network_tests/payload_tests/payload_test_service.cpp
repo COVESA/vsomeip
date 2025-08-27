@@ -128,7 +128,7 @@ TEST(someip_payload_test, send_response_for_every_request) {
     }
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     std::string help("--help");
     std::string check("--do-not-check-payload");

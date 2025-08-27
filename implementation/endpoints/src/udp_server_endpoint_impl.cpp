@@ -97,7 +97,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         return;
     }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     // If specified, bind to device
     std::string its_device(configuration_->get_device());
     if (!its_device.empty()) {

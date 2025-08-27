@@ -162,7 +162,7 @@ TEST(someip_event_test, send_events) {
     event_test_service its_sample(event_test::service, use_tcp);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
 

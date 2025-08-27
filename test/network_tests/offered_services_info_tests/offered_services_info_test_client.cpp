@@ -297,7 +297,7 @@ TEST(someip_offered_services_info_test, check_offered_services) {
     offered_services_info_test_client its_sample(offer_test::service, offer_test::remote_service, passed_mode);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

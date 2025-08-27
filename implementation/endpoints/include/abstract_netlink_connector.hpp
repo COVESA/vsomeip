@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_V3_ABSTRACT_NETLINK_CONNECTOR_HPP_
 #define VSOMEIP_V3_ABSTRACT_NETLINK_CONNECTOR_HPP_
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
 
 #include <string>
 #include <functional>
@@ -30,6 +30,6 @@ public:
 
 } // namespace vsomeip_v3
 
-#endif // __linux__ || ANDROID
+#endif // __linux__
 
 #endif // VSOMEIP_V3_NETLINK_CONNECTOR_HPP_

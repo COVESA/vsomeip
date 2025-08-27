@@ -1154,7 +1154,7 @@ std::string policy_manager_impl::get_security_config_folder(const std::string& i
     std::stringstream its_security_config_folder;
     its_security_config_folder << its_folder;
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     its_security_config_folder << "/" << getuid() << "_" << getgid();
 #elif defined(_WIN32)
     its_security_config_folder << "/0_0"; // Windows does not use UID/GID, so we use a default value

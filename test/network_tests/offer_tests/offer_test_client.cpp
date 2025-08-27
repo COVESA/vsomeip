@@ -232,7 +232,7 @@ TEST(someip_offer_test, subscribe_or_call_method_at_service) {
     offer_test_client its_sample(offer_test::service, passed_mode);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

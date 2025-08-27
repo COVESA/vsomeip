@@ -339,7 +339,7 @@ TEST(someip_someip_tp_test, echo_requests) {
     its_sample.stop();
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

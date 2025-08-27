@@ -238,7 +238,7 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
     test_service.join_shutdown_thread();
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     int i = 1;
     while (i < argc) {

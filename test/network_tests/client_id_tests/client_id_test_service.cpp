@@ -231,7 +231,7 @@ TEST(someip_client_id_test, send_ten_messages_to_service) {
     client_id_test_service its_sample(client_id_test::service_infos[static_cast<size_t>(service_number)]);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

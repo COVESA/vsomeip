@@ -51,7 +51,7 @@ void client_endpoint_impl<Protocol>::recreate_socket() {
     } else if constexpr (std::is_same_v<Protocol, boost::asio::ip::udp>) {
         socket_ = socket_factory->create_udp_socket(io);
     }
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     else if constexpr (std::is_same_v<Protocol, boost::asio::local::stream_protocol>) {
         socket_ = socket_factory->create_uds_socket(io);
     }
@@ -677,7 +677,7 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _recreate_socket) {
 
     if (socket_->is_open()) {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
             if (!socket_->can_read_fd_flags()) {
                 VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
@@ -865,7 +865,7 @@ void client_endpoint_impl<Protocol>::start_dispatch_timer(const std::chrono::ste
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     dispatch_timer_.expires_after(its_offset);
 #else
     dispatch_timer_.expires_after(std::chrono::duration_cast<std::chrono::steady_clock::duration>(its_offset));
@@ -886,7 +886,7 @@ void client_endpoint_impl<Protocol>::update_last_departure() {
 }
 
 // Instantiate template
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 template class client_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
 template class client_endpoint_impl<boost::asio::ip::tcp>;

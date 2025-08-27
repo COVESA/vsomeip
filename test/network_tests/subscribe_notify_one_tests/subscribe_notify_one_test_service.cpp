@@ -402,7 +402,7 @@ TEST(someip_subscribe_notify_one_test, send_ten_notifications_to_service) {
     subscribe_notify_one_test_service its_sample(subscribe_notify_one_test::service_infos[service_number], reliability_type);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {

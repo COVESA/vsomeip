@@ -35,7 +35,7 @@ private:
     void set_option(boost::asio::ip::tcp::socket::keep_alive ka, boost::system::error_code& ec) override { socket_.set_option(ka, ec); }
     void set_option(boost::asio::ip::tcp::socket::linger l, boost::system::error_code& ec) override { socket_.set_option(l, ec); }
     void set_option(boost::asio::ip::tcp::socket::reuse_address ra, boost::system::error_code& ec) override { socket_.set_option(ra, ec); }
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     [[nodiscard]] bool set_user_timeout(unsigned int timeout) override {
         return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &timeout, sizeof(timeout)) != -1;
     }
@@ -52,7 +52,7 @@ private:
         return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_KEEPCNT, &opt, sizeof(opt)) != -1;
     }
 #endif
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     [[nodiscard]] bool bind_to_device(std::string const& _device) override {
         return setsockopt(socket_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(), static_cast<socklen_t>(_device.size()))
                 != -1;
@@ -94,7 +94,7 @@ private:
         acceptor_.set_option(ra, ec);
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     [[nodiscard]] bool set_native_option_free_bind() override {
         int opt = 1;
         return setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) == 0;

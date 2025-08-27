@@ -65,7 +65,7 @@ public:
     // usually the ConstBufferSequence is a template parameter
     virtual void async_write(std::vector<boost::asio::const_buffer> const&, rw_handler) = 0;
     virtual void async_write(boost::asio::const_buffer const& b, completion_condition cc, rw_handler handler) = 0;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     /**
      * abstraction for setting the linux specific tcp option
      * TCP_USER_TIMEOUT.
@@ -91,7 +91,7 @@ public:
      **/
     [[nodiscard]] virtual bool set_keepcnt(uint32_t) = 0;
 #endif
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     /**
      * abstraction for setting the linux specific option
      * SO_BINDTODEVICE.
@@ -118,7 +118,7 @@ class tcp_acceptor : public tcp_base_socket {
 public:
     virtual void set_option(boost::asio::ip::tcp::socket::reuse_address, boost::system::error_code&) = 0;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     /**
      * abstraction for setting the linux specific option
      * IP_FREEBIND.

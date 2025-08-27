@@ -450,7 +450,7 @@ TEST(someip_npdu_test, send_different_payloads) {
     test_client_.start();
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     std::string tcp_enable("--TCP");
     std::string udp_enable("--UDP");

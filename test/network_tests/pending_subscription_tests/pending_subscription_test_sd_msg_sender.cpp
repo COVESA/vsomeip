@@ -1457,7 +1457,7 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
     udp_socket.close(ec);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 4) {

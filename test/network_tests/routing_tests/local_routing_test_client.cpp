@@ -113,7 +113,7 @@ TEST(someip_local_routing_test, send_ten_messages_to_service_and_receive_reply) 
     }
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

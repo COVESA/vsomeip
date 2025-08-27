@@ -131,7 +131,7 @@ static std::shared_ptr<logger_impl>* the_logger_ptr__(nullptr);
 static std::mutex the_logger_mutex__;
 
 std::shared_ptr<logger_impl> logger_impl::get() {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     std::scoped_lock its_lock{the_logger_mutex__};
 #endif
     if (the_logger_ptr__ == nullptr) {
@@ -146,7 +146,7 @@ std::shared_ptr<logger_impl> logger_impl::get() {
     return nullptr;
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 static void logger_impl_teardown(void) __attribute__((destructor));
 static void logger_impl_teardown(void) {
     // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.

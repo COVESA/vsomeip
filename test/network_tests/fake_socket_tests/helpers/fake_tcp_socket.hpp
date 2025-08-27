@@ -99,7 +99,7 @@ private:
         set_reuse_address_ = true;
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     [[nodiscard]] virtual bool set_user_timeout(unsigned int _timeout) {
         set_user_timeout_ = _timeout;
         return true;
@@ -118,7 +118,7 @@ private:
     }
 #endif
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     [[nodiscard]] virtual bool bind_to_device(std::string const& _device) {
         bound_device_ = _device;
         return true;
@@ -201,7 +201,7 @@ private:
         _ec = boost::system::errc::make_error_code(boost::system::errc::success);
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     [[nodiscard]] virtual bool set_native_option_free_bind() override { return true; }
 #endif
 

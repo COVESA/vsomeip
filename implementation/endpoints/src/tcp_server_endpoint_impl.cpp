@@ -45,7 +45,7 @@ void tcp_server_endpoint_impl::init(const endpoint_type& _local, boost::system::
     if (_error)
         return;
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     // If specified, bind to device
     std::string its_device(configuration_->get_device());
     if (its_device != "") {
@@ -249,7 +249,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::sy
                 VSOMEIP_WARNING << "tsei::" << __func__ << ": setting SO_LINGER failed: " << its_error.message();
             }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
             // set a user timeout
             // along the keep alives, this ensures connection closes if endpoint is unreachable
             unsigned int opt = configuration_->get_external_tcp_user_timeout();

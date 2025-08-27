@@ -27,7 +27,7 @@ TEST(someip_application_init_test, multithread_init) {
     for (std::uint32_t t = 0; t < thread_count; ++t) {
         vsomeip_applications.emplace_back([&job_cv, &seq_cv, &mutex, &ready_cnt, &stop_cnt, t] {
             {
-                std::unique_lock lk {mutex};
+                std::unique_lock lk{mutex};
                 ready_cnt += 1;
                 seq_cv.notify_one();
                 job_cv.wait(lk, [&ready_cnt] { return ready_cnt == thread_count; });
@@ -40,7 +40,7 @@ TEST(someip_application_init_test, multithread_init) {
             EXPECT_TRUE(vsomeip_app->init()); // EXPECT also no crash
 
             {
-                std::unique_lock lk {mutex};
+                std::unique_lock lk{mutex};
                 stop_cnt += 1;
                 seq_cv.notify_one();
                 job_cv.wait(lk, [&stop_cnt] { return stop_cnt == thread_count; });
@@ -49,7 +49,7 @@ TEST(someip_application_init_test, multithread_init) {
     }
 
     {
-        std::unique_lock lk {mutex};
+        std::unique_lock lk{mutex};
         seq_cv.wait(lk, [&ready_cnt] { return ready_cnt == thread_count; });
         job_cv.notify_all();
         seq_cv.wait(lk, [&stop_cnt] { return stop_cnt == thread_count; });
@@ -63,7 +63,7 @@ TEST(someip_application_init_test, multithread_init) {
     }
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -463,7 +463,7 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
 
     // Current queue size is bigger than the maximum queue size
     if (_endpoint_data.queue_size_ > endpoint_impl<Protocol>::queue_limit_) {
-        size_t its_error_queue_size {_endpoint_data.queue_size_};
+        size_t its_error_queue_size{_endpoint_data.queue_size_};
         recalculate_queue_size(_endpoint_data);
 
         VSOMEIP_WARNING << __func__ << ": Detected possible queue size underflow (" << std::dec << its_error_queue_size
@@ -782,7 +782,7 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(target_data_iterator_t
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     its_data.dispatch_timer_->expires_after(its_offset);
 #else
     its_data.dispatch_timer_->expires_after(std::chrono::duration_cast<std::chrono::steady_clock::duration>(its_offset));
