@@ -70,7 +70,7 @@ void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local, bo
     if (_error)
         return;
 
-        if (chmod(_local.path().c_str(), static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
+    if (chmod(_local.path().c_str(), static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
         VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
     credentials::activate_credentials(acceptor_.native_handle());
