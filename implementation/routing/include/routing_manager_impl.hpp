@@ -351,7 +351,7 @@ private:
     std::atomic_bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
     std::unordered_set<std::pair<service_t, instance_t>, boost::hash<std::pair<service_t, instance_t>>> pending_sd_offers_;
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     std::shared_ptr<abstract_netlink_connector> netlink_connector_;
 #endif
 

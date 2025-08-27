@@ -6,7 +6,7 @@
 #ifndef VSOMEIP_V3_TESTING_FAKE_NETLINK_CONNECTOR_HPP_
 #define VSOMEIP_V3_TESTING_FAKE_NETLINK_CONNECTOR_HPP_
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
 #include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
 
 #include "fake_tcp_socket.hpp"

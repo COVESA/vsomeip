@@ -105,7 +105,7 @@ TEST_F(someip_header_factory_test, create_notification_test) {
     ASSERT_EQ(notification_->get_return_code(), vsomeip::return_code_e::E_OK);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

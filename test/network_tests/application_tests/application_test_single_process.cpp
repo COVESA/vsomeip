@@ -34,7 +34,7 @@ TEST(someip_application_test_single_process, notify_increasing_counter) {
     its_receiver.on_shutdown_method_called(vsomeip::runtime::get()->create_message());
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

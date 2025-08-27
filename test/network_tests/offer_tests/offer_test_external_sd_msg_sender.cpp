@@ -39,7 +39,7 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
     }
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

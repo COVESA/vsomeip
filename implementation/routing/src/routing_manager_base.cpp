@@ -672,7 +672,7 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
 }
 
 void routing_manager_base::add_known_client(client_t _client, const std::string& _client_host) {
-#if !defined(VSOMEIP_DISABLE_SECURITY) && (defined(__linux__) || defined(ANDROID))
+#if !defined(VSOMEIP_DISABLE_SECURITY) && (defined(__linux__))
     std::lock_guard<std::mutex> lazy_lock(add_known_client_mutex_);
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         // Ignore if we have already loaded the policy extension
@@ -922,7 +922,7 @@ bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _mess
                             << " _message=" << std::setw(4) << _message->get_service() << "." << std::setw(4) << _message->get_method()
                             << "." << std::setw(2) << static_cast<int>(_message->get_message_type()) << "." << std::setw(2)
                             << static_cast<int>(_message->get_return_code()) << " _force=" << _force
-                            << "}: Service not available. instance=" << std::setw(4)<< _message->get_instance()
+                            << "}: Service not available. instance=" << std::setw(4) << _message->get_instance()
                             << " version=" << std::setw(4) << _message->get_interface_version();
             if (!_force) {
                 return is_sent;

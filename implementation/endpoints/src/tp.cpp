@@ -15,7 +15,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include <arpa/inet.h>
 #else
 #include <Winsock2.h>

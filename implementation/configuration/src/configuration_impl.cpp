@@ -253,7 +253,7 @@ bool configuration_impl::load(const std::string& _name) {
     }
     if (its_folder != "") {
         its_input.insert(its_folder);
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         // load security configuration files from UID_GID sub folder if existing
         std::stringstream its_security_config_folder;
         its_security_config_folder << its_folder << "/" << getuid() << "_" << getgid();
@@ -1067,13 +1067,13 @@ void configuration_impl::add_plugin(std::map<plugin_type_e, std::set<std::string
 #endif
 
     if (_plugin_data.type_ == "application_plugin") {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         its_library += ".";
         its_library += (VSOMEIP_APPLICATION_PLUGIN_VERSION + '0');
 #endif
         _plugins[plugin_type_e::APPLICATION_PLUGIN].insert(its_library);
     } else if (_plugin_data.type_ == "configuration_plugin") {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         its_library += ".";
         its_library += (VSOMEIP_PRE_CONFIGURATION_PLUGIN_VERSION + '0');
 #endif

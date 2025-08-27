@@ -181,7 +181,7 @@ private:
     }
 };
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main() {
     availability_handler_test_client client;
     client.run();

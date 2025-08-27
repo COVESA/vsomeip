@@ -13,7 +13,7 @@
 #include "../../routing/include/routing_manager_base.hpp"
 #include "../../utility/include/utility.hpp"
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include "../include/local_uds_client_endpoint_impl.hpp"
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #endif
@@ -109,7 +109,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(const std::
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << rm_->get_client();
     const client_t its_client = rm_->get_client();
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     if (is_local_routing_) {
         try {
             auto its_tmp{std::make_shared<local_uds_server_endpoint_impl>(shared_from_this(), _routing_host, io_, configuration_, false)};
@@ -279,7 +279,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_unlocked(client_t 
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
     std::shared_ptr<endpoint> its_endpoint;
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     if (is_local_routing_) {
         its_endpoint = std::make_shared<local_uds_client_endpoint_impl>(shared_from_this(), rm_->shared_from_this(),
                                                                         boost::asio::local::stream_protocol::endpoint(its_path.str()), io_,

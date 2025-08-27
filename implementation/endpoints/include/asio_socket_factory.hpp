@@ -14,7 +14,7 @@ class asio_socket_factory final : public abstract_socket_factory {
 public:
     ~asio_socket_factory() override = default;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io,
                                                                          const boost::asio::ip::address& _address,
                                                                          const boost::asio::ip::address& _multicast_address,

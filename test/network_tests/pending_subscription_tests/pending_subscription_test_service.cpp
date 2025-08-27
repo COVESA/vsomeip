@@ -331,7 +331,7 @@ TEST(someip_pending_subscription_test, block_subscription_handler) {
     pending_subscription_test_service its_sample(pending_subscription_test::service, its_testmode);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {

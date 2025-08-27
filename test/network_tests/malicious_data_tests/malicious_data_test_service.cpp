@@ -144,7 +144,7 @@ TEST(someip_malicious_data_test, block_subscription_handler) {
     malicious_data_test_service its_sample(malicious_data_test::service, its_testmode);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     std::string its_passed_testmode = argv[1];

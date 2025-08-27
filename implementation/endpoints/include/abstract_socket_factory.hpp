@@ -7,7 +7,7 @@
 #define VSOMEIP_V3_ABSTRACT_SOCKET_FACTORY_HPP_
 
 #include <boost/asio/ip/udp.hpp>
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include <boost/asio/local/stream_protocol.hpp>
 #endif
 #include <functional>
@@ -23,7 +23,7 @@ public:
 
     static abstract_socket_factory* get();
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     // netlink needs to be faked in order to test local-tcp connection handling
     virtual std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io,
                                                                                  const boost::asio::ip::address& _address,
@@ -39,7 +39,7 @@ public:
         return std::make_unique<boost::asio::ip::udp::socket>(_io);
     }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     std::unique_ptr<boost::asio::local::stream_protocol::socket> create_uds_socket(boost::asio::io_context& _io) {
         return std::make_unique<boost::asio::local::stream_protocol::socket>(_io);
     }

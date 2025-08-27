@@ -299,7 +299,7 @@ private:
     const std::string path_;
     std::shared_ptr<configuration> configuration_;
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     pthread_t start_thread_;
 #endif
 

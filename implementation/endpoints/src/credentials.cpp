@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
 
 #include <cerrno>
 #include <cstring>
@@ -137,4 +137,4 @@ void credentials::send_credentials(const int _fd, client_t _client, std::string 
 
 } // namespace vsomeip_v3
 
-#endif // __linux__ || ANDROID
+#endif // __linux__

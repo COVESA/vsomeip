@@ -129,7 +129,7 @@ void write_config(std::string config_file, std::string content) {
 }
 
 std::shared_ptr<vsomeip::configuration> load_config(std::string key, std::string config_file) {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     setenv("VSOMEIP_CONFIGURATION", config_file.c_str(), 1);
 #else
     _putenv_s("VSOMEIP_CONFIGURATION", config_file.c_str()
@@ -169,7 +169,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
                 vsomeip::ttl_t _expected_request_response_delay, bool _expected_wait_route_netlink_notification) {
 
     // 0. Set environment variable to config file and load it
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     setenv("VSOMEIP_CONFIGURATION", _config_file.c_str(), 1);
 #else
     _putenv_s("VSOMEIP_CONFIGURATION", _config_file.c_str()

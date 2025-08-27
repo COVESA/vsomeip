@@ -140,7 +140,7 @@ void tcp_client_endpoint_impl::connect() {
                             << "SO_LINGER: " << its_error.message() << " remote:" << get_address_port_remote();
         }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
         // set a user timeout
         // along the keep alives, this ensures connection closes if endpoint is unreachable
         auto opt = VSOMEIP_TCP_USER_TIMEOUT;
@@ -172,7 +172,7 @@ void tcp_client_endpoint_impl::connect() {
             local_.port(0);
         }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "" && socket_->bind_to_device(its_device)) {

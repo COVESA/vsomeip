@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <list>
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include <arpa/inet.h>
 #endif
 
@@ -1306,7 +1306,7 @@ TEST_P(someip_tp, send_in_mode) {
     udp_server_socket.close(ec);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {

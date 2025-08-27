@@ -7,7 +7,7 @@
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include <unistd.h>
 #endif
 
@@ -1633,7 +1633,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
         switch (e.get_type()) {
         case protocol::routing_info_entry_type_e::RIE_ADD_CLIENT: {
             if (its_client == get_client()) {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
                 if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
                     VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                                   << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: "
@@ -1797,7 +1797,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     VSOMEIP_INFO << "Application/Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                  << ": Reconnecting to routing manager.";
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                       << " :  routing_manager_client::reconnect: isn't allowed"

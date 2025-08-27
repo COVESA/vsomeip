@@ -10,7 +10,7 @@
 #include <forward_list>
 #include <thread>
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include <unistd.h>
 #include <cstdio>
 #include <time.h>
@@ -192,7 +192,7 @@ void routing_manager_impl::init() {
 }
 
 void routing_manager_impl::start() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     boost::asio::ip::address its_multicast;
     try {
         its_multicast = boost::asio::ip::make_address(configuration_->get_sd_multicast());
@@ -228,7 +228,7 @@ void routing_manager_impl::start() {
         version_log_timer_.expires_after(std::chrono::seconds(0));
         version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk, this, std::placeholders::_1));
     }
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     if (configuration_->log_memory()) {
         std::scoped_lock its_lock{memory_log_timer_mutex_};
         memory_log_timer_.expires_after(std::chrono::seconds(0));
@@ -271,7 +271,7 @@ void routing_manager_impl::stop() {
         std::scoped_lock its_lock{version_log_timer_mutex_};
         version_log_timer_.cancel();
     }
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     {
         std::scoped_lock its_lock{memory_log_timer_mutex_};
         memory_log_timer_.cancel();
@@ -755,11 +755,11 @@ bool routing_manager_impl::send(client_t _client, std::shared_ptr<message> _mess
     if (utility::is_request(_message->get_message_type())) {
         if (stub_ && !stub_->is_remotely_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
             VSOMEIP_WARNING << std::hex << std::setfill('0') << "rmi:: " << __func__ << " {_client=" << _client
-                            << " _message=" << std::setw(4) << _message->get_service() << "." << std::setw(4)
-                            << _message->get_method() << "." << std::setw(2) << static_cast<int>(_message->get_message_type())
-                            << "." << std::setw(2) << static_cast<int>(_message->get_return_code())
-                            << " _force=" << _force << "}: Remote service not available. instance=" << std::setw(4)
-                            << _message->get_instance() << " version=" << std::setw(4) << _message->get_interface_version();
+                            << " _message=" << std::setw(4) << _message->get_service() << "." << std::setw(4) << _message->get_method()
+                            << "." << std::setw(2) << static_cast<int>(_message->get_message_type()) << "." << std::setw(2)
+                            << static_cast<int>(_message->get_return_code()) << " _force=" << _force
+                            << "}: Remote service not available. instance=" << std::setw(4) << _message->get_instance()
+                            << " version=" << std::setw(4) << _message->get_interface_version();
             if (!_force) {
                 return false;
             }
@@ -3814,7 +3814,7 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
         return;
     }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
     static const std::uint32_t its_pagesize = static_cast<std::uint32_t>(getpagesize() / 1024);
 
     std::FILE* its_file = std::fopen("/proc/self/statm", "r");

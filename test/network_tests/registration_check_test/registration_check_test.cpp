@@ -23,7 +23,7 @@ TEST(registration_check_test, test) {
     EXPECT_TRUE(service_app.is_registered()) << "Service app is not registered to the routing host";
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

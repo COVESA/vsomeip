@@ -6,7 +6,7 @@
 #include <deque>
 #include <iomanip>
 #include <sstream>
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
 #include <netinet/tcp.h>
 #endif
 
@@ -71,7 +71,7 @@ void local_tcp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, 
         return;
 #endif
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
     if (!acceptor_->set_native_option_free_bind()) {
         VSOMEIP_ERROR << "ltsei::" << __func__ << ": could not setsockopt(IP_FREEBIND), errno " << errno;
     }
@@ -272,7 +272,7 @@ void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
                                     << "keep_alive: " << its_error.message() << " endpoint > " << this;
                 }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__)
                 // set a user timeout
                 // along the keep alives, this ensures connection closes if endpoint is unreachable
                 if (!new_connection_socket.set_user_timeout(configuration_->get_local_tcp_user_timeout())) {
@@ -408,7 +408,7 @@ void local_tcp_server_endpoint_impl::connection::stop() {
     std::scoped_lock its_lock{socket_mutex_};
     is_stopped_ = true;
     if (socket_->is_open()) {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         if (!socket_->can_read_fd_flags()) {
             VSOMEIP_ERROR << "ltsei: socket/handle closed already '" << std::string(std::strerror(errno)) << "' (" << errno << ") "
                           << get_path_local() << " endpoint > " << this;

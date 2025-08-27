@@ -8,7 +8,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/local_tcp_server_endpoint_impl.hpp"
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #endif
 #include "../include/udp_client_endpoint_impl.hpp"
@@ -36,7 +36,7 @@ namespace vsomeip_v3 {
 endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm, boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration) :
     endpoint_manager_base(_rm, _io, _configuration), is_processing_options_(true), options_thread_([this]() {
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         pthread_setname_np(pthread_self(), "m_multicast");
 #endif
         process_multicast_options();
@@ -611,7 +611,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
         num_fd = sd_listen_fds(0);
 #endif
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         if (num_fd > 1) {
             VSOMEIP_ERROR << "Too many file descriptors received by systemd socket activation! num_fd: " << num_fd;
         } else if (num_fd == 1) {
@@ -692,7 +692,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
         }
 
         _is_socket_activated = false;
-#endif // __linux__ || ANDROID
+#endif // __linux__
     } else {
         try {
             auto its_address = configuration_->get_routing_host_address();

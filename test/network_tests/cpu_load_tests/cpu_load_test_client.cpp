@@ -269,7 +269,7 @@ TEST(someip_load_test, DISABLED_send_messages_and_measure_cpu_load) {
     cpu_load_test_client test_client_(protocol, number_of_calls, payload_size, call_service_sync, shutdown_service);
 }
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     int i = 0;
     while (i < argc) {

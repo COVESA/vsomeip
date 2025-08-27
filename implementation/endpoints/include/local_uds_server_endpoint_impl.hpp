@@ -86,7 +86,7 @@ private:
         void set_bound_client_host(const std::string& _bound_client_host);
         std::string get_bound_client_host() const;
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
         void set_bound_sec_client(const vsomeip_sec_client_t& _sec_client);
 #endif
 
@@ -98,7 +98,7 @@ private:
 
         void send_cbk(const message_buffer_ptr_t _buffer, boost::system::error_code const& _error, std::size_t _bytes);
         void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
+#if defined(__linux__) || defined(__QNX__)
                          ,
                          uid_t const& _uid, gid_t const& _gid
 #endif
