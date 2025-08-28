@@ -64,7 +64,7 @@ do
 			dlt-receive -o /home/logs/dlt/"$test".dlt localhost &
 			tcpdump -U -i eth0 -w /home/logs/pcap/"$test".pcap &
 
-			if ! ctest --preset ci-network-tests --output-junit /home/logs/junit/"$test".xml --tests-regex "^$test$" --test-output-size-passed 10485760 --test-output-size-failed 10485760
+			if ! ctest --preset ci-network-tests --output-junit /home/logs/junit/"$test".xml --tests-regex "^$test$" --test-output-size-passed 1073741824 --test-output-size-failed 1073741824
 			then
 				update-result-file "$tests_result_file" "$test" 1
 				cp /home/logs/{junit/"$test".xml,failed-junit/}
