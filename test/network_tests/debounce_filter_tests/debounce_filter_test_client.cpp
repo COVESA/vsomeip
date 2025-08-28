@@ -98,10 +98,10 @@ void debounce_test_client::on_availability(vsomeip::service_t _service, vsomeip:
 
 void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _message) {
     if (!nb_msgs_rcvd) {
-        time_start = std::chrono::high_resolution_clock::now();
+        time_start = std::chrono::steady_clock::now();
         time_last = time_start;
     } else {
-        time_last = std::chrono::high_resolution_clock::now();
+        time_last = std::chrono::steady_clock::now();
     }
 
     std::stringstream s;
