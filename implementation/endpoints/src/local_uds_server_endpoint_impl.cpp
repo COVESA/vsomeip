@@ -341,7 +341,12 @@ void local_uds_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
             }
             _connection->set_bound_client_host(its_client_host);
         }
+
+        VSOMEIP_INFO << "lusei::" << __func__ << ": server @ " << local_.path() << " accepted connection " << _connection
+                     << " from client [" << std::hex << std::setfill('0') << std::setw(4) << its_client << "], endpoint > " << this;
+
 #endif
+
         _connection->start();
     }
 }
