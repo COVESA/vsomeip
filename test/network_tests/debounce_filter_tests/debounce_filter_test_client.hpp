@@ -54,8 +54,8 @@ private:
 
     int64_t nb_msgs_rcvd = 0;
     std::chrono::milliseconds sum_time;
-    std::chrono::time_point<std::chrono::high_resolution_clock> time_start;
-    std::chrono::time_point<std::chrono::high_resolution_clock> time_last;
+    std::chrono::time_point<std::chrono::steady_clock> time_start;
+    std::chrono::time_point<std::chrono::steady_clock> time_last;
 };
 
 #endif // DEBOUNCE_TEST_CLIENT_HPP_
