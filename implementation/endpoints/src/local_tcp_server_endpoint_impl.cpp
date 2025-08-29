@@ -312,9 +312,13 @@ void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
     }
     if (!_error) {
 
-        VSOMEIP_INFO << "ltsei::" << __func__ << ": server @ " << local_.address().to_string() << ":" << local_.port()
-                     << " accepted connection " << _connection << " from client @ " << remote_address << ":" << remote_port
-                     << ", endpoint > " << this;
+        {
+            std::scoped_lock its_lock{acceptor_mutex_}; // due to local_
+
+            VSOMEIP_INFO << "ltsei::" << __func__ << ": server @ " << local_.address().to_string() << ":" << local_.port()
+                         << " accepted connection " << _connection << " from client @ " << remote_address << ":" << remote_port
+                         << ", endpoint > " << this;
+        }
 
         _connection->start();
     }
