@@ -143,7 +143,9 @@ if (NOT MSVC)
     find_program(VALGRIND "valgrind")
     if (VALGRIND)
         if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-            set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE} --trace-children=yes)
+            # The --fair-sched option controls the locking mechanism used by Valgrind to serialise thread execution.
+            # The locking mechanism controls the way the threads are scheduled, and different settings give different trade-offs between fairness and performance.
+            set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE} --trace-children=yes --fair-sched=yes)
             add_definitions(-DBOOST_USE_VALGRIND)
         endif ()
 
