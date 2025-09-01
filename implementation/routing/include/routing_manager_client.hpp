@@ -175,6 +175,15 @@ private:
 
     void on_suspend();
 
+    /**
+     * @brief Remove all remote subscriptions.
+     *
+     * Currently used to clean up all remote subscriptions to services offered by this client.
+     * This action is performed when SIGUSR1 is handled by host or when the client detects the
+     * connections towards host has somehow become broken.
+     */
+    void clear_remote_subscriptions();
+
 private:
     enum class inner_state_type_e : std::uint8_t {
         ST_REGISTERED = 0x0,

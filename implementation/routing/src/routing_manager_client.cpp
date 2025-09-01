@@ -1787,6 +1787,9 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
         state_condition_.notify_one();
     }
 
+    // Clear boardnet subscriptions
+    clear_remote_subscriptions();
+
     // Remove all local connections/endpoints
     for (const auto& c : _clients) {
         if (c.first != VSOMEIP_ROUTING_CLIENT) {
@@ -2683,7 +2686,10 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
 void routing_manager_client::on_suspend() {
 
     VSOMEIP_INFO << __func__ << ": Application " << std::hex << std::setfill('0') << std::setw(4) << host_->get_client();
+    clear_remote_subscriptions();
+}
 
+void routing_manager_client::clear_remote_subscriptions() {
     std::scoped_lock its_lock(remote_subscriber_count_mutex_);
 
     // Unsubscribe everything that is left over.
