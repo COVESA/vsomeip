@@ -23,7 +23,7 @@
 
 struct usei_fixture : public ::testing::Test {
     std::shared_ptr<boost::asio::io_context> context_;
-    std::shared_ptr<boost::asio::io_context::work> work_guard_;
+    std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_guard_;
     std::thread mainloop_;
     std::shared_ptr<vsomeip_v3::udp_server_endpoint_impl> server_;
     std::shared_ptr<mock_endpoint_host> endpoint_;
@@ -35,7 +35,8 @@ struct usei_fixture : public ::testing::Test {
     void SetUp() override {
         // Boost ASIO main loop
         context_ = std::make_shared<boost::asio::io_context>();
-        work_guard_ = std::make_shared<boost::asio::io_context::work>(*context_);
+        work_guard_ = std::make_shared<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(context_->get_executor());
+
         mainloop_ = std::thread([this] { context_->run(); });
 
         // VSOMEIP objects
