@@ -1,0 +1,43 @@
+@startuml
+
+Actor Service_consumer as SC
+
+participant routing_manager as RM
+
+SC -> RM : REQUEST
+
+RM --\ SC : ON_AVAILABLE
+
+SC -> RM : SUBSCRIBE
+
+RM --\ SC : SUBSCRIBE_ACK
+
+note across
+  Send notify_method_id request to trigger
+  notifications from service provider
+endnote
+
+SC -> RM : request notify_method_id with number\nof notifications to be sent in payload
+
+loop for each notification received
+
+  RM --\ SC : notification
+
+  SC -> SC : check serviceID, instanceID and methodID
+
+  SC -> SC : check notification payload size\naccording to test_mode
+
+  alt if received all expected notifications
+    SC -> SC : trigger shutdown_method_id request
+  end
+end
+
+SC -> RM : request shutdown_method_id
+
+note across
+  Wait for response to shutdown_method_id
+endnote
+
+RM --\ SC : response shutdown_method_id
+
+@enduml
