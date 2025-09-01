@@ -89,7 +89,7 @@ private:
     std::thread worker;
 
     /// @brief application offer state for both services.
-    std::atomic_bool is_offering;
+    std::atomic_bool is_offering{false};
 
     /// @brief promise which value shall be set once the availability is received
     std::promise<bool> promise_availability;
