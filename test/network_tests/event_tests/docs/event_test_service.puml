@@ -1,0 +1,32 @@
+@startuml
+
+  Actor Service_provider as SP
+
+  participant rounting_manager as RM
+
+  SP -> RM : OFFER
+
+  note across
+    Wait for notify_method_id request
+  endnote
+
+  RM --\ SP : request notify_method_id with number\nof notifications to be sent in payload
+
+  SP -> SP : check request's serviceID,\ninstanceID and methodID
+
+  SP -> SP : retrieve number of notifications\nto be sent from payload
+
+  loop for each notification to be sent
+    SP -> SP : create notification with\npayload according to test_mode
+
+    SP -> RM : notification
+  end
+
+  note across
+    Wait for shutdown_method_id request
+  endnote
+
+  RM --\ SP : request shutdown_method_id
+
+  SP -> RM : response shutdown_method_id
+@enduml
