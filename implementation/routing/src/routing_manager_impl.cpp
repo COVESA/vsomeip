@@ -1577,7 +1577,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                     std::scoped_lock ready_lck{ready_to_stop->is_ready_mutex_};
                     if (!ready_to_stop->done_) {
                         ready_to_stop->done_ = true;
-                        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, true);
+                        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
                         erase_offer_command(_service, _instance);
                         if (stub_)
                             stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
@@ -2243,9 +2243,6 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
             stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
     }
 
-    on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, its_info->get_major(), its_info->get_minor());
-    if (stub_)
-        stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
     // Implicit unsubscribe
 
     std::vector<std::shared_ptr<event>> its_events;

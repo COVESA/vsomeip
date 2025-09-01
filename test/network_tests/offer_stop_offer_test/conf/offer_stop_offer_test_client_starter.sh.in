@@ -6,14 +6,19 @@
 
 FAIL=0
 
-# start client
-export VSOMEIP_CONFIGURATION=offer_stop_offer_test_client.json
-export VSOMEIP_APPLICATION_NAME="client-sample"
-./offer_stop_offer_test_client
-
+SERVICE_PID=0
 # call other container
 if [ ! -z "$USE_LXC_TEST" ]; then
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/offer_stop_offer_test; ./offer_stop_offer_test_service_starter.sh\"" &
+    SERVICE_PID="$!"
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS; sleep 10; ./offer_stop_offer_test_service_starter.sh" &
+    SERVICE_PID="$!"
 fi
+
+# start client
+export VSOMEIP_CONFIGURATION=offer_stop_offer_test_client.json
+export VSOMEIP_APPLICATION_NAME="client-sample"
+./offer_stop_offer_test_client || FAIL=$(($FAIL+1))
+wait $SERVICE_PID || FAIL=$(($FAIL+1))
+exit $FAIL

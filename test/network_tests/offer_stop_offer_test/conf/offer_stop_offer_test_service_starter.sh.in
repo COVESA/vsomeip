@@ -4,17 +4,21 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-# start routing host
+FAIL=0
+
 export VSOMEIP_CONFIGURATION=offer_stop_offer_test_service.json
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
 
+../../../examples/routingmanagerd/routingmanagerd &
 HOST_PID=$!
 
 # start service app
 export VSOMEIP_CONFIGURATION=offer_stop_offer_test_service.json
 export VSOMEIP_APPLICATION_NAME="service-sample"
 
-./offer_stop_offer_test_service
+./offer_stop_offer_test_service || FAIL=$(($FAIL+1))
 
 kill -9 $HOST_PID
+wait $HOST_PID
+
+exit $FAIL
