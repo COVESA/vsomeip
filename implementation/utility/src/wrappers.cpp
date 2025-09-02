@@ -142,6 +142,23 @@ ssize_t __wrap_sendmsg(int sockfd, const struct msghdr* msg, int flags) {
 
     return ret;
 }
+
+/*
+ * The real epoll_wait(2), renamed by GCC.
+ */
+int __real_epoll_wait(int epfd, struct epoll_event* events, int maxevents, int timeout);
+
+/*
+ * Overrides epoll_wait(2) to react on EBADF
+ */
+ssize_t __wrap_epoll_wait(int epfd, struct epoll_event* events, int maxevents, int timeout) {
+    int ret = __real_epoll_wait(epfd, events, maxevents, timeout);
+    if (ret == -1 && errno == EBADF) {
+        react(epfd, "epoll_wait");
+    }
+
+    return ret;
+}
 }
 
 void react(int fd, const char* func) {
