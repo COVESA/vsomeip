@@ -1,0 +1,35 @@
+#!/bin/bash
+# Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# Start client routing host
+export VSOMEIP_CONFIGURATION=multicast_group_test_client.json
+export VSOMEIP_APPLICATION_NAME="routingmanagerd-client"
+../../../examples/routingmanagerd/routingmanagerd &
+
+HOST_PID=$!
+
+FAIL=0
+
+# Start first client
+export VSOMEIP_APPLICATION_NAME="multicast_group_test_first_client"
+./multicast_group_test_first_client &
+FIRST_CLIENT_PID=$!
+
+# Start second client and check if it fails
+export VSOMEIP_APPLICATION_NAME="multicast_group_test_second_client"
+./multicast_group_test_second_client || FAIL=$(($FAIL+1))
+
+# Wait for the first client to finish.
+wait "$FIRST_CLIENT_PID" || ((FAIL=1))
+
+# Send a termination signal to the routing manager.
+kill "$HOST_PID"
+
+# Wait for the routing manager to exit.
+wait "$HOST_PID"
+
+# Return the result of the test.
+exit "$FAIL"

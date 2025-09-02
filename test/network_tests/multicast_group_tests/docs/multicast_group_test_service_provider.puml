@@ -1,0 +1,29 @@
+@startuml multicast_group_test_service_provider
+
+Actor service_provider as SRV
+
+participant routing_manager as RM
+
+SRV <- SRV : Register subscription handler
+
+SRV -> RM : Offer service
+
+loop Sending notifications
+
+    SRV -> RM : Sending notifications
+
+    SRV <- SRV : Sleeping 10 ms
+
+    alt
+
+        RM -> SRV : All clients unsubscribed
+
+        SRV <- SRV : Test failed
+
+    end
+
+end
+
+SRV -> RM : Send last message
+
+@enduml
