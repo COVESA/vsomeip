@@ -126,6 +126,7 @@ LOCAL_LDFLAGS := \
     -Wl,-wrap,recvmsg \
     -Wl,-wrap,sendto \
     -Wl,-wrap,sendmsg \
+    -Wl,-wrap,epoll_wait \
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -229,5 +230,6 @@ LOCAL_CFLAGS :=  \
     -Wl,-wrap,recvmsg \
     -Wl,-wrap,sendto \
     -Wl,-wrap,sendmsg \
+    -Wl,-wrap,epoll_wait \
 
 include $(BUILD_SHARED_LIBRARY)

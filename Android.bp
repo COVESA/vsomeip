@@ -93,7 +93,8 @@ cc_library_shared {
         "-Wl,-wrap,recvfrom",
         "-Wl,-wrap,recvmsg",
         "-Wl,-wrap,sendto",
-        "-Wl,-wrap,sendmsg"
+        "-Wl,-wrap,sendmsg",
+        "-Wl,-wrap,epoll_wait"
     ],
 
     rtti: true,
