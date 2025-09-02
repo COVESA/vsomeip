@@ -179,11 +179,13 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
     next_expected_message.payload_ = {0x2, 0x3};
     EXPECT_TRUE(client_->message_record_.wait_for(next_expected_message)) << client_->message_record_;
 
-    // Expect three connection that where established from the client towards,
+    // Expect two connection that where established from the client towards,
     // the routing manager:
     // 1. client registers initially
     // 2. client tries to repair the connection
-    EXPECT_GE(2, connection_count(client_name_, routingmanager_name_));
+    // more connection attempts can happen because of "disconnect cascades", e.g., routing breaking the connection repair when
+    // the routing -> client connection breaks (see also 0fe029daa, server_endpoint::disconnect_from)
+    EXPECT_LE(2, connection_count(client_name_, routingmanager_name_));
 }
 
 TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_with_events) {
