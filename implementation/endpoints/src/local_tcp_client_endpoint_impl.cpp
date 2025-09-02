@@ -119,7 +119,6 @@ void local_tcp_client_endpoint_impl::stop() {
 }
 
 void local_tcp_client_endpoint_impl::connect() {
-    boost::system::error_code its_connect_error;
     std::unique_lock<std::mutex> its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
@@ -196,7 +195,7 @@ void local_tcp_client_endpoint_impl::connect() {
                             << ")"
                             << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
             try {
-                boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_connect_error));
+                boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_error));
             } catch (const std::exception& e) {
                 VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this << " state_ > "
                               << static_cast<int>(state_.load());
@@ -212,9 +211,8 @@ void local_tcp_client_endpoint_impl::connect() {
     } else {
         VSOMEIP_WARNING << "ltcei::connect: Error opening socket: " << its_error.message() << " (" << std::dec << its_error.value() << ")"
                         << " endpoint > " << this;
-        its_connect_error = its_error;
         try {
-            boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_connect_error));
+            boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_error));
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this;
         }
