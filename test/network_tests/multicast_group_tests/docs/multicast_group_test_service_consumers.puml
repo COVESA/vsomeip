@@ -1,0 +1,48 @@
+@startuml multicast_group_test_service_consumers
+
+Actor first_service_consumer as First
+
+Actor second_service_consumer as Second
+
+participant routing_manager as RM
+
+First -> RM : Subscribe service
+
+Second -> RM : Subscribe service
+
+loop Receiving notifications
+
+    RM -> First : Sending notifications
+
+    RM -> Second : Sending notifications
+
+    note right
+        If one of the consumers
+        detects that a notification
+        has not been received,
+        it will unsubscribe to the
+        service and fail the test
+    end note
+
+    alt Second consumer receives last message
+
+        Second -> Second : Received his last message
+
+        Second -> RM : Unsubscribe service
+
+    end
+
+    RM -> First : Sending notifications
+
+    note right
+        When the second consumer
+        unsubscribes, the first
+        keeps receiving notifications
+    end note
+
+
+end
+
+RM -> First : Send last message
+
+@enduml
