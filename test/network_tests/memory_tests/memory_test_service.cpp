@@ -16,7 +16,7 @@ void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& s
 
         std::FILE* its_file = std::fopen("/proc/self/statm", "r");
         if (!its_file) {
-            VSOMEIP_ERROR << "check_memory: couldn't open:" << std::string(std::strerror(errno));
+            VSOMEIP_ERROR << "check_memory: couldn't open: errno " << errno;
             return;
         }
         std::uint64_t its_size(0);
@@ -30,7 +30,7 @@ void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& s
         if (EOF
             == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib,
                            &its_data, &its_dirtypages)) {
-            VSOMEIP_ERROR << "check_memory: error reading:" << std::string(std::strerror(errno));
+            VSOMEIP_ERROR << "check_memory: error reading: errno " << errno;
         }
         std::fclose(its_file);
 

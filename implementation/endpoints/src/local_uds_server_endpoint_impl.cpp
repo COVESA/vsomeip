@@ -87,7 +87,7 @@ void local_uds_server_endpoint_impl::init_helper(const endpoint_type& _local, bo
 
 #ifndef __QNX__
     if (chmod(_local.path().c_str(), static_cast<mode_t>(configuration_->get_permissions_uds())) == -1) {
-        VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": chmod: errno " << errno;
     }
     credentials::activate_credentials(acceptor_.native_handle());
 #endif
@@ -446,8 +446,7 @@ void local_uds_server_endpoint_impl::connection::stop() {
     is_stopped_ = true;
     if (socket_.is_open()) {
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno)) << "' (" << errno << ") "
-                          << get_path_local();
+            VSOMEIP_ERROR << "lse: socket/handle closed already, errno " << errno << ", " << get_path_local();
         }
         boost::system::error_code its_error;
         socket_.cancel(its_error);
@@ -833,8 +832,7 @@ void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(co
     recv_buffer_.clear();
     if (socket_.is_open()) {
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
-            VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno)) << "' (" << errno << ") "
-                          << get_path_local();
+            VSOMEIP_ERROR << "lse: socket/handle closed already, errno " << errno << ", " << get_path_local();
         }
     }
 
