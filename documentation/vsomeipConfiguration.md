@@ -1816,6 +1816,8 @@ To enable service-specific logs, provide a space- or colon-separated list of Ser
 
 - **VSOMEIP_LOAD_PLUGINS** - Used to load external plugins.
 
+- **VSOMEIP_ABORT_ON_CRIT_SYSCALL_ERROR** - Used to abort when incorrect state (e.g. errno EBADF) is detected for critical syscall/libc calls such as recvfrom/sendto/epoll_wait. Under these situations, the process using libvsomeip is incorrectly handling file descriptors (e.g. double close with invalid fd value) leading to a libvsomeip state that is incorrect and not recoverable. The abort will cause a core dump and platforms can decide on recovery strategies (e.g. restarting service). Any non-empty value is considered true.
+
 <details><summary>Using environment variables</summary>
 
 In the following example the application `my_vsomeip_application` is started.

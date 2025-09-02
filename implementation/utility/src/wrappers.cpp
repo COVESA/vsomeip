@@ -13,6 +13,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
+
 #include <vsomeip/internal/logger.hpp> // for VSOMEIP_FATAL
 
 void react(int fd, const char* func);
@@ -165,6 +171,10 @@ void react(int fd, const char* func) {
     // see backtrace(3), caller needs to free memory after use, `backtrace` will malloc it
     free(symbols);
 #endif
+
+    if (getenv(VSOMEIP_ENV_ABORT_ON_CRIT_SYSCALL_ERROR)) {
+        abort();
+    }
 }
 
 #endif
