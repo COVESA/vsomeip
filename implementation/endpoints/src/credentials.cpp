@@ -72,7 +72,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
     // Receive client_id plus client_host_length plus ancillary data
     ssize_t nr = recvmsg(_fd, &msgh, 0);
     if (nr == -1) {
-        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Receiving credentials failed. No data. errno: " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Receiving credentials failed. No data. errno: " << errno;
         return boost::none;
     }
 
@@ -98,7 +98,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
 
     nr = recvmsg(_fd, &msgh, 0);
     if (nr == -1) {
-        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Receiving client host failed. No data. errno: " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Receiving client host failed. No data. errno: " << errno;
         return boost::none;
     }
 
@@ -131,7 +131,7 @@ void credentials::send_credentials(const int _fd, client_t _client, std::string 
     // send client id with credentials
     ssize_t ns = sendmsg(_fd, &msgh, 0);
     if (ns == -1) {
-        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Sending credentials failed. errno: " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Sending credentials failed. errno: " << errno;
     }
 }
 

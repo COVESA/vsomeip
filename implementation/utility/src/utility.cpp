@@ -169,7 +169,7 @@ bool utility::is_routing_manager(const std::string& _network) {
         its_lock_data.l_pid = getpid();
         its_lock_ctrl = fcntl(r.first->second.lock_fd_, F_SETLK, &its_lock_data);
     } else {
-        VSOMEIP_ERROR << __func__ << ": Could not open " << its_lockfile << ": " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": Could not open " << its_lockfile << ": errno " << errno;
     }
 
     return (its_lock_ctrl != -1);
@@ -206,11 +206,11 @@ void utility::remove_lockfile(const std::string& _network) {
 
     if (r->second.lock_fd_ != -1) {
         if (close(r->second.lock_fd_) == -1) {
-            VSOMEIP_ERROR << __func__ << ": Could not close lock_fd__" << std::strerror(errno);
+            VSOMEIP_ERROR << __func__ << ": Could not close lock_fd_: errno " << errno;
         }
     }
     if (remove(its_lockfile.c_str()) == -1) {
-        VSOMEIP_ERROR << __func__ << ": Could not remove " << its_lockfile << ": " << std::strerror(errno);
+        VSOMEIP_ERROR << __func__ << ": Could not remove " << its_lockfile << ": errno " << errno;
     }
 #endif
     data__.erase(_network);
@@ -338,7 +338,7 @@ void utility::set_thread_niceness(int _nice) noexcept {
 #if defined(__linux__)
     errno = 0;
     if ((nice(_nice) == -1) && (errno < 0)) {
-        VSOMEIP_WARNING << "failed to set niceness for thread " << std::this_thread::get_id() << " (error: " << strerror(errno) << ')';
+        VSOMEIP_WARNING << "failed to set niceness for thread " << std::this_thread::get_id() << ", errno: " << errno;
         return;
     }
 #else

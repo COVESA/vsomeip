@@ -415,8 +415,7 @@ void local_tcp_server_endpoint_impl::connection::stop() {
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(__QNX__)
         if (!socket_->can_read_fd_flags()) {
-            VSOMEIP_ERROR << "ltsei: socket/handle closed already '" << std::string(std::strerror(errno)) << "' (" << errno << ") "
-                          << get_path_local() << " endpoint > " << this;
+            VSOMEIP_ERROR << "ltsei: socket/handle closed already, errno " << errno << ", " << get_path_local() << " endpoint > " << this;
         }
 #endif
         boost::system::error_code its_error;
