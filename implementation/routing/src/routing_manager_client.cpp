@@ -2320,8 +2320,8 @@ void routing_manager_client::assign_client_timeout_cbk(boost::system::error_code
         }
         if (register_again) {
             std::scoped_lock its_sender_lock{sender_mutex_};
-            VSOMEIP_WARNING << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                            << " request client timeout! Trying again...";
+            VSOMEIP_ERROR << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                          << " ASSIGN_CLIENT_ACK timeout, no response from host! Will reconnect";
 
             if (sender_) {
                 sender_->restart();
@@ -2345,10 +2345,11 @@ void routing_manager_client::register_application_timeout_cbk(boost::system::err
             register_again = true;
         }
     }
+
     if (register_again) {
         std::scoped_lock its_sender_lock{sender_mutex_};
-        VSOMEIP_WARNING << std::hex << std::setfill('0') << "Client 0x" << std::setw(4) << get_client()
-                        << " register timeout! Trying again...";
+        VSOMEIP_ERROR << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                      << " REGISTER_APPLICATION timeout, no response from host! Will reconnect";
 
         if (sender_)
             sender_->restart();
