@@ -232,11 +232,6 @@
         {
             "service" : "0x7809",
             "instance" : "0x1",
-            "multicast" :
-            {
-                "address" : "224.212.244.225",
-                "port" : "1234"
-            },
             "eventgroups" :
             [
                 {

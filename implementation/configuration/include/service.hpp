@@ -25,9 +25,6 @@ struct service {
     uint16_t reliable_;
     uint16_t unreliable_;
 
-    std::string multicast_address_;
-    uint16_t multicast_port_;
-
     std::string protocol_;
 
     // [0] = debounce_time

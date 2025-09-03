@@ -375,8 +375,6 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         _reliable ? its_service->reliable_ = _port : its_service->unreliable_ = _port;
         its_service->unicast_address_ = default_unicast_;
-        its_service->multicast_address_ = "";
-        its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
 
         {
@@ -541,7 +539,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_acceptances(e);
             load_secure_services(e);
             load_partitions(e);
-            load_routing_client_ports(e);
             load_suppress_events(e);
         }
     }
@@ -874,16 +871,6 @@ std::set<std::pair<port_t, port_t>> configuration_impl::load_routing_guest_port_
     }
 
     return its_ranges;
-}
-
-void configuration_impl::load_routing_client_ports(const configuration_element& _element) {
-
-    try {
-        auto its_ports = _element.tree_.get_child("routing-client-ports");
-        load_routing_guest_ports(its_ports);
-    } catch (...) {
-        // intentionally left empty
-    }
 }
 
 bool configuration_impl::load_applications(const configuration_element& _element) {
@@ -1851,42 +1838,6 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
     }
 }
 
-void configuration_impl::load_delays(const boost::property_tree::ptree& _tree) {
-    try {
-        std::stringstream its_converter;
-        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            std::string its_key(i->first);
-            if (its_key == "initial") {
-                sd_initial_delay_min_ = i->second.get<uint32_t>("minimum");
-                sd_initial_delay_max_ = i->second.get<uint32_t>("maximum");
-            } else if (its_key == "repetition-base") {
-                its_converter << std::dec << i->second.data();
-                its_converter >> sd_repetitions_base_delay_;
-            } else if (its_key == "repetition-max") {
-                int tmp_repetition_max;
-                its_converter << std::dec << i->second.data();
-                its_converter >> tmp_repetition_max;
-                sd_repetitions_max_ = (tmp_repetition_max > std::numeric_limits<std::uint8_t>::max())
-                        ? std::numeric_limits<std::uint8_t>::max()
-                        : static_cast<std::uint8_t>(tmp_repetition_max);
-            } else if (its_key == "cyclic-offer") {
-                its_converter << std::dec << i->second.data();
-                its_converter >> sd_cyclic_offer_delay_;
-            } else if (its_key == "cyclic-request") {
-                its_converter << std::dec << i->second.data();
-                its_converter >> sd_request_response_delay_;
-            } else if (its_key == "ttl") {
-                its_converter << std::dec << i->second.data();
-                its_converter >> sd_ttl_;
-            }
-            its_converter.str("");
-            its_converter.clear();
-        }
-    } catch (...) {
-        // intentionally left empty
-    }
-}
-
 void configuration_impl::load_npdu_default_timings(const configuration_element& _element) {
     const std::string ndt("npdu-default-timings");
     const std::string dreq("debounce-time-request");
@@ -1930,39 +1881,7 @@ void configuration_impl::load_services(const configuration_element& _element) {
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
             load_service(i->second, default_unicast_);
     } catch (...) {
-        try {
-            auto its_servicegroups = _element.tree_.get_child("servicegroups");
-            for (auto i = its_servicegroups.begin(); i != its_servicegroups.end(); ++i)
-                load_servicegroup(i->second);
-        } catch (...) {
-            // intentionally left empty
-        }
-    }
-}
-
-void configuration_impl::load_servicegroup(const boost::property_tree::ptree& _tree) {
-    try {
-        std::string its_unicast_address(default_unicast_);
-
-        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            std::string its_key(i->first);
-            if (its_key == "unicast") {
-                its_unicast_address = i->second.data();
-                break;
-            }
-        }
-
-        for (auto i = _tree.begin(); i != _tree.end(); ++i) {
-            std::string its_key(i->first);
-            if (its_key == "delays") {
-                load_delays(i->second);
-            } else if (its_key == "services") {
-                for (auto j = i->second.begin(); j != i->second.end(); ++j)
-                    load_service(j->second, its_unicast_address);
-            }
-        }
-    } catch (...) {
-        // Intentionally left empty
+        // intentionally left empty
     }
 }
 
@@ -1974,8 +1893,6 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
         auto its_service = std::make_shared<service>();
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         its_service->unicast_address_ = _unicast_address;
-        its_service->multicast_address_ = "";
-        its_service->multicast_port_ = ILLEGAL_PORT;
         its_service->protocol_ = "someip";
 
         for (auto i = _tree.begin(); i != _tree.end(); ++i) {
@@ -2008,16 +1925,6 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
                 its_converter >> its_service->unreliable_;
                 if (!its_service->unreliable_) {
                     its_service->unreliable_ = ILLEGAL_PORT;
-                }
-            } else if (its_key == "multicast") {
-                try {
-                    its_value = i->second.get_child("address").data();
-                    its_service->multicast_address_ = its_value;
-                    its_value = i->second.get_child("port").data();
-                    its_converter << its_value;
-                    its_converter >> its_service->multicast_port_;
-                } catch (...) {
-                    // intentionally left empty
                 }
             } else if (its_key == "protocol") {
                 its_service->protocol_ = its_value;
@@ -2168,12 +2075,6 @@ void configuration_impl::load_eventgroup(std::shared_ptr<service>& _service, con
                     its_converter << std::dec << its_value;
                 }
                 its_converter >> its_eventgroup->id_;
-            } else if (its_key == "is_multicast") {
-                std::string its_value_inner(j->second.data());
-                if (its_value_inner == "true") {
-                    its_eventgroup->multicast_address_ = _service->multicast_address_;
-                    its_eventgroup->multicast_port_ = _service->multicast_port_;
-                }
             } else if (its_key == "multicast") {
                 try {
                     std::string its_value_inner = j->second.get_child("address").data();

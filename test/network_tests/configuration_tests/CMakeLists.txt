@@ -9,7 +9,6 @@ project(configuration_tests LANGUAGES CXX)
 
 # Configure necessary files into the build directory.
 set(configuration_files
-    configuration_test_deprecated.json
     configuration_test.json
 )
 configure_files("${configuration_files}")
