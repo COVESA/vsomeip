@@ -24,7 +24,6 @@
 namespace vsomeip = vsomeip_v3;
 
 #define CONFIGURATION_FILE              "configuration_test.json"
-#define DEPRECATED_CONFIGURATION_FILE   "configuration_test_deprecated.json"
 
 #define EXPECTED_UNICAST_ADDRESS        "10.0.2.15"
 
@@ -86,13 +85,6 @@ namespace vsomeip = vsomeip_v3;
 #define EXPECTED_CYCLIC_OFFER_DELAY                                         2132
 #define EXPECTED_REQUEST_RESPONSE_DELAY                                     1111
 #define EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION                             true
-
-#define EXPECTED_DEPRECATED_INITIAL_DELAY_MIN                               10
-#define EXPECTED_DEPRECATED_INITIAL_DELAY_MAX                               100
-#define EXPECTED_DEPRECATED_REPETITIONS_BASE_DELAY                          200
-#define EXPECTED_DEPRECATED_REPETITIONS_MAX                                 7
-#define EXPECTED_DEPRECATED_TTL                                             5
-#define EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY                          2001
 
 template<class T>
 ::testing::AssertionResult check(const T& _is, const T& _expected, const std::string& _test) {
@@ -393,11 +385,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(check<uint16_t>(its_reliable_port, _expected_reliable_port_4466_0321, "RELIABLE_PORT_4466_0321"));
     EXPECT_TRUE(check<uint16_t>(its_unreliable_port, _expected_unreliable_port_4466_0321, "UNRELIABLE_PORT_4466_0321"));
 
-    std::string its_multicast_address;
-    std::uint16_t its_multicast_port;
-    its_configuration->get_multicast(0x7809, 0x1, 0x1111, its_multicast_address, its_multicast_port);
-    EXPECT_EQ(1234u, its_multicast_port);
-    EXPECT_EQ(std::string("224.212.244.225"), its_multicast_address);
     EXPECT_EQ(8u, its_configuration->get_threshold(0x7809, 0x1, 0x1111));
 
     EXPECT_TRUE(its_configuration->is_offered_remote(0x1234, 0x0022));
@@ -710,23 +697,6 @@ TEST(configuration_test, check_config_file) {
                EXPECTED_UNRELIABLE_PORT_4466_0321, EXPECTED_SD_ENABLED, EXPECTED_SD_PROTOCOL, EXPECTED_SD_MULTICAST, EXPECTED_SD_PORT,
                EXPECTED_INITIAL_DELAY_MIN, EXPECTED_INITIAL_DELAY_MAX, EXPECTED_REPETITIONS_BASE_DELAY, EXPECTED_REPETITIONS_MAX,
                EXPECTED_TTL, EXPECTED_CYCLIC_OFFER_DELAY, EXPECTED_REQUEST_RESPONSE_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
-}
-
-TEST(configuration_test, check_deprecated_config_file) {
-    // Check deprecated configuration file format
-    check_file(DEPRECATED_CONFIGURATION_FILE, EXPECTED_UNICAST_ADDRESS, EXPECTED_HAS_CONSOLE, EXPECTED_HAS_FILE, EXPECTED_HAS_DLT,
-               EXPECTED_VERSION_LOGGING_ENABLED, EXPECTED_VERSION_LOGGING_INTERVAL, EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME,
-               EXPECTED_APPLICATION_MAX_DISPATCHERS, EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
-               EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME, EXPECTED_APPLICATION_THREADS, EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME,
-               EXPECTED_LOGFILE, EXPECTED_LOGLEVEL, EXPECTED_UNICAST_ADDRESS_1234_0022, EXPECTED_RELIABLE_PORT_1234_0022,
-               EXPECTED_UNRELIABLE_PORT_1234_0022, EXPECTED_UNICAST_ADDRESS_1234_0023, EXPECTED_RELIABLE_PORT_1234_0023,
-               EXPECTED_UNRELIABLE_PORT_1234_0023, EXPECTED_UNICAST_ADDRESS_2277_0022, EXPECTED_RELIABLE_PORT_2277_0022,
-               EXPECTED_UNRELIABLE_PORT_2277_0022, EXPECTED_UNICAST_ADDRESS_2266_0022, EXPECTED_RELIABLE_PORT_2266_0022,
-               EXPECTED_UNRELIABLE_PORT_2266_0022, EXPECTED_UNICAST_ADDRESS_4466_0321, EXPECTED_RELIABLE_PORT_4466_0321,
-               EXPECTED_UNRELIABLE_PORT_4466_0321, EXPECTED_SD_ENABLED, EXPECTED_SD_PROTOCOL, EXPECTED_SD_MULTICAST, EXPECTED_SD_PORT,
-               EXPECTED_DEPRECATED_INITIAL_DELAY_MIN, EXPECTED_DEPRECATED_INITIAL_DELAY_MAX, EXPECTED_DEPRECATED_REPETITIONS_BASE_DELAY,
-               EXPECTED_DEPRECATED_REPETITIONS_MAX, EXPECTED_DEPRECATED_TTL, EXPECTED_CYCLIC_OFFER_DELAY,
-               EXPECTED_DEPRECATED_REQUEST_RESPONSE_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 TEST(configuration_test, default_values) {

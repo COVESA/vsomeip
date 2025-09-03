@@ -312,7 +312,6 @@ private:
     std::set<std::pair<port_t, port_t>> load_routing_guest_port_range(const boost::property_tree::ptree& _tree) const;
 
     bool load_routing_credentials(const configuration_element& _element); // compatibility
-    void load_routing_client_ports(const configuration_element& _element); // compatibility
 
     void load_tracing(const configuration_element& _element);
     void load_trace_channels(const boost::property_tree::ptree& _tree);
@@ -340,11 +339,9 @@ private:
     void load_shutdown_timeout(const configuration_element& _element);
 
     void load_service_discovery(const configuration_element& _element);
-    void load_delays(const boost::property_tree::ptree& _tree);
 
     void load_npdu_default_timings(const configuration_element& _element);
     void load_services(const configuration_element& _element);
-    void load_servicegroup(const boost::property_tree::ptree& _tree);
     void load_service(const boost::property_tree::ptree& _tree, const std::string& _unicast_address);
     void load_event(std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree);
     void load_eventgroup(std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree);
