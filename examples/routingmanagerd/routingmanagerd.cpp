@@ -78,8 +78,9 @@ int routingmanagerd_process(bool _is_quiet) {
         return -1;
     }
 
-    // Create the application object
+    // Create the application object, and initialize it before sighandler thread starts
     its_application = its_runtime->create_application("routingmanagerd");
+    auto its_app_initialized = its_application->init();
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     std::thread sighandler_thread([]() {
         // Unblock signals for this thread only
@@ -112,7 +113,7 @@ int routingmanagerd_process(bool _is_quiet) {
         }
     });
 #endif
-    if (its_application->init()) {
+    if (its_app_initialized) {
         if (its_application->is_routing()) {
             its_application->start();
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
