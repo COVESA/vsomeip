@@ -1,9 +1,7 @@
-// Copyright (C) 2020-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2020-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-#include <iostream>
 
 #include <vsomeip/runtime.hpp>
 
@@ -13,86 +11,69 @@
 namespace vsomeip_v3 {
 namespace logger {
 
-std::mutex logger_impl::mutex__;
-std::string logger_impl::app_name__;
-
 void logger_impl::init(const std::shared_ptr<configuration>& _configuration) {
-    std::scoped_lock its_lock{mutex__};
-    auto its_logger = logger_impl::get();
-    its_logger->set_configuration(_configuration);
-
-    const char* its_name = getenv(VSOMEIP_ENV_APPLICATION_NAME);
-    app_name__ = (nullptr != its_name) ? its_name : "";
-
-#ifdef USE_DLT
-#define VSOMEIP_LOG_DEFAULT_CONTEXT_ID              "VSIP"
-#define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME            "vSomeIP context"
-
-#ifndef ANDROID
-    std::string its_context_id = runtime::get_property("LogContext");
-    if (its_context_id == "")
-        its_context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
-    its_logger->register_context(its_context_id);
-#endif
-#endif
+    logger_impl::get()->set_configuration(_configuration);
 }
 
-logger_impl::~logger_impl() {
-#ifdef USE_DLT
-#ifndef ANDROID
-    DLT_UNREGISTER_CONTEXT(dlt_);
-#endif
-#endif
-}
-
-level_e logger_impl::get_loglevel() const {
-    return cfg_level;
-}
-
-bool logger_impl::has_console_log() const {
-    return cfg_console_enabled;
-}
-
-bool logger_impl::has_dlt_log() const {
-    return cfg_dlt_enabled;
-}
-
-bool logger_impl::has_file_log() const {
-    return cfg_file_enabled;
-}
-
-std::string logger_impl::get_logfile() const {
-    std::scoped_lock its_lock{configuration_mutex_};
-    return cfg_file_name;
-}
-
-const std::string& logger_impl::get_app_name() const {
-    return app_name__;
-}
-
-std::unique_lock<std::mutex> logger_impl::get_app_name_lock() const {
-    std::unique_lock its_lock(mutex__);
-    return its_lock;
+logger_impl::config logger_impl::get_configuration() const {
+    return config_.load(std::memory_order_acquire);
 }
 
 void logger_impl::set_configuration(const std::shared_ptr<configuration>& _configuration) {
-
-    std::scoped_lock its_lock{configuration_mutex_};
     if (_configuration) {
-        cfg_level = _configuration->get_loglevel();
-        cfg_console_enabled = _configuration->has_console_log();
-        cfg_dlt_enabled = _configuration->has_dlt_log();
-        cfg_file_enabled = _configuration->has_file_log();
-        cfg_file_name = _configuration->get_logfile();
+        config cfg;
+        cfg.loglevel = _configuration->get_loglevel();
+        cfg.console_enabled = _configuration->has_console_log();
+        cfg.dlt_enabled = _configuration->has_dlt_log();
+        {
+            std::scoped_lock its_lock{log_file_mutex_};
+            cfg.file_enabled = _configuration->has_file_log();
+            if (cfg.file_enabled) {
+                log_file_ = std::ofstream{_configuration->get_logfile()};
+            }
+        }
+        config_.store(cfg, std::memory_order_release);
+    }
+}
+
+void logger_impl::log_to_file(std::string_view _msg) {
+    std::scoped_lock its_lock{log_file_mutex_};
+    if (log_file_.is_open()) {
+        log_file_ << _msg;
     }
 }
 
 #ifdef USE_DLT
 #ifndef ANDROID
-void logger_impl::log(level_e _level, const char* _data) {
 
+#define VSOMEIP_LOG_DEFAULT_CONTEXT_ID   "VSIP"
+#define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME "vSomeIP context"
+
+DltContext& logger_impl::dlt_context() {
+    // Initialize and register DLT context on first use, and unregister on destruction.
+    // This is threadsafe.
+    static auto deleter = [](DltContext* ctx) {
+        DLT_UNREGISTER_CONTEXT(*ctx);
+        delete ctx;
+    };
+    static auto context = [] {
+        auto context_id = runtime::get_property("LogContext");
+        if (context_id == "") {
+            context_id = VSOMEIP_LOG_DEFAULT_CONTEXT_ID;
+        }
+
+        std::unique_ptr<DltContext, decltype(deleter)> ctxptr{new DltContext, deleter};
+        DLT_REGISTER_CONTEXT(*ctxptr, context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
+        return ctxptr;
+    }();
+
+    return *context;
+}
+
+// Note: _msg is expected to include a terminating null byte
+void logger_impl::log_to_dlt(level_e _level, std::string_view _msg) {
     // Prepare log level
-    DltLogLevelType its_level;
+    DltLogLevelType its_level{};
     switch (_level) {
     case level_e::LL_FATAL:
         its_level = DLT_LOG_FATAL;
@@ -116,50 +97,32 @@ void logger_impl::log(level_e _level, const char* _data) {
         its_level = DLT_LOG_DEFAULT;
     };
 
-    std::scoped_lock its_lock{dlt_context_mutex_};
-    DLT_LOG_STRING(dlt_, its_level, _data);
+#ifdef DLT_SIZED_CSTRING
+    // Some versions of libdlt provide support for sized strings, which is more optimal than
+    // DLT_LOG_STRING as it saves a call to strlen().
+    // No need to log the terminating null byte in this case.
+    DLT_LOG(dlt_context(), its_level, DLT_SIZED_CSTRING(_msg.data(), static_cast<std::uint16_t>(_msg.size() - 1)));
+#else
+    DLT_LOG_STRING(dlt_context(), its_level, _msg.data());
+#endif
 }
 
-void logger_impl::register_context(const std::string& _context_id) {
-    std::scoped_lock its_lock{dlt_context_mutex_};
-    DLT_REGISTER_CONTEXT(dlt_, _context_id.c_str(), VSOMEIP_LOG_DEFAULT_CONTEXT_NAME);
-}
 #endif
 #endif
 
-static std::shared_ptr<logger_impl>* the_logger_ptr__(nullptr);
-static std::mutex the_logger_mutex__;
-
-std::shared_ptr<logger_impl> logger_impl::get() {
-#if defined(__linux__) || defined(__QNX__)
-    std::scoped_lock its_lock{the_logger_mutex__};
-#endif
-    if (the_logger_ptr__ == nullptr) {
-        the_logger_ptr__ = new std::shared_ptr<logger_impl>();
-    }
-    if (the_logger_ptr__ != nullptr) {
-        if (!(*the_logger_ptr__)) {
-            *the_logger_ptr__ = std::make_shared<logger_impl>();
-        }
-        return *the_logger_ptr__;
-    }
-    return nullptr;
+logger_impl* logger_impl::get() {
+    // Use flag set by a custom deleter as a safety check in case something tries to log during
+    // static deinitialization time, after logger is gone already. Should not happen, but one never
+    // knows... We don't expect any threads still rnning at this point, so no need to make this
+    // atomic.
+    static bool is_destroyed{false};
+    static auto deleter = [](logger_impl* ptr) {
+        is_destroyed = true;
+        delete ptr;
+    };
+    static std::unique_ptr<logger_impl, decltype(deleter)> instance{new logger_impl, deleter};
+    return is_destroyed ? nullptr : instance.get();
 }
-
-#if defined(__linux__) || defined(__QNX__)
-static void logger_impl_teardown(void) __attribute__((destructor));
-static void logger_impl_teardown(void) {
-    // TODO: This mutex is causing a crash due to changes in the way mutexes are defined.
-    // Since this function only runs on the main thread, no mutex should be needed. Leaving a
-    // comment pending a refactor.
-    // std::scoped_lock its_lock(the_logger_mutex__);
-    if (the_logger_ptr__ != nullptr) {
-        the_logger_ptr__->reset();
-        delete the_logger_ptr__;
-        the_logger_ptr__ = nullptr;
-    }
-}
-#endif
 
 } // namespace logger
 } // namespace vsomeip_v3
