@@ -4,17 +4,9 @@
    "diagnosis" : "0x16",
    "logging" :
    {
-      "level" : "debug",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "true",
-         "path" : "/var/log/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -22,7 +14,6 @@
          "id" : "0x1644"
       }
    ],
-
    "services" :
    [
       {
@@ -32,7 +23,6 @@
          "unreliable" : "30509"
       }
    ],
-
    "routing": {
       "enabled": false,
       "host": "external_local_routing_test_client_external"

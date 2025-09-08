@@ -45,16 +45,8 @@ RUN wget https://archives.boost.io/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST
     ./bootstrap.sh --prefix=/usr;\
     ./b2 install valgrind=on --with-system --with-log --with-filesystem --with-thread
 
-# Build dlt-daemon
-ADD dlt-daemon /home/source
-RUN cmake -B /home/build -D DLT_IPC=UNIX_SOCKET -G Ninja -S /home/source;\
-    cmake --build /home/build;\
-    cmake --install /home/build --prefix /usr --strip;
-
 # /etc configurations
-RUN echo 'ECUId = M' > /etc/dlt-master.conf;\
-    echo 'ECUId = S' > /etc/dlt-slave.conf;\
-    echo 'SendEnv *' > /etc/ssh/ssh_config.d/vsomeip.conf;\
+RUN echo 'SendEnv *' > /etc/ssh/ssh_config.d/vsomeip.conf;\
     echo 'AcceptEnv *' > /etc/ssh/sshd_config.d/vsomeip.conf
 
 # SSH configurations

@@ -2,14 +2,8 @@
     "unicast":"@TEST_IP_MASTER@",
     "logging":
     {
-        "level":"info",
-        "console":"true",
-        "file":
-        {
-            "enable":"false",
-            "path":"/tmp/someip.log"
-        },
-        "dlt":"true"
+        "level":"trace",
+        "console":"true"
     },
     "applications":
     [

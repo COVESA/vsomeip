@@ -2,17 +2,9 @@
    "unicast" : "127.0.0.1",
    "logging" :
    {
-      "level" : "info",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "false",
-         "path" : "/tmp/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -24,7 +16,6 @@
          "id" : "0x1277"
       }
    ],
-
    "services" :
    [
       {
@@ -32,7 +23,6 @@
          "instance" : "0x5678"
       }
    ],
-
    "routing" : "routingmanagerd",
    "service-discovery" :
    {

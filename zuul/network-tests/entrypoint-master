@@ -21,15 +21,6 @@ stress_labels_json=$(jq 'map(capture("(?<key>[^:\\s]+)\\s*:\\s*(?<value>[^:\\s]+
 stress_regex=$(jq -r '.["ctest-include"] // ""' <<< "$stress_labels_json")
 mapfile -t stress_times < <(jq -r '.["ctest-stress"] // "1-1" | split("-") | map(try tonumber catch 1) + [1] | .[:2][]' <<< "$stress_labels_json")
 
-# Enable gateway mode in DLT config
-echo 'GatewayMode = 1' >> /etc/dlt-master.conf
-cat <<-DLT > /etc/dlt_gateway.conf
-	[PassiveNode1]
-	EcuID = S
-	IPaddress = $ip_slave
-	Timeout = 0
-DLT
-
 (
 	set -x
 	cmake --preset ci-network-tests \
@@ -39,13 +30,13 @@ DLT
 		-D "VALGRIND_LOGS_DIR=/home/logs/valgrind/$VALGRIND_TYPE" \
 		-D "VALGRIND_SUPPRESS_FILE=/home/source/zuul/network-tests/valgrind/$VALGRIND_TYPE.supp" \
 		-D "VALGRIND_TYPE=$VALGRIND_TYPE" \
-		-D "DISABLE_DLT=Y"
+		-D "DISABLE_DLT=ON"
 	cmake --build --preset ci-network-tests
 )
 
 tests_result_file=/home/logs/tests_result.json
 declare -i valgrind_errors=0
-mkdir -p /home/logs/{cores,coverage,dlt,{,failed-}junit,pcap,"valgrind/$VALGRIND_TYPE"}
+mkdir -p /home/logs/{cores,coverage,{,failed-}junit,pcap,"valgrind/$VALGRIND_TYPE"}
 gen-result-file "$tests_result_file" "/home/source/.tests-whitelist"
 
 for ((n = 0; n < stress_times[0]; n++))
@@ -60,8 +51,6 @@ do
 			fi
 
 			run-both rm -f /tmp/vsomeip*
-			run-both dlt-daemon -c /etc/dlt-@name@.conf -d
-			dlt-receive -o /home/logs/dlt/"$test".dlt localhost &
 			tcpdump -U -i eth0 -w /home/logs/pcap/"$test".pcap &
 
 			if ! ctest --preset ci-network-tests --output-junit /home/logs/junit/"$test".xml --tests-regex "^$test$" --test-output-size-passed 1073741824 --test-output-size-failed 1073741824
@@ -82,8 +71,6 @@ do
 			kill %1
 			kill -USR2 %2 || :
 			kill -INT %2 || :
-			run-both pkill -TERM dlt-daemon || :
-			run-both pidwait dlt-daemon || :
 			run-both kill -KILL -1 || :
 		done
 	done

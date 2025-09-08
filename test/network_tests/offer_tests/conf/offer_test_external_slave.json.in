@@ -2,14 +2,8 @@
     "unicast":"@TEST_IP_SLAVE@",
     "logging":
     {
-        "level":"info",
-        "console":"true",
-        "file":
-        {
-            "enable":"false",
-            "path":"/tmp/vsomeip.log"
-        },
-        "dlt":"true"
+        "level":"trace",
+        "console":"true"
     },
     "services":
     [

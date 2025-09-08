@@ -3,17 +3,9 @@
    "netmask" : "255.255.255.0",
    "logging" :
    {
-      "level" : "debug",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "true",
-         "path" : "/var/log/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -78,7 +70,6 @@
        ]
       }
    ],
-
    "routing" : "header_factory_test_service",
    "service-discovery" :
    {

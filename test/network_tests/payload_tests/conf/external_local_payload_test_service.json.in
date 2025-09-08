@@ -2,17 +2,9 @@
    "unicast" : "@TEST_IP_MASTER@",
    "logging" :
    {
-      "level" : "debug",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "false",
-         "path" : "/tmp/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -20,7 +12,6 @@
          "id" : "0x1277"
       }
    ],
-
    "services" :
    [
       {

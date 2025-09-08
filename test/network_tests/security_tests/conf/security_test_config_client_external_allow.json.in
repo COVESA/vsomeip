@@ -3,10 +3,8 @@
     "netmask" : "255.255.255.0",
     "logging" :
     {
-        "level" : "info",
-        "console" : "true",
-        "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
-        "dlt" : "true"
+        "level" : "trace",
+        "console" : "true"
     },
     "applications" :
     [

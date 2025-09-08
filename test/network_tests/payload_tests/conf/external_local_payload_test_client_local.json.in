@@ -3,17 +3,9 @@
    "netmask" : "255.255.255.0",
    "logging" :
    {
-      "level" : "debug",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "true",
-         "path" : "/var/log/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -21,8 +13,6 @@
          "id" : "0x1343"
       }
    ],
-
-
    "services" :
    [
       {

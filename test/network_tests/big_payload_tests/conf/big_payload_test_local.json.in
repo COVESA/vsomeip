@@ -2,14 +2,8 @@
     "unicast":"127.0.0.1",
     "logging":
     {
-        "level":"debug",
-        "console":"true",
-        "file":
-        {
-            "enable":"false",
-            "path":"/tmp/vsomeip.log"
-        },
-        "dlt":"true"
+        "level":"trace",
+        "console":"true"
     },
     "applications":
     [
