@@ -158,7 +158,7 @@ public:
         app_->send(its_request);
     }
 
-    void wait_on_condition(std::unique_lock<std::mutex>&& _lock, bool* _predicate, std::condition_variable&& _condition,
+    void wait_on_condition(std::unique_lock<std::mutex>& _lock, bool* _predicate, std::condition_variable& _condition,
                            std::uint32_t _timeout) {
         while (*_predicate) {
             if (std::cv_status::timeout == _condition.wait_for(_lock, std::chrono::seconds(_timeout))) {
@@ -179,8 +179,8 @@ public:
         app_->unsubscribe(info_.service_id, info_.instance_id, static_cast<vsomeip::eventgroup_t>(info_.eventgroup_id + 1));
     }
 
-    void wait_for_events(std::unique_lock<std::mutex>&& _lock, std::uint32_t _expected_number_received_events,
-                         std::condition_variable&& _condition) {
+    void wait_for_events(std::unique_lock<std::mutex>& _lock, std::uint32_t _expected_number_received_events,
+                         std::condition_variable& _condition) {
         std::cv_status its_status(std::cv_status::no_timeout);
         while (received_events_.size() != _expected_number_received_events && its_status != std::cv_status::timeout) {
             its_status = _condition.wait_for(_lock, std::chrono::seconds(5));
@@ -211,7 +211,7 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
-        wait_on_condition(std::move(its_availability_lock), &wait_availability_, std::move(availability_condition_), 300);
+        wait_on_condition(its_availability_lock, &wait_availability_, availability_condition_, 300);
         // service is available now
 
         for (int i = 0; i < 3; i++) {
@@ -219,13 +219,13 @@ public:
             set_field_at_service(0x1);
             {
                 std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
-                wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+                wait_on_condition(its_set_value_lock, &wait_set_value_, set_value_condition_, 30);
             }
 
             // subscribe
             std::unique_lock<std::mutex> its_events_lock(events_mutex_);
             subscribe_at_service();
-            wait_for_events(std::move(its_events_lock), 4, std::move(events_condition_));
+            wait_for_events(its_events_lock, 4, events_condition_);
             check_received_events_payload(0x1);
 
             std::set<std::pair<vsomeip::event_t, std::uint32_t>> its_expected;
@@ -240,10 +240,10 @@ public:
             set_field_at_service(0x2);
             {
                 std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
-                wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+                wait_on_condition(its_set_value_lock, &wait_set_value_, set_value_condition_, 30);
             }
 
-            wait_for_events(std::move(its_events_lock), 3, std::move(events_condition_));
+            wait_for_events(its_events_lock, 3, events_condition_);
             check_received_events_payload(0x2);
             its_expected.insert({info_.event_id, 1});
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 1), 1});
@@ -256,9 +256,9 @@ public:
             set_field_at_service(0x3);
             {
                 std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
-                wait_on_condition(std::move(its_set_value_lock), &wait_set_value_, std::move(set_value_condition_), 30);
+                wait_on_condition(its_set_value_lock, &wait_set_value_, set_value_condition_, 30);
             }
-            wait_for_events(std::move(its_events_lock), 3, std::move(events_condition_));
+            wait_for_events(its_events_lock, 3, events_condition_);
             check_received_events_payload(0x3);
             its_expected.insert({info_.event_id, 1});
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 1), 1});
@@ -273,7 +273,7 @@ public:
         }
         std::unique_lock<std::mutex> its_shutdown_lock(shutdown_response_mutex_);
         call_method_at_service(subscribe_notify_test::shutdown_method_id);
-        wait_on_condition(std::move(its_shutdown_lock), &wait_shutdown_response_, std::move(shutdown_response_condition_), 30);
+        wait_on_condition(its_shutdown_lock, &wait_shutdown_response_, shutdown_response_condition_, 30);
         stop();
     }
 
