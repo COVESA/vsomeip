@@ -74,7 +74,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
 
     unicast_socket_ = std::make_shared<socket_type>(io_, _local.protocol());
     if (!unicast_socket_) {
-        _error = boost::system::errc::make_error_code(boost::system::errc::not_enough_memory);
+        _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
         VSOMEIP_ERROR << instance_name_ << "init_unlocked: failed to create socket";
         return;
     }
@@ -881,7 +881,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             multicast_socket_ = std::make_unique<socket_type>(io_, local_.protocol());
             if (!multicast_socket_) {
                 VSOMEIP_ERROR << instance_name_ << "set_multicast_option: failed to create socket";
-                _error = boost::system::errc::make_error_code(boost::system::errc::not_enough_memory);
+                _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
                 return;
             }
 

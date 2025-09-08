@@ -172,12 +172,12 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
         auto const lock = std::scoped_lock(mtx_);
         auto const it = ep_to_acceptor_states_.find(_ep);
         if (it == ep_to_acceptor_states_.end()) {
-            _handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
+            _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
             return nullptr;
         }
         auto acc = it->second.lock();
         if (!acc) {
-            _handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
+            _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
             return nullptr;
         }
         auto acc_name = acc->get_app_name();

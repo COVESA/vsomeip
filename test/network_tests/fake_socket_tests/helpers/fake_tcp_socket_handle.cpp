@@ -182,10 +182,8 @@ void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, 
                     [this, h = std::move(_handler)](auto ec) { boost::asio::post(io_, [handler = std::move(h), ec] { handler(ec); }); });
         return;
     }
-    boost::asio::post(io_, [handler = std::move(_handler)] {
-        // TODO correct error code?
-        handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
-    });
+    boost::asio::post(
+            io_, [handler = std::move(_handler)] { handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable)); });
 }
 
 void fake_tcp_socket_handle::clear_handler() {
@@ -242,9 +240,7 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
 
     if (receiver) {
         size_t size = receiver->consume(_buffer);
-        boost::asio::post(io_, [size, handler = std::move(_handler)] {
-            handler(boost::system::errc::make_error_code(boost::system::errc::success), size);
-        });
+        boost::asio::post(io_, [size, handler = std::move(_handler)] { handler(boost::system::error_code(), size); });
         return;
     }
     boost::asio::post(io_, [handler = std::move(_handler)] {
@@ -322,7 +318,7 @@ void fake_tcp_socket_handle::update_reception() {
         if (!handler) {
             return;
         }
-        handler(boost::system::errc::make_error_code(boost::system::errc::success), len);
+        handler(boost::system::error_code(), len);
     });
     receptor_ = std::nullopt;
 }
@@ -408,7 +404,7 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
     auto* fake_socket = dynamic_cast<fake_tcp_socket*>(&_socket);
     if (!fake_socket) {
         boost::asio::post(io_, [handler = std::move(_handler)] {
-            handler(boost::system::errc::make_error_code(boost::system::errc::invalid_argument));
+            handler(boost::asio::error::make_error_code(boost::asio::error::invalid_argument));
         });
         return;
     }
@@ -435,22 +431,20 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
     // in case the mutex of the acceptor is hold while invoking methods from a socket_handle.
     auto const lock = std::scoped_lock(mtx_);
     if (!connection_) {
-        _handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
+        _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
         return nullptr;
     }
     if (auto accepting_socket = connection_->socket_.lock(); accepting_socket) {
         if (!accepting_socket->add_connection(_state)) {
-            _handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
+            _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
             return nullptr;
         }
-        boost::asio::post(io_, [handler = std::move(connection_->handler_)] {
-            handler(boost::system::errc::make_error_code(boost::system::errc::success));
-        });
-        _handler(boost::system::errc::make_error_code(boost::system::errc::success));
+        boost::asio::post(io_, [handler = std::move(connection_->handler_)] { handler(boost::system::error_code()); });
+        _handler(boost::system::error_code());
         connection_ = std::nullopt;
         return accepting_socket;
     }
-    _handler(boost::system::errc::make_error_code(boost::system::errc::host_unreachable));
+    _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
     return nullptr;
 }
 

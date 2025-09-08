@@ -475,10 +475,6 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         // endpoint was stopped
         sending_blocked_ = true;
         shutdown_and_close_socket(false);
-    } else if (_error == boost::system::errc::destination_address_required) {
-        VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                        << get_remote_information();
-        was_not_connected_ = true;
     } else {
         if (state_ == cei_state_e::CONNECTING) {
             VSOMEIP_WARNING << "uce::send_cbk endpoint is already restarting:" << get_remote_information();
