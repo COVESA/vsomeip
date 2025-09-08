@@ -634,11 +634,6 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         // endpoint was stopped
         endpoint_impl<Protocol>::sending_blocked_ = true;
         shutdown_and_close_socket(false);
-    } else if (_error == boost::system::errc::destination_address_required) {
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value()
-                        << "), remote: " << get_remote_information() << " endpoint > " << this << " socket state > "
-                        << static_cast<int>(state_.load());
-        was_not_connected_ = true;
     } else {
         service_t its_service(0);
         method_t its_method(0);

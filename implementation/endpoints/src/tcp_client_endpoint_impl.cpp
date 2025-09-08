@@ -798,11 +798,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
     } else {
         is_sending_ = false;
 
-        if (_error == boost::system::errc::destination_address_required) {
-            VSOMEIP_WARNING << "tce::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                            << get_remote_information();
-            was_not_connected_ = true;
-        } else if (_error == boost::asio::error::operation_aborted) {
+        if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             shutdown_and_close_socket(false);
         } else {

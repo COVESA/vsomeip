@@ -104,7 +104,7 @@ private:
     void async_accept(tcp_socket& socket, connect_handler handler) override {
         auto* socket_impl = dynamic_cast<asio_tcp_socket*>(&socket);
         if (!socket_impl) {
-            handler(boost::system::errc::make_error_code(boost::system::errc::invalid_argument));
+            handler(boost::asio::error::make_error_code(boost::asio::error::invalid_argument));
             return;
         }
         acceptor_.async_accept(socket_impl->socket_, std::move(handler));
