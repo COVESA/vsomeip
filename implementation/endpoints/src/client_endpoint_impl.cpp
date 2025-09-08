@@ -508,7 +508,8 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(boost::system::error_co
                         << "):" << _error.message() << "," << " remote: " << get_remote_information() << ", endpoint > " << this
                         << " socket state > " << static_cast<int>(state_.load());
     } else {
-        VSOMEIP_INFO << "cei::wait_connecting_cbk: endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
+        VSOMEIP_INFO << "cei::wait_connecting_cbk: remote > " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                     << static_cast<int>(state_.load());
     }
 }
 
