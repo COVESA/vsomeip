@@ -1190,6 +1190,9 @@ bool endpoint_manager_impl::check_options_queue() {
 }
 
 void endpoint_manager_impl::process_multicast_options() {
+    constexpr unsigned MAX_REPEAT_DELAY_MS = 32;
+    constexpr unsigned INITIAL_REPEAT_DELAY_MS = 1;
+    unsigned repeat_delay_ms = INITIAL_REPEAT_DELAY_MS;
 
     std::unique_lock<std::mutex> its_lock(options_mutex_);
     while (is_processing_options_) {
@@ -1221,7 +1224,17 @@ void endpoint_manager_impl::process_multicast_options() {
 
                     options_queue_.push(its_leave_option);
                     options_queue_.push(its_front);
+
+                    its_lock.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(repeat_delay_ms));
+                    its_lock.lock();
+
+                    if ((repeat_delay_ms *= 2) > MAX_REPEAT_DELAY_MS) {
+                        repeat_delay_ms = MAX_REPEAT_DELAY_MS;
+                    }
                 }
+            } else {
+                repeat_delay_ms = INITIAL_REPEAT_DELAY_MS;
             }
         }
     }

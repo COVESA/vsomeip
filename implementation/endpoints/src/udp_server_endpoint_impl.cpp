@@ -863,7 +863,10 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
     bool has_joined = multicast_socket_ && join_status_.find(_address.to_string()) != join_status_.end();
 
-    if (_is_join == has_joined) {
+    if (_is_join && has_joined) {
+        // We can skip the join operation, but we don't skip the leave operation
+        // because if the network interface is down when this operation is executed,
+        // it returns an error and we do not know in which state is the join.
         VSOMEIP_INFO << instance_name_ << "set_multicast_option: operation already done, skipped";
         return;
     }
