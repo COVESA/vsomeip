@@ -30,16 +30,7 @@ This page will guide you to accomplish that goal.
 
 ## Main steps
 
-1. Clone dlt-daemon to the same Project folder as vsomeip.
-
-    ```bash
-    git clone https://github.com/COVESA/dlt-daemon.git
-
-    $ ls
-    dlt-daemon    vsomeip
-    ```
-
-2. Set the sanitizer or valgrind type you'd like to use (use sanitizer LEAK if you don't know or care which one gets used)
+1. Set the sanitizer or valgrind type you'd like to use (use sanitizer LEAK if you don't know or care which one gets used)
 
     **Syntax sanitizers**
 
@@ -77,13 +68,13 @@ This page will guide you to accomplish that goal.
     export VALGRIND_TYPE=memcheck
     ```
 
-3. Create the containers (you must be inside the vsomeip repo to run this step). This will first build the Docker image used by both that contains everything needed to build and run the network-tests (CMake, GCC, Boost, etc.)
+2. Create the containers (you must be inside the vsomeip repo to run this step). This will first build the Docker image used by both that contains everything needed to build and run the network-tests (CMake, GCC, Boost, etc.)
 
     ```bash
     docker compose --project-directory zuul/network-tests build
     ```
 
-4. Start the containers (same as above, you must be inside the repo directory). This will build vsomeip-lib and then run the network-tests
+3. Start the containers (same as above, you must be inside the repo directory). This will build vsomeip-lib and then run the network-tests
 
     ```bash
     docker compose --project-directory zuul/network-tests up

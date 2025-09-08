@@ -1,7 +1,7 @@
 {
     "unicast": "@TEST_IP_SLAVE@",
     "logging": {
-        "level": "debug",
+        "level": "trace",
         "console": "true"
     },
     "tracing": {

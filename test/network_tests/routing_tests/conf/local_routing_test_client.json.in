@@ -4,17 +4,9 @@
    "diagnosis":"0x12",
    "logging" :
    {
-      "level" : "debug",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "true",
-         "path" : "/var/log/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -22,11 +14,9 @@
          "id" : "0x1255"
       }
    ],
-
    "services" :
    [
    ],
-
    "routing" : "routingmanagerd",
    "service-discovery" :
    {

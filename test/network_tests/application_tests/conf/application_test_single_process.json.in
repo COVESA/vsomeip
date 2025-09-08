@@ -2,13 +2,7 @@
     "unicast":"127.0.0.1",
     "logging":
     {
-        "level":"info",
-        "console":"true",
-        "file":
-        {
-            "enable":"false",
-            "path":"/tmp/someip.log"
-        },
-        "dlt":"true"
+        "level":"trace",
+        "console":"true"
     }
 }

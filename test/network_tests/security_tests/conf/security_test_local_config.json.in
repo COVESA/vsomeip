@@ -2,10 +2,8 @@
     "unicast" : "localhost",
     "logging" :
     {
-        "level" : "info",
-        "console" : "true",
-        "file" : { "enable" : "false", "path" : "/tmp/vsomeip.log" },
-        "dlt" : "true"
+        "level" : "trace",
+        "console" : "true"
     },
     "applications" :
     [

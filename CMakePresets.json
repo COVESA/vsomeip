@@ -12,6 +12,10 @@
 			"generator": "Ninja",
 			"binaryDir": "/home/build",
 			"cacheVariables": {
+				"DISABLE_DLT": {
+				    "type": "BOOL",
+				    "value": "ON"
+				},
 				"CMAKE_CXX_FLAGS_INIT": {
 					"type": "STRING",
 					"value": "--coverage -Wno-error=tsan -fprofile-update=atomic"

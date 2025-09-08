@@ -1,13 +1,8 @@
 {
   "unicast" : "@TEST_IP_SLAVE@",
   "logging": {
-    "level": "debug",
-    "console": "true",
-    "file": {
-      "enable": "false",
-      "path": "/tmp/foo.log"
-    },
-    "dlt": "true"
+    "level": "trace",
+    "console": "true"
   },
   "tracing" :
   {

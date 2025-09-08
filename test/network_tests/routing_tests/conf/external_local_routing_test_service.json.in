@@ -3,17 +3,9 @@
    "diagnosis":"0x12",
    "logging" :
    {
-      "level" : "debug",
-      "console" : "true",
-      "file" :
-      {
-         "enable" : "false",
-         "path" : "/tmp/vsomeip.log"
-      },
-
-      "dlt" : "true"
+      "level" : "trace",
+      "console" : "true"
    },
-
    "applications" :
    [
       {
@@ -21,7 +13,6 @@
          "id" : "0x1277"
       }
    ],
-
    "services" :
    [
       {
@@ -30,7 +21,6 @@
          "unreliable" : "30509"
       }
    ],
-
    "routing" : "external_local_routing_test_service",
    "service-discovery" :
    {

@@ -1,11 +1,7 @@
 {
     "logging": {
-        "level": "verbose",
-        "console": "true",
-        "file": {
-            "enable": "false"
-        },
-        "dlt": "false"
+        "level": "trace",
+        "console": "true"
     },
     "applications": [
         {
