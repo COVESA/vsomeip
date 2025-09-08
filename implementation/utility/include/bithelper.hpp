@@ -115,7 +115,7 @@ public:
 #if defined(COMPILE_TIME_ENDIAN) && (COMPILE_TIME_ENDIAN == BYTEORDER_LITTLE_ENDIAN)
     static constexpr endianess_e get_endianness() { return endianess_e::le; }
 #elif defined(COMPILE_TIME_ENDIAN) && (COMPILE_TIME_ENDIAN == BYTEORDER_BIG_ENDIAN)
-    static constexpr Endianness get_endianness() { return endianess_e::be; }
+    static constexpr endianess_e get_endianness() { return endianess_e::be; }
 #else
     // Run-time check
     static endianess_e get_endianness() {
