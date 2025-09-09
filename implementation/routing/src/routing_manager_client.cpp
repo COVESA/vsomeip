@@ -111,7 +111,6 @@ void routing_manager_client::init() {
         sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
         if (sender_) {
             host_->set_sec_client_port(sender_->get_local_port());
-            sender_->start();
         }
     }
 }
