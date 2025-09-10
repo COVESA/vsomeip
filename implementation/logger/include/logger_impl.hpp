@@ -28,16 +28,17 @@ namespace logger {
 
 class logger_impl {
 public:
+    logger_impl();
     VSOMEIP_IMPORT_EXPORT static void init(const std::shared_ptr<configuration>& _configuration);
     static logger_impl* get();
 
     // Note: struct must be trivially copyable and thus cannot contain the log file name.
     // alignas(4) to work around a bug in ancient MSVC15 which for some reason we still support...
     struct alignas(4) config {
-        bool console_enabled{};
-        bool dlt_enabled{};
-        bool file_enabled{};
-        level_e loglevel{level_e::LL_NONE};
+        bool console_enabled;
+        bool dlt_enabled;
+        bool file_enabled;
+        level_e loglevel;
     };
 
     void set_configuration(const std::shared_ptr<configuration>& _configuration);
