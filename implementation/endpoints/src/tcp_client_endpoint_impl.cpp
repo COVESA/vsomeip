@@ -557,8 +557,6 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         }
 
                         if (invalid_parameter_detected) {
-                            shutdown_and_close_socket_unlocked(false);
-                            state_ = cei_state_e::CONNECTING;
                             its_lock.unlock();
 
                             // wait_until_sent interprets "no error" as timeout.
@@ -583,8 +581,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                           << ") Magic cookies are disabled, "
                                           << "Restarting connection. "
                                           << "local: " << get_address_port_local() << " remote: " << get_address_port_remote();
-                            shutdown_and_close_socket_unlocked(false);
-                            state_ = cei_state_e::CONNECTING;
+
                             its_lock.unlock();
 
                             // wait_until_sent interprets "no error" as timeout.
@@ -613,8 +610,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                       << _recv_buffer->capacity() << " its_iteration_gap: " << its_iteration_gap
                                       << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
                                       << ". Restarting connection due to missing/broken data TCP stream.";
-                        shutdown_and_close_socket_unlocked(false);
-                        state_ = cei_state_e::CONNECTING;
+
                         its_lock.unlock();
 
                         // wait_until_sent interprets "no error" as timeout.
@@ -650,8 +646,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                     << get_remote_information();
                 } else {
                     VSOMEIP_WARNING << "tcp_client_endpoint receive_cbk restarting.";
-                    shutdown_and_close_socket_unlocked(false);
-                    state_ = cei_state_e::CONNECTING;
+
                     its_lock.unlock();
 
                     // wait_until_sent interprets "no error" as timeout.
@@ -810,12 +805,10 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             if (state_ == cei_state_e::CONNECTING) {
                 VSOMEIP_WARNING << "tce::send_cbk endpoint is already restarting:" << get_remote_information();
             } else {
-                shutdown_and_close_socket(false);
                 std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
                 if (its_host) {
                     its_host->on_disconnect(shared_from_this());
                 }
-                state_ = cei_state_e::CONNECTING;
                 restart(true);
             }
             service_t its_service(0);
