@@ -41,6 +41,13 @@ local_tcp_client_endpoint_impl::local_tcp_client_endpoint_impl(const std::shared
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
 
+local_tcp_client_endpoint_impl::~local_tcp_client_endpoint_impl() {
+    // ensure socket close() before boost destructor
+    // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
+    VSOMEIP_INFO << "ltcei::~ltcei: endpoint > " << this << ", state_ > " << static_cast<int>(state_.load());
+    shutdown_and_close_socket(false);
+}
+
 bool local_tcp_client_endpoint_impl::is_local() const {
     return true;
 }

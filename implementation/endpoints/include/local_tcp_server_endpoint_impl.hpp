@@ -75,6 +75,8 @@ private:
 
         static ptr create(const std::shared_ptr<local_tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
                           std::uint32_t _buffer_shrink_threshold, boost::asio::io_context& _io);
+
+        ~connection();
         tcp_socket& get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 

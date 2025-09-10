@@ -51,7 +51,7 @@ void fake_tcp_socket_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm) {
 }
 
 void fake_tcp_socket_handle::cancel() {
-    close();
+    shutdown();
 }
 
 [[nodiscard]] bool fake_tcp_socket_handle::is_open() {
@@ -66,6 +66,19 @@ void fake_tcp_socket_handle::open(boost::asio::ip::tcp::endpoint::protocol_type 
 
 void fake_tcp_socket_handle::close() {
     TEST_LOG << "[fake-socket] calling close on: " << socket_id_;
+    auto block_time = [&] {
+        auto const lock = std::scoped_lock(mtx_);
+        return block_on_close_time_;
+    }();
+    if (block_time) {
+        TEST_LOG << "[fake-socket] delaying close processing for: " << socket_id_ << " by: " << block_time->count() << "ms";
+        std::this_thread::sleep_for(*block_time);
+        TEST_LOG << "[fake-socket] continuing close processing for: " << socket_id_;
+    }
+}
+
+void fake_tcp_socket_handle::shutdown() {
+    TEST_LOG << "[fake-socket] calling shutdown on: " << socket_id_;
     auto remote = [&]() -> std::shared_ptr<fake_tcp_socket_handle> {
         auto const lock = std::scoped_lock(mtx_);
         auto remote = connected_socket_.lock();
@@ -80,23 +93,6 @@ void fake_tcp_socket_handle::close() {
     }();
     if (remote) {
         remote->inner_close();
-    }
-    auto block_time = [&] {
-        auto const lock = std::scoped_lock(mtx_);
-        return block_on_close_time_;
-    }();
-    if (block_time) {
-        TEST_LOG << "[fake-socket] delaying close procesesing for: " << socket_id_ << " by: " << block_time->count() << "ms";
-        std::this_thread::sleep_for(*block_time);
-        TEST_LOG << "[fake-socket] continuing close procesesing for: " << socket_id_;
-    }
-}
-
-void fake_tcp_socket_handle::shutdown() {
-    auto const lock = std::scoped_lock(mtx_);
-    TEST_LOG << "[fake-socket] calling shutdown on: " << socket_id_;
-    if (receptor_) {
-        receptor_ = std::nullopt;
     }
 }
 
@@ -147,7 +143,7 @@ void fake_tcp_socket_handle::block_on_close_for(std::optional<std::chrono::milli
 
 void fake_tcp_socket_handle::inner_close() {
     // called by the remote connected socket
-    auto lock = std::unique_lock<std::mutex>(mtx_);
+    auto lock = std::scoped_lock(mtx_);
     TEST_LOG << "[fake-socket] calling inner_close on: " << socket_id_;
     // the connected_socket_ can be reset even when ignoring the call,
     // as the inner_close call implies the other socket tries to clean itself up
@@ -165,7 +161,6 @@ void fake_tcp_socket_handle::inner_close() {
         // out of scope :/.
         boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
         receptor_ = std::nullopt;
-        lock.unlock();
     } else {
         TEST_LOG << "[fake-socket] WARNING: calling inner_close on: " << socket_id_ << " could not forward the connection_reset";
     }
@@ -187,9 +182,15 @@ void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, 
 }
 
 void fake_tcp_socket_handle::clear_handler() {
-    auto const lock = std::scoped_lock(mtx_);
-    TEST_LOG << "[fake-socket] Clearing the handler for: " << socket_id_;
-    receptor_ = std::nullopt;
+    rw_handler callback{}; // This is needed to avoid lock order inversion with the shutdown_and_close on dtor
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        TEST_LOG << "[fake-socket] Clearing the handler for: " << socket_id_;
+        if (receptor_) {
+            callback = std::move(receptor_->handler_);
+        }
+        receptor_ = std::nullopt;
+    }
 }
 
 [[nodiscard]] bool fake_tcp_socket_handle::add_connection(fake_tcp_socket_handle& _connecting) {
@@ -385,13 +386,14 @@ void fake_tcp_acceptor_handle::open() {
 }
 
 void fake_tcp_acceptor_handle::close() {
-    auto lock = std::unique_lock<std::mutex>(mtx_);
-    is_open_ = false;
-    if (connection_) {
-        auto socket = connection_->socket_.lock();
-        connection_ = std::nullopt;
-        lock.unlock();
-        socket.reset(); // `socket` destructor calls other code, beware of lock
+    connect_handler handler{};
+    {
+        auto lock = std::scoped_lock(mtx_);
+        is_open_ = false;
+        if (connection_) {
+            handler = std::move(connection_->handler_);
+            connection_ = std::nullopt;
+        }
     }
 }
 
@@ -409,19 +411,19 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
         return;
     }
 
-    auto lock = std::unique_lock<std::mutex>(mtx_);
-    if (connection_) {
-        auto socket = connection_->socket_.lock();
-        connection_ = std::nullopt;
-        lock.unlock();
-        socket.reset(); // `socket` destructor calls other code, beware of lock
-        lock.lock();
-    }
+    connect_handler handler{};
+    {
+        auto lock = std::scoped_lock(mtx_);
+        if (connection_) {
+            handler = std::move(connection_->handler_);
+            connection_ = std::nullopt;
+        }
 
-    TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", is awaiting connections with fd: " << fake_socket->state_->fd();
-    connection_ = connection{fake_socket->state_, std::move(_handler)};
-    if (auto const sm = socket_manager_.lock(); sm) {
-        sm->awaiting();
+        TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", is awaiting connections with fd: " << fake_socket->state_->fd();
+        connection_ = connection{fake_socket->state_, std::move(_handler)};
+        if (auto const sm = socket_manager_.lock(); sm) {
+            sm->awaiting();
+        }
     }
 }
 
