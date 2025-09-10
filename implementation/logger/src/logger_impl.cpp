@@ -11,6 +11,8 @@
 namespace vsomeip_v3 {
 namespace logger {
 
+logger_impl::logger_impl() : config_{{false, false, false, level_e::LL_NONE}} { }
+
 void logger_impl::init(const std::shared_ptr<configuration>& _configuration) {
     logger_impl::get()->set_configuration(_configuration);
 }
@@ -21,7 +23,8 @@ logger_impl::config logger_impl::get_configuration() const {
 
 void logger_impl::set_configuration(const std::shared_ptr<configuration>& _configuration) {
     if (_configuration) {
-        config cfg;
+        // GCC < 10 hates member initializers in atomic structs
+        config cfg; // NOLINT(cppcoreguidelines-pro-type-member-init)
         cfg.loglevel = _configuration->get_loglevel();
         cfg.console_enabled = _configuration->has_console_log();
         cfg.dlt_enabled = _configuration->has_dlt_log();
