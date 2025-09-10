@@ -1470,8 +1470,22 @@ bool routing_manager_base::get_guest(client_t _client, boost::asio::ip::address&
 }
 
 void routing_manager_base::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
-    std::lock_guard<std::mutex> its_lock(guests_mutex_);
-    guests_[_client] = std::make_pair(_address, _port);
+    auto old_client = ep_mgr_ ? ep_mgr_->update_local(_client, _address, _port) : std::nullopt;
+
+    {
+        std::scoped_lock its_lock(guests_mutex_);
+        guests_[_client] = std::make_pair(_address, _port);
+        if (old_client) { // this avoid lock inversion: guests_mutex_ vs local_endpoint_mutex_
+            guests_.erase(*old_client);
+        }
+    }
+    {
+        std::scoped_lock its_lock(known_clients_mutex_);
+        if (old_client && known_clients_.find(*old_client) != known_clients_.end()) {
+            known_clients_[_client] = known_clients_[*old_client];
+            known_clients_.erase(*old_client);
+        }
+    }
 }
 
 void routing_manager_base::remove_guest(client_t _client) {

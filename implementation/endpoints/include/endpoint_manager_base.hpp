@@ -11,6 +11,7 @@
 #include <set>
 #include <unordered_set>
 #include <memory>
+#include <optional>
 
 #include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -36,6 +37,8 @@ public:
     std::shared_ptr<endpoint> find_or_create_local(client_t _client);
     std::shared_ptr<endpoint> find_local(client_t _client);
     std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance);
+
+    std::optional<client_t> update_local(client_t _client, const boost::asio::ip::address& _address, port_t _port);
 
     std::unordered_set<client_t> get_connected_clients() const;
 

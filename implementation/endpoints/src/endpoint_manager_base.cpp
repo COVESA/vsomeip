@@ -84,7 +84,6 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_or_create_local(client_t _
     }
     return its_endpoint;
 }
-
 std::shared_ptr<endpoint> endpoint_manager_base::find_local(client_t _client) {
     std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
     return find_local_unlocked(_client);
@@ -92,6 +91,27 @@ std::shared_ptr<endpoint> endpoint_manager_base::find_local(client_t _client) {
 
 std::shared_ptr<endpoint> endpoint_manager_base::find_local(service_t _service, instance_t _instance) {
     return find_local(rm_->find_local_client(_service, _instance));
+}
+
+std::optional<client_t> endpoint_manager_base::update_local(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    std::scoped_lock its_lock(local_endpoint_mutex_);
+    for (const auto& [its_client, its_endpoint] : local_endpoints_) {
+        const auto& its_local_endpoint = std::dynamic_pointer_cast<local_tcp_client_endpoint_impl>(its_endpoint);
+        boost::asio::ip::address remote_address;
+        if (its_local_endpoint && !its_local_endpoint->get_remote_address(remote_address)) {
+            VSOMEIP_ERROR << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
+                          << " could not get remote address from endpoint " << std::hex << its_endpoint;
+            continue;
+        }
+        if (its_local_endpoint->get_remote_port() == _port && remote_address == _address && its_client != _client) {
+            local_endpoints_[_client] = its_endpoint;
+            local_endpoints_.erase(its_client);
+            VSOMEIP_WARNING << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
+                            << " updating " << its_client << " to " << _client << " @ " << _address.to_string() << ":" << std::dec << _port;
+            return its_client;
+        }
+    }
+    return {};
 }
 
 std::unordered_set<client_t> endpoint_manager_base::get_connected_clients() const {
