@@ -51,7 +51,6 @@ local_tcp_client_endpoint_impl::~local_tcp_client_endpoint_impl() {
 bool local_tcp_client_endpoint_impl::is_local() const {
     return true;
 }
-
 void local_tcp_client_endpoint_impl::restart(bool _force) {
 
     if (!_force && state_ == cei_state_e::CONNECTING) {
@@ -359,6 +358,18 @@ void local_tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const
 
 std::uint16_t local_tcp_client_endpoint_impl::get_local_port() const {
     return local_.port();
+}
+
+std::uint16_t local_tcp_client_endpoint_impl::get_remote_port() const {
+    return remote_.port();
+}
+
+bool local_tcp_client_endpoint_impl::get_remote_address(boost::asio::ip::address& _address) const {
+    if (remote_.address().is_unspecified()) {
+        return false;
+    }
+    _address = remote_.address();
+    return true;
 }
 
 void local_tcp_client_endpoint_impl::print_status() {
