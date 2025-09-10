@@ -78,13 +78,10 @@ void tcp_server_endpoint_impl::start() {
                 connection::create(std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), max_message_size_,
                                    buffer_shrink_threshold_, has_enabled_magic_cookies_, io_, send_timeout_);
 
-        {
-            std::unique_lock<std::mutex> its_socket_lock(new_connection->get_socket_lock());
-            acceptor_.async_accept(new_connection->get_socket(),
-                                   std::bind(&tcp_server_endpoint_impl::accept_cbk,
-                                             std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), new_connection,
-                                             std::placeholders::_1));
-        }
+        acceptor_.async_accept(new_connection->get_socket(),
+                               std::bind(&tcp_server_endpoint_impl::accept_cbk,
+                                         std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), new_connection,
+                                         std::placeholders::_1));
     }
 }
 
@@ -341,6 +338,11 @@ tcp_server_endpoint_impl::connection::~connection() {
             its_routing_host->remove_subscriptions(its_server->local_.port(), remote_address_, remote_port_);
         }
     }
+
+    // ensure socket close() before boost destructor
+    // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
+    VSOMEIP_INFO << "tsei::" << __func__ << ": endpoint > " << this;
+    stop();
 }
 
 tcp_server_endpoint_impl::connection::ptr
@@ -428,6 +430,11 @@ void tcp_server_endpoint_impl::connection::stop() {
             VSOMEIP_WARNING << "tcp_server_endpoint_impl::connection::stop<" << get_address_port_remote() << ">:closing socket failed ("
                             << its_error.message() << ")";
         }
+
+        VSOMEIP_INFO << "tsei::" << __func__ << ": socket closed, endpoint > " << this;
+
+    } else {
+        VSOMEIP_INFO << "tsei::" << __func__ << ": socket was already closed, endpoint > " << this;
     }
 }
 

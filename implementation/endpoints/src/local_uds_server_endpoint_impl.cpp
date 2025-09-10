@@ -107,13 +107,10 @@ void local_uds_server_endpoint_impl::start() {
         connection::ptr new_connection = connection::create(std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this()),
                                                             max_message_size_, buffer_shrink_threshold_, io_);
 
-        {
-            std::unique_lock its_lock_inner{new_connection->get_socket_lock()};
-            acceptor_.async_accept(new_connection->get_socket(),
-                                   std::bind(&local_uds_server_endpoint_impl::accept_cbk,
-                                             std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this()), new_connection,
-                                             std::placeholders::_1));
-        }
+        acceptor_.async_accept(new_connection->get_socket(),
+                               std::bind(&local_uds_server_endpoint_impl::accept_cbk,
+                                         std::dynamic_pointer_cast<local_uds_server_endpoint_impl>(shared_from_this()), new_connection,
+                                         std::placeholders::_1));
     }
 }
 

@@ -105,13 +105,10 @@ void local_tcp_server_endpoint_impl::start() {
         connection::ptr new_connection = connection::create(std::dynamic_pointer_cast<local_tcp_server_endpoint_impl>(shared_from_this()),
                                                             max_message_size_, buffer_shrink_threshold_, io_);
 
-        {
-            std::unique_lock its_lock_inner{new_connection->get_socket_lock()};
-            acceptor_->async_accept(new_connection->get_socket(),
-                                    std::bind(&local_tcp_server_endpoint_impl::accept_cbk,
-                                              std::dynamic_pointer_cast<local_tcp_server_endpoint_impl>(shared_from_this()), new_connection,
-                                              std::placeholders::_1));
-        }
+        acceptor_->async_accept(new_connection->get_socket(),
+                                std::bind(&local_tcp_server_endpoint_impl::accept_cbk,
+                                          std::dynamic_pointer_cast<local_tcp_server_endpoint_impl>(shared_from_this()), new_connection,
+                                          std::placeholders::_1));
     }
 }
 
@@ -342,6 +339,13 @@ local_tcp_server_endpoint_impl::connection::connection(const std::shared_ptr<loc
 
     sec_client_.host = 0;
     sec_client_.port = VSOMEIP_SEC_PORT_UNSET;
+}
+
+local_tcp_server_endpoint_impl::connection::~connection() {
+    // ensure socket close() before boost destructor
+    // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
+    VSOMEIP_INFO << "ltsei::" << __func__ << ": endpoint > " << this << ", is_stopped_ > " << is_stopped_.load();
+    shutdown_and_close();
 }
 
 local_tcp_server_endpoint_impl::connection::ptr
@@ -813,11 +817,7 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(co
     }
     VSOMEIP_ERROR << its_message.str();
     recv_buffer_.clear();
-    if (socket_->is_open()) {
-        boost::system::error_code its_error;
-        socket_->shutdown(tcp_socket::shutdown_both, its_error);
-        socket_->close(its_error);
-    }
+    shutdown_and_close_unlocked();
 
     if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
         std::shared_ptr<local_tcp_server_endpoint_impl> its_server = server_.lock();
@@ -837,9 +837,25 @@ void local_tcp_server_endpoint_impl::connection::shutdown_and_close() {
 }
 
 void local_tcp_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
-    boost::system::error_code its_error;
-    socket_->shutdown(tcp_socket::shutdown_both, its_error);
-    socket_->close(its_error);
+    if (socket_ && socket_->is_open()) {
+        boost::system::error_code its_error;
+
+        socket_->shutdown(tcp_socket::shutdown_both, its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": socket shutdown error "
+                            << "(" << its_error.value() << "): " << its_error.message() << " endpoint > " << this;
+        }
+
+        socket_->close(its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": socket close error "
+                            << "(" << its_error.value() << "): " << its_error.message() << " endpoint > " << this;
+        } else {
+            VSOMEIP_INFO << "ltsei::" << __func__ << ": socket closed, endpoint > " << this;
+        }
+    } else {
+        VSOMEIP_INFO << "ltsei::" << __func__ << ": socket was already closed, endpoint > " << this;
+    }
 }
 
 void local_tcp_server_endpoint_impl::print_status() {
