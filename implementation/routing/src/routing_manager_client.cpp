@@ -1111,7 +1111,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                             cache_event_payload(its_message);
                         }
                     }
-                    host_->on_message(std::move(its_message));
+
 #ifdef USE_DLT
                     if (client_side_logging_
                         && (client_side_logging_filter_.empty()
@@ -1132,6 +1132,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                         }
                     }
 #endif
+
+                    host_->on_message(std::move(its_message));
+
                 } else
                     VSOMEIP_ERROR << "Routing proxy: on_message: "
                                   << "SomeIP-Header deserialization failed!";
