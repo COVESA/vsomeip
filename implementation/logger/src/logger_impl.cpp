@@ -100,12 +100,18 @@ void logger_impl::log_to_dlt(level_e _level, std::string_view _msg) {
         its_level = DLT_LOG_DEFAULT;
     };
 
-#ifdef DLT_SIZED_CSTRING
+#if defined(DLT_STRING_PUBLIC)
+    // If libdlt supports privacy-aware logging, ensure that all messages are marked
+    // as public. Trace data containing message payloads (and thus, potentially sensitive
+    // data) is logged through a different code path and remains private.
+    DLT_LOG(dlt_context(), its_level, DLT_STRING_PUBLIC(_msg.data()));
+#elif defined(DLT_SIZED_CSTRING)
     // Some versions of libdlt provide support for sized strings, which is more optimal than
     // DLT_LOG_STRING as it saves a call to strlen().
     // No need to log the terminating null byte in this case.
     DLT_LOG(dlt_context(), its_level, DLT_SIZED_CSTRING(_msg.data(), static_cast<std::uint16_t>(_msg.size() - 1)));
 #else
+    // Fallback to legacy log macro
     DLT_LOG_STRING(dlt_context(), its_level, _msg.data());
 #endif
 }
