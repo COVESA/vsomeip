@@ -71,6 +71,8 @@ bool profile_07_checker::verify_counter(instance_t _instance, uint32_t _received
             its_delta = uint32_t(_received_counter - its_counter);
         else
             its_delta = uint32_t(uint32_t(0xffffffff) - its_counter + _received_counter);
+
+        find_counter->second = _received_counter;
     } else {
         counter_[_instance] = _received_counter;
     }
