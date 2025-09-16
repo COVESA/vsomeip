@@ -96,6 +96,13 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         return;
     }
 
+#if defined(__linux__)
+    int enable = 1;
+    if (setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(enable)) != 0) {
+        VSOMEIP_WARNING << instance_name_ << "init_unlocked: failed to set option SO_REUSEPORT, errno=" << errno;
+    }
+#endif
+
 #if defined(__linux__) || defined(__QNX__)
     // If specified, bind to device
     std::string its_device(configuration_->get_device());
