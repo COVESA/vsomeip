@@ -676,7 +676,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
 
                             // fill routing information from (first) message
                             // so that a reply (response, notification, sub ack, whatever) can be provided
-                            its_host->add_guest(its_client, its_address, its_port - 1);
+                            its_host->add_guest(its_client, its_address, static_cast<port_t>(its_port - 1));
                             its_host->add_known_client(its_client, "");
                             set_bound_client(its_client);
                             its_server->add_connection(its_client, shared_from_this());
