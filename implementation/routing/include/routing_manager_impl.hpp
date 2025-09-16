@@ -261,7 +261,17 @@ private:
 
     bool supports_selective(service_t _service, instance_t _instance);
 
-    void log_version_timer_cbk(boost::system::error_code const& _error);
+    void log_version_timer_cbk(boost::system::error_code const& _error, size_t _count);
+
+    /**
+     * \brief Log network state
+     *
+     * Uses /proc/net/tcp + /proc/net/udp to log network connections. This is, of course, only for IPv4
+     *
+     * \param _tcp if true, logs TCP connections, otherwise UDP connections
+     * \param _only_external if true, logs *only* external connections (e.g., service-discovery), otherwise everything
+     */
+    void log_network_state(bool _tcp, bool _only_external) const;
 
     bool handle_local_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                     minor_version_t _minor);
