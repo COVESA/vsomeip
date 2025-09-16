@@ -1,5 +1,58 @@
 Changes
 =======
+v3.5.9
+- global
+  - Add vsomeip version to cmake log
+  - Add support for VSOMEIP_ABORT_ON_CRIT_SYSCALL_ERROR
+  - Remove use of strerror
+  - React on Bad File Descriptor (EOBADF) for epoll_wait
+  - Remove leftover configurations
+  - Improve logger performance, turn it almost lock-free
+  - Fix use of boost non-asio error codes
+  - Fix compile with GCC < 10 again
+  - Mark all DLT log messages as public
+
+- tests
+ - network tests
+    - Fix and/or document debounce_callback_test,
+      cyclic_event_tests, debounce_filter_test,
+      suspend_resume_test_initial, event_test,
+      offer_stop_offer_test, allow_reconnects,
+      subscribe_notify_test_one_event_two_eventgroups_tcp,
+      offer_test_local, debounce_frequency_test,
+      test_restart_client_in_loop, offer_test_service
+    - Create multicast group test
+
+  - unit tests
+    - Created udp_server_endpoint_impl unit tests
+    - Fix unit tests with boost 1.87+
+
+- endpoint
+  - Fix get_local_port, remove set_local_port
+  - Fix multicast leave, add repeat delay
+  - Ensure socket closure on dtor
+  - Remove duplicate shutdown closure of sockets
+  - Add SO_REUSEPORT option to mitigate Address already used issues
+
+  - local communication
+    - Fix race condition on accept_cbk
+    - Improve logs
+    - Fix client connect logic due to netlink removal
+
+  - external communication
+    - Fix race condition usei with on_message_received_unlocked
+    - Remove duplicate shutdown closure of sockets on tcp_client_endpoint_impl
+
+- routing
+ - Remove remote subscription on connection lost towards host
+
+  - routing manager client
+    - Remove sender start on init
+    - Fix client-side-logging crash
+
+- android
+  - Cleanup ifdef ANDROID
+
 v3.5.8
 - android
   - Possibility to build vsomeip with android NDK
