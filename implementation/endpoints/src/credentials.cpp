@@ -3,7 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 
 #include <cerrno>
 #include <cstring>
@@ -21,28 +21,38 @@
 namespace vsomeip_v3 {
 
 void credentials::activate_credentials(const int _fd) {
+#ifdef __QNX__
+    // Skip activation on QNX
+#else
     int optval = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1) {
         VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Activating socket option for receiving "
                       << "credentials failed.";
     }
+#endif
 }
 
 void credentials::deactivate_credentials(const int _fd) {
+#ifdef __QNX__
+    // Skip deactivation on QNX
+#else
     int optval = 0;
     if (setsockopt(_fd, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1) {
         VSOMEIP_ERROR << __func__ << ": vSomeIP Security: Deactivating socket option for receiving "
                       << "credentials failed.";
     }
+#endif
 }
 
 boost::optional<credentials::received_t> credentials::receive_credentials(const int _fd) {
     struct msghdr msgh;
     struct iovec iov[2];
+#ifndef __QNX__
     union {
         struct cmsghdr cmh;
         char control[CMSG_SPACE(sizeof(struct ucred))];
     } control_un;
+#endif
 
     // We don't need address of peer as we using connect
     msgh.msg_name = NULL;
@@ -52,9 +62,14 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
     msgh.msg_iov = iov;
     msgh.msg_iovlen = 2;
 
+#if defined(__QNX__)
+    msgh.msg_control = NULL;
+    msgh.msg_controllen = 0;
+#else
     // Set 'msgh' fields to describe 'control_un'
     msgh.msg_control = control_un.control;
     msgh.msg_controllen = sizeof(control_un.control);
+#endif
 
     // Sender client_id and client_host_length will be received as data
     client_t client = VSOMEIP_ROUTING_CLIENT;
@@ -64,10 +79,12 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
     iov[1].iov_base = &client_host_length;
     iov[1].iov_len = sizeof(uint8_t);
 
+#ifndef __QNX__
     // Set 'control_un' to describe ancillary data that we want to receive
     control_un.cmh.cmsg_len = CMSG_LEN(sizeof(struct ucred));
     control_un.cmh.cmsg_level = SOL_SOCKET;
     control_un.cmh.cmsg_type = SCM_CREDENTIALS;
+#endif
 
     // Receive client_id plus client_host_length plus ancillary data
     ssize_t nr = recvmsg(_fd, &msgh, 0);
@@ -76,6 +93,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
         return boost::none;
     }
 
+#ifndef __QNX__
     struct cmsghdr* cmhp = CMSG_FIRSTHDR(&msgh);
     if (cmhp == NULL || cmhp->cmsg_len != CMSG_LEN(sizeof(struct ucred)) || cmhp->cmsg_level != SOL_SOCKET
         || cmhp->cmsg_type != SCM_CREDENTIALS) {
@@ -85,6 +103,7 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
 
     // Use the implicitly-defined copy constructor
     struct ucred ucred = *reinterpret_cast<struct ucred*>(CMSG_DATA(cmhp));
+#endif
 
     msgh.msg_iov = iov;
     msgh.msg_iovlen = 1;
@@ -102,7 +121,11 @@ boost::optional<credentials::received_t> credentials::receive_credentials(const 
         return boost::none;
     }
 
+#ifndef __QNX__
     return received_t{client, ucred.uid, ucred.gid, client_host};
+#else
+    return received_t{client, ANY_UID, ANY_GID, client_host};
+#endif
 }
 
 void credentials::send_credentials(const int _fd, client_t _client, std::string _client_host) {
@@ -137,4 +160,4 @@ void credentials::send_credentials(const int _fd, client_t _client, std::string 
 
 } // namespace vsomeip_v3
 
-#endif // __linux__ || ANDROID
+#endif // __linux__ || ANDROID || __QNX__
