@@ -66,13 +66,7 @@ routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, con
     host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), client_id_timer_(_host->get_io()), root_(nullptr),
     local_receiver_(nullptr), configuration_(_configuration), is_socket_activated_(false), client_registration_running_(false),
     max_local_message_size_(configuration_->get_max_message_size_local()),
-    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0)
-#if defined(__linux__) || defined(ANDROID)
-    ,
-    is_local_link_available_(false)
-#endif
-{
-}
+    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
 
@@ -99,40 +93,25 @@ void routing_manager_stub::start() {
                                               std::dynamic_pointer_cast<routing_manager_stub>(shared_from_this()), std::placeholders::_1));
     }
 
-#if defined(__linux__) || defined(ANDROID)
-    if (configuration_->is_local_routing()) {
-#else
-    {
-#endif // __linux__ || ANDROID
-        if (!root_) {
-            // application has been stopped and started again
-            init_routing_endpoint();
-        }
-        if (root_) {
-            root_->start();
-        }
-#if defined(__linux__) || defined(ANDROID)
-    } else {
-        if (local_link_connector_)
-            local_link_connector_->start();
-#endif
+    if (!root_) {
+        // application has been stopped and started again
+        init_routing_endpoint();
+    }
+    if (root_) {
+        root_->start();
     }
 
     client_registration_running_ = true;
     {
-        std::scoped_lock its_thread_pool_lock(client_registration_thread_pool_mutex_);
-        for (size_t i = 0; i < VSOMEIP_DEFAULT_REGISTER_THREAD_COUNT; i++) {
-            auto its_thread = std::make_shared<std::thread>([this, i]() {
+        std::scoped_lock its_thread_pool_lock(client_registration_mutex_);
+        client_registration_thread_ = std::make_shared<std::thread>([this]() {
 #if defined(__linux__) || defined(ANDROID)
-                std::stringstream s;
-                s << std::hex << std::setfill('0') << std::setw(4) << host_->get_client() << "_reg_" << std::setw(2) << i;
-                pthread_setname_np(pthread_self(), s.str().c_str());
+            std::stringstream s;
+            s << std::hex << std::setfill('0') << std::setw(4) << host_->get_client() << "_reg";
+            pthread_setname_np(pthread_self(), s.str().c_str());
 #endif
-                client_registration_func();
-            });
-
-            client_registration_thread_pool_[its_thread->get_id()] = its_thread;
-        }
+            client_registration_func();
+        });
     }
 
     if (configuration_->is_watchdog_enabled()) {
@@ -151,19 +130,17 @@ void routing_manager_stub::start() {
 
 void routing_manager_stub::stop() {
     {
-        std::scoped_lock its_lock{client_registration_mutex_};
+        std::unique_lock its_lock{client_registration_mutex_};
         client_registration_running_ = false;
         client_registration_condition_.notify_all();
-    }
 
-    {
-        std::scoped_lock its_thread_pool_lock(client_registration_thread_pool_mutex_);
-        for (const auto& [thread_id, its_thread] : client_registration_thread_pool_) {
-            if (its_thread->joinable()) {
-                its_thread->join();
-            }
+        std::shared_ptr<std::thread> its_thread = client_registration_thread_;
+        client_registration_thread_.reset();
+        its_lock.unlock();
+
+        if (its_thread && its_thread->joinable()) {
+            its_thread->join();
         }
-        client_registration_thread_pool_.clear();
     }
 
     {
@@ -176,46 +153,14 @@ void routing_manager_stub::stop() {
         client_id_timer_.cancel();
     }
 
-    bool is_local_routing(configuration_->is_local_routing());
-
-#if defined(__linux__) || defined(ANDROID)
-    if (local_link_connector_)
-        local_link_connector_->stop();
-#endif // __linux__ || ANDROID
-
-    if (!is_socket_activated_) {
+    if (root_ && !is_socket_activated_) {
         root_->stop();
         root_ = nullptr;
-
-        if (is_local_routing) {
-            std::stringstream its_endpoint_path;
-            its_endpoint_path << utility::get_base_path(configuration_->get_network()) << std::hex << VSOMEIP_ROUTING_CLIENT;
-#ifdef _WIN32
-            ::_unlink(its_endpoint_path.str().c_str());
-#else
-            if (-1 == ::unlink(its_endpoint_path.str().c_str())) {
-                VSOMEIP_ERROR << "routing_manager_stub::stop() unlink failed (" << its_endpoint_path.str() << "): " << std::strerror(errno);
-            }
-#endif
-        }
     }
 
     if (local_receiver_) {
         local_receiver_->stop();
         local_receiver_ = nullptr;
-
-        if (is_local_routing) {
-            std::stringstream its_local_receiver_path;
-            its_local_receiver_path << utility::get_base_path(configuration_->get_network()) << std::hex << host_->get_client();
-#ifdef _WIN32
-            ::_unlink(its_local_receiver_path.str().c_str());
-#else
-            if (-1 == ::unlink(its_local_receiver_path.str().c_str())) {
-                VSOMEIP_ERROR << "routing_manager_stub::stop() unlink (local receiver) failed (" << its_local_receiver_path.str()
-                              << "): " << std::strerror(errno);
-            }
-#endif
-        }
     }
 }
 
@@ -736,6 +681,10 @@ void routing_manager_stub::add_known_client(client_t _client, const std::string&
     host_->add_known_client(_client, _client_host);
 }
 
+void routing_manager_stub::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    host_->add_guest(_client, _address, _port);
+}
+
 void routing_manager_stub::on_register_application(client_t _client, bool& continue_registration) {
     // Find or create a local endpoint.
     auto endpoint = host_->find_or_create_local(_client);
@@ -864,25 +813,22 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
 void routing_manager_stub::client_registration_func(void) {
     std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
-        client_registration_condition_.wait(its_lock, [this] { return (new_client_to_process() || !client_registration_running_); });
+        client_registration_condition_.wait(
+                its_lock, [this] { return !pending_client_registrations_queue_.empty() || !client_registration_running_; });
 
         if (!client_registration_running_) {
             return;
         }
 
-        if (!pending_client_registrations_queue_.empty()) {
-            // Access the first element using an iterator and remove it from the queue
-            auto [client_id, registration_type] = pending_client_registrations_queue_.front();
-            pending_client_registrations_queue_.pop_front();
-            clients_in_progress_.insert(client_id);
-            its_lock.unlock();
+        // Access the first element using an iterator and remove it from the queue
+        auto [client_id, registration_type] = std::move(pending_client_registrations_queue_.front());
+        pending_client_registrations_queue_.pop_front();
+        its_lock.unlock();
 
-            registration_func(client_id, registration_type);
+        registration_func(client_id, registration_type);
 
-            its_lock.lock();
-            clients_in_progress_.erase(client_id);
-            client_registration_condition_.notify_one();
-        }
+        its_lock.lock();
+        client_registration_condition_.notify_one();
     }
 }
 
@@ -961,113 +907,13 @@ void routing_manager_stub::remove_client_connections(client_t client_id) {
     }
 }
 
-// Checks if the next client in the queue is already being processed by another thread.
-// Deals with edge cases where a DEREGISTER is being processed and a new registration
-// request arrives for the same client, later leading to a timeout on deregistration.
-bool routing_manager_stub::new_client_to_process() {
-    bool new_client = false;
-
-    if (!pending_client_registrations_queue_.empty()) {
-        new_client = true;
-
-        auto [client_id, registration_type] = pending_client_registrations_queue_.front();
-
-        if (pending_client_registrations_queue_.size() == 1) {
-            if (clients_in_progress_.find(client_id) != clients_in_progress_.end()) {
-                VSOMEIP_WARNING << __func__ << " Client 0x" << std::hex << client_id
-                                << " is the only client for registration -> already being "
-                                << "processed by thread " << std::this_thread::get_id();
-                new_client = false;
-            }
-        } else {
-            if (clients_in_progress_.find(client_id) != clients_in_progress_.end()) {
-                VSOMEIP_INFO << __func__ << " Client 0x" << std::hex << client_id << " is already being processed by thread "
-                             << std::this_thread::get_id() << " -> pushing it back in the queue";
-                pending_client_registrations_queue_.pop_front();
-                pending_client_registrations_queue_.push_back(std::make_pair(client_id, registration_type));
-            }
-        }
-    }
-
-    return new_client;
-}
-
 void routing_manager_stub::init_routing_endpoint() {
+    bool is_successful = host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
 
-#if defined(__linux__) || defined(ANDROID)
-    if (configuration_->is_local_routing()) {
-#else
-    {
-#endif // __linux__ || ANDROID
-        bool is_successful = host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
-
-        if (!is_successful) {
-            VSOMEIP_WARNING << "Routing root creating (partially) failed. Please check your configuration.";
-        }
-#if defined(__linux__) || defined(ANDROID)
-    } else {
-        auto its_host_address = configuration_->get_routing_host_address();
-        local_link_connector_ = abstract_socket_factory::get()->create_netlink_connector(io_, its_host_address, boost::asio::ip::address(),
-                                                                                         false); // routing host doesn't need link up
-        if (local_link_connector_) {
-            local_link_connector_->register_net_if_changes_handler(std::bind(
-                    &routing_manager_stub::on_net_state_change, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-        }
-#endif // __linux__ || ANDROID
+    if (!is_successful) {
+        VSOMEIP_WARNING << "Routing root creating (partially) failed. Please check your configuration.";
     }
 }
-
-#if defined(__linux__) || defined(ANDROID)
-void routing_manager_stub::on_net_state_change(bool _is_interface, const std::string& _name, bool _is_available) {
-
-    // No changes in the link availability
-    if (_is_available == is_local_link_available_)
-        return;
-
-    VSOMEIP_INFO << "rms::" << __func__ << ": ThreadID: " << std::hex << std::this_thread::get_id() << " - " << std::boolalpha
-                 << _is_interface << " " << _name << " " << std::boolalpha << _is_available;
-
-    if (_is_interface) {
-        if (_is_available) {
-            if (!is_local_link_available_) {
-                is_local_link_available_ = true;
-                if (!root_)
-                    (void)host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
-                if (root_) {
-                    VSOMEIP_INFO << __func__ << ": Starting routing root.";
-                    root_->start();
-                } else
-                    VSOMEIP_WARNING << "Routing root creating (partially) failed. "
-                                       "Please check your configuration.";
-            }
-        } else {
-            if (is_local_link_available_) {
-                is_local_link_available_ = false;
-                VSOMEIP_INFO << __func__ << ": Stopping routing root.";
-                root_->stop();
-                root_.reset();
-
-                std::unordered_set<client_t> its_clients_to_inform;
-                auto its_epm = host_->get_endpoint_manager();
-                if (its_epm) {
-                    its_clients_to_inform = its_epm->get_connected_clients();
-                }
-
-                for (const auto client : its_clients_to_inform) {
-                    if (client != VSOMEIP_ROUTING_CLIENT) {
-                        host_->remove_local(client, false);
-                    }
-                }
-
-                std::scoped_lock its_lock(routing_info_mutex_);
-                routing_info_.clear();
-                host_->clear_local_services();
-                connection_matrix_.clear();
-            }
-        }
-    }
-}
-#endif // __linux__ || ANDROID
 
 void routing_manager_stub::on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                             minor_version_t _minor) {
@@ -2507,6 +2353,31 @@ void routing_manager_stub::remove_subscriptions(port_t _local_port, const boost:
     (void)_remote_address;
     (void)_remote_port;
     // dummy method to implement routing_host interface
+}
+
+
+bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance,
+                                        major_version_t _major) const {
+    std::scoped_lock its_lock{routing_info_mutex_};
+    for (const auto& [client, its_info] : routing_info_) {
+        auto its_service = its_info.second.find(_service);
+        if (its_service != its_info.second.end()) {
+            if (_instance == ANY_INSTANCE) {
+                return true;
+            }
+            auto its_instance = its_service->second.find(_instance);
+            if (its_instance != its_service->second.end()) {
+                if (_major == ANY_MAJOR || _major == DEFAULT_MAJOR) {
+                    return true;
+                }
+                if (_major == std::get<0>(its_instance->second)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 } // namespace vsomeip_v3

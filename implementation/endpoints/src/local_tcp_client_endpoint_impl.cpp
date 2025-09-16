@@ -154,9 +154,21 @@ void local_tcp_client_endpoint_impl::connect() {
 #if defined(__linux__) || defined(ANDROID)
             // set a user timeout
             // along the keep alives, this ensures connection closes if endpoint is unreachable
-            unsigned int opt = LOCAL_TCP_USER_TIMEOUT;
-            if (!socket_->set_user_timeout(opt)) {
-                VSOMEIP_WARNING << "ltcei::" << __func__ << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
+            if (!socket_->set_user_timeout(configuration_->get_local_tcp_user_timeout())) {
+                VSOMEIP_WARNING << "ltcei::connect: could not setsockopt(TCP_USER_TIMEOUT), errno " << errno;
+            }
+
+            // override kernel settings
+            // unfortunate, but there are plenty of custom keep-alive settings, and need to
+            // enforce some sanity here
+            if (!socket_->set_keepidle(configuration_->get_local_tcp_keepidle())) {
+                VSOMEIP_WARNING << "ltcei::connect: could not setsockopt(TCP_KEEPIDLE), errno " << errno;
+            }
+            if (!socket_->set_keepintvl(configuration_->get_local_tcp_keepintvl())) {
+                VSOMEIP_WARNING << "ltcei::connect: could not setsockopt(TCP_KEEPINTVL), errno " << errno;
+            }
+            if (!socket_->set_keepcnt(configuration_->get_local_tcp_keepcnt())) {
+                VSOMEIP_WARNING << "ltcei::connect: could not setsockopt(TCP_KEEPCNT), errno " << errno;
             }
 #endif
         }

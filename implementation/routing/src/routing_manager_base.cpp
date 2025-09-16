@@ -917,6 +917,17 @@ bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _mess
     bool is_sent(false);
     if (utility::is_request(_message->get_message_type())) {
         _message->set_client(_client);
+        if (!host_->is_routing() && !is_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
+            VSOMEIP_WARNING << std::hex << std::setfill('0') << "rmb{this=" << this << "}::send{_client=" << _client
+                            << " _message=" << std::setw(4) << _message->get_service() << "." << std::setw(4) << _message->get_method()
+                            << "." << std::setw(2) << static_cast<int>(_message->get_message_type()) << "." << std::setw(2)
+                            << static_cast<int>(_message->get_return_code()) << " _force=" << _force
+                            << "}: Service not available. instance=" << std::setw(4)<< _message->get_instance()
+                            << " version=" << std::setw(4) << _message->get_interface_version();
+            if (!_force) {
+                return is_sent;
+            }
+        }
     }
 
     std::shared_ptr<serializer> its_serializer(get_serializer());
@@ -1008,6 +1019,7 @@ services_t routing_manager_base::get_services_remote() const {
 bool routing_manager_base::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
     bool available(false);
     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
         if (_instance == ANY_INSTANCE) {
@@ -1015,7 +1027,7 @@ bool routing_manager_base::is_available(service_t _service, instance_t _instance
         }
         auto its_instance = its_service->second.find(_instance);
         if (its_instance != its_service->second.end()) {
-            if (_major == ANY_MAJOR) {
+            if (_major == ANY_MAJOR || _major == DEFAULT_MAJOR) {
                 return true;
             }
             if (std::get<0>(its_instance->second) == _major) {
@@ -1023,6 +1035,7 @@ bool routing_manager_base::is_available(service_t _service, instance_t _instance
             }
         }
     }
+
     return available;
 }
 
@@ -1092,9 +1105,14 @@ void routing_manager_base::remove_local(client_t _client,
         for (const auto& s : local_services_) {
             for (const auto& i : s.second) {
                 if (std::get<2>(i.second) == _client) {
-                    its_services.insert({s.first, i.first});
-                    host_->on_availability(s.first, i.first, availability_state_e::AS_UNAVAILABLE, std::get<0>(i.second),
-                                           std::get<1>(i.second));
+                    service_t its_service = s.first;
+                    instance_t its_instance = i.first;
+                    auto [its_major, its_minor, unused] = i.second;
+                    its_services.insert({its_service, its_instance});
+                    host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
+                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ["
+                                 << std::setw(4) << its_service << "." << std::setw(4) << its_instance << ":" << std::dec
+                                 << static_cast<int>(its_major) << "." << std::dec << its_minor << "]";
                 }
             }
         }

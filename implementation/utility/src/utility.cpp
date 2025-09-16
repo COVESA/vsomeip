@@ -11,7 +11,7 @@
 #include <intrin.h>
 #else
 #include <dlfcn.h>
-#include <errno.h>
+#include <cerrno>
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>

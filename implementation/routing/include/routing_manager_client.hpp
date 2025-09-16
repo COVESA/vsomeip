@@ -24,9 +24,6 @@ namespace vsomeip_v3 {
 
 class configuration;
 class event;
-#ifdef __linux__
-class abstract_netlink_connector;
-#endif
 class routing_manager_host;
 
 namespace protocol {
@@ -196,7 +193,7 @@ private:
     bool keepalive_is_alive_;
     std::mutex keepalive_mutex_;
 
-    mutable std::mutex sender_mutex_;
+    mutable std::recursive_mutex sender_mutex_;
     std::shared_ptr<endpoint> sender_; // --> stub
 
     mutable std::mutex receiver_mutex_;
@@ -230,9 +227,6 @@ private:
     };
     std::mutex pending_event_registrations_mutex_;
     std::set<event_data_t> pending_event_registrations_;
-
-    std::mutex incoming_subscriptions_mutex_;
-    std::map<client_t, std::set<subscription_data_t>> pending_incoming_subscriptions_;
 
     std::mutex state_condition_mutex_;
     std::condition_variable state_condition_;

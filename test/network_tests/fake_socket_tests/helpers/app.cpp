@@ -47,18 +47,22 @@ void app::offer(service_instance _si) {
 }
 
 void app::offer_event(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
     offer(_ei, vsomeip::event_type_e::ET_EVENT);
 }
 
 void app::offer_field(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
     offer(_ei, vsomeip::event_type_e::ET_FIELD);
 }
 
 void app::subscribe_event(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
     subscribe(_ei, vsomeip::event_type_e::ET_EVENT);
 }
 
 void app::subscribe_field(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
     subscribe(_ei, vsomeip::event_type_e::ET_FIELD);
 }
 
@@ -81,6 +85,7 @@ void app::request_service(service_instance _si) {
 }
 
 void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is sending: " << _ei;
     auto payload = vsomeip::runtime::get()->create_payload();
     payload->set_data(_payload);
     app_->notify(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, payload, false);

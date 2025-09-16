@@ -1,0 +1,20 @@
+{
+    "unicast": "@TEST_IP_MASTER@",
+    "logging": {
+        "level": "debug",
+        "console": "true"
+    },
+    "tracing": {
+        "enable": "true"
+    },
+    "applications": [
+        {
+            "name": "client-sample",
+            "id": "0x1344"
+        }
+    ],
+    "service-discovery": {
+        "enable": "true",
+        "multicast": "224.251.192.252"
+    }
+}

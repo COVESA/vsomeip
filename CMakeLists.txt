@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required (VERSION 3.13)
+cmake_minimum_required(VERSION 3.4...3.22)
 project (vsomeip)
 
 set (VSOMEIP_NAME vsomeip3)
@@ -11,7 +11,7 @@ set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 5)
-set (VSOMEIP_PATCH_VERSION 7)
+set (VSOMEIP_PATCH_VERSION 8)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -97,7 +97,6 @@ endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 ############################################My lib link flags####################################
 # Options
 ################################################################################
-
 # DLT
 if (DISABLE_DLT)
 set (VSOMEIP_ENABLE_DLT 0)
@@ -189,7 +188,7 @@ find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     include_directories(${Boost_INCLUDE_DIR} )
 else()
-    include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+    include_directories(SYSTEM ${Boost_INCLUDE_DIRS} )
 endif()
 
 if(Boost_FOUND)
@@ -272,6 +271,9 @@ if (MSVC)
     add_compile_options(/MD$<$<CONFIG:Debug>:d>)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
+elseif(ANDROID_CI_BUILD)
+    set( USE_RT "")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CI_BUILD -Wno-format-security -Wno-conversion -Wno-error -Wno-inconsistent-missing-override")
 else()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
@@ -327,7 +329,13 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
     set_target_properties(${VSOMEIP_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 else ()
+  if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+    # add syscall wrappers to deal with CLOEXEC
     set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
+  else ()
+    # add syscall wrappers to deal with CLOEXEC + react on BADFD
+    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open -Wl,-wrap,close -Wl,-wrap,recvfrom -Wl,-wrap,recvmsg -Wl,-wrap,sendto -Wl,-wrap,sendmsg")
+  endif ()
 endif ()
 target_include_directories(${VSOMEIP_NAME} INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>

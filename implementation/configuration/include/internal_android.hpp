@@ -34,6 +34,9 @@
 
 // VSOMEIP_BASE_PATH should be specified in Android.bp or/and Android.mk file via c/c++ compiler
 // flags. #define VSOMEIP_BASE_PATH                       "/storage/"
+#ifdef ANDROID_CI_BUILD
+#define VSOMEIP_BASE_PATH                       "/tmp/"
+#endif
 
 #define VSOMEIP_ROUTING_HOST_PORT_DEFAULT       31490
 
@@ -88,8 +91,6 @@
 #define VSOMEIP_DEFAULT_IO_THREAD_COUNT         2
 #define VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL    0
 
-#define VSOMEIP_DEFAULT_REGISTER_THREAD_COUNT   2
-
 #define VSOMEIP_DEFAULT_MAX_DISPATCH_TIME       100
 #define VSOMEIP_DEFAULT_MAX_DISPATCHERS         10
 
@@ -117,7 +118,11 @@
 #define LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP       5
 #define LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP       50
 
-#define LOCAL_TCP_USER_TIMEOUT                  3000
+// default TCP parameters, both local and external
+#define VSOMEIP_DEFAULT_TCP_USER_TIMEOUT        3000
+#define VSOMEIP_DEFAULT_TCP_KEEPIDLE            1
+#define VSOMEIP_DEFAULT_TCP_KEEPINTVL           1
+#define VSOMEIP_DEFAULT_TCP_KEEPCNT             3
 
 #define MIN_ENDPOINT_WAIT_INTERVAL              10
 #define MAX_ENDPOINT_WAIT_INTERVAL              160

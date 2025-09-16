@@ -244,21 +244,15 @@ void udp_server_endpoint_impl::start_unlocked() {
     VSOMEIP_INFO << instance_name_ << "start_unlocked: start unicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
     receive_unicast_unlocked();
 
-    if (!multicast_socket_) {
-        VSOMEIP_INFO << instance_name_ << "start_unlocked: join " << joined_.size() << " groups";
+    VSOMEIP_INFO << instance_name_ << "start_unlocked: join " << joined_.size() << " groups";
 
-        auto its_endpoint_host = endpoint_host_.lock();
-        if (its_endpoint_host) {
-            for (const auto& [its_address, its_joined] : joined_) {
-                if (!its_joined) {
-                    multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(its_address)};
-
-                    its_endpoint_host->add_multicast_option(its_join_option);
-                }
-            }
+    auto its_endpoint_host = endpoint_host_.lock();
+    if (its_endpoint_host) {
+        for (const auto& [its_address, its_joined] : joined_) {
+            VSOMEIP_INFO << instance_name_ << "start_unlocked: rejoin " << its_address << ", was joined " << its_joined;
+            multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(its_address)};
+            its_endpoint_host->add_multicast_option(its_join_option);
         }
-    } else {
-        VSOMEIP_ERROR << instance_name_ << "start_unlocked: multicast already started!";
     }
 }
 
@@ -291,12 +285,20 @@ void udp_server_endpoint_impl::receive_unicast_unlocked() {
         unicast_socket_->async_receive_from(
                 boost::asio::buffer(&unicast_recv_buffer_[0], max_message_size_), unicast_remote_,
                 [self = shared_ptr(), lifecycle_idx = lifecycle_idx_.load()](boost::system::error_code const& _error, std::size_t _bytes) {
+                    bool repeat = false;
+
                     if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
                         && _error != boost::asio::error::connection_reset && _error != boost::asio::error::operation_aborted) {
                         self->on_unicast_received(_error, _bytes);
+
                         std::scoped_lock its_lock(self->sync_);
-                        self->receive_unicast_unlocked();
-                    } else {
+                        if (lifecycle_idx == self->lifecycle_idx_.load()) {
+                            self->receive_unicast_unlocked();
+                            repeat = true;
+                        }
+                    }
+
+                    if (!repeat) {
                         VSOMEIP_WARNING << self->instance_name_
                                         << "receive_unicast_unlocked: stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
                                         << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
@@ -324,12 +326,20 @@ void udp_server_endpoint_impl::receive_multicast_unlocked() {
         multicast_socket_->async_wait(
                 socket_type::wait_read,
                 [self = shared_ptr(), its_storage, lifecycle_idx = lifecycle_idx_.load()](boost::system::error_code const& _error) {
+                    bool repeat = false;
+
                     if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
                         && _error != boost::asio::error::connection_reset && _error != boost::asio::error::operation_aborted) {
                         udp_endpoint_receive_op::storage::receive_cb(its_storage, _error);
+
                         std::scoped_lock its_lock(self->sync_);
-                        self->receive_multicast_unlocked();
-                    } else {
+                        if (lifecycle_idx == self->lifecycle_idx_.load()) {
+                            self->receive_multicast_unlocked();
+                            repeat = true;
+                        }
+                    }
+
+                    if (!repeat) {
                         VSOMEIP_WARNING << self->instance_name_
                                         << "receive_multicast_unlocked: stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
                                         << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
@@ -355,7 +365,9 @@ bool udp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition
 }
 
 bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
-    std::scoped_lock its_lock(sync_);
+    // The `mutex_` lock must be hold when modifying the `targets_` list or
+    // any field inside this list (`_target` points to this list).
+    std::scoped_lock its_lock(mutex_, sync_);
 
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
@@ -375,6 +387,8 @@ bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
 }
 
 bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) {
+    // The caller hold the lock on `mutex_`
+
     std::scoped_lock its_lock(sync_);
     bool result = false;
     if (unicast_socket_) {
@@ -386,8 +400,9 @@ bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
 }
 
 bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_type _it) {
+    // The caller hold two locks: `mutex_` and `sync_` in that order
+
     const auto its_entry = _it->second.queue_.front();
-    // The caller must hold the lock
 
 #if 0
     std::stringstream msg;
@@ -769,7 +784,7 @@ bool udp_server_endpoint_impl::is_same_subnet_unlocked(const boost::asio::ip::ad
 }
 
 void udp_server_endpoint_impl::print_status() {
-    std::scoped_lock its_lock(sync_);
+    std::scoped_lock its_lock(mutex_, sync_);
 
     VSOMEIP_ERROR << instance_name_ << "status use: " << std::dec << local_port_ << " number targets: " << std::dec << targets_.size()
                   << " recv_buffer: " << std::dec << unicast_recv_buffer_.capacity() << " multicast_recv_buffer: " << std::dec

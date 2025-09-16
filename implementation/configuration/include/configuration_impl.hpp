@@ -222,6 +222,15 @@ public:
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit(const std::string& _address, std::uint16_t _port) const;
     VSOMEIP_EXPORT endpoint_queue_limit_t get_endpoint_queue_limit_local() const;
 
+    VSOMEIP_EXPORT uint32_t get_local_tcp_user_timeout() const;
+    VSOMEIP_EXPORT uint32_t get_local_tcp_keepidle() const;
+    VSOMEIP_EXPORT uint32_t get_local_tcp_keepintvl() const;
+    VSOMEIP_EXPORT uint32_t get_local_tcp_keepcnt() const;
+    VSOMEIP_EXPORT uint32_t get_external_tcp_user_timeout() const;
+    VSOMEIP_EXPORT uint32_t get_external_tcp_keepidle() const;
+    VSOMEIP_EXPORT uint32_t get_external_tcp_keepintvl() const;
+    VSOMEIP_EXPORT uint32_t get_external_tcp_keepcnt() const;
+
     VSOMEIP_EXPORT std::uint32_t get_max_tcp_restart_aborts() const;
     VSOMEIP_EXPORT std::uint32_t get_max_tcp_connect_time() const;
 
@@ -406,6 +415,7 @@ private:
 
     void load_endpoint_queue_sizes(const configuration_element& _element);
 
+    void load_network_options(const configuration_element& _element);
     void load_tcp_restart_settings(const configuration_element& _element);
 
     void load_secure_services(const configuration_element& _element);
@@ -581,6 +591,15 @@ protected:
     std::map<std::string, std::map<std::uint16_t, endpoint_queue_limit_t>> endpoint_queue_limits_;
     endpoint_queue_limit_t endpoint_queue_limit_external_;
     endpoint_queue_limit_t endpoint_queue_limit_local_;
+
+    uint32_t local_tcp_user_timeout_;
+    uint32_t local_tcp_keepidle_;
+    uint32_t local_tcp_keepintvl_;
+    uint32_t local_tcp_keepcnt_;
+    uint32_t external_tcp_user_timeout_;
+    uint32_t external_tcp_keepidle_;
+    uint32_t external_tcp_keepintvl_;
+    uint32_t external_tcp_keepcnt_;
 
     uint32_t tcp_restart_aborts_max_;
     uint32_t tcp_connect_time_max_;

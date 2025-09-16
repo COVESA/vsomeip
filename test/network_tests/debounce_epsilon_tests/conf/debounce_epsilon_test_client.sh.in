@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# Unofficial Bash Strict Mode
+set -euo pipefail
+IFS=$'\n\t'
+
+# Name of the script.
+SCRIPT=$(basename "$0")
+readonly SCRIPT
+
+# Runs the test client.
+function main() {
+    echo -e "$SCRIPT: Starting test client."
+
+    # Start the test client.
+    export VSOMEIP_CONFIGURATION=debounce_epsilon_test_client.json
+    export VSOMEIP_APPLICATION_NAME=client-sample
+    ./debounce_epsilon_test_client &
+    client_pid="$!"
+
+    echo -e "$SCRIPT: Starting test service."
+
+    # Run the test service.
+    run_service
+
+    echo -e "$SCRIPT: Waiting for the test client to stop."
+
+    # Wait for the client to stop.
+    wait "$client_pid"
+}
+
+# Runs the test service.
+function run_service() {
+    if [[ -n "${USE_LXC_TEST:+Y}" ]]; then
+        echo -e "Starting debounce_epsilon_test_service.sh on LXC."
+        ssh -tt -i "${SANDBOX_ROOT_DIR:-""} "/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@"$LXC_TEST_SLAVE_IP" "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/debounce_epsilon_tests; ./debounce_epsilon_test_service.sh\""
+    elif [[ -n "${USE_DOCKER:+Y}" ]]; then
+        echo -e "Starting debounce_epsilon_test_service.sh on Docker."
+        docker exec "$DOCKER_IMAGE" sh -c "cd $DOCKER_TESTS && ./debounce_epsilon_test_service.sh"
+    else
+        echo -e "Please now run 'debounce_epsilon_test_service.sh' to complete this test."
+    fi
+}
+
+# Entrypoint of the script.
+main "$@"

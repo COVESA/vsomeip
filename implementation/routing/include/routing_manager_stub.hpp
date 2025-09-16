@@ -32,9 +32,6 @@
 namespace vsomeip_v3 {
 
 class configuration;
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-class abstract_netlink_connector;
-#endif // __linux__ || ANDROID
 class routing_manager_stub_host;
 
 struct debounce_filter_impl_t;
@@ -105,7 +102,8 @@ public:
     void remove_requester_policies(uid_t _uid, gid_t _gid);
 #endif // !VSOMEIP_DISABLE_SECURITY
 
-    void add_known_client(client_t _client, const std::string& _client_host);
+    void add_known_client(client_t _client, const std::string& _client_host) override;
+    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
 
     std::string get_env(client_t _client) const;
 
@@ -114,6 +112,13 @@ public:
     void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port);
 
     routing_state_e get_routing_state();
+
+    /**
+     * @brief Checks on the routing_info map if a service is being offered by an external peer.
+     *
+     * @return True if offered, false otherwise.
+     */
+    bool is_remotely_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
 private:
     void broadcast(const std::vector<byte_t>& _command) const;
@@ -160,7 +165,6 @@ private:
     inline void remove_source(client_t _source) { connection_matrix_.erase(_source); }
 
     void remove_client_connections(client_t _client);
-    bool new_client_to_process();
 
     void send_client_routing_info(const client_t _target, protocol::routing_info_entry& _entry);
     void send_client_routing_info(const client_t _target, std::vector<protocol::routing_info_entry>&& _entries);
@@ -187,10 +191,6 @@ private:
     void add_pending_security_update_handler(pending_security_update_id_t _id, const security_update_handler_t& _handler);
     void add_pending_security_update_timer(pending_security_update_id_t _id);
 
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    void on_net_state_change(bool _is_interface, const std::string& _name, bool _is_available);
-#endif
-
 private:
     routing_manager_stub_host* host_;
     boost::asio::io_context& io_;
@@ -212,14 +212,12 @@ private:
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
-    std::map<std::thread::id, std::shared_ptr<std::thread>> client_registration_thread_pool_;
-    std::mutex client_registration_thread_pool_mutex_;
+    std::shared_ptr<std::thread> client_registration_thread_;
     std::atomic<bool> client_registration_running_;
     std::mutex client_registration_mutex_;
     std::condition_variable client_registration_condition_;
 
     std::deque<std::pair<client_t, std::vector<registration_type_e>>> pending_client_registrations_queue_;
-    std::set<client_t> clients_in_progress_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> internal_client_ports_;
     const std::uint32_t max_local_message_size_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
@@ -245,13 +243,6 @@ private:
 
     mutable std::mutex requester_policies_mutex_;
     std::map<uint32_t, std::map<uint32_t, std::set<std::shared_ptr<policy>>>> requester_policies_;
-
-#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
-    // netlink connector for internal network
-    // (replacement for Unix Domain Sockets if configured)
-    std::shared_ptr<abstract_netlink_connector> local_link_connector_;
-    bool is_local_link_available_;
-#endif
 };
 
 } // namespace vsomeip_v3
