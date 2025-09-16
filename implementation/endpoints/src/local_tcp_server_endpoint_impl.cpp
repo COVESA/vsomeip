@@ -223,6 +223,9 @@ void local_tcp_server_endpoint_impl::remove_connection(const client_t& _client) 
 }
 
 void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::system::error_code const& _error) {
+    std::string remote_address{""};
+    port_t remote_port{0};
+
     if (!_error) {
         boost::system::error_code its_error;
         {
@@ -234,6 +237,9 @@ void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
                 VSOMEIP_WARNING << "ltsei::" << __func__ << ": could not read endpoint, "
                                 << "error: " << its_error.message();
             }
+
+            remote_address = remote.address().to_string();
+            remote_port = remote.port();
 
             // Nagle algorithm off
             new_connection_socket.set_option(boost::asio::ip::tcp::no_delay(true), its_error);
@@ -306,6 +312,10 @@ void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
         });
     }
     if (!_error) {
+
+        VSOMEIP_INFO << "ltsei::" << __func__ << ": server(" << local_.address().to_string() << ":" << local_.port()
+                     << ") accepted connection with client(" << remote_address << ":" << remote_port << "), endpoint > " << this;
+
         _connection->start();
     }
 }
@@ -385,10 +395,6 @@ void local_tcp_server_endpoint_impl::connection::start() {
             // don't start receiving again
             return;
         }
-
-        boost::system::error_code ec;
-        VSOMEIP_INFO << "ltsei::" << __func__ << ": accepted connection with client(" << socket_->remote_endpoint(ec).address().to_string()
-                     << ":" << socket_->remote_endpoint(ec).port() << "), endpoint > " << this;
 
         is_stopped_ = false;
         socket_->async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
