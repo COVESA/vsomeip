@@ -18,6 +18,7 @@
 
 #include "big_payload_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
+#include <common/vsomeip_app_utilities.hpp>
 
 class big_payload_test_client {
 public:

@@ -24,6 +24,7 @@ public:
     bool init();
     void start();
     void stop();
+    void on_stop();
     void offer();
     void stop_offer();
     void join_offer_thread();
@@ -38,6 +39,7 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool blocked_;
+    bool to_stop;
     big_payload_test::test_mode test_mode_;
     std::uint32_t number_of_received_messages_;
     std::thread offer_thread_;

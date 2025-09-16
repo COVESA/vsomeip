@@ -1,0 +1,35 @@
+@startuml
+
+Actor Service_consumer as SC
+
+participant routing_manager as RM
+
+SC -> RM : REQUEST
+
+RM --\ SC : ON_AVAILABLE
+
+loop for each message to send
+  SC -> RM : request
+
+  alt test_mode = QUEUE_LIMITED_GENERAL\n || test_mode = QUEUE_LIMITED_SPECIFIC
+    SC -> SC : sleep for 1 second
+  end
+end
+
+loop for each response received
+  RM --\ SC : response
+
+  SC -> SC : check sessionID
+
+  SC -> SC : check payload length
+
+  SC -> SC : check payload data
+
+  alt if received expected number of responses
+    SC -> SC : stop
+  end
+end
+
+SC -> RM : STOP_METHOD request
+
+@enduml
