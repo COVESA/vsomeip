@@ -26,8 +26,10 @@ constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_GENERAL = 0x1
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_QUEUE_LIMITED_SPECIFIC = 0x1239;
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_UDP = 0x1240;
 
-constexpr vsomeip::service_t TEST_SERVICE_INSTANCE_ID = 0x1;
+constexpr vsomeip::instance_t TEST_SERVICE_INSTANCE_ID = 0x1;
 constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
+
+constexpr vsomeip::method_t STOP_METHOD = 0x0999;
 
 enum test_mode { RANDOM, LIMITED, LIMITED_GENERAL, QUEUE_LIMITED_GENERAL, QUEUE_LIMITED_SPECIFIC, UDP, UNKNOWN };
 }

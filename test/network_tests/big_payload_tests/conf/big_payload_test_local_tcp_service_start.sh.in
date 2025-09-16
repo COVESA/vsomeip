@@ -21,4 +21,5 @@ elif [[ $# -gt 0 && $1 == "QUEUELIMITEDGENERAL" ]]; then
 else
     export VSOMEIP_CONFIGURATION=big_payload_test_local_tcp_service.json
 fi
+export VSOMEIP_APPLICATION_NAME=big_payload_test_service
 ./big_payload_test_service $1

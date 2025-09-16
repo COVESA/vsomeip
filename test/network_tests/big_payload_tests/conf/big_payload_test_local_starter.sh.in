@@ -17,7 +17,6 @@ then
     exit 1
 fi
 
-
 FAIL=0
 
 # Start the service
@@ -30,19 +29,18 @@ elif [ $# -gt 0 ] && [ $1 = "QUEUELIMITEDGENERAL" ]; then
 else
     export VSOMEIP_CONFIGURATION=big_payload_test_local.json
 fi
+export VSOMEIP_APPLICATION_NAME="service-sample"
 ./big_payload_test_service $1 &
-sleep 1
+SERVICE_PID=$!
 
 # Start the client
-if ! ./big_payload_test_client $1
-then
-    FAIL=$((FAIL+1))
-fi
+export VSOMEIP_APPLICATION_NAME="client-sample"
+./big_payload_test_client $1 || FAIL=$((FAIL+1))
 
 # Wait until service is finished
 # Fail gets incremented if service exit
 # with a non-zero exit code
-wait $! || FAIL=$((FAIL+1))
+wait $SERVICE_PID || FAIL=$((FAIL+1))
 
 # Check if client and server both exited sucessfully
 exit $FAIL

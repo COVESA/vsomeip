@@ -30,8 +30,8 @@ elif [[ $# -gt 0 && $1 == "QUEUELIMITEDGENERAL" ]]; then
 else
     export VSOMEIP_CONFIGURATION=big_payload_test_local_tcp_client.json
 fi
+export VSOMEIP_APPLICATION_NAME=big_payload_test_client
 ./big_payload_test_client $1 &
-BIG_PAYLOAD_TEST_PID=$!
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting big payload test on slave LXC"

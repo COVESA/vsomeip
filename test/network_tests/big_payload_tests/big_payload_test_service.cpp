@@ -22,10 +22,11 @@
 //
 // 	        if received messages == expected messages
 // 		        blocked = true
+//      wait for STOP_METHOD request
 //      stop
 
 big_payload_test_service::big_payload_test_service(big_payload_test::test_mode _test_mode) :
-    app_(vsomeip::runtime::get()->create_application("big_payload_test_service")), is_registered_(false), blocked_(false),
+    app_(vsomeip::runtime::get()->create_application("big_payload_test_service")), is_registered_(false), blocked_(false), to_stop(false),
     test_mode_(_test_mode), number_of_received_messages_(0), offer_thread_(std::bind(&big_payload_test_service::run, this)) {
     switch (test_mode_) {
     case big_payload_test::test_mode::RANDOM:
@@ -69,7 +70,8 @@ bool big_payload_test_service::init() {
     app_->register_message_handler(vsomeip::ANY_SERVICE, big_payload_test::TEST_SERVICE_INSTANCE_ID,
                                    big_payload_test::TEST_SERVICE_METHOD_ID,
                                    std::bind(&big_payload_test_service::on_message, this, std::placeholders::_1));
-
+    app_->register_message_handler(service_id_, big_payload_test::TEST_SERVICE_INSTANCE_ID, big_payload_test::STOP_METHOD,
+                                   std::bind(&big_payload_test_service::on_stop, this));
     app_->register_state_handler(std::bind(&big_payload_test_service::on_state, this, std::placeholders::_1));
     return true;
 }
@@ -84,6 +86,12 @@ void big_payload_test_service::stop() {
     stop_offer();
     app_->clear_all_handler();
     app_->stop();
+}
+
+void big_payload_test_service::on_stop() {
+    std::unique_lock<std::mutex> lk(mutex_);
+    to_stop = true;
+    condition_.notify_one();
 }
 
 void big_payload_test_service::join_offer_thread() {
@@ -207,12 +215,15 @@ void big_payload_test_service::run() {
             its_lock.lock();
         }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(3));
     if (test_mode_ == big_payload_test::test_mode::LIMITED || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
         || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
         || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC || test_mode_ == big_payload_test::test_mode::UDP) {
         EXPECT_EQ(expected_messages_, number_of_received_messages_);
     }
+
+    std::unique_lock<std::mutex> its_lock(mutex_);
+    EXPECT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(10), [&] { return to_stop; }));
+
     stop();
 }
 

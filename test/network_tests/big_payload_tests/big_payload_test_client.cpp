@@ -5,7 +5,6 @@
 
 #include "big_payload_test_client.hpp"
 #include "big_payload_test_globals.hpp"
-#include <common/utility.hpp>
 
 // Test steps:
 // on_message:
@@ -27,6 +26,7 @@
 // 		        FAILURE
 // 	        else
 // 		        check number of messages received
+//      send STOP_METHOD request
 //      stop
 
 big_payload_test_client::big_payload_test_client(bool _use_tcp, big_payload_test::test_mode _test_mode) :
@@ -234,6 +234,13 @@ void big_payload_test_client::run() {
             }
         }
     }
+    request_->set_service(service_id_);
+    request_->set_instance(big_payload_test::TEST_SERVICE_INSTANCE_ID);
+    request_->set_method(big_payload_test::STOP_METHOD);
+    request_->set_payload(0);
+
+    app_->send(request_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     stop();
 }
 

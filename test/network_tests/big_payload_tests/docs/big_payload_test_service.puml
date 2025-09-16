@@ -1,0 +1,27 @@
+@startuml
+
+Actor Service_provider as SP
+
+participant routing_manager as RM
+
+SP -> RM : OFFER
+
+loop while !blocked &&\n!incoming_requests.empty()
+  RM --\ SP : request
+
+  SP -> SP : check sessionID
+
+  SP -> SP : check payload size
+
+  SP -> SP : check payload data
+
+  SP -> RM : send response
+end
+
+note across
+  wait for STOP_METHOD request
+endnote
+
+RM --\ SP : STOP_METHOD request
+
+@enduml
