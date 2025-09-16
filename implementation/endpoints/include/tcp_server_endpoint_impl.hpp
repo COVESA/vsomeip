@@ -30,7 +30,7 @@ class tcp_server_endpoint_impl : public tcp_server_endpoint_base_impl {
 public:
     tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
                              boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
-    virtual ~tcp_server_endpoint_impl() = default;
+    virtual ~tcp_server_endpoint_impl();
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
@@ -123,6 +123,8 @@ private:
         std::chrono::steady_clock::time_point last_cookie_sent_;
         const std::chrono::milliseconds send_timeout_;
         const std::chrono::milliseconds send_timeout_warning_;
+
+        std::string instance_name_;
     };
 
     std::mutex acceptor_mutex_;
@@ -132,6 +134,8 @@ private:
     connections_t connections_;
     const std::uint32_t buffer_shrink_threshold_;
     const std::chrono::milliseconds send_timeout_;
+
+    std::string instance_name_;
 
 private:
     void remove_connection(connection* _connection);
