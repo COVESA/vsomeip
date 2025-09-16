@@ -1,0 +1,39 @@
+{
+    "unicast": "@TEST_IP_SLAVE@",
+    "logging": {
+        "level": "debug",
+        "console": "true"
+    },
+    "tracing": {
+        "enable": "true"
+    },
+    "applications": [
+        {
+            "name": "service-sample",
+            "id": "0x1277"
+        }
+    ],
+    "services": [
+        {
+            "service": "0x1234",
+            "instance": "0x5678",
+            "unreliable": "30509",
+            "events": [
+                {
+                    "event": "0x8421"
+                }
+            ],
+            "eventgroups": [
+                {
+                    "eventgroup": "0x0001",
+                    "events": ["0x8421"]
+                }
+            ]
+        }
+    ],
+    "routing": "routingmanagerd",
+    "service-discovery": {
+        "enable": "true",
+        "multicast": "224.251.192.252"
+    }
+}
