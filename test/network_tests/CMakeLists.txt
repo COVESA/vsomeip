@@ -100,7 +100,7 @@ endfunction()
 #     TIMEOUT 60 # Optional. Defaults to 120s.
 #     ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
 # )
-function(add_custom_test)  
+function(add_custom_test)
     set(options "")
     set(oneValueArgs NAME TIMEOUT)
     set(multiValueArgs COMMAND ENVIRONMENT)
@@ -154,6 +154,7 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(configuration_tests)
     add_subdirectory(cpu_load_tests)
     add_subdirectory(debounce_callback_tests)
+    add_subdirectory(debounce_epsilon_tests)
     add_subdirectory(debounce_filter_tests)
     add_subdirectory(debounce_frequency_tests)
     add_subdirectory(debounce_tests)
@@ -187,5 +188,5 @@ add_subdirectory(registration_check_test)
 
 # some tests require the routingmanagerd
 if (NOT MSVC)
-add_dependencies(build_network_tests routingmanagerd)
+    add_dependencies(build_network_tests routingmanagerd)
 endif ()
