@@ -1,0 +1,45 @@
+@startuml
+
+Actor service_consumer as CLI
+
+Participant routing_manager as RM
+
+Participant service_provider as SRV
+
+SRV -> RM : Registering service provider
+
+SRV -> RM : Sending service provider hostname
+
+SRV -> RM : Offer service
+
+CLI -> RM : Registering service consumer
+
+CLI -> RM : Sending service consumer hostname
+
+CLI -> RM : Request service
+
+RM --> CLI : Service available
+
+CLI -> RM : Subscribe service
+
+RM -> SRV : Sending service consumer's hostname
+
+RM -> SRV : Subscribe service
+
+note right
+
+    When service provider receives
+    subscribe it checks if
+    service consumer's hostname is the
+    same as its own
+
+end note
+
+SRV --> CLI : Subscribe ack
+
+note left
+    Service consumer stops when it
+    receives the subscribe ack
+end note
+
+@enduml
