@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# Unofficial Bash Strict Mode
+set -euo pipefail
+IFS=$'\n\t'
+
+# Name of the script.
+SCRIPT=$(basename "$0")
+readonly SCRIPT
+
+# Runs the test service.
+function main() {
+    # Service side configuration.
+    export VSOMEIP_CONFIGURATION=debounce_epsilon_test_service.json
+
+    echo -e "$SCRIPT: Starting routing host."
+
+    # Start the routing host.
+    export VSOMEIP_APPLICATION_NAME=routingmanagerd
+    ../../../examples/routingmanagerd/routingmanagerd &
+    host_pid="$!"
+
+    echo -e "$SCRIPT: Starting test service."
+
+    # Start the test service.
+    export VSOMEIP_APPLICATION_NAME=service-sample
+    ./debounce_epsilon_test_service &
+    service_pid="$!"
+
+    echo -e "$SCRIPT: Waiting for the test service to stop."
+
+    # Wait for the service to stop.
+    wait "$service_pid"
+    result="$?"
+
+    echo -e "$SCRIPT: Stopping routing host."
+
+    # Stop the routing host.
+    kill "$host_pid"
+
+    echo -e "$SCRIPT: Done."
+
+    # Returns the test result.
+    exit "$result"
+}
+
+# Entrypoint of the script.
+main "$@"
