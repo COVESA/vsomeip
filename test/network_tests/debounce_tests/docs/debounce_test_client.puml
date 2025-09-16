@@ -1,0 +1,31 @@
+@startuml
+
+Actor Service_consumer as SC
+
+participant routing_manager as RM
+
+SC -> RM : REQUEST
+
+RM --\ SC : ON_AVAILABLE
+
+SC -> RM : SUBSCRIBE
+
+RM --\ SC : SUBSCRIBE_ACK
+
+SC -> RM : request START_METHOD
+
+loop for all notifications received
+  RM --\ SC : notification
+
+  SC -> SC : check service and event
+
+  SC -> SC : compare received payload to expected\nbased on the methodID
+
+  alt if payload isnt equal OR\nhas received all expected messages
+    SC -> SC : stop test
+  end
+end
+
+SC -> RM : request STOP_METHOD
+
+@enduml

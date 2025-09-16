@@ -1,0 +1,23 @@
+@startuml
+  Actor Service_provider as SP
+
+  participant routing_manager as RM
+
+  SP -> RM : OFFER
+
+  note across
+    Wait for START_METHOD request
+  endnote
+
+  RM --\ SP : request START_METHOD
+
+  SP -> SP : sleep for 500 ms
+
+  note across
+    Depending on test_mode, payload will differ
+  endnote
+
+  loop send 10 notifications
+    SP -> RM : notification
+  end
+@enduml
