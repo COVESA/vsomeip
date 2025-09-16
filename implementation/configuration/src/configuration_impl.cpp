@@ -4500,7 +4500,7 @@ void configuration_impl::load_network_options(const configuration_element& _elem
                 external_tcp_keepcnt_ = param;
             }
         }
-    } catch (const std::exception&) {
+    } catch (...) {
         // intentionally left empty
     }
 }
