@@ -80,7 +80,10 @@ int routingmanagerd_process(bool _is_quiet) {
 
     // Create the application object, and initialize it before sighandler thread starts
     its_application = its_runtime->create_application("routingmanagerd");
-    auto its_app_initialized = its_application->init();
+    if (!its_application->init()) {
+        return -1;
+    }
+
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     std::thread sighandler_thread([]() {
         // Unblock signals for this thread only
@@ -113,22 +116,22 @@ int routingmanagerd_process(bool _is_quiet) {
         }
     });
 #endif
-    if (its_app_initialized) {
-        if (its_application->is_routing()) {
-            its_application->start();
+
+    if (its_application->is_routing()) {
+        its_application->start();
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-            if (std::this_thread::get_id() != sighandler_thread.get_id()) {
-                if (sighandler_thread.joinable()) {
-                    sighandler_thread.join();
-                }
-            } else {
-                sighandler_thread.detach();
+        if (std::this_thread::get_id() != sighandler_thread.get_id()) {
+            if (sighandler_thread.joinable()) {
+                sighandler_thread.join();
             }
-#endif
-            return 0;
+        } else {
+            sighandler_thread.detach();
         }
-        VSOMEIP_ERROR << "routingmanagerd has not been configured as routing - abort";
+#endif
+        return 0;
     }
+    VSOMEIP_ERROR << "routingmanagerd has not been configured as routing - abort";
+
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
     {
         std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);

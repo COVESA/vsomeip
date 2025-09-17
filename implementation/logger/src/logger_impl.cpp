@@ -122,7 +122,7 @@ void logger_impl::log_to_dlt(level_e _level, std::string_view _msg) {
 logger_impl* logger_impl::get() {
     // Use flag set by a custom deleter as a safety check in case something tries to log during
     // static deinitialization time, after logger is gone already. Should not happen, but one never
-    // knows... We don't expect any threads still rnning at this point, so no need to make this
+    // knows... We don't expect any threads still running at this point, so no need to make this
     // atomic.
     static bool is_destroyed{false};
     static auto deleter = [](logger_impl* ptr) {
