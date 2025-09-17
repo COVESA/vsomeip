@@ -48,7 +48,7 @@ public:
 
 #ifdef USE_DLT
 #ifndef ANDROID
-    DltContext& dlt_context();
+    static DltContext& dlt_context();
     void log_to_dlt(level_e _level, std::string_view _msg);
 #endif
 #endif

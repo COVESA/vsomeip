@@ -113,7 +113,7 @@ message::~message() try {
         // streamed. To avoid a lock, build the full logline first and stream as a
         // single argument. In C++20, could use std::osyncstream and/or std::format to simplify
         // this.
-        // Unfortunately, building the string is a bit awkward - freely concatening
+        // Unfortunately, building the string is a bit awkward - freely concatenating
         // string_views and strings is a C++26 feature.
         const std::string_view ts = timestamp();
         const std::string_view app = app_name();
@@ -171,7 +171,7 @@ message::~message() try {
         // thread-safe. To keep the API simple, construct the string here, where we have all
         // the information readily available.
         // Like above, we unfortunately have to use somewhat awkward code, as freely mixing of
-        // strings and string_view only becomes availabe in C++26.
+        // strings and string_view only becomes available in C++26.
         const std::string_view ts = timestamp();
         const std::string_view lvl = level_as_view();
         const std::string_view msg = buffer_as_view();
