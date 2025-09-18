@@ -54,6 +54,9 @@ export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 ./payload_test_service --udp &
 SERIVCE_PID=$!
 
+# Ensure that service application starts before client
+sleep 2
+
 # Display a message to show the user that he must now call the external client
 # to finish the test successfully
 if [ ! -z "$USE_LXC_TEST" ]; then
