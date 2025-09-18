@@ -24,4 +24,4 @@ std::unique_ptr<tcp_socket> asio_socket_factory::create_tcp_socket(boost::asio::
 std::unique_ptr<tcp_acceptor> asio_socket_factory::create_tcp_acceptor(boost::asio::io_context& _io) {
     return std::make_unique<asio_tcp_acceptor>(_io);
 }
-};
+}
