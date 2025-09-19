@@ -91,6 +91,7 @@ application_impl::~application_impl() {
         std::scoped_lock its_lock_start_stop{start_stop_mutex_};
         for (const auto& t : io_threads_) {
             if (t->joinable()) {
+                // NOTE: detach does not block, hence why mutex is not released/re-acquired
                 t->detach();
             }
         }
@@ -103,6 +104,7 @@ application_impl::~application_impl() {
         std::scoped_lock its_lock{dispatcher_mutex_};
         for (const auto& its_dispatcher : dispatchers_) {
             if (its_dispatcher.second->joinable()) {
+                // NOTE: detach does not block, hence why mutex is not released/re-acquired
                 its_dispatcher.second->detach();
             }
         }
@@ -423,12 +425,6 @@ void application_impl::start() {
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
             auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level, event_loop_periodicity] {
-                VSOMEIP_INFO << "io thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
-                             << name_ << ") is: " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                             << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-                        ;
 #if defined(__linux__)
                 {
                     std::stringstream s;
@@ -437,6 +433,14 @@ void application_impl::start() {
                 }
                 utility::set_thread_niceness(io_thread_nice_level);
 #endif
+
+                VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2)
+                             << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                             << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                        ;
+
                 while (true) {
                     try {
                         if (event_loop_periodicity) {
@@ -453,10 +457,24 @@ void application_impl::start() {
                                       << e.what();
                     }
                 }
+
+                VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2)
+                             << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                             << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                        ;
             });
             io_threads_.push_back(its_thread);
         }
     }
+
+    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io00"
+                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
 
     auto its_plugins = configuration_->get_plugins(name_);
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
@@ -469,12 +487,7 @@ void application_impl::start() {
             }
         }
     }
-    VSOMEIP_INFO << "io thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
-                 << ") is: " << std::this_thread::get_id()
-#if defined(__linux__)
-                 << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-            ;
+
     utility::set_thread_niceness(io_thread_nice_level);
     while (true) {
         try {
@@ -503,6 +516,13 @@ void application_impl::start() {
         std::scoped_lock its_lock{start_stop_mutex_};
         stopped_ = false;
     }
+
+    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io00"
+                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
 }
 
 void application_impl::stop() {
@@ -1722,12 +1742,14 @@ void application_impl::main_dispatch() {
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
-    VSOMEIP_INFO << "main dispatch thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " ("
-                 << name_ << ") is: " << std::hex << its_id
+
+    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch"
+                 << ", application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
-                 << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
+
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_dispatching_) {
         if (handlers_.empty() || !is_active_dispatcher(its_id)) {
@@ -1745,7 +1767,7 @@ void application_impl::main_dispatch() {
                 invoke_handler(its_handler);
 
                 if (!is_dispatching_)
-                    return;
+                    break;
 
                 its_lock.lock();
 
@@ -1755,12 +1777,19 @@ void application_impl::main_dispatch() {
 #ifdef _WIN32
                 if (!is_dispatching_) {
                     its_lock.unlock();
-                    return;
+                    break;
                 }
 #endif
             }
         }
     }
+
+    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch"
+                 << ", application '" << name_ << "', id " << std::hex << its_id
+#if defined(__linux__)
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
 }
 
 void application_impl::dispatch() {
@@ -1772,12 +1801,14 @@ void application_impl::dispatch() {
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
-    VSOMEIP_INFO << "dispatch thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
-                 << ") is: " << std::hex << its_id
+
+    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_dispatch"
+                 << ", application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
-                 << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
             ;
+
     std::unique_lock<std::mutex> its_lock(handlers_mutex_);
     while (is_active_dispatcher(its_id)) {
         if (is_dispatching_ && handlers_.empty()) {
@@ -1813,6 +1844,13 @@ void application_impl::dispatch() {
         elapsed_dispatchers_.insert(its_id);
     }
     dispatcher_condition_.notify_all();
+
+    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_dispatch"
+                 << ", application '" << name_ << "', id " << std::hex << its_id
+#if defined(__linux__)
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
 }
 
 std::shared_ptr<application_impl::sync_handler> application_impl::get_next_handler() {
@@ -2041,12 +2079,6 @@ void application_impl::clear_all_handler() {
 }
 
 void application_impl::shutdown() {
-    VSOMEIP_INFO << "shutdown thread id from application: " << std::hex << std::setfill('0') << std::setw(4) << client_ << " (" << name_
-                 << ") is: " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                 << " TID: " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-            ;
 #if defined(__linux__) || defined(__QNX__)
     boost::asio::detail::posix_signal_blocker blocker;
     {
@@ -2055,6 +2087,13 @@ void application_impl::shutdown() {
         pthread_setname_np(pthread_self(), s.str().c_str());
     }
 #endif
+
+    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown"
+                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
 
     {
         std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
@@ -2143,17 +2182,26 @@ void application_impl::shutdown() {
     }
 
     try {
-        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
-        for (const auto& t : io_threads_) {
+        std::unique_lock its_lock_start_stop{start_stop_mutex_};
+        std::vector<std::shared_ptr<std::thread>> its_threads = io_threads_;
+        io_threads_.clear();
+        its_lock_start_stop.unlock();
+        for (auto& t : its_threads) {
             if (t->joinable()) {
                 t->join();
             }
         }
-        io_threads_.clear();
     } catch (const std::exception& e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": joining threads, "
                       << " catched exception: " << e.what();
     }
+
+    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown"
+                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+            ;
 }
 
 bool application_impl::is_routing() const {
