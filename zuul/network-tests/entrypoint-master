@@ -69,8 +69,6 @@ do
 			fi
 
 			kill %1
-			kill -USR2 %2 || :
-			kill -INT %2 || :
 			run-both kill -KILL -1 || :
 		done
 	done
