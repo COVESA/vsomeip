@@ -127,6 +127,7 @@ message::~message() try {
         output += msg;
         output += '\n';
         std::cout << output;
+        std::cout.flush();
 
 #elif !defined(ANDROID_CI_BUILD)
         static std::string app = runtime::get_property("LogApplication");
