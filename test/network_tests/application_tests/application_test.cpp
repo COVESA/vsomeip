@@ -48,7 +48,6 @@ TEST_F(someip_application_test, start_stop_application) {
         app_->start();
     });
     EXPECT_TRUE(its_promise.get_future().get());
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     app_->stop();
     t.join();
 }
@@ -81,7 +80,6 @@ TEST_F(someip_application_test, start_stop_application_multiple_offer_service) {
             app_->start();
         });
         EXPECT_TRUE(its_promise.get_future().get());
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         app_->stop_offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
@@ -119,7 +117,6 @@ TEST_F(someip_application_test, stop_application_twice) {
         app_->start();
     });
     EXPECT_TRUE(its_promise.get_future().get());
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     app_->stop();
     t.join();
@@ -229,7 +226,6 @@ protected:
         shutdown_thread_.join();
         app_->stop();
         app_.reset();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -326,7 +322,6 @@ protected:
         shutdown_thread_.join();
         app_->stop();
         app_.reset();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     void on_state(vsomeip::state_type_e _state) {
