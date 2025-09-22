@@ -1648,7 +1648,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
 #endif
                 std::unique_lock its_registration_lock(registration_state_mutex_);
                 if (state_ == inner_state_type_e::ST_REGISTERING) {
-                    if (send_registered_ack() && send_pending_commands()) {
+                    if (send_registered_ack()) {
                         VSOMEIP_INFO << "Application/Client " << std::hex << std::setfill('0') << std::setw(4) << get_client() << " ("
                                      << host_->get_name() << ") is registered.";
 
@@ -1657,8 +1657,11 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                             std::scoped_lock its_register_application_lock{register_application_timer_mutex_};
                             register_application_timer_.cancel();
                         }
-
                         start_keepalive();
+                        if (!send_pending_commands()) {
+                            VSOMEIP_WARNING << "Application/Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                                            << " (" << host_->get_name() << ") Could not send pending offers";
+                        }
                         {
                             // Notify stop() call about clean deregistration
                             std::scoped_lock its_lock(state_condition_mutex_);

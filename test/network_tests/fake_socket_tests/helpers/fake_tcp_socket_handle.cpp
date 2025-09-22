@@ -97,10 +97,19 @@ void fake_tcp_socket_handle::shutdown() {
 }
 
 [[nodiscard]] bool fake_tcp_socket_handle::bind(boost::asio::ip::tcp::endpoint const& _ep) {
-    auto const lock = std::scoped_lock(mtx_);
     TEST_LOG << "[fake-socket] calling bind on: " << socket_id_ << " with: " << _ep;
-    local_ep_ = _ep;
-    return true;
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+    if (sm) {
+        if (sm->bind_socket(*this)) {
+            auto const lock = std::scoped_lock(mtx_);
+            local_ep_ = _ep;
+            return true;
+        }
+    }
+    return false;
 }
 
 boost::asio::ip::tcp::endpoint fake_tcp_socket_handle::local_endpoint() {
@@ -329,7 +338,7 @@ void fake_tcp_socket_handle::set_app_name(std::string const& _name) {
     socket_id_.app_name_ = _name;
 }
 
-std::string fake_tcp_socket_handle::get_app_name() {
+std::string fake_tcp_socket_handle::get_app_name() const {
     auto const lock = std::scoped_lock(mtx_);
     return socket_id_.app_name_;
 }
@@ -455,7 +464,7 @@ void fake_tcp_acceptor_handle::set_app_name(std::string const& _name) {
     app_name_ = _name;
 }
 
-std::string fake_tcp_acceptor_handle::get_app_name() {
+std::string fake_tcp_acceptor_handle::get_app_name() const {
     auto const lock = std::scoped_lock(mtx_);
     return app_name_;
 }

@@ -167,6 +167,11 @@ void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _e
     return true;
 }
 
+[[nodiscard]] bool socket_manager::bind_socket(fake_tcp_socket_handle const& _handle) {
+    auto const lock = std::scoped_lock(mtx_);
+    return fail_on_bind_.count(_handle.get_app_name()) == 0;
+}
+
 void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
     auto acceptor = [&]() -> std::shared_ptr<fake_tcp_acceptor_handle> {
         auto const lock = std::scoped_lock(mtx_);
@@ -276,6 +281,14 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
         auto const it = name_to_context_.find(_app);
         return it != name_to_context_.end() && it->second != nullptr;
     });
+}
+void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
+    auto lock = std::unique_lock(mtx_);
+    if (fail) {
+        fail_on_bind_.insert(_app);
+    } else {
+        fail_on_bind_.erase(_app);
+    }
 }
 
 [[nodiscard]] bool socket_manager::await_connectable(std::string const& _app, std::chrono::milliseconds _timeout) {
