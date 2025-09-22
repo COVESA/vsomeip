@@ -25,7 +25,10 @@ x-common:
     context: ../../..
     dockerfile: vsomeip/zuul/network-tests/Dockerfile
   cap_add:
-    - NET_ADMIN
+    - "NET_ADMIN"
+    - "PERFMON"
+    - "SYS_ADMIN"
+    - "SYS_PTRACE"
   environment:
     ENABLE_COVERAGE: ${ENABLE_COVERAGE-False} # empty to inherit from parent environment (Zuul/Ansible)
     GLOBAL_TIMEOUT: 240 minutes

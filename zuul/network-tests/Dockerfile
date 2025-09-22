@@ -24,6 +24,7 @@ RUN export DEBIAN_FRONTEND=noninteractive;\
         tcpdump\
         valgrind\
         socat \
+        strace \
         ;\
     apt-get autoremove --purge --yes;\
     apt-get clean;\
