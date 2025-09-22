@@ -170,6 +170,8 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
+    void fail_on_bind(std::string const& _app, bool _fail);
+
 private:
     static std::shared_ptr<fake_socket_factory> factory_;
     std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};

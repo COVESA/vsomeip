@@ -386,6 +386,52 @@ TEST_F(test_client_helper, handle_early_routing_info_within_server_after_reconne
                                                        std::chrono::seconds(6)));
 }
 
+TEST_F(test_client_helper, missing_initial_events) {
+    /**
+     * Regression test for the following scenario:
+     * 0. router starts
+     * 1. server starts
+     * 2. server can not bind to port to connect to router
+     * 3. server offers field
+     * 4. server sets initial value
+     * 5. client connects to router
+     * 6. client requests the service
+     * 7. client subscribes
+     * 8. server can connect to router
+     * 9. server receives subscription
+     * 10. client receives confirmation
+     * 11. sometimes the initial field is missing
+     **/
+    start_router();
+    // 2.
+    fail_on_bind(server_name_, true);
+    // 1.
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    // 3.
+    server_->offer(service_instance_);
+    server_->offer_event(offered_event_);
+    server_->offer_field(offered_field_);
+    // 4.
+    send_field_message();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    // 5.
+    client_ = start_client(client_name_);
+    ASSERT_NE(client_, nullptr);
+    ASSERT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+    // 6. + 7.
+    client_->request_service(service_instance_);
+    client_->subscribe_field(offered_field_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    // 8.
+    fail_on_bind(server_name_, false);
+    ASSERT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_),
+                                                       std::chrono::seconds(3)));
+
+    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+}
+
+
 TEST_F(test_client_helper, handle_late_clean_up_within_server_after_reconnect) {
     start_apps();
     send_field_message();

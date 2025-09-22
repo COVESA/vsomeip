@@ -127,4 +127,7 @@ void base_fake_socket_fixture::clear_command_record(std::string const& _from, st
                                                               std::chrono::milliseconds _timeout) {
     return socket_manager_->wait_for_command(_from, _to, _id, _timeout);
 }
+void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail) {
+    socket_manager_->fail_on_bind(_app, _fail);
+}
 }

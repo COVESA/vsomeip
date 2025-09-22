@@ -173,7 +173,7 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
     void block_on_close_for(std::optional<std::chrono::milliseconds> _block_time);
 
     void set_app_name(std::string const& _name);
-    std::string get_app_name();
+    std::string get_app_name() const;
 
     /**
      * If called, then the inner_close call is going to be ignored.
@@ -208,7 +208,7 @@ private:
     boost::asio::ip::tcp::endpoint local_ep_;
     boost::asio::ip::tcp::endpoint remote_ep_;
     std::optional<std::chrono::milliseconds> block_on_close_time_;
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
 };
 
 /**
@@ -280,14 +280,14 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
     [[nodiscard]] bool is_awaiting_connection();
 
     void set_app_name(std::string const& _name);
-    std::string get_app_name();
+    std::string get_app_name() const;
 
 private:
     struct connection {
         std::weak_ptr<fake_tcp_socket_handle> socket_;
         connect_handler handler_;
     };
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
     bool is_open_{false};
     fd_t fd_{0};
     std::optional<connection> connection_;

@@ -51,6 +51,11 @@ public:
     [[nodiscard]] bool await_assignment(std::string const& _app, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
+     *
+     */
+    void fail_on_bind(std::string const& _app, bool fail);
+
+    /**
      * Waits until either the timeout expires, or the application associated
      * with this name called async_accept on some fake_acceptor.
      * Useful to await the start of the routing application.
@@ -167,6 +172,10 @@ public:
     [[nodiscard]] bool bind_acceptor(boost::asio::ip::tcp::endpoint const& _ep, std::weak_ptr<fake_tcp_acceptor_handle> _state);
 
     /**
+     **/
+    [[nodiscard]] bool bind_socket(fake_tcp_socket_handle const& _handle);
+
+    /**
      * Searches for a fake_tcp_acceptor_handle @see socket_manager::bind_acceptor(),
      * and forwards the connect request from the passed in handle.
      **/
@@ -206,6 +215,7 @@ private:
     std::map<std::string, size_t> app_name_to_ignore_connections_count_;
     std::map<std::string, std::vector<boost::system::error_code>> app_to_next_connection_errors_;
     std::set<std::string> connections_to_ignore_;
+    std::set<std::string> fail_on_bind_;
 };
 }
 
