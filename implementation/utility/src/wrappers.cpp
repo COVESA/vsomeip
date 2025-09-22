@@ -5,11 +5,12 @@
 
 #ifdef __linux__
 
+#include <boost/stacktrace.hpp>
 #include <cerrno>
-#include <execinfo.h> // for backtrace()
-#include <fcntl.h>
 #include <cstdlib>
 #include <cstdio>
+#include <fcntl.h>
+#include <iostream>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -166,28 +167,14 @@ void react(int fd, const char* func) {
     // 1) application accidentally close'd a descriptor that belongs to libvsomeip
     // 2) libvsomeip itself double close'd a descriptor
 
-    // stderr
-    fprintf(stderr, "[libvsomeip] %s(%d) failed with errno EBADF, descriptor leak!\n", func, fd);
-    fflush(stderr);
-    // libdlt (or well, stdout/stderr in case of no libdlt..)
     VSOMEIP_FATAL << func << "(" << fd << ") failed with errno EBADF, descriptor leak!";
+    std::cerr << "[libvsomeip] " << func << "(" << fd << ") failed with errno EBADF, descriptor leak!\n";
 
-    // Backtrace is not supported on android NDK, to be checked in the future
-#if !defined(ANDROID_CI_BUILD)
-    void* callstack[128];
-    int nframes = backtrace(callstack, 128);
-    char** symbols = backtrace_symbols(callstack, nframes);
-    for (int i = 0; i < nframes; ++i) {
-        // stderr
-        fprintf(stderr, "[libvsomeip] %s\n", symbols[i]);
-        fflush(stderr);
-        // libdlt
-        VSOMEIP_FATAL << symbols[i];
+    const auto st = boost::stacktrace::stacktrace();
+    for (const auto& frame : st) {
+        VSOMEIP_FATAL << frame;
+        std::cerr << frame;
     }
-
-    // see backtrace(3), caller needs to free memory after use, `backtrace` will malloc it
-    free(symbols);
-#endif
 
     if (getenv(VSOMEIP_ENV_ABORT_ON_CRIT_SYSCALL_ERROR)) {
         abort();
