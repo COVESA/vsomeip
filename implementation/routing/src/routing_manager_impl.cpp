@@ -1326,7 +1326,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
                 VSOMEIP_ERROR << "Received message on invalid port: [" << std::hex << std::setfill('0') << std::setw(4) << its_service
                               << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_method << "." << std::setw(4)
                               << its_client << "." << std::setw(4) << its_session << "] from: " << _remote_address.to_string() << ":"
-                              << std::dec << _remote_port;
+                              << std::dec << _remote_port << ", multicast: " << std::boolalpha << _is_multicast;
             }
             // Ignore messages with invalid message type
             if (_size >= VSOMEIP_MESSAGE_TYPE_POS) {
