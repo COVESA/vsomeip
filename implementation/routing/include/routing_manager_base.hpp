@@ -292,6 +292,9 @@ protected:
     mutable std::mutex known_clients_mutex_;
     std::map<client_t, std::string> known_clients_;
 
+    mutable std::mutex guests_mutex_;
+    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> guests_;
+
     mutable std::mutex env_mutex_;
     std::string env_;
 
@@ -304,9 +307,6 @@ protected:
 private:
     services_t services_;
     mutable std::mutex services_mutex_;
-
-    mutable std::mutex guests_mutex_;
-    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> guests_;
 
     std::mutex add_known_client_mutex_;
 

@@ -195,7 +195,6 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
     client_t its_subscriber;
     uint8_t its_check_status(0);
     std::uint16_t its_subscription_id(PENDING_SUBSCRIPTION_ID);
-    port_t its_port(ILLEGAL_PORT);
 
     std::vector<byte_t> its_buffer(_data, _data + _size);
     protocol::error_e its_error;
@@ -238,7 +237,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
         protocol::deregister_application_command its_command;
         its_command.deserialize(its_buffer, its_error);
         if (its_error == protocol::error_e::ERROR_OK)
-            update_registration(its_command.get_client(), registration_type_e::DEREGISTER, _remote_address, its_port);
+            update_registration(its_command.get_client(), registration_type_e::DEREGISTER, _remote_address, _remote_port);
         else
             VSOMEIP_ERROR << __func__ << ": deserializing register application failed (" << std::dec << static_cast<int>(its_error) << ")";
 
