@@ -4301,7 +4301,8 @@ bool routing_manager_impl::get_guest(client_t _client, boost::asio::ip::address&
 
 void routing_manager_impl::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
 
-    routing_manager_base::add_guest(_client, _address, _port);
+    std::scoped_lock its_lock(guests_mutex_);
+    guests_[_client] = std::make_pair(_address, _port);
 }
 
 void routing_manager_impl::remove_guest(client_t _client) {
