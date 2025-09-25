@@ -1,5 +1,34 @@
 Changes
 =======
+v3.5.10
+- global
+  - Resolve build error when compiling using gcc 9.
+  - Improve logging of network states by periodically
+    dumping the state of /proc/net/tcp+udp
+  - Minor logger improvements
+  - Improve logging consistency of UDP server endpoint
+  - Add missing MSG_NOSIGNAL to send_credentials to avoid SIGPIPE
+  - Use Boost stacktrace instead of execinfo
+
+- endpoint
+  - Remove use of SO_REUSEPORT in UDP server endpoint
+
+- application
+  - Fix deadlock on stop
+
+- routing
+  - Adjust registration state before offerings
+  - Rework of add_guest to avoid issues on (de)registration
+
+- tests
+ - network tests
+    - Fix and/or document big_payload_test,
+      debounce_test, external_local_payload_test_client_external
+    - Create test to validate hostname config
+    - Remove client_id tests from whitelist
+    - Remove redundant kill
+    - Add strace utility to network tests containers
+
 v3.5.9
 - global
   - Add vsomeip version to cmake log
