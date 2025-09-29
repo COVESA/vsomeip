@@ -139,6 +139,11 @@ void tcp_client_endpoint_impl::connect() {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "
                             << "SO_REUSEADDR: " << its_error.message() << " remote:" << get_address_port_remote();
         }
+
+        // force always TCP RST on close/shutdown, in order to:
+        // 1) avoid issues with TIME_WAIT, which otherwise lasts for 120 secs with a
+        // non-responding endpoint (see also 4396812d2)
+        // 2) handle by default what needs to happen at suspend/shutdown
         socket_->set_option(boost::asio::socket_base::linger(true, 0), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tcp_client_endpoint::connect: couldn't enable "

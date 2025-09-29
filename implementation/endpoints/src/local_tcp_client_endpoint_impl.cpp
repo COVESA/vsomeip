@@ -178,13 +178,11 @@ void local_tcp_client_endpoint_impl::connect() {
 #endif
         }
 
-        // Setting the TIME_WAIT to 0 seconds forces RST to always be sent in reponse to a FIN
-        // Since this is endpoint for internal communication, setting the TIME_WAIT to 1-5 seconds
-        // should be enough to ensure the ACK to the FIN arrives to the server endpoint.
-        //
-        // A longer linger is only necessary if the local client keepalive is not enabled.
-        const auto linger_duration = configuration_->is_local_clients_keepalive_enabled() ? 1 : 5;
-        socket_->set_option(boost::asio::socket_base::linger(true, linger_duration), its_error);
+        // force always TCP RST on close/shutdown, in order to:
+        // 1) avoid issues with TIME_WAIT, which otherwise lasts for 120 secs with a
+        // non-responding endpoint (see also 4396812d2)
+        // 2) handle by default what needs to happen at suspend/shutdown
+        socket_->set_option(boost::asio::socket_base::linger(true, 0), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
                             << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port() << " endpoint > " << this
