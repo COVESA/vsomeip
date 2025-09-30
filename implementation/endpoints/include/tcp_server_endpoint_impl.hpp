@@ -55,8 +55,6 @@ public:
     void receive();
     void print_status();
 
-    bool is_suspended() const;
-
     /// @brief Disconnects from the given client.
     ///
     /// @param _client ID of the remote client.
