@@ -1176,19 +1176,6 @@ void endpoint_manager_impl::add_multicast_option(const multicast_option_t& _opti
     options_condition_.notify_one();
 }
 
-bool endpoint_manager_impl::check_options_queue() {
-
-    if (options_queue_.empty()) {
-        return false;
-    }
-
-    if (!static_cast<routing_manager_impl*>(rm_)->is_external_routing_ready()) {
-        return false;
-    }
-
-    return true;
-}
-
 void endpoint_manager_impl::process_multicast_options() {
     constexpr unsigned MAX_REPEAT_DELAY_MS = 32;
     constexpr unsigned INITIAL_REPEAT_DELAY_MS = 1;
@@ -1196,7 +1183,7 @@ void endpoint_manager_impl::process_multicast_options() {
 
     std::unique_lock<std::mutex> its_lock(options_mutex_);
     while (is_processing_options_) {
-        options_condition_.wait(its_lock, [this] { return check_options_queue() || !is_processing_options_; });
+        options_condition_.wait(its_lock, [this] { return !options_queue_.empty() || !is_processing_options_; });
 
         if (!is_processing_options_) {
             return;
