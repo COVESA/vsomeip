@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -57,7 +58,15 @@ major_version_t event::get_version() const {
 }
 
 void event::set_version(major_version_t _major) {
-
+    auto major = update_->get_interface_version();
+    if (major == _major) {
+        return;
+    }
+    if (major != 0x00) {
+        VSOMEIP_ERROR << __func__ << std::hex << ": Trying to change version from non-default value. old=" << static_cast<int>(major)
+                      << " new=" << static_cast<int>(_major);
+        return;
+    }
     current_->set_interface_version(_major);
     update_->set_interface_version(_major);
 }
@@ -728,8 +737,17 @@ reliability_type_e event::get_reliability() const {
 }
 
 void event::set_reliability(const reliability_type_e _reliability) {
-
-    reliability_ = _reliability;
+    if (reliability_.load(std::memory_order_acquire) == _reliability) {
+        return;
+    }
+    if (reliability_ != reliability_type_e::RT_UNKNOWN) {
+        VSOMEIP_ERROR << __func__ << std::hex << ": Trying to change reliability from non-default value. old="
+                      << static_cast<int>(reliability_.load(std::memory_order_acquire)) << " new=" << static_cast<int>(_reliability);
+        return;
+    }
+    current_->set_reliable(_reliability == reliability_type_e::RT_RELIABLE);
+    update_->set_reliable(_reliability == reliability_type_e::RT_RELIABLE);
+    reliability_.store(_reliability, std::memory_order_release);
 }
 
 void event::remove_pending(const std::shared_ptr<endpoint_definition>& _target) {
