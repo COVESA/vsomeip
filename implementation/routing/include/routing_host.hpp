@@ -39,8 +39,6 @@ public:
     virtual std::string get_env(client_t _client) const = 0;
 
     virtual void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port) = 0;
-
-    virtual routing_state_e get_routing_state() = 0;
 };
 
 } // namespace vsomeip_v3

@@ -111,8 +111,6 @@ public:
 
     void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port);
 
-    routing_state_e get_routing_state();
-
     /**
      * @brief Checks on the routing_info map if a service is being offered by an external peer.
      *
