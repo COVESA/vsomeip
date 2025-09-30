@@ -91,7 +91,6 @@ private:
 
     // process join/leave options
     void process_multicast_options();
-    bool check_options_queue();
 
     bool is_used_endpoint(endpoint* const _endpoint) const;
 
