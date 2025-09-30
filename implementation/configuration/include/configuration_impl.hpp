@@ -183,6 +183,7 @@ public:
     VSOMEIP_EXPORT std::uint32_t get_sd_offer_debounce_time() const;
     VSOMEIP_EXPORT std::uint32_t get_sd_find_debounce_time() const;
     VSOMEIP_EXPORT bool get_sd_wait_route_netlink_notification() const;
+    VSOMEIP_EXPORT uint32_t get_sd_stop_offer_watchdog_time() const override;
 
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
@@ -484,6 +485,7 @@ protected:
     uint8_t sd_find_initial_debounce_reps_;
     std::uint32_t sd_find_initial_debounce_time_;
     bool sd_wait_route_netlink_notification_;
+    uint32_t sd_stop_offer_watchdog_time_;
 
     std::map<std::string, std::set<uint16_t>> magic_cookies_;
 
@@ -562,6 +564,7 @@ protected:
         ET_DEFAULT_MAX_DISPATCHERS,
         ET_WAIT_ROUTE_NETLINK_NOTFICATION,
         ET_REQUEST_DEBOUNCE_TIME,
+        ET_STOP_OFFER_WATCHDOG,
         ET_MAX
     };
 

@@ -169,6 +169,12 @@ public:
     virtual std::uint32_t get_sd_offer_debounce_time() const = 0;
     virtual std::uint32_t get_sd_find_debounce_time() const = 0;
     virtual bool get_sd_wait_route_netlink_notification() const = 0;
+    /**
+     * @brief Get the timeout of the service discovery watchdog for stop offers.
+     *
+     * @return timeout value.
+     */
+    virtual uint32_t get_sd_stop_offer_watchdog_time() const = 0;
 
     // Trace configuration
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;

@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <set>
+#include <unordered_set>
 #include <forward_list>
 #include <atomic>
 #include <tuple>
@@ -20,6 +21,7 @@
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../routing/include/types.hpp"
 #include "../../routing/include/remote_subscription.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 #include "service_discovery.hpp"
 #include "ip_option_impl.hpp"
@@ -128,7 +130,7 @@ private:
     void process_serviceentry(std::shared_ptr<serviceentry_impl>& _entry, const std::vector<std::shared_ptr<option_impl>>& _options,
                               bool _unicast_flag, std::vector<std::shared_ptr<message_impl>>& _resubscribes, bool _received_via_multicast,
                               const sd_acceptance_state_t& _sd_ac_state);
-    void check_sent_offers(const message_impl::entries_t& _entries, const boost::asio::ip::address& _remote_address) const;
+    void check_sent_offers(const message_impl::entries_t& _entries, const boost::asio::ip::address& _remote_address);
     void process_offerservice_serviceentry(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                            ttl_t _ttl, const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                                            const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
@@ -279,6 +281,13 @@ private:
                                                   const std::shared_ptr<subscription>& _subscription);
     void deserialize_data(const byte_t* _data, const length_t& _size, std::shared_ptr<message_impl>& _message);
 
+    /**
+     * @brief Verifies if stop offer commands are successfully sent for all the externally offered services that are collected on suspend.
+     *
+     * @param error boost steady timer error code.
+     */
+    void check_stopped_services_on_suspend(const boost::system::error_code& error);
+
 private:
     boost::asio::io_context& io_;
     service_discovery_host* host_;
@@ -402,6 +411,11 @@ private:
 
     std::mutex offer_mutex_;
     std::mutex check_ttl_mutex_;
+
+    boost::asio::steady_timer suspend_stop_offer_watchdog_;
+    std::mutex suspend_stop_offer_mutex_;
+    service_instance_map<std::unordered_set<major_version_t>> suspend_stop_offer_services_;
+    std::chrono::milliseconds stop_offer_watchdog_time_;
 };
 
 } // namespace sd
