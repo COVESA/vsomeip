@@ -614,10 +614,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                         bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_SERVICE_POS_MIN]);
                                 const method_t its_method =
                                         bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_METHOD_POS_MIN]);
-                                const session_t its_session =
-                                        bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_SESSION_POS_MIN]);
                                 std::scoped_lock its_clients_lock{its_server->clients_mutex_};
-                                its_server->clients_[to_clients_key(its_service, its_method, its_client)][its_session] = remote_;
+                                its_server->clients_to_target_[to_clients_key(its_service, its_method, its_client)] = remote_;
                             }
                         }
                         if (!magic_cookies_enabled_) {

@@ -689,9 +689,8 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                         const client_t its_client = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_CLIENT_POS_MIN]);
                         if (its_client != MAGIC_COOKIE_CLIENT) {
                             const method_t its_method = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
-                            const session_t its_session = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SESSION_POS_MIN]);
                             std::scoped_lock its_clients_lock(clients_mutex_);
-                            clients_[to_clients_key(its_service, its_method, its_client)][its_session] = _remote;
+                            clients_to_target_[to_clients_key(its_service, its_method, its_client)] = _remote;
                         }
                     }
                     if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
@@ -713,9 +712,8 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                             if (utility::is_request(res.second[VSOMEIP_MESSAGE_TYPE_POS])) {
                                 const client_t its_client = bithelper::read_uint16_be(&res.second[VSOMEIP_CLIENT_POS_MIN]);
                                 if (its_client != MAGIC_COOKIE_CLIENT) {
-                                    const session_t its_session = bithelper::read_uint16_be(&res.second[VSOMEIP_SESSION_POS_MIN]);
                                     std::scoped_lock its_clients_lock(clients_mutex_);
-                                    clients_[to_clients_key(its_service, its_method, its_client)][its_session] = _remote;
+                                    clients_to_target_[to_clients_key(its_service, its_method, its_client)] = _remote;
                                 }
                             }
                             its_host->on_message(&res.second[0], static_cast<uint32_t>(res.second.size()), this, _is_multicast,
