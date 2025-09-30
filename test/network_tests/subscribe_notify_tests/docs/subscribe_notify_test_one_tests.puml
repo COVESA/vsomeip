@@ -1,0 +1,51 @@
+@startuml subscribe_notify_test_one_tests
+
+Actor service_consumer as CLI
+
+participant service_provider as SRV
+
+SRV -> CLI : Offer service
+
+loop Sending notifications
+
+    CLI -> SRV : Set payload 0x01
+
+    CLI -> SRV : Subscribe service
+
+    SRV -> CLI : Send initial events for eventgroup 0x01
+
+    SRV -> CLI : Send initial events for eventgroup 0x02
+
+    note left
+
+        The service consumer
+        will check the received
+        initial events,namely
+        if it received two notifications
+        for the event that belongs
+        to both eventgroups
+
+    end note
+
+    CLI -> SRV : Set payload 0x02
+
+    SRV -> CLI : Notify all events with payload 0x02
+
+    note left
+
+        The service consumer
+        will also check the received
+        notifications sent by the
+        service provider
+
+    end note
+
+    CLI -> SRV : Set payload 0x03
+
+    SRV -> CLI : Notify all events with payload 0x03
+
+    CLI -> SRV : Unsubscribe service
+
+end
+
+CLI -> SRV : Shutdown

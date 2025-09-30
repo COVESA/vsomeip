@@ -22,10 +22,12 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=$2
 # start daemon
+export VSOMEIP_APPLICATION_NAME=server-routingmanagerd
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services
+export VSOMEIP_APPLICATION_NAME=server-application
 ./subscribe_notify_test_one_event_two_eventgroups_service $1 &
 PID_SERVICE=$!
 

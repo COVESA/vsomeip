@@ -31,11 +31,13 @@ fi
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=$2
+export VSOMEIP_APPLICATION_NAME=client-routingmanagerd
 # start daemon
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the client
+export VSOMEIP_APPLICATION_NAME=client-application
 ./subscribe_notify_test_one_event_two_eventgroups_client $1 &
 PID_CLIENT=$!
 sleep 1
