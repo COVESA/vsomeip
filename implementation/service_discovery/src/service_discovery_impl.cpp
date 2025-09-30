@@ -57,7 +57,8 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     remaining_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(_host->get_io()), main_phase_timer_(_host->get_io()),
     is_suspended_(false), is_diagnosis_(false), last_msg_received_timer_(_host->get_io()),
-    last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)) {
+    last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)),
+    suspend_stop_offer_watchdog_{_host->get_io()}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME} {
 
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
 }
@@ -126,6 +127,10 @@ void service_discovery_impl::init() {
     ttl_factor_offers_ = configuration_->get_ttl_factor_offers();
     ttl_factor_subscriptions_ = configuration_->get_ttl_factor_subscribes();
     last_msg_received_timer_timeout_ = cyclic_offer_delay_ + (cyclic_offer_delay_ / 10);
+    stop_offer_watchdog_time_ = std::chrono::milliseconds(configuration_->get_sd_stop_offer_watchdog_time());
+    if (stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
+        VSOMEIP_INFO << "sdi::" << __func__ << " stop offer watchdog enabled.";
+    }
 }
 
 void service_discovery_impl::start() {
@@ -166,6 +171,10 @@ void service_discovery_impl::start() {
         }
     }
     is_suspended_ = false;
+    if (stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
+        std::scoped_lock lock{suspend_stop_offer_mutex_};
+        suspend_stop_offer_watchdog_.cancel();
+    }
     start_main_phase_timer();
     start_offer_debounce_timer(true);
     start_find_debounce_timer(true);
@@ -1164,29 +1173,45 @@ void service_discovery_impl::sent_messages(const byte_t* _data, length_t _size, 
 }
 
 // Entry processing
-void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _entries,
-                                               const boost::asio::ip::address& _remote_address) const {
+void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _entries, const boost::asio::ip::address& _remote_address) {
 
     // only the offers messages sent by itself to multicast or unicast will be verified
     // the another messages sent by itself will be ignored here
     // the multicast offers are checked when SD receive its
     // the unicast offers are checked in the send_cbk method, when SD send its
     for (auto iter = _entries.begin(); iter != _entries.end(); iter++) {
-        if ((*iter)->get_type() == entry_type_e::OFFER_SERVICE && (*iter)->get_ttl() > 0) {
+        if ((*iter)->get_type() == entry_type_e::OFFER_SERVICE) {
             auto its_service = (*iter)->get_service();
             auto its_instance = (*iter)->get_instance();
-
-            std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(its_service, its_instance);
-            if (its_info) {
-                if (_remote_address.is_unspecified()) {
-                    // enable proccess remote subscription for the services
-                    // SD has already sent the offers for this service to multicast ip
-                    its_info->set_accepting_remote_subscriptions(true);
-                } else {
-                    if (!its_info->is_accepting_remote_subscriptions()) {
-                        // enable to proccess remote subscription from remote ip for the services
-                        its_info->add_remote_ip(_remote_address.to_string());
+            if ((*iter)->get_ttl() > 0) {
+                // Offer service.
+                std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(its_service, its_instance);
+                if (its_info) {
+                    if (_remote_address.is_unspecified()) {
+                        // enable proccess remote subscription for the services
+                        // SD has already sent the offers for this service to multicast ip
+                        its_info->set_accepting_remote_subscriptions(true);
+                    } else {
+                        if (!its_info->is_accepting_remote_subscriptions()) {
+                            // enable to proccess remote subscription from remote ip for the services
+                            its_info->add_remote_ip(_remote_address.to_string());
+                        }
                     }
+                }
+            } else if ((*iter)->get_ttl() == 0 && stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
+                // Stop offer service.
+                std::scoped_lock lock{suspend_stop_offer_mutex_};
+                const service_instance_t si_pair = {its_service, its_instance};
+                const auto its_si_found = suspend_stop_offer_services_.find(si_pair);
+                // Only stop offers collected during STR are inserted in suspend_stop_offer_services_, regular stop offers will not be
+                // processed.
+                if (its_si_found != suspend_stop_offer_services_.end()) {
+                    if (its_si_found->second.erase((*iter)->get_major_version()) && its_si_found->second.empty()) {
+                        suspend_stop_offer_services_.erase(its_si_found);
+                    }
+                    VSOMEIP_INFO << "sdi::" << __func__ << std::hex << std::setfill('0') << " stop offer for service " << std::setw(4)
+                                 << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4)
+                                 << +(*iter)->get_major_version() << " has been sent to the network during STR";
                 }
             }
         }
@@ -2761,6 +2786,7 @@ bool service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinf
         // Send stop offer
         return send_stop_offer(_info);
     }
+
     return false;
     // sent out NACKs for all pending subscriptions
     // TODO: remote_subscription_not_acknowledge_all(its_service, its_instance);
@@ -2787,13 +2813,23 @@ bool service_discovery_impl::send_collected_stop_offers(const std::vector<std::s
     auto its_current_message = std::make_shared<message_impl>();
     its_messages.push_back(its_current_message);
 
+    if (stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
+        suspend_stop_offer_watchdog_.expires_after(stop_offer_watchdog_time_);
+        suspend_stop_offer_watchdog_.async_wait(
+                std::bind(&service_discovery_impl::check_stopped_services_on_suspend, this, std::placeholders::_1));
+    }
     // pack multiple stop offers together
-    for (auto its_info : _infos) {
-        if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
-            insert_offer_service(its_messages, its_info);
+    {
+        std::scoped_lock lock{suspend_stop_offer_mutex_};
+        for (auto its_info : _infos) {
+            if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
+                insert_offer_service(its_messages, its_info);
+                if (stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
+                    suspend_stop_offer_services_[{its_info->get_service(), its_info->get_instance()}].insert(its_info->get_major());
+                }
+            }
         }
     }
-
     // Serialize and send
     return send(its_messages);
 }
@@ -3382,6 +3418,21 @@ void service_discovery_impl::deserialize_data(const byte_t* _data, const length_
     deserializer_->set_data(_data, _size);
     _message = std::shared_ptr<message_impl>(deserializer_->deserialize_sd_message());
     deserializer_->reset();
+}
+
+void service_discovery_impl::check_stopped_services_on_suspend(const boost::system::error_code& error) {
+    if (error && error.value() != boost::asio::error::operation_aborted) {
+        VSOMEIP_ERROR << "sdi::" << __func__ << " suspend stop offer watchdog error " << error.message();
+    } else {
+        std::scoped_lock lock{suspend_stop_offer_mutex_};
+        for (const auto& [its_si, majors] : suspend_stop_offer_services_) {
+            for (const auto& major : majors) {
+                VSOMEIP_ERROR << "sdi::" << __func__ << std::hex << std::setfill('0') << " stop offer not sent for service " << std::setw(4)
+                              << its_si.service() << "." << std::setw(4) << its_si.instance() << "." << std::setw(4) << +major;
+            }
+        }
+        suspend_stop_offer_services_.clear();
+    }
 }
 
 } // namespace sd

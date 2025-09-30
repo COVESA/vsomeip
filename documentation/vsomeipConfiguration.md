@@ -728,7 +728,7 @@ The general filter rules are:
     - **find_initial_debounce_reps** - Number of initial debounces using find_initial_debounce_time. This can be used to modify the number of sent messages during initial part of startup (valid values: `0 - 2^8-1`). The default setting is `0`.
     - **find_initial_debounce_time** - Time which the stack collects new service requests before they enter the repetition phase. This can be used to modify the number of sent messages during initial part of startup. The default setting is `200` ms.
     - **wait_route_netlink_notification** - Enables the tracking of the route state `on_net_interface_or_route_state_changed`. The default setting is `true`.
-
+    - **stop_offer_watchdog_time** - (optional) - Configures the timeout for the watchdog that tracks if all boardnet services being offered have a corresponding stop offer on suspend. Enabled by default with a value of `2000` ms, if set to zero, it disables the watchdog.
 <details><summary>Service Discovery configuration</summary>
 
 ```json
