@@ -546,17 +546,9 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                         << get_remote_information() << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
 
-        if (!is_established_or_connected()) {
-            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
-            // currently reconnecting
-            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
-                            << "(" << _error.message() << ")"
-                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
-            was_not_connected_ = true;
-            is_sending_ = false;
+        if (!ensure_connected(_error)) {
             return;
         }
-
         state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
@@ -595,14 +587,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                         << get_remote_information() << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
 
-        if (!is_established_or_connected()) {
-            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
-            // currently reconnecting
-            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
-                            << " remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                            << static_cast<int>(state_.load());
-            was_not_connected_ = true;
-            is_sending_ = false;
+        if (!ensure_connected(_error)) {
             return;
         }
         state_ = cei_state_e::CLOSED;
@@ -620,17 +605,9 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
                         << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
                         << static_cast<int>(state_.load());
 
-        if (!is_established_or_connected()) {
-            // Do not interfer with the queue nor with the socket state if the endpoint is closed or
-            // currently reconnecting
-            VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
-                            << "(" << _error.message() << ")"
-                            << " endpoint > " << this << " socket state > " << static_cast<int>(state_.load());
-            was_not_connected_ = true;
-            is_sending_ = false;
+        if (!ensure_connected(_error)) {
             return;
         }
-
         // endpoint was stopped
         endpoint_impl<Protocol>::sending_blocked_ = true;
         shutdown_and_close_socket(false);
@@ -881,6 +858,21 @@ void client_endpoint_impl<Protocol>::update_last_departure() {
 
     last_departure_ = std::chrono::steady_clock::now();
     has_last_departure_ = true;
+}
+
+template<typename Protocol>
+bool client_endpoint_impl<Protocol>::ensure_connected(const boost::system::error_code& _error) {
+    bool result = true;
+    if (!is_established_or_connected()) {
+        VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
+                        << "(" << _error.message() << ")"
+                        << " remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                        << static_cast<int>(state_.load());
+        was_not_connected_ = true;
+        is_sending_ = false;
+        result = false;
+    }
+    return result;
 }
 
 // Instantiate template
