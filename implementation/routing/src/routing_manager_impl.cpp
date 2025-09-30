@@ -1804,6 +1804,12 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
             }
         }
 
+        // Update the event with information which might not have been previously available.
+        if (auto service = find_service(_service, _instance)) {
+            its_event->set_version(service->get_major());
+            its_event->set_reliability(_reliable ? reliability_type_e::RT_RELIABLE : reliability_type_e::RT_UNRELIABLE);
+        }
+
         auto its_length = utility::get_payload_size(_data, _length);
         auto its_payload = runtime::get()->create_payload(&_data[VSOMEIP_PAYLOAD_POS], its_length);
 
