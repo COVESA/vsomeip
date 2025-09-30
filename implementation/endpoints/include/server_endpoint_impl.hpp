@@ -125,7 +125,7 @@ protected:
 protected:
     std::mutex clients_mutex_;
 
-    std::unordered_map<clients_key_t, std::unordered_map<session_t, endpoint_type>> clients_;
+    std::unordered_map<clients_key_t, endpoint_type> clients_to_target_;
 
     target_data_type targets_;
 

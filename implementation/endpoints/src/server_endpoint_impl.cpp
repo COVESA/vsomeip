@@ -165,30 +165,14 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
         const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
         const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
-        const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-
-        auto clients_key = to_clients_key(its_service, its_method, its_client);
 
         {
+            auto clients_key = to_clients_key(its_service, its_method, its_client);
             std::scoped_lock its_clients_lock{clients_mutex_};
-            auto found_client = clients_.find(clients_key);
-            if (found_client != clients_.end()) {
-                auto found_session = found_client->second.find(its_session);
-                if (found_session != found_client->second.end()) {
-                    its_target = found_session->second;
-                    is_valid_target = true;
-                    found_client->second.erase(its_session);
-                } else {
-                    VSOMEIP_WARNING << "server_endpoint_impl::send: Cannot find sessionid (" << std::setw(4) << std::hex
-                                    << std::setfill('0') << its_session << ") for client " << std::setw(4) << its_client << " and method ["
-                                    << std::setw(4) << its_service << "." << std::setw(4) << its_method << "]";
-                    if (its_service == VSOMEIP_SD_SERVICE && its_method == VSOMEIP_SD_METHOD) {
-                        VSOMEIP_ERROR << "server_endpoint_impl::send: Clearing clients map as a"
-                                         " request was received on SD port";
-                        clients_.clear();
-                        is_valid_target = get_default_target(its_service, its_target);
-                    }
-                }
+            auto found_client_key = clients_to_target_.find(clients_key);
+            if (found_client_key != clients_to_target_.end()) {
+                its_target = found_client_key->second;
+                is_valid_target = true;
             } else {
                 is_valid_target = get_default_target(its_service, its_target);
             }
