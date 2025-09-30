@@ -105,6 +105,7 @@ protected:
     bool check_queue_limit(const uint8_t* _data, std::uint32_t _size) const;
     void queue_train(const std::shared_ptr<train>& _train);
     void update_last_departure();
+    bool ensure_connected(const boost::system::error_code& _error);
 
 protected:
     mutable std::mutex socket_mutex_;
