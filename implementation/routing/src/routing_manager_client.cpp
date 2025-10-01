@@ -1234,7 +1234,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                                  << std::setw(4) << its_eventgroup << ":" << std::setw(4) << its_event << ":" << std::dec
                                                  << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
                                                  << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                                                 << (_subscription_accepted ? std::to_string(its_count) + " accepted." : "not accepted.");
+                                                 << (_subscription_accepted ? std::to_string(its_count) + " accepted" : "not accepted");
                                 });
                     } else {
                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event, its_pending_id);
@@ -1293,8 +1293,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                     auto its_info = find_service(its_service, its_instance);
                     if (its_info) {
                         host_->on_subscription(its_service, its_instance, its_eventgroup, its_client, _sec_client, its_env, true,
-                                               [this, self, its_client, its_filter, _sec_client, its_env, its_service, its_instance,
-                                                its_eventgroup, its_event, its_major](const bool _subscription_accepted) {
+                                               [this, self, its_client, its_filter, its_pending_id, _sec_client, its_env, its_service,
+                                                its_instance, its_eventgroup, its_event, its_major](const bool _subscription_accepted) {
                                                    if (!_subscription_accepted) {
                                                        send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event,
                                                                            PENDING_SUBSCRIPTION_ID);
@@ -1307,6 +1307,14 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                                        send_pending_notify_ones(its_service, its_instance, its_eventgroup, its_client);
 #endif
                                                    }
+
+                                                   VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4)
+                                                                << its_client << "): [" << std::setw(4) << its_service << "."
+                                                                << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup
+                                                                << ":" << std::setw(4) << its_event << ":" << std::dec
+                                                                << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
+                                                                << (its_pending_id != PENDING_SUBSCRIPTION_ID)
+                                                                << (_subscription_accepted ? " accepted" : "not accepted");
                                                });
                     } else {
                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event, PENDING_SUBSCRIPTION_ID);

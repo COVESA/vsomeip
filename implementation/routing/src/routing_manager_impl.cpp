@@ -639,17 +639,21 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                     if (!_subscription_accepted) {
                         if (stub_)
                             stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
-                        VSOMEIP_INFO << "Subscription request from client: 0x" << std::hex << _client << std::dec << " for eventgroup: 0x"
-                                     << _eventgroup << " rejected from application handler.";
-                        return;
-                    } else if (stub_) {
-                        stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
-                    }
-                    routing_manager_base::subscribe(_client, _sec_client, _service, _instance, _eventgroup, _major, _event, _filter);
+                    } else {
+                        if (stub_) {
+                            stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
+                        }
+                        routing_manager_base::subscribe(_client, _sec_client, _service, _instance, _eventgroup, _major, _event, _filter);
 #ifdef VSOMEIP_ENABLE_COMPAT
-                    send_pending_notify_ones(_service, _instance, _eventgroup, _client);
-                    routing_manager_base::erase_incoming_subscription_state(_client, _service, _instance, _eventgroup, _event);
+                        send_pending_notify_ones(_service, _instance, _eventgroup, _client);
+                        routing_manager_base::erase_incoming_subscription_state(_client, _service, _instance, _eventgroup, _event);
 #endif
+                    }
+
+                    VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
+                                 << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << ":"
+                                 << std::setw(4) << _event << ":" << std::dec << static_cast<uint16_t>(_major) << "] "
+                                 << (_subscription_accepted ? " accepted" : "not accepted");
                 });
     } else {
         if (discovery_) {
@@ -4019,7 +4023,7 @@ void routing_manager_impl::send_subscription(const client_t _offering_client, co
         auto self = shared_from_this();
         for (const auto its_client : _clients) {
             host_->on_subscription(_service, _instance, _eventgroup, its_client, get_sec_client(), get_env(its_client), true,
-                                   [this, self, _service, _instance, _eventgroup, its_client, _id](const bool _is_accepted) {
+                                   [this, self, _service, _instance, _eventgroup, _major, its_client, _id](const bool _is_accepted) {
                                        try {
                                            if (!_is_accepted) {
                                                const auto its_callback =
@@ -4034,6 +4038,13 @@ void routing_manager_impl::send_subscription(const client_t _offering_client, co
                                                                  its_client, _service, _instance, _eventgroup, ANY_EVENT, _id);
                                                boost::asio::post(io_, its_callback);
                                            }
+
+                                           VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client
+                                                        << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
+                                                        << std::setw(4) << _eventgroup << ":" << std::setw(4) << ANY_EVENT << ":"
+                                                        << std::dec << static_cast<uint16_t>(_major) << "] "
+                                                        << (_is_accepted ? " accepted" : "not accepted");
+
                                        } catch (const std::exception& e) {
                                            VSOMEIP_ERROR << __func__ << e.what();
                                        }
