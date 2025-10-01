@@ -2183,6 +2183,10 @@ void routing_manager_client::on_stop_offer_service(service_t _service, instance_
         }
     }
     for (auto& e : events) {
+        if (e.second->is_set()) {
+            VSOMEIP_INFO << "rmc::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                         << "." << _instance << "." << e.first;
+        }
         e.second->unset_payload();
     }
 }
