@@ -44,7 +44,7 @@ public:
     static void wait_and_check_unlocked(boost::interprocess::interprocess_condition& cv,
                                         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock, int timeout_s,
                                         T& value_to_check, T expected_value) {
-        boost::posix_time::ptime timeout = boost::posix_time::second_clock::local_time() + boost::posix_time::seconds(timeout_s);
+        boost::posix_time::ptime timeout = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(timeout_s);
 
         cv.timed_wait(its_lock, timeout, [&] { return value_to_check == expected_value; });
 
