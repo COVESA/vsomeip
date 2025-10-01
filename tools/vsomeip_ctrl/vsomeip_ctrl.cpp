@@ -133,12 +133,10 @@ public:
 
     void send() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_service_available_) {
-            if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(6))) {
-                VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex << service_id_ << "." << instance_
-                             << "] isn't available. Exiting";
-                stop(EXIT_FAILURE);
-            }
+        if (!condition_.wait_for(its_lock, std::chrono::seconds(6), [this] { return !wait_service_available_; })) {
+            VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex << service_id_ << "." << instance_
+                         << "] isn't available. Exiting";
+            stop(EXIT_FAILURE);
         }
 
         std::shared_ptr<vsomeip::message> its_message = vsomeip::runtime::get()->create_message(use_tcp_);
@@ -157,12 +155,9 @@ public:
         VSOMEIP_INFO << "Sending";
         app_->send(its_message);
 
-        while (wait_for_answer_) {
-            if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(5))) {
-                VSOMEIP_INFO << "Didn't receive answer within 5sec. Shutting down.";
-                stop(EXIT_SUCCESS);
-                break;
-            }
+        if (!condition_.wait_for(its_lock, std::chrono::seconds(5), [this] { return !wait_for_answer_; })) {
+            VSOMEIP_INFO << "Didn't receive answer within 5sec. Shutting down.";
+            stop(EXIT_SUCCESS);
         }
 
         stop(EXIT_SUCCESS);

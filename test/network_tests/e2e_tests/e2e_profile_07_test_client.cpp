@@ -140,9 +140,7 @@ void e2e_profile_07_test_client::run() {
     for (int i = 0; i < PROFILE_07_NUM_MESSAGES; ++i) {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (!is_available_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return is_available_; });
         }
 
         auto request = vsomeip::runtime::get()->create_request(false);

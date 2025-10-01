@@ -86,20 +86,17 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!blocked_)
-            condition_.wait(its_lock);
+        condition_.wait(its_lock, [this] { return blocked_; });
 
         bool is_offer(true);
         blocked_ = false;
 
         if (use_static_routing_) {
             offer();
-            while (!blocked_) {
-                if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(200))) {
-                    GTEST_NONFATAL_FAILURE_("Didn't receive all requests within time");
-                    break;
-                }
+            if (!condition_.wait_for(its_lock, std::chrono::seconds(200), [this] { return blocked_; })) {
+                GTEST_NONFATAL_FAILURE_("Didn't receive all requests within time");
             }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             app_->clear_all_handler();
             app_->stop();

@@ -90,7 +90,7 @@ memory_test_client::memory_test_client(const char* app_name_, const char* app_id
 void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
     std::unique_lock<std::mutex> lk(availability_mutex);
     // Only send the requests when the service availability is secured
-    if (condition_availability.wait_for(lk, WAIT_AVAILABILITY, [=] { return availability; })) {
+    if (condition_availability.wait_for(lk, WAIT_AVAILABILITY, [this] { return availability; })) {
 
         // Trigger the test
         auto its_message = vsomeip_utilities::create_standard_vsip_request(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_START_METHOD,

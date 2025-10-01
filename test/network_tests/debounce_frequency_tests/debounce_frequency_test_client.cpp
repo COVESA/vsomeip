@@ -71,7 +71,7 @@ int test_client::was_event2_recv() {
 void test_client::send_request() {
     std::unique_lock<std::mutex> lk(mutex);
     // Only send the requests when the service availability is secured
-    if (condition_availability.wait_for(lk, std::chrono::seconds(20), [=] { return availability; })) {
+    if (condition_availability.wait_for(lk, std::chrono::seconds(20), [this] { return availability; })) {
 
         // Trigger the test
         auto its_message = vsomeip_utilities::create_standard_vsip_request(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,

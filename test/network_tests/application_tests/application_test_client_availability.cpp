@@ -95,9 +95,7 @@ public:
     void run() {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (wait_until_registered_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return !wait_until_registered_; });
         }
         while (!app_->is_available(service_info_.service_id, service_info_.instance_id, service_info_.major_version,
                                    service_info_.minor_version)) {
@@ -136,10 +134,10 @@ public:
         }
         {
             std::unique_lock<std::mutex> its_lock(availability_handler_called_mutex_);
-            while (!std::all_of(availability_handler_called_.cbegin(), availability_handler_called_.cend(),
-                                [&](const availability_handler_called_t::value_type& v) { return v; })) {
-                availability_condition_.wait(its_lock);
-            }
+            availability_condition_.wait(its_lock, [this] {
+                return std::all_of(availability_handler_called_.cbegin(), availability_handler_called_.cend(),
+                                   [](const bool& v) { return v; });
+            });
         }
         VSOMEIP_INFO << " Everything is available";
         all_availability_handlers_called_ = true;

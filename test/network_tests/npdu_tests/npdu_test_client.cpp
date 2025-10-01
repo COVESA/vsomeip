@@ -190,9 +190,7 @@ void npdu_test_client::send() {
 template<int service_idx>
 void npdu_test_client::run() {
     std::unique_lock<std::mutex> its_lock(mutexes_[service_idx]);
-    while (!blocked_[service_idx]) {
-        conditions_[service_idx].wait(its_lock);
-    }
+    conditions_[service_idx].wait(its_lock, [this] { return blocked_[service_idx]; });
     current_payload_size_[service_idx] = 1;
 
     std::uint32_t max_allowed_payload = get_max_allowed_payload();
@@ -285,9 +283,8 @@ std::thread npdu_test_client::start_send_thread_sync() {
 
             std::chrono::high_resolution_clock::time_point sent = std::chrono::high_resolution_clock::now();
 
-            while (!all_msg_acknowledged_[service_idx][method_idx]) {
-                all_msg_acknowledged_cvs_[service_idx][method_idx].wait(all_msg_acknowledged_unique_locks_[service_idx][method_idx]);
-            }
+            all_msg_acknowledged_cvs_[service_idx][method_idx].wait(all_msg_acknowledged_unique_locks_[service_idx][method_idx],
+                                                                    [this] { return all_msg_acknowledged_[service_idx][method_idx]; });
 
             std::chrono::nanoseconds waited_for_response = std::chrono::high_resolution_clock::now() - sent;
             if (waited_for_response < applicative_debounce_[service_idx][method_idx]) {
@@ -327,9 +324,8 @@ std::thread npdu_test_client::start_send_thread_async() {
             if ((i + 1) == number_of_messages_to_send_ || (i + 1) % sliding_window_size == 0) {
                 // wait until all send messages have been acknowledged
                 // as long we wait lk is released; after wait returns lk is reacquired
-                while (!all_msg_acknowledged_[service_idx][method_idx]) {
-                    all_msg_acknowledged_cvs_[service_idx][method_idx].wait(all_msg_acknowledged_unique_locks_[service_idx][method_idx]);
-                }
+                all_msg_acknowledged_cvs_[service_idx][method_idx].wait(all_msg_acknowledged_unique_locks_[service_idx][method_idx],
+                                                                        [this] { return all_msg_acknowledged_[service_idx][method_idx]; });
                 // Reset condition variable
                 all_msg_acknowledged_[service_idx][method_idx] = false;
             }

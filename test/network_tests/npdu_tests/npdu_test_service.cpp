@@ -66,9 +66,7 @@ void npdu_test_service::start() {
 
 void npdu_test_service::stop() {
     std::unique_lock<std::mutex> its_lock(shutdown_mutex_);
-    while (!allowed_to_shutdown_) {
-        shutdown_condition_.wait(its_lock);
-    }
+    shutdown_condition_.wait(its_lock, [this] { return allowed_to_shutdown_; });
 
     VSOMEIP_INFO << "Stopping...";
     if (!undershot_debounce_times_.empty()) {
@@ -182,9 +180,7 @@ void npdu_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::messa
 
 void npdu_test_service::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_)
-        condition_.wait(its_lock);
-
+    condition_.wait(its_lock, [this] { return blocked_; });
     offer();
 }
 

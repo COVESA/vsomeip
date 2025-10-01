@@ -149,17 +149,13 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!blocked_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return blocked_; });
         blocked_ = false;
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
 
-        while (!blocked_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return blocked_; });
         blocked_ = false;
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Sending";
@@ -181,17 +177,13 @@ public:
             }
         }
 
-        while (!blocked_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return blocked_; });
         blocked_ = false;
     }
 
     void wait_for_stop() {
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (!stopped_) {
-            stop_condition_.wait(its_lock);
-        }
+        stop_condition_.wait(its_lock, [this] { return stopped_; });
         VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
                      << "] Received responses and requests from all other services, going down";
 

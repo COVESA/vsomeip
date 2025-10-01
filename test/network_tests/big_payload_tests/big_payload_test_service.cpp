@@ -140,18 +140,14 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
 void big_payload_test_service::run() {
     {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!blocked_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return blocked_; });
 
         offer();
 
         // wait for shutdown
         blocked_ = false;
         while (!blocked_ || !incoming_requests_.empty()) {
-            if (incoming_requests_.empty()) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return !incoming_requests_.empty(); });
             auto _request = incoming_requests_.front();
             incoming_requests_.pop();
             number_of_received_messages_++;

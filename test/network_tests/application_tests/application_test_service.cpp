@@ -94,9 +94,7 @@ public:
     void run() {
         VSOMEIP_DEBUG << "[Service] [" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] is running";
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_ && !stop_called_) {
-            condition_.wait_for(its_lock, std::chrono::milliseconds(100));
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_ || stop_called_; });
 
         VSOMEIP_DEBUG << "[Service] [" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] is offering";
         offer();

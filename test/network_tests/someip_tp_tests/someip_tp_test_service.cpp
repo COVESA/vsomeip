@@ -255,42 +255,28 @@ public:
     void run() {
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
 
-        while (wait_for_slave_service_available_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_for_slave_service_available_; });
         send_fragmented_request_to_slave();
 
-        while (wait_for_two_responses_of_slave_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_for_two_responses_of_slave_; });
         EXPECT_EQ(2u, number_responses_of_slave_);
 
-        while (wait_for_two_requests_of_slave_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_for_two_requests_of_slave_; });
         EXPECT_EQ(2u, number_requests_from_slave_);
 
-        while (wait_for_two_notifications_of_slave_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_for_two_notifications_of_slave_; });
         EXPECT_EQ(2u, number_notifications_of_slave_);
 
-        while (wait_for_slave_subscription_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_for_slave_subscription_; });
         // slave subscribed --> sent a notification
         on_notify_method_called(vsomeip::runtime::get()->create_message());
 
-        while (wait_until_shutdown_method_called_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_shutdown_method_called_; });
     }
 
     void subscription_handler_async(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed,

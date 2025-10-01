@@ -117,14 +117,11 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!blocked_)
-            condition_.wait(its_lock);
+        condition_.wait(its_lock, [this] { return blocked_; });
 
         offer();
         std::unique_lock<std::mutex> its_lock_message(message_mutex_);
-        while (running_ && !is_second_) {
-            notify_condition_.wait(its_lock_message);
-        }
+        notify_condition_.wait(its_lock_message, [this] { return !running_ || is_second_; });
 
         // Offer and stop offer service with 1 second interval
         bool is_offer(true);
@@ -146,9 +143,7 @@ public:
 
         while (running_) {
             std::unique_lock<std::mutex> its_lock(notify_mutex_);
-            while (!is_offered_ && running_) {
-                notify_condition_.wait(its_lock);
-            }
+            notify_condition_.wait(its_lock, [this] { return is_offered_ || !running_; });
             while (is_offered_ && running_) {
                 {
                     std::lock_guard<std::mutex> its_lock(payload_mutex_);

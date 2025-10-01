@@ -127,8 +127,7 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!blocked_)
-            condition_.wait(its_lock);
+        condition_.wait(its_lock, [this] { return blocked_; });
 
         bool is_offer(true);
         while (running_) {
@@ -151,8 +150,8 @@ public:
 
         while (running_) {
             std::unique_lock<std::mutex> its_lock(notify_mutex_);
-            while (!is_offered_ && running_)
-                notify_condition_.wait(its_lock);
+            notify_condition_.wait(its_lock, [this] { return is_offered_ || !running_; });
+
             while (is_offered_ && running_) {
                 if (its_size == sizeof(its_data))
                     its_size = 1;

@@ -53,14 +53,10 @@ void debounce_test_client::run() {
 
     {
         std::unique_lock<std::mutex> its_lock(run_mutex_);
-        while (!is_available_) {
-            auto its_status = run_condition_.wait_for(its_lock, std::chrono::seconds(20));
-            EXPECT_EQ(its_status, std::cv_status::no_timeout);
-            if (its_status == std::cv_status::timeout) {
-                VSOMEIP_ERROR << __func__ << ": Debounce service did not become available after 20s.";
-                stop();
-                return;
-            }
+        if (!run_condition_.wait_for(its_lock, std::chrono::seconds(20), [this] { return is_available_; })) {
+            GTEST_FATAL_FAILURE_("Debounce service did not become available after 20s.");
+            stop();
+            return;
         }
     }
 
@@ -147,8 +143,7 @@ void debounce_test_client::run_test() {
     app_->send(its_message);
 
     std::unique_lock<std::mutex> lock(run_mutex_);
-    bool status = run_condition_.wait_for(lock, std::chrono::seconds(30), [&] { return messagesReceived_; });
-    if (!status) {
+    if (!run_condition_.wait_for(lock, std::chrono::seconds(30), [&] { return messagesReceived_; })) {
         VSOMEIP_ERROR << "debounce_test_client::on_message: Timeout waiting for messages";
     }
 }

@@ -177,9 +177,7 @@ void big_payload_test_client::send() {
 
 void big_payload_test_client::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_) {
-        condition_.wait(its_lock);
-    }
+    condition_.wait(its_lock, [this] { return blocked_; });
     blocked_ = false;
 
     request_->set_service(service_id_);
@@ -222,19 +220,19 @@ void big_payload_test_client::run() {
         }
         number_of_sent_messages_++;
     }
-    while (!blocked_) {
-        if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(120))) {
-            GTEST_FATAL_FAILURE_("Didn't receive all replies within time");
-        } else {
-            if (test_mode_ == big_payload_test::LIMITED || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
-                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
-                || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
-                EXPECT_EQ(number_of_messages_to_send_ / 4, number_of_acknowledged_messages_);
-            } else {
-                EXPECT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
-            }
-        }
+
+    if (!condition_.wait_for(its_lock, std::chrono::seconds(120), [this] { return blocked_; })) {
+        GTEST_FATAL_FAILURE_("Didn't receive all replies within time");
     }
+
+    if (test_mode_ == big_payload_test::LIMITED || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
+        || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
+        || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
+        EXPECT_EQ(number_of_messages_to_send_ / 4, number_of_acknowledged_messages_);
+    } else {
+        EXPECT_EQ(number_of_sent_messages_, number_of_acknowledged_messages_);
+    }
+
     request_->set_service(service_id_);
     request_->set_instance(big_payload_test::TEST_SERVICE_INSTANCE_ID);
     request_->set_method(big_payload_test::STOP_METHOD);

@@ -256,19 +256,16 @@ protected:
     void send_shutdown_message() {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (!is_registered_) {
-                if (std::cv_status::timeout == cv_.wait_for(its_lock, std::chrono::seconds(10))) {
-                    ADD_FAILURE() << "Application wasn't registered in time!";
-                    is_registered_ = true;
-                }
+            if (!cv_.wait_for(its_lock, std::chrono::seconds(10), [this] { return is_registered_; })) {
+                ADD_FAILURE() << "Application wasn't registered in time!";
+                is_registered_ = true;
             }
+
             app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
             app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-            while (!is_available_) {
-                if (std::cv_status::timeout == cv_.wait_for(its_lock, std::chrono::seconds(10))) {
-                    ADD_FAILURE() << "Service didn't become available in time!";
-                    is_available_ = true;
-                }
+            if (!cv_.wait_for(its_lock, std::chrono::seconds(10), [this] { return is_available_; })) {
+                ADD_FAILURE() << "Service didn't become available in time!";
+                is_available_ = true;
             }
         }
 
@@ -362,14 +359,10 @@ protected:
     void send_shutdown_message() {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (!is_registered_) {
-                cv_.wait(its_lock);
-            }
+            cv_.wait(its_lock, [this] { return is_registered_; });
             app_->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
             app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-            while (!is_available_) {
-                cv_.wait(its_lock);
-            }
+            cv_.wait(its_lock, [this] { return is_available_; });
         }
 
         std::shared_ptr<message> r = runtime::get()->create_request();
@@ -381,9 +374,7 @@ protected:
 
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (!exception_method_called_) {
-                cv_.wait(its_lock);
-            }
+            cv_.wait(its_lock, [this] { return exception_method_called_; });
         }
 
         // shutdown test

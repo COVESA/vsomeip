@@ -153,9 +153,7 @@ void lazy_load_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::
 
 void lazy_load_test_service::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_)
-        condition_.wait(its_lock);
-
+    condition_.wait(its_lock, [this] { return blocked_; });
     offer();
 }
 

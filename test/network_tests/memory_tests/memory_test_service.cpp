@@ -91,7 +91,7 @@ void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {
 // and receive the stop message in the end
 void memory_test_service::setup_app(const std::function<void(void)> executionHandler_) {
     std::unique_lock<std::mutex> lk(start_mutex);
-    if (condition_wait_start.wait_for(lk, WAIT_START_MESSAGE, [=] { return received_message; })) {
+    if (condition_wait_start.wait_for(lk, WAIT_START_MESSAGE, [this] { return received_message; })) {
 
         // If executionHandler_ is set / not nullptr
         if (executionHandler_) {

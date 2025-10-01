@@ -199,13 +199,8 @@ public:
 
     void send() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
-        }
-
-        while (wait_until_service_available_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
+        condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
 
         auto its_message = vsomeip::runtime::get()->create_request(use_tcp_);
         its_message->set_service(service_info_.service_id);
@@ -226,17 +221,13 @@ public:
             wait_until_reply_received_ = true;
             message_sent_++;
 
-            while (wait_until_reply_received_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return !wait_until_reply_received_; });
         }
 
         VSOMEIP_DEBUG << "Client subscribing events";
 
         subscribe();
-        while (wait_until_subscription_accepted_ || wait_until_selective_subscription_accepted_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [&] { return !wait_until_subscription_accepted_ && !wait_until_selective_subscription_accepted_; });
 
         VSOMEIP_DEBUG << "Client requesting event notification";
 
@@ -248,9 +239,7 @@ public:
 
         VSOMEIP_DEBUG << "Client waiting event notification";
 
-        while (wait_until_events_received_ || wait_until_selective_events_received_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [&] { return !wait_until_events_received_ && !wait_until_selective_events_received_; });
 
         VSOMEIP_DEBUG << "Client shutting down the service";
 
@@ -259,11 +248,8 @@ public:
         its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST);
         app_->send(its_message);
 
-        while (wait_until_shutdown_reply_received_) {
-            if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(30))) {
-                VSOMEIP_ERROR << "Shutdown request wasn't answered in time!";
-                break;
-            }
+        if (condition_.wait_for(its_lock, std::chrono::seconds(30), [this] { return !wait_until_shutdown_reply_received_; })) {
+            VSOMEIP_ERROR << "Shutdown request wasn't answered in time!";
         }
 
         VSOMEIP_INFO << "Client going down";

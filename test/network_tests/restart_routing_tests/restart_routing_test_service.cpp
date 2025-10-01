@@ -113,8 +113,7 @@ void routing_restart_test_service::on_message_shutdown(const std::shared_ptr<vso
 
 void routing_restart_test_service::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    condition_.wait(its_lock, [this]() { return blocked_; });
-
+    condition_.wait(its_lock, [this] { return blocked_; });
     offer();
     std::unique_lock<std::mutex> its_shutdown_lock(shutdown_mutex_);
     init_shutdown_condition_.wait(its_shutdown_lock, [this] { return init_shutdown_; });

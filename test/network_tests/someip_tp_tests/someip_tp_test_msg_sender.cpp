@@ -794,12 +794,12 @@ TEST_P(someip_tp, send_in_mode) {
                 fragments_request_to_master_.clear();
             }
 
-            while (wait_for_all_event_fragments_received_) {
-                if (std::cv_status::timeout == all_fragments_received_cond_.wait_for(its_lock, std::chrono::seconds(20))) {
-                    ADD_FAILURE() << "Didn't receive fragmented event from "
-                                     " master within time";
-                }
+            if (!all_fragments_received_cond_.wait_for(its_lock, std::chrono::seconds(20), [&wait_for_all_event_fragments_received_] {
+                    return !wait_for_all_event_fragments_received_;
+                })) {
+                ADD_FAILURE() << "Didn't receive fragmented event from master within time";
             }
+
             // check if received event is correct
             {
                 EXPECT_EQ(someip_tp_test::number_of_fragments, fragments_event_from_master_.size());
