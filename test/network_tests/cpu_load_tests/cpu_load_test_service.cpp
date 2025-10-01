@@ -135,9 +135,7 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!blocked_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return blocked_; });
 
         app_->offer_service(cpu_load_test::service_id, cpu_load_test::instance_id);
     }

@@ -158,9 +158,7 @@ private:
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
 
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
@@ -170,16 +168,12 @@ private:
         }
 
         VSOMEIP_DEBUG << "Service waiting for notify method has been called";
-        while (wait_until_notify_method_called_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_notify_method_called_; });
 
         VSOMEIP_DEBUG << "Service notifying events";
         notify();
 
-        while (wait_until_shutdown_method_called_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_shutdown_method_called_; });
 
         its_lock.unlock();
         stop();

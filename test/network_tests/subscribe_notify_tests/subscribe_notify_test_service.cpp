@@ -232,16 +232,12 @@ public:
     void run() {
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
 
-        while (wait_until_other_services_available_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_other_services_available_; });
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Subscribing";
         // subscribe to events of other services
@@ -258,9 +254,7 @@ public:
                           << std::setw(4) << i.eventgroup_id << "]";
         }
 
-        while (wait_until_notified_from_other_services_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_notified_from_other_services_; });
 
         // It is possible that we run in the case a subscription is NACKED
         // due to TCP endpoint not completely connected when subscription
@@ -278,9 +272,7 @@ public:
 
     void notify() {
         std::unique_lock<std::mutex> its_lock(notify_mutex_);
-        while (wait_for_notify_) {
-            notify_condition_.wait(its_lock);
-        }
+        notify_condition_.wait(its_lock, [this] { return !wait_for_notify_; });
 
         // sleep a while before starting to notify this is necessary as it's not
         // possible to detect if _all_ clients on the remote side have
@@ -307,9 +299,7 @@ public:
 
     void wait_for_stop() {
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (wait_for_stop_) {
-            stop_condition_.wait(its_lock);
-        }
+        stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
 
         // wait until all notifications have been sent out
         notify_thread_.join();

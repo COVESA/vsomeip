@@ -138,26 +138,19 @@ void routing_manager_client::stop() {
     cancel_keepalive();
 
     const std::chrono::milliseconds its_timeout(configuration_->get_shutdown_timeout());
-    while (state_ == inner_state_type_e::ST_REGISTERING) {
+    {
         std::unique_lock its_lock(state_condition_mutex_);
-        std::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
-        if (status == std::cv_status::timeout) {
-            VSOMEIP_WARNING << std::hex << std::setfill('0') << std::setw(4) << get_client() << " registering timeout on stop";
-            break;
+        if (!state_condition_.wait_for(its_lock, its_timeout, [this] { return state_ != inner_state_type_e::ST_REGISTERING; })) {
+            VSOMEIP_ERROR << std::hex << std::setfill('0') << std::setw(4) << get_client() << " registering timeout on stop";
         }
     }
 
     if (state_ == inner_state_type_e::ST_REGISTERED) {
         deregister_application();
         // Waiting de-register acknowledge to synchronize shutdown
-        while (state_ == inner_state_type_e::ST_REGISTERED) {
-            std::unique_lock its_lock(state_condition_mutex_);
-            std::cv_status status = state_condition_.wait_for(its_lock, its_timeout);
-            if (status == std::cv_status::timeout) {
-                VSOMEIP_WARNING << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                                << " couldn't deregister application - timeout";
-                break;
-            }
+        std::unique_lock its_lock(state_condition_mutex_);
+        if (!state_condition_.wait_for(its_lock, its_timeout, [this] { return state_ != inner_state_type_e::ST_REGISTERED; })) {
+            VSOMEIP_ERROR << std::hex << std::setfill('0') << std::setw(4) << get_client() << " couldn't deregister application - timeout";
         }
     }
     is_started_ = false;

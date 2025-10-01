@@ -147,17 +147,9 @@ public:
 
     void send() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_) {
-            condition_.wait(its_lock);
-        }
-
-        while (wait_until_service_available_) {
-            condition_.wait(its_lock);
-        }
-
-        while (wait_until_subscribed_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
+        condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
+        condition_.wait(its_lock, [this] { return !wait_until_subscribed_; });
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
         std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
@@ -170,9 +162,7 @@ public:
 
     void wait_for_stop() {
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (wait_for_stop_) {
-            stop_condition_.wait(its_lock);
-        }
+        stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
         VSOMEIP_INFO << "going down";
         app_->clear_all_handler();
         app_->stop();

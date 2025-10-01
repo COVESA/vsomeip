@@ -105,16 +105,12 @@ void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::mess
 
 void header_factory_test_service::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_)
-        condition_.wait(its_lock);
-
+    condition_.wait(its_lock, [this] { return blocked_; });
     blocked_ = false;
     if (use_static_routing_) {
         offer();
     }
-    while (!blocked_)
-        condition_.wait(its_lock);
-
+    condition_.wait(its_lock, [this] { return blocked_; });
     std::thread t([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5)); });
     t.join();
     app_->stop();

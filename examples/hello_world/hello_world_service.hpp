@@ -68,9 +68,8 @@ public:
 
     void stop() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!stop_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return stop_; });
+
         std::this_thread::sleep_for(std::chrono::seconds(5));
         // Stop offering the service
         app_->stop_offer_service(service_id, service_instance_id);

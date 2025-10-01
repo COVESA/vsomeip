@@ -116,8 +116,8 @@ public:
         while (running_) {
             {
                 std::unique_lock<std::mutex> its_lock(mutex_);
-                while (!blocked_)
-                    condition_.wait(its_lock);
+                condition_.wait(its_lock, [this] { return blocked_; });
+
                 if (is_available_) {
                     app_->send(request_);
                     std::cout << "Client/Session [" << std::hex << std::setfill('0') << std::setw(4) << request_->get_client() << "/"

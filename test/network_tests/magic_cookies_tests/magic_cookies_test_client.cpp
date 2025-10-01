@@ -102,12 +102,10 @@ public:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (!is_blocked_) {
-            if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::milliseconds(5000))) {
-                GTEST_NONFATAL_FAILURE_("Service didn't become available within 5s.");
-                break;
-            }
+        if (!condition_.wait_for(its_lock, std::chrono::seconds(5), [this] { return is_blocked_; })) {
+            GTEST_FATAL_FAILURE_("Service didn't become available within 5s.");
         }
+
         VSOMEIP_INFO << "Running...";
 
         vsomeip::routing_manager* its_routing = app_->get_routing_manager();
@@ -164,12 +162,10 @@ public:
         its_good_payload_data[11] = 0x0F;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
 
-        while (wait_for_replies_) {
-            if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::milliseconds(5000))) {
-                GTEST_NONFATAL_FAILURE_("Didn't receive all replies/errors in time");
-                break;
-            }
+        if (!condition_.wait_for(its_lock, std::chrono::milliseconds(5000), [this] { return !wait_for_replies_; })) {
+            GTEST_NONFATAL_FAILURE_("Didn't receive all replies/errors in time");
         }
+
         EXPECT_EQ(sent_messages_good_, received_responses_);
         EXPECT_EQ(sent_messages_bad_, received_errors_);
         stop();

@@ -138,19 +138,11 @@ public:
     void send() {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (wait_until_registered_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return !wait_until_registered_; });
+            condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
 
-            while (wait_until_service_available_) {
-                condition_.wait(its_lock);
-            }
-
-            while (wait_until_subscription_accepted_) {
-                if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(30))) {
-                    VSOMEIP_ERROR << "Subscription wasn't accepted in time!";
-                    break;
-                }
+            if (!condition_.wait_for(its_lock, std::chrono::seconds(30), [this] { return !wait_until_subscription_accepted_; })) {
+                VSOMEIP_ERROR << "Subscription wasn't accepted in time!";
             }
 
             // call notify method
@@ -165,11 +157,8 @@ public:
             its_message->set_payload(its_payload);
             app_->send(its_message);
 
-            while (wait_until_events_received_) {
-                if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(30))) {
-                    VSOMEIP_ERROR << "Didn't receive events in time!";
-                    break;
-                }
+            if (!condition_.wait_for(its_lock, std::chrono::seconds(30), [this] { return !wait_until_events_received_; })) {
+                VSOMEIP_ERROR << "Didn't receive events in time!";
             }
 
             // shutdown service
@@ -177,11 +166,8 @@ public:
             its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST);
             app_->send(its_message);
 
-            while (wait_until_shutdown_reply_received_) {
-                if (std::cv_status::timeout == condition_.wait_for(its_lock, std::chrono::seconds(30))) {
-                    VSOMEIP_ERROR << "Shutdown request wasn't answered in time!";
-                    break;
-                }
+            if (!condition_.wait_for(its_lock, std::chrono::seconds(30), [this] { return !wait_until_shutdown_reply_received_; })) {
+                VSOMEIP_ERROR << "Shutdown request wasn't answered in time!";
             }
         }
         VSOMEIP_INFO << "going down";

@@ -106,9 +106,8 @@ public:
         signal_thread_ = std::thread(&initial_event_test_client::wait_for_signal, this);
         {
             std::unique_lock<std::mutex> its_lock(signal_mutex_);
-            while (wait_for_signal_handler_registration_) {
-                EXPECT_EQ(std::cv_status::no_timeout, signal_condition_.wait_for(its_lock, std::chrono::seconds(10)));
-            }
+            EXPECT_TRUE(signal_condition_.wait_for(its_lock, std::chrono::seconds(10),
+                                                   [this] { return !wait_for_signal_handler_registration_; }));
             wait_for_signal_handler_registration_ = true;
         }
 
@@ -391,9 +390,7 @@ public:
 
         {
             std::unique_lock<std::mutex> its_lock(stop_mutex_);
-            while (wait_for_stop_) {
-                stop_condition_.wait_for(its_lock, std::chrono::milliseconds(100));
-            }
+            stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
             VSOMEIP_ERROR << "(" << std::dec << its_call_number << ") [" << std::hex << std::setfill('0') << std::setw(4) << client_number_
                           << "] Received notifications from all services, going down";
         }

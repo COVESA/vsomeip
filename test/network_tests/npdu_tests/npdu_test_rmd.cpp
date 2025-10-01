@@ -119,8 +119,8 @@ void npdu_test_rmd::join_shutdown_thread() {
 
 void npdu_test_rmd::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_)
-        condition_.wait(its_lock);
+    condition_.wait(its_lock, [this] { return blocked_; });
+
 #ifdef RMD_CLIENT_SIDE
     app_->offer_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID);
 #elif defined(RMD_SERVICE_SIDE)

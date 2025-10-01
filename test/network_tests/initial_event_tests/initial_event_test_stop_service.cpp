@@ -133,9 +133,7 @@ public:
     void run() {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (wait_until_registered_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return !wait_until_registered_; });
         }
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
@@ -143,9 +141,7 @@ public:
 
         {
             std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
-            while (wait_until_stop_service_other_node_available_) {
-                availability_condition_.wait(its_availability_lock);
-            }
+            availability_condition_.wait(its_availability_lock, [this] { return !wait_until_stop_service_other_node_available_; });
         }
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
@@ -176,9 +172,7 @@ public:
         its_call_number++;
         {
             std::unique_lock<std::mutex> its_lock(stop_mutex_);
-            while (wait_for_stop_) {
-                stop_condition_.wait(its_lock);
-            }
+            stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
         }
         VSOMEIP_INFO << "(" << std::dec << its_call_number << ") [" << std::hex << std::setfill('0') << std::setw(4)
                      << service_info_.service_id << "] shutdown method was called, going down";

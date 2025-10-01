@@ -89,9 +89,7 @@ void header_factory_test_client::send() {
 
 void header_factory_test_client::run() {
     std::unique_lock<std::mutex> its_lock(mutex_);
-    while (!blocked_) {
-        condition_.wait(its_lock);
-    }
+    condition_.wait(its_lock, [this] { return blocked_; });
     blocked_ = false;
     request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
@@ -105,9 +103,7 @@ void header_factory_test_client::run() {
         number_of_sent_messages_++;
     }
     // wait until all messages have been acknowledged
-    while (!blocked_) {
-        condition_.wait(its_lock);
-    }
+    condition_.wait(its_lock, [this] { return blocked_; });
     stop();
 }
 

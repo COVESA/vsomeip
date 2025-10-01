@@ -95,13 +95,8 @@ public:
 
     void send() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_until_registered_ && !stop_called_) {
-            condition_.wait_for(its_lock, std::chrono::milliseconds(100));
-        }
-
-        while (wait_until_service_available_ && !stop_called_) {
-            condition_.wait_for(its_lock, std::chrono::milliseconds(100));
-        }
+        condition_.wait(its_lock, [this] { return !wait_until_registered_ || stop_called_; });
+        condition_.wait(its_lock, [this] { return !wait_until_service_available_ || stop_called_; });
         its_lock.unlock();
         its_lock.release();
 
@@ -128,9 +123,8 @@ public:
 
     void wait_for_stop() {
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (wait_for_stop_) {
-            stop_condition_.wait(its_lock);
-        }
+        stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
+
         VSOMEIP_INFO << "[Client] Going down!";
         app_->clear_all_handler();
         app_->stop();

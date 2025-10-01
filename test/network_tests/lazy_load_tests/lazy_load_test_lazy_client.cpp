@@ -141,9 +141,7 @@ void lazy_load_lazy_client::run() {
     for (std::uint32_t i = 0; i < NUMBER_OF_MESSAGES_TO_SEND; ++i) {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (!current_service_availability_status_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return current_service_availability_status_; });
         }
 
         auto request = vsomeip::runtime::get()->create_request(false);

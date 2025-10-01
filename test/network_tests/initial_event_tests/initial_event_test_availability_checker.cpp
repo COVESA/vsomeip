@@ -85,9 +85,7 @@ public:
 
     void wait_for_stop() {
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
-        while (wait_for_stop_) {
-            stop_condition_.wait(its_lock);
-        }
+        stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
         VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_
                      << "] all services are available. Going down";
         app_->clear_all_handler();

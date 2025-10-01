@@ -48,14 +48,10 @@ void debounce_test_client::stop() {
 void debounce_test_client::run() {
     {
         std::unique_lock<std::mutex> its_lock(run_mutex_);
-        while (!is_available_) {
-            auto its_status = run_condition_.wait_for(its_lock, std::chrono::milliseconds(15000));
-            EXPECT_EQ(its_status, std::cv_status::no_timeout);
-            if (its_status == std::cv_status::timeout) {
-                VSOMEIP_ERROR << __func__ << ": Debounce service did not become available after 15s.";
-                stop();
-                return;
-            }
+        if (!run_condition_.wait_for(its_lock, std::chrono::seconds(15), [this] { return is_available_; })) {
+            GTEST_FATAL_FAILURE_("Debounce service did not become available after 15s.");
+            stop();
+            return;
         }
     }
 

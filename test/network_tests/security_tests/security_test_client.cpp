@@ -140,9 +140,7 @@ void security_test_client::run() {
     for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS; ++i) {
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            while (!is_available_) {
-                condition_.wait(its_lock);
-            }
+            condition_.wait(its_lock, [this] { return is_available_; });
         }
 
         auto request = vsomeip::runtime::get()->create_request(false);

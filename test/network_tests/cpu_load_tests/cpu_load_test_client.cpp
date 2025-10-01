@@ -125,9 +125,7 @@ private:
 
     void run() {
         std::unique_lock<std::mutex> its_lock(mutex_);
-        while (wait_for_availability_) {
-            condition_.wait(its_lock);
-        }
+        condition_.wait(its_lock, [this] { return !wait_for_availability_; });
 
         request_->set_service(cpu_load_test::service_id);
         request_->set_instance(cpu_load_test::instance_id);
@@ -179,9 +177,7 @@ private:
              number_of_sent_messages_++, number_of_sent_messages_total_++) {
             app_->send(request_);
             // wait until the send messages has been acknowledged
-            while (wait_for_all_msg_acknowledged_) {
-                all_msg_acknowledged_cv_.wait(lk);
-            }
+            all_msg_acknowledged_cv_.wait(lk, [this] { return !wait_for_all_msg_acknowledged_; });
             wait_for_all_msg_acknowledged_ = true;
         }
         c.stop();
@@ -201,9 +197,7 @@ private:
             app_->send(request_);
             if ((number_of_sent_messages_ + 1) % sliding_window_size_ == 0) {
                 // wait until all send messages have been acknowledged
-                while (wait_for_all_msg_acknowledged_) {
-                    all_msg_acknowledged_cv_.wait(lk);
-                }
+                all_msg_acknowledged_cv_.wait(lk, [this] { return !wait_for_all_msg_acknowledged_; });
                 wait_for_all_msg_acknowledged_ = true;
             }
         }
