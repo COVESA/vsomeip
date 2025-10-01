@@ -1,0 +1,92 @@
+@startuml subscribe_notify_test_diff_client
+
+
+box "First container" #LightBlue
+actor first_application as APP
+participant second_application as APP2
+end box
+
+box "Second container" #LightGreen
+participant third_application as APP3
+end box
+
+APP -> APP2 : Offer service
+
+APP -> APP3 : Offer service
+
+note left of APP
+    The application will wait until
+    the other applications offer
+    their services
+endnote
+
+APP2 -> APP : Offer service
+
+APP3 -> APP : Offer service
+
+note left of APP
+    Now that the application has
+    received offers for all other
+    services, it will subscribe
+    to them, and vice versa
+endnote
+
+APP -> APP2 : Subscribe service
+
+APP -> APP3 : Subscribe service
+
+APP2 -> APP : Subscribe service
+
+APP3 -> APP : Subscribe service
+
+note left of APP
+    Now that all application
+    is subscribed to all services
+    it will send its notifications
+    and wait to receive
+    notifications from the other
+    applications
+endnote
+
+loop sending notifications
+
+    APP -> APP2 : Send notifications
+
+    APP -> APP3 : Send notifications
+
+    APP2 -> APP : Send notifications
+
+    APP3 -> APP : Send notifications
+
+end
+
+note left of APP
+    When all notifications
+    are sent the applications
+    will stop offering their
+    service and unsubscribe
+    to the other services,
+    and then shutdown
+endnote
+
+APP -> APP2 : Stop offer service
+
+APP -> APP3 : Stop offer service
+
+APP2 -> APP : Stop offer service
+
+APP3 -> APP : Stop offer service
+
+APP -> APP2 : Unsubscribe service
+
+APP -> APP3 : Unsubscribe service
+
+APP2 -> APP : Unsubscribe service
+
+APP3 -> APP : Unsubscribe service
+
+APP -> APP : Shutdown
+
+APP2 -> APP2 : Shutdown
+
+APP3 -> APP3 : Shutdown
