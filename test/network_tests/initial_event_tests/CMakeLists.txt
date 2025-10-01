@@ -9,6 +9,9 @@ project(initial_event_tests LANGUAGES CXX)
 
 # Configure necessary files into the build directory.
 set(configuration_files
+    initial_event_boardnet_test_slave_starter.sh
+    initial_event_boardnet_test_master.json
+    initial_event_boardnet_test_slave.json
     initial_event_test_diff_client_ids_diff_ports_master.json
     initial_event_test_diff_client_ids_diff_ports_master_tcp.json
     initial_event_test_diff_client_ids_diff_ports_master_udp.json
@@ -55,12 +58,20 @@ add_executable(initial_event_test_stop_service
     initial_event_test_stop_service.cpp
 )
 
+add_executable(initial_event_boardnet_test_manager
+    initial_event_boardnet_test_manager.cpp)
+
+add_executable(initial_event_boardnet_test_client
+    initial_event_boardnet_test_client.cpp)
+
 # Add build dependencies and link libraries to executables.
 set(executables
     initial_event_test_client
     initial_event_test_service
     initial_event_test_availability_checker
     initial_event_test_stop_service
+    initial_event_boardnet_test_manager
+    initial_event_boardnet_test_client
 )
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
@@ -298,3 +309,8 @@ add_custom_test(
     initial_event_test_diff_client_ids_diff_ports_master_udp.json
     UDP CLIENT_SUBSCRIBES_TWICE
 )
+
+# Boardnet initial event
+add_custom_test(
+    NAME initial_event_boardnet_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_boardnet_test_manager)
