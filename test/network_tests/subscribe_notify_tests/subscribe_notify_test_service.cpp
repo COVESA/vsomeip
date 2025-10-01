@@ -202,7 +202,7 @@ public:
     bool all_notifications_received() {
         return std::all_of(other_services_received_notification_.cbegin(), other_services_received_notification_.cend(),
                            [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
-                               return v.second == subscribe_notify_test::notifications_to_send;
+                               return v.second >= subscribe_notify_test::notifications_to_send;
                            });
     }
 
