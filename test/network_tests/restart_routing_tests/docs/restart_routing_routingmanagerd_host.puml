@@ -1,0 +1,68 @@
+@startuml
+
+!pragma teoz true
+participant test_manager as TM
+
+participant service_provider as SP
+participant routing_manager as RM
+
+collections service_consumers as SC
+
+TM -> RM : Create and start host
+activate RM
+
+TM -> SP : Create and start service provider
+activate SP
+
+TM -> SC : Create and start client
+activate SC
+
+TM -> TM : Waits for all service consumers to be registered
+
+SP -> RM : REGISTER
+
+RM --> SP : ROUTING_INFO(ADD_CLIENT(own_client_id))
+
+SC -> RM : REGISTER
+
+RM --> SC : ROUTING_INFO(ADD_CLIENT(own_client_id))
+
+SC --> TM : client registration notification
+
+TM -> RM : Kill
+deactivate RM
+
+SC -> SC : Handle a host client error (try reconnect)
+SP -> SP : Handle a host client error (try reconnect)
+
+TM -> RM : Recreate and restart host
+activate RM
+
+TM -> SC : Notify
+note right TM
+    Consumers wait for host restart before starting to exchange data with the service provider
+endnote
+
+SP -> RM : REGISTER
+
+RM --> SP : ROUTING_INFO(ADD_CLIENT(own_client_id))
+
+SC -> RM : REGISTER
+
+RM --> SC : ROUTING_INFO(ADD_CLIENT(own_client_id))
+
+SP -> RM : OFFER
+
+RM -> SP : ROUTING_INFO(ADD_CLIENT(consumer data))
+
+RM -> SC : ROUTING_INFO(ADD_SERVICE(provider data))
+
+loop 32 times
+SC -> SP : SomeIP request
+SP --> SC : SomeIP response
+end
+
+deactivate RM
+deactivate SP
+deactivate SC
+@enduml

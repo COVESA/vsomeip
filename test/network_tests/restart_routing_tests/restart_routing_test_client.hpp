@@ -13,6 +13,7 @@
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "restart_routing_test_globals.hpp"
 
 #include <thread>
 #include <mutex>
@@ -22,33 +23,27 @@
 
 class routing_restart_test_client {
 public:
-    routing_restart_test_client();
-    ~routing_restart_test_client();
+    routing_restart_test_client(uint32_t app_id);
 
-    bool init();
-    void start();
-    void stop();
+    void run();
 
     void on_state(vsomeip::state_type_e _state);
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
     void on_message(const std::shared_ptr<vsomeip::message>& _response);
 
-    void run();
-    void join_sender_thread();
-
 private:
+    void stop();
     void shutdown_service();
 
     std::shared_ptr<vsomeip::application> app_;
-
     std::mutex mutex_;
     std::condition_variable condition_;
     bool is_available_;
-
-    std::thread sender_;
-
+    std::thread starter_;
     std::atomic<std::uint32_t> received_responses_;
     std::promise<void> all_responses_received_;
+    restart_routing::restart_routing_test_interprocess_sync* ip_sync{nullptr};
+    uint32_t app_id_;
 };
 
 #endif // RESTART_ROUTING_TEST_CLIENT_HPP
