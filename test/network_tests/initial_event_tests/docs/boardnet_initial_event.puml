@@ -1,0 +1,120 @@
+@startuml
+
+!pragma teoz true
+participant test_manager as TM
+
+box "ECU A"
+box "SoC 1" #LightBlue
+participant service_provider as SP
+end box
+box "SoC 2" #LightGreen
+participant routing_manager as RM
+end box
+end box
+
+box "ECU B"
+participant service_consumer as SC
+end box
+
+TM -> RM : Create and start host
+activate RM
+
+TM -> SP : Create and start client
+activate SP
+
+TM -> SP : Wait for Service provider to be registered
+
+SP -> RM : REGISTER
+
+RM --\ SP : REGISTER_ACK
+
+SP --\ TM : Registration notification
+
+TM -> SP : Offer and set payload
+
+SP -> RM : OFFER
+
+TM -> SC : Create and start client
+activate SC
+
+TM -> TM : Wait for client to receive first initial event
+
+SC -> RM : FIND
+
+RM --\ SC : OFFER
+
+SC -> RM : SUBSCRIBE
+
+SC -> SC : Wait for notification
+
+RM -> SP : REMOTE_SUBSCRIBE
+
+SP -> RM : notification
+
+SP --\ RM : SUBSCRIBE_ACK
+
+RM --\ SC : SUBSCRIBE_ACK
+
+RM -> SC : notification
+
+SC -> RM : Send request
+
+RM -> SP : Send request
+
+SP -> TM : Notify
+note right TM
+    Service provider informs test manager that
+    the service consumer received the initial event
+endnote
+
+TM -> RM : Kill
+deactivate RM
+
+TM -> RM : Restart host
+activate RM
+
+TM -> SP : Wait for Service provider to be registered
+
+SP -> RM : REGISTER
+
+RM --\ SP : REGISTER_ACK
+
+SP --\ TM : Registration notification
+
+TM -> SP : Offer and set payload
+
+SP -> RM : OFFER
+
+TM -> TM : Wait for client to receive first initial event
+
+SC -> RM : FIND
+
+RM --\ SC : OFFER
+
+SC -> RM : SUBSCRIBE
+
+SC -> SC : Wait for notification
+
+RM -> SP : REMOTE_SUBSCRIBE
+
+SP --\ RM : SUBSCRIBE_ACK
+
+RM --\ SC : SUBSCRIBE_ACK
+
+RM -> SC : notification
+
+SC -> RM : Send request
+
+RM -> SP : Send request
+
+SP -> TM : Notify
+note right TM
+    Service provider informs test manager that
+    the service consumer received the initial event
+    after host restarted
+endnote
+
+deactivate RM
+deactivate SP
+deactivate SC
+@enduml
