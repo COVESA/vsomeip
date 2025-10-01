@@ -1,0 +1,41 @@
+{
+    "unicast": "@TEST_IP_MASTER@",
+    "logging": {
+        "level": "debug",
+        "console": "true"
+    },
+    "applications": [
+        {
+            "name": "client-sample",
+            "id": "0xaaaa"
+        },
+        {
+            "name": "second-client-sample",
+            "id": "0xbbbb"
+        }
+    ],
+    "clients": [
+        {
+            "service": "0x0001",
+            "instance": "0x0001",
+            "unreliable": [
+                34510,
+                34512
+            ]
+        }
+    ],
+    "services": [
+        {
+            "service": "0x0002",
+            "instance": "0x0001",
+            "unreliable": "30509"
+        }
+    ],
+    "routing": "routingmanagerd",
+    "service-discovery": {
+        "enable": "true",
+        "multicast": "224.244.224.245",
+        "port": "30490",
+        "protocol": "udp"
+    }
+}
