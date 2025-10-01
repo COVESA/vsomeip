@@ -1386,9 +1386,13 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
                 }
 #endif
             }
-
-            // ACL check message
-            if (!is_acl_message_allowed(_receiver, its_service, its_instance, _remote_address)) {
+            if (!_remote_address.is_unspecified()) {
+                // ACL check message
+                if (!is_acl_message_allowed(_receiver, its_service, its_instance, _remote_address)) {
+                    return;
+                }
+            } else {
+                VSOMEIP_WARNING << "Ignored message from unknown address (" << _remote_address.to_string() << ").";
                 return;
             }
 
@@ -1434,20 +1438,6 @@ bool routing_manager_impl::on_message(service_t _service, instance_t _instance, 
     } else {
         its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
     }
-
-#if 0
-    // ACL message check for local test purpouse
-    std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
-    if (its_info) {
-        std::shared_ptr<endpoint> _receiver = its_info->get_endpoint(_reliable);
-        if (_receiver && _receiver.get()) {
-            if(!is_acl_message_allowed(_receiver.get(), _service, _instance,
-                    boost::asio::ip::address_v4::from_string("127.0.0.1"))) {
-                return false;
-            }
-        }
-    }
-#endif
 
     if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
         is_forwarded = deliver_notification(_service, _instance, _data, _size, _reliable, _bound_client, _sec_client, _check_status,
@@ -1986,7 +1976,7 @@ bool routing_manager_impl::is_acl_message_allowed(endpoint* _receiver, service_t
         message_acceptance_t message_acceptance{_remote_address.to_v4().to_uint(), _receiver->get_local_port(), is_local, _service,
                                                 _instance};
         if (!message_acceptance_handler_(message_acceptance)) {
-            VSOMEIP_WARNING << "Message from " << _remote_address.to_string() << std::hex << " with service/instance " << _instance << "/"
+            VSOMEIP_WARNING << "Message from " << _remote_address.to_string() << std::hex << " with service/instance " << _service << "/"
                             << _instance << " was rejected by the ACL check.";
             return false;
         }
