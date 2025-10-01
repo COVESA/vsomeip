@@ -134,7 +134,7 @@ void local_tcp_client_endpoint_impl::connect() {
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't disable "
                             << "Nagle algorithm: " << its_error.message() << " remote: " << remote_.port() << " endpoint: " << this
-                            << " state_: " << static_cast<int>(state_.load());
+                            << " state_: " << to_string(state_.load());
         }
 
         // connection in the same host (and not across a host and guest or similar)
@@ -145,7 +145,7 @@ void local_tcp_client_endpoint_impl::connect() {
             if (its_error) {
                 VSOMEIP_WARNING << "ltcei::connect: couldn't disable "
                                 << "keep_alive: " << its_error.message() << " remote:" << remote_.port() << " endpoint > " << this
-                                << " state_ > " << static_cast<int>(state_.load());
+                                << " state_ > " << to_string(state_.load());
             }
         } else {
             // enable keep alive
@@ -153,7 +153,7 @@ void local_tcp_client_endpoint_impl::connect() {
             if (its_error) {
                 VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
                                 << "keep_alive: " << its_error.message() << " remote:" << remote_.port() << " endpoint > " << this
-                                << " state_ > " << static_cast<int>(state_.load());
+                                << " state_ > " << to_string(state_.load());
             }
 
 #if defined(__linux__)
@@ -186,23 +186,22 @@ void local_tcp_client_endpoint_impl::connect() {
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::connect: couldn't enable "
                             << "SO_LINGER: " << its_error.message() << " remote:" << remote_.port() << " endpoint > " << this
-                            << " state_ > " << static_cast<int>(state_.load());
+                            << " state_ > " << to_string(state_.load());
         }
         socket_->set_option(boost::asio::socket_base::reuse_address(true), its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::" << __func__ << ": Cannot enable SO_REUSEADDR" << "(" << its_error.message() << ")"
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+                            << " endpoint > " << this << " state_ > " << to_string(state_.load());
         }
         socket_->bind(local_, its_error);
         if (its_error) {
             VSOMEIP_WARNING << "ltcei::" << __func__ << ": Cannot bind to client port " << local_.port() << "(" << its_error.message()
                             << ")"
-                            << " endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+                            << " endpoint > " << this << " state_ > " << to_string(state_.load());
             try {
                 boost::asio::post(strand_, std::bind(&client_endpoint_impl::connect_cbk, shared_from_this(), its_error));
             } catch (const std::exception& e) {
-                VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this << " state_ > "
-                              << static_cast<int>(state_.load());
+                VSOMEIP_ERROR << "ltcei::connect: " << e.what() << " endpoint > " << this << " state_ > " << to_string(state_.load());
             }
             return;
         }
@@ -306,7 +305,7 @@ void local_tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const
 
     if (_error) {
         VSOMEIP_INFO << "ltcei::" << __func__ << " Error: " << _error.message() << " endpoint > " << this << " state_ > "
-                     << static_cast<int>(state_.load());
+                     << to_string(state_.load());
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
             return;
