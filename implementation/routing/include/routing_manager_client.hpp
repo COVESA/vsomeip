@@ -193,6 +193,8 @@ private:
         ST_ASSIGNED = 0x4
     };
 
+    static const char* to_string(inner_state_type_e state);
+
     std::atomic_bool is_connected_;
     std::atomic_bool is_started_;
     std::atomic<inner_state_type_e> state_;

@@ -106,6 +106,7 @@ protected:
     void queue_train(const std::shared_ptr<train>& _train);
     void update_last_departure();
     bool ensure_connected(const boost::system::error_code& _error);
+    const char* to_string(cei_state_e state);
 
 protected:
     mutable std::mutex socket_mutex_;
