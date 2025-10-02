@@ -1,0 +1,61 @@
+@startuml
+  Actor Service_consumer as SC
+
+  participant routing_manager as RM
+
+  participant Service_provider as SP
+
+  SC -> RM :  REQUEST
+
+  RM --\ SC : ON_AVAILABLE
+
+  SC -> RM : SUBSCRIBE
+
+  RM --\ SC : SUBSCRIBE_ACK
+
+  loop for every request to be sent
+
+    note across
+      Send request allowed by policy
+    endnote
+
+    SC -> SP : REQUEST
+
+    note across
+      Send request not allowed by policy
+    endnote
+
+    SC -> SP : REQUEST
+
+    SC -> SC : sleep for 250 ms
+  end
+
+  SC -> SC : sleep for 250 ms
+
+  note across
+    At the end check received responses and
+    notifications depending on test mode
+  endnote
+
+  SC -> SC : check received_responses_
+  SC -> SC : check received_allowed_events_
+
+  SC -> SP : REQUEST\nTEST_SERVICE_METHOD_ID_SHUTDOWN
+
+  SC -> SC : stop
+
+  note across
+    For every message received in background
+  endnote
+
+  SP --\ SC : message received
+
+  alt if is response
+    SC -> SC : check serviceID, instanceID\nand methodID
+    SC -> SC : received_responses_++
+  else if is notification
+    SC -> SC : check serviceID, instanceID\nand methodID
+    SC -> SC : received_allowed_events_++
+  end
+
+@enduml

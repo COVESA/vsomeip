@@ -1,4 +1,4 @@
-// Copyright (C) 2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -137,12 +137,11 @@ void security_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
 }
 
 void security_test_client::run() {
+    {
+        std::unique_lock<std::mutex> its_lock(mutex_);
+        condition_.wait(its_lock, [this] { return is_available_; });
+    }
     for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS; ++i) {
-        {
-            std::unique_lock<std::mutex> its_lock(mutex_);
-            condition_.wait(its_lock, [this] { return is_available_; });
-        }
-
         auto request = vsomeip::runtime::get()->create_request(false);
         request->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
         request->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
