@@ -1695,7 +1695,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
 
                 {
                     VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                                  << static_cast<int>(inner_state_type_e::ST_DEREGISTERED);
+                                  << to_string(inner_state_type_e::ST_DEREGISTERED);
                     state_ = inner_state_type_e::ST_DEREGISTERED;
                     // Notify stop() call about clean deregistration
                     std::scoped_lock its_lock(state_condition_mutex_);
@@ -1786,7 +1786,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
 
     {
         VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                      << static_cast<int>(inner_state_type_e::ST_DEREGISTERED);
+                      << to_string(inner_state_type_e::ST_DEREGISTERED);
         state_ = inner_state_type_e::ST_DEREGISTERED;
         // Notify stop() call about clean deregistration
         std::scoped_lock its_lock(state_condition_mutex_);
@@ -1862,7 +1862,7 @@ void routing_manager_client::assign_client() {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                          << static_cast<int>(inner_state_type_e::ST_ASSIGNING);
+                          << to_string(inner_state_type_e::ST_ASSIGNING);
             state_ = inner_state_type_e::ST_ASSIGNING;
 
             sender_->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
@@ -1916,7 +1916,7 @@ void routing_manager_client::register_application() {
             std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                              << static_cast<int>(inner_state_type_e::ST_REGISTERING);
+                              << to_string(inner_state_type_e::ST_REGISTERING);
                 state_ = inner_state_type_e::ST_REGISTERING;
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
 
@@ -2320,7 +2320,7 @@ void routing_manager_client::assign_client_timeout_cbk(boost::system::error_code
         {
             if (state_ != inner_state_type_e::ST_REGISTERED) {
                 VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                              << static_cast<int>(inner_state_type_e::ST_DEREGISTERED);
+                              << to_string(inner_state_type_e::ST_DEREGISTERED);
                 state_ = inner_state_type_e::ST_DEREGISTERED;
                 register_again = true;
             } else {
@@ -2350,7 +2350,7 @@ void routing_manager_client::register_application_timeout_cbk(boost::system::err
     {
         if (!_error && state_ != inner_state_type_e::ST_REGISTERED) {
             VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                          << static_cast<int>(inner_state_type_e::ST_DEREGISTERED);
+                          << to_string(inner_state_type_e::ST_DEREGISTERED);
             state_ = inner_state_type_e::ST_DEREGISTERED;
             register_again = true;
         }
@@ -2644,7 +2644,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
     if (state_ == inner_state_type_e::ST_ASSIGNING) {
         if (_client != VSOMEIP_CLIENT_UNSET) {
             VSOMEIP_DEBUG << "rmc::" << __func__ << ": state_ change " << to_string(state_.load()) << " -> "
-                          << static_cast<int>(inner_state_type_e::ST_ASSIGNED);
+                          << to_string(inner_state_type_e::ST_ASSIGNED);
             state_ = inner_state_type_e::ST_ASSIGNED;
 
             {
