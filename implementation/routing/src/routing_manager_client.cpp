@@ -100,25 +100,20 @@ routing_manager_client::~routing_manager_client() { }
 
 void routing_manager_client::init() {
     routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
-    {
-        std::scoped_lock its_sender_lock{sender_mutex_};
-        // NOTE: order matters, `create_local_server` must done first
-        // with TCP, following `create_local` will use whatever port is established there
-        if (!configuration_->is_local_routing()) {
-            receiver_ = ep_mgr_->create_local_server(shared_from_this());
-        }
-
-        sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-        if (sender_) {
-            host_->set_sec_client_port(sender_->get_local_port());
-        }
-    }
 }
 
 void routing_manager_client::start() {
     is_started_ = true;
     {
-        std::scoped_lock its_sender_lock{sender_mutex_};
+        std::scoped_lock its_receiver_lock(receiver_mutex_);
+        // NOTE: order matters, `create_local_server` must done first
+        // with TCP, following `create_local` will use whatever port is established there
+        if (!configuration_->is_local_routing() && !receiver_) {
+            receiver_ = ep_mgr_->create_local_server(shared_from_this());
+        }
+    }
+    {
+        std::scoped_lock its_sender_lock(sender_mutex_);
         if (!sender_) {
             // application has been stopped and started again
             sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
