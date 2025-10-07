@@ -74,6 +74,7 @@ protected:
         std::uint8_t shutdown_call[] = {0x45, 0x45, 0x45, 0x01, 0x00, 0x00, 0x00, 0x08, 0xDD, 0xDD, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
         boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_, 30001);
         boost::asio::ip::udp::socket udp_socket2(io_, boost::asio::ip::udp::v4());
+        udp_socket2.set_option(boost::asio::socket_base::reuse_address(true));
         udp_socket2.send_to(boost::asio::buffer(shutdown_call), target_service);
         udp_socket2.shutdown(boost::asio::socket_base::shutdown_both, ec);
         udp_socket2.close(ec);
@@ -338,10 +339,13 @@ TEST_P(someip_tp, send_in_mode) {
 
     std::mutex udp_sd_socket_mutex;
     boost::asio::ip::udp::socket udp_sd_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_sd_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     boost::asio::ip::udp::socket udp_client_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30001));
+    udp_client_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     boost::asio::ip::udp::socket udp_server_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 34511));
+    udp_server_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
@@ -621,6 +625,7 @@ TEST_P(someip_tp, send_in_mode) {
                             // send a request from a different src port as well to test cleanup
                             boost::asio::ip::udp::socket udp_client_socket2(
                                     io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30004));
+                            udp_client_socket2.set_option(boost::asio::socket_base::reuse_address(true));
                             msg_incomplete[VSOMEIP_SESSION_POS_MIN] = 0xcc;
                             msg_incomplete[VSOMEIP_SESSION_POS_MAX] = 0xcc;
                             udp_client_socket2.send_to(boost::asio::buffer(msg_incomplete), target_service);
@@ -694,6 +699,7 @@ TEST_P(someip_tp, send_in_mode) {
                             // send a request from a different src port as well to test cleanup
                             boost::asio::ip::udp::socket udp_client_socket2(
                                     io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30005));
+                            udp_client_socket2.set_option(boost::asio::socket_base::reuse_address(true));
                             msg_incomplete[VSOMEIP_SESSION_POS_MIN] = 0xdd;
                             msg_incomplete[VSOMEIP_SESSION_POS_MAX] = 0xdd;
                             udp_client_socket2.send_to(boost::asio::buffer(msg_incomplete), target_service);
