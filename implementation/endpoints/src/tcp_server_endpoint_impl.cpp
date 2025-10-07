@@ -131,17 +131,18 @@ void tcp_server_endpoint_impl::stop() {
 
     server_endpoint_impl::stop();
     {
-        std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+        std::scoped_lock first_lock(acceptor_mutex_);
+
         if (acceptor_.is_open()) {
             boost::system::error_code its_error;
             acceptor_.close(its_error);
             VSOMEIP_INFO << instance_name_ << __func__ << ": acceptor closed, " << its_error.message();
         }
-    }
-    {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
-        for (const auto& c : connections_) {
-            c.second->stop();
+
+        std::scoped_lock second_lock(connections_mutex_);
+
+        for (const auto& [_, c] : connections_) {
+            c->stop();
         }
         connections_.clear();
     }

@@ -3245,6 +3245,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
         VSOMEIP_INFO << "rmi::" << __func__ << " No routing state change --> do nothing.";
         return;
     }
+
     routing_state_ = _routing_state;
 
     if (discovery_) {
@@ -3255,6 +3256,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
             // stop processing of incoming SD messages
             discovery_->stop();
+            ep_mgr_->suspend();
 
             VSOMEIP_INFO << "rmi::" << __func__ << ": Inform all applications that we are going to suspend.";
             send_suspend();

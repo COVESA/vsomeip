@@ -1,51 +1,39 @@
 @startuml
-
-Actor Client as CLI
-
-Actor Service as SRV
-
-SRV -> CLI : Offer service
-
-CLI -> SRV : Request service
-
-CLI <- CLI : Start toggle
-
-CLI -> SRV : Subscribe service
-
-CLI <- CLI : Sleep 3 seconds
-
-CLI <- CLI : Wakes up, Middle Toggle
-
-CLI -> SRV : Unsubscribe service
-
-SRV -> SRV : Sleep 3 seconds
-
-CLI -> SRV : Subscribe service
+participant Client
+participant Router
+participant Server
+participant VM
+Client -> Router : Find service
+Server -> Router : Offer service
+Server -> Router : Offer event
+Router -> Client : Service available
+Client -> Router : Subscribe to event
+Router -> Server : Subscribe
+Server -> Router : Subscribe ack
+Router -> Client  : Subscribe ack
+loop 6 times
+Client -> Router : Suspend request
+Router -> Server : Suspend request
+Server -> Router : Send SIGUSR#1
 
 note right
-    Both client and service sleep for 3 seconds,
-    but since client sleeps first, service will
-    receive the next subscribe in a sleep state
+    At first run, it isn't sent
 end note
 
-CLI <- CLI : Sleeps 2 seconds
+Router -> Client : Subscribe nack
+Router -> Client : Service unavailable
+Server -> VM : Network interface down
 
-CLI <- CLI : Wakes up, End Toggle
+note right
+    Sequence order and delays vary each time
+end note
 
-CLI -> SRV : Unsubscribe service
-
-CLI -> SRV : Subscribe service
-
-CLI -> SRV : Send suspend command
-
-SRV -> SRV : Wakes up, processes subscribe and new unsubscribe and sleeps again
-
-SRV -> SRV : Wakes up, processes subscribe and goes into suspend for 5 seconds
-
-SRV -> SRV : Resumes
-
-SRV -> CLI : Sending client initial events
-
-CLI -> SRV : Sending service signal to stop
-
+Server -> Server : Wait 3 seconds
+Server -> VM : Network interface up
+Server -> Router : Send SIGUSR#2
+Router -> Client : Service available
+Router -> Client  : Subscribe ack
+end
+Client -> Router : Stop request
+Router -> Server : Stop request
 @enduml
