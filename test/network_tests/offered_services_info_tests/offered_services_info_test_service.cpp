@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -38,13 +38,9 @@ class offer_test_service : public vsomeip_utilities::base_logger {
 public:
     offer_test_service(struct offer_test::service_info _service_info, struct offer_test::service_info _remote_service_info) :
         vsomeip_utilities::base_logger("OTS1", "OFFER TEST SERVICE"), service_info_(_service_info),
-        remote_service_info_(_remote_service_info),
-        // service with number 1 uses "routingmanagerd" as application name
-        // this way the same json file can be reused for all local tests
-        // including the ones with routingmanagerd
-        app_(vsomeip::runtime::get()->create_application((service_number == "1") ? "routingmanagerd"
-                                                                                 : "offered_services_info_test_service" + service_number)),
-        wait_until_registered_(true), shutdown_method_called_(false), offer_thread_(std::bind(&offer_test_service::run, this)) {
+        remote_service_info_(_remote_service_info), app_(vsomeip::runtime::get()->create_application("service-sample")),
+        wait_until_registered_(true), wait_until_start_(true), wait_until_done_(true), available_services(0),
+        offer_thread_(std::bind(&offer_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -53,6 +49,9 @@ public:
 
         app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.method_id,
                                        std::bind(&offer_test_service::on_request, this, std::placeholders::_1));
+
+        app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.start_method_id,
+                                       std::bind(&offer_test_service::on_start_method_called, this, std::placeholders::_1));
 
         app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.shutdown_method_id,
                                        std::bind(&offer_test_service::on_shutdown_method_called, this, std::placeholders::_1));
@@ -105,9 +104,21 @@ public:
 
     void on_request(const std::shared_ptr<vsomeip::message>& _message) { app_->send(vsomeip::runtime::get()->create_response(_message)); }
 
+    void on_start_method_called(const std::shared_ptr<vsomeip::message>& _message) {
+        (void)_message;
+        {
+            std::unique_lock its_lock{mutex_};
+            wait_until_start_ = false;
+            condition_.notify_one();
+        }
+    }
+
     void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         (void)_message;
-        shutdown_method_called_ = true;
+        {
+            std::unique_lock its_lock{mutex_};
+            condition_.wait(its_lock, [this] { return !wait_until_done_; });
+        }
 
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
         app_->stop_offer_service(service_info_.service_id, (vsomeip::instance_t)(service_info_.instance_id + 1));
@@ -130,7 +141,8 @@ public:
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
         offer();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        condition_.wait(its_lock, [this] { return !wait_until_start_; });
 
         VSOMEIP_INFO << "TEST LOCAL SERVICES";
         app_->get_offered_services_async(vsomeip::offer_type_e::OT_LOCAL,
@@ -138,10 +150,6 @@ public:
 
         if (std::future_status::timeout == all_callbacks_received_.get_future().wait_for(std::chrono::seconds(15))) {
             ADD_FAILURE() << "Didn't receive all callbacks within time";
-        }
-
-        while (!shutdown_method_called_) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
@@ -223,6 +231,12 @@ public:
         EXPECT_EQ(offer_test::num_all_offered_services, i);
         std::cout << "ON OFFERED SERVICES ALL CALLBACK END" << std::endl;
         all_callbacks_received_.set_value();
+
+        {
+            std::scoped_lock its_lock{mutex_};
+            wait_until_done_ = false;
+            condition_.notify_one();
+        }
     }
 
 private:
@@ -230,10 +244,12 @@ private:
     struct offer_test::service_info remote_service_info_;
     std::shared_ptr<vsomeip::application> app_;
 
-    bool wait_until_registered_;
+    std::atomic_bool wait_until_registered_;
+    std::atomic_bool wait_until_start_;
+    std::atomic_bool wait_until_done_;
+    int available_services;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::atomic<bool> shutdown_method_called_;
     std::promise<void> all_callbacks_received_;
     std::thread offer_thread_;
 };

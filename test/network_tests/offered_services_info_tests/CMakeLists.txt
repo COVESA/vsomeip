@@ -1,4 +1,4 @@
-# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -32,14 +32,9 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Skip valgrind
-if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/offered_services_info_test_*)
-endif()
-
 # Add custom test command.
 add_custom_test(
     NAME offered_services_info_test_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offered_services_info_test_local_starter.sh
-    TIMEOUT 180
+    TIMEOUT 60
 )

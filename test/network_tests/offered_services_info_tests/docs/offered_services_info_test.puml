@@ -1,0 +1,27 @@
+@startuml
+
+participant Service_consumer as SC
+
+participant Service_provider as SP
+
+note across
+  Service provider is routing manager
+endnote
+
+SP -> SC : OFFER
+
+SC -> SP : REQUEST
+
+SP --\ SC : ON_AVAILABLE
+
+SC -> SP : start_method_id request
+
+SC -> SC : check offered services\n(local, remote and all)
+
+SP -> SP : check offered services\n(local, remote and all)
+
+SC -> SP : shutdown_method_id request
+
+SP -> SC : STOP OFFER
+
+@enduml
