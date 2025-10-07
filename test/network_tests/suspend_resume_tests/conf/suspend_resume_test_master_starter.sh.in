@@ -62,4 +62,10 @@ wait $PID_SLAVE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
+# Restore network configuration
+ip link set eth0 up
+ip addr add 169.254.87.2/24 dev eth0
+ip route add 169.254.87.0/24 src 169.254.87.2 dev eth0
+ip route add 224.0.0.0/4 dev eth0
+
 exit $FAIL

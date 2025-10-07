@@ -1246,33 +1246,52 @@ bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
 }
 
 void endpoint_manager_impl::suspend() {
-    // do nothing
-}
-
-void endpoint_manager_impl::resume() {
-    client_endpoints_t its_client_endpoints;
-    server_endpoints_t its_server_endpoints;
+    std::vector<std::weak_ptr<endpoint>> weak_endpoints;
 
     {
-        std::scoped_lock its_lock{endpoint_mutex_};
-        its_client_endpoints = client_endpoints_;
-        its_server_endpoints = server_endpoints_;
-    }
-
-    // restart client endpoints
-    for (const auto& [its_address, ports] : its_client_endpoints) {
-        for (const auto& [its_port, protocols] : ports) {
-            for (const auto& [its_protocol, partitions] : protocols) {
-                for (const auto& [its_partition, its_endpoint] : partitions) {
-                    its_endpoint->restart();
-                }
+        for (const auto& [its_port, protocols] : server_endpoints_) {
+            for (const auto& [its_protocol, its_endpoint] : protocols) {
+                weak_endpoints.push_back(its_endpoint);
             }
         }
     }
 
-    // restart server endpoints
-    for (const auto& [its_port, protocols] : its_server_endpoints) {
-        for (const auto& [its_protocol, its_endpoint] : protocols) {
+    for (const auto& its_weak : weak_endpoints) {
+        if (auto its_endpoint = its_weak.lock()) {
+            its_endpoint->stop();
+        }
+    }
+}
+
+void endpoint_manager_impl::resume() {
+    std::vector<std::weak_ptr<endpoint>> weak_endpoints;
+
+    {
+        std::scoped_lock its_lock{endpoint_mutex_};
+
+        // restart client endpoints
+
+        for (const auto& [its_address, ports] : client_endpoints_) {
+            for (const auto& [its_port, protocols] : ports) {
+                for (const auto& [its_protocol, partitions] : protocols) {
+                    for (const auto& [its_partition, its_endpoint] : partitions) {
+                        weak_endpoints.push_back(its_endpoint);
+                    }
+                }
+            }
+        }
+
+        // restart server endpoints
+
+        for (const auto& [its_port, protocols] : server_endpoints_) {
+            for (const auto& [its_protocol, its_endpoint] : protocols) {
+                weak_endpoints.push_back(its_endpoint);
+            }
+        }
+    }
+
+    for (const auto& its_weak : weak_endpoints) {
+        if (auto its_endpoint = its_weak.lock()) {
             its_endpoint->restart();
         }
     }

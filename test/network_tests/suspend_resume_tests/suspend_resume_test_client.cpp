@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <condition_variable>
+#include <iomanip>
 #include <mutex>
 #include <thread>
 #include <atomic>
@@ -26,58 +27,70 @@ public:
 
     void run_test() {
 
+        VSOMEIP_DEBUG << "[TEST] Process: entry";
+
         register_state_handler();
         register_message_handler();
         register_availability_handler();
 
+        VSOMEIP_DEBUG << "[TEST] Process: start application";
+
         start();
 
         {
-            VSOMEIP_DEBUG << "Started.";
             std::unique_lock<std::mutex> its_lock(mutex_);
             auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
-            VSOMEIP_DEBUG << "[TEST-cli] App Started: r=" << static_cast<int>(r);
-            EXPECT_EQ(r, std::cv_status::no_timeout);
+            ASSERT_EQ(r, std::cv_status::no_timeout);
+            VSOMEIP_DEBUG << "[TEST] Process: service available";
         }
+
+        VSOMEIP_DEBUG << "[TEST] Process: toggle subscriptions";
 
         toggle();
 
         {
-            VSOMEIP_DEBUG << "Toggled.";
             std::unique_lock<std::mutex> its_lock(mutex_);
             if (!has_received_) {
                 auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
-                VSOMEIP_DEBUG << "[TEST-cli] First Receive Validation: r=" << static_cast<int>(r);
-                EXPECT_EQ(r, std::cv_status::no_timeout);
+                ASSERT_EQ(r, std::cv_status::no_timeout);
+                VSOMEIP_DEBUG << "[TEST] Process: notification received";
             } else {
-                VSOMEIP_DEBUG << "[TEST-cli] Jumped received validation";
+                VSOMEIP_DEBUG << "[TEST] Process: notification already received";
             }
         }
 
-        VSOMEIP_DEBUG << "[TEST-cli] Sending suspend/resume: ";
-        send_suspend();
+        VSOMEIP_DEBUG << "[TEST] Process: start STR (suspend/resume) simulation";
 
-        bool was_successful;
-        {
-            VSOMEIP_DEBUG << "Triggered suspend/resume.";
-            // Wait for service to become availaber after suspend/resume.
+        for (int i = 1; i <= 6; ++i) {
+            VSOMEIP_INFO << "[TEST] Process: suspend/resume, iteration#" << std::dec << i << ", is_available=" << std::boolalpha
+                         << is_available_ << ", has_received=" << std::boolalpha << has_received_ << ", is_registered_=" << std::boolalpha
+                         << is_registered_;
+
+            auto begin_time_point = std::chrono::steady_clock::now();
+
+            send_suspend();
+
             std::unique_lock<std::mutex> its_lock(mutex_);
-            auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
-            VSOMEIP_DEBUG << "[TEST-cli] Service Available after susp/resume: r=" << static_cast<int>(r);
-            EXPECT_EQ(r, std::cv_status::no_timeout);
+            VSOMEIP_DEBUG << "[TEST] Process: waiting availability event, iteration#" << std::dec << i
+                          << ", is_available=" << std::boolalpha << is_available_;
+            ASSERT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(20)), std::cv_status::no_timeout);
+            VSOMEIP_DEBUG << "[TEST] Process: waiting event value notification, iteration#" << std::dec << i
+                          << ", is_available=" << std::boolalpha << is_available_;
+            ASSERT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(20)), std::cv_status::no_timeout);
 
-            // Wait for initial event after suspend/resume.
-            r = cv_.wait_for(its_lock, std::chrono::seconds(10));
-            VSOMEIP_DEBUG << "[TEST-cli] After susp/resume event validation: r=" << static_cast<int>(r);
-            EXPECT_EQ(r, std::cv_status::no_timeout);
+            auto end_time_point = std::chrono::steady_clock::now();
 
-            was_successful = (r == std::cv_status::no_timeout);
+            VSOMEIP_DEBUG << "[TEST] Process: iteration#" << std::dec << i << " successful, performed in "
+                          << std::chrono::duration_cast<std::chrono::milliseconds>(end_time_point - begin_time_point).count() << "ms"
+                          << ", is_available=" << std::boolalpha << is_available_;
         }
 
-        if (was_successful)
-            send_stop();
+        VSOMEIP_DEBUG << "[TEST] Process: done";
 
+        send_stop();
         stop();
+
+        VSOMEIP_DEBUG << "[TEST] Process: exit";
     }
 
 private:
@@ -100,20 +113,25 @@ private:
     }
 
     void start() {
-
+        VSOMEIP_DEBUG << "[TEST] vSomeIP application: initialization";
         app_->init();
+
         started_ = true;
         cv_.notify_one();
     }
 
     void run() {
+        VSOMEIP_DEBUG << "[TEST] vSomeIP application: waiting ready signal";
 
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
             cv_.wait(its_lock, [this] { return started_.load(); });
         }
 
+        VSOMEIP_DEBUG << "[TEST] vSomeIP application: start";
         app_->start();
+
+        VSOMEIP_DEBUG << "[TEST] vSomeIP application: exiting";
     }
 
     void stop() {
@@ -124,26 +142,34 @@ private:
 
     void on_state(vsomeip::state_type_e _state) {
 
-        VSOMEIP_DEBUG << __func__ << ": state=" << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "NOT registered.");
+        VSOMEIP_DEBUG << "[TEST] on_state registered=" << std::boolalpha << (_state == vsomeip::state_type_e::ST_REGISTERED)
+                      << ", is_available=" << std::boolalpha << is_available_ << ", has_received=" << std::boolalpha << has_received_
+                      << ", is_registered_=" << std::boolalpha << is_registered_;
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+            VSOMEIP_DEBUG << "[TEST] Request service/event " << std::hex << std::setfill('0') << std::setw(4) << TEST_SERVICE << "."
+                          << std::setw(4) << TEST_INSTANCE << "." << std::setw(4) << TEST_EVENT << "." << std::setw(2) << TEST_EVENTGROUP;
+            is_registered_ = true;
             app_->request_event(TEST_SERVICE, TEST_INSTANCE, TEST_EVENT, {TEST_EVENTGROUP});
             app_->request_service(TEST_SERVICE, TEST_INSTANCE);
+        } else {
+            is_registered_ = false;
         }
     }
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
-        if (_service == TEST_SERVICE && _instance == TEST_INSTANCE) {
+        VSOMEIP_DEBUG << "[TEST] on_availability " << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4)
+                      << _instance << ", is_available=" << std::boolalpha << _is_available << ", was available=" << is_available_
+                      << ", has_received=" << std::boolalpha << has_received_ << ", is_registered_=" << std::boolalpha << is_registered_;
+
+        if (_service == TEST_SERVICE && _instance == TEST_INSTANCE && _is_available != is_available_) {
             std::unique_lock<std::mutex> its_lock(mutex_);
 
-            VSOMEIP_DEBUG << __func__ << ": Test service is " << (_is_available ? "available" : "NOT available")
-                          << (has_received_ ? "." : ", waiting event.");
-
             if (_is_available) {
-                VSOMEIP_DEBUG << "[TEST-cli] On availability will trigger cv";
+                VSOMEIP_DEBUG << "[TEST] Availability triggers signal";
                 cv_.notify_one();
-            } else if (is_available_) {
-                VSOMEIP_DEBUG << "[TEST-cli] On availability=false, clearing has_received";
+            } else {
+                VSOMEIP_DEBUG << "[TEST] Unavailability clears flag";
                 has_received_ = false;
             }
             is_available_ = _is_available;
@@ -151,36 +177,44 @@ private:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
+        VSOMEIP_DEBUG << "[TEST] on_message " << std::hex << std::setfill('0') << std::setw(4) << _message->get_service() << "."
+                      << std::setw(4) << _message->get_instance() << "." << std::setw(4) << _message->get_method() << " " << std::setw(2)
+                      << (_message->get_payload()->get_length() > 0 ? *_message->get_payload()->get_data() : -1) << ", length=" << std::dec
+                      << std::setw(4) << _message->get_payload()->get_length() << ", is_available=" << std::boolalpha << is_available_
+                      << ", has_received=" << std::boolalpha << has_received_ << ", is_registered_=" << std::boolalpha << is_registered_;
+
         if (_message->get_service() == TEST_SERVICE && _message->get_instance() == TEST_INSTANCE && _message->get_method() == TEST_EVENT) {
             std::unique_lock<std::mutex> its_lock(mutex_);
 
-            VSOMEIP_DEBUG << __func__ << ": Event received, service " << (is_available_ ? "available" : "NOT available")
-                          << (has_received_ ? "." : ", waiting event.");
-
             if (!is_available_) {
-                VSOMEIP_ERROR << "[TEST-cli] Ignore notification received out-of-order";
+                VSOMEIP_ERROR << "[TEST] Notification ignored because received out-of-order";
             } else if (!has_received_) {
+                VSOMEIP_DEBUG << "[TEST] Notification sets flag and triggers signal";
                 has_received_ = true;
-                VSOMEIP_DEBUG << "[TEST-cli] HasReceived Changed, triggering cv";
                 cv_.notify_one();
             }
         }
     }
 
     void toggle() {
-        VSOMEIP_DEBUG << "[TEST-cli] Toggle Start";
+        VSOMEIP_DEBUG << "[TEST] Subscribe to " << std::hex << std::setfill('0') << std::setw(4) << TEST_SERVICE << "." << std::setw(4)
+                      << TEST_INSTANCE << "." << std::setw(2) << TEST_EVENTGROUP << "." << std::setw(2) << TEST_MAJOR;
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
         std::this_thread::sleep_for(std::chrono::seconds(3));
-        VSOMEIP_DEBUG << "[TEST-cli] Toggle Middle";
+        VSOMEIP_DEBUG << "[TEST] Toggle subscription to " << std::hex << std::setfill('0') << std::setw(4) << TEST_SERVICE << "."
+                      << std::setw(4) << TEST_INSTANCE << "." << std::setw(2) << TEST_EVENTGROUP << "." << std::setw(2) << TEST_MAJOR;
         app_->unsubscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP);
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
         std::this_thread::sleep_for(std::chrono::seconds(2));
+        VSOMEIP_DEBUG << "[TEST] Toggle subscription to " << std::hex << std::setfill('0') << std::setw(4) << TEST_SERVICE << "."
+                      << std::setw(4) << TEST_INSTANCE << "." << std::setw(2) << TEST_EVENTGROUP << "." << std::setw(2) << TEST_MAJOR;
         app_->unsubscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP);
         app_->subscribe(TEST_SERVICE, TEST_INSTANCE, TEST_EVENTGROUP, TEST_MAJOR);
-        VSOMEIP_DEBUG << "[TEST-cli] Toggle End";
     }
 
     void send_suspend() {
+        VSOMEIP_DEBUG << "[TEST] Sending suspend message: " << std::hex << std::setfill('0') << std::setw(4) << TEST_SERVICE << "."
+                      << std::setw(4) << TEST_INSTANCE << "." << std::setw(4) << TEST_METHOD << " " << std::setw(2) << TEST_SUSPEND;
 
         auto its_message = vsomeip::runtime::get()->create_request(false);
         its_message->set_service(TEST_SERVICE);
@@ -196,11 +230,11 @@ private:
         its_message->set_payload(its_payload);
 
         app_->send(its_message);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     void send_stop() {
+        VSOMEIP_DEBUG << "[TEST] Sending stop message: " << std::hex << std::setfill('0') << std::setw(4) << TEST_SERVICE << "."
+                      << std::setw(4) << TEST_INSTANCE << "." << std::setw(4) << TEST_METHOD << " " << std::setw(2) << TEST_STOP;
 
         auto its_message = vsomeip::runtime::get()->create_request(false);
         its_message->set_service(TEST_SERVICE);
@@ -226,20 +260,28 @@ private: // members
     std::mutex mutex_;
     std::condition_variable cv_;
     std::atomic<bool> started_;
-    bool has_received_{false};
-    bool is_available_{false};
+    std::atomic<bool> has_received_{false};
+    std::atomic<bool> is_available_{false};
+    std::atomic<bool> is_registered_{false};
     std::thread runner_;
 };
 
 TEST(suspend_resume_test, fast) {
-    suspend_resume_test_client its_client;
-    its_client.run_test();
+    {
+        suspend_resume_test_client its_client;
+        VSOMEIP_DEBUG << "[TEST] gtest: enter";
+        its_client.run_test();
+        VSOMEIP_DEBUG << "[TEST] gtest: exit";
+    }
+
+    // Thread sanitizer complains about logging without it
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
 
-    VSOMEIP_DEBUG << "[TEST-cli] Starting Client";
+    VSOMEIP_DEBUG << "[TEST] Starting Client";
     ::testing::InitGoogleTest(&argc, argv);
 
     return RUN_ALL_TESTS();
