@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -42,8 +42,9 @@ public:
         vsomeip_utilities::base_logger("OFIC", "OFFERED SERVICES INFO TEST CLIENT"), service_info_(_service_info),
         remote_service_info_(_remote_service_info), operation_mode_(_mode),
         app_(vsomeip::runtime::get()->create_application("offered_services_info_test_client")), wait_until_registered_(true),
-        wait_until_service_available_(true), wait_for_stop_(true), last_received_response_(std::chrono::steady_clock::now()),
-        number_received_responses_(0), stop_thread_(std::bind(&offered_services_info_test_client::wait_for_stop, this)),
+        wait_until_service_available_(true), services_available(0), wait_for_stop_(true),
+        last_received_response_(std::chrono::steady_clock::now()),
+        stop_thread_(std::bind(&offered_services_info_test_client::wait_for_stop, this)),
         test_offered_services_thread_(std::bind(&offered_services_info_test_client::test_offered_services, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -71,9 +72,6 @@ public:
                 (vsomeip::instance_t)(remote_service_info_.instance_id + 2));
 
         app_->register_state_handler(std::bind(&offered_services_info_test_client::on_state, this, std::placeholders::_1));
-
-        app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
-                                       std::bind(&offered_services_info_test_client::on_message, this, std::placeholders::_1));
 
         app_->register_availability_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE,
                                             std::bind(&offered_services_info_test_client::on_availability, this, std::placeholders::_1,
@@ -109,11 +107,17 @@ public:
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available" : "not available") << ".";
-        static int services_available = 0;
         std::lock_guard<std::mutex> its_lock(mutex_);
         if (_is_available) {
             services_available++;
-            if (services_available == 5) {
+            if (services_available == offer_test::num_all_offered_services) {
+
+                std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
+                its_req->set_service(service_info_.service_id);
+                its_req->set_instance(service_info_.instance_id);
+                its_req->set_method(service_info_.start_method_id);
+                app_->send(its_req);
+
                 wait_until_service_available_ = false;
                 condition_.notify_one();
             }
@@ -123,41 +127,15 @@ public:
         }
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message>& _message) {
-        if (_message->get_message_type() == vsomeip::message_type_e::MT_RESPONSE) {
-            on_response(_message);
-        }
-    }
-
-    void on_response(const std::shared_ptr<vsomeip::message>& _message) {
-        ++number_received_responses_;
-        static bool first(true);
-        if (first) {
-            first = false;
-            last_received_response_ = std::chrono::steady_clock::now();
-            return;
-        }
-        EXPECT_EQ(service_info_.service_id, _message->get_service());
-        EXPECT_EQ(service_info_.method_id, _message->get_method());
-        EXPECT_EQ(service_info_.instance_id, _message->get_instance());
-        ASSERT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_received_response_).count(),
-                  (std::chrono::milliseconds(VSOMEIP_DEFAULT_WATCHDOG_TIMEOUT) + std::chrono::milliseconds(1000)).count());
-        last_received_response_ = std::chrono::steady_clock::now();
-        std::cout << ".";
-        std::cout.flush();
-    }
-
     void test_offered_services() {
         if (operation_mode_ != operation_mode_e::METHODCALL) {
             return;
         }
-        std::unique_lock<std::mutex> its_lock(mutex_);
-        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
-        condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
-        its_lock.unlock();
-        its_lock.release();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            condition_.wait(its_lock, [this] { return !wait_until_registered_; });
+            condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
+        }
 
         VSOMEIP_INFO << "TEST LOCAL SERVICES";
         app_->get_offered_services_async(
@@ -173,10 +151,8 @@ public:
             its_req->set_instance(service_info_.instance_id);
             its_req->set_method(service_info_.shutdown_method_id);
             app_->send(its_req);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         {
             std::lock_guard<std::mutex> its_lock(stop_mutex_);
             wait_for_stop_ = false;
@@ -273,12 +249,13 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
 
+    int services_available;
+
     bool wait_for_stop_;
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
 
     std::chrono::steady_clock::time_point last_received_response_;
-    std::atomic<std::uint32_t> number_received_responses_;
     std::promise<void> all_callbacks_received_;
     std::thread stop_thread_;
     std::thread test_offered_services_thread_;

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2015-2017 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,47 +12,14 @@
 
 FAIL=0
 
-cat <<End-of-message
-*******************************************************************************
-*******************************************************************************
-** Running first test
-*******************************************************************************
-*******************************************************************************
-End-of-message
-
-# Rejecting offer of service instance whose hosting application is still
-# alive:
-# * start application which offers service
-# * start two clients which continuously exchanges messages with the service
-# * start application which offers the same service again -> should be
-#   rejected and an error message should be printed.
-# * Message exchange with client application should not be interrupted.
-
-# Array for client pids
-CLIENT_PIDS=()
+export VSOMEIP_APPLICATION_NAME="service-sample"
 export VSOMEIP_CONFIGURATION=offered_services_info_test_local.json
-# Start the services (routingmanagerd as app name)
-./offered_services_info_test_service 1 & #routingmanagerd as app name
+./offered_services_info_test_service 1 &
 PID_SERVICE_ONE=$!
-./offered_services_info_test_client METHODCALL &
-CLIENT_PIDS+=($!)
 
-# Wait until all clients are finished
-for job in ${CLIENT_PIDS[*]}
-do
-    # Fail gets incremented if a client exits with a non-zero exit code
-    wait $job || FAIL=$(($FAIL+1))
-done
+export VSOMEIP_APPLICATION_NAME="client-sample"
+./offered_services_info_test_client METHODCALL || FAIL=$(($FAIL+1))
 
-# kill the services
-kill $PID_SERVICE_ONE
-sleep 1
+wait $PID_SERVICE_ONE || FAIL=$(($FAIL+1))
 
-
-# Check if everything went well
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL
