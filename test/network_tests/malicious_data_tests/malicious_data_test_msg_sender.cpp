@@ -57,6 +57,7 @@ TEST_F(malicious_data, send_malicious_events) {
 
     boost::asio::ip::tcp::socket tcp_socket(io_);
     boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     std::thread receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
@@ -500,6 +501,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
 
     boost::asio::ip::tcp::socket tcp_socket(io_);
     boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
@@ -849,6 +851,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
 
     boost::asio::ip::tcp::socket tcp_socket(io_);
     boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
@@ -1107,6 +1110,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
 
     boost::asio::ip::tcp::socket tcp_socket(io_);
     boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     std::thread sd_receive_thread([&]() {
         std::atomic<bool> keep_receiving(true);
@@ -1364,7 +1368,9 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
     std::promise<void> offer_received;
 
     boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
     boost::asio::ip::udp::socket udp_socket_service(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 34511));
+    udp_socket_service.set_option(boost::asio::socket_base::reuse_address(true));
 
     boost::asio::ip::udp::endpoint udp_client_info;
     boost::asio::ip::udp::endpoint udp_service_info;
