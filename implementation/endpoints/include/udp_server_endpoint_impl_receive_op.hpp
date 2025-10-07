@@ -157,9 +157,9 @@ struct storage : public std::enable_shared_from_this<storage> {
                     boost::asio::ip::address_v6::bytes_type its_bytes;
 
                     // sender
-                    boost::asio::ip::address_v6 its_sender_address;
                     for (size_t i = 0; i < its_bytes.size(); i++)
                         its_bytes[i] = addr.v6.sin6_addr.s6_addr[i];
+                    boost::asio::ip::address_v6 its_sender_address = boost::asio::ip::address_v6(its_bytes);
                     uint16_t its_sender_port(ntohs(addr.v6.sin6_port));
                     sender = endpoint_type_t(its_sender_address, its_sender_port);
 
