@@ -1301,7 +1301,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
 #ifdef USE_DLT
     bool is_forwarded(true);
 #endif
-    if (_size >= VSOMEIP_SOMEIP_HEADER_SIZE) {
+    if (_size >= VSOMEIP_FULL_HEADER_SIZE) {
         its_message_type = static_cast<message_type_e>(_data[VSOMEIP_MESSAGE_TYPE_POS]);
         its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         if (its_service == VSOMEIP_SD_SERVICE) {
