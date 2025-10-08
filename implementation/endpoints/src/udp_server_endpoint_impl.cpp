@@ -584,7 +584,7 @@ void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_co
 
 void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes,
                                                      const boost::asio::ip::udp::endpoint& _sender,
-                                                     const boost::asio::ip::address& /*_destination*/,
+                                                     const boost::asio::ip::address& _destination,
                                                      const message_buffer_t& _multicast_recv_buffer) {
     // The caller shall not hold the lock
 
@@ -604,6 +604,10 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
 
         if (!own_message) {
             if (own_subnet) {
+                if (_destination == local_.address()) {
+                    VSOMEIP_ERROR << instance_name_ << __func__ << ": unexpected multicast address " << _destination.to_string();
+                }
+
                 on_message_received_unlocked(_error, _bytes, true, _sender, _multicast_recv_buffer);
             }
         } else if (own_callback) {

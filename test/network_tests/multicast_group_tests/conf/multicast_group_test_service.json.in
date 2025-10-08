@@ -19,7 +19,7 @@
         {
             "service": "0x1111",
             "instance": "0x0001",
-            "unreliable": "30509",
+            "unreliable": "30506",
             "events": [
                 {
                     "event": "0x0001"
@@ -31,16 +31,34 @@
                     "events": [
                         "0x0001"
                     ],
-                    "multicast" : {
-                        "address" : "239.192.255.251",
-                        "port" : "30506"
+                    "multicast": {
+                        "address": "239.192.255.251",
+                        "port": "30506"
                     },
-                    "threshold" : "1"
+                    "threshold": "1"
+                }
+            ]
+        },
+        {
+            "service": "0x1112",
+            "instance": "0x0001",
+            "unreliable": "30506",
+            "events": [
+                {
+                    "event": "0x0002"
+                }
+            ],
+            "eventgroups": [
+                {
+                    "eventgroup": "0x0001",
+                    "events": [
+                        "0x0002"
+                    ]
                 }
             ]
         }
     ],
-    "routing" : "routingmanagerd",
+    "routing": "routingmanagerd",
     "service-discovery": {
         "enable": "true",
         "multicast": "224.0.0.1",
