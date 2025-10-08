@@ -1327,6 +1327,27 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
             } else {
                 its_instance = ep_mgr_impl_->find_instance(its_service, _receiver);
             }
+
+            // Ignore messages with invalid message type
+            if (_size >= VSOMEIP_MESSAGE_TYPE_POS) {
+                if (!utility::is_valid_message_type(its_message_type)) {
+                    VSOMEIP_ERROR << "Ignored SomeIP message with invalid message type.";
+                    return;
+                }
+            }
+
+            return_code_e return_code = check_error(_data, _size, its_instance);
+            if (!(_size >= VSOMEIP_MESSAGE_TYPE_POS && utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS]))) {
+                if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
+                    send_error(return_code, _data, _size, its_instance, _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
+                    return;
+                }
+            } else if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
+                // Ignore request no response message if an error occurred
+                return;
+            }
+
+            // Only ignore messages with invalid instance after the calling 'check_error()'
             if (its_instance == 0xFFFF) {
                 its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                 const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
@@ -1335,22 +1356,6 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
                               << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_method << "." << std::setw(4)
                               << its_client << "." << std::setw(4) << its_session << "] from: " << _remote_address.to_string() << ":"
                               << std::dec << _remote_port << ", multicast: " << std::boolalpha << _is_multicast;
-            }
-            // Ignore messages with invalid message type
-            if (_size >= VSOMEIP_MESSAGE_TYPE_POS) {
-                if (!utility::is_valid_message_type(its_message_type)) {
-                    VSOMEIP_ERROR << "Ignored SomeIP message with invalid message type.";
-                    return;
-                }
-            }
-            return_code_e return_code = check_error(_data, _size, its_instance);
-            if (!(_size >= VSOMEIP_MESSAGE_TYPE_POS && utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS]))) {
-                if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
-                    send_error(return_code, _data, _size, its_instance, _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
-                    return;
-                }
-            } else if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
-                // Ignore request no response message if an error occured
                 return;
             }
 
