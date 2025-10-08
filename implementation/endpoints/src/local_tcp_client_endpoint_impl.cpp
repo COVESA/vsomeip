@@ -44,7 +44,7 @@ local_tcp_client_endpoint_impl::local_tcp_client_endpoint_impl(const std::shared
 local_tcp_client_endpoint_impl::~local_tcp_client_endpoint_impl() {
     // ensure socket close() before boost destructor
     // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
-    VSOMEIP_INFO << "ltcei::~ltcei: endpoint > " << this << ", state_ > " << static_cast<int>(state_.load());
+    VSOMEIP_INFO << "ltcei::~ltcei: endpoint > " << this << ", state_ > " << to_string(state_.load());
     shutdown_and_close_socket(false);
 }
 
@@ -106,18 +106,22 @@ void local_tcp_client_endpoint_impl::stop() {
         is_open = socket_->is_open();
     }
     if (is_open) {
-        bool send_queue_empty(false);
         std::uint32_t times_slept(0);
 
+        std::size_t queue_size(0);
         while (times_slept <= LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP) {
             std::unique_lock<std::recursive_mutex> its_lock(mutex_);
-            send_queue_empty = (queue_.size() == 0);
-            if (send_queue_empty) {
+            queue_size = queue_.size();
+            if (queue_size == 0) {
                 break;
             } else {
                 queue_cv_.wait_for(its_lock, std::chrono::milliseconds(10), [this] { return queue_.size() == 0; });
                 times_slept++;
             }
+        }
+
+        if (queue_size != 0) {
+            VSOMEIP_ERROR << "ltcei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
         }
     }
 

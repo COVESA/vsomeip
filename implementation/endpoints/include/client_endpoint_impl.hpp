@@ -96,7 +96,7 @@ protected:
     virtual void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) = 0;
     virtual void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
                                                     std::chrono::nanoseconds* _maximum_retention) const = 0;
-    void shutdown_and_close_socket(bool _recreate_socket);
+    void shutdown_and_close_socket(bool _recreate_socket, bool _is_error = false);
     void shutdown_and_close_socket_unlocked(bool _recreate_socket);
     void start_connect_timer();
     void start_connecting_timer();

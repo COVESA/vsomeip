@@ -21,6 +21,7 @@
 #include "../include/abstract_socket_factory.hpp"
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/endpoint_host.hpp"
+#include "../include/io_control_operation.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
 
@@ -136,7 +137,7 @@ void client_endpoint_impl<Protocol>::stop() {
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
 
     // bind to strand as stop() might be called from different thread
-    boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::shutdown_and_close_socket, this->shared_from_this(), false));
+    boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::shutdown_and_close_socket, this->shared_from_this(), false, true));
 }
 
 template<typename Protocol>
@@ -405,7 +406,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
                             << " remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
                             << to_string(state_.load());
 
-            shutdown_and_close_socket(true);
+            shutdown_and_close_socket(true, true);
 
             if (state_ != cei_state_e::ESTABLISHED) {
                 state_ = cei_state_e::CLOSED;
@@ -579,7 +580,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             print_status();
         }
         was_not_connected_ = true;
-        shutdown_and_close_socket(true);
+        shutdown_and_close_socket(true, true);
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission || _error == boost::asio::error::not_socket) {
@@ -597,7 +598,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             queue_size_ = 0;
         }
         was_not_connected_ = true;
-        shutdown_and_close_socket(true);
+        shutdown_and_close_socket(true, true);
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
 
@@ -644,9 +645,56 @@ void client_endpoint_impl<Protocol>::flush_cbk(boost::system::error_code const& 
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket) {
+void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket, bool _is_error) {
 
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+#if defined(__linux__) || defined(__QNX__)
+    boost::system::error_code its_error;
+    if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
+        io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+
+        std::uint32_t retry_count(0);
+        while (true) {
+            {
+                std::scoped_lock its_lock(socket_mutex_); // Do not block this mutex while waiting, to let other operations finish
+                if (socket_ && socket_->is_open()) {
+                    socket_->io_control(send_buffer_size_cmd, its_error);
+                }
+            }
+
+            if (its_error) {
+                VSOMEIP_WARNING << "cei::" << __func__ << ": fail to read send_buffer_size  "
+                                << "(" << its_error.value() << "): " << its_error.message() << ", remote: " << get_remote_information()
+                                << ", endpoint > " << this << " socket state > " << to_string(state_.load());
+                break;
+            }
+
+            const auto send_buffer_size = send_buffer_size_cmd.get();
+            if (send_buffer_size > 0) {
+                // shutdown_and_close_socket was called on error, do not wait to send remaining data
+                if (_is_error) {
+                    VSOMEIP_WARNING << "cei::" << __func__
+                                    << ": error on socket, not waiting to send remaining data, remote: " << get_remote_information()
+                                    << ", endpoint > " << this << " socket state > " << to_string(state_.load());
+                    break;
+                } else {
+                    VSOMEIP_WARNING << "cei::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
+                                    << " bytes , remote: " << get_remote_information() << ", endpoint > " << this;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
+                }
+            } else {
+                break;
+            }
+            ++retry_count;
+            if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
+                VSOMEIP_ERROR << "cei::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size
+                              << " bytes on close, remote: " << get_remote_information() << ", endpoint > " << this;
+                break;
+            }
+        }
+    }
+#endif
+
+    std::scoped_lock its_lock(socket_mutex_);
     shutdown_and_close_socket_unlocked(_recreate_socket);
 }
 
@@ -667,6 +715,7 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _re
             }
         }
 #endif
+
         boost::system::error_code its_error;
         socket_->shutdown(Protocol::socket::shutdown_both, its_error);
         if (its_error) {

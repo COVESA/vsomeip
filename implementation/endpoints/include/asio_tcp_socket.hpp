@@ -31,6 +31,7 @@ private:
     void close(boost::system::error_code& ec) override { socket_.close(ec); }
     void cancel(boost::system::error_code& ec) override { socket_.cancel(ec); }
     void shutdown(boost::asio::ip::tcp::socket::shutdown_type st, boost::system::error_code& ec) override { socket_.shutdown(st, ec); }
+    void io_control(io_control_operation<std::size_t>& icm, boost::system::error_code& ec) override { socket_.io_control(icm, ec); }
     void set_option(boost::asio::ip::tcp::no_delay nd, boost::system::error_code& ec) override { socket_.set_option(nd, ec); }
     void set_option(boost::asio::ip::tcp::socket::keep_alive ka, boost::system::error_code& ec) override { socket_.set_option(ka, ec); }
     void set_option(boost::asio::ip::tcp::socket::linger l, boost::system::error_code& ec) override { socket_.set_option(l, ec); }
