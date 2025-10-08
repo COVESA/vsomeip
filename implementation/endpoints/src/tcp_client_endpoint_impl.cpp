@@ -44,7 +44,7 @@ tcp_client_endpoint_impl::tcp_client_endpoint_impl(const std::shared_ptr<endpoin
 tcp_client_endpoint_impl::~tcp_client_endpoint_impl() {
     // ensure socket close() before boost destructor
     // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
-    VSOMEIP_INFO << "tcei::~tcei: endpoint > " << this << " state_ > " << static_cast<int>(state_.load());
+    VSOMEIP_INFO << "tcei::~tcei: endpoint > " << this << " state_ > " << to_string(state_.load());
     shutdown_and_close_socket(false);
 
     std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();

@@ -7,8 +7,8 @@
 #define VSOMEIP_V3_TCP_SOCKET_HPP_
 
 #include <boost/asio/ip/tcp.hpp>
-
 #include <functional>
+#include "../include/io_control_operation.hpp"
 
 namespace vsomeip_v3 {
 
@@ -54,6 +54,8 @@ public:
 
     virtual boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code&) const = 0;
     virtual boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code&) const = 0;
+
+    virtual void io_control(io_control_operation<std::size_t>&, boost::system::error_code&) = 0;
 
     virtual void set_option(boost::asio::ip::tcp::no_delay, boost::system::error_code&) = 0;
     virtual void set_option(boost::asio::ip::tcp::socket::keep_alive, boost::system::error_code&) = 0;
