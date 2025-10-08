@@ -23,6 +23,9 @@ gets all notifications.
 does not leave the multicast group to where the service sends
 the notifications.
 
+- Verify that there is no interference between unicast and multicast
+when they share the same receiving port.
+
 ## Test Logic
 
 ### Service provider
@@ -59,3 +62,6 @@ done to check the behavior of the routing manager when one of the clients
 unsubscribes to the service but the other one is still subscribed, with the
 expected behavior being that the routing manager does not leave the multicast
 group where the service is being notified.
+
+Both consumers verify that the same number of messages are received by the
+two channels: unicast and multicast.

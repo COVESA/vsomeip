@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "multicast_group_test_globals.hpp"
 
 using namespace multicast_group_test;
@@ -18,8 +20,13 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
     ASSERT_TRUE(service_application->init()) << "Should initialize application.";
 
     // Offer the test service and client
-    service_application->offer_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
-    service_application->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip_v3::event_type_e::ET_EVENT);
+    service_application->offer_service(SERVICE_ID_MULTICAST, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
+    service_application->offer_event(SERVICE_ID_MULTICAST, INSTANCE_ID, EVENT_ID_MULTICAST, {EVENTGROUP_ID},
+                                     vsomeip_v3::event_type_e::ET_EVENT);
+
+    service_application->offer_service(SERVICE_ID_UNICAST, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
+    service_application->offer_event(SERVICE_ID_UNICAST, INSTANCE_ID, EVENT_ID_UNICAST, {EVENTGROUP_ID},
+                                     vsomeip_v3::event_type_e::ET_EVENT);
 
     // subscribed_clients and has_no_subscribers is used to detect if both client
     // unsubscribed before sending all notifications, which indicates that the test failed
@@ -28,9 +35,10 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
 
     // Register subscription handler to check if the clients are subscribed
     service_application->register_subscription_handler(
-            SERVICE_ID, INSTANCE_ID, EVENTGROUP_ID,
+            SERVICE_ID_MULTICAST, INSTANCE_ID, EVENTGROUP_ID,
             [&](vsomeip::client_t _client, std::uint32_t, std::uint32_t, const std::string&, bool _subscribed) {
-                VSOMEIP_INFO << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : " unsubscribed");
+                VSOMEIP_INFO << "Client: 0x" << std::setfill('0') << std::setw(4) << std::hex << _client
+                             << ((_subscribed) ? " subscribed" : " unsubscribed");
                 _subscribed ? subscribed_clients++ : subscribed_clients--;
                 if (subscribed_clients <= 0) {
                     has_no_subscribers = true;
@@ -44,8 +52,8 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
     // Create payload
     vsomeip::byte_t its_data[2] = {0, 0};
     uint32_t its_size = 2;
-    std::shared_ptr<vsomeip::payload> payload_;
-    payload_ = vsomeip::runtime::get()->create_payload();
+    std::shared_ptr<vsomeip::payload> payload;
+    payload = vsomeip::runtime::get()->create_payload();
 
     for (uint16_t i = 1; i < 1000; i++) {
 
@@ -59,8 +67,9 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
 
         vsomeip_v3::bithelper::write_uint16_le(static_cast<uint16_t>(i), its_data);
 
-        payload_->set_data(its_data, its_size);
-        service_application->notify(SERVICE_ID, INSTANCE_ID, EVENT_ID, payload_);
+        payload->set_data(its_data, its_size);
+        service_application->notify(SERVICE_ID_MULTICAST, INSTANCE_ID, EVENT_ID_MULTICAST, payload);
+        service_application->notify(SERVICE_ID_UNICAST, INSTANCE_ID, EVENT_ID_UNICAST, payload);
 
         // Sleep for 10 milliseconds to send each notification in a 10 milliseconds interval
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -71,8 +80,8 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
     // The final notifications corresponds to the max value
     its_data[0] = static_cast<uint8_t>(255);
     its_data[1] = static_cast<uint8_t>(255);
-    payload_->set_data(its_data, its_size);
-    service_application->notify(SERVICE_ID, INSTANCE_ID, EVENT_ID, payload_);
+    payload->set_data(its_data, its_size);
+    service_application->notify(SERVICE_ID_MULTICAST, INSTANCE_ID, EVENT_ID_MULTICAST, payload);
 
     // Sleep before stopping application
     std::this_thread::sleep_for(std::chrono::milliseconds(50));

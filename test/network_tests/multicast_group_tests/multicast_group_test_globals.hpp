@@ -8,7 +8,10 @@
 namespace multicast_group_test {
 
 // Unique identifier of the test service.
-constexpr vsomeip::service_t SERVICE_ID = 0x1111;
+constexpr vsomeip::service_t SERVICE_ID_MULTICAST = 0x1111;
+
+// Unique identifier of the test unicast service.
+constexpr vsomeip::service_t SERVICE_ID_UNICAST = 0x1112;
 
 // Unique identifier of the test service instance.
 constexpr vsomeip::instance_t INSTANCE_ID = 0x0001;
@@ -19,8 +22,11 @@ constexpr vsomeip::major_version_t MAJOR_VERSION = 0x1;
 // Minor version of the test service interface.
 constexpr vsomeip::minor_version_t MINOR_VERSION = 0x0;
 
-// Unique identifier of the event offered by the service.
-constexpr vsomeip::event_t EVENT_ID = 0x0001;
+// Unique identifier of the multicast event offered by the service.
+constexpr vsomeip::event_t EVENT_ID_MULTICAST = 0x0001;
+
+// Unique identifier of the event offered by the service via unicast.
+constexpr vsomeip::event_t EVENT_ID_UNICAST = 0x0002;
 
 // Unique identifier of the event group to which the event belongs.
 constexpr vsomeip::eventgroup_t EVENTGROUP_ID = 0x0001;
