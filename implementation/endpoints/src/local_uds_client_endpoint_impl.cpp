@@ -262,13 +262,7 @@ void local_uds_client_endpoint_impl::receive_cbk(boost::system::error_code const
             restart(true);
             return;
         }
-        error_handler_t handler;
-        {
-            std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
-            handler = error_handler_;
-        }
-        if (handler)
-            handler();
+        error_handler();
     } else {
 
 #if 0

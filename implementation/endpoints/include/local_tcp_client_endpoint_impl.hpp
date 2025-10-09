@@ -10,11 +10,11 @@
 
 #include <vsomeip/defines.hpp>
 
-#include "client_endpoint_impl.hpp"
+#include "local_client_endpoint_impl.hpp"
 
 namespace vsomeip_v3 {
 
-typedef client_endpoint_impl<boost::asio::ip::tcp> local_tcp_client_endpoint_base_impl;
+typedef local_client_endpoint_impl<boost::asio::ip::tcp> local_tcp_client_endpoint_base_impl;
 
 class local_tcp_client_endpoint_impl : public local_tcp_client_endpoint_base_impl {
 public:
