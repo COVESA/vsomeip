@@ -525,7 +525,9 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
 
     } else {
         VSOMEIP_WARNING << __func__ << ": Didnt' insert client " << std::hex << std::setfill('0') << std::setw(4) << _client
-                        << " to eventgroup 0x" << std::setw(4) << get_service() << "." << get_instance() << "." << _eventgroup;
+                        << " to eventgroup 0x" << std::setw(4) << get_service() << "." << get_instance() << "." << _eventgroup
+                        << " _force: " << _force << " is_provided_: " << is_provided_ << " is_shadow_: " << is_shadow_
+                        << " is_cache_placeholder_: " << is_cache_placeholder_;
     }
     return ret;
 }

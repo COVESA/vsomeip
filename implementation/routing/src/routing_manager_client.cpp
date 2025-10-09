@@ -1238,7 +1238,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                     routing_manager_base::erase_incoming_subscription_state(its_client, its_service, its_instance, its_eventgroup,
                                                                             its_event);
 #endif
-                } else {
+                } else { // local subscription
                     if (!is_from_routing) {
                         if (its_event == ANY_EVENT) {
                             if (!is_subscribe_to_any_event_allowed(_sec_client, its_client, its_service, its_instance, its_eventgroup)) {
@@ -1319,12 +1319,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                                                             its_event);
 #endif
                 }
-
-                if (its_pending_id == PENDING_SUBSCRIPTION_ID) { // local subscription
-                    VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
-                                 << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << ":"
-                                 << std::setw(4) << its_event << ":" << std::dec << static_cast<uint16_t>(its_major) << "]";
-                }
+                VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
+                             << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << ":"
+                             << std::setw(4) << its_event << ":" << std::dec << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
+                             << (its_pending_id != PENDING_SUBSCRIPTION_ID);
             } else {
                 VSOMEIP_ERROR << __func__ << ": subscribe command deserialization failed (" << std::dec << static_cast<int>(its_error)
                               << ")";

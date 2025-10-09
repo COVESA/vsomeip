@@ -310,6 +310,8 @@ private:
 
     std::mutex add_known_client_mutex_;
 
+    std::mutex subscription_mutex;
+
 #ifdef VSOMEIP_ENABLE_COMPAT
     std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::shared_ptr<message>>>> pending_notify_ones_;
     std::recursive_mutex pending_notify_ones_mutex_;

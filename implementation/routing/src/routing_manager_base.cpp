@@ -1314,6 +1314,7 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
                                                std::set<event_t>* _already_subscribed_events) {
 
     bool is_inserted(false);
+    std::scoped_lock its_lock{subscription_mutex};
     if (_event != ANY_EVENT) { // subscribe to specific event
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event) {
