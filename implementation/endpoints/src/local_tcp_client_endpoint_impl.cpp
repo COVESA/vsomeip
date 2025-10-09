@@ -124,7 +124,6 @@ void local_tcp_client_endpoint_impl::stop() {
             VSOMEIP_ERROR << "ltcei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
         }
     }
-
     shutdown_and_close_socket(false);
 }
 
@@ -323,13 +322,7 @@ void local_tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const
                 queue_cv_.notify_all();
             }
         }
-        error_handler_t handler;
-        {
-            std::lock_guard<std::mutex> its_lock(error_handler_mutex_);
-            handler = error_handler_;
-        }
-        if (handler)
-            handler();
+        error_handler();
     } else {
 
 #if 0
