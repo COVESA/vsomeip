@@ -226,20 +226,12 @@ void fake_tcp_socket_handle::clear_handler() {
 }
 
 [[nodiscard]] bool fake_tcp_socket_handle::is_connected(std::weak_ptr<fake_tcp_socket_handle> _to) {
-    auto to = _to.lock();
-    if (!to) {
-        return false;
-    }
-    auto const lock = std::scoped_lock(mtx_, to->mtx_);
-    auto to_connected = to->connected_socket_.lock();
-    if (!to_connected) {
-        return false;
-    }
-    auto connected_socket = connected_socket_.lock();
-    if (!connected_socket) {
-        return false;
-    }
-    return to_connected.get() == this && connected_socket.get() == to.get();
+    // trick from
+    // https://stackoverflow.com/questions/12301916/how-can-you-efficiently-check-whether-two-stdweak-ptr-pointers-are-pointing-to
+    // absolutely do not want to `_to.lock()` so that we do cannot be the ones destroying `_to` when it falls out of scope
+    // that avoids deadlocks
+    auto const lock = std::scoped_lock(mtx_);
+    return !connected_socket_.owner_before(_to) && !_to.owner_before(connected_socket_);
 }
 
 void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const& _buffer, rw_handler _handler) {
