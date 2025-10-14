@@ -677,7 +677,19 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
 
                             // fill routing information from (first) message
                             // so that a reply (response, notification, sub ack, whatever) can be provided
-                            its_host->add_guest(its_client, its_address, static_cast<port_t>(its_port - 1));
+                            auto its_guest_port = static_cast<port_t>(its_port - 1);
+                            if (client_t old_client = its_host->get_guest_by_address(its_address, its_guest_port);
+                                old_client != VSOMEIP_CLIENT_UNSET && its_client != old_client) {
+                                // remove client (and endpoints!) at same address/port
+                                // as address/port are unique and that definitely means the client no longer exists
+                                VSOMEIP_INFO << "ltsei::" << __func__ << ": old client " << std::hex << std::setfill('0') << std::setw(4)
+                                             << old_client << " removed due to new client " << std::hex << std::setfill('0') << std::setw(4)
+                                             << its_client << " @ " << its_address.to_string() + ":" << its_guest_port;
+
+                                its_host->remove_local(old_client, true);
+                            }
+
+                            its_host->add_guest(its_client, its_address, its_guest_port);
                             its_host->add_known_client(its_client, "");
                             set_bound_client(its_client);
                             its_server->add_connection(its_client, shared_from_this());

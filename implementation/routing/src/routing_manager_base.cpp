@@ -1116,6 +1116,7 @@ void routing_manager_base::remove_local(client_t _client,
     }
     ep_mgr_->remove_local(_client);
     remove_known_client(_client);
+    remove_guest(_client);
     {
         std::lock_guard<std::mutex> its_lock(local_services_mutex_);
         // Finally remove all services that are implemented by the client.
@@ -1476,8 +1477,7 @@ void routing_manager_base::clear_shadow_subscriptions(void) {
 }
 
 bool routing_manager_base::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {
-
-    std::lock_guard<std::mutex> its_lock(guests_mutex_);
+    std::scoped_lock its_lock(guests_mutex_);
     auto find_guest = guests_.find(_client);
     if (find_guest == guests_.end())
         return false;
@@ -1488,27 +1488,28 @@ bool routing_manager_base::get_guest(client_t _client, boost::asio::ip::address&
     return true;
 }
 
-void routing_manager_base::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
-    auto old_client = ep_mgr_ ? ep_mgr_->update_local(_client, _address, _port) : std::nullopt;
+client_t routing_manager_base::get_guest_by_address(const boost::asio::ip::address& _address, const port_t _port) const {
+    std::scoped_lock its_lock(guests_mutex_);
+    // inefficient, but as applications usually have few clients/connect to few services, it does not matter
+    auto itr = std::find_if(guests_.begin(), guests_.end(),
+                            [&_address, &_port](const std::pair<client_t, std::pair<boost::asio::ip::address, port_t>>& p) {
+                                return p.second.first == _address && p.second.second == _port;
+                            });
 
-    {
-        std::scoped_lock its_lock(guests_mutex_);
-        guests_[_client] = std::make_pair(_address, _port);
-        if (old_client) { // this avoid lock inversion: guests_mutex_ vs local_endpoint_mutex_
-            guests_.erase(*old_client);
-        }
-    }
-    {
-        std::scoped_lock its_lock(known_clients_mutex_);
-        if (old_client && known_clients_.find(*old_client) != known_clients_.end()) {
-            known_clients_[_client] = known_clients_[*old_client];
-            known_clients_.erase(*old_client);
-        }
+    if (itr == guests_.end()) {
+        return VSOMEIP_CLIENT_UNSET;
+    } else {
+        return itr->first;
     }
 }
 
+void routing_manager_base::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    std::scoped_lock its_lock(guests_mutex_);
+    guests_[_client] = std::make_pair(_address, _port);
+}
+
 void routing_manager_base::remove_guest(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(guests_mutex_);
+    std::scoped_lock its_lock(guests_mutex_);
     guests_.erase(_client);
 }
 

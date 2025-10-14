@@ -1700,8 +1700,22 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
 
         case protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE: {
             add_known_client(its_client, "");
-            if (!e.get_address().is_unspecified()) {
-                add_guest(its_client, e.get_address(), e.get_port());
+            boost::asio::ip::address its_address = e.get_address();
+            port_t its_port = e.get_port();
+            if (!its_address.is_unspecified()) {
+                // remove client (and endpoints!) at same address/port
+                // as address/port are unique and that definitely means the client no longer exists
+                if (client_t old_client = get_guest_by_address(its_address, its_port);
+                    old_client != VSOMEIP_CLIENT_UNSET && old_client != its_client) {
+                    VSOMEIP_INFO << "rmc::" << __func__ << ": old client " << std::hex << std::setfill('0') << std::setw(4) << old_client
+                                 << " removed due to new client " << std::hex << std::setfill('0') << std::setw(4) << its_client << " @ "
+                                 << its_address.to_string() + ":" << its_port;
+
+                    // also removes guest
+                    remove_local(old_client, true);
+                }
+
+                add_guest(its_client, its_address, its_port);
             }
 
             for (const auto& s : e.get_services()) {
