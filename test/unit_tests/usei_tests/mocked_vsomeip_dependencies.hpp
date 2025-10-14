@@ -231,8 +231,10 @@ struct mock_routing_host : public vsomeip_v3::routing_host {
                       vsomeip_v3::client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
                       const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port));
     MOCK_CONST_METHOD0(get_client, vsomeip_v3::client_t());
-    MOCK_METHOD2(add_known_client, void(vsomeip_v3::client_t _client, const std::string& _client_host));
     MOCK_METHOD3(add_guest, void(vsomeip_v3::client_t _client, const boost::asio::ip::address& _address, vsomeip_v3::port_t _port));
+    MOCK_METHOD2(add_known_client, void(vsomeip_v3::client_t _client, const std::string& _client_host));
+    MOCK_CONST_METHOD2(get_guest_by_address, vsomeip_v3::client_t(const boost::asio::ip::address& _address, vsomeip_v3::port_t _port));
+    MOCK_METHOD2(remove_local, void(vsomeip_v3::client_t _client, bool _remove_sec_client));
     MOCK_CONST_METHOD1(get_env, std::string(vsomeip_v3::client_t _client));
     MOCK_METHOD3(remove_subscriptions,
                  void(vsomeip_v3::port_t _local_port, const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port));

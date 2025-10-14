@@ -680,8 +680,16 @@ void routing_manager_stub::add_known_client(client_t _client, const std::string&
     host_->add_known_client(_client, _client_host);
 }
 
+client_t routing_manager_stub::get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const {
+    return host_->get_guest_by_address(_address, _port);
+};
+
 void routing_manager_stub::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
     host_->add_guest(_client, _address, _port);
+}
+
+void routing_manager_stub::remove_local(client_t _client, bool _remove_sec_client) {
+    host_->remove_local(_client, _remove_sec_client);
 }
 
 void routing_manager_stub::on_register_application(client_t _client, bool& continue_registration) {
@@ -1566,8 +1574,23 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
     if (_type != registration_type_e::REGISTER) {
         configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     } else {
-        if (_port > 0 && _port < ILLEGAL_PORT)
+        if (_port > 0 && _port < ILLEGAL_PORT) {
+            // remove client (and endpoints!) at same address/port
+            // as address/port are unique and that definitely means the client no longer exists
+            if (client_t old_client = host_->get_guest_by_address(_address, _port);
+                old_client != VSOMEIP_CLIENT_UNSET && old_client != _client) {
+                VSOMEIP_WARNING << "rms::" << __func__ << ": deregistering old client " << std::hex << std::setfill('0') << std::setw(4)
+                                << old_client << " due to new client " << std::hex << std::setfill('0') << std::setw(4) << _client << " @ "
+                                << _address.to_string() + ":" << _port;
+
+                // we *definitely* need to do this in order - deregister old client, register new client
+                // therefore schedule another registration event
+                // NOTE: no danger of deeper recursion, because of `DEREGISTER` falling into another branch
+                update_registration(old_client, registration_type_e::DEREGISTER, _address, _port);
+            }
+
             host_->add_guest(_client, _address, _port);
+        }
     }
 
     if (_type == registration_type_e::DEREGISTER) {

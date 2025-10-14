@@ -69,7 +69,12 @@ public:
     virtual std::shared_ptr<endpoint> find_local(client_t _client) = 0;
 
     virtual std::shared_ptr<endpoint> find_or_create_local(client_t _client) = 0;
-    virtual void remove_local(client_t _client, bool _remove_local) = 0;
+    /// @brief Remove local client
+    ///
+    /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
+    ///
+    /// @param _remove_sec_client whether to also remove the security information
+    virtual void remove_local(client_t _client, bool _remove_sec_client) = 0;
 
     virtual boost::asio::io_context& get_io() = 0;
     virtual client_t get_client() const = 0;
@@ -97,6 +102,10 @@ public:
     virtual void set_client_host(const std::string& _client_host) = 0;
 
     virtual bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const = 0;
+    /// @brief Get guest client-id by address/port
+    ///
+    /// @return client-id of found guest, or VSOMEIP_CLIENT_UNSET
+    virtual client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const = 0;
     virtual void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) = 0;
     virtual void remove_guest(client_t _client) = 0;
 

@@ -38,8 +38,6 @@ public:
     std::shared_ptr<endpoint> find_local(client_t _client);
     std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance);
 
-    std::optional<client_t> update_local(client_t _client, const boost::asio::ip::address& _address, port_t _port);
-
     std::unordered_set<client_t> get_connected_clients() const;
 
     std::shared_ptr<endpoint> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
