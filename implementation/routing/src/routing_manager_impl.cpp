@@ -3263,7 +3263,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
             // stop processing of incoming SD messages
             discovery_->stop();
-            ep_mgr_->suspend();
 
             VSOMEIP_INFO << "rmi::" << __func__ << ": Inform all applications that we are going to suspend.";
             send_suspend();
@@ -3345,6 +3344,9 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     unset_all_eventpayloads(s.first, i.first);
                 }
             }
+
+            // stop all server endpoints
+            ep_mgr_->suspend();
 
             VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to suspend mode done, diagnosis mode is "
                          << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
