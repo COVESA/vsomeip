@@ -272,11 +272,6 @@ void udp_server_endpoint_impl::stop_unlocked() {
     tp_reassembler_->stop();
 }
 
-bool udp_server_endpoint_impl::is_closed() const {
-    std::scoped_lock its_lock(sync_);
-    return is_stopped_;
-}
-
 void udp_server_endpoint_impl::receive_unicast_unlocked(std::shared_ptr<message_buffer_t> _unicast_recv_buffer) {
     // The caller must hold the lock
 

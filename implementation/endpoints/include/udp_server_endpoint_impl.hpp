@@ -39,8 +39,6 @@ public:
     void restart(bool _force) override;
     void receive() override;
 
-    bool is_closed() const override;
-
     bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
     bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
     bool send_queued(const target_data_iterator_type _it) override;
