@@ -108,8 +108,6 @@ void local_routing_test_service::run() {
         offer();
     }
     condition_.wait(its_lock, [this] { return blocked_; });
-    std::thread t2([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5)); });
-    t2.join();
     app_->stop();
 }
 

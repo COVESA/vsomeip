@@ -16,7 +16,6 @@ FAIL=0
 export VSOMEIP_APPLICATION_NAME=local_payload_test_service
 export VSOMEIP_CONFIGURATION=local_payload_test_service.json
 ./payload_test_service &
-sleep 1;
 
 # Start the client
 export VSOMEIP_APPLICATION_NAME=local_payload_test_client

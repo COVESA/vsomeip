@@ -122,8 +122,10 @@ void external_local_routing_test_service::run() {
 
     condition_.wait(its_lock, [this] { return blocked_; });
 
-    std::thread t2([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 2)); });
-    t2.join();
+    // magic sleep to give time for the last message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
     app_->stop();
 }
 

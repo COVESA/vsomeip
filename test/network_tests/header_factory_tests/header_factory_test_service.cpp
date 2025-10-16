@@ -38,8 +38,6 @@ void header_factory_test_service::stop() {
     VSOMEIP_INFO << "Stopping...";
     app_->clear_all_handler();
     app_->stop();
-    std::thread t([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5)); });
-    t.join();
 }
 
 void header_factory_test_service::join_offer_thread() {
@@ -111,8 +109,6 @@ void header_factory_test_service::run() {
         offer();
     }
     condition_.wait(its_lock, [this] { return blocked_; });
-    std::thread t([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5)); });
-    t.join();
     app_->stop();
 }
 
