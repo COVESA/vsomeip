@@ -146,7 +146,6 @@ private:
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const& _error);
     void remove_from_pinged_clients(client_t _client);
-    void set_routing_state(routing_state_e _routing_state) { (void)_routing_state; };
 
     inline bool is_connected(client_t _source, client_t _sink) const {
 

@@ -2243,8 +2243,13 @@ void application_impl::send_back_cached_eventgroup(service_t _service, instance_
 }
 
 void application_impl::set_routing_state(routing_state_e _routing_state) {
-    if (routing_)
-        routing_->set_routing_state(_routing_state);
+    auto rtmgr = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
+
+    if (!rtmgr) {
+        VSOMEIP_WARNING << __func__ << ": set " << static_cast<int>(_routing_state) << ", not supported (nullptr)";
+    } else {
+        rtmgr->set_routing_state(_routing_state);
+    }
 }
 
 void application_impl::check_send_back_cached_event(service_t _service, instance_t _instance, event_t _event, eventgroup_t _eventgroup,

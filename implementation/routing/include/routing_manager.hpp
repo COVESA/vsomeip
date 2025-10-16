@@ -45,6 +45,8 @@ public:
 
     virtual const vsomeip_sec_client_t* get_sec_client() const = 0;
 
+    virtual bool is_routing_manager() const = 0;
+
     virtual void init() = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
@@ -100,8 +102,6 @@ public:
                             bool _remote_subscriber
 #endif
                             ) = 0;
-
-    virtual void set_routing_state(routing_state_e _routing_state) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 

@@ -179,6 +179,7 @@ public:
 
     routing_state_e get_routing_state();
     void set_routing_state(routing_state_e _routing_state);
+    bool is_suspended() const;
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
         (void)_client;
@@ -365,6 +366,8 @@ private:
 #if defined(__linux__)
     std::shared_ptr<abstract_netlink_connector> netlink_connector_;
 #endif
+
+    std::atomic<routing_state_e> routing_state_;
 
     std::mutex pending_offers_mutex_;
     // map to store pending offers.

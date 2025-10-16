@@ -17,6 +17,7 @@
 #endif
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/payload_impl.hpp"
+#include "../../routing/include/routing_manager_impl.hpp"
 
 namespace vsomeip {
 
@@ -342,8 +343,13 @@ void application_impl::notify_one(service_t _service, instance_t _instance, even
 }
 
 void application_impl::set_routing_state(routing_state_e _routing_state) {
+    auto rtmgr = std::dynamic_pointer_cast<routing_manager_impl>(impl_);
 
-    impl_->set_routing_state(static_cast<vsomeip_v3::routing_state_e>(_routing_state));
+    if (!rtmgr) {
+        VSOMEIP_WARNING << __func__ << ": set " << static_cast<int>(_routing_state) << ", not supported";
+    } else {
+        rtmgr->set_routing_state(static_cast<vsomeip_v3::routing_state_e>(_routing_state));
+    }
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {

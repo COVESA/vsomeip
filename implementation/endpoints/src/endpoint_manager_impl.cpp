@@ -60,6 +60,13 @@ endpoint_manager_impl::~endpoint_manager_impl() {
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+    const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
+
+    if (!rtmgr) {
+        VSOMEIP_ERROR << "endpoint_manager_impl::" << __func__ << ": unsupported by routing manager";
+        return nullptr;
+    }
+
     std::shared_ptr<endpoint> its_endpoint;
     bool start_endpoint(false);
     {
@@ -70,13 +77,20 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_remote_client(se
             start_endpoint = true;
         }
     }
-    if (start_endpoint && its_endpoint && configuration_->is_someip(_service, _instance) && !rm_->is_suspended()) {
+    if (start_endpoint && its_endpoint && configuration_->is_someip(_service, _instance) && !rtmgr->is_suspended()) {
         its_endpoint->start();
     }
     return its_endpoint;
 }
 
 void endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance) {
+    const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
+
+    if (!rtmgr) {
+        VSOMEIP_ERROR << "endpoint_manager_impl::" << __func__ << ": unsupported by routing manager";
+        return;
+    }
+
     std::shared_ptr<endpoint> its_reliable_endpoint;
     std::shared_ptr<endpoint> its_unreliable_endpoint;
     bool start_reliable_endpoint(false);
@@ -95,7 +109,7 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
         }
     }
     const bool is_someip{configuration_->is_someip(_service, _instance)};
-    const bool is_suspended{rm_->is_suspended()};
+    const bool is_suspended{rtmgr->is_suspended()};
 
     if (start_reliable_endpoint && its_reliable_endpoint && is_someip && !is_suspended) {
         its_reliable_endpoint->start();
@@ -223,6 +237,13 @@ void endpoint_manager_impl::clear_remote_service_info(service_t _service, instan
 }
 
 std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bool _start) {
+    const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
+
+    if (!rtmgr) {
+        VSOMEIP_ERROR << "endpoint_manager_impl::" << __func__ << ": unsupported by routing manager";
+        return nullptr;
+    }
+
     std::shared_ptr<endpoint> its_server_endpoint;
     boost::system::error_code its_error;
     boost::asio::ip::address its_unicast{configuration_->get_unicast_address()};
@@ -259,7 +280,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
 
     if (its_server_endpoint) {
         server_endpoints_[_port][_reliable] = its_server_endpoint;
-        if (!rm_->is_suspended()) {
+        if (!rtmgr->is_suspended()) {
             its_server_endpoint->start();
         }
     } else {

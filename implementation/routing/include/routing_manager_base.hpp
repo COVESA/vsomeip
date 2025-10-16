@@ -121,12 +121,6 @@ public:
                             const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address,
                             std::uint16_t _remote_port = 0) = 0;
 
-    virtual void set_routing_state(routing_state_e _routing_state) = 0;
-
-    virtual routing_state_e get_routing_state();
-
-    virtual bool is_suspended() const;
-
     virtual void register_client_error_handler(client_t _client, const std::shared_ptr<endpoint>& _endpoint) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
@@ -298,8 +292,6 @@ protected:
 
     mutable std::mutex env_mutex_;
     std::string env_;
-
-    std::atomic<routing_state_e> routing_state_;
 
 #ifdef USE_DLT
     std::shared_ptr<trace::connector_impl> tc_;

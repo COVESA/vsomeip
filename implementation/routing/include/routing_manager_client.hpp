@@ -148,8 +148,6 @@ private:
 
     bool send_registered_ack();
 
-    void set_routing_state(routing_state_e _routing_state) { (void)_routing_state; };
-
     bool is_client_known(client_t _client);
 
     bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _notifier,
