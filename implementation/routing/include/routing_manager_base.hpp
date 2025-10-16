@@ -35,11 +35,9 @@
 
 namespace vsomeip_v3 {
 
-#ifdef USE_DLT
 namespace trace {
 class connector_impl;
 } // namespace trace
-#endif
 
 class serializer;
 
@@ -293,9 +291,7 @@ protected:
     mutable std::mutex env_mutex_;
     std::string env_;
 
-#ifdef USE_DLT
     std::shared_ptr<trace::connector_impl> tc_;
-#endif
 
 private:
     services_t services_;

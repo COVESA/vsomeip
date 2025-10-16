@@ -52,19 +52,13 @@
 #include "../../service_discovery/include/service_discovery.hpp"
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
-#ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
-#endif
 
 #ifndef ANDROID
 #include "../../e2e_protection/include/buffer/buffer.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
 
 #include "../../e2e_protection/include/e2e/profile/e2e_provider.hpp"
-#endif
-
-#ifdef USE_DLT
-#include "../../tracing/include/connector_impl.hpp"
 #endif
 
 namespace vsomeip_v3 {
@@ -805,11 +799,9 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
         } else if (is_notification && _client && !is_service_discovery) { // Selective notifications!
             if (_client == get_client()) {
                 deliver_message(_data, _size, _instance, _reliable, _bound_client, _sec_client, _status_check, _sent_from_remote);
-#ifdef USE_DLT
                 trace::header its_header;
                 if (its_header.prepare(its_target, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-#endif
                 return true;
             }
             its_target = find_local(_client);
@@ -818,7 +810,6 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
 
         if (its_target) {
             is_sent = send_local(its_target, its_target_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
-#ifdef USE_DLT
             if (is_sent
                 && ((is_request && its_client == get_client()) || (is_response && find_local_client(its_service, _instance) == get_client())
                     || (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT))) {
@@ -827,7 +818,6 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                 if (its_header.prepare(its_target, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
             }
-#endif
         } else {
             // Check whether hosting application should get the message
             // If not, check routes to external
@@ -864,13 +854,11 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                     its_target = ep_mgr_impl_->find_or_create_remote_client(its_service, _instance, _reliable);
                     if (its_target) {
                         is_sent = its_target->send(_data, _size);
-#ifdef USE_DLT
                         if (is_sent) {
                             trace::header its_header;
                             if (its_header.prepare(its_target, true, _instance))
                                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                         }
-#endif
                     } else {
                         const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                         VSOMEIP_ERROR << "Routing info for remote service could not be found! (" << std::hex << std::setfill('0')
@@ -886,9 +874,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                             method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                             std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method_inner);
                             if (its_event) {
-#ifdef USE_DLT
                                 bool has_sent(false);
-#endif
                                 std::set<std::shared_ptr<endpoint_definition>> its_targets;
                                 // we need both endpoints as clients can subscribe to events via TCP
                                 // and UDP
@@ -939,17 +925,13 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                                     } else {
                                         its_udp_server_endpoint->send_to(target, _data, _size);
                                     }
-#ifdef USE_DLT
                                     has_sent = true;
-#endif
                                 }
-#ifdef USE_DLT
                                 if (has_sent) {
                                     trace::header its_header;
                                     if (its_header.prepare(nullptr, true, _instance))
                                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                                 }
-#endif
                             }
                         } else {
                             if ((utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS])
@@ -969,13 +951,11 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                                                               : its_info->get_endpoint(_reliable);
                             if (its_target) {
                                 is_sent = its_target->send(_data, _size);
-#ifdef USE_DLT
                                 if (is_sent) {
                                     trace::header its_header;
                                     if (its_header.prepare(its_target, true, _instance))
                                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                                 }
-#endif
                             } else {
                                 const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
                                 VSOMEIP_ERROR << "Routing error. Endpoint for service (" << std::hex << std::setfill('0') << std::setw(4)
@@ -1046,15 +1026,11 @@ bool routing_manager_impl::send_to(const std::shared_ptr<endpoint_definition>& _
 
     if (its_endpoint) {
         is_sent = its_endpoint->send_to(_target, _data, _size);
-#ifdef USE_DLT
         if (is_sent) {
             trace::header its_header;
             if (its_header.prepare(its_endpoint, true, _instance))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
         }
-#else
-        (void)_instance;
-#endif
     }
     return is_sent;
 }
@@ -1066,13 +1042,11 @@ bool routing_manager_impl::send_via_sd(const std::shared_ptr<endpoint_definition
 
     if (its_endpoint) {
         is_sent = its_endpoint->send_to(_target, _data, _size);
-#ifdef USE_DLT
         if (is_sent && tc_->is_sd_enabled()) {
             trace::header its_header;
             if (its_header.prepare(its_endpoint, true, 0x0))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
         }
-#endif
     }
     return is_sent;
 }
@@ -1296,9 +1270,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
     (void)_bound_client;
     uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
-#ifdef USE_DLT
     bool is_forwarded(true);
-#endif
     // message is at least 16-bytes, see also PRS_SOMEIP_00910
     if (_size < VSOMEIP_FULL_HEADER_SIZE) {
         VSOMEIP_ERROR << "Dropped message with invalid size " << _size;
@@ -1409,25 +1381,20 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
         }
 
         // Common way of message handling
-#ifdef USE_DLT
-        is_forwarded =
-#endif
-                on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), _bound_client, _sec_client, its_check_status,
-                           true);
+        is_forwarded = on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), _bound_client, _sec_client,
+                                  its_check_status, true);
     }
 
-#ifdef USE_DLT
     if (is_forwarded) {
         trace::header its_header;
         const boost::asio::ip::address_v4 its_remote_address =
-                _remote_address.is_v4() ? _remote_address.to_v4() : boost::asio::ip::address_v4::from_string("6.6.6.6");
+                _remote_address.is_v4() ? _remote_address.to_v4() : boost::asio::ip::make_address_v4("6.6.6.6");
         trace::protocol_e its_protocol = _receiver->is_local() ? trace::protocol_e::local
                 : _receiver->is_reliable()                     ? trace::protocol_e::tcp
                                                                : trace::protocol_e::udp;
         its_header.prepare(its_remote_address, _remote_port, its_protocol, false, its_instance);
         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
     }
-#endif
 }
 
 bool routing_manager_impl::on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
@@ -2815,13 +2782,9 @@ void routing_manager_impl::send_error(return_code_e _return_code, const byte_t* 
                         ep_mgr_impl_->find_server_endpoint(its_endpoint_def->get_remote_port(), its_endpoint_def->is_reliable());
                 if (its_endpoint) {
                     its_endpoint->send_error(its_endpoint_def, its_serializer->get_data(), its_serializer->get_size());
-#ifdef USE_DLT
                     trace::header its_header;
                     if (its_header.prepare(its_endpoint, true, _instance))
                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-#else
-                    (void)_instance;
-#endif
                 }
             }
             its_serializer->reset();

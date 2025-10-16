@@ -5,6 +5,10 @@
         "level" : "info",
         "console" : "true"
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "applications" :
     [
         {

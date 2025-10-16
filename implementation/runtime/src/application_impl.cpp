@@ -293,12 +293,10 @@ bool application_impl::init() {
 
         routing_->init();
 
-#ifdef USE_DLT
         // Tracing
         std::shared_ptr<trace::connector_impl> its_connector = trace::connector_impl::get();
         std::shared_ptr<cfg::trace> its_trace_configuration = its_configuration->get_trace();
         its_connector->configure(its_trace_configuration);
-#endif
 
         VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed") << ", " << std::hex << std::setfill('0') << std::setw(4)
                      << client_ << ") is initialized (" << std::dec << max_dispatchers_ << ", " << max_dispatch_time_ << ").";

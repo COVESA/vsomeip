@@ -187,12 +187,10 @@ message::~message() try {
 
     if (dlt_enabled_) {
 #ifdef USE_DLT
-#ifndef ANDROID
         // Some versions of DLT require a null-terminated string and std::string_view does not
         // provide that, so explicitly add a null byte
         buffer_.sputc('\0');
         its_logger->log_to_dlt(level_, buffer_as_view());
-#endif
 #endif // USE_DLT
     }
 } catch (const std::exception& e) {

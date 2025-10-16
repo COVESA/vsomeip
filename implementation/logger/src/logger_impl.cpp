@@ -47,7 +47,6 @@ void logger_impl::log_to_file(std::string_view _msg) {
 }
 
 #ifdef USE_DLT
-#ifndef ANDROID
 
 #define VSOMEIP_LOG_DEFAULT_CONTEXT_ID   "VSIP"
 #define VSOMEIP_LOG_DEFAULT_CONTEXT_NAME "vSomeIP context"
@@ -115,7 +114,6 @@ void logger_impl::log_to_dlt(level_e _level, std::string_view _msg) {
 #endif
 }
 
-#endif
 #endif
 
 logger_impl* logger_impl::get() {

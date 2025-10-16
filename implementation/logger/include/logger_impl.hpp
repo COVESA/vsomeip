@@ -13,9 +13,7 @@
 #include <string_view>
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif
 #endif
 
 #include <vsomeip/internal/logger.hpp>
@@ -47,10 +45,8 @@ public:
     void log_to_file(std::string_view _msg);
 
 #ifdef USE_DLT
-#ifndef ANDROID
     static DltContext& dlt_context();
     void log_to_dlt(level_e _level, std::string_view _msg);
-#endif
 #endif
 
 private:
