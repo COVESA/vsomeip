@@ -83,7 +83,9 @@ void payload_test_client::on_availability(vsomeip::service_t _service, vsomeip::
             is_available_ = false;
         } else if (_is_available && !is_available_) {
             is_available_ = true;
-            send();
+            std::lock_guard<std::mutex> its_lock(mutex_);
+            blocked_ = true;
+            condition_.notify_one();
         }
     }
 }
@@ -114,12 +116,6 @@ void payload_test_client::on_message(const std::shared_ptr<vsomeip::message>& _r
             all_msg_acknowledged_cv_.notify_one();
         }
     }
-}
-
-void payload_test_client::send() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
-    blocked_ = true;
-    condition_.notify_one();
 }
 
 void payload_test_client::run() {
@@ -168,11 +164,10 @@ void payload_test_client::run() {
     blocked_ = false;
 
     stop();
-    std::thread t1([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5)); });
-    t1.join();
+    // magic sleep to give time for the shutdown message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
     app_->stop();
-    std::thread t([]() { std::this_thread::sleep_for(std::chrono::microseconds(1000000 * 5)); });
-    t.join();
 }
 
 std::uint32_t payload_test_client::get_max_allowed_payload() {
@@ -292,6 +287,7 @@ int main(int argc, char** argv) {
             i++;
             std::stringstream converter(argv[i]);
             converter >> number_of_messages_to_send;
+
         } else if (shutdown_service_disable_param == argv[i]) {
             shutdown_service_at_end = false;
         } else if (help == argv[i]) {
@@ -324,6 +320,7 @@ int main(int argc, char** argv) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    int ret = RUN_ALL_TESTS();
+    return ret;
 }
 #endif

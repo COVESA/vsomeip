@@ -94,10 +94,11 @@ void payload_test_service::on_message(const std::shared_ptr<vsomeip::message>& _
 
     if (check_payload) {
         std::shared_ptr<vsomeip::payload> pl = _request->get_payload();
+        // trick from https://stackoverflow.com/questions/6938219/how-to-check-whether-all-bytes-in-a-memory-block-are-zero
+        // because this otherwise goddamn slow without turning on compiler optimizations
         vsomeip::byte_t* pl_ptr = pl->get_data();
-        for (vsomeip::length_t i = 0; i < pl->get_length(); i++) {
-            ASSERT_EQ(vsomeip_test::PAYLOAD_TEST_DATA, *(pl_ptr + i));
-        }
+        vsomeip::length_t pl_len = pl->get_length();
+        ASSERT_TRUE((*pl_ptr == vsomeip_test::PAYLOAD_TEST_DATA) && memcmp(pl_ptr, pl_ptr + 1, pl_len - 1) == 0);
     }
 
     // send response
