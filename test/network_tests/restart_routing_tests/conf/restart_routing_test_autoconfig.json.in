@@ -6,6 +6,10 @@
       "level" : "trace",
       "console" : "true"
    },
+   "tracing" :
+   {
+      "enable" : "true"
+   },
     "applications" :
     [
         {

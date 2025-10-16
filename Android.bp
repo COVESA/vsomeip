@@ -82,7 +82,6 @@ cc_library_shared {
         "-DVSOMEIP_VERSION=\"3.5.11\"",
         "-DVSOMEIP_COMPAT_VERSION=\"3.5.11\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
-        "-DUSE_DLT",
     ],
 
     ldflags: [

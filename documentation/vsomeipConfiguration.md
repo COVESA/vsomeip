@@ -589,29 +589,29 @@ The following configuration parameters are available and can be defined in a fil
 
 ## Tracing
 
-The Trace Connector is used to forward the internal messages that are sent over the Unix Domain Sockets (UDS) to DLT. Thus, it requires that DLT is installed and the DLT module can be found in the context of CMake.
+The Trace Connector is used to forward the internal messages that are sent over local communication to the used logging mechanism.
 
 - **tracing** (optional)
-    - **enable** - Specifies whether the tracing of the SOME/IP messages is enabled, valid values are `true`, `false`. The default value is `false`. If tracing is enabled, the messages will be forwarded to DLT by the Trace Connector.
+    - **enable** - Specifies whether the tracing of the SOME/IP messages is enabled, valid values are `true`, `false`. The default value is `false`. If tracing is enabled, the messages will be forwarded to DLT by the Trace Connector. If DLT is not used, messages are written as an hexstream to console/file output.
     - **sd_enable** - Specifies whether the tracing of the SOME/IP service discovery messages is enabled, valid values are `true`, `false`. The default value is `false`.
-    - **channels** (array)(optional) - Contains the channels to DLT.
-    **NOTE**: You can set up multiple channels to DLT over that you can forward the messages.
+    - **channels** (array)(optional) - Contains the channels.
+    **NOTE**: You can set up multiple channels in order to forward messages.
         - **name** - The name of the channel.
         - **id** - The id of the channel.
     - **filters** (array)(optional) - Contains the filters that are applied on the messages.
-    **NOTE**: You can apply filters respectively filter rules on the messages with specific criteria and expressions. So only the filtered messages are forwarded to DLT.
-        - **channel** (optional) - The id of the channel over that the filtered messages are forwarded to DLT. If no channel is specified the default channel (`TC`) is used. If you want to use a filter in several different channels, you can provide an array of channel ids.
-        **NOTE**: If you use a positive filter with multiple channels, the same message will be forwarded multiple times to DLT.
+    **NOTE**: You can apply filters respectively filter rules on the messages with specific criteria and expressions. So only the filtered messages are forwarded.
+        - **channel** (optional) - The id of the channel over that the filtered messages are forwarded. If no channel is specified the default channel (`TC`) is used. If you want to use a filter in several different channels, you can provide an array of channel ids.
+        **NOTE**: If you use a positive filter with multiple channels, the same message will be forwarded multiple times.
         - **matches** (optional) - Specification of the criteria to include/exclude a message into/from the trace. You can either specify lists (array) or ranges of matching elements. A list may contain single identifiers which match all messages from/to all instances of the corresponding service or tuples consisting of service, instance and method-identifier. 'any' may be used as a wildcard for matching all services, instances or methods. A range is specified by two tuples "from" and "to", each consisting of service-, instance-and method-identifier. All messages with service-, instance-and method-identifiers that are greater than or equal to "from" and less than or equal to "to" are matched.
         - **type** (optional) - Specifies the filter type (valid values: `positive`, `negative`, `header-only`). The default value is `positive`.
-            - A **positive filter** is used and a message matches one of the filter rules, the message will be traced/forwarded to DLT.
-            - A **negative filter** messages can be excluded. So when a message matches one of the filter rules, the message will not be traced/forwarded to DLT.
+            - A **positive filter** is used and a message matches one of the filter rules, the message will be traced/forwarded.
+            - A **negative filter** messages can be excluded. So when a message matches one of the filter rules, the message will not be traced/forwarded.
             - A **header-only filter** is a positive filter that does not trace the message payload.
 
 <details><summary>Example 1 (Minimal Configuration)!</summary>
 This is the minimal configuration of the Trace Connector.
 
-This just enables the tracing and all of the sent internal messages will be traced/forwarded to DLT.
+This just enables the tracing and all of the sent internal messages will be traced/forwarded.
 
 ```json
 "tracing" :
@@ -623,10 +623,10 @@ This just enables the tracing and all of the sent internal messages will be trac
 </details>
 
 <details><summary>Example 2 (Using Filters)!</summary>
-As it is a positive filter, the example filter ensures that only messages representing method '0x80e8' from instances of service '0x1234' will be forwarded to the DLT.
+As it is a positive filter, the example filter ensures that only messages representing method '0x80e8' from instances of service '0x1234' will be forwarded.
 
 If it was specified as a negative filter, all messages except messages representing method '0x80e8' from instances of service
-'0x1234' would be forwarded to the DLT.
+'0x1234' would be forwarded.
 
 The general filter rules are:
 * The default filter is a positive filter for all messages.

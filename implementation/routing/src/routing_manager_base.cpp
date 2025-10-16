@@ -13,21 +13,15 @@
 #include "../../protocol/include/send_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
-#ifdef USE_DLT
 #include "../../tracing/include/connector_impl.hpp"
-#endif
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
 
 routing_manager_base::routing_manager_base(routing_manager_host* _host) :
-    host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), debounce_timer(host_->get_io())
-#ifdef USE_DLT
-    ,
-    tc_(trace::connector_impl::get())
-#endif
-{
+    host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), debounce_timer(host_->get_io()),
+    tc_(trace::connector_impl::get()) {
     const std::size_t its_max = configuration_->get_io_thread_count(host_->get_name());
     const uint32_t its_buffer_shrink_threshold = configuration_->get_buffer_shrink_threshold();
 
@@ -1245,9 +1239,7 @@ void routing_manager_base::remove_eventgroup_info(service_t _service, instance_t
 
 bool routing_manager_base::send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
                                                    bool _reliable, uint8_t _status_check, bool _force) {
-#ifdef USE_DLT
     bool has_local(false);
-#endif
     (void)_client;
     bool has_remote(false);
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
@@ -1261,12 +1253,9 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
             if (its_client == VSOMEIP_ROUTING_CLIENT) {
                 has_remote = true;
                 continue;
-            }
-#ifdef USE_DLT
-            else {
+            } else {
                 has_local = true;
             }
-#endif
 
             std::shared_ptr<endpoint> its_local_target = ep_mgr_->find_local(its_client);
             if (its_local_target) {
@@ -1274,14 +1263,14 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
             }
         }
     }
-#ifdef USE_DLT
+
     // Trace the message if a local client but will _not_ be forwarded to the routing manager
     if (has_local && !has_remote) {
         trace::header its_header;
         if (its_header.prepare(nullptr, true, _instance))
             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
     }
-#endif
+
     return has_remote;
 }
 

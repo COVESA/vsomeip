@@ -18,20 +18,6 @@
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/bithelper.hpp"
 
-#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
-#include <utils/Log.h>
-
-#ifdef ALOGI
-#undef ALOGI
-#endif
-
-#define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
-#ifndef LOGI
-#define LOGI ALOGI
-#endif
-
-#endif
-
 namespace vsomeip_v3 {
 namespace trace {
 
@@ -50,13 +36,11 @@ connector_impl::connector_impl() : is_enabled_(false), is_sd_enabled_(false) {
     channels_[VSOMEIP_TC_DEFAULT_CHANNEL_ID] =
             std::make_shared<channel_impl>(VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME);
 #ifdef USE_DLT
-#ifndef ANDROID
     std::shared_ptr<DltContext> its_default_context = std::make_shared<DltContext>();
 
     contexts_[VSOMEIP_TC_DEFAULT_CHANNEL_ID] = its_default_context;
     DLT_REGISTER_CONTEXT_LL_TS(*(its_default_context.get()), VSOMEIP_TC_DEFAULT_CHANNEL_ID, VSOMEIP_TC_DEFAULT_CHANNEL_NAME, DLT_LOG_INFO,
                                DLT_TRACE_STATUS_ON);
-#endif
 #endif
 }
 
@@ -103,12 +87,10 @@ void connector_impl::reset() {
         channels_.clear();
     }
 #ifdef USE_DLT
-#ifndef ANDROID
     {
         std::scoped_lock its_contexts_lock(contexts_mutex_);
         contexts_.clear();
     }
-#endif
 #endif
 }
 
@@ -155,14 +137,12 @@ std::shared_ptr<channel> connector_impl::add_channel(const trace_channel_t& _id,
 
     // register context
 #ifdef USE_DLT
-#ifndef ANDROID
     {
         std::scoped_lock its_contexts_lock(contexts_mutex_);
         std::shared_ptr<DltContext> its_context = std::make_shared<DltContext>();
         contexts_[_id] = its_context;
         DLT_REGISTER_CONTEXT_LL_TS(*(its_context.get()), _id.c_str(), _name.c_str(), DLT_LOG_INFO, DLT_TRACE_STATUS_ON);
     }
-#endif
 #endif
 
     return its_channel;
@@ -184,7 +164,6 @@ bool connector_impl::remove_channel(const trace_channel_t& _id) {
     if (has_removed) {
         // unregister context
 #ifdef USE_DLT
-#ifndef ANDROID
         {
             std::scoped_lock its_contexts_lock(contexts_mutex_);
             auto its_context = contexts_.find(_id);
@@ -192,7 +171,6 @@ bool connector_impl::remove_channel(const trace_channel_t& _id) {
                 DLT_UNREGISTER_CONTEXT(*(its_context->second.get()));
             }
         }
-#endif
 #endif
     }
 
@@ -213,7 +191,6 @@ std::shared_ptr<channel_impl> connector_impl::get_channel_impl(const std::string
 
 void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size) {
 
-#if USE_DLT
     if (!is_enabled_)
         return;
 
@@ -234,7 +211,7 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
     method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
 
 // Forward to channel if the filter set of the channel allows
-#ifndef ANDROID
+#ifdef USE_DLT
     std::scoped_lock its_lock(channels_mutex_, contexts_mutex_);
 #else
     std::scoped_lock its_lock(channels_mutex_);
@@ -242,7 +219,7 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
     for (auto its_channel : channels_) {
         auto ftype = its_channel.second->matches(its_service, its_instance, its_method);
         if (ftype.first) {
-#ifndef ANDROID
+#ifdef USE_DLT
             auto its_context = contexts_.find(its_channel.second->get_id());
             if (its_context != contexts_.end()) {
                 try {
@@ -265,29 +242,26 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
                 // This should never happen!
                 VSOMEIP_ERROR << "tracing: found channel without DLT context!";
             }
-#elif !defined(ANDROID_CI_BUILD)
+#else
             std::stringstream ss;
-            ss << "TC:";
+            ss << its_channel.first << ":";
             for (int i = 0; i < _header_size; i++) {
                 ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_header[i]);
             }
-            if (ftype.second)
+
+            if (ftype.second) {
+                // Header-Only Filter
                 its_data_size = VSOMEIP_FULL_HEADER_SIZE;
+            }
+
             for (int i = 0; i < its_data_size; i++) {
                 ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
             }
-            std::string app = runtime::get_property("LogApplication");
 
-            ALOGI(app.c_str(), ss.str().c_str());
+            VSOMEIP_INFO << ss.str();
 #endif
         }
     }
-#else
-    (void)_header;
-    (void)_header_size;
-    (void)_data;
-    (void)_data_size;
-#endif
 }
 
 } // namespace trace
