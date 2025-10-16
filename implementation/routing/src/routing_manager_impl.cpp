@@ -77,9 +77,10 @@ runtime::~runtime() { }
 
 routing_manager_impl::routing_manager_impl(routing_manager_host* _host) :
     routing_manager_base(_host), version_log_timer_(_host->get_io()), if_state_running_(false), sd_route_set_(false),
-    routing_running_(false), status_log_timer_(_host->get_io()), memory_log_timer_(_host->get_io()),
-    ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)), pending_remote_offer_id_(0),
-    last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()), ignored_statistics_counter_(0) { }
+    routing_running_(false), routing_state_(configuration_->get_initial_routing_state()), status_log_timer_(_host->get_io()),
+    memory_log_timer_(_host->get_io()), ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
+    pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()),
+    ignored_statistics_counter_(0) { }
 
 routing_manager_impl::~routing_manager_impl() {
     utility::reset_client_ids(configuration_->get_network());
@@ -3246,8 +3247,12 @@ void routing_manager_impl::send_subscribe(client_t _client, service_t _service, 
     }
 }
 
+bool routing_manager_impl::is_suspended() const {
+    return routing_state_ == routing_state_e::RS_SUSPENDED || routing_state_ == routing_state_e::RS_DELAYED_RESUME;
+}
+
 routing_state_e routing_manager_impl::get_routing_state() {
-    return routing_manager_base::get_routing_state();
+    return routing_state_;
 }
 
 void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {

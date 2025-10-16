@@ -28,8 +28,6 @@ routing_manager_base::routing_manager_base(routing_manager_host* _host) :
     tc_(trace::connector_impl::get())
 #endif
 {
-    routing_state_ = configuration_->get_initial_routing_state();
-
     const std::size_t its_max = configuration_->get_io_thread_count(host_->get_name());
     const uint32_t its_buffer_shrink_threshold = configuration_->get_buffer_shrink_threshold();
 
@@ -1519,14 +1517,6 @@ void routing_manager_base::remove_subscriptions(port_t _local_port, const boost:
     (void)_remote_address;
     (void)_remote_port;
     // dummy method to implement routing_host interface
-}
-
-routing_state_e routing_manager_base::get_routing_state() {
-    return routing_state_;
-}
-
-bool routing_manager_base::is_suspended() const {
-    return routing_state_ == routing_state_e::RS_SUSPENDED || routing_state_ == routing_state_e::RS_DELAYED_RESUME;
 }
 
 #ifdef VSOMEIP_ENABLE_COMPAT
