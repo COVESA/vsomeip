@@ -257,7 +257,7 @@ private:
 
     void clear_targets_and_pending_sub_from_eventgroups(service_t _service, instance_t _instance);
 
-    return_code_e check_error(const byte_t* _data, length_t _size, instance_t _instance);
+    return_code_e check_error(const byte_t* _data, length_t _size, instance_t _instance) const;
 
     bool supports_selective(service_t _service, instance_t _instance);
 

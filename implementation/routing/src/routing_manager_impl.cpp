@@ -1293,130 +1293,128 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
     VSOMEIP_INFO << msg.str();
 #endif
     (void)_bound_client;
-    service_t its_service;
-    method_t its_method;
     uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
-    message_type_e its_message_type;
 #ifdef USE_DLT
     bool is_forwarded(true);
 #endif
-    if (_size >= VSOMEIP_FULL_HEADER_SIZE) {
-        its_message_type = static_cast<message_type_e>(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-        its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-        if (its_service == VSOMEIP_SD_SERVICE) {
-            its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-            if (discovery_ && its_method == sd::method) {
-                if (configuration_->get_sd_port() == _remote_port) {
-                    if (!_remote_address.is_unspecified()) {
-                        // ACL check SD message
-                        if (!is_acl_message_allowed(_receiver, its_service, ANY_INSTANCE, _remote_address)) {
-                            return;
-                        }
-                        discovery_->on_message(_data, _size, _remote_address, _is_multicast);
-                    } else {
-                        VSOMEIP_ERROR << "Ignored SD message from unknown address.";
-                    }
-                } else {
-                    VSOMEIP_ERROR << "Ignored SD message from unknown port (" << _remote_port << ")";
-                }
-            }
-        } else {
-            if (_is_multicast) {
-                its_instance = ep_mgr_impl_->find_instance_multicast(its_service, _remote_address);
-            } else {
-                its_instance = ep_mgr_impl_->find_instance(its_service, _receiver);
-            }
-
-            // Ignore messages with invalid message type
-            if (_size >= VSOMEIP_MESSAGE_TYPE_POS) {
-                if (!utility::is_valid_message_type(its_message_type)) {
-                    VSOMEIP_ERROR << "Ignored SomeIP message with invalid message type.";
-                    return;
-                }
-            }
-
-            return_code_e return_code = check_error(_data, _size, its_instance);
-            if (!(_size >= VSOMEIP_MESSAGE_TYPE_POS && utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS]))) {
-                if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
-                    send_error(return_code, _data, _size, its_instance, _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
-                    return;
-                }
-            } else if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
-                // Ignore request no response message if an error occurred
-                return;
-            }
-
-            // Only ignore messages with invalid instance after the calling 'check_error()'
-            if (its_instance == 0xFFFF) {
-                its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-                const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
-                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                VSOMEIP_ERROR << "Received message on invalid port: [" << std::hex << std::setfill('0') << std::setw(4) << its_service
-                              << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_method << "." << std::setw(4)
-                              << its_client << "." << std::setw(4) << its_session << "] from: " << _remote_address.to_string() << ":"
-                              << std::dec << _remote_port << ", multicast: " << std::boolalpha << _is_multicast;
-                return;
-            }
-
-            // Security checks if enabled!
-            if (configuration_->is_security_enabled()) {
-                if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-                    client_t requester = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
-                    its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-                    if (!configuration_->is_offered_remote(its_service, its_instance)) {
-                        VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
-                                        << "for service/instance " << its_service << "/" << its_instance
-                                        << " which isn't offered remote ~> Skip message!";
-                        return;
-                    }
-                    if (find_local(requester)) {
-                        VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
-                                        << "from client identifier 0x" << requester << " which is already used locally ~> Skip message!";
-                        return;
-                    }
-                    if (!configuration_->is_remote_access_allowed()) {
-                        // check if policy allows remote requests.
-                        VSOMEIP_WARNING << "routing_manager_impl::on_message: " << std::hex << "Security: Remote client with client ID 0x"
-                                        << requester << " is not allowed to communicate with service/instance/method " << its_service << "/"
-                                        << its_instance << "/" << its_method;
-                        return;
-                    }
-                }
-            }
-            if (e2e_provider_) {
-                its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-#ifndef ANDROID
-                if (e2e_provider_->is_checked({its_service, its_method})) {
-                    auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
-                    e2e_buffer its_buffer(_data + its_base, _data + _size);
-                    e2e_provider_->check({its_service, its_method}, its_buffer, its_instance, its_check_status);
-
-                    if (its_check_status != e2e::profile_interface::generic_check_status::E2E_OK) {
-                        VSOMEIP_INFO << "E2E protection: CRC check failed for service: " << std::hex << its_service
-                                     << " method: " << its_method;
-                    }
-                }
-#endif
-            }
-            if (!_remote_address.is_unspecified()) {
-                // ACL check message
-                if (!is_acl_message_allowed(_receiver, its_service, its_instance, _remote_address)) {
-                    return;
-                }
-            } else {
-                VSOMEIP_WARNING << "Ignored message from unknown address (" << _remote_address.to_string() << ").";
-                return;
-            }
-
-            // Common way of message handling
-#ifdef USE_DLT
-            is_forwarded =
-#endif
-                    on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), _bound_client, _sec_client,
-                               its_check_status, true);
-        }
+    // message is at least 16-bytes, see also PRS_SOMEIP_00910
+    if (_size < VSOMEIP_FULL_HEADER_SIZE) {
+        VSOMEIP_ERROR << "Dropped message with invalid size " << _size;
+        return;
     }
+
+    const message_type_e its_message_type = static_cast<message_type_e>(_data[VSOMEIP_MESSAGE_TYPE_POS]);
+    const service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+    const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+    const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+
+    // refer to error workflow in PRS_SOMEIP_00195
+    // (although note that it is *NOT* strictly followed!)
+
+    // ignore messages with invalid message type
+    if (!utility::is_valid_message_type(its_message_type)) {
+        VSOMEIP_ERROR << "Dropped message with invalid message type 0x" << std::hex << std::setfill('0') << std::setw(2)
+                      << static_cast<int>(its_message_type);
+        return;
+    }
+    // ignore messages with.. unknown remote address? how is this even possible?!
+    if (_remote_address.is_unspecified()) {
+        VSOMEIP_ERROR << "Dropped message with invalid remote address from: " << _remote_address.to_string() << ":" << std::dec
+                      << _remote_port;
+        return;
+    }
+
+    if (its_service == VSOMEIP_SD_SERVICE) {
+        if (discovery_ && its_method == sd::method) {
+            if (configuration_->get_sd_port() == _remote_port) {
+                // ACL check SD message
+                if (!is_acl_message_allowed(_receiver, its_service, ANY_INSTANCE, _remote_address)) {
+                    return;
+                }
+                discovery_->on_message(_data, _size, _remote_address, _is_multicast);
+            } else {
+                VSOMEIP_ERROR << "Ignored SD message from unknown port (" << _remote_port << ")";
+            }
+        }
+    } else {
+        if (_is_multicast) {
+            its_instance = ep_mgr_impl_->find_instance_multicast(its_service, _remote_address);
+        } else {
+            its_instance = ep_mgr_impl_->find_instance(its_service, _receiver);
+        }
+
+        return_code_e return_code = check_error(_data, _size, its_instance);
+        if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
+            // PRS_SOMEIP_00171/PRS_SOMEIP_00189, no error reply for fire-and-forget
+            if (!utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+                send_error(return_code, _data, _size, its_instance, _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
+            }
+
+            // ignore request no response message if an error occurred
+            return;
+        }
+
+        if (its_instance == 0xFFFF) {
+            VSOMEIP_ERROR << "Dropped message with no matching instanceId, [" << std::hex << std::setfill('0') << std::setw(4)
+                          << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_method << "." << std::setw(4)
+                          << its_client << "." << std::setw(4) << its_session << "] from: " << _remote_address.to_string() << ":"
+                          << std::dec << _remote_port << ", multicast: " << std::boolalpha << _is_multicast;
+            return;
+        }
+
+        // Security checks if enabled!
+        if (configuration_->is_security_enabled()) {
+            if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+                if (!configuration_->is_offered_remote(its_service, its_instance)) {
+                    VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
+                                    << "for service/instance " << its_service << "/" << its_instance
+                                    << " which isn't offered remote ~> Skip message!";
+                    return;
+                }
+                if (find_local(its_client)) {
+                    VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
+                                    << "from client identifier 0x" << its_client << " which is already used locally ~> Skip message!";
+                    return;
+                }
+                if (!configuration_->is_remote_access_allowed()) {
+                    // check if policy allows remote requests.
+                    VSOMEIP_WARNING << "routing_manager_impl::on_message: " << std::hex << "Security: Remote client with client ID 0x"
+                                    << its_client << " is not allowed to communicate with service/instance/method " << its_service << "/"
+                                    << its_instance << "/" << its_method;
+                    return;
+                }
+            }
+        }
+        if (e2e_provider_) {
+#ifndef ANDROID
+            if (e2e_provider_->is_checked({its_service, its_method})) {
+                auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
+                e2e_buffer its_buffer(_data + its_base, _data + _size);
+                e2e_provider_->check({its_service, its_method}, its_buffer, its_instance, its_check_status);
+
+                if (its_check_status != e2e::profile_interface::generic_check_status::E2E_OK) {
+                    VSOMEIP_INFO << "E2E protection: CRC check failed for service: " << std::hex << its_service
+                                 << " method: " << its_method;
+                }
+            }
+#endif
+        }
+
+        // ACL check message
+        if (!is_acl_message_allowed(_receiver, its_service, its_instance, _remote_address)) {
+            return;
+        }
+
+        // Common way of message handling
+#ifdef USE_DLT
+        is_forwarded =
+#endif
+                on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), _bound_client, _sec_client, its_check_status,
+                           true);
+    }
+
 #ifdef USE_DLT
     if (is_forwarded) {
         trace::header its_header;
@@ -2732,42 +2730,47 @@ void routing_manager_impl::on_subscribe_nack(client_t _client, service_t _servic
     }
 }
 
-return_code_e routing_manager_impl::check_error(const byte_t* _data, length_t _size, instance_t _instance) {
+return_code_e routing_manager_impl::check_error(const byte_t* _data, length_t /*_size*/, instance_t _instance) const {
 
-    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    // caller guarantees _size >= VSOMEIP_FULL_HEADER_SIZE
 
-    if (_size >= VSOMEIP_PAYLOAD_POS) {
-        if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]) || utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-            if (_data[VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
-                VSOMEIP_WARNING << "Received a message with unsupported protocol version for service 0x" << std::hex << its_service;
-                return return_code_e::E_WRONG_PROTOCOL_VERSION;
-            }
-            if (_instance == 0xFFFF) {
-                VSOMEIP_WARNING << "Receiving endpoint is not configured for service 0x" << std::hex << its_service;
-                return return_code_e::E_UNKNOWN_SERVICE;
-            }
-            // Check interface version of service/instance
-            auto its_info = find_service(its_service, _instance);
-            if (its_info) {
-                major_version_t its_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
-                if (its_version != its_info->get_major()) {
-                    VSOMEIP_WARNING << "Received a message with unsupported interface version for "
-                                       "service 0x"
-                                    << std::hex << its_service;
-                    return return_code_e::E_WRONG_INTERFACE_VERSION;
-                }
-            }
-            if (_data[VSOMEIP_RETURN_CODE_POS] != static_cast<byte_t>(return_code_e::E_OK)) {
-                // Request calls must to have return code E_OK set!
-                VSOMEIP_WARNING << "Received a message with unsupported return code set for service 0x" << std::hex << its_service;
-                return return_code_e::E_NOT_OK;
+    if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]) || utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
+        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+        major_version_t its_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
+
+        uint8_t its_protocol_version = _data[VSOMEIP_PROTOCOL_VERSION_POS];
+        if (its_protocol_version != VSOMEIP_PROTOCOL_VERSION) {
+            VSOMEIP_WARNING << "Received a message with unsupported protocol version 0x" << std::hex << std::setfill('0') << std::setw(2)
+                            << static_cast<int>(its_protocol_version) << " for service 0x" << std::hex << std::setfill('0') << std::setw(4)
+                            << its_service;
+            return return_code_e::E_WRONG_PROTOCOL_VERSION;
+        }
+        if (_instance == 0xFFFF) {
+            VSOMEIP_WARNING << "Receiving endpoint is not configured for service 0x" << std::hex << std::setfill('0') << std::setw(4)
+                            << its_service;
+            return return_code_e::E_UNKNOWN_SERVICE;
+        }
+
+        // Check interface version of service/instance
+        auto its_info = find_service(its_service, _instance);
+        if (its_info) {
+            if (its_version != its_info->get_major()) {
+                VSOMEIP_WARNING << "Received a message with unsupported interface version 0x" << std::hex << std::setfill('0')
+                                << std::setw(2) << static_cast<int>(its_version) << " for service 0x" << std::hex << std::setfill('0')
+                                << std::setw(4) << its_service;
+                return return_code_e::E_WRONG_INTERFACE_VERSION;
             }
         }
-    } else {
-        // Message shorter than vSomeIP message header
-        VSOMEIP_WARNING << "Received a message message which is shorter than vSomeIP message header!";
-        return return_code_e::E_MALFORMED_MESSAGE;
+        uint8_t its_return_code = _data[VSOMEIP_RETURN_CODE_POS];
+        if (its_return_code != static_cast<byte_t>(return_code_e::E_OK)) {
+            // Request calls must to have return code E_OK set!
+            VSOMEIP_WARNING << "Received a message with unsupported return code 0x" << std::hex << std::setfill('0') << std::setw(2)
+                            << static_cast<int>(its_return_code) << " set for service 0x" << std::hex << std::setfill('0') << std::setw(4)
+                            << its_service;
+            return return_code_e::E_NOT_OK;
+        }
     }
+
     return return_code_e::E_OK;
 }
 
