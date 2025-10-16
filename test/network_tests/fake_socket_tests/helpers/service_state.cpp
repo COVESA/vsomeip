@@ -36,8 +36,26 @@ static char const* to_string(vsomeip_v3::message_type_e m) {
     }
 }
 
+static char const* to_string(vsomeip_v3::availability_state_e s) {
+    switch (s) {
+    case vsomeip_v3::availability_state_e::AS_UNAVAILABLE:
+        return "AS_UNAVAILABLE";
+    case vsomeip_v3::availability_state_e::AS_OFFERED:
+        return "AS_OFFERED";
+    case vsomeip_v3::availability_state_e::AS_AVAILABLE:
+        return "AS_AVAILABLE";
+    case vsomeip_v3::availability_state_e::AS_UNKNOWN:
+    default:
+        return "AS_UNKNOWN";
+    }
+}
+
 std::ostream& operator<<(std::ostream& o, service_instance const& s) {
     return o << "Service: [" << std::hex << std::setfill('0') << std::setw(4) << s.service_ << "." << s.instance_ << "]";
+}
+
+std::ostream& operator<<(std::ostream& o, service_availability const& s) {
+    return o << "Availability: [" << s.si_ << ", state: " << to_string(s.state_) << "]";
 }
 
 std::ostream& operator<<(std::ostream& o, client_session const& c) {

@@ -129,6 +129,11 @@ public:
     attribute_recorder<testing::message> message_record_;
 
     /**
+     * This helper can be used to await availability changes of services
+     **/
+    attribute_recorder<testing::service_availability> availability_record_;
+
+    /**
      * This helper can be used to await the subscription of any event.
      **/
     attribute_recorder<testing::event_subscription> subscription_record_;
@@ -136,6 +141,7 @@ public:
 private:
     void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message>& _message);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::availability_state_e _state);
     void on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
                                         vsomeip::event_t _event, uint16_t error_code);
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);

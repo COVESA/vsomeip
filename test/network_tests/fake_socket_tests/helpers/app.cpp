@@ -23,6 +23,9 @@ app::~app() {
     app_->register_state_handler(std::bind(&app::on_state, this, std::placeholders::_1));
     app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
                                    std::bind(&app::on_message, this, std::placeholders::_1));
+    app_->register_availability_handler(
+            vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE,
+            std::bind(&app::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
     runner_ = std::thread([this] { app_->start(); });
     return true;
@@ -126,6 +129,12 @@ void app::on_message(const std::shared_ptr<vsomeip::message>& _message) {
                      _message->get_method(), _message->get_message_type(), std::move(payload)};
     TEST_LOG << "[app] \"" << app_->get_name() << "\" received: " << m;
     message_record_.record(m);
+}
+
+void app::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::availability_state_e _state) {
+    auto const avail = service_availability{_service, _instance, _state};
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed: " << avail;
+    availability_record_.record(avail);
 }
 
 void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
