@@ -74,10 +74,17 @@ private:
     void stop() {
 
         is_running_ = false;
-        {
-            std::lock_guard<std::mutex> its_lock(sr_mutex_);
-            sr_cv_.notify_one();
-        }
+
+        do {
+            VSOMEIP_DEBUG << "[TEST] Wait runner: " << std::boolalpha << wait_runner_.load();
+
+            {
+                std::lock_guard<std::mutex> its_lock(sr_mutex_);
+                sr_cv_.notify_one();
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        } while (wait_runner_.load());
 
         app_->stop();
 
@@ -93,7 +100,7 @@ private:
             {
                 VSOMEIP_DEBUG << "[TEST] STR simulation: waiting signal, iteration#" << iteration;
                 std::unique_lock<std::mutex> its_lock(sr_mutex_);
-                sr_cv_.wait(its_lock, [this] { return is_suspend_requested_.load(); });
+                sr_cv_.wait(its_lock, [this] { return is_suspend_requested_.load() || !is_running_; });
                 is_suspend_requested_ = false;
             }
 
@@ -157,7 +164,8 @@ private:
         kill(daemon_pid__, SIGUSR1);
 
         VSOMEIP_DEBUG << "[TEST] STR simulation: exit, is_running_=" << std::boolalpha << is_running_ << ", is_subscribe=" << std::boolalpha
-                      << is_subscribe_;
+                      << is_subscribe_ << ", is_suspend_requested_=" << std::boolalpha << is_suspend_requested_;
+        wait_runner_.store(false);
     }
 
     void register_state_handler() {
@@ -260,6 +268,7 @@ private: // members
     std::string name_;
     std::shared_ptr<vsomeip::application> app_;
     std::atomic<bool> is_running_{true};
+    std::atomic<bool> wait_runner_{true};
     std::atomic<bool> is_subscribe_{false};
     std::atomic<bool> is_suspend_requested_{false};
     std::mutex mutex_;
