@@ -106,8 +106,25 @@ TEST_F(test_client_helper, field_subscription) {
     EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
 }
 
-TEST_F(test_client_helper, request_reply) {
+TEST_F(test_client_helper, request_reply_no_sub) {
     start_apps();
+
+    client_->request_service(service_instance_);
+    answer_requests_with({0x2, 0x3});
+
+    // wait for availability, before sending the request
+    // otherwise no guarantee that it is sent out
+    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::available(service_instance_)));
+    client_->send_request(request_);
+
+    ASSERT_TRUE(server_->message_record_.wait_for(expected_request_));
+    EXPECT_TRUE(client_->message_record_.wait_for(expected_reply_));
+}
+
+TEST_F(test_client_helper, request_reply_with_sub) {
+    start_apps();
+
+    // NOTE: subscription acknowledge happens after service availability, which is why this works!
     ASSERT_TRUE(subscribe_to_event());
 
     answer_requests_with({0x2, 0x3});
@@ -538,6 +555,26 @@ TEST_F(test_restart_clients, test_restart_client_in_loop) {
         create_app(client_one_);
         auto* one = start_client(client_one_);
         ASSERT_TRUE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(6)));
+
+        TEST_LOG << "[step] stopping the app";
+        stop_client(client_one_);
+    }
+}
+
+TEST_F(test_restart_clients, test_restart_service_availability) {
+    /// another sanity test
+    /// keep registering and unregistering the same client (which has a fixed client-id),
+    ///  and verify whether it always sees a wanted service available
+
+    start_router();
+    start_server();
+
+    for (size_t i = 0; i < 10; ++i) {
+        create_app(client_one_);
+        auto* one = start_client(client_one_);
+        one->request_service(service_instance_);
+
+        ASSERT_TRUE(one->availability_record_.wait_for(service_availability::available(service_instance_), std::chrono::seconds(6)));
 
         TEST_LOG << "[step] stopping the app";
         stop_client(client_one_);

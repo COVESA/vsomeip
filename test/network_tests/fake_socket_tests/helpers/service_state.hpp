@@ -23,6 +23,17 @@ struct service_instance {
     [[nodiscard]] bool operator!=(service_instance const& rhs) const { return !(*this == rhs); }
 };
 
+struct service_availability {
+    static service_availability available(service_instance _si) { return {_si, vsomeip::availability_state_e::AS_AVAILABLE}; }
+    static service_availability unavailable(service_instance _si) { return {_si, vsomeip::availability_state_e::AS_UNAVAILABLE}; }
+
+    service_instance si_{};
+    vsomeip::availability_state_e state_{};
+
+    [[nodiscard]] bool operator==(service_availability const& rhs) const { return si_ == rhs.si_ && state_ == rhs.state_; }
+    [[nodiscard]] bool operator!=(service_availability const& rhs) const { return !(*this == rhs); }
+};
+
 struct event_ids {
     service_instance si_{};
     vsomeip::event_t event_id_{};
@@ -90,6 +101,7 @@ struct service_state {
 };
 
 std::ostream& operator<<(std::ostream& o, service_instance const& s);
+std::ostream& operator<<(std::ostream& o, service_availability const& s);
 std::ostream& operator<<(std::ostream& o, client_session const& c);
 std::ostream& operator<<(std::ostream& o, message const& n);
 std::ostream& operator<<(std::ostream& o, request const& n);
