@@ -78,11 +78,6 @@ bool client_endpoint_impl<Protocol>::is_established_or_connected() const {
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::is_closed() const {
-    return state_ == cei_state_e::CLOSED;
-}
-
-template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_established(bool _established) {
 
     if (_established) {
@@ -408,10 +403,8 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
 
             shutdown_and_close_socket(true, true);
 
-            if (state_ != cei_state_e::ESTABLISHED) {
-                state_ = cei_state_e::CLOSED;
-                its_host->on_disconnect(this->shared_from_this());
-            }
+            its_host->on_disconnect(this->shared_from_this());
+
             if (get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED || get_max_allowed_reconnects() >= ++reconnect_counter_) {
                 start_connect_timer();
             } else {
@@ -550,7 +543,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         if (!ensure_connected(_error)) {
             return;
         }
-        state_ = cei_state_e::CLOSED;
+
         bool stopping(false);
         {
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
@@ -591,7 +584,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         if (!ensure_connected(_error)) {
             return;
         }
-        state_ = cei_state_e::CLOSED;
+
         if (_error == boost::asio::error::no_permission) {
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
             queue_.clear();

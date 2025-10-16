@@ -426,7 +426,6 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         }
         return;
     } else if (_error == boost::asio::error::broken_pipe) {
-        state_ = cei_state_e::CLOSED;
         bool stopping(false);
         {
             std::lock_guard<std::recursive_mutex> its_lock(mutex_);
@@ -459,7 +458,6 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission) {
-        state_ = cei_state_e::CLOSED;
         if (_error == boost::asio::error::no_permission) {
             VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                             << get_remote_information();

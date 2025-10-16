@@ -95,11 +95,6 @@ bool vsomeip_v3::server_endpoint_impl<Protocol>::is_established_or_connected() c
 }
 
 template<typename Protocol>
-bool vsomeip_v3::server_endpoint_impl<Protocol>::is_closed() const {
-    return false;
-}
-
-template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::set_established(bool /*_established*/) { }
 
 template<typename Protocol>
