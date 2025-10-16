@@ -84,8 +84,6 @@ protected:
 private:
     mutable std::mutex local_endpoint_mutex_;
     std::map<client_t, std::shared_ptr<endpoint>> local_endpoints_;
-
-    mutable std::mutex create_local_server_endpoint_mutex_;
 };
 
 } // namespace vsomeip_v3

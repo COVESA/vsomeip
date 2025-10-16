@@ -135,7 +135,6 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(const std::
     {
 #endif
         try {
-            std::lock_guard<std::mutex> its_lock(create_local_server_endpoint_mutex_);
             port_t its_port;
             std::set<port_t> its_used_ports;
             auto its_address = configuration_->get_routing_guest_address();
