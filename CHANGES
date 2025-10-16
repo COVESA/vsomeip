@@ -1,5 +1,37 @@
 Changes
 =======
+v3.5.11
+- global
+  - Add basic watchdog to track if stop offers are sent to the
+    network for externally offered services.
+  - Fixed issue of cached values not being properly updated.
+  - Add predicate to condition variables.
+  - Minor code clean-ups.
+  - Minor logging improvements.
+
+- endpoint
+  - Stop servers during suspend to avoid dangling connections.
+  - set SO_LINGER to 0 on local tcp client endpoints to avoid
+    sockets in TIME_WAIT state.
+  - Adapted condition variable for multicast operations.
+  - Wait for unacknowledged data on all TCP endpoints.
+  - Update the error handling for local communication to synchronize
+    IO operations errors and state.
+
+- routing
+  - Only check ACL and process messages if the address is specified.
+  - Force client to go to "Initial Wait Phase" when TTL expires.
+  - Return when receiving a message on an invalid port/instance.
+  - Prevent race condition on insert_subscription.
+
+- tests
+ - network tests
+    - Fix and/or document subscribe_notify_test_one tests,
+      restart_routing, subscribe_notify_test_diff_clients,
+      security_test, offered_services_info, multigroup test
+    - Add boardnet_initial_event test, cached_event test
+    - Fix reuse address issues in tests
+
 v3.5.10
 - global
   - Resolve build error when compiling using gcc 9.
