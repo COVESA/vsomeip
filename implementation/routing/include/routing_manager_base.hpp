@@ -102,12 +102,7 @@ public:
     virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force);
 
     virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-                            bool _force
-#ifdef VSOMEIP_ENABLE_COMPAT
-                            ,
-                            bool _remote_subscriber
-#endif
-    );
+                            bool _force);
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
 
@@ -185,10 +180,6 @@ protected:
                                 major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
 
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-#ifdef VSOMEIP_ENABLE_COMPAT
-    void send_pending_notify_ones(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,
-                                  bool _remote_subscriber = false);
-#endif
 
     void unset_all_eventpayloads(service_t _service, instance_t _instance);
     void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
@@ -206,17 +197,6 @@ protected:
 
     void add_known_client(client_t _client, const std::string& _client_host);
     void remove_known_client(client_t _client);
-
-#ifdef VSOMEIP_ENABLE_COMPAT
-    void set_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                         event_t _event, subscription_state_e _state);
-
-    subscription_state_e get_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance,
-                                                         eventgroup_t _eventgroup, event_t _event);
-
-    void erase_incoming_subscription_state(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                           event_t _event);
-#endif
 
 private:
     virtual bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
@@ -300,14 +280,6 @@ private:
     std::mutex add_known_client_mutex_;
 
     std::mutex subscription_mutex;
-
-#ifdef VSOMEIP_ENABLE_COMPAT
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::shared_ptr<message>>>> pending_notify_ones_;
-    std::recursive_mutex pending_notify_ones_mutex_;
-    std::map<client_t, std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::map<event_t, subscription_state_e>>>>>
-            incoming_subscription_state_;
-    std::recursive_mutex incoming_subscription_state_mutex_;
-#endif
 };
 
 } // namespace vsomeip_v3

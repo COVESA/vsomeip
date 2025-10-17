@@ -864,12 +864,7 @@ void application_impl::notify_one(service_t _service, instance_t _instance, even
                                   client_t _client, bool _force) const {
     if (routing_) {
         auto its_payload{runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
-        routing_->notify_one(_service, _instance, _event, its_payload, _client, _force
-#ifdef VSOMEIP_ENABLE_COMPAT
-                             ,
-                             false
-#endif
-        );
+        routing_->notify_one(_service, _instance, _event, its_payload, _client, _force);
     }
 }
 

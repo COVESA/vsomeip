@@ -34,10 +34,6 @@ The stack consists out of:
 * a shared library for SOME/IP's service discovery (`libvsomeip3-sd.so`)
 * a shared library for SOME/IP's E2E protection module (`libvsomeip3-e2e.so`)
 
-Optional:
-
-* a shared library for compatibility with vsomeip v2 (`libvsomeip.so`)
-
 # Build Instructions
 ----------------
 ## Dependencies
@@ -147,15 +143,6 @@ To compile vsomeip with a user defined message signal the IP routing to be ready
 
 ```bash
 cmake -DROUTING_READY_MESSAGE=<YOUR MESSAGE> ..
-```
-
-
-### Compilation with vSomeIP 2 compatibility layer
-
-To compile vsomeip with enabled vSomeIP 2 compatibility layer, call cmake like:
-
-```bash
-cmake -DENABLE_COMPAT=1 ..
 ```
 
 ### Compilation of examples

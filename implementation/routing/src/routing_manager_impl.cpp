@@ -621,10 +621,6 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                  << static_cast<int>(_major) << "]";
     const client_t its_local_client = find_local_client(_service, _instance);
     if (get_client() == its_local_client) {
-#ifdef VSOMEIP_ENABLE_COMPAT
-        routing_manager_base::set_incoming_subscription_state(_client, _service, _instance, _eventgroup, _event,
-                                                              subscription_state_e::IS_SUBSCRIBING);
-#endif
         auto self = shared_from_this();
         host_->on_subscription(
                 _service, _instance, _eventgroup, _client, _sec_client, get_env(_client), true,
@@ -639,10 +635,6 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                             stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
                         }
                         routing_manager_base::subscribe(_client, _sec_client, _service, _instance, _eventgroup, _major, _event, _filter);
-#ifdef VSOMEIP_ENABLE_COMPAT
-                        send_pending_notify_ones(_service, _instance, _eventgroup, _client);
-                        routing_manager_base::erase_incoming_subscription_state(_client, _service, _instance, _eventgroup, _event);
-#endif
                     }
 
                     VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
@@ -1090,19 +1082,9 @@ void routing_manager_impl::unregister_shadow_event(client_t _client, service_t _
 }
 
 void routing_manager_impl::notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
-                                      client_t _client, bool _force
-#ifdef VSOMEIP_ENABLE_COMPAT
-                                      ,
-                                      bool _remote_subscriber
-#endif
-) {
+                                      client_t _client, bool _force) {
     if (find_local(_client)) {
-        routing_manager_base::notify_one(_service, _instance, _event, _payload, _client, _force
-#ifdef VSOMEIP_ENABLE_COMPAT
-                                         ,
-                                         _remote_subscriber
-#endif
-        );
+        routing_manager_base::notify_one(_service, _instance, _event, _payload, _client, _force);
     } else {
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event) {
@@ -1439,12 +1421,7 @@ void routing_manager_impl::on_notification(client_t _client, service_t _service,
         std::shared_ptr<payload> its_payload = runtime::get()->create_payload(&_data[VSOMEIP_PAYLOAD_POS], its_length);
 
         if (_notify_one) {
-            notify_one(_service, _instance, its_event->get_event(), its_payload, _client, true
-#ifdef VSOMEIP_ENABLE_COMPAT
-                       ,
-                       false
-#endif
-            );
+            notify_one(_service, _instance, its_event->get_event(), its_payload, _client, true);
         } else {
             if (its_event->is_field()) {
                 if (!its_event->set_payload_notify_pending(its_payload)) {

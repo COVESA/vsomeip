@@ -11,11 +11,6 @@ libvsomeip_srcs = [
    "implementation/security/**/*.cpp",
 ]
 
-libvsomeip_compat_srcs = [
-    "implementation/compat/message/src/*.cpp",
-    "implementation/compat/runtime/src/*.cpp",
-]
-
 libvsomeip_cfg_srcs = [
     "implementation/configuration/src/*.cpp",
 ]
@@ -80,7 +75,6 @@ cc_library_shared {
     cflags: [
         "-DWITHOUT_SYSTEMD",
         "-DVSOMEIP_VERSION=\"3.5.11\"",
-        "-DVSOMEIP_COMPAT_VERSION=\"3.5.11\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
     ],
 
@@ -161,29 +155,6 @@ cc_library_shared {
     ],
 
     rtti: true,
-
-    shared_libs: [
-        "libvsomeip3",
-        "libboost_system"
-    ]
-}
-
-cc_library_shared {
-    name: "libvsomeip",
-    vendor: true,
-
-    srcs: libvsomeip_compat_srcs,
-
-    defaults: [
-        "vsomeip_defaults",
-        "vsomeip_lib_defaults"
-    ],
-
-    rtti: true,
-
-    export_include_dirs: [
-        "interface"
-    ],
 
     shared_libs: [
         "libvsomeip3",

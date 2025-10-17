@@ -7,7 +7,6 @@ cmake_minimum_required(VERSION 3.4...3.22)
 project (vsomeip)
 
 set (VSOMEIP_NAME vsomeip3)
-set (VSOMEIP_COMPAT_NAME vsomeip)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 5)
@@ -161,9 +160,7 @@ endif (NOT MSVC)
 
 # Compatibility
 if (ENABLE_COMPAT)
-set (VSOMEIP_ENABLE_COMPAT 1)
-else ()
-set (VSOMEIP_ENABLE_COMPAT 0)
+    message(FATAL "ENABLE_COMPAT is no longer supported, please remove this option")
 endif ()
 
 # Multiple routing managers
@@ -399,39 +396,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     target_link_libraries(${VSOMEIP_NAME}-sd socket)
     target_link_libraries(${VSOMEIP_NAME} PRIVATE socket)
 endif()
-################################################################################
-# Compatibility library
-################################################################################
-if (VSOMEIP_ENABLE_COMPAT EQUAL 1)
-set (VSOMEIP_COMPAT_MAJOR_VERSION 2)
-set (VSOMEIP_COMPAT_VERSION ${VSOMEIP_COMPAT_MAJOR_VERSION}.99.99)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_ENABLE_COMPAT")
-
-file(GLOB_RECURSE ${VSOMEIP_COMPAT_NAME}_SRC
-    "implementation/compat/logging/src/*.cpp"
-    "implementation/compat/message/src/*.cpp"
-    "implementation/compat/runtime/src/*.cpp"
-)
-list(SORT ${VSOMEIP_COMPAT_NAME}_SRC)
-
-add_library(${VSOMEIP_COMPAT_NAME} SHARED ${${VSOMEIP_COMPAT_NAME}_SRC})
-target_compile_features(${VSOMEIP_COMPAT_NAME} PRIVATE cxx_std_17)
-set_target_properties (${VSOMEIP_COMPAT_NAME} PROPERTIES VERSION ${VSOMEIP_COMPAT_VERSION} SOVERSION ${VSOMEIP_COMPAT_MAJOR_VERSION})
-if (MSVC)
-    set_target_properties(${VSOMEIP_COMPAT_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
-endif ()
-
-target_include_directories(
-    ${VSOMEIP_COMPAT_NAME}
-    PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface/compat>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
-    $<INSTALL_INTERFACE:include/compat> # for clients in install mode
-)
-target_link_libraries(${VSOMEIP_COMPAT_NAME} PRIVATE ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
-
-endif ()
 
 ################################################################################
 # Configuration files
@@ -541,41 +505,6 @@ install (
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
 )
-
-if (VSOMEIP_ENABLE_COMPAT EQUAL 1)
-install (
-    TARGETS ${VSOMEIP_COMPAT_NAME}
-    EXPORT vsomeipTargets
-    LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
-)
-
-export (TARGETS ${VSOMEIP_COMPAT_NAME} FILE "${PROJECT_BINARY_DIR}/vsomeipTargets.cmake")
-export (PACKAGE ${VSOMEIP_COMPAT_NAME})
-
-configure_file (vsomeipConfig.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake" @ONLY)
-configure_file (vsomeipConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake" @ONLY)
-
-set (COMPAT_INSTALL_CMAKE_DIR "lib/cmake/${VSOMEIP_COMPAT_NAME}")
-
-install (
-    EXPORT vsomeipTargets
-    DESTINATION "${COMPAT_INSTALL_CMAKE_DIR}"
-    COMPONENT dev
-)
-
-install (
-    FILES
-    "${PROJECT_BINARY_DIR}/vsomeipConfig.cmake"
-    "${PROJECT_BINARY_DIR}/vsomeipConfigVersion.cmake"
-    DESTINATION "${COMPAT_INSTALL_CMAKE_DIR}"
-    COMPONENT dev
-)
-
-configure_file(vsomeip.pc.in ${PROJECT_BINARY_DIR}/vsomeip.pc @ONLY)
-install(FILES ${PROJECT_BINARY_DIR}/vsomeip.pc DESTINATION lib/pkgconfig)
-
-endif ()
 
 install (
   FILES ${EXAMPLE_CONFIG_FILES} DESTINATION etc/vsomeip COMPONENT config

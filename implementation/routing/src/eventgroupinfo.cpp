@@ -408,19 +408,6 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
         for (const auto& its_event : events_) {
             if (its_event && its_event->get_type() == event_type_e::ET_FIELD) {
                 auto its_reliability = its_event->get_reliability();
-#ifdef VSOMEIP_ENABLE_COMPAT
-                if (its_reliability == reliability_type_e::RT_UNKNOWN) {
-                    if (_reliable) {
-                        if (_unreliable) {
-                            its_reliability = reliability_type_e::RT_BOTH;
-                        } else {
-                            its_reliability = reliability_type_e::RT_RELIABLE;
-                        }
-                    } else if (_unreliable) {
-                        its_reliability = reliability_type_e::RT_UNRELIABLE;
-                    }
-                }
-#endif
                 switch (its_reliability) {
                 case reliability_type_e::RT_RELIABLE:
                     its_reliable_events.insert(its_event);
