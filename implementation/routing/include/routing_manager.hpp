@@ -96,12 +96,7 @@ public:
     virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force) = 0;
 
     virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-                            bool _force
-#ifdef VSOMEIP_ENABLE_COMPAT
-                            ,
-                            bool _remote_subscriber
-#endif
-                            ) = 0;
+                            bool _force) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 

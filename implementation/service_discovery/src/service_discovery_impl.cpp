@@ -248,10 +248,6 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
         return;
     }
 
-#ifdef VSOMEIP_ENABLE_COMPAT
-    bool is_selective(_info ? _info->is_selective() : false);
-#endif // VSOMEIP_ENABLE_COMPAT
-
     std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
@@ -260,17 +256,6 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
             auto found_eventgroup = found_instance->second.find(_eventgroup);
             if (found_eventgroup != found_instance->second.end()) {
                 auto its_subscription = found_eventgroup->second;
-#ifdef VSOMEIP_ENABLE_COMPAT
-                if (!its_subscription->is_selective() && is_selective) {
-                    its_subscription->set_selective(true);
-                    its_subscription->remove_client(VSOMEIP_ROUTING_CLIENT);
-                    for (const auto& e : _info->get_events()) {
-                        for (const auto& c : e->get_subscribers(_eventgroup)) {
-                            its_subscription->add_client(c);
-                        }
-                    }
-                }
-#endif // VSOMEIP_ENABLE_COMPAT
                 if (its_subscription->get_major() != _major) {
                     VSOMEIP_ERROR << "Subscriptions to different versions of the same "
                                      "service instance are not supported!";
@@ -2034,7 +2019,6 @@ void service_discovery_impl::handle_eventgroup_subscription(
 
     auto its_messages = _acknowledgement->get_messages();
 
-#ifndef VSOMEIP_ENABLE_COMPAT
     bool reliablility_nack(false);
     if (_info) {
         const bool first_port_set(_first_port != ILLEGAL_PORT);
@@ -2072,8 +2056,6 @@ void service_discovery_impl::handle_eventgroup_subscription(
                         << _first_port << " " << _second_address.to_string() << ":" << _second_port;
         return;
     }
-
-#endif
 
     if (_ttl > 0) {
         std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(_service, _instance);

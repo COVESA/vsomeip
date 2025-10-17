@@ -22,10 +22,6 @@ The stack consists out of:
 * a shared library for SOME/IP's service discovery (`libvsomeip3-sd.so`)
 * a shared library for SOME/IP's E2E protection module (`libvsomeip3-e2e.so`)
 
-Optional:
-
-* a shared library for compatibility with vsomeip v2 (`libvsomeip.so`)
-
 ##### Build Instructions for Linux
 
 ###### Dependencies

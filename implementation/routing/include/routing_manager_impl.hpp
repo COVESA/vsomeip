@@ -101,12 +101,7 @@ public:
     void unregister_shadow_event(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
 
     void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-                    bool _force
-#ifdef VSOMEIP_ENABLE_COMPAT
-                    ,
-                    bool _remote_subscriber
-#endif
-    );
+                    bool _force);
 
     void on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                           remote_subscription_id_t _id);
