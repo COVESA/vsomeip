@@ -11,24 +11,18 @@
 
 namespace vsomeip_v3 {
 
-payload_impl::payload_impl()
-    : data_() {
-}
+payload_impl::payload_impl() : data_() { }
 
 payload_impl::payload_impl(const byte_t* _data, uint32_t _size) {
     data_.assign(_data, _data + _size);
 }
 
-payload_impl::payload_impl(const std::vector<byte_t>& _data)
-    : data_(_data) {
-}
+payload_impl::payload_impl(const std::vector<byte_t>& _data) : data_(_data) { }
 
-payload_impl::payload_impl(const payload_impl& _payload)
-    : data_(_payload.data_) {
-}
+payload_impl::payload_impl(const payload_impl& _payload) : data_(_payload.data_) { }
 
 bool payload_impl::operator==(const payload& _other) {
-    bool is_equal {get_length() == _other.get_length()};
+    bool is_equal{get_length() == _other.get_length()};
     if (is_equal) {
         is_equal = (0 == std::memcmp(get_data(), _other.get_data(), get_length()));
     }

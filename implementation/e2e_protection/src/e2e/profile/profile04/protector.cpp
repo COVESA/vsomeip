@@ -14,8 +14,7 @@ namespace e2e {
 namespace profile04 {
 
 /** @req [SWS_E2E_00195] */
-void
-protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+void protector::protect(e2e_buffer& _buffer, instance_t _instance) {
     std::lock_guard<std::mutex> lock(protect_mutex_);
 
     if (_instance > VSOMEIP_E2E_PROFILE04_MAX_INSTANCE) {
@@ -47,15 +46,12 @@ protector::protect(e2e_buffer &_buffer, instance_t _instance) {
     }
 }
 
-bool
-protector::verify_inputs(e2e_buffer &_buffer) {
+bool protector::verify_inputs(e2e_buffer& _buffer) {
 
-    return (_buffer.size() >= config_.min_data_length_
-            && _buffer.size() <= config_.max_data_length_);
+    return (_buffer.size() >= config_.min_data_length_ && _buffer.size() <= config_.max_data_length_);
 }
 
-uint16_t
-protector::get_counter(instance_t _instance) const {
+uint16_t protector::get_counter(instance_t _instance) const {
 
     uint16_t its_counter(0);
 
@@ -66,8 +62,7 @@ protector::get_counter(instance_t _instance) const {
     return its_counter;
 }
 
-void
-protector::increment_counter(instance_t _instance) {
+void protector::increment_counter(instance_t _instance) {
 
     auto find_counter = counter_.find(_instance);
     if (find_counter != counter_.end())

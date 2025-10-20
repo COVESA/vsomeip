@@ -16,37 +16,33 @@ struct service_info {
     vsomeip::eventgroup_t eventgroup_id;
 };
 
-static constexpr std::array<service_info, 7> service_infos = {{
-        // placeholder to be consistent w/ client ids, service ids, app names
-        { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF },
-        // node 1
-        { 0x1111, 0x1, 0x1111, 0x1111, 0x1000 },
-        { 0x2222, 0x1, 0x2222, 0x2222, 0x2000 },
-        { 0x3333, 0x1, 0x3333, 0x3333, 0x3000 },
-        // node 2
-        { 0x4444, 0x1, 0x4444, 0x4444, 0x4000 },
-        { 0x5555, 0x1, 0x5555, 0x5555, 0x5000 },
-        { 0x6666, 0x1, 0x6666, 0x6666, 0x6000 }
-}};
+static constexpr std::array<service_info, 7> service_infos = {{// placeholder to be consistent w/ client ids, service ids, app names
+                                                               {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF},
+                                                               // node 1
+                                                               {0x1111, 0x1, 0x1111, 0x1111, 0x1000},
+                                                               {0x2222, 0x1, 0x2222, 0x2222, 0x2000},
+                                                               {0x3333, 0x1, 0x3333, 0x3333, 0x3000},
+                                                               // node 2
+                                                               {0x4444, 0x1, 0x4444, 0x4444, 0x4000},
+                                                               {0x5555, 0x1, 0x5555, 0x5555, 0x5000},
+                                                               {0x6666, 0x1, 0x6666, 0x6666, 0x6000}}};
 
-static constexpr std::array<service_info, 7> service_infos_same_service_id = {{
-        // placeholder to be consistent w/ client ids, service ids, app names
-        { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF },
-        // node 1
-        { 0x1111, 0x1, 0x1111, 0x1111, 0x1000 },
-        { 0x1111, 0x2, 0x2222, 0x2222, 0x2000 },
-        { 0x1111, 0x3, 0x3333, 0x3333, 0x3000 },
-        // node 2
-        { 0x2222, 0x1, 0x4444, 0x4444, 0x4000 },
-        { 0x2222, 0x2, 0x5555, 0x5555, 0x5000 },
-        { 0x2222, 0x3, 0x6666, 0x6666, 0x6000 }
-}};
+static constexpr std::array<service_info, 7> service_infos_same_service_id = {
+        {// placeholder to be consistent w/ client ids, service ids, app names
+         {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF},
+         // node 1
+         {0x1111, 0x1, 0x1111, 0x1111, 0x1000},
+         {0x1111, 0x2, 0x2222, 0x2222, 0x2000},
+         {0x1111, 0x3, 0x3333, 0x3333, 0x3000},
+         // node 2
+         {0x2222, 0x1, 0x4444, 0x4444, 0x4000},
+         {0x2222, 0x2, 0x5555, 0x5555, 0x5000},
+         {0x2222, 0x3, 0x6666, 0x6666, 0x6000}}};
 
 static constexpr int notifications_to_send = 10;
 
 // one_event_two_eventgroups globals
-static constexpr struct service_info service_info_subscriber_based_notification =
-        { 0xCAFE, 0x1, 0x8888, 0x8111, 0x1};
+static constexpr struct service_info service_info_subscriber_based_notification = {0xCAFE, 0x1, 0x8888, 0x8111, 0x1};
 static constexpr vsomeip::method_t shutdown_method_id = 0x6666;
 static constexpr vsomeip::method_t set_method_id = 0x7777;
 

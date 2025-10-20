@@ -59,7 +59,7 @@ targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
 # Skip valgrind
-if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "" AND TEST_SKIP_VALGRIND_TRACKING)
+if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
     set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/pending_*,*/routingmanagerd)
 endif()
 

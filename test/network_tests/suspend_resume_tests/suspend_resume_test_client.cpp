@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#include <atomic>
 
 #include <gtest/gtest.h>
 
@@ -18,14 +19,10 @@
 
 class suspend_resume_test_client : public vsomeip_utilities::base_logger {
 public:
-    suspend_resume_test_client()
-        : vsomeip_utilities::base_logger("SRTC", "SUSPEND RESUME TEST CLIENT"),
-          name_("suspend_resume_test_client"),
-          app_(vsomeip::runtime::get()->create_application(name_)),
-          has_received_(false),
-          runner_(std::bind(&suspend_resume_test_client::run, this)) {
-
-    }
+    suspend_resume_test_client() :
+        vsomeip_utilities::base_logger("SRTC", "SUSPEND RESUME TEST CLIENT"), name_("suspend_resume_test_client"),
+        app_(vsomeip::runtime::get()->create_application(name_)), started_{false}, has_received_(false),
+        runner_(std::bind(&suspend_resume_test_client::run, this)) { }
 
     void run_test() {
 
@@ -86,27 +83,26 @@ public:
 private:
     void register_state_handler() {
 
-        app_->register_state_handler(
-            std::bind(&suspend_resume_test_client::on_state, this, std::placeholders::_1));
+        app_->register_state_handler(std::bind(&suspend_resume_test_client::on_state, this, std::placeholders::_1));
     }
 
     void register_availability_handler() {
 
         app_->register_availability_handler(TEST_SERVICE, TEST_INSTANCE,
-                std::bind(&suspend_resume_test_client::on_availability, this,
-                    std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+                                            std::bind(&suspend_resume_test_client::on_availability, this, std::placeholders::_1,
+                                                      std::placeholders::_2, std::placeholders::_3));
     }
 
     void register_message_handler() {
 
         app_->register_message_handler(TEST_SERVICE, TEST_INSTANCE, TEST_EVENT,
-            std::bind(&suspend_resume_test_client::on_message, this,
-                    std::placeholders::_1));
+                                       std::bind(&suspend_resume_test_client::on_message, this, std::placeholders::_1));
     }
 
     void start() {
 
         app_->init();
+        started_ = true;
         cv_.notify_one();
     }
 
@@ -114,7 +110,7 @@ private:
 
         {
             std::unique_lock<std::mutex> its_lock(mutex_);
-            cv_.wait(its_lock);
+            cv_.wait(its_lock, [this] { return started_.load(); });
         }
 
         app_->start();
@@ -128,12 +124,10 @@ private:
 
     void on_state(vsomeip::state_type_e _state) {
 
-        VSOMEIP_DEBUG << __func__ << ": state="
-            << (_state == vsomeip::state_type_e::ST_REGISTERED ?
-                    "registered." : "NOT registered.");
+        VSOMEIP_DEBUG << __func__ << ": state=" << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "NOT registered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            app_->request_event(TEST_SERVICE, TEST_INSTANCE, TEST_EVENT, { TEST_EVENTGROUP });
+            app_->request_event(TEST_SERVICE, TEST_INSTANCE, TEST_EVENT, {TEST_EVENTGROUP});
             app_->request_service(TEST_SERVICE, TEST_INSTANCE);
         }
     }
@@ -144,8 +138,7 @@ private:
 
         if (_service == TEST_SERVICE && _instance == TEST_INSTANCE) {
 
-            VSOMEIP_DEBUG << __func__ << ": Test service is "
-                    << (_is_available ? "available." : "NOT available.");
+            VSOMEIP_DEBUG << __func__ << ": Test service is " << (_is_available ? "available." : "NOT available.");
 
             if (_is_available) {
                 VSOMEIP_DEBUG << "[TEST-cli] On availability will trigger cv";
@@ -158,11 +151,8 @@ private:
         }
     }
 
-    void on_message(const std::shared_ptr<vsomeip::message> &_message) {
-
-        if (_message->get_service() == TEST_SERVICE
-                && _message->get_instance() == TEST_INSTANCE
-                && _message->get_method() == TEST_EVENT) {
+    void on_message(const std::shared_ptr<vsomeip::message>& _message) {
+        if (_message->get_service() == TEST_SERVICE && _message->get_instance() == TEST_INSTANCE && _message->get_method() == TEST_EVENT) {
 
             VSOMEIP_DEBUG << __func__ << ": Received event.";
             if (!has_received_) {
@@ -186,7 +176,6 @@ private:
         VSOMEIP_DEBUG << "[TEST-cli] Toggle End";
     }
 
-
     void send_suspend() {
 
         auto its_message = vsomeip::runtime::get()->create_request(false);
@@ -197,7 +186,7 @@ private:
         its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
         its_message->set_return_code(vsomeip::return_code_e::E_OK);
 
-        vsomeip::byte_t its_data[] = { TEST_SUSPEND };
+        vsomeip::byte_t its_data[] = {TEST_SUSPEND};
         auto its_payload = vsomeip::runtime::get()->create_payload();
         its_payload->set_data(its_data, sizeof(its_data));
         its_message->set_payload(its_payload);
@@ -217,7 +206,7 @@ private:
         its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
         its_message->set_return_code(vsomeip::return_code_e::E_OK);
 
-        vsomeip::byte_t its_data[] = { TEST_STOP };
+        vsomeip::byte_t its_data[] = {TEST_STOP};
         auto its_payload = vsomeip::runtime::get()->create_payload();
         its_payload->set_data(its_data, sizeof(its_data));
         its_message->set_payload(its_payload);
@@ -232,12 +221,12 @@ private: // members
     std::shared_ptr<vsomeip::application> app_;
     std::mutex mutex_;
     std::condition_variable cv_;
+    std::atomic<bool> started_;
     bool has_received_;
     std::thread runner_;
 };
 
-TEST(suspend_resume_test, fast)
-{
+TEST(suspend_resume_test, fast) {
     suspend_resume_test_client its_client;
     its_client.run_test();
 }

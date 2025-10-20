@@ -40,14 +40,6 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Skip valgrind
-if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-    if (TEST_SKIP_VALGRIND_TRACKING)
-        set(SUBPROCESSES ,*/local_routing_test_*,*/external_local_routing_test_service)
-    endif()
-    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
-endif()
-
 # Add custom test command.
 add_custom_test(
     NAME local_routing_test

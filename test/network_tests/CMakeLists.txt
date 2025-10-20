@@ -108,6 +108,11 @@ function(add_custom_test)
         "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN}
     )
 
+    # Skip valgrind
+    if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+        set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
+    endif()
+
     # Replace "test_name" in TEST_ENTRYPOINT with the actual test name.
     string(REPLACE
         "test_name" "${MY_TEST_NAME}" custom_test_entrypoint "${TEST_ENTRYPOINT}"
@@ -149,11 +154,13 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(configuration_tests)
     add_subdirectory(cpu_load_tests)
     add_subdirectory(debounce_callback_tests)
+    add_subdirectory(debounce_epsilon_tests)
     add_subdirectory(debounce_filter_tests)
     add_subdirectory(debounce_frequency_tests)
     add_subdirectory(debounce_tests)
     add_subdirectory(e2e_tests)
     add_subdirectory(event_tests)
+    add_subdirectory(fake_socket_tests)
     add_subdirectory(lazy_load_tests)
     add_subdirectory(magic_cookies_tests)
     add_subdirectory(malicious_data_tests)
@@ -167,6 +174,7 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(someip_tp_tests)
     add_subdirectory(offer_tests)
     add_subdirectory(suspend_resume_tests)
+    add_subdirectory(availability_handler_tests)
 endif()
 
 add_subdirectory(application_tests)
@@ -176,8 +184,9 @@ add_subdirectory(header_factory_tests)
 add_subdirectory(npdu_tests)
 add_subdirectory(payload_tests)
 add_subdirectory(cyclic_event_tests)
+add_subdirectory(registration_check_test)
 
 # some tests require the routingmanagerd
 if (NOT MSVC)
-add_dependencies(build_network_tests routingmanagerd)
+    add_dependencies(build_network_tests routingmanagerd)
 endif ()

@@ -13,16 +13,11 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-distribute_security_policies_command::distribute_security_policies_command()
-    : command(id_e::DISTRIBUTE_SECURITY_POLICIES_ID) {
-}
+distribute_security_policies_command::distribute_security_policies_command() : command(id_e::DISTRIBUTE_SECURITY_POLICIES_ID) { }
 
-void
-distribute_security_policies_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void distribute_security_policies_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE +
-        std::min(payload_.size(), size_t(std::numeric_limits<uint32_t>::max())));
+    size_t its_size(COMMAND_HEADER_SIZE + std::min(payload_.size(), size_t(std::numeric_limits<uint32_t>::max())));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -50,9 +45,7 @@ distribute_security_policies_command::serialize(std::vector<byte_t> &_buffer,
     }
 }
 
-void
-distribute_security_policies_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void distribute_security_policies_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
     if (COMMAND_HEADER_SIZE + sizeof(uint32_t) > _buffer.size()) {
 
@@ -68,8 +61,7 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
     // deserialize payload
     size_t its_offset(COMMAND_HEADER_SIZE);
     uint32_t its_policies_count;
-    std::memcpy(&its_policies_count, &_buffer[its_offset],
-            sizeof(its_policies_count));
+    std::memcpy(&its_policies_count, &_buffer[its_offset], sizeof(its_policies_count));
     its_offset += sizeof(its_policies_count);
 
     for (uint32_t i = 0; i < its_policies_count; i++) {
@@ -84,8 +76,7 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
             return;
         }
 
-        std::memcpy(&its_policy_size, &_buffer[its_offset],
-                sizeof(its_policy_size));
+        std::memcpy(&its_policy_size, &_buffer[its_offset], sizeof(its_policy_size));
         its_offset += sizeof(its_policy_size);
 
         // Check that the buffer contains the full policy
@@ -96,14 +87,13 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
             return;
         }
 
-        const byte_t *its_policy_data = &_buffer[its_offset];
+        const byte_t* its_policy_data = &_buffer[its_offset];
 
         // set offset to the next policy
         its_offset += its_policy_size;
 
         auto its_policy = std::make_shared<policy>();
-        if (its_policy_size == 0
-                || !its_policy->deserialize(its_policy_data, its_policy_size)) {
+        if (its_policy_size == 0 || !its_policy->deserialize(its_policy_data, its_policy_size)) {
 
             _error = error_e::ERROR_UNKNOWN;
             policies_.clear();
@@ -114,32 +104,26 @@ distribute_security_policies_command::deserialize(const std::vector<byte_t> &_bu
     }
 }
 
-std::set<std::shared_ptr<policy> >
-distribute_security_policies_command::get_policies() const {
+std::set<std::shared_ptr<policy>> distribute_security_policies_command::get_policies() const {
 
     return policies_;
 }
 
-void
-distribute_security_policies_command::set_payloads(
-        const std::map<uint32_t, std::shared_ptr<payload> > &_payloads) {
+void distribute_security_policies_command::set_payloads(const std::map<uint32_t, std::shared_ptr<payload>>& _payloads) {
 
     uint32_t its_count(uint32_t(_payloads.size()));
     for (uint32_t i = 0; i < sizeof(its_count); ++i) {
-         payload_.push_back(
-                 reinterpret_cast<const byte_t*>(&its_count)[i]);
+        payload_.push_back(reinterpret_cast<const byte_t*>(&its_count)[i]);
     }
 
-    for (const auto &its_uid_gid : _payloads) {
+    for (const auto& its_uid_gid : _payloads) {
         // policy payload length including gid and uid
         std::uint32_t its_length(uint32_t(its_uid_gid.second->get_length()));
         for (uint32_t i = 0; i < sizeof(its_length); ++i) {
-             payload_.push_back(
-                     reinterpret_cast<const byte_t*>(&its_length)[i]);
+            payload_.push_back(reinterpret_cast<const byte_t*>(&its_length)[i]);
         }
         // payload
-        payload_.insert(payload_.end(), its_uid_gid.second->get_data(),
-                its_uid_gid.second->get_data() + its_uid_gid.second->get_length());
+        payload_.insert(payload_.end(), its_uid_gid.second->get_data(), its_uid_gid.second->get_data() + its_uid_gid.second->get_length());
     }
 }
 

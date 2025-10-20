@@ -7,30 +7,29 @@
 
 #include <common/utility.hpp>
 namespace {
-std::string configuration_file { "/vsomeip/0_0/vsomeip_security.json" };
+std::string configuration_file{"/vsomeip/0_0/vsomeip_security.json"};
 
-vsomeip_v3::uid_t valid_uid { 0 };
-vsomeip_v3::uid_t invalid_uid { 1234567 };
+vsomeip_v3::uid_t valid_uid{0};
+vsomeip_v3::uid_t invalid_uid{1234567};
 
-vsomeip_v3::gid_t valid_gid { 0 };
+vsomeip_v3::gid_t valid_gid{0};
 
-vsomeip_v3::service_t valid_service { 0xf913 };
-vsomeip_v3::service_t invalid_service { 0x41 };
+vsomeip_v3::service_t valid_service{0xf913};
+vsomeip_v3::service_t invalid_service{0x41};
 }
 
-static void BM_is_policy_update_allowed_valid_uid_no_requests(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_valid_uid_no_requests(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { true };
+    const bool check_whitelist{true};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -50,19 +49,18 @@ static void BM_is_policy_update_allowed_valid_uid_no_requests(benchmark::State &
     }
 }
 
-static void BM_is_policy_update_allowed_invalid_uid_no_requests(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_invalid_uid_no_requests(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { true };
+    const bool check_whitelist{true};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -82,19 +80,18 @@ static void BM_is_policy_update_allowed_invalid_uid_no_requests(benchmark::State
     }
 }
 
-static void BM_is_policy_update_allowed_valid_uid_valid_requests(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_valid_uid_valid_requests(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { true };
+    const bool check_whitelist{true};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -112,16 +109,12 @@ static void BM_is_policy_update_allowed_valid_uid_valid_requests(benchmark::Stat
     boost::icl::discrete_interval<vsomeip::instance_t> its_instances(0x1, 0x2);
     boost::icl::interval_set<vsomeip::method_t> its_methods;
     its_methods.insert(boost::icl::interval<vsomeip::method_t>::closed(0x01, 0x2));
-    boost::icl::interval_map<
-        vsomeip::instance_t,
-        boost::icl::interval_set<vsomeip::method_t>
-    >its_instances_methods;
+    boost::icl::interval_map<vsomeip::instance_t, boost::icl::interval_set<vsomeip::method_t>> its_instances_methods;
     its_instances_methods += std::make_pair(its_instances, its_methods);
 
     // Add a valid request to the policy.
     policy->requests_ += std::make_pair(
-            boost::icl::discrete_interval<vsomeip::service_t>(
-                    valid_service, valid_service, boost::icl::interval_bounds::closed()),
+            boost::icl::discrete_interval<vsomeip::service_t>(valid_service, valid_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
 
     for (auto _ : state) {
@@ -129,19 +122,18 @@ static void BM_is_policy_update_allowed_valid_uid_valid_requests(benchmark::Stat
     }
 }
 
-static void BM_is_policy_update_allowed_invalid_uid_valid_requests(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_invalid_uid_valid_requests(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { true };
+    const bool check_whitelist{true};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -159,14 +151,12 @@ static void BM_is_policy_update_allowed_invalid_uid_valid_requests(benchmark::St
     boost::icl::discrete_interval<vsomeip::instance_t> its_instances(0x1, 0x2);
     boost::icl::interval_set<vsomeip::method_t> its_methods;
     its_methods.insert(boost::icl::interval<vsomeip::method_t>::closed(0x01, 0x2));
-    boost::icl::interval_map<vsomeip::instance_t, boost::icl::interval_set<vsomeip::method_t>>
-            its_instances_methods;
+    boost::icl::interval_map<vsomeip::instance_t, boost::icl::interval_set<vsomeip::method_t>> its_instances_methods;
     its_instances_methods += std::make_pair(its_instances, its_methods);
 
     // Add a valid request to the policy.
     policy->requests_ += std::make_pair(
-            boost::icl::discrete_interval<vsomeip::service_t>(
-                    valid_service, valid_service, boost::icl::interval_bounds::closed()),
+            boost::icl::discrete_interval<vsomeip::service_t>(valid_service, valid_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
 
     for (auto _ : state) {
@@ -174,19 +164,18 @@ static void BM_is_policy_update_allowed_invalid_uid_valid_requests(benchmark::St
     }
 }
 
-static void BM_is_policy_update_allowed_valid_uid_invalid_requests(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_valid_uid_invalid_requests(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { true };
+    const bool check_whitelist{true};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -204,16 +193,12 @@ static void BM_is_policy_update_allowed_valid_uid_invalid_requests(benchmark::St
     boost::icl::discrete_interval<vsomeip::instance_t> its_instances(0x1, 0x2);
     boost::icl::interval_set<vsomeip::method_t> its_methods;
     its_methods.insert(boost::icl::interval<vsomeip::method_t>::closed(0x01, 0x2));
-    boost::icl::interval_map<
-        vsomeip::instance_t,
-        boost::icl::interval_set<vsomeip::method_t>
-        >its_instances_methods;
+    boost::icl::interval_map<vsomeip::instance_t, boost::icl::interval_set<vsomeip::method_t>> its_instances_methods;
     its_instances_methods += std::make_pair(its_instances, its_methods);
 
     // Add a valid request to the policy.
     policy->requests_ += std::make_pair(
-            boost::icl::discrete_interval<vsomeip::service_t>(
-                    invalid_service, invalid_service, boost::icl::interval_bounds::closed()),
+            boost::icl::discrete_interval<vsomeip::service_t>(invalid_service, invalid_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
 
     for (auto _ : state) {
@@ -221,19 +206,18 @@ static void BM_is_policy_update_allowed_valid_uid_invalid_requests(benchmark::St
     }
 }
 
-static void BM_is_policy_update_allowed_invalid_uid_invalid_requests(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_invalid_uid_invalid_requests(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { true };
+    const bool check_whitelist{true};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -251,16 +235,12 @@ static void BM_is_policy_update_allowed_invalid_uid_invalid_requests(benchmark::
     boost::icl::discrete_interval<vsomeip::instance_t> its_instances(0x1, 0x2);
     boost::icl::interval_set<vsomeip::method_t> its_methods;
     its_methods.insert(boost::icl::interval<vsomeip::method_t>::closed(0x01, 0x2));
-    boost::icl::interval_map<
-        vsomeip::instance_t,
-        boost::icl::interval_set<vsomeip::method_t>
-        >its_instances_methods;
+    boost::icl::interval_map<vsomeip::instance_t, boost::icl::interval_set<vsomeip::method_t>> its_instances_methods;
     its_instances_methods += std::make_pair(its_instances, its_methods);
 
     // Add a valid request to the policy.
     policy->requests_ += std::make_pair(
-            boost::icl::discrete_interval<vsomeip::service_t>(
-                    invalid_service, invalid_service, boost::icl::interval_bounds::closed()),
+            boost::icl::discrete_interval<vsomeip::service_t>(invalid_service, invalid_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
 
     for (auto _ : state) {
@@ -268,19 +248,18 @@ static void BM_is_policy_update_allowed_invalid_uid_invalid_requests(benchmark::
     }
 }
 
-static void BM_is_policy_update_allowed_invalid_uid_ignore_whitelist(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_invalid_uid_ignore_whitelist(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { false };
+    const bool check_whitelist{false};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -300,20 +279,18 @@ static void BM_is_policy_update_allowed_invalid_uid_ignore_whitelist(benchmark::
     }
 }
 
-static void
-BM_is_policy_update_allowed_valid_uid_invalid_request_ignore_whitelist(benchmark::State &state)
-{
+static void BM_is_policy_update_allowed_valid_uid_invalid_request_ignore_whitelist(benchmark::State& state) {
     // Test object.
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     // Get some configurations.
     std::set<std::string> its_failed;
     std::vector<vsomeip_v3::configuration_element> policy_elements;
-    std::set<std::string> input { utility::get_policies_path() + configuration_file };
+    std::set<std::string> input{utility::get_policies_path() + configuration_file};
     utility::read_data(input, policy_elements, its_failed);
 
     // Load the configuration into the security.
-    const bool check_whitelist { false };
+    const bool check_whitelist{false};
     utility::add_security_whitelist(policy_elements.at(0), check_whitelist);
     security->load(policy_elements.at(0), false);
 
@@ -331,16 +308,12 @@ BM_is_policy_update_allowed_valid_uid_invalid_request_ignore_whitelist(benchmark
     boost::icl::discrete_interval<vsomeip::instance_t> its_instances(0x1, 0x2);
     boost::icl::interval_set<vsomeip::method_t> its_methods;
     its_methods.insert(boost::icl::interval<vsomeip::method_t>::closed(0x01, 0x2));
-    boost::icl::interval_map<
-        vsomeip::instance_t,
-        boost::icl::interval_set<vsomeip::method_t>
-        >its_instances_methods;
+    boost::icl::interval_map<vsomeip::instance_t, boost::icl::interval_set<vsomeip::method_t>> its_instances_methods;
     its_instances_methods += std::make_pair(its_instances, its_methods);
 
     // Add a valid request to the policy.
     policy->requests_ += std::make_pair(
-            boost::icl::discrete_interval<vsomeip::service_t>(
-                    invalid_service, invalid_service, boost::icl::interval_bounds::closed()),
+            boost::icl::discrete_interval<vsomeip::service_t>(invalid_service, invalid_service, boost::icl::interval_bounds::closed()),
             its_instances_methods);
 
     for (auto _ : state) {

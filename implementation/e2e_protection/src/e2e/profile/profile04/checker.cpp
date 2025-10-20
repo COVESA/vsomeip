@@ -15,8 +15,8 @@ namespace e2e {
 namespace profile04 {
 
 // [SWS_E2E_00355]
-void profile_04_checker::check(const e2e_buffer &_buffer, instance_t _instance,
-        e2e::profile_interface::check_status_t &_generic_check_status) {
+void profile_04_checker::check(const e2e_buffer& _buffer, instance_t _instance,
+                               e2e::profile_interface::check_status_t& _generic_check_status) {
 
     std::lock_guard<std::mutex> lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
@@ -44,13 +44,12 @@ void profile_04_checker::check(const e2e_buffer &_buffer, instance_t _instance,
                         /** @req [SWS_E2E_361] */
                         if (its_received_crc != its_crc) {
                             _generic_check_status = e2e::profile_interface::generic_check_status::E2E_WRONG_CRC;
-                            VSOMEIP_ERROR << std::hex << "E2E P04 protection: CRC32 does not match: calculated CRC: "
-                                    << its_crc << " received CRC: " << its_received_crc;
+                            VSOMEIP_ERROR << std::hex << "E2E P04 protection: CRC32 does not match: calculated CRC: " << its_crc
+                                          << " received CRC: " << its_received_crc;
                         } else {
                             uint32_t its_data_id(uint32_t(_instance) << 24 | config_.data_id_);
-                            if (its_received_data_id == its_data_id
-                                    && static_cast<size_t>(its_received_length) == _buffer.size()
-                                    && verify_counter(_instance, its_received_counter)) {
+                            if (its_received_data_id == its_data_id && static_cast<size_t>(its_received_length) == _buffer.size()
+                                && verify_counter(_instance, its_received_counter)) {
                                 _generic_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
                             }
                         }
@@ -61,16 +60,13 @@ void profile_04_checker::check(const e2e_buffer &_buffer, instance_t _instance,
     }
 }
 
-bool
-profile_04_checker::verify_input(const e2e_buffer &_buffer) const {
+bool profile_04_checker::verify_input(const e2e_buffer& _buffer) const {
 
     auto its_length = _buffer.size();
-    return (its_length >= config_.min_data_length_
-            && its_length <= config_.max_data_length_);
+    return (its_length >= config_.min_data_length_ && its_length <= config_.max_data_length_);
 }
 
-bool
-profile_04_checker::verify_counter(instance_t _instance, uint16_t _received_counter) {
+bool profile_04_checker::verify_counter(instance_t _instance, uint16_t _received_counter) {
 
     uint16_t its_delta(0);
 
@@ -81,6 +77,8 @@ profile_04_checker::verify_counter(instance_t _instance, uint16_t _received_coun
             its_delta = uint16_t(_received_counter - its_counter);
         else
             its_delta = uint16_t(uint16_t(0xffff) - its_counter + _received_counter);
+
+        find_counter->second = _received_counter;
     } else {
         counter_[_instance] = _received_counter;
     }
@@ -88,17 +86,13 @@ profile_04_checker::verify_counter(instance_t _instance, uint16_t _received_coun
     return (its_delta <= config_.max_delta_counter_);
 }
 
-bool
-profile_04_checker::read_16(const e2e_buffer &_buffer,
-        uint16_t &_data, size_t _index) const {
+bool profile_04_checker::read_16(const e2e_buffer& _buffer, uint16_t& _data, size_t _index) const {
 
     _data = bithelper::read_uint16_be(&_buffer[config_.offset_ + _index]);
     return true;
 }
 
-bool
-profile_04_checker::read_32(const e2e_buffer &_buffer,
-        uint32_t &_data, size_t _index) const {
+bool profile_04_checker::read_32(const e2e_buffer& _buffer, uint32_t& _data, size_t _index) const {
 
     _data = bithelper::read_uint32_be(&_buffer[config_.offset_ + _index]);
     return true;

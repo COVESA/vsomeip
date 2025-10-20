@@ -10,7 +10,7 @@ namespace vsomeip_v3 {
 namespace e2e {
 namespace profile04 {
 
-uint32_t profile_04::compute_crc(const profile_config &_config, const e2e_buffer &_buffer) {
+uint32_t profile_04::compute_crc(const profile_config& _config, const e2e_buffer& _buffer) {
 
     buffer_view its_before(_buffer, _config.offset_ + 8);
     uint32_t computed_crc = e2e_crc::calculate_profile_04(its_before);

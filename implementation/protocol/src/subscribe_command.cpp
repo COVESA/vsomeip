@@ -13,39 +13,27 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-subscribe_command::subscribe_command()
-    : subscribe_command_base(id_e::SUBSCRIBE_ID) {
-}
+subscribe_command::subscribe_command() : subscribe_command_base(id_e::SUBSCRIBE_ID) { }
 
-std::shared_ptr<debounce_filter_impl_t>
-subscribe_command::get_filter() const {
+std::shared_ptr<debounce_filter_impl_t> subscribe_command::get_filter() const {
 
     return filter_;
 }
 
-void
-subscribe_command::set_filter(
-        const std::shared_ptr<debounce_filter_impl_t> &_filter) {
+void subscribe_command::set_filter(const std::shared_ptr<debounce_filter_impl_t>& _filter) {
 
     filter_ = _filter;
 }
 
-void
-subscribe_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void subscribe_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(major_)
-            + sizeof(event_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(major_) + sizeof(event_)
+                    + sizeof(pending_id_));
     size_t its_offset(its_size);
 
     if (filter_) {
-        its_size += sizeof(filter_->on_change_)
-                + sizeof(filter_->on_change_resets_interval_)
-                + sizeof(filter_->interval_)
-                + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t)))
-                + sizeof(filter_->send_current_value_after_);
+        its_size += sizeof(filter_->on_change_) + sizeof(filter_->on_change_resets_interval_) + sizeof(filter_->interval_)
+                + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t))) + sizeof(filter_->send_current_value_after_);
     }
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
@@ -73,7 +61,7 @@ subscribe_command::serialize(std::vector<byte_t> &_buffer,
         its_offset += sizeof(filter_->on_change_resets_interval_);
         std::memcpy(&_buffer[its_offset], &filter_->interval_, sizeof(filter_->interval_));
         its_offset += sizeof(filter_->interval_);
-        for (const auto &its_ignore : filter_->ignore_) {
+        for (const auto& its_ignore : filter_->ignore_) {
             std::memcpy(&_buffer[its_offset], &its_ignore.first, sizeof(size_t));
             its_offset += sizeof(size_t);
             _buffer[its_offset] = its_ignore.second;
@@ -84,14 +72,10 @@ subscribe_command::serialize(std::vector<byte_t> &_buffer,
     }
 }
 
-void
-subscribe_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void subscribe_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(major_)
-            + sizeof(event_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(major_) + sizeof(event_)
+                    + sizeof(pending_id_));
 
     if (its_size > _buffer.size()) {
 
@@ -111,8 +95,7 @@ subscribe_command::deserialize(const std::vector<byte_t> &_buffer,
 
     // deserialize filter
     size_t its_offset(its_size);
-    if (_buffer.size() - its_offset
-            >= sizeof(bool) + sizeof(bool) + sizeof(int64_t)) {
+    if (_buffer.size() - its_offset >= sizeof(bool) + sizeof(bool) + sizeof(int64_t)) {
 
         filter_ = std::make_shared<debounce_filter_impl_t>();
         std::memcpy(&filter_->on_change_, &_buffer[its_offset], sizeof(filter_->on_change_));
@@ -122,8 +105,7 @@ subscribe_command::deserialize(const std::vector<byte_t> &_buffer,
         std::memcpy(&filter_->interval_, &_buffer[its_offset], sizeof(filter_->interval_));
         its_offset += sizeof(filter_->interval_);
 
-        while (_buffer.size() - its_offset
-                >= sizeof(size_t) + sizeof(byte_t)) {
+        while (_buffer.size() - its_offset >= sizeof(size_t) + sizeof(byte_t)) {
 
             size_t its_key;
             byte_t its_value;

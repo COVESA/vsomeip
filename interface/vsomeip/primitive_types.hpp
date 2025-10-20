@@ -55,11 +55,11 @@ typedef std::uint32_t pending_remote_offer_id_t;
 typedef std::uint32_t pending_security_update_id_t;
 
 #if defined(_WIN32)
-    typedef std::uint32_t uid_t;
-    typedef std::uint32_t gid_t;
+typedef std::uint32_t uid_t;
+typedef std::uint32_t gid_t;
 #else
-    typedef ::uid_t uid_t;
-    typedef ::uid_t gid_t;
+typedef ::uid_t uid_t;
+typedef ::uid_t gid_t;
 #endif
 
 } // namespace vsomeip_v3

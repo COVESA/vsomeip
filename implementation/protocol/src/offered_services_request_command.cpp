@@ -10,13 +10,9 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-offered_services_request_command::offered_services_request_command()
-    : command(id_e::OFFERED_SERVICES_REQUEST_ID) {
-}
+offered_services_request_command::offered_services_request_command() : command(id_e::OFFERED_SERVICES_REQUEST_ID) { }
 
-void
-offered_services_request_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void offered_services_request_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + sizeof(offer_type_));
 
@@ -38,13 +34,10 @@ offered_services_request_command::serialize(std::vector<byte_t> &_buffer,
         return;
 
     // serialize payload
-    std::memcpy(&_buffer[COMMAND_POSITION_PAYLOAD], &offer_type_,
-            sizeof(offer_type_));
+    std::memcpy(&_buffer[COMMAND_POSITION_PAYLOAD], &offer_type_, sizeof(offer_type_));
 }
 
-void
-offered_services_request_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void offered_services_request_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
     if (COMMAND_HEADER_SIZE + sizeof(offer_type_) > _buffer.size()) {
 
@@ -58,18 +51,15 @@ offered_services_request_command::deserialize(const std::vector<byte_t> &_buffer
         return;
 
     // deserialize payload
-    std::memcpy(&offer_type_, &_buffer[COMMAND_POSITION_PAYLOAD],
-            sizeof(offer_type_));
+    std::memcpy(&offer_type_, &_buffer[COMMAND_POSITION_PAYLOAD], sizeof(offer_type_));
 }
 
-offer_type_e
-offered_services_request_command::get_offer_type() const {
+offer_type_e offered_services_request_command::get_offer_type() const {
 
     return offer_type_;
 }
 
-void
-offered_services_request_command::set_offer_type(offer_type_e _offer_type) {
+void offered_services_request_command::set_offer_type(offer_type_e _offer_type) {
 
     offer_type_ = _offer_type;
 }

@@ -16,18 +16,16 @@ struct service_info {
     vsomeip::eventgroup_t eventgroup_id;
 };
 
-static constexpr std::array<service_info, 7> service_infos = {{
-        // placeholder to be consistent w/ client ids, service ids, app names
-        { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF },
-        // node 1
-        { 0x1111, 0x1, 0x1111, 0x1111, 0x1000 },
-        { 0x2222, 0x1, 0x2222, 0x2222, 0x2000 },
-        { 0x3333, 0x1, 0x3333, 0x3333, 0x3000 },
-        // node 2
-        { 0x4444, 0x1, 0x4444, 0x4444, 0x4000 },
-        { 0x5555, 0x1, 0x5555, 0x5555, 0x5000 },
-        { 0x6666, 0x1, 0x6666, 0x6666, 0x6000 }
-}};
+static constexpr std::array<service_info, 7> service_infos = {{// placeholder to be consistent w/ client ids, service ids, app names
+                                                               {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF},
+                                                               // node 1
+                                                               {0x1111, 0x1, 0x1111, 0x1111, 0x1000},
+                                                               {0x2222, 0x1, 0x2222, 0x2222, 0x2000},
+                                                               {0x3333, 0x1, 0x3333, 0x3333, 0x3000},
+                                                               // node 2
+                                                               {0x4444, 0x1, 0x4444, 0x4444, 0x4000},
+                                                               {0x5555, 0x1, 0x5555, 0x5555, 0x5000},
+                                                               {0x6666, 0x1, 0x6666, 0x6666, 0x6000}}};
 
 static constexpr int notifications_to_send = 10;
 }

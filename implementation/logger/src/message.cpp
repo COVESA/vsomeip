@@ -9,7 +9,7 @@
 #include <iomanip>
 #include <iostream>
 
-#ifdef ANDROID
+#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
 #include <utils/Log.h>
 
 #ifdef ALOGE
@@ -70,15 +70,13 @@ namespace logger {
 
 std::mutex message::mutex__;
 
-message::message(level_e _level)
-    : std::ostream(&buffer_),
-      level_(_level) {
+message::message(level_e _level) : std::ostream(&buffer_), level_(_level) {
 
     when_ = std::chrono::system_clock::now();
 }
 
 message::~message() try {
-    std::scoped_lock its_lock {mutex__};
+    std::scoped_lock its_lock{mutex__};
     auto its_logger = logger_impl::get();
 
     if (level_ > its_logger->get_loglevel())
@@ -87,7 +85,7 @@ message::~message() try {
     if (its_logger->has_console_log() || its_logger->has_file_log()) {
 
         // Prepare log level
-        const char *its_level;
+        const char* its_level;
         switch (level_) {
         case level_e::LL_FATAL:
             its_level = "fatal";
@@ -125,22 +123,12 @@ message::~message() try {
 #ifndef ANDROID
             {
                 std::unique_lock<std::mutex> app_name_lock = its_logger->get_app_name_lock();
-                std::cout
-                    << std::dec
-                    << std::setw(4) << its_time.tm_year + 1900 << "-"
-                    << std::setfill('0')
-                    << std::setw(2) << its_time.tm_mon + 1 << "-"
-                    << std::setw(2) << its_time.tm_mday << " "
-                    << std::setw(2) << its_time.tm_hour << ":"
-                    << std::setw(2) << its_time.tm_min << ":"
-                    << std::setw(2) << its_time.tm_sec << "."
-                    << std::setw(6) << its_ms << " " 
-                    << its_logger->get_app_name() << " ["
-                    << its_level << "] "
-                    << buffer_.data_.str()
-                    << std::endl;
+                std::cout << std::dec << std::setw(4) << its_time.tm_year + 1900 << "-" << std::setfill('0') << std::setw(2)
+                          << its_time.tm_mon + 1 << "-" << std::setw(2) << its_time.tm_mday << " " << std::setw(2) << its_time.tm_hour
+                          << ":" << std::setw(2) << its_time.tm_min << ":" << std::setw(2) << its_time.tm_sec << "." << std::setw(6)
+                          << its_ms << " " << its_logger->get_app_name() << " [" << its_level << "] " << buffer_.data_.str() << std::endl;
             }
-#else
+#elif !defined(ANDROID_CI_BUILD)
             std::string app = runtime::get_property("LogApplication");
 
             switch (level_) {
@@ -171,19 +159,10 @@ message::~message() try {
         if (its_logger->has_file_log()) {
             std::ofstream its_logfile(its_logger->get_logfile(), std::ios_base::app);
             if (its_logfile.is_open()) {
-                its_logfile
-                    << std::dec
-                    << std::setw(4) << its_time.tm_year + 1900 << "-"
-                    << std::setfill('0')
-                    << std::setw(2) << its_time.tm_mon + 1 << "-"
-                    << std::setw(2) << its_time.tm_mday << " "
-                    << std::setw(2) << its_time.tm_hour << ":"
-                    << std::setw(2) << its_time.tm_min << ":"
-                    << std::setw(2) << its_time.tm_sec << "."
-                    << std::setw(6) << its_ms << " ["
-                    << its_level << "] "
-                    << buffer_.data_.str()
-                    << std::endl;
+                its_logfile << std::dec << std::setw(4) << its_time.tm_year + 1900 << "-" << std::setfill('0') << std::setw(2)
+                            << its_time.tm_mon + 1 << "-" << std::setw(2) << its_time.tm_mday << " " << std::setw(2) << its_time.tm_hour
+                            << ":" << std::setw(2) << its_time.tm_min << ":" << std::setw(2) << its_time.tm_sec << "." << std::setw(6)
+                            << its_ms << " [" << its_level << "] " << buffer_.data_.str() << std::endl;
             }
         }
     }
@@ -199,17 +178,15 @@ message::~message() try {
     return;
 }
 
-std::streambuf::int_type
-message::buffer::overflow(std::streambuf::int_type c) {
+std::streambuf::int_type message::buffer::overflow(std::streambuf::int_type c) {
     if (c != EOF) {
-        data_ << (char)c;
+        data_ << static_cast<char>(c);
     }
 
     return c;
 }
 
-std::streamsize
-message::buffer::xsputn(const char *s, std::streamsize n) {
+std::streamsize message::buffer::xsputn(const char* s, std::streamsize n) {
     data_.write(s, n);
     return n;
 }

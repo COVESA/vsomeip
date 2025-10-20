@@ -8,11 +8,8 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-remove_security_policy_response_command::remove_security_policy_response_command()
-    : security_policy_response_command_base(
-            id_e::REMOVE_SECURITY_POLICY_RESPONSE_ID) {
-
-}
+remove_security_policy_response_command::remove_security_policy_response_command() :
+    security_policy_response_command_base(id_e::REMOVE_SECURITY_POLICY_RESPONSE_ID) { }
 
 } // namespace protocol
 } // namespace vsomeip

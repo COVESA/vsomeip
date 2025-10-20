@@ -18,9 +18,9 @@ extern "C" {
 
 typedef uint16_t vsomeip_sec_service_id_t;
 typedef uint16_t vsomeip_sec_instance_id_t;
-typedef uint16_t vsomeip_sec_member_id_t;    // SOME/IP method or event
+typedef uint16_t vsomeip_sec_member_id_t; // SOME/IP method or event
 
-typedef uint32_t vsomeip_sec_ip_addr_t;      // ip address in network byte order
+typedef uint32_t vsomeip_sec_ip_addr_t; // ip address in network byte order
 typedef uint16_t vsomeip_sec_network_port_t; // network port in network byte order
 
 #ifndef __unix__
@@ -36,16 +36,9 @@ typedef struct {
     vsomeip_sec_network_port_t port; // VSOMEIP_SEC_PORT_UNUSED --> UDS; ]0, VSOMEIP_SEC_PORT_UNSET] --> TCP
 } vsomeip_sec_client_t;
 
-typedef enum {
-    VSOMEIP_SEC_OK,
-    VSOMEIP_SEC_PERM_DENIED
-} vsomeip_sec_acl_result_t;
+typedef enum { VSOMEIP_SEC_OK, VSOMEIP_SEC_PERM_DENIED } vsomeip_sec_acl_result_t;
 
-typedef enum {
-    VSOMEIP_SEC_POLICY_OK,
-    VSOMEIP_SEC_POLICY_NOT_FOUND,
-    VSOMEIP_SEC_POLICY_INVALID
-} vsomeip_sec_policy_result_t;
+typedef enum { VSOMEIP_SEC_POLICY_OK, VSOMEIP_SEC_POLICY_NOT_FOUND, VSOMEIP_SEC_POLICY_INVALID } vsomeip_sec_policy_result_t;
 
 /**
  * Load the policy and initialize policy plugin functionality.
@@ -59,7 +52,7 @@ typedef enum {
  *
  * The function may be called multiple times (even from multiple threads) without problems.
  */
- vsomeip_sec_policy_result_t vsomeip_sec_policy_initialize();
+vsomeip_sec_policy_result_t vsomeip_sec_policy_initialize();
 
 /**
  * Authenticate connection with vSomeIP router.
@@ -72,8 +65,7 @@ typedef enum {
  * vSomeIP routing manager.
  *
  */
-vsomeip_sec_acl_result_t vsomeip_sec_policy_authenticate_router(const vsomeip_sec_client_t *router);
-
+vsomeip_sec_acl_result_t vsomeip_sec_policy_authenticate_router(const vsomeip_sec_client_t* router);
 
 /*
  * ### RPC
@@ -104,11 +96,8 @@ vsomeip_sec_acl_result_t vsomeip_sec_policy_authenticate_router(const vsomeip_se
  * While client access may be restricted to certain methods or events, servers are always
  * allowed to offer.
  */
-vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_offer(
-    const vsomeip_sec_client_t *server,
-    vsomeip_sec_service_id_t service, vsomeip_sec_instance_id_t instance);
-
-
+vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_offer(const vsomeip_sec_client_t* server, vsomeip_sec_service_id_t service,
+                                                                       vsomeip_sec_instance_id_t instance);
 
 /**
  * Check if client is allowed to request a service.
@@ -118,10 +107,9 @@ vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_offer(
  * have the permission to request a certain service cannot (even) successfully discover it.
  *
  */
-vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_request(
-    const vsomeip_sec_client_t *client,
-    vsomeip_sec_service_id_t service, vsomeip_sec_instance_id_t instance);
-
+vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_request(const vsomeip_sec_client_t* client,
+                                                                         vsomeip_sec_service_id_t service,
+                                                                         vsomeip_sec_instance_id_t instance);
 
 /**
  * Check if client is allowed to access a specific SOME/IP method.
@@ -134,17 +122,17 @@ vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_request(
  * This method MUST be called at the server/stub side before processing a request that triggers
  * a specific method or completes event registration.
  */
-vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_access_member(
-    const vsomeip_sec_client_t *client,
-    vsomeip_sec_service_id_t service, vsomeip_sec_instance_id_t instance, vsomeip_sec_member_id_t member);
-
+vsomeip_sec_acl_result_t vsomeip_sec_policy_is_client_allowed_to_access_member(const vsomeip_sec_client_t* client,
+                                                                               vsomeip_sec_service_id_t service,
+                                                                               vsomeip_sec_instance_id_t instance,
+                                                                               vsomeip_sec_member_id_t member);
 
 /**
  * Provides user and group identifiers for a given host address / port combination.
  *
  * Note: For UDS (aka port=0), calling this function is a no-op.
  */
-void vsomeip_sec_sync_client(vsomeip_sec_client_t *client);
+void vsomeip_sec_sync_client(vsomeip_sec_client_t* client);
 
 #ifdef __cplusplus
 } // extern "C"

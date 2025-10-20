@@ -18,41 +18,28 @@
 namespace vsomeip_v3 {
 namespace trace {
 
-typedef std::function<bool (service_t, instance_t, method_t)> filter_func_t;
+typedef std::function<bool(service_t, instance_t, method_t)> filter_func_t;
 
 class channel_impl : public channel {
 public:
-    channel_impl(const std::string &_id, const std::string &_name);
+    channel_impl(const std::string& _id, const std::string& _name);
 
     std::string get_id() const;
     std::string get_name() const;
 
-    filter_id_t add_filter(
-            const match_t &_match,
-            filter_type_e _type);
+    filter_id_t add_filter(const match_t& _match, filter_type_e _type);
 
-    filter_id_t add_filter(
-            const match_t &_match,
-            bool _is_positive);
+    filter_id_t add_filter(const match_t& _match, bool _is_positive);
 
-    filter_id_t add_filter(
-            const std::vector<match_t> &_matches,
-            bool _is_positive);
+    filter_id_t add_filter(const std::vector<match_t>& _matches, bool _is_positive);
 
-    filter_id_t add_filter(
-            const std::vector<match_t> &_matches,
-            filter_type_e _type);
+    filter_id_t add_filter(const std::vector<match_t>& _matches, filter_type_e _type);
 
-    filter_id_t add_filter(
-            const match_t &_from, const match_t &_to,
-            bool _is_positive);
+    filter_id_t add_filter(const match_t& _from, const match_t& _to, bool _is_positive);
 
-    filter_id_t add_filter(
-            const match_t &_from, const match_t &_to,
-            filter_type_e _type);
+    filter_id_t add_filter(const match_t& _from, const match_t& _to, filter_type_e _type);
 
-    void remove_filter(
-            filter_id_t _id);
+    void remove_filter(filter_id_t _id);
 
     std::pair<bool, bool> matches(service_t _service, instance_t _instance, method_t _method);
 

@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 #include <iomanip>
 
 #include <vsomeip/internal/logger.hpp>
@@ -14,7 +13,7 @@ namespace e2e {
 namespace profile01 {
 
 /** @req [SWS_E2E_00195] */
-void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
+void protector::protect(e2e_buffer& _buffer, instance_t _instance) {
 
     (void)_instance;
 
@@ -32,17 +31,17 @@ void protector::protect(e2e_buffer &_buffer, instance_t _instance) {
         // write CRC in Data
         write_crc(_buffer, computed_crc);
 
-        // increment the Counter (new value will be used in the next invocation of E2E_P01Protect()),
+        // increment the Counter (new value will be used in the next invocation of
+        // E2E_P01Protect()),
         increment_counter();
     }
 }
 
 /** @req [SRS_E2E_08528] */
-void protector::write_counter(e2e_buffer &_buffer) {
+void protector::write_counter(e2e_buffer& _buffer) {
     if (config_.counter_offset_ % 8 == 0) {
         // write write counter value into low nibble
-        _buffer[config_.counter_offset_ / 8] =
-                static_cast<uint8_t>((_buffer[config_.counter_offset_ / 8] & 0xF0) | (counter_ & 0x0F));
+        _buffer[config_.counter_offset_ / 8] = static_cast<uint8_t>((_buffer[config_.counter_offset_ / 8] & 0xF0) | (counter_ & 0x0F));
     } else {
         // write counter into high nibble
         _buffer[config_.counter_offset_ / 8] =
@@ -51,7 +50,7 @@ void protector::write_counter(e2e_buffer &_buffer) {
 }
 
 /** @req [SRS_E2E_08528] */
-void protector::write_data_id(e2e_buffer &_buffer) {
+void protector::write_data_id(e2e_buffer& _buffer) {
     if (config_.data_id_mode_ == p01_data_id_mode::E2E_P01_DATAID_NIBBLE) {
         if (config_.data_id_nibble_offset_ % 8 == 0) {
             // write low nibble of high byte of Data ID
@@ -66,7 +65,7 @@ void protector::write_data_id(e2e_buffer &_buffer) {
 }
 
 /** @req [SRS_E2E_08528] */
-void protector::write_crc(e2e_buffer &_buffer, uint8_t _computed_crc) {
+void protector::write_crc(e2e_buffer& _buffer, uint8_t _computed_crc) {
     _buffer[config_.crc_offset_] = _computed_crc;
 }
 

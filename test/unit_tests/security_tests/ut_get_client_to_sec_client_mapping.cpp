@@ -19,8 +19,7 @@ vsomeip_v3::gid_t gid_3 = 2;
 vsomeip_sec_ip_addr_t host_address = 0;
 }
 
-TEST(get_client_to_sec_client_mapping, test)
-{
+TEST(get_client_to_sec_client_mapping, test) {
     std::unique_ptr<vsomeip_v3::policy_manager_impl> security(new vsomeip_v3::policy_manager_impl);
 
     vsomeip_sec_client_t its_sec_client_uid_gid_1 = utility::create_uds_client(uid_1, gid_1, host_address);
@@ -60,4 +59,4 @@ TEST(get_client_to_sec_client_mapping, test)
     // uid_gid and uid_gid_3 should be equal if get was successful.
     EXPECT_EQ(its_sec_client_uid_gid_1.group, its_sec_client_uid_gid_3.group);
     EXPECT_EQ(its_sec_client_uid_gid_1.user, its_sec_client_uid_gid_3.user);
-    }
+}

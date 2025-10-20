@@ -18,13 +18,9 @@ struct service_info {
     vsomeip::method_t notify_method_id;
 };
 
-struct service_info service = { 0x3344, 0x1, 0x1111, 0x8002, 0x1, 0x1404, 0x4242 };
+struct service_info service = {0x3344, 0x1, 0x1111, 0x8002, 0x1, 0x1404, 0x4242};
 
-enum test_mode_e : std::uint8_t {
-    UNKNOWN,
-    PAYLOAD_FIXED,
-    PAYLOAD_DYNAMIC
-};
+enum test_mode_e : std::uint8_t { UNKNOWN, PAYLOAD_FIXED, PAYLOAD_DYNAMIC };
 
 std::uint32_t payload_fixed_length = 20;
 

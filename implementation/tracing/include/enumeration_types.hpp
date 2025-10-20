@@ -9,11 +9,7 @@
 namespace vsomeip_v3 {
 namespace trace {
 
-enum class filter_type_e : uint8_t {
-    NEGATIVE = 0x00,
-    POSITIVE = 0x01,
-    HEADER_ONLY = 0x02
-};
+enum class filter_type_e : uint8_t { NEGATIVE = 0x00, POSITIVE = 0x01, HEADER_ONLY = 0x02 };
 
 } // namespace trace
 } // namespace vsomeip_v3

@@ -16,20 +16,19 @@ struct policy;
 
 namespace protocol {
 
-class update_security_policy_command
-    : public command {
+class update_security_policy_command : public command {
 public:
     update_security_policy_command(bool _is_internal = false);
 
-    void serialize(std::vector<byte_t> &_buffer, error_e &_error) const;
-    void deserialize(const std::vector<byte_t> &_buffer, error_e &_error);
+    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific
     uint32_t get_update_id() const;
     void set_update_id(uint32_t _update_id);
 
     std::shared_ptr<policy> get_policy() const;
-    void set_policy(const std::shared_ptr<policy> &_policy);
+    void set_policy(const std::shared_ptr<policy>& _policy);
 
 private:
     uint32_t update_id_;

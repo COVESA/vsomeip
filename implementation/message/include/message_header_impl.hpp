@@ -15,17 +15,17 @@ namespace vsomeip_v3 {
 
 class message_base;
 
-class message_header_impl: virtual public serializable {
+class message_header_impl : virtual public serializable {
 public:
     VSOMEIP_EXPORT message_header_impl();
     VSOMEIP_EXPORT message_header_impl(const message_header_impl& _header);
 
-    VSOMEIP_EXPORT bool serialize(serializer *_to) const;
-    VSOMEIP_EXPORT bool deserialize(deserializer *_from);
+    VSOMEIP_EXPORT bool serialize(serializer* _to) const;
+    VSOMEIP_EXPORT bool deserialize(deserializer* _from);
 
     // internal
-    VSOMEIP_EXPORT message_base * get_owner() const;
-    VSOMEIP_EXPORT void set_owner(message_base *_owner);
+    VSOMEIP_EXPORT message_base* get_owner() const;
+    VSOMEIP_EXPORT void set_owner(message_base* _owner);
 
 public:
     service_t service_;
@@ -39,7 +39,7 @@ public:
     return_code_e code_;
 
     instance_t instance_;
-    message_base *owner_;
+    message_base* owner_;
 };
 
 } // namespace vsomeip_v3

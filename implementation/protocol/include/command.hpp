@@ -20,16 +20,14 @@ typedef uint32_t command_size_t;
 
 class command {
 public:
-    inline id_e get_id() const  { return id_; }
+    inline id_e get_id() const { return id_; }
     inline version_t get_version() const { return version_; }
     inline client_t get_client() const { return client_; }
     inline void set_client(client_t _client) { client_ = _client; }
     inline command_size_t get_size() const { return size_; }
 
-    virtual void serialize(std::vector<byte_t> &_buffer,
-            error_e &_error) const;
-    virtual void deserialize(const std::vector<byte_t> &_buffer,
-            error_e &_error);
+    virtual void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    virtual void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 protected:
     id_e id_;

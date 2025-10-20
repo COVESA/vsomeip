@@ -122,14 +122,6 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         target_link_libraries(${target} ${VSOMEIP_NAME}-cfg)
     endforeach()
 
-    # Skip valgrind
-    if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-        if (TEST_SKIP_VALGRIND_TRACKING)
-            set(SUBPROCESSES ,*/npdu_*)
-        endif()
-        set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES})
-    endif()
-
     # Add custom test command.
     add_custom_test(
         NAME npdu_test_udp

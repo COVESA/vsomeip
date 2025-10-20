@@ -12,18 +12,12 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-unsubscribe_command::unsubscribe_command()
-    : subscribe_command_base(id_e::UNSUBSCRIBE_ID) {
-}
+unsubscribe_command::unsubscribe_command() : subscribe_command_base(id_e::UNSUBSCRIBE_ID) { }
 
-void
-unsubscribe_command::serialize(std::vector<byte_t> &_buffer,
-        error_e &_error) const {
+void unsubscribe_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(major_)
-            + sizeof(event_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(major_) + sizeof(event_)
+                    + sizeof(pending_id_));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -41,14 +35,10 @@ unsubscribe_command::serialize(std::vector<byte_t> &_buffer,
     subscribe_command_base::serialize(_buffer, _error);
 }
 
-void
-unsubscribe_command::deserialize(const std::vector<byte_t> &_buffer,
-        error_e &_error) {
+void unsubscribe_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(eventgroup_) + sizeof(major_)
-            + sizeof(event_) + sizeof(pending_id_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(major_) + sizeof(event_)
+                    + sizeof(pending_id_));
 
     if (its_size > _buffer.size()) {
 

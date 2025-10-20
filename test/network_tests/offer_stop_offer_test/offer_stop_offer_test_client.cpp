@@ -49,12 +49,9 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_client) {
         if (service_consumer.is_available()) {
             service_was_available = true;
 
-            auto request_service1_tcp =
-                    service_consumer.request(true, SERVICE_ID, INSTANCE_ID, METHOD_ID);
-            auto request_service2_tcp =
-                    service_consumer.request(true, OTHER_SERVICE_ID, OTHER_INSTANCE_ID, METHOD_ID);
-            auto request_service2_udp =
-                    service_consumer.request(false, OTHER_SERVICE_ID, OTHER_INSTANCE_ID, METHOD_ID);
+            auto request_service1_tcp = service_consumer.request(true, SERVICE_ID, INSTANCE_ID, METHOD_ID);
+            auto request_service2_tcp = service_consumer.request(true, OTHER_SERVICE_ID, OTHER_INSTANCE_ID, METHOD_ID);
+            auto request_service2_udp = service_consumer.request(false, OTHER_SERVICE_ID, OTHER_INSTANCE_ID, METHOD_ID);
 
             // check if futures are valid
             ASSERT_TRUE(request_service1_tcp.valid());

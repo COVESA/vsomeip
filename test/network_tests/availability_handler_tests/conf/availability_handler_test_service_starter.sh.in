@@ -1,0 +1,17 @@
+#!/bin/bash
+# Copyright (C) 2015-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+export VSOMEIP_CONFIGURATION=availability_handler_test.json
+export VSOMEIP_APPLICATION_NAME=AVAILABILITY_HANDLER_SERVICE
+./availability_handler_test_service &
+
+
+if [ $? -ne 0 ]
+then
+    exit 1
+else
+    exit 0
+fi

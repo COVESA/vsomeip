@@ -14,20 +14,15 @@ namespace vsomeip_v3 {
 // Additionally store the last forwarded timestamp to
 // avoid having to lock
 struct debounce_filter_impl_t : debounce_filter_t {
-    debounce_filter_impl_t()
-        : last_forwarded_(std::chrono::steady_clock::time_point::max()) {
-    }
+    debounce_filter_impl_t() : last_forwarded_(std::chrono::steady_clock::time_point::max()) { }
 
-    explicit debounce_filter_impl_t(const debounce_filter_t &_source)
-        : debounce_filter_t(_source),
-          last_forwarded_(std::chrono::steady_clock::time_point::max()) {
-    }
+    explicit debounce_filter_impl_t(const debounce_filter_t& _source) :
+        debounce_filter_t(_source), last_forwarded_(std::chrono::steady_clock::time_point::max()) { }
 
     std::chrono::steady_clock::time_point last_forwarded_;
 };
 
-using debounce_configuration_t = service_instance_map<
-    std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>>;
+using debounce_configuration_t = service_instance_map<std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>>;
 
 } // namespace vsomeip_v3
 

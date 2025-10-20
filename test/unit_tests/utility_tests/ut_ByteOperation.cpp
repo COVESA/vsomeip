@@ -9,30 +9,27 @@
 
 #include <vsomeip/defines.hpp>
 
-TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_WORD)
-{
+TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_WORD) {
     uint8_t payload[8] = {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18};
 
-    uint16_t its_service = vsomeip_v3::bithelper::read_uint16_be(payload+VSOMEIP_SERVICE_POS_MIN);
-    uint16_t its_method  = vsomeip_v3::bithelper::read_uint16_be(payload+VSOMEIP_METHOD_POS_MIN);
+    uint16_t its_service = vsomeip_v3::bithelper::read_uint16_be(payload + VSOMEIP_SERVICE_POS_MIN);
+    uint16_t its_method = vsomeip_v3::bithelper::read_uint16_be(payload + VSOMEIP_METHOD_POS_MIN);
 
     EXPECT_EQ(its_service, 0x1112);
-    EXPECT_EQ(its_method,  0x1314);
+    EXPECT_EQ(its_method, 0x1314);
 }
 
-TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_LONG)
-{
+TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_LONG) {
     uint8_t payload[8] = {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18};
 
-    uint32_t its_data = vsomeip_v3::bithelper::read_uint32_be(payload+2);
+    uint32_t its_data = vsomeip_v3::bithelper::read_uint32_be(payload + 2);
     EXPECT_EQ(its_data, 0x13141516);
 
-    uint32_t its_data2 = vsomeip_v3::bithelper::read_uint32_le(payload+2);
+    uint32_t its_data2 = vsomeip_v3::bithelper::read_uint32_le(payload + 2);
     EXPECT_EQ(its_data2, 0x16151413);
 }
 
-TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_LONG_LONG)
-{
+TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_LONG_LONG) {
     uint8_t payload[8] = {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18};
 
     uint64_t its_data = vsomeip_v3::bithelper::read_uint64_be(payload);
@@ -41,12 +38,10 @@ TEST(byte_operations, MACRO_VSOMEIP_BYTES_TO_LONG_LONG)
 
 TEST(byte_operations, MACRO_VSOMEIP_WORDS_TO_LONG) {
     uint16_t serviceid = 0x1111;
-    uint16_t methodid  = 0x2222;
+    uint16_t methodid = 0x2222;
 
-    const uint8_t request_message[] = {static_cast<uint8_t>((serviceid & 0xFF00) >> 8),
-                                       static_cast<uint8_t>( serviceid & 0x00FF),
-                                       static_cast<uint8_t>((methodid  & 0xFF00) >> 8),
-                                       static_cast<uint8_t>( methodid  & 0x00FF)};
+    const uint8_t request_message[] = {static_cast<uint8_t>((serviceid & 0xFF00) >> 8), static_cast<uint8_t>(serviceid & 0x00FF),
+                                       static_cast<uint8_t>((methodid & 0xFF00) >> 8), static_cast<uint8_t>(methodid & 0x00FF)};
     uint32_t header_method = vsomeip_v3::bithelper::read_uint32_be(request_message);
 
     EXPECT_EQ(header_method, 0x11112222);
@@ -105,7 +100,6 @@ TEST(byte_operations, MACRO_VSOMEIP_LONG_LONG_BYTEx) {
     EXPECT_EQ(data[5], 0x16);
     EXPECT_EQ(data[6], 0x14);
     EXPECT_EQ(data[7], 0x12);
-
 }
 
 TEST(byte_operations, MACRO_VSOMEIP_LONG_WORDx) {

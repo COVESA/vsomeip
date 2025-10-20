@@ -13,8 +13,7 @@ constexpr std::size_t PAYLOAD_SIZE = 1000UL;
 
 service_t::service_t() :
     vsomeip_utilities::base_logger("SRV", "VSOMEIP SERVICE PROVIDER"),
-    vsomeip_app(vsomeip::runtime::get()->create_application("service-sample")),
-    payload(std::vector<uint8_t>(PAYLOAD_SIZE, 0)),
+    vsomeip_app(vsomeip::runtime::get()->create_application("service-sample")), payload(std::vector<uint8_t>(PAYLOAD_SIZE, 0)),
     app_registration_state(vsomeip::state_type_e::ST_DEREGISTERED) {
 
     availability_table[SERVICE_ID] = false;
@@ -31,29 +30,22 @@ bool service_t::init() {
         return false;
     }
 
-    vsomeip_app->register_message_handler(
-            SERVICE_ID, INSTANCE_ID, METHOD_ID,
-            std::bind(&service_t::on_message, this, std::placeholders::_1));
-    vsomeip_app->register_message_handler(
-            OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
-            std::bind(&service_t::on_message, this, std::placeholders::_1));
+    vsomeip_app->register_message_handler(SERVICE_ID, INSTANCE_ID, METHOD_ID,
+                                          std::bind(&service_t::on_message, this, std::placeholders::_1));
+    vsomeip_app->register_message_handler(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, OTHER_METHOD_ID,
+                                          std::bind(&service_t::on_message, this, std::placeholders::_1));
 
-    vsomeip_app->register_state_handler(
-            std::bind(&service_t::on_state, this, std::placeholders::_1));
+    vsomeip_app->register_state_handler(std::bind(&service_t::on_state, this, std::placeholders::_1));
 
     vsomeip_app->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
-            std::bind(&service_t::on_availability, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3));
+            std::bind(&service_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     vsomeip_app->register_availability_handler(
             OTHER_SERVICE_ID, OTHER_INSTANCE_ID,
-            std::bind(&service_t::on_availability, this, std::placeholders::_1,
-                      std::placeholders::_2, std::placeholders::_3));
+            std::bind(&service_t::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-    vsomeip_app->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID},
-                             vsomeip::event_type_e::ET_FIELD);
-    vsomeip_app->offer_event(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID},
-                             vsomeip::event_type_e::ET_FIELD);
+    vsomeip_app->offer_event(SERVICE_ID, INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip::event_type_e::ET_FIELD);
+    vsomeip_app->offer_event(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, EVENT_ID, {EVENTGROUP_ID}, vsomeip::event_type_e::ET_FIELD);
 
     vsomeip_app->request_service(SERVICE_ID, INSTANCE_ID);
     vsomeip_app->request_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID);
@@ -107,8 +99,7 @@ void service_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     std::scoped_lock lk(availability_mutex);
 
     payload.at(0)++;
-    VSOMEIP_INFO << "service_t::" << __func__ << ": [" << std::hex << message->get_service() << "] "
-                 << static_cast<int>(payload.at(0));
+    VSOMEIP_INFO << "service_t::" << __func__ << ": [" << std::hex << message->get_service() << "] " << static_cast<int>(payload.at(0));
 
     auto vsomeip_payload = vsomeip::runtime::get()->create_payload(payload);
     auto its_response = vsomeip::runtime::get()->create_response(message);
@@ -117,13 +108,11 @@ void service_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     vsomeip_app->send(its_response);
 }
 
-void service_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance,
-                                bool is_available) {
+void service_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available) {
     std::scoped_lock lk(availability_mutex);
 
-    VSOMEIP_INFO << "service_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0')
-                 << std::hex << service << "." << instance << "] is "
-                 << (is_available ? "available." : "NOT available.");
+    VSOMEIP_INFO << "service_t::" << __func__ << " Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance
+                 << "] is " << (is_available ? "available." : "NOT available.");
 
     availability_table[service] = is_available;
 

@@ -21,18 +21,17 @@ public:
     profile_05_checker(void) = delete;
 
     // [SWS_E2E_00389] initialize state
-    explicit profile_05_checker(const profile_config &_config) :
-            config_(_config) {}
+    explicit profile_05_checker(const profile_config& _config) : config_(_config) { }
 
-    void check(const e2e_buffer &_buffer, instance_t _instance,
-            e2e::profile_interface::check_status_t &_generic_check_status) override final;
+    void check(const e2e_buffer& _buffer, instance_t _instance,
+               e2e::profile_interface::check_status_t& _generic_check_status) override final;
 
 private:
-    bool verify_input(const e2e_buffer &_buffer) const;
+    bool verify_input(const e2e_buffer& _buffer) const;
     bool verify_counter(instance_t _instance, uint8_t _received_counter);
 
-    bool read_8(const e2e_buffer &_buffer, uint8_t &_data, size_t _index) const;
-    bool read_16(const e2e_buffer &_buffer, uint16_t &_data, size_t _index) const;
+    bool read_8(const e2e_buffer& _buffer, uint8_t& _data, size_t _index) const;
+    bool read_16(const e2e_buffer& _buffer, uint16_t& _data, size_t _index) const;
 
     std::mutex check_mutex_;
 

@@ -9,11 +9,11 @@
 
 namespace vsomeip_v3 {
 
-std::string runtime::get_property(const std::string &_name) {
+std::string runtime::get_property(const std::string& _name) {
     return runtime_impl::get_property(_name);
 }
 
-void runtime::set_property(const std::string &_name, const std::string &_value) {
+void runtime::set_property(const std::string& _name, const std::string& _value) {
     runtime_impl::set_property(_name, _value);
 }
 

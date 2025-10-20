@@ -13,20 +13,17 @@
 namespace vsomeip_v3 {
 namespace trace {
 
-bool header::prepare(const std::shared_ptr<endpoint> &_endpoint,
-        bool _is_sending, instance_t _instance) {
+bool header::prepare(const std::shared_ptr<endpoint>& _endpoint, bool _is_sending, instance_t _instance) {
     return prepare(_endpoint.get(), _is_sending, _instance);
 }
 
-bool header::prepare(const endpoint *_endpoint, bool _is_sending,
-        instance_t _instance) {
+bool header::prepare(const endpoint* _endpoint, bool _is_sending, instance_t _instance) {
     boost::asio::ip::address its_address;
     unsigned short its_port(0);
     protocol_e its_protocol(protocol_e::unknown);
 
     if (_endpoint) {
-        const client_endpoint* its_client_endpoint =
-                dynamic_cast<const client_endpoint*>(_endpoint);
+        const client_endpoint* its_client_endpoint = dynamic_cast<const client_endpoint*>(_endpoint);
         if (its_client_endpoint) {
 
             its_client_endpoint->get_remote_address(its_address);
@@ -51,15 +48,14 @@ bool header::prepare(const endpoint *_endpoint, bool _is_sending,
     return true;
 }
 
-void header::prepare(const boost::asio::ip::address_v4 &_address,
-        std::uint16_t _port, protocol_e _protocol,
-        bool _is_sending, instance_t _instance) {
+void header::prepare(const boost::asio::ip::address_v4& _address, std::uint16_t _port, protocol_e _protocol, bool _is_sending,
+                     instance_t _instance) {
 
-    bithelper::write_uint32_be((uint32_t)_address.to_ulong(), data_);   // [0-3] Address
-    bithelper::write_uint16_be(_port, &data_[4]);                       // [4-5] Port
-    data_[6] = static_cast<byte_t>(_protocol);                          //   [6] Protocol
-    data_[7] = static_cast<byte_t>(_is_sending);                        //   [7] is_sending
-    bithelper::write_uint16_be(_instance, &data_[8]);                   // [8-9] Instance
+    bithelper::write_uint32_be(_address.to_uint(), data_); // [0-3] Address
+    bithelper::write_uint16_be(_port, &data_[4]); // [4-5] Port
+    data_[6] = static_cast<byte_t>(_protocol); // [6] Protocol
+    data_[7] = static_cast<byte_t>(_is_sending); // [7] is_sending
+    bithelper::write_uint16_be(_instance, &data_[8]); // [8-9] Instance
 }
 
 } // namespace trace

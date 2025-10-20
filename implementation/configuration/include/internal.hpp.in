@@ -80,15 +80,17 @@
 #define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      500
 #define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES  10000
-#define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10  // miliseconds
+#define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10 // miliseconds
 
 #define VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT        5000
 
-#define VSOMEIP_DEFAULT_QUEUE_WARN_SIZE         102400
+#define VSOMEIP_DEFAULT_LOG_INTERVAL            10
+#define VSOMEIP_DEFAULT_QUEUE_WARN_SIZE         32768
 
 #define VSOMEIP_MAX_TCP_CONNECT_TIME            5000
 #define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
 #define VSOMEIP_MAX_TCP_SENT_WAIT_TIME          10000
+#define VSOMEIP_TCP_USER_TIMEOUT                3000
 
 #define VSOMEIP_MAX_NETLINK_RETRIES             3
 
@@ -105,8 +107,6 @@
 
 #define VSOMEIP_DEFAULT_IO_THREAD_COUNT         2
 #define VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL    0
-
-#define VSOMEIP_DEFAULT_REGISTER_THREAD_COUNT   2
 
 #define VSOMEIP_DEFAULT_MAX_DISPATCH_TIME       100
 #define VSOMEIP_DEFAULT_MAX_DISPATCHERS         10
@@ -125,7 +125,7 @@
 #define VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE  19
 
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
-#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // us
+#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000 // us
 
 #define VSOMEIP_DEFAULT_EVENT_LOOP_PERIODICITY  0 // seconds
 
@@ -134,6 +134,12 @@
 
 #define LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP       5
 #define LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP       50
+
+// default TCP parameters, both local and external
+#define VSOMEIP_DEFAULT_TCP_USER_TIMEOUT        3000
+#define VSOMEIP_DEFAULT_TCP_KEEPIDLE            1
+#define VSOMEIP_DEFAULT_TCP_KEEPINTVL           1
+#define VSOMEIP_DEFAULT_TCP_KEEPCNT             3
 
 #define MIN_ENDPOINT_WAIT_INTERVAL              10
 #define MAX_ENDPOINT_WAIT_INTERVAL              160
@@ -159,11 +165,7 @@
 
 namespace vsomeip_v3 {
 
-typedef enum {
-    SUBSCRIPTION_ACKNOWLEDGED,
-    SUBSCRIPTION_NOT_ACKNOWLEDGED,
-    IS_SUBSCRIBING
-} subscription_state_e;
+typedef enum { SUBSCRIPTION_ACKNOWLEDGED, SUBSCRIPTION_NOT_ACKNOWLEDGED, IS_SUBSCRIBING } subscription_state_e;
 
 inline constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
@@ -177,19 +179,14 @@ inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_UDS = 13;
 inline constexpr std::uint32_t MAX_RECONNECTS_LOCAL_TCP = 5;
 
 #if defined(_WIN32)
-    using uid_t = std::uint32_t;
-    using git_t = std::uint32_t;
+using uid_t = std::uint32_t;
+using git_t = std::uint32_t;
 #endif
 
 inline constexpr uid_t ANY_UID = (std::numeric_limits<uid_t>::max)();
 inline constexpr gid_t ANY_GID = (std::numeric_limits<gid_t>::max)();
 
-enum class port_type_e {
-    PT_OPTIONAL,
-    PT_SECURE,
-    PT_UNSECURE,
-    PT_UNKNOWN
-};
+enum class port_type_e { PT_OPTIONAL, PT_SECURE, PT_UNSECURE, PT_UNKNOWN };
 
 using partition_id_t = std::uint8_t;
 inline constexpr partition_id_t VSOMEIP_DEFAULT_PARTITION_ID = 0;

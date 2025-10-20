@@ -10,10 +10,7 @@
 
 namespace vsomeip {
 
-enum class state_type_e : uint8_t {
-    ST_REGISTERED = 0x0,
-    ST_DEREGISTERED = 0x1
-};
+enum class state_type_e : uint8_t { ST_REGISTERED = 0x0, ST_DEREGISTERED = 0x1 };
 
 // SIP_RPC_684
 enum class message_type_e : uint8_t {

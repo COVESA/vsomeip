@@ -17,7 +17,7 @@ struct service_info {
     vsomeip::method_t shutdown_method_id;
 };
 
-struct service_info service = { 0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404 };
+struct service_info service = {0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x1404};
 
 static constexpr int number_of_messages_to_send = 150;
 

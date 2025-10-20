@@ -14,8 +14,7 @@ serviceentry_impl::serviceentry_impl() {
     minor_version_ = 0;
 }
 
-serviceentry_impl::~serviceentry_impl() {
-}
+serviceentry_impl::~serviceentry_impl() { }
 
 minor_version_t serviceentry_impl::get_minor_version() const {
     return minor_version_;
@@ -25,20 +24,17 @@ void serviceentry_impl::set_minor_version(minor_version_t _version) {
     minor_version_ = _version;
 }
 
-bool serviceentry_impl::serialize(vsomeip_v3::serializer *_to) const {
+bool serviceentry_impl::serialize(vsomeip_v3::serializer* _to) const {
     bool is_successful = entry_impl::serialize(_to);
 
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint8_t>(major_version_));
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint32_t>(ttl_), true);
-    is_successful = is_successful
-            && _to->serialize(static_cast<uint32_t>(minor_version_));
+    is_successful = is_successful && _to->serialize(static_cast<uint8_t>(major_version_));
+    is_successful = is_successful && _to->serialize(static_cast<uint32_t>(ttl_), true);
+    is_successful = is_successful && _to->serialize(static_cast<uint32_t>(minor_version_));
 
     return is_successful;
 }
 
-bool serviceentry_impl::deserialize(vsomeip_v3::deserializer *_from) {
+bool serviceentry_impl::deserialize(vsomeip_v3::deserializer* _from) {
     bool is_successful = entry_impl::deserialize(_from);
 
     uint8_t tmp_major_version(0);

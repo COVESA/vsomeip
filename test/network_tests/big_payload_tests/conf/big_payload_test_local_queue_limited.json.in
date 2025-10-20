@@ -31,7 +31,7 @@
             "instance":"0x5678"
         }
     ],
-    "endpoint-queue-limit-local" : "614431",
+    "endpoint-queue-limit-local" : "614500",
     "routing":"big_payload_test_service",
     "service-discovery":
     {

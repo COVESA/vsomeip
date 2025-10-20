@@ -118,3 +118,50 @@ PRODUCT_PACKAGES += \
     libvsomeip_sd \
     libvsomeip_e2e \
 ```
+
+##### Build Instructions for Windows
+
+###### Setup
+
+- Visual Studio Code
+- Visual Studio Build Tools with:
+    - Desktop development with C++
+    - MSVC v143 - VS 2022 C++ x64/x86 build tools
+    - Windows 10/11 SDK
+    - CMake for Windows
+- vSomeIP uses CMake as buildsystem.
+- vSomeIP uses Boost >= 1.71.0:
+- GIT
+
+For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
+-- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
+or
+-- git clone https://github.com/google/googletest.git
+
+###### Compilation
+
+For compilation call:
+
+```bash
+rmdir /s /q build
+cd build
+cmake .. -A x64 -DCMAKE_INSTALL_PREFIX:PATH=$YOUR_PATH
+cmake --build . --config [Release|Debug]
+cmake --build . --config [Release|Debug] --target install
+```
+
+For compilation outside vsomeip-lib folder call:
+
+```bash
+rmdir /s /q build
+cmake -B "buildlib" -DCMAKE_BUILD_TYPE=[Release|Debug] -DCMAKE_INSTALL_PREFIX=$YOUR_PATH -A x64 vsomeip-lib
+#vsomeip-lib compilation
+cmake --build build --config [Release|Debug] --parallel 16 --target install
+#examples compilation
+cmake --build build --config [Release|Debug] --parallel 16 --parallel 16 --target examples
+cmake --build build --config [Release|Debug] --parallel 16 --target install
+#unit-tests compilation
+cmake --build build/test --config [Release|Debug] --parallel 16 --parallel 16 --target build_unit_tests
+#all tests compilation
+cmake --build build/test --config [Release|Debug] --parallel 16 --parallel 16 --target all build_tests
+```

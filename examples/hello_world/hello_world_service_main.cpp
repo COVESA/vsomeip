@@ -9,16 +9,14 @@
 #include "hello_world_service.hpp"
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-hello_world_service *hw_srv_ptr(nullptr);
-    void handle_signal(int _signal) {
-        if (hw_srv_ptr != nullptr &&
-                (_signal == SIGINT || _signal == SIGTERM))
-            hw_srv_ptr->terminate();
-    }
+hello_world_service* hw_srv_ptr(nullptr);
+void handle_signal(int _signal) {
+    if (hw_srv_ptr != nullptr && (_signal == SIGINT || _signal == SIGTERM))
+        hw_srv_ptr->terminate();
+}
 #endif
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
 

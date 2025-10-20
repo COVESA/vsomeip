@@ -13,8 +13,7 @@
 static std::vector<std::shared_ptr<vsomeip::payload>> payloads__;
 
 debounce_test_client::debounce_test_client(int64_t _interval) :
-    interval(_interval), index_(0), is_available_(false), messagesReceived_(false),
-    runner_(std::bind(&debounce_test_client::run, this)),
+    interval(_interval), index_(0), is_available_(false), messagesReceived_(false), runner_(std::bind(&debounce_test_client::run, this)),
     app_(vsomeip::runtime::get()->create_application("debounce_timeout_test_client")) { }
 
 bool debounce_test_client::init() {
@@ -22,24 +21,18 @@ bool debounce_test_client::init() {
     bool its_result = app_->init();
     if (its_result) {
         app_->register_availability_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE,
-                                            std::bind(&debounce_test_client::on_availability, this,
-                                                      std::placeholders::_1, std::placeholders::_2,
-                                                      std::placeholders::_3),
+                                            std::bind(&debounce_test_client::on_availability, this, std::placeholders::_1,
+                                                      std::placeholders::_2, std::placeholders::_3),
                                             DEBOUNCE_MAJOR, DEBOUNCE_MINOR);
-        app_->register_message_handler(
-                DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, vsomeip::ANY_EVENT,
-                std::bind(&debounce_test_client::on_message, this, std::placeholders::_1));
-        app_->request_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT,
-                            {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+        app_->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, vsomeip::ANY_EVENT,
+                                       std::bind(&debounce_test_client::on_message, this, std::placeholders::_1));
+        app_->request_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
                             vsomeip::reliability_type_e::RT_UNRELIABLE);
-        app_->request_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2,
-                            {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
+        app_->request_event(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT_2, {DEBOUNCE_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
                             vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->request_service(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_MAJOR, DEBOUNCE_MINOR);
-        app_->subscribe(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENTGROUP, DEBOUNCE_MAJOR,
-                        DEBOUNCE_EVENT);
-        app_->subscribe(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENTGROUP, DEBOUNCE_MAJOR,
-                        DEBOUNCE_EVENT_2);
+        app_->subscribe(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENTGROUP, DEBOUNCE_MAJOR, DEBOUNCE_EVENT);
+        app_->subscribe(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENTGROUP, DEBOUNCE_MAJOR, DEBOUNCE_EVENT_2);
     }
     return its_result;
 }
@@ -64,8 +57,7 @@ void debounce_test_client::run() {
             auto its_status = run_condition_.wait_for(its_lock, std::chrono::seconds(20));
             EXPECT_EQ(its_status, std::cv_status::no_timeout);
             if (its_status == std::cv_status::timeout) {
-                VSOMEIP_ERROR << __func__
-                              << ": Debounce service did not become available after 20s.";
+                VSOMEIP_ERROR << __func__ << ": Debounce service did not become available after 20s.";
                 stop();
                 return;
             }
@@ -91,8 +83,7 @@ void debounce_test_client::wait() {
         runner_.join();
 }
 
-void debounce_test_client::on_availability(vsomeip::service_t _service,
-                                           vsomeip::instance_t _instance, bool _is_available) {
+void debounce_test_client::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
 
     if (_service == DEBOUNCE_SERVICE && _instance == DEBOUNCE_INSTANCE) {
 
@@ -117,15 +108,13 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
     std::stringstream s;
     s << "RECV: ";
     for (uint32_t i = 0; i < _message->get_payload()->get_length(); i++) {
-        s << std::hex << std::setfill('0') << std::setw(2)
-          << static_cast<int>(_message->get_payload()->get_data()[i]) << ' ';
+        s << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_message->get_payload()->get_data()[i]) << ' ';
     }
     VSOMEIP_DEBUG << s.str();
 
     // Check if message received is equal to the one it was expecting
     if (DEBOUNCE_SERVICE == _message->get_service()
-        && (DEBOUNCE_EVENT == _message->get_method()
-            || DEBOUNCE_EVENT_2 == _message->get_method())) {
+        && (DEBOUNCE_EVENT == _message->get_method() || DEBOUNCE_EVENT_2 == _message->get_method())) {
         bool is_equal = compare_payload(_message->get_payload(), index_++);
         EXPECT_EQ(is_equal, true);
 
@@ -137,8 +126,7 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
     }
 }
 
-bool debounce_test_client::compare_payload(const std::shared_ptr<vsomeip::payload>& _payload,
-                                           std::size_t _index) const {
+bool debounce_test_client::compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, std::size_t _index) const {
 
     auto its_expected_payload = payloads__[_index];
     return (*_payload == *its_expected_payload);
@@ -159,8 +147,7 @@ void debounce_test_client::run_test() {
     app_->send(its_message);
 
     std::unique_lock<std::mutex> lock(run_mutex_);
-    bool status = run_condition_.wait_for(lock, std::chrono::seconds(30),
-                                          [&] { return messagesReceived_; });
+    bool status = run_condition_.wait_for(lock, std::chrono::seconds(30), [&] { return messagesReceived_; });
     if (!status) {
         VSOMEIP_ERROR << "debounce_test_client::on_message: Timeout waiting for messages";
     }

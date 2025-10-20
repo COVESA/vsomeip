@@ -79,8 +79,8 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_VERSION=\"3.5.6\"",
-        "-DVSOMEIP_COMPAT_VERSION=\"3.5.6\"",
+        "-DVSOMEIP_VERSION=\"3.5.8\"",
+        "-DVSOMEIP_COMPAT_VERSION=\"3.5.8\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
         "-DUSE_DLT",
     ],
@@ -88,7 +88,12 @@ cc_library_shared {
     ldflags: [
         "-Wl,-wrap,socket",
         "-Wl,-wrap,accept",
-        "-Wl,-wrap,open"
+        "-Wl,-wrap,open",
+        "-Wl,-wrap,close",
+        "-Wl,-wrap,recvfrom",
+        "-Wl,-wrap,recvmsg",
+        "-Wl,-wrap,sendto",
+        "-Wl,-wrap,sendmsg"
     ],
 
     rtti: true,

@@ -10,69 +10,52 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-unregister_event_command::unregister_event_command()
-        : command(id_e::UNREGISTER_EVENT_ID),
-          service_(ANY_SERVICE),
-          instance_(ANY_INSTANCE),
-          event_(ANY_EVENT),
-          is_provided_(false) {
-}
+unregister_event_command::unregister_event_command() :
+    command(id_e::UNREGISTER_EVENT_ID), service_(ANY_SERVICE), instance_(ANY_INSTANCE), event_(ANY_EVENT), is_provided_(false) { }
 
-service_t
-unregister_event_command::get_service() const {
+service_t unregister_event_command::get_service() const {
 
     return service_;
 }
 
-void
-unregister_event_command::set_service(service_t _service) {
+void unregister_event_command::set_service(service_t _service) {
 
     service_ = _service;
 }
 
-instance_t
-unregister_event_command::get_instance() const {
+instance_t unregister_event_command::get_instance() const {
 
     return instance_;
 }
 
-void
-unregister_event_command::set_instance(instance_t _instance) {
+void unregister_event_command::set_instance(instance_t _instance) {
 
     instance_ = _instance;
 }
 
-event_t
-unregister_event_command::get_event() const {
+event_t unregister_event_command::get_event() const {
 
     return event_;
 }
 
-void
-unregister_event_command::set_event(event_t _event) {
+void unregister_event_command::set_event(event_t _event) {
 
     event_ = _event;
 }
 
-
-bool
-unregister_event_command::is_provided() const {
+bool unregister_event_command::is_provided() const {
 
     return is_provided_;
 }
 
-void
-unregister_event_command::set_provided(bool _is_provided) {
+void unregister_event_command::set_provided(bool _is_provided) {
 
     is_provided_ = _is_provided;
 }
 
-void
-unregister_event_command::serialize(std::vector<byte_t> &_buffer, error_e &_error) const {
+void unregister_event_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(event_) + sizeof(is_provided_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(event_) + sizeof(is_provided_));
 
     if (its_size > std::numeric_limits<command_size_t>::max()) {
 
@@ -102,12 +85,9 @@ unregister_event_command::serialize(std::vector<byte_t> &_buffer, error_e &_erro
     _buffer[its_offset] = static_cast<byte_t>(is_provided_);
 }
 
-void
-unregister_event_command::deserialize(const std::vector<byte_t> &_buffer, error_e &_error) {
+void unregister_event_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {
 
-    size_t its_size(COMMAND_HEADER_SIZE
-            + sizeof(service_) + sizeof(instance_)
-            + sizeof(event_) + sizeof(is_provided_));
+    size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(event_) + sizeof(is_provided_));
 
     if (its_size > _buffer.size()) {
 

@@ -15,10 +15,10 @@ namespace sd {
 
 class selective_option_impl;
 
-class eventgroupentry_impl: public entry_impl {
+class eventgroupentry_impl : public entry_impl {
 public:
     eventgroupentry_impl();
-    eventgroupentry_impl(const eventgroupentry_impl &_entry);
+    eventgroupentry_impl(const eventgroupentry_impl& _entry);
     virtual ~eventgroupentry_impl();
 
     eventgroup_t get_eventgroup() const;
@@ -30,26 +30,18 @@ public:
     uint8_t get_counter() const;
     void set_counter(uint8_t _counter);
 
-    bool serialize(vsomeip_v3::serializer *_to) const;
-    bool deserialize(vsomeip_v3::deserializer *_from);
+    bool serialize(vsomeip_v3::serializer* _to) const;
+    bool deserialize(vsomeip_v3::deserializer* _from);
 
     bool operator==(const eventgroupentry_impl& _other) const {
-        return (ttl_ == _other.ttl_ &&
-                service_ == _other.service_ &&
-                instance_ == _other.instance_ &&
-                eventgroup_ == _other.eventgroup_ &&
-                index1_ == _other.index1_ &&
-                index2_ == _other.index2_ &&
-                num_options_[0] == _other.num_options_[0] &&
-                num_options_[1] == _other.num_options_[1] &&
-                major_version_ == _other.major_version_ &&
-                counter_ == _other.counter_);
+        return (ttl_ == _other.ttl_ && service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ == _other.eventgroup_
+                && index1_ == _other.index1_ && index2_ == _other.index2_ && num_options_[0] == _other.num_options_[0]
+                && num_options_[1] == _other.num_options_[1] && major_version_ == _other.major_version_ && counter_ == _other.counter_);
     }
 
-    bool matches(const eventgroupentry_impl &_other,
-                 const message_impl::options_t &_options) const;
+    bool matches(const eventgroupentry_impl& _other, const message_impl::options_t& _options) const;
 
-    void add_target(const std::shared_ptr<endpoint_definition> &_target);
+    void add_target(const std::shared_ptr<endpoint_definition>& _target);
     std::shared_ptr<endpoint_definition> get_target(bool _reliable) const;
 
     std::shared_ptr<selective_option_impl> get_selective_option() const;
@@ -70,4 +62,3 @@ private:
 } // namespace vsomeip_v3
 
 #endif // VSOMEIP_V3_SD_EVENTGROUPENTRY_IMPL_HPP_
-

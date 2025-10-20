@@ -22,13 +22,12 @@ TEST(CyclicEventTest, ClientReceivesMultipleEvents) {
     auto shutdown_future = shutdown_promise.get_future();
 
     // Track amount of notifications that were received.
-    std::atomic_uint8_t notification_count {0};
+    std::atomic_uint8_t notification_count{0};
 
     // Handle an event notification.
     application->register_message_handler(
             SERVICE_ID, INSTANCE_ID, EVENT_ID,
-            [runtime, application,
-             &notification_count](const std::shared_ptr<vsomeip::message> /* message */) {
+            [runtime, application, &notification_count](const std::shared_ptr<vsomeip::message> /* message */) {
                 VSOMEIP_INFO << "Received event notification.";
 
                 constexpr std::uint8_t MIN_NOTIFICATION_COUNT = 3;
@@ -45,12 +44,11 @@ TEST(CyclicEventTest, ClientReceivesMultipleEvents) {
             });
 
     // Handle shutdown response.
-    application->register_message_handler(
-            SERVICE_ID, INSTANCE_ID, METHOD_ID,
-            [&shutdown_promise](const std::shared_ptr<vsomeip::message> /* message */) {
-                VSOMEIP_INFO << "Received shutdown response.";
-                shutdown_promise.set_value(true);
-            });
+    application->register_message_handler(SERVICE_ID, INSTANCE_ID, METHOD_ID,
+                                          [&shutdown_promise](const std::shared_ptr<vsomeip::message> /* message */) {
+                                              VSOMEIP_INFO << "Received shutdown response.";
+                                              shutdown_promise.set_value(true);
+                                          });
 
     // Request the test service.
     application->request_service(SERVICE_ID, INSTANCE_ID, MAJOR_VERSION, MINOR_VERSION);
@@ -59,8 +57,7 @@ TEST(CyclicEventTest, ClientReceivesMultipleEvents) {
     // Subscribe to the test service when it becomes available.
     application->register_availability_handler(
             SERVICE_ID, INSTANCE_ID,
-            [application](vsomeip::service_t /* service */, vsomeip::instance_t /* instance */,
-                          bool is_available) {
+            [application](vsomeip::service_t /* service */, vsomeip::instance_t /* instance */, bool is_available) {
                 if (is_available) {
                     application->subscribe(SERVICE_ID, INSTANCE_ID, EVENTGROUP_ID, MAJOR_VERSION);
                 }
