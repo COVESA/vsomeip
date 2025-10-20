@@ -53,7 +53,7 @@ void assign_client_command::deserialize(const std::vector<byte_t>& _buffer, erro
 
     // name?
     if (size_ > 0)
-        name_.assign(&_buffer[COMMAND_POSITION_PAYLOAD], &_buffer[_buffer.size() - 1]);
+        name_.assign(&_buffer[COMMAND_POSITION_PAYLOAD], &_buffer[_buffer.size()]);
 }
 
 std::string assign_client_command::get_name() const {

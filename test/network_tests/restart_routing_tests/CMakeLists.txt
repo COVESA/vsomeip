@@ -13,6 +13,7 @@ set(configuration_files
     restart_routing_test_autoconfig_service_host.json
     restart_routing_test_client.json
     restart_routing_test_service.json
+    restart_routing_test_without_id.json
 )
 configure_files("${configuration_files}")
 

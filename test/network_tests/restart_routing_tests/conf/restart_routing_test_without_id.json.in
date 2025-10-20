@@ -1,0 +1,28 @@
+{
+   "unicast" : "@TEST_IP_MASTER@",
+   "netmask" : "255.255.255.0",
+   "logging" :
+   {
+      "level" : "trace",
+      "console" : "true"
+   },
+   "routing" : {
+      "host" :
+      {
+         "name" : "routingmanagerd",
+         "unicast" : "@TEST_IP_MASTER@",
+         "port" : "31490"
+      },
+      "guests" :
+      {
+         "unicast" : "@TEST_IP_MASTER@"
+      }
+   },
+   "service-discovery" :
+   {
+      "enable" : "false",
+      "multicast" : "224.0.0.1",
+      "port" : "30491",
+      "protocol" : "udp"
+   }
+}
