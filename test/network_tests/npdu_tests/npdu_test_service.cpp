@@ -210,7 +210,7 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
     // check on the service side if they adhere to them.
     // client one will only query method one, client two will only query method
     // two and so on.
-    for (int i = 0; i < 4; i++) {
+    for (std::size_t i = 0; i < debounce_times.size(); ++i) {
         std::chrono::nanoseconds debounce(0), retention(0);
         its_configuration->get_configured_timing_requests(
                 npdu_test::service_ids[SERVICE_NUMBER], its_configuration->get_unicast_address().to_string(),

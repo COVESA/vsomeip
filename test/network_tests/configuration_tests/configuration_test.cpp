@@ -23,68 +23,68 @@
 
 namespace vsomeip = vsomeip_v3;
 
-#define CONFIGURATION_FILE              "configuration_test.json"
+#define CONFIGURATION_FILE "configuration_test.json"
 
-#define EXPECTED_UNICAST_ADDRESS        "10.0.2.15"
+#define EXPECTED_UNICAST_ADDRESS "10.0.2.15"
 
-#define EXPECTED_HAS_CONSOLE            true
-#define EXPECTED_HAS_FILE                true
-#define EXPECTED_HAS_DLT                false
-#define EXPECTED_LOGLEVEL                "debug"
-#define EXPECTED_LOGFILE                "/home/someip/another-file.log"
+#define EXPECTED_HAS_CONSOLE true
+#define EXPECTED_HAS_FILE true
+#define EXPECTED_HAS_DLT false
+#define EXPECTED_LOGLEVEL "debug"
+#define EXPECTED_LOGFILE "/home/someip/another-file.log"
 
-#define EXPECTED_ROUTING_MANAGER_HOST    "my_application"
+#define EXPECTED_ROUTING_MANAGER_HOST "my_application"
 
 // Logging
-#define EXPECTED_VERSION_LOGGING_ENABLED                                    false
-#define EXPECTED_VERSION_LOGGING_INTERVAL                                   15
+#define EXPECTED_VERSION_LOGGING_ENABLED false
+#define EXPECTED_VERSION_LOGGING_INTERVAL 15
 
 // Request debounce time
-#define EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME                              10
-#define EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME                               33
+#define EXPECTED_DEFAULT_REQUEST_DEBOUNCE_TIME 10
+#define EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME 33
 
 // Application
-#define EXPECTED_APPLICATION_MAX_DISPATCHERS                                25
-#define EXPECTED_APPLICATION_MAX_DISPATCH_TIME                              1234
-#define EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME                  3
-#define EXPECTED_APPLICATION_THREADS                                        12
-#define EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME                          5000
+#define EXPECTED_APPLICATION_MAX_DISPATCHERS 25
+#define EXPECTED_APPLICATION_MAX_DISPATCH_TIME 1234
+#define EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME 3
+#define EXPECTED_APPLICATION_THREADS 12
+#define EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME 5000
 
 // Services
-#define EXPECTED_UNICAST_ADDRESS_1234_0022                                  EXPECTED_UNICAST_ADDRESS
-#define EXPECTED_RELIABLE_PORT_1234_0022                                    30506
-#define EXPECTED_UNRELIABLE_PORT_1234_0022                                  31000
+#define EXPECTED_UNICAST_ADDRESS_1234_0022 EXPECTED_UNICAST_ADDRESS
+#define EXPECTED_RELIABLE_PORT_1234_0022 30506
+#define EXPECTED_UNRELIABLE_PORT_1234_0022 31000
 
-#define EXPECTED_UNICAST_ADDRESS_1234_0023                                  EXPECTED_UNICAST_ADDRESS
-#define EXPECTED_RELIABLE_PORT_1234_0023                                    30503
-#define EXPECTED_UNRELIABLE_PORT_1234_0023                                  vsomeip::ILLEGAL_PORT
+#define EXPECTED_UNICAST_ADDRESS_1234_0023 EXPECTED_UNICAST_ADDRESS
+#define EXPECTED_RELIABLE_PORT_1234_0023 30503
+#define EXPECTED_UNRELIABLE_PORT_1234_0023 vsomeip::ILLEGAL_PORT
 
-#define EXPECTED_UNICAST_ADDRESS_2277_0022                                  EXPECTED_UNICAST_ADDRESS
-#define EXPECTED_RELIABLE_PORT_2277_0022                                    30505
-#define EXPECTED_UNRELIABLE_PORT_2277_0022                                  31001
+#define EXPECTED_UNICAST_ADDRESS_2277_0022 EXPECTED_UNICAST_ADDRESS
+#define EXPECTED_RELIABLE_PORT_2277_0022 30505
+#define EXPECTED_UNRELIABLE_PORT_2277_0022 31001
 
-#define EXPECTED_UNICAST_ADDRESS_2266_0022                                  EXPECTED_UNICAST_ADDRESS
-#define EXPECTED_RELIABLE_PORT_2266_0022                                    30505
-#define EXPECTED_UNRELIABLE_PORT_2266_0022                                  30507
+#define EXPECTED_UNICAST_ADDRESS_2266_0022 EXPECTED_UNICAST_ADDRESS
+#define EXPECTED_RELIABLE_PORT_2266_0022 30505
+#define EXPECTED_UNRELIABLE_PORT_2266_0022 30507
 
-#define EXPECTED_UNICAST_ADDRESS_4466_0321                                  "10.0.2.23"
-#define EXPECTED_RELIABLE_PORT_4466_0321                                    30506
-#define EXPECTED_UNRELIABLE_PORT_4466_0321                                  30444
+#define EXPECTED_UNICAST_ADDRESS_4466_0321 "10.0.2.23"
+#define EXPECTED_RELIABLE_PORT_4466_0321 30506
+#define EXPECTED_UNRELIABLE_PORT_4466_0321 30444
 
 // Service Discovery
-#define EXPECTED_SD_ENABLED                                                 true
-#define EXPECTED_SD_PROTOCOL                                                "udp"
-#define EXPECTED_SD_MULTICAST                                               "224.212.244.223"
-#define EXPECTED_SD_PORT                                                    30666
+#define EXPECTED_SD_ENABLED true
+#define EXPECTED_SD_PROTOCOL "udp"
+#define EXPECTED_SD_MULTICAST "224.212.244.223"
+#define EXPECTED_SD_PORT 30666
 
-#define EXPECTED_INITIAL_DELAY_MIN                                          1234
-#define EXPECTED_INITIAL_DELAY_MAX                                          2345
-#define EXPECTED_REPETITIONS_BASE_DELAY                                     4242
-#define EXPECTED_REPETITIONS_MAX                                            4
-#define EXPECTED_TTL                                                        13
-#define EXPECTED_CYCLIC_OFFER_DELAY                                         2132
-#define EXPECTED_REQUEST_RESPONSE_DELAY                                     1111
-#define EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION                             true
+#define EXPECTED_INITIAL_DELAY_MIN 1234
+#define EXPECTED_INITIAL_DELAY_MAX 2345
+#define EXPECTED_REPETITIONS_BASE_DELAY 4242
+#define EXPECTED_REPETITIONS_MAX 4
+#define EXPECTED_TTL 13
+#define EXPECTED_CYCLIC_OFFER_DELAY 2132
+#define EXPECTED_REQUEST_RESPONSE_DELAY 1111
+#define EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION true
 
 template<class T>
 ::testing::AssertionResult check(const T& _is, const T& _expected, const std::string& _test) {

@@ -153,7 +153,7 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
 bool debounce_test_client::compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, std::size_t _index) const {
 
     auto its_expected_payload = payloads__[test_id_][_index];
-    return (*_payload == *its_expected_payload);
+    return _payload->operator==(*its_expected_payload);
 }
 
 void debounce_test_client::run_test() {

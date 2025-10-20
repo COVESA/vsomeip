@@ -23,8 +23,8 @@ std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::servi
     return its_message;
 }
 
-base_logger::base_logger(const char* dlt_application_id, const char* dlt_application_name) :
-    _dlt_application_id(dlt_application_id), _dlt_application_name(dlt_application_name) {
+base_logger::base_logger(const char* _dlt_application_id, const char* _dlt_application_name) :
+    dlt_application_id_(_dlt_application_id), dlt_application_name_(_dlt_application_name) {
 #ifdef USE_DLT
     DLT_REGISTER_APP(_dlt_application_id, _dlt_application_name);
 #endif

@@ -11,8 +11,12 @@ file(GLOB SRCS *.cpp ../main.cpp
      "../../../implementation/endpoints/src/netlink_connector.cpp")
 add_executable(${PROJECT_NAME} ${SRCS})
 
-target_link_libraries(${PROJECT_NAME} Threads::Threads ${Boost_LIBRARIES}
-                      ${DL_LIBRARY} gtest vsomeip_utilities)
+target_link_libraries(${PROJECT_NAME}
+                      PRIVATE Threads::Threads ${Boost_LIBRARIES} ${DL_LIBRARY} gtest vsomeip_utilities)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+     target_link_libraries(${PROJECT_NAME} PRIVATE stdc++ m)
+endif()
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 

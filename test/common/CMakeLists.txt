@@ -8,8 +8,8 @@ project (vsomeip_utilities)
 # ----------------------------------------------------------------------------
 # Include all source files (cpp/hpp)
 # ----------------------------------------------------------------------------
-file (GLOB SRC src/*.cpp)
-file (GLOB INC include/common/*.hpp, include/common/vsomeip_app_utilities/*.hpp)
+file (GLOB SRC src/*.cpp src/external/*.cpp)
+file (GLOB INC include/common/*.hpp include/common/external/*.hpp)
 
 # ----------------------------------------------------------------------------
 # Copy all files from examples_policies directory to the build directory

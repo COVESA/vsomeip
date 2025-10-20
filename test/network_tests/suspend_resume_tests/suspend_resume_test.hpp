@@ -9,17 +9,17 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-#define TEST_SERVICE    0x6311
-#define TEST_INSTANCE   0x0002
-#define TEST_MAJOR      0x01
-#define TEST_MINOR      0x0
+#define TEST_SERVICE 0x6311
+#define TEST_INSTANCE 0x0002
+#define TEST_MAJOR 0x01
+#define TEST_MINOR 0x0
 
-#define TEST_EVENT      0x8005
+#define TEST_EVENT 0x8005
 #define TEST_EVENTGROUP 0x0002
 
-#define TEST_METHOD     0x0001
+#define TEST_METHOD 0x0001
 
-#define TEST_SUSPEND    0x00
-#define TEST_STOP       0xFF
+#define TEST_SUSPEND 0x00
+#define TEST_STOP 0xFF
 
 #endif // SUSPEND_RESUME_TEST_

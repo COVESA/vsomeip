@@ -271,7 +271,7 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
 
 size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer) {
     size_t const incoming_size =
-            std::accumulate(_buffer.begin(), _buffer.end(), 0, [](auto last, auto const& bf) { return last + bf.size(); });
+            std::accumulate(_buffer.begin(), _buffer.end(), size_t{0}, [](size_t last, auto const& bf) { return last + bf.size(); });
     auto const lock = std::scoped_lock(mtx_);
     std::vector<unsigned char> input;
     input.reserve(incoming_size);
@@ -279,7 +279,7 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
         auto first = static_cast<const char*>(buffer.data());
         auto const last = first + buffer.size();
         for (; first != last; ++first) {
-            input.push_back(*first);
+            input.push_back(static_cast<unsigned char>(*first));
         }
     }
 
@@ -312,10 +312,10 @@ void fake_tcp_socket_handle::update_reception() {
     char* out = static_cast<char*>(receptor_->buffer_.data());
     char* end = out + len;
     for (auto it = input_data_.begin(); out != end; ++out) {
-        *out = *it;
+        *out = static_cast<char>(*it);
         ++it;
     }
-    input_data_.erase(input_data_.begin(), input_data_.begin() + len);
+    input_data_.erase(input_data_.begin(), input_data_.begin() + static_cast<std::vector<unsigned char>::difference_type>(len));
     boost::asio::post(io_, [handler = std::move(receptor_->handler_), len] {
         if (!handler) {
             return;

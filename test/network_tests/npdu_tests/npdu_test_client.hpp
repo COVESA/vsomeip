@@ -73,7 +73,6 @@ private:
     std::array<bool, npdu_test::service_ids.size()> blocked_;
     std::array<bool, npdu_test::service_ids.size()> is_available_;
     const std::uint32_t number_of_messages_to_send_;
-    std::uint32_t number_of_sent_messages_[npdu_test::service_ids.size()];
     std::array<std::array<std::uint32_t, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> number_of_acknowledged_messages_;
     std::array<std::array<std::mutex, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()>
             number_of_acknowledged_messages_mutexes_;
@@ -86,7 +85,6 @@ private:
             all_msg_acknowledged_unique_locks_;
     std::array<std::array<std::condition_variable, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()>
             all_msg_acknowledged_cvs_;
-    std::array<std::uint32_t, 4> acknowledgements_;
     std::array<std::array<std::chrono::milliseconds, 4>, 4> applicative_debounce_;
     std::array<std::array<std::shared_ptr<vsomeip::payload>, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> payloads_;
     std::array<std::array<std::vector<vsomeip::byte_t>, npdu_test::method_ids[0].size()>, npdu_test::service_ids.size()> payload_data_;

@@ -37,7 +37,7 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
     routing_availability_check.wait();
     ASSERT_TRUE(routing_availability_check.get()) << "routingmanagerd was not ready in time!";
 
-    test_timer_t test_timer(SERVICE_UP_TIME);
+    common::test_timer_t test_timer(SERVICE_UP_TIME);
 
     // Test steps:
     // 1: STOP_OFFERING the services for SERVICE_STOP_OFFER_TIME

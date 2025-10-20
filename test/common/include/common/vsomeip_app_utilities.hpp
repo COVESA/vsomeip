@@ -24,10 +24,10 @@ std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::servi
 
 class base_logger {
 public:
-    const char* _dlt_application_id = nullptr;
-    const char* _dlt_application_name = nullptr;
+    const char* dlt_application_id_ = nullptr;
+    const char* dlt_application_name_ = nullptr;
 
-    base_logger(const char* dlt_application_id, const char* dlt_application_name);
+    base_logger(const char* dlt_application_id_, const char* dlt_application_name_);
 
     ~base_logger();
 };

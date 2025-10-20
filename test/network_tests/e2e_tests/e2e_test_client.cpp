@@ -17,10 +17,9 @@ std::vector<std::vector<vsomeip::byte_t>> event_payloads_custom_profile_;
 
 std::map<vsomeip::method_t, uint32_t> received_responses_counters_;
 
-e2e_test_client::e2e_test_client(bool _test_external_communication, bool _is_remote_client_allowed) :
+e2e_test_client::e2e_test_client() :
     app_(vsomeip::runtime::get()->create_application()), is_available_(false), sender_(std::bind(&e2e_test_client::run, this)),
-    received_responses_(0), received_allowed_events_(0), test_external_communication_(_test_external_communication),
-    is_remote_client_allowed_(_is_remote_client_allowed) { }
+    received_responses_(0), received_allowed_events_(0) { }
 
 bool e2e_test_client::init() {
     if (!app_->init()) {
@@ -215,7 +214,7 @@ void e2e_test_client::shutdown_service() {
 }
 
 TEST(someip_e2e_test, basic_subscribe_request_response) {
-    e2e_test_client test_client(is_remote_test, remote_client_allowed);
+    e2e_test_client test_client;
     if (test_client.init()) {
         test_client.start();
         test_client.join_sender_thread();

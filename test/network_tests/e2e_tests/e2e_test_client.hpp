@@ -21,7 +21,7 @@
 
 class e2e_test_client {
 public:
-    e2e_test_client(bool _test_external_communication, bool _is_remote_client_allowed);
+    e2e_test_client();
     bool init();
     void start();
     void stop();
@@ -46,9 +46,6 @@ private:
 
     std::atomic<std::uint32_t> received_responses_;
     std::atomic<std::uint32_t> received_allowed_events_;
-
-    bool test_external_communication_;
-    bool is_remote_client_allowed_;
 };
 
 #endif // E2E_TEST_CLIENT_HPP

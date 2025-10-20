@@ -6,6 +6,9 @@
 # Daemon
 add_executable(routingmanagerd routingmanagerd.cpp)
 target_link_libraries(routingmanagerd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${DL_LIBRARY} ${DLT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_link_libraries(routingmanagerd stdc++)
+endif()
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     target_link_libraries(routingmanagerd socket)
 endif()

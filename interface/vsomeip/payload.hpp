@@ -39,7 +39,7 @@ public:
      *
      * \param _other Payload that shall be compared to this payload.
      */
-    VSOMEIP_EXPORT virtual bool operator==(const payload& _other) = 0;
+    VSOMEIP_EXPORT virtual bool operator==(const payload& _other) const = 0;
 
     /**
      * \brief Returns pointer to the payload content

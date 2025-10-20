@@ -27,20 +27,16 @@ TEST(debounce_filter_tests, client_receives_notifications) {
 
     // Register an availability handler for the test service.
     auto available = std::promise<bool>();
-    app->register_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                                       vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                                       [&](vsomeip::service_t /* service */,
-                                           vsomeip::instance_t /* instance */, bool is_available) {
+    app->register_availability_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                                       [&](vsomeip::service_t /* service */, vsomeip::instance_t /* instance */, bool is_available) {
                                            if (is_available) {
                                                available.set_value(true);
                                            }
                                        });
 
     // Request the test service.
-    app->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                         vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                       vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
+    app->request_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+    app->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
                        {TEST_SERVICE_EVENTGROUP_ID});
 
     VSOMEIP_INFO << "debounce_epsilon_test_client: Waiting for test service availability.";
@@ -50,28 +46,24 @@ TEST(debounce_filter_tests, client_receives_notifications) {
 
     // Register a handler for test service notifications.
     auto notified = std::promise<bool>();
-    app->register_message_handler(
-            vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-            vsomeip_test::TEST_SERVICE_METHOD_ID,
-            [&](const std::shared_ptr<vsomeip::message>& notification) {
-                // Check the contents of the notification.
-                auto value = notification->get_payload()->get_data()[0];
-                VSOMEIP_DEBUG << "debounce_epsilon_test_client: value=" << static_cast<int>(value);
-                EXPECT_EQ(value % 10, 0)
-                        << "only values divisible by 10 should pass the epsilon func.";
+    app->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                                  vsomeip_test::TEST_SERVICE_METHOD_ID, [&](const std::shared_ptr<vsomeip::message>& notification) {
+                                      // Check the contents of the notification.
+                                      auto value = notification->get_payload()->get_data()[0];
+                                      VSOMEIP_DEBUG << "debounce_epsilon_test_client: value=" << static_cast<int>(value);
+                                      EXPECT_EQ(value % 10, 0) << "only values divisible by 10 should pass the epsilon func.";
 
-                // Check if we received enough notifications to be able to confirm that the debounce
-                // is working as intended.
-                static std::atomic_uint16_t notification_count {0};
-                constexpr std::uint16_t EXPECTED_NOTIFICATION_COUNT {2};
-                if (++notification_count == EXPECTED_NOTIFICATION_COUNT) {
-                    notified.set_value(true);
-                }
-            });
+                                      // Check if we received enough notifications to be able to confirm that the debounce
+                                      // is working as intended.
+                                      static std::atomic_uint16_t notification_count{0};
+                                      constexpr std::uint16_t EXPECTED_NOTIFICATION_COUNT{2};
+                                      if (++notification_count == EXPECTED_NOTIFICATION_COUNT) {
+                                          notified.set_value(true);
+                                      }
+                                  });
 
     // Subscribe to the eventgroup.
-    app->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                   TEST_SERVICE_EVENTGROUP_ID);
+    app->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, TEST_SERVICE_EVENTGROUP_ID);
 
     VSOMEIP_INFO << "debounce_epsilon_test_client: Waiting for test service notifications.";
 
@@ -80,12 +72,9 @@ TEST(debounce_filter_tests, client_receives_notifications) {
 
     // Register a handler for the shutdown response.
     auto shutdown = std::promise<bool>();
-    app->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                                  vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+    app->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                                   vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN,
-                                  [&](const std::shared_ptr<vsomeip::message>& /* response */) {
-                                      shutdown.set_value(true);
-                                  });
+                                  [&](const std::shared_ptr<vsomeip::message>& /* response */) { shutdown.set_value(true); });
 
     // Send a shutdown request to the test service.
     auto request = vsomeip::runtime::get()->create_request();

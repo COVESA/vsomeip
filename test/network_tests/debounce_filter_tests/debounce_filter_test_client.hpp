@@ -40,7 +40,6 @@ private:
 
 private:
     int64_t interval;
-    size_t index_;
 
     bool is_available_;
 

@@ -42,7 +42,7 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_client) {
     //      1: do nothing
     //
     // At the end validate that the service was available, atleast once
-    test_timer_t test_timer(CLIENT_UP_TIME);
+    common::test_timer_t test_timer(CLIENT_UP_TIME);
     bool service_was_available = false;
     bool request_was_received = false;
     while (!test_timer.has_elapsed()) {

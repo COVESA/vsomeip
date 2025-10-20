@@ -10,6 +10,7 @@
 #include <cstring>
 #include <future>
 #include <numeric>
+#include <array>
 #include <random>
 #include <algorithm>
 #include <list>
@@ -217,8 +218,8 @@ protected:
         return its_reassemlbed_msg;
     }
 
-    std::vector<int> create_shuffled_seqeuence(std::uint32_t _count) {
-        std::vector<int> its_indexes(_count);
+    std::vector<std::size_t> create_shuffled_seqeuence(std::uint32_t _count) {
+        std::vector<std::size_t> its_indexes(_count);
         std::iota(its_indexes.begin(), its_indexes.end(), 0);
         std::random_device rd;
         std::mt19937 its_twister(rd());
@@ -315,7 +316,7 @@ protected:
     someip_tp_test::test_mode_e test_mode_ = GetParam();
 };
 
-INSTANTIATE_TEST_CASE_P(send_in_mode, someip_tp, ::testing::ValuesIn(its_modes));
+INSTANTIATE_TEST_SUITE_P(send_in_mode, someip_tp, ::testing::ValuesIn(its_modes));
 
 /*
  * @test Send a big fragmented UDP request to the master and wait for the
@@ -448,7 +449,6 @@ TEST_P(someip_tp, send_in_mode) {
     });
 
     std::thread send_thread([&]() {
-        boost::system::error_code ec;
         try {
 
             // wait until a offer was received
@@ -568,35 +568,35 @@ TEST_P(someip_tp, send_in_mode) {
                             ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             return;
                         } else {
-                            auto its_indexes = {4, 1, 3, 5, 2, 0};
+                            const std::array<std::size_t, 6> its_indexes{4, 1, 3, 5, 2, 0};
                             std::cout << __LINE__
                                       << ": using following predefined sequence to send request to "
                                          "master: ";
-                            for (auto i : its_indexes) {
-                                std::cout << i << ", ";
+                            for (auto index : its_indexes) {
+                                std::cout << index << ", ";
                             }
                             std::cout << std::endl;
-                            for (int i : its_indexes) {
-                                udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[i]), target_service);
+                            for (auto index : its_indexes) {
+                                udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[index]), target_service);
                             }
                         }
                     } else if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                         if (someip_tp_test::number_of_fragments != 6) {
                             ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                         } else {
-                            auto its_indexes = {0, 1, 3, 5, 2, 4};
+                            const std::array<std::size_t, 6> its_indexes{0, 1, 3, 5, 2, 4};
                             std::cout << __LINE__
                                       << ": using following predefined sequence to send request to "
                                          "master: ";
-                            for (auto i : its_indexes) {
-                                std::cout << i << ", ";
+                            for (auto index : its_indexes) {
+                                std::cout << index << ", ";
                             }
                             std::cout << std::endl;
                             // increase third segment by 16 byte at front and back
                             increase_segment_front_back(fragments_request_to_master_[2], 16);
                             increase_segment_front(fragments_request_to_master_[4], 16);
-                            for (int i : its_indexes) {
-                                udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[i]), target_service);
+                            for (auto index : its_indexes) {
+                                udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[index]), target_service);
                             }
                         }
                     } else if (test_mode_ == someip_tp_test::test_mode_e::DUPLICATE) {
@@ -645,31 +645,31 @@ TEST_P(someip_tp, send_in_mode) {
                     }
                 } else if (mode == order_e::DESCENDING) {
                     if (test_mode_ == someip_tp_test::test_mode_e::MIXED) {
-                        std::vector<int> its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
+                        auto its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
                         std::cout << __LINE__ << ": using following random sequence to send request to master: ";
-                        for (auto i : its_indexes) {
-                            std::cout << i << ", ";
+                        for (auto index : its_indexes) {
+                            std::cout << index << ", ";
                         }
                         std::cout << std::endl;
-                        for (int i : its_indexes) {
-                            udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[i]), target_service);
+                        for (auto index : its_indexes) {
+                            udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[index]), target_service);
                         }
                     } else if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                         if (someip_tp_test::number_of_fragments != 6) {
                             ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                         } else {
-                            auto its_indexes = {5, 3, 2, 4, 1, 0};
+                            const std::array<std::size_t, 6> its_indexes{5, 3, 2, 4, 1, 0};
                             std::cout << __LINE__
                                       << ": using following predefined sequence to send request to "
                                          "master: ";
-                            for (auto i : its_indexes) {
-                                std::cout << i << ", ";
+                            for (auto index : its_indexes) {
+                                std::cout << index << ", ";
                             }
                             std::cout << std::endl;
                             // increase third segment by 16 byte at front and back
                             increase_segment_front_back(fragments_request_to_master_[4], 16);
-                            for (int i : its_indexes) {
-                                udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[i]), target_service);
+                            for (auto index : its_indexes) {
+                                udp_client_socket.send_to(boost::asio::buffer(*fragments_request_to_master_[index]), target_service);
                             }
                         }
                     } else if (test_mode_ == someip_tp_test::test_mode_e::DUPLICATE) {
@@ -859,36 +859,36 @@ TEST_P(someip_tp, send_in_mode) {
                     if (someip_tp_test::number_of_fragments != 6) {
                         ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                     } else {
-                        auto its_indexes = {2, 3, 5, 1, 4, 0};
+                        const std::array<std::size_t, 6> its_indexes{2, 3, 5, 1, 4, 0};
                         std::cout << __LINE__
                                   << ": using following predefined sequence to send event to "
                                      "master: ";
-                        for (auto i : its_indexes) {
-                            std::cout << i << ", ";
+                        for (auto index : its_indexes) {
+                            std::cout << index << ", ";
                         }
                         std::cout << std::endl;
-                        for (int i : its_indexes) {
-                            udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[i]), master_client);
+                        for (auto index : its_indexes) {
+                            udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[index]), master_client);
                         }
                     }
                 } else if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                     if (someip_tp_test::number_of_fragments != 6) {
                         ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                     } else {
-                        auto its_indexes = {0, 2, 4, 5, 1, 3};
+                        const std::array<std::size_t, 6> its_indexes{0, 2, 4, 5, 1, 3};
                         std::cout << __LINE__
                                   << ": using following predefined sequence to send event to "
                                      "master: ";
-                        for (auto i : its_indexes) {
-                            std::cout << i << ", ";
+                        for (auto index : its_indexes) {
+                            std::cout << index << ", ";
                         }
                         std::cout << std::endl;
                         // increase second segment by 16 byte at front and back
                         increase_segment_front_back(fragments_event_to_master_[1], 16);
                         increase_segment_front(fragments_event_to_master_[3], 16);
 
-                        for (int i : its_indexes) {
-                            udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[i]), master_client);
+                        for (auto index : its_indexes) {
+                            udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[index]), master_client);
                         }
                     }
                 } else if (test_mode_ == someip_tp_test::test_mode_e::DUPLICATE) {
@@ -948,25 +948,25 @@ TEST_P(someip_tp, send_in_mode) {
                 }
             } else if (mode == order_e::DESCENDING) {
                 if (test_mode_ == someip_tp_test::test_mode_e::MIXED) {
-                    std::vector<int> its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
+                    auto its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
                     std::cout << __LINE__ << ": using following random sequence to send event to master: ";
-                    for (auto i : its_indexes) {
-                        std::cout << i << ", ";
+                    for (auto index : its_indexes) {
+                        std::cout << index << ", ";
                     }
                     std::cout << std::endl;
-                    for (int i : its_indexes) {
-                        udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[i]), master_client);
+                    for (auto index : its_indexes) {
+                        udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[index]), master_client);
                     }
                 } else if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                     if (someip_tp_test::number_of_fragments != 6) {
                         ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                     } else {
-                        auto its_indexes = {5, 3, 2, 1, 0, 4};
+                        const std::array<std::size_t, 6> its_indexes{5, 3, 2, 1, 0, 4};
                         std::cout << __LINE__
                                   << ": using following predefined sequence to send event to "
                                      "master: ";
-                        for (auto i : its_indexes) {
-                            std::cout << i << ", ";
+                        for (auto index : its_indexes) {
+                            std::cout << index << ", ";
                         }
                         std::cout << std::endl;
                         // increase second last segment by 16 byte at front and back
@@ -974,8 +974,8 @@ TEST_P(someip_tp, send_in_mode) {
                         // update length
                         *(reinterpret_cast<vsomeip::length_t*>(&((*fragments_event_to_master_[4])[VSOMEIP_LENGTH_POS_MIN]))) =
                                 htonl(static_cast<vsomeip::length_t>(fragments_event_to_master_[4]->size() - VSOMEIP_SOMEIP_HEADER_SIZE));
-                        for (int i : its_indexes) {
-                            udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[i]), master_client);
+                        for (auto index : its_indexes) {
+                            udp_server_socket.send_to(boost::asio::buffer(*fragments_event_to_master_[index]), master_client);
                         }
                     }
                 } else if (test_mode_ == someip_tp_test::test_mode_e::DUPLICATE) {
@@ -1072,15 +1072,15 @@ TEST_P(someip_tp, send_in_mode) {
                             if (someip_tp_test::number_of_fragments != 6) {
                                 ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             } else {
-                                auto its_indexes = {4, 2, 0, 1, 3, 5};
+                                std::array<std::size_t, 6> its_indexes{4, 2, 0, 1, 3, 5};
                                 std::cout << __LINE__
                                           << ": using following predefined sequence to send back "
                                              "response to master: ";
-                                for (auto i : its_indexes) {
+                                for (std::size_t i : its_indexes) {
                                     std::cout << i << ", ";
                                 }
                                 std::cout << std::endl;
-                                for (int i : its_indexes) {
+                                for (std::size_t i : its_indexes) {
                                     udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                                 }
                             }
@@ -1088,18 +1088,18 @@ TEST_P(someip_tp, send_in_mode) {
                             if (someip_tp_test::number_of_fragments != 6) {
                                 ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             } else {
-                                auto its_indexes = {0, 2, 4, 3, 5, 1};
+                                std::array<std::size_t, 6> its_indexes{0, 2, 4, 3, 5, 1};
                                 std::cout << __LINE__
                                           << ": using following predefined sequence to send "
                                              "response to master: ";
-                                for (auto i : its_indexes) {
+                                for (std::size_t i : its_indexes) {
                                     std::cout << i << ", ";
                                 }
                                 std::cout << std::endl;
                                 // increase fourth segment by 16 byte at front and back
                                 increase_segment_front_back(fragments_response_to_master_[3], 16);
                                 increase_segment_front(fragments_response_to_master_[1], 16);
-                                for (int i : its_indexes) {
+                                for (std::size_t i : its_indexes) {
                                     udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                                 }
                             }
@@ -1152,32 +1152,32 @@ TEST_P(someip_tp, send_in_mode) {
                         }
                     } else if (mode == order_e::DESCENDING) {
                         if (test_mode_ == someip_tp_test::test_mode_e::MIXED) {
-                            std::vector<int> its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
+                            std::vector<std::size_t> its_indexes = create_shuffled_seqeuence(someip_tp_test::number_of_fragments);
                             std::cout << __LINE__
                                       << ": using following random sequence to send back response "
                                          "to master: ";
-                            for (auto i : its_indexes) {
+                            for (std::size_t i : its_indexes) {
                                 std::cout << i << ", ";
                             }
                             std::cout << std::endl;
-                            for (int i : its_indexes) {
+                            for (std::size_t i : its_indexes) {
                                 udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                             }
                         } else if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                             if (someip_tp_test::number_of_fragments != 6) {
                                 ADD_FAILURE() << "line: " << __LINE__ << " needs adaption as number_of_fragments changed";
                             } else {
-                                auto its_indexes = {5, 3, 2, 1, 4, 0};
+                                std::array<std::size_t, 6> its_indexes{5, 3, 2, 1, 4, 0};
                                 std::cout << __LINE__
                                           << ": using following predefined sequence to send "
                                              "response to master: ";
-                                for (auto i : its_indexes) {
+                                for (std::size_t i : its_indexes) {
                                     std::cout << i << ", ";
                                 }
                                 std::cout << std::endl;
                                 // increase fith segment by 16 byte at front and back
                                 increase_segment_front_back(fragments_response_to_master_[4], 16);
-                                for (int i : its_indexes) {
+                                for (std::size_t i : its_indexes) {
                                     udp_server_socket.send_to(boost::asio::buffer(*fragments_response_to_master_[i]), master_client);
                                 }
                             }

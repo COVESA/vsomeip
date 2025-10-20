@@ -39,7 +39,7 @@ public:
     offer_test_service(struct offer_test::service_info _service_info, struct offer_test::service_info _remote_service_info) :
         vsomeip_utilities::base_logger("OTS1", "OFFER TEST SERVICE"), service_info_(_service_info),
         remote_service_info_(_remote_service_info), app_(vsomeip::runtime::get()->create_application("service-sample")),
-        wait_until_registered_(true), wait_until_start_(true), wait_until_done_(true), available_services(0),
+        wait_until_registered_(true), wait_until_start_(true), wait_until_done_(true),
         offer_thread_(std::bind(&offer_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -247,7 +247,6 @@ private:
     std::atomic_bool wait_until_registered_;
     std::atomic_bool wait_until_start_;
     std::atomic_bool wait_until_done_;
-    int available_services;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::promise<void> all_callbacks_received_;

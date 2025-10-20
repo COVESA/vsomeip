@@ -53,8 +53,9 @@ void debounce_test_client::run() {
 
     {
         std::unique_lock<std::mutex> its_lock(run_mutex_);
-        if (!run_condition_.wait_for(its_lock, std::chrono::seconds(20), [this] { return is_available_; })) {
-            GTEST_FATAL_FAILURE_("Debounce service did not become available after 20s.");
+        auto availability_timeout = interval > 0 ? std::chrono::milliseconds(interval * 2) : std::chrono::seconds(20);
+        if (!run_condition_.wait_for(its_lock, availability_timeout, [this] { return is_available_; })) {
+            GTEST_FATAL_FAILURE_("Debounce service did not become available before timeout.");
             stop();
             return;
         }
@@ -123,9 +124,8 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
 }
 
 bool debounce_test_client::compare_payload(const std::shared_ptr<vsomeip::payload>& _payload, std::size_t _index) const {
-
     auto its_expected_payload = payloads__[_index];
-    return (*_payload == *its_expected_payload);
+    return _payload->operator==(*its_expected_payload);
 }
 
 void debounce_test_client::run_test() {
@@ -143,7 +143,10 @@ void debounce_test_client::run_test() {
     app_->send(its_message);
 
     std::unique_lock<std::mutex> lock(run_mutex_);
-    if (!run_condition_.wait_for(lock, std::chrono::seconds(30), [&] { return messagesReceived_; })) {
+    auto expected_messages = static_cast<std::size_t>(payloads__.size());
+    auto wait_budget =
+            interval > 0 ? std::chrono::milliseconds(interval * static_cast<int64_t>(expected_messages)) : std::chrono::seconds(30);
+    if (!run_condition_.wait_for(lock, wait_budget, [&] { return messagesReceived_; })) {
         VSOMEIP_ERROR << "debounce_test_client::on_message: Timeout waiting for messages";
     }
 }

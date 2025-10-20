@@ -7,7 +7,8 @@
 #include "debounce_frequency_test_service.hpp"
 
 uint64_t elapsedMilliseconds(const std::chrono::time_point<std::chrono::system_clock>& _start_time) {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - _start_time).count();
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - _start_time).count();
+    return elapsed >= 0 ? static_cast<uint64_t>(elapsed) : 0ULL;
 }
 
 void test_service::on_start(const std::shared_ptr<vsomeip::message> /*&_message*/) {
