@@ -172,8 +172,7 @@ session_t routing_manager_base::get_session(bool _is_request) {
     return host_->get_session(_is_request);
 }
 
-const vsomeip_sec_client_t* routing_manager_base::get_sec_client() const {
-
+vsomeip_sec_client_t routing_manager_base::get_sec_client() const {
     return host_->get_sec_client();
 }
 
@@ -871,8 +870,9 @@ bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _mess
 
     std::shared_ptr<serializer> its_serializer(get_serializer());
     if (its_serializer->serialize(_message.get())) {
+        auto const sec_client = get_sec_client();
         is_sent = send(_client, its_serializer->get_data(), its_serializer->get_size(), _message->get_instance(), _message->is_reliable(),
-                       get_client(), get_sec_client(), 0, false, _force);
+                       get_client(), &sec_client, 0, false, _force);
         its_serializer->reset();
         put_serializer(its_serializer);
     } else {

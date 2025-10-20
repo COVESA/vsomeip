@@ -78,7 +78,7 @@ public:
 
     virtual boost::asio::io_context& get_io() = 0;
     virtual client_t get_client() const = 0;
-    virtual const vsomeip_sec_client_t* get_sec_client() const = 0;
+    virtual vsomeip_sec_client_t get_sec_client() const = 0;
 
     virtual void on_pong(client_t _client) = 0;
 

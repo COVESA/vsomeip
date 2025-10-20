@@ -1455,8 +1455,8 @@ session_t application_impl::get_session(bool _is_request) {
     return session_;
 }
 
-const vsomeip_sec_client_t* application_impl::get_sec_client() const {
-    return &sec_client_;
+vsomeip_sec_client_t application_impl::get_sec_client() const {
+    return sec_client_;
 }
 
 void application_impl::set_sec_client_port(port_t _port) {
@@ -2820,7 +2820,8 @@ void application_impl::subscribe_with_debounce(service_t _service, instance_t _i
 
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
             auto its_filter = std::make_shared<debounce_filter_impl_t>(_filter);
-            routing_->subscribe(client_, get_sec_client(), _service, _instance, _eventgroup, _major, _event, its_filter);
+            auto const sec_client = get_sec_client(); // do not use member directly, to avoid data races
+            routing_->subscribe(client_, &sec_client, _service, _instance, _eventgroup, _major, _event, its_filter);
         }
     }
 }

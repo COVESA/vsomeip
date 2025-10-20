@@ -559,15 +559,17 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
                                             const std::shared_ptr<debounce_filter_impl_t>& _filter) {
 
     if (_event == ANY_EVENT) {
-        if (!is_subscribe_to_any_event_allowed(get_sec_client(), _client, _service, _instance, _eventgroup)) {
+        auto const sec_client = get_sec_client();
+        if (!is_subscribe_to_any_event_allowed(&sec_client, _client, _service, _instance, _eventgroup)) {
             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << _client << " : routing_manager_proxy::subscribe: "
                             << " isn't allowed to subscribe to service/instance/event " << _service << "/" << _instance << "/ANY_EVENT"
                             << " which violates the security policy ~> Skip subscribe!";
             return;
         }
     } else {
+        auto const sec_client = get_sec_client();
         if (VSOMEIP_SEC_OK
-            != configuration_->get_security()->is_client_allowed_to_access_member(get_sec_client(), _service, _instance, _event)) {
+            != configuration_->get_security()->is_client_allowed_to_access_member(&sec_client, _service, _instance, _event)) {
             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << _client << " : routing_manager_proxy::subscribe: "
                             << " isn't allowed to subscribe to service/instance/event " << _service << "/" << _instance << "/" << _event;
             return;
@@ -1022,9 +1024,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                 const bool is_notification = utility::is_notification(its_message->get_message_type());
 
                                 if (is_notification) {
+                                    auto const sec_client = get_sec_client();
                                     const bool is_access_member_ok = (VSOMEIP_SEC_OK
                                                                       == configuration_->get_security()->is_client_allowed_to_access_member(
-                                                                              get_sec_client(), its_message->get_service(),
+                                                                              &sec_client, its_message->get_service(),
                                                                               its_message->get_instance(), its_message->get_method()));
 
                                     if (!is_access_member_ok) {
@@ -1069,10 +1072,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                             // ID's need to be checked as well if remote clients are allowed and the
                             // local policy only allows specific events in the eventgroup to be
                             // received.
+
+                            auto const sec_client = get_sec_client();
                             if (VSOMEIP_SEC_OK
                                 != configuration_->get_security()->is_client_allowed_to_access_member(
-                                        get_sec_client(), its_message->get_service(), its_message->get_instance(),
-                                        its_message->get_method())) {
+                                        &sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                                 << " : routing_manager_client::on_message: "
                                                 << " isn't allowed to receive a notification from "
@@ -1593,7 +1597,8 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
         case protocol::routing_info_entry_type_e::RIE_ADD_CLIENT: {
             if (its_client == get_client()) {
 #if defined(__linux__) || defined(__QNX__)
-                if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
+                auto const sec_client = get_sec_client();
+                if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
                     VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                                   << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: "
                                      "isn't allowed"
@@ -1777,7 +1782,8 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
                  << ": Reconnecting to routing manager.";
 
 #if defined(__linux__) || defined(__QNX__)
-    if (!its_policy_manager->check_credentials(get_client(), get_sec_client())) {
+    auto const sec_client = get_sec_client();
+    if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                       << " :  routing_manager_client::reconnect: isn't allowed"
                       << " to use the server endpoint due to credential check failed!";
@@ -2191,8 +2197,9 @@ void routing_manager_client::init_receiver() {
     if (!its_policy_manager)
         return;
 
-    its_policy_manager->store_client_to_sec_client_mapping(get_client(), get_sec_client());
-    its_policy_manager->store_sec_client_to_client_mapping(get_sec_client(), get_client());
+    auto const sec_client = get_sec_client();
+    its_policy_manager->store_client_to_sec_client_mapping(get_client(), &sec_client);
+    its_policy_manager->store_sec_client_to_client_mapping(&sec_client, get_client());
 #endif
     std::scoped_lock rec_lock(receiver_mutex_);
     if (!receiver_) {

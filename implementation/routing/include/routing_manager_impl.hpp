@@ -53,7 +53,7 @@ public:
 
     boost::asio::io_context& get_io();
     client_t get_client() const;
-    const vsomeip_sec_client_t* get_sec_client() const;
+    vsomeip_sec_client_t get_sec_client() const;
     std::string get_client_host() const;
     void set_client_host(const std::string& _client_host);
 
