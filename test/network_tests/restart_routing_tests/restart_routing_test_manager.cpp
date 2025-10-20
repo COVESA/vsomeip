@@ -234,6 +234,66 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
     host.terminate();
 }
 
+/**
+ * Client id race condition.
+ */
+TEST_F(restart_routing_test_manager, client_id_race_condition) {
+    shared_memory_data shm_data;
+    init(shm_data);
+
+    process_manager service{service_executor, custom_env("restart_routing_test_without_id.json", "restart_routing_test_service")};
+    service.run();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    process_manager host{host_executor, custom_env("restart_routing_test_without_id.json", "routingmanagerd")};
+    host.run();
+    host.wait_for_start();
+
+    std::unordered_set<std::unique_ptr<process_manager>> clients;
+    for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
+        clients.emplace(std::make_unique<process_manager>(client_executor,
+                                                          custom_env("restart_routing_test_without_id.json",
+                                                                     "restart_routing_test_client" + std::to_string(app_counter + 1),
+                                                                     std::to_string(app_counter))));
+    }
+
+    // Start service consumers processes.
+    for (const auto& client : clients) {
+        client->run();
+    }
+
+    // Wait for fist registration of all service consumers.
+    for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
+        bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
+        restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+                shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+    }
+
+    // Restart host.
+    host.reset();
+    // Wait for restart to be completed.
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    {
+        // Inform service consumers that they can start sending requests
+        bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
+        shm_data.sync_ptr->sending_status_ = restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES;
+    }
+    restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+
+    // Wait for processes termination and test exit code.
+    service.join();
+    for (const auto& client : clients) {
+        client->join();
+        EXPECT_EQ(client->exit_code_, 0);
+    }
+
+    // Terminate host, do not assert exit code.
+    host.terminate();
+}
+
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
