@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.4...3.22)
-
 # Workaround for version range in cmake_minimum_required() before 3.12
 if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})

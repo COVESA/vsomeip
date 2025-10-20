@@ -6,8 +6,31 @@
 #pragma once
 
 #include <boost/date_time/posix_time/posix_time.hpp>
+#if BOOST_VERSION < 108800
 #include <boost/process.hpp>
-#include <boost/asio/io_service.hpp>
+#else
+#define BOOST_PROCESS_VERSION 1
+#include <boost/process/v1/args.hpp>
+#include <boost/process/v1/async.hpp>
+#include <boost/process/v1/async_system.hpp>
+#include <boost/process/v1/group.hpp>
+#include <boost/process/v1/child.hpp>
+#include <boost/process/v1/cmd.hpp>
+#include <boost/process/v1/env.hpp>
+#include <boost/process/v1/environment.hpp>
+#include <boost/process/v1/error.hpp>
+#include <boost/process/v1/exe.hpp>
+#include <boost/process/v1/group.hpp>
+#include <boost/process/v1/handles.hpp>
+#include <boost/process/v1/io.hpp>
+#include <boost/process/v1/pipe.hpp>
+#include <boost/process/v1/shell.hpp>
+#include <boost/process/v1/search_path.hpp>
+#include <boost/process/v1/spawn.hpp>
+#include <boost/process/v1/system.hpp>
+#include <boost/process/v1/start_dir.hpp>
+#endif
+#include <boost/asio/io_context.hpp>
 
 #include <iostream>
 
@@ -97,7 +120,7 @@ private:
      */
     void spawn() {
         std::unique_lock<std::mutex> lock(process_mutex_);
-        boost::asio::io_service io;
+        boost::asio::io_context io;
 
         // Handle env vars
         boost::process::environment cp_env;
