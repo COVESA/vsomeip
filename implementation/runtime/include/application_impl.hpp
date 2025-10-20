@@ -119,7 +119,7 @@ public:
     VSOMEIP_EXPORT client_t get_client() const;
     VSOMEIP_EXPORT void set_client(const client_t& _client);
     VSOMEIP_EXPORT session_t get_session(bool _is_request);
-    VSOMEIP_EXPORT const vsomeip_sec_client_t* get_sec_client() const;
+    VSOMEIP_EXPORT vsomeip_sec_client_t get_sec_client() const;
     VSOMEIP_EXPORT void set_sec_client_port(port_t _port);
     VSOMEIP_EXPORT diagnosis_t get_diagnosis() const;
     VSOMEIP_EXPORT std::shared_ptr<configuration> get_configuration() const;

@@ -1418,11 +1418,11 @@ void routing_manager_stub::check_watchdog() {
 void routing_manager_stub::create_local_receiver() {
     std::scoped_lock its_lock{local_receiver_mutex_};
 
-    if (local_receiver_) {
+    if (auto const sec_client = host_->get_sec_client(); local_receiver_) {
         return;
     }
 #ifdef __linux__
-    else if (!configuration_->get_policy_manager()->check_credentials(get_client(), host_->get_sec_client())) {
+    else if (!configuration_->get_policy_manager()->check_credentials(get_client(), &sec_client)) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                       << " : routing_manager_stub::create_local_receiver:  isn't allowed"
                       << " to create a server endpoint due to credential check failed!";

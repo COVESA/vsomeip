@@ -13,7 +13,7 @@ public:
     MOCK_METHOD(void, set_client, (const client_t& _client), (override));
     MOCK_METHOD(session_t, get_session, (bool _is_request), (override));
 
-    MOCK_METHOD(const vsomeip_sec_client_t*, get_sec_client, (), (const, override));
+    MOCK_METHOD(vsomeip_sec_client_t, get_sec_client, (), (const, override));
     MOCK_METHOD(void, set_sec_client_port, (port_t _port), (override));
 
     MOCK_METHOD(const std::string&, get_name, (), (const, override));

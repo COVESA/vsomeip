@@ -55,7 +55,7 @@ public:
     virtual void set_client(const client_t& _client);
     virtual session_t get_session(bool _is_request);
 
-    virtual const vsomeip_sec_client_t* get_sec_client() const;
+    virtual vsomeip_sec_client_t get_sec_client() const;
     virtual void set_sec_client_port(port_t _port);
 
     virtual std::string get_env(client_t _client) const = 0;

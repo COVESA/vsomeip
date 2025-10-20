@@ -89,7 +89,7 @@ client_t routing_manager_impl::get_client() const {
     return routing_manager_base::get_client();
 }
 
-const vsomeip_sec_client_t* routing_manager_impl::get_sec_client() const {
+vsomeip_sec_client_t routing_manager_impl::get_sec_client() const {
 
     return routing_manager_base::get_sec_client();
 }
@@ -372,7 +372,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     // Check if the application hosted by routing manager is allowed to offer
     // offer_service requests of local proxies are checked in rms::on:message
     if (_client == get_client()) {
-        if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_offer(get_sec_client(), _service, _instance)) {
+        auto const sec_client = get_sec_client();
+        if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_offer(&sec_client, _service, _instance)) {
             VSOMEIP_WARNING << "routing_manager_impl::offer_service: " << std::hex << "Security: Client 0x" << _client
                             << " isn't allowed to offer the following service/instance " << _service << "/" << _instance
                             << " ~> Skip offer!";
@@ -1635,10 +1636,11 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
 
                 if (is_intern_resp_allowed || is_offer_ok) {
                     const bool is_notification = utility::is_notification(its_message->get_message_type());
+                    auto const sec_client = get_sec_client();
                     const bool is_access_member_ok =
                             (VSOMEIP_SEC_OK
                              == configuration_->get_security()->is_client_allowed_to_access_member(
-                                     get_sec_client(), its_message->get_service(), its_message->get_instance(), its_message->get_method()));
+                                     &sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method()));
 
                     if (!is_access_member_ok && is_notification) {
                         VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
@@ -1670,9 +1672,10 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
                                 << get_client() << " ~> Skip message!";
                 return false;
             } else if (utility::is_notification(its_message->get_message_type())) {
+                auto const sec_client = get_sec_client();
                 if (VSOMEIP_SEC_OK
                     != configuration_->get_security()->is_client_allowed_to_access_member(
-                            get_sec_client(), its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
+                            &sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                     << " : routing_manager_impl::deliver_message: "
                                     << " isn't allowed to receive a notification from "
@@ -3980,8 +3983,9 @@ void routing_manager_impl::send_subscription(const client_t _offering_client, co
                                              const std::set<client_t>& _clients, const remote_subscription_id_t _id) {
     if (host_->get_client() == _offering_client) {
         auto self = shared_from_this();
+        auto const sec_client = get_sec_client();
         for (const auto its_client : _clients) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client, get_sec_client(), get_env(its_client), true,
+            host_->on_subscription(_service, _instance, _eventgroup, its_client, &sec_client, get_env(its_client), true,
                                    [this, self, _service, _instance, _eventgroup, _major, its_client, _id](const bool _is_accepted) {
                                        try {
                                            if (!_is_accepted) {
@@ -4117,8 +4121,9 @@ void routing_manager_impl::send_unsubscription(client_t _offering_client, servic
 
     if (host_->get_client() == _offering_client) {
         auto self = shared_from_this();
+        auto const sec_client = get_sec_client();
         for (const auto its_client : _removed) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client, get_sec_client(), get_env(its_client), false,
+            host_->on_subscription(_service, _instance, _eventgroup, its_client, &sec_client, get_env(its_client), false,
                                    [this, self, _service, _instance, _eventgroup, its_client, _id](const bool _is_accepted) {
                                        (void)_is_accepted;
                                        try {
@@ -4155,8 +4160,9 @@ void routing_manager_impl::send_expired_subscription(client_t _offering_client, 
 
     if (host_->get_client() == _offering_client) {
         auto self = shared_from_this();
+        auto const sec_client = get_sec_client();
         for (const auto its_client : _removed) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client, get_sec_client(), get_env(its_client), false,
+            host_->on_subscription(_service, _instance, _eventgroup, its_client, &sec_client, get_env(its_client), false,
                                    [](const bool _subscription_accepted) { (void)_subscription_accepted; });
         }
     } else {
