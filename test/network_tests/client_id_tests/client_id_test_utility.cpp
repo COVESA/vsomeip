@@ -410,7 +410,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
     for (size_t i = 0; i < intermediate_release; i++) {
         its_intermediate_released_client_ids.push_back(its_client_ids[i]);
         utility::release_client_id(configuration_->get_network(), its_client_ids[i]);
-        its_client_ids.erase(its_client_ids.begin() + i);
+        its_client_ids.erase(its_client_ids.begin() + static_cast<std::vector<client_t>::difference_type>(i));
     }
 
     // acquire some more client IDs, these should be bigger than the already acquired

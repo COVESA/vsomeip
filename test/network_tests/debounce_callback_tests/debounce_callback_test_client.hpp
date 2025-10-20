@@ -6,6 +6,7 @@
 #ifndef DEBOUNCE_TEST_CLIENT_HPP_
 #define DEBOUNCE_TEST_CLIENT_HPP_
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <thread>

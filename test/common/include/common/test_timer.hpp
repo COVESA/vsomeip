@@ -2,16 +2,16 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-#ifndef TEST_TIMER_HPP
-#define TEST_TIMER_HPP
+#ifndef COMMON_TEST_TIMER_HPP
+#define COMMON_TEST_TIMER_HPP
 
 #include <chrono>
 
+namespace common {
 class test_timer_t {
 public:
-    test_timer_t(std::chrono::milliseconds target_) : target(target_), start(std::chrono::high_resolution_clock::now()) { }
-    test_timer_t(std::chrono::seconds target_) :
+    explicit test_timer_t(std::chrono::milliseconds target_) : target(target_), start(std::chrono::high_resolution_clock::now()) { }
+    explicit test_timer_t(std::chrono::seconds target_) :
         target(std::chrono::duration_cast<std::chrono::milliseconds>(target_)), start(std::chrono::high_resolution_clock::now()) { }
 
     bool has_elapsed() {
@@ -23,5 +23,6 @@ private:
     std::chrono::milliseconds target;
     std::chrono::system_clock::time_point start;
 };
+} // namespace common
 
-#endif // TEST_TIMER_HPP
+#endif // COMMON_TEST_TIMER_HPP

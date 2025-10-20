@@ -232,7 +232,9 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
 [[nodiscard]] bool socket_manager::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
                                               std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
                                               socket_role _side_to_disconnect) {
-    auto [weak_from, weak_to] = get_connection(_from_name, _to_name);
+    auto connection = get_connection(_from_name, _to_name);
+    auto weak_from = connection.first;
+    auto weak_to = connection.second;
 
     auto disconnect_from = [&]() -> bool {
         bool result = true;

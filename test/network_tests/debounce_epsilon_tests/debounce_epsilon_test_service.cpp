@@ -20,8 +20,7 @@ constexpr vsomeip::eventgroup_t TEST_SERVICE_EVENTGROUP_ID = 1;
 // Whether the value of the first byte of the payload is divisible by 10.
 //
 // This is intended to be used as an epsilon change function to debounce outgoing events.
-bool is_payload_divisible_by_10(const std::shared_ptr<vsomeip::payload>& /* old */,
-                                const std::shared_ptr<vsomeip::payload>& payload) {
+bool is_payload_divisible_by_10(const std::shared_ptr<vsomeip::payload>& /* old */, const std::shared_ptr<vsomeip::payload>& payload) {
     auto value = payload->get_data()[0];
     return value % 10 == 0;
 }
@@ -37,25 +36,21 @@ TEST(debounce_filter_tests, server_sends_notifications) {
 
     // Register a handler for the shutdown request.
     auto shutdown = std::promise<bool>();
-    app->register_message_handler(
-            vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-            vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN,
-            [&](const std::shared_ptr<vsomeip::message>& request) {
-                // Send the response back to the client.
-                auto response = vsomeip::runtime::get()->create_response(request);
-                app->send(response);
+    app->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                                  vsomeip_test::TEST_SERVICE_METHOD_ID_SHUTDOWN, [&](const std::shared_ptr<vsomeip::message>& request) {
+                                      // Send the response back to the client.
+                                      auto response = vsomeip::runtime::get()->create_response(request);
+                                      app->send(response);
 
-                // Signal the service to shutdown.
-                shutdown.set_value(true);
-            });
+                                      // Signal the service to shutdown.
+                                      shutdown.set_value(true);
+                                  });
 
     // Offer the test service.
-    app->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID,
-                       vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    app->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                     vsomeip_test::TEST_SERVICE_METHOD_ID, {TEST_SERVICE_EVENTGROUP_ID},
-                     vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(), false,
-                     true, &is_payload_divisible_by_10 // Epsilon change function.
+    app->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
+    app->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
+                     {TEST_SERVICE_EVENTGROUP_ID}, vsomeip::event_type_e::ET_EVENT, std::chrono::milliseconds::zero(), false, true,
+                     &is_payload_divisible_by_10 // Epsilon change function.
     );
 
     VSOMEIP_INFO << "debounce_epsilon_test_service: Waiting for shutdown request.";
@@ -66,8 +61,7 @@ TEST(debounce_filter_tests, server_sends_notifications) {
     auto future = shutdown.get_future();
     for (;;) {
         // Update and send notification.
-        app->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                    vsomeip_test::TEST_SERVICE_METHOD_ID,
+        app->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, vsomeip_test::TEST_SERVICE_METHOD_ID,
                     vsomeip::runtime::get()->create_payload({++payload}));
 
         // Wait and see if the client requested the shutdown.

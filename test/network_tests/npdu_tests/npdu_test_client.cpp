@@ -27,11 +27,12 @@ npdu_test_client::npdu_test_client(bool _use_tcp, bool _call_service_sync, std::
                                    std::array<std::array<std::chrono::milliseconds, 4>, 4> _applicative_debounce) :
     app_(vsomeip::runtime::get()->create_application()), request_(vsomeip::runtime::get()->create_request(_use_tcp)),
     call_service_sync_(_call_service_sync), wait_for_replies_(_wait_for_replies), sliding_window_size_(_sliding_window_size),
-    blocked_({false}), is_available_({false}), // will set first element to false, rest to 0
-    number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND), number_of_sent_messages_{0, 0, 0, 0},
-    number_of_acknowledged_messages_{{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}}, current_payload_size_({0}),
-    all_msg_acknowledged_({false, false, false, false}), acknowledgements_{0, 0, 0, 0}, applicative_debounce_(_applicative_debounce),
-    finished_waiter_(&npdu_test_client::wait_for_all_senders, this) {
+    blocked_({false, false, false, false}), is_available_({false, false, false, false}),
+    number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND),
+    number_of_acknowledged_messages_{{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}}, current_payload_size_({0, 0, 0, 0}),
+    all_msg_acknowledged_(
+            {{{false, false, false, false}, {false, false, false, false}, {false, false, false, false}, {false, false, false, false}}}),
+    applicative_debounce_(_applicative_debounce), finished_waiter_(&npdu_test_client::wait_for_all_senders, this) {
     senders_[0] = std::thread(&npdu_test_client::run<0>, this);
     senders_[1] = std::thread(&npdu_test_client::run<1>, this);
     senders_[2] = std::thread(&npdu_test_client::run<2>, this);
@@ -97,10 +98,10 @@ void npdu_test_client::stop() {
 
     app_->unregister_state_handler();
 
-    for (unsigned int i = 0; i < npdu_test::service_ids.size(); i++) {
+    for (std::size_t i = 0; i < npdu_test::service_ids.size(); ++i) {
         app_->unregister_availability_handler(npdu_test::service_ids[i], npdu_test::instance_ids[i]);
 
-        for (unsigned int j = 0; j < npdu_test::method_ids[i].size(); j++) {
+        for (std::size_t j = 0; j < npdu_test::method_ids[i].size(); ++j) {
             app_->unregister_message_handler(npdu_test::service_ids[i], npdu_test::instance_ids[i], npdu_test::method_ids[i][j]);
         }
     }
@@ -127,7 +128,7 @@ void npdu_test_client::join_sender_thread() {
 
 void npdu_test_client::on_state(vsomeip::state_type_e _state) {
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-        for (unsigned int i = 0; i < npdu_test::service_ids.size(); i++) {
+        for (std::size_t i = 0; i < npdu_test::service_ids.size(); ++i) {
             app_->request_service(npdu_test::service_ids[i], npdu_test::instance_ids[i]);
         }
     }
@@ -172,7 +173,7 @@ void npdu_test_client::on_message(const std::shared_ptr<vsomeip::message>& _resp
             number_of_acknowledged_messages_[service_idx][method_idx] = 0;
             all_msg_acknowledged_[service_idx][method_idx] = true;
             all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
-        } else if (number_of_acknowledged_messages_[service_idx][method_idx] % sliding_window_size == 0) {
+        } else if (number_of_acknowledged_messages_[service_idx][method_idx] % sliding_window_size_ == 0) {
             std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
             all_msg_acknowledged_[service_idx][method_idx] = true;
             all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
@@ -195,7 +196,7 @@ void npdu_test_client::run() {
 
     std::uint32_t max_allowed_payload = get_max_allowed_payload();
 
-    for (int var = 0; var < 4; ++var) {
+    for (std::size_t var = 0; var < payloads_[service_idx].size(); ++var) {
         payloads_[service_idx][var] = vsomeip::runtime::get()->create_payload();
         payload_data_[service_idx][var] = std::vector<vsomeip::byte_t>();
     }
@@ -203,7 +204,7 @@ void npdu_test_client::run() {
     bool lastrun = false;
     while (current_payload_size_[service_idx] <= max_allowed_payload) {
         // prepare the payloads w/ current payloadsize
-        for (int var = 0; var < 4; ++var) {
+        for (std::size_t var = 0; var < payloads_[service_idx].size(); ++var) {
             // assign 0x11 to first, 0x22 to second...
             payload_data_[service_idx][var].assign(current_payload_size_[service_idx], static_cast<vsomeip::byte_t>(0x11 * (var + 1)));
             payloads_[service_idx][var]->set_data(payload_data_[service_idx][var]);
@@ -321,7 +322,7 @@ std::thread npdu_test_client::start_send_thread_async() {
         for (std::uint32_t i = 0; i < number_of_messages_to_send_; i++) {
             app_->send(request);
 
-            if ((i + 1) == number_of_messages_to_send_ || (i + 1) % sliding_window_size == 0) {
+            if ((i + 1) == number_of_messages_to_send_ || (i + 1) % sliding_window_size_ == 0) {
                 // wait until all send messages have been acknowledged
                 // as long we wait lk is released; after wait returns lk is reacquired
                 all_msg_acknowledged_cvs_[service_idx][method_idx].wait(all_msg_acknowledged_unique_locks_[service_idx][method_idx],
@@ -421,8 +422,8 @@ TEST(someip_npdu_test, send_different_payloads) {
     // This is necessary as we must ensure a applicative debouncing greater than
     // debounce time + maximum retention time. Therefore the send threads sleep
     // for this amount of time after sending a message.
-    for (int service_id = 0; service_id < 4; service_id++) {
-        for (int method_id = 0; method_id < 4; method_id++) {
+    for (std::size_t service_id = 0; service_id < applicative_debounce.size(); ++service_id) {
+        for (std::size_t method_id = 0; method_id < applicative_debounce[service_id].size(); ++method_id) {
             std::chrono::nanoseconds debounce(0), retention(0);
             its_configuration->get_configured_timing_requests(
                     npdu_test::service_ids[service_id],

@@ -14,7 +14,7 @@
 
 namespace vsomeip_v3::testing {
 
-class fake_tcp_acceptor_handle;
+struct fake_tcp_acceptor_handle;
 
 /**
  * Test wrapper around the tcp_socket inteface that forwards each call
@@ -145,7 +145,7 @@ private:
 
     virtual void async_write(boost::asio::const_buffer const&, completion_condition, rw_handler) override { }
 
-    friend class fake_tcp_acceptor_handle;
+    friend struct fake_tcp_acceptor_handle;
     std::shared_ptr<fake_tcp_socket_handle> state_;
     bool set_no_delay_{false};
     bool set_keep_alive_{false};

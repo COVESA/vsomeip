@@ -7,6 +7,6 @@
 
 #include <vsomeip/internal/logger.hpp>
 
-#define TEST_LOG   vsomeip_v3::logger::message(vsomeip_v3::logger::level_e::LL_DEBUG) << "[TEST_LOG] "
+#define TEST_LOG vsomeip_v3::logger::message(vsomeip_v3::logger::level_e::LL_DEBUG) << "[TEST_LOG] "
 
 #endif

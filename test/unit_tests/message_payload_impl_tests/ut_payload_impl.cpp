@@ -33,8 +33,8 @@ TEST(payload_impl_test, equalequal_operator) {
     vsomeip_v3::payload_impl its_different_payload_impl(data_vector3_);
 
     // Checks.
-    ASSERT_TRUE(its_payload_impl == its_similar_payload_impl);
-    ASSERT_FALSE(its_payload_impl == its_different_payload_impl);
+    ASSERT_TRUE(its_payload_impl.operator==(its_similar_payload_impl));
+    ASSERT_FALSE(its_payload_impl.operator==(its_different_payload_impl));
 }
 
 TEST(payload_impl_test, set_data) {
@@ -53,8 +53,8 @@ TEST(payload_impl_test, set_data) {
     its_payload_impl3.set_data(std::move(data_vector_));
 
     // Checks.
-    ASSERT_TRUE(its_payload_impl1 == its_payload_impl2);
-    ASSERT_TRUE(its_payload_impl1 == its_payload_impl3);
+    ASSERT_TRUE(its_payload_impl1.operator==(its_payload_impl2));
+    ASSERT_TRUE(its_payload_impl1.operator==(its_payload_impl3));
 }
 
 TEST(payload_impl_test, constructors) {
@@ -73,9 +73,9 @@ TEST(payload_impl_test, constructors) {
     vsomeip_v3::payload_impl its_payload_impl4(its_payload_impl1);
 
     // Checks.
-    ASSERT_TRUE(its_payload_impl1 == its_payload_impl2);
-    ASSERT_TRUE(its_payload_impl1 == its_payload_impl3);
-    ASSERT_TRUE(its_payload_impl1 == its_payload_impl4);
+    ASSERT_TRUE(its_payload_impl1.operator==(its_payload_impl2));
+    ASSERT_TRUE(its_payload_impl1.operator==(its_payload_impl3));
+    ASSERT_TRUE(its_payload_impl1.operator==(its_payload_impl4));
 }
 
 TEST(payload_impl_test, get_length) {

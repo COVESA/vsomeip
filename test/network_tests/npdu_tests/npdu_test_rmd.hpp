@@ -32,11 +32,8 @@ private:
     bool is_registered_;
 
     std::mutex mutex_;
-    std::mutex mutex2_;
     std::condition_variable condition_;
-    std::condition_variable condition2_;
     bool blocked_;
-    bool blocked2_;
     std::thread offer_thread_;
     std::thread shutdown_thread_;
 };

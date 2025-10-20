@@ -11,7 +11,7 @@ TEST(registration_check_test, test) {
     ASSERT_TRUE(service_app.init());
     service_app.start();
 
-    test_timer_t test_timer(TEST_TIMEOUT);
+    common::test_timer_t test_timer(TEST_TIMEOUT);
 
     // 2: Wait for the service app to register to the routing host
     while (!test_timer.has_elapsed()) {

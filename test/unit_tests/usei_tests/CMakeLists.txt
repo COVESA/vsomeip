@@ -13,6 +13,7 @@ add_executable(${PROJECT_NAME} ${SRCS})
 
 target_link_libraries(
   ${PROJECT_NAME}
+ PRIVATE
   vsomeip3-cfg
   Threads::Threads
   ${Boost_LIBRARIES}
@@ -21,6 +22,10 @@ target_link_libraries(
   gmock
   vsomeip_utilities
   "-Xlinker --wrap=setsockopt")
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_link_libraries(${PROJECT_NAME} PRIVATE stdc++ m)
+endif()
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 

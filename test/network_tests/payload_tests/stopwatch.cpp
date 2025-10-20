@@ -8,7 +8,7 @@
 #include <cassert>
 #include <ctime>
 
-#define USEC_PER_SEC  1000000ULL
+#define USEC_PER_SEC 1000000ULL
 #define NSEC_PER_USEC 1000ULL
 
 stop_watch::usec_t stop_watch::get_total_elapsed_microseconds() const {

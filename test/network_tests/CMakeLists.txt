@@ -64,6 +64,12 @@ function(targets_link_default_libraries targets)
             ${DLT_LIBRARIES}
             vsomeip_utilities
         )
+        if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            target_link_libraries(${target} stdc++)
+            if (UNIX)
+                target_link_libraries(${target} m)
+            endif()
+        endif()
     endforeach()
 endfunction()
 
