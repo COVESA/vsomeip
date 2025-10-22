@@ -27,8 +27,8 @@ class application_test_client_availability : public vsomeip_utilities::base_logg
 public:
     application_test_client_availability(struct application_test::service_info _service_info) :
         vsomeip_utilities::base_logger("ATCA", "Application Test Client Availability"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application("client")), wait_until_registered_(true), all_availability_handlers_called_(false),
-        run_thread_(std::bind(&application_test_client_availability::run, this)) {
+        app_(vsomeip::runtime::get()->create_application("client")), availability_handler_called_{}, wait_until_registered_(true),
+        all_availability_handlers_called_(false), run_thread_(std::bind(&application_test_client_availability::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;

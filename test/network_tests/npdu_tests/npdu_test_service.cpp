@@ -141,6 +141,7 @@ void npdu_test_service::check_times() {
     // check if maximum retention time was exceeded
     // Disabled as it can't be guaranteed that exact every max retention time a
     // message leaves the client endpoint.
+    std::ignore = max_retention_times_[method_idx];
 #if 0
     if(time_since_last_message > max_retention_times_[method_idx]) {
         VSOMEIP_ERROR << std::hex << std::setfill('0') 

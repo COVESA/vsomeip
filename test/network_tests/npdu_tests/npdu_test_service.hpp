@@ -44,7 +44,7 @@ private:
     bool is_registered_;
     std::array<vsomeip::method_t, 4> method_ids_;
     std::array<std::chrono::nanoseconds, 4> debounce_times_;
-    [[maybe_unused]] std::array<std::chrono::nanoseconds, 4> max_retention_times_;
+    std::array<std::chrono::nanoseconds, 4> max_retention_times_;
     std::array<std::chrono::steady_clock::time_point, 4> timepoint_last_received_message_;
     std::array<std::mutex, 4> timepoint_mutexes_;
     std::deque<std::chrono::microseconds> undershot_debounce_times_;
