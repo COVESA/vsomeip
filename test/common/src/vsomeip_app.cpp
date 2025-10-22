@@ -31,17 +31,13 @@ std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::servi
 base_logger::base_logger(const char* dlt_application_id_, const char* dlt_application_name_) :
     dlt_application_id_(dlt_application_id_), dlt_application_name_(dlt_application_name_) {
 #ifdef USE_DLT
-#ifndef ANDROID
     DLT_REGISTER_APP(dlt_application_id_, dlt_application_name_);
-#endif
 #endif
 }
 
 base_logger::~base_logger() {
 #ifdef USE_DLT
-#ifndef ANDROID
     DLT_UNREGISTER_APP();
-#endif
 #endif
 }
 
