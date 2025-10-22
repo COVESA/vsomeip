@@ -1,0 +1,47 @@
+@startuml
+  Actor service_provider as SP
+
+  participant routing_manager as RM
+
+  SP -> RM : OFFER
+
+  note across
+    Wait for MEMORY_START_METHOD request
+  endnote
+
+  RM --\ SP : REQUEST MEMORY_START_METHOD
+
+  loop repeat TEST_MESSAGE_NUMBER times
+    loop repeat TEST_EVENT_NUMBER times
+      SP -> RM : send  notification for (MEMORY_EVENT + i)\nwith payload1
+    end
+    SP -> SP : sleep for 1 millisecond
+
+    loop repeat TEST_EVENT_NUMBER times
+      SP -> RM : send  notification for (MEMORY_EVENT + i)\nwith payload2
+    end
+    SP -> SP : sleep for 1 millisecond
+  end
+
+  note across
+    Wait for MEMORY_STOP_METHOD request
+  endnote
+
+  RM --\ SP : REQUEST MEMORY_STOP_METHOD
+
+  note across
+    This happens in background during the test
+  endnote
+
+  loop while stop_checking_ is false
+    SP -> SP : sleep for 5 seconds
+
+    SP -> SP : read /proc/self/statm
+
+    SP -> SP : save Resident set size * page size
+  end
+
+  SP -> SP : calculate the average memory used
+
+  SP -> SP : make sure that every element in\ntest_memory_array is smaller than\n115% of the calculated average
+@enduml

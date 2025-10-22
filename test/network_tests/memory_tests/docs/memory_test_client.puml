@@ -1,0 +1,51 @@
+@startuml
+  Actor service_consumer as SC
+
+  participant routing_manager as RM
+
+  SC -> RM : REQUEST
+
+  RM --\ SC : ON_AVAILABLE
+
+  SC -> RM : SUBSCRIBE
+
+  RM --\ SC : SUBSCRIBE_ACK
+
+  SC -> RM : REQUEST MEMORY_START_METHOD
+
+  loop while stop_watchdog is false
+    SC -> SC : sleep for 2 seconds
+
+    SC -> SC : calculate time passed between last\nmessage received and now
+
+    alt if calculated time is bigger than 10
+      SC -> SC : stop_watchdog = true
+    end
+  end
+
+  SC -> RM : REQUEST MEMORY_STOP_METHOD
+
+  note across
+    This happens in background during the test
+  endnote
+
+  loop while stop_checking_ is false
+    SC -> SC : sleep for 5 seconds
+
+    SC -> SC : read /proc/self/statm
+
+    SC -> SC : save Resident set size * page size
+  end
+
+  SC -> SC : calculate the average memory used
+
+  SC -> SC : make sure that every element in\ntest_memory_array is smaller than\n115% of the calculated average
+
+  note across
+    For each message received
+  endnote
+
+  SC -> SC : verify message serviceID and methodID
+
+  SC -> RM : REQUEST received methodID
+@enduml
