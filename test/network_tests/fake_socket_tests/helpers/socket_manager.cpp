@@ -21,6 +21,7 @@ void socket_manager::add(std::string const& app) {
 
 void socket_manager::clear_handler(std::string const& app) {
     std::vector<std::shared_ptr<fake_tcp_socket_handle>> handle_to_clear;
+    std::vector<std::shared_ptr<fake_tcp_acceptor_handle>> acceptor_handle_to_clear;
     {
         auto const lock = std::scoped_lock(mtx_);
         if (auto const it = timers_.find(app); it != timers_.end()) {
@@ -42,16 +43,22 @@ void socket_manager::clear_handler(std::string const& app) {
             return;
         }
         for (auto fd : it_fds->second) {
-            auto const it_handle = fd_to_handle_.find(fd);
-            if (it_handle != fd_to_handle_.end()) {
+            if (auto const it_handle = fd_to_handle_.find(fd); it_handle != fd_to_handle_.end()) {
                 if (auto handle = it_handle->second.lock(); handle) {
                     handle_to_clear.push_back(handle);
+                }
+            } else if (auto const it_acc = fd_to_acceptor_states_.find(fd); it_acc != fd_to_acceptor_states_.end()) {
+                if (auto handle = it_acc->second.lock(); handle) {
+                    acceptor_handle_to_clear.push_back(handle);
                 }
             }
         }
         context_to_fd_.erase(io);
     }
     for (auto& handle : handle_to_clear) {
+        handle->clear_handler();
+    }
+    for (auto& handle : acceptor_handle_to_clear) {
         handle->clear_handler();
     }
 }

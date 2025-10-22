@@ -279,6 +279,12 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
      **/
     [[nodiscard]] bool is_awaiting_connection();
 
+    /**
+     * Delets the handler stored by a prior async_accept call.
+     * Used by the socket_manager.
+     **/
+    void clear_handler();
+
     void set_app_name(std::string const& _name);
     std::string get_app_name() const;
 
