@@ -129,7 +129,7 @@ void service_discovery_impl::init() {
     last_msg_received_timer_timeout_ = cyclic_offer_delay_ + (cyclic_offer_delay_ / 10);
     stop_offer_watchdog_time_ = std::chrono::milliseconds(configuration_->get_sd_stop_offer_watchdog_time());
     if (stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
-        VSOMEIP_INFO << "sdi::" << __func__ << " stop offer watchdog enabled.";
+        VSOMEIP_INFO << "Service Discovery Stop Offer watchdog enabled.";
     }
 }
 
@@ -3420,8 +3420,8 @@ void service_discovery_impl::check_stopped_services_on_suspend(const boost::syst
         std::scoped_lock lock{suspend_stop_offer_mutex_};
         for (const auto& [its_si, majors] : suspend_stop_offer_services_) {
             for (const auto& major : majors) {
-                VSOMEIP_ERROR << "sdi::" << __func__ << std::hex << std::setfill('0') << " stop offer not sent for service " << std::setw(4)
-                              << its_si.service() << "." << std::setw(4) << its_si.instance() << "." << std::setw(4) << +major;
+                VSOMEIP_ERROR << "sdi::" << __func__ << std::hex << std::setfill('0') << " stop offer not sent for [" << std::setw(4)
+                              << its_si.service() << "." << std::setw(4) << its_si.instance() << "." << std::setw(4) << +major << "]";
             }
         }
         suspend_stop_offer_services_.clear();

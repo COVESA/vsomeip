@@ -925,7 +925,7 @@ void routing_manager_stub::init_routing_endpoint() {
 void routing_manager_stub::on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                             minor_version_t _minor) {
 
-    VSOMEIP_DEBUG << "ON_OFFER_SERVICE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service
+    VSOMEIP_DEBUG << "ON_OFFER_SERVICE (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service
                   << "." << std::setw(4) << _instance << ":" << std::dec << static_cast<int>(_major) << "." << _minor << "]";
 
     if (_client == host_->get_client()) {
@@ -942,6 +942,10 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
 
 void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
+
+    VSOMEIP_DEBUG << "ON_STOP_OFFER_SERVICE (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
+                  << _service << "." << std::setw(4) << _instance << ":" << std::dec << static_cast<int>(_major) << "." << _minor << "]";
+
     std::scoped_lock its_guard{routing_info_mutex_};
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {

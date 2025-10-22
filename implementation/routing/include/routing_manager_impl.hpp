@@ -173,6 +173,7 @@ public:
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
     routing_state_e get_routing_state();
+    const char* routing_state_tostring(routing_state_e _state);
     void set_routing_state(routing_state_e _routing_state);
     bool is_suspended() const;
 
