@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,7 +18,7 @@ constexpr vsomeip::major_version_t MEMORY_MAJOR = 0x01;
 constexpr vsomeip::minor_version_t MEMORY_MINOR = 0x01;
 
 constexpr auto MEMORY_CHECKER_INTERVAL = std::chrono::seconds(5);
-constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(5);
+constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(1);
 constexpr auto WATCHDOG_INTERVAL = std::chrono::seconds(2);
 constexpr auto WAIT_AVAILABILITY = std::chrono::milliseconds(15000);
 constexpr auto WAIT_START_MESSAGE = std::chrono::milliseconds(10000);

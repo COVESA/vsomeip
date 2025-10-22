@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -7,17 +7,18 @@
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=memory_test_client.json
-
+export VSOMEIP_APPLICATION_NAME="client-sample"
 ./memory_test_client &
 PID_MASTER=$!
 
-sleep 1
-
+PID_SLAVE=0
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting memory test on slave LXC memory_test_slave_starter.sh"
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/memory_tests; ./memory_test_slave_starter.sh\"" &
+    PID_SLAVE=$!
 elif [ ! -z "$USE_DOCKER" ]; then
-    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS; sleep 10; ./memory_test_slave_starter.sh" &
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS; ./memory_test_slave_starter.sh" &
+    PID_SLAVE=$!
 else
 cat <<End-of-message
 *******************************************************************************
@@ -33,15 +34,8 @@ cat <<End-of-message
 End-of-message
 fi
 
-# Wait until all slaves are finished
-for job in $PID_MASTER
-do
-    # Fail gets incremented if a client exits with a non-zero exit code
-    echo "waiting for $job"
-    wait $job || FAIL=$(($FAIL+1))
-done
-
-sleep 3
+wait $PID_MASTER || FAIL=$(($FAIL+1))
+wait $PID_SLAVE || FAIL=$(($FAIL+1))
 
 # Check if everything went well
 exit $FAIL
