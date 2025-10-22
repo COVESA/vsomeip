@@ -70,19 +70,48 @@ public:
 
             send_suspend();
 
-            std::unique_lock<std::mutex> its_lock(mutex_);
-            VSOMEIP_DEBUG << "[TEST] Process: waiting availability event, iteration#" << std::dec << i
-                          << ", is_available=" << std::boolalpha << is_available_;
-            ASSERT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(20)), std::cv_status::no_timeout);
-            VSOMEIP_DEBUG << "[TEST] Process: waiting event value notification, iteration#" << std::dec << i
-                          << ", is_available=" << std::boolalpha << is_available_;
-            ASSERT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(20)), std::cv_status::no_timeout);
+            // Wait for availability to become false
+            std::chrono::steady_clock::time_point unavailable_time;
+            {
+                std::unique_lock<std::mutex> its_lock(mutex_);
+                VSOMEIP_DEBUG << "[TEST] Process: waiting availability=false event, iteration#" << std::dec << i
+                              << ", is_available=" << std::boolalpha << is_available_.load();
+                ASSERT_TRUE(cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return !is_available_.load(); }));
+                unavailable_time = std::chrono::steady_clock::now();
+                VSOMEIP_INFO << "[TEST] Process: received availability=false, iteration#" << std::dec << i;
+            }
+
+            // Wait for availability to become true again
+            std::chrono::steady_clock::time_point available_time;
+            {
+                std::unique_lock<std::mutex> its_lock(mutex_);
+                VSOMEIP_DEBUG << "[TEST] Process: waiting availability=true event, iteration#" << std::dec << i
+                              << ", is_available=" << std::boolalpha << is_available_.load();
+                ASSERT_TRUE(cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return is_available_.load(); }));
+                available_time = std::chrono::steady_clock::now();
+                VSOMEIP_INFO << "[TEST] Process: received availability=true, iteration#" << std::dec << i;
+            }
+
+            // Calculate time between unavailable and available
+            auto suspension_duration = std::chrono::duration_cast<std::chrono::milliseconds>(available_time - unavailable_time);
+            if (i > 1) {
+                EXPECT_GT(suspension_duration.count(), 2000)
+                        << "[TEST] Process: iteration#" << std::dec << i << " - StopOffer was only sent on resume";
+            }
+
+            // Wait for event value notification
+            {
+                std::unique_lock<std::mutex> its_lock(mutex_);
+                VSOMEIP_DEBUG << "[TEST] Process: waiting event value notification, iteration#" << std::dec << i
+                              << ", is_available=" << std::boolalpha << is_available_;
+                ASSERT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(20)), std::cv_status::no_timeout);
+            }
 
             auto end_time_point = std::chrono::steady_clock::now();
 
             VSOMEIP_DEBUG << "[TEST] Process: iteration#" << std::dec << i << " successful, performed in "
                           << std::chrono::duration_cast<std::chrono::milliseconds>(end_time_point - begin_time_point).count() << "ms"
-                          << ", is_available=" << std::boolalpha << is_available_;
+                          << ", is_available=" << std::boolalpha << is_available_.load();
         }
 
         VSOMEIP_DEBUG << "[TEST] Process: done";
@@ -165,14 +194,16 @@ private:
         if (_service == TEST_SERVICE && _instance == TEST_INSTANCE && _is_available != is_available_) {
             std::unique_lock<std::mutex> its_lock(mutex_);
 
+            is_available_ = _is_available;
+
             if (_is_available) {
                 VSOMEIP_DEBUG << "[TEST] Availability triggers signal";
-                cv_.notify_one();
             } else {
                 VSOMEIP_DEBUG << "[TEST] Unavailability clears flag";
                 has_received_ = false;
             }
-            is_available_ = _is_available;
+
+            cv_.notify_one();
         }
     }
 
