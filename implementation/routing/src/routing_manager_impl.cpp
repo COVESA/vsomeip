@@ -74,7 +74,10 @@ routing_manager_impl::routing_manager_impl(routing_manager_host* _host) :
     routing_running_(false), routing_state_(configuration_->get_initial_routing_state()), status_log_timer_(_host->get_io()),
     memory_log_timer_(_host->get_io()), ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
     pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()),
-    ignored_statistics_counter_(0) { }
+    ignored_statistics_counter_(0) {
+
+    VSOMEIP_INFO << "Starting Routing Manager [Host] with state " << routing_state_tostring(routing_state_);
+}
 
 routing_manager_impl::~routing_manager_impl() {
     utility::reset_client_ids(configuration_->get_network());
@@ -398,7 +401,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         } else {
             std::scoped_lock its_lock_inner(pending_sd_offers_mutex_);
             pending_sd_offers_.emplace(_service, _instance);
-            VSOMEIP_INFO << "rmi::" << __func__ << " added service: " << std::setw(4) << std::setfill('0') << std::hex << _service
+            VSOMEIP_INFO << "rmi::" << __func__ << ": added service 0x" << std::setw(4) << std::setfill('0') << std::hex << _service
                          << " to pending_sd_offers_.size = " << std::dec << pending_sd_offers_.size();
         }
     }
@@ -594,7 +597,7 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
                     for (const auto& e : its_events) {
                         if (e->is_set()) {
                             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0')
-                                         << std::setw(4) << _service << "." << _instance << "." << e->get_event();
+                                         << std::setw(4) << _service << "." << _instance << "." << e->get_event() << "]";
                         }
                         e->unset_payload(true);
                     }
@@ -1209,7 +1212,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
             its_major = its_info->get_major();
             its_minor = its_info->get_minor();
         }
-        // unset payload and clear subcribers
+        // unset payload and clear subscribers
         routing_manager_base::stop_offer_service(its_offering_client, _service, _instance, its_major, its_minor);
         // unregister events
         for (const event_t its_event_id : find_events(_service, _instance)) {
@@ -1220,6 +1223,9 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
         if (discovery_ && its_info) {
             discovery_->stop_offer_service(its_info, true);
             its_info->set_endpoint(std::shared_ptr<endpoint>(), _reliable);
+            VSOMEIP_INFO << __func__ << std::hex << std::setfill('0') << " sending StopOffer to [" << std::setw(4) << _service << '.'
+                         << std::setw(4) << _instance << "." << std::dec << _port << "] with reliability (" << std::boolalpha << _reliable
+                         << ')';
         }
     } else {
         // service is still partly offered
@@ -1437,6 +1443,9 @@ void routing_manager_impl::on_notification(client_t _client, service_t _service,
 
 void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
+
+    VSOMEIP_DEBUG << "rmi::ON_STOP_OFFER_SERVICE (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
+                  << _service << "." << std::setw(4) << _instance << ":" << std::dec << static_cast<int>(_major) << "." << _minor << "]";
     {
         std::scoped_lock its_lock{local_services_mutex_};
         auto found_service = local_services_.find(_service);
@@ -1447,11 +1456,11 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                     || std::get<2>(found_instance->second) != _client) {
                     VSOMEIP_WARNING << "routing_manager_impl::on_stop_offer_service: "
                                     << "trying to delete service not matching exactly "
-                                    << "the one offered previously: " << "[" << std::hex << std::setfill('0') << std::setw(4) << _service
-                                    << "." << _instance << "." << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
-                                    << "] by application: " << std::hex << std::setw(4) << _client << ". Stored: [" << std::setw(4)
-                                    << _service << "." << _instance << "." << std::dec
-                                    << static_cast<std::uint32_t>(std::get<0>(found_instance->second)) << "."
+                                    << "the one offered previously: "
+                                    << "[" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "."
+                                    << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor << "] by application: " << std::hex
+                                    << std::setw(4) << _client << ". Stored: [" << std::setw(4) << _service << "." << _instance << "."
+                                    << std::dec << static_cast<std::uint32_t>(std::get<0>(found_instance->second)) << "."
                                     << std::get<1>(found_instance->second) << "] by application: " << std::hex << std::setw(4)
                                     << std::get<2>(found_instance->second);
                 }
@@ -2227,7 +2236,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
     for (const auto& e : its_events) {
         if (e->is_set()) {
             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event();
+                         << "." << _instance << "." << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -2848,7 +2857,8 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
                             if (!has_remote_subscriber && its_event->is_shadow()) {
                                 if (its_event->is_set()) {
                                     VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0')
-                                                 << std::setw(4) << its_service << "." << its_instance << "." << its_event->get_event();
+                                                 << std::setw(4) << its_service << "." << its_instance << "." << its_event->get_event()
+                                                 << "]";
                                 }
                                 its_event->unset_payload();
                             }
@@ -3732,7 +3742,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(servic
     for (const auto& e : its_events) {
         if (e->is_set()) {
             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event();
+                         << "." << _instance << "." << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -3954,7 +3964,7 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
                     if (!has_remote_subscriber && its_event->is_shadow()) {
                         if (its_event->is_set()) {
                             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0')
-                                         << std::setw(4) << _service << "." << _instance << "." << its_event->get_event();
+                                         << std::setw(4) << _service << "." << _instance << "." << its_event->get_event() << "]";
                         }
                         its_event->unset_payload();
                     }
@@ -4343,6 +4353,27 @@ void routing_manager_impl::remove_subscriptions(port_t _local_port, const boost:
                 }
             }
         }
+    }
+}
+
+const char* routing_manager_impl::routing_state_tostring(routing_state_e _state) {
+    switch (_state) {
+    case routing_state_e::RS_RUNNING:
+        return "RS_RUNNING";
+    case routing_state_e::RS_SUSPENDED:
+        return "RS_SUSPENDED";
+    case routing_state_e::RS_RESUMED:
+        return "RS_RESUMED";
+    case routing_state_e::RS_SHUTDOWN:
+        return "RS_SHUTDOWN";
+    case routing_state_e::RS_DIAGNOSIS:
+        return "RS_DIAGNOSIS";
+    case routing_state_e::RS_DELAYED_RESUME:
+        return "RS_DELAYED_RESUME";
+    case routing_state_e::RS_UNKNOWN:
+        return "RS_UNKNOWN";
+    default:
+        return "Unknown State";
     }
 }
 
