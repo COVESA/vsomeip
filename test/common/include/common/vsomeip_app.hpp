@@ -17,9 +17,7 @@
 #include <vsomeip/vsomeip.hpp>
 
 #ifdef USE_DLT
-#ifndef ANDROID
 #include <dlt/dlt.h>
-#endif // ifndef ANDROID
 #endif // ifded USE_DLT
 
 namespace common {
