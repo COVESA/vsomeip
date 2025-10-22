@@ -4,7 +4,11 @@
     "level": "trace",
     "console": "true"
   },
-  "debounce" :
+  "tracing":
+  {
+    "enable": "true"
+  },
+  "debounce":
   [
       {
           "service" : "0xb657",

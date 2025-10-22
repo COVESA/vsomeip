@@ -9,6 +9,10 @@
         },
         "dlt": "true"
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "applications": [
         {
             "name" : "first-client-sample",

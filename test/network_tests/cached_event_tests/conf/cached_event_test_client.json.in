@@ -4,6 +4,10 @@
         "level": "debug",
         "console": "true"
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "applications": [
         {
             "name": "client-sample",

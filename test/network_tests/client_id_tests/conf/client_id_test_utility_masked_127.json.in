@@ -5,6 +5,10 @@
         "level":"trace",
         "console":"true"
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "diagnosis":"0x63",
     "diagnosis_mask":"0xFF80",
     "applications":
