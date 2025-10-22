@@ -2204,8 +2204,7 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
             if (found_eventgroup != found_instance->second.end()) {
                 auto its_subscription = found_eventgroup->second;
                 for (const auto its_client : _clients) {
-                    host_->on_subscribe_nack(its_client, _service, _instance, _eventgroup, ANY_EVENT,
-                                             PENDING_SUBSCRIPTION_ID); // TODO: This is a dummy call...
+                    host_->on_subscribe_nack(its_client, _service, _instance, _eventgroup, true, PENDING_SUBSCRIPTION_ID);
                 }
 
                 if (!its_subscription->is_selective()) {
