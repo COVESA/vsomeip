@@ -450,6 +450,17 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
     _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
     return nullptr;
 }
+void fake_tcp_acceptor_handle::clear_handler() {
+    connect_handler handler;
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        if (connection_) {
+            TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", deleting the accept handler";
+            handler = std::move(connection_->handler_);
+            connection_ = std::nullopt;
+        }
+    }
+}
 
 void fake_tcp_acceptor_handle::set_app_name(std::string const& _name) {
     auto const lock = std::scoped_lock(mtx_);
