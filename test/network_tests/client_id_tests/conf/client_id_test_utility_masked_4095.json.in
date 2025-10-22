@@ -5,6 +5,10 @@
         "level":"trace",
         "console":"true"
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "diagnosis":"0x60",
     "diagnosis_mask":"0xF000",
     "applications":

@@ -10,6 +10,10 @@
             "path":"/tmp/vsomeip.log"
         }
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "applications":
     [
         {

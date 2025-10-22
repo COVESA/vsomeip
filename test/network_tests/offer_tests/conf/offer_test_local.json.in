@@ -5,6 +5,10 @@
         "level":"trace",
         "console":"true"
     },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
     "routing":"routingmanagerd",
     "service-discovery":
     {

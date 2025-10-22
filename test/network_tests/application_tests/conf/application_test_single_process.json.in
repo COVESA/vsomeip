@@ -4,5 +4,9 @@
     {
         "level":"trace",
         "console":"true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
     }
 }
