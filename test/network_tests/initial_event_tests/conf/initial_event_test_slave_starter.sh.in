@@ -66,7 +66,7 @@ PID_AVAILABILITY_CHECKER=$!
 
 # wait until the services on the remote node were started as well
 wait $PID_AVAILABILITY_CHECKER
-sleep 2;
+sleep 2
 for client_number in $(seq 9014 9024)
 do
     export VSOMEIP_APPLICATION_NAME="slave_initial_event_test_$client_number"
@@ -97,12 +97,4 @@ kill $PID_SERVICE_SIX
 kill $PID_SERVICE_FIVE
 kill $PID_SERVICE_FOUR
 
-sleep 1
-
-# Check if they exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

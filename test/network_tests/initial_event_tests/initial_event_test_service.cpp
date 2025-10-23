@@ -1,29 +1,49 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <bits/types/sigset_t.h>
 #include <chrono>
+#include <common/vsomeip_app_utilities.hpp>
 #include <condition_variable>
+#include <csignal>
+#include <cstdint>
+#include <gtest/gtest.h>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <thread>
-#include <map>
-#include <algorithm>
-
-#include <gtest/gtest.h>
-
-#include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
+#include <vsomeip/vsomeip.hpp>
 
 #include "initial_event_test_globals.hpp"
-#include "../someip_test_globals.hpp"
-#include <common/vsomeip_app_utilities.hpp>
+
+/// Blocks the current thread until a SIGINT or SIGTERM is received.
+static void wait_for_signal() {
+    // Create a set of signals to block.
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+
+    // Block the signals.
+    pthread_sigmask(SIG_BLOCK, &set, nullptr);
+
+    // Wait until a new signal is received.
+    for (;;) {
+        auto signal = 0;
+        auto result = sigwait(&set, &signal);
+        if (result == 0) {
+            if (signal == SIGINT || signal == SIGTERM) {
+                return;
+            }
+        }
+    }
+}
 
 class initial_event_test_service : public vsomeip_utilities::base_logger {
 public:
-    initial_event_test_service(struct initial_event_test::service_info _service_info, std::uint32_t _events_to_offer,
+    initial_event_test_service(struct initial_event_test::service_info _service_info, std::uint16_t _events_to_offer,
                                vsomeip::reliability_type_e _reliability_type) :
         vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST SERVICE"), service_info_(_service_info),
         app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true), events_to_offer_(_events_to_offer),
@@ -54,12 +74,24 @@ public:
                          its_payload);
         }
 
-        app_->start();
+        // Start the application in a dedicated worker thread.
+        auto worker = std::thread([&] { app_->start(); });
+
+        // Block until we receive the termination signal.
+        wait_for_signal();
+
+        // Stop the application and rejoin the worker thread.
+        app_->stop();
+        if (worker.joinable()) {
+            worker.join();
+        }
     }
 
-    ~initial_event_test_service() {
-        app_->stop();
+    // Move-only.
+    initial_event_test_service(const initial_event_test_service&) = delete;
+    initial_event_test_service operator=(const initial_event_test_service&) = delete;
 
+    ~initial_event_test_service() {
         if (offer_thread_.joinable()) {
             offer_thread_.join();
         }
@@ -94,16 +126,16 @@ private:
     std::shared_ptr<vsomeip::application> app_;
 
     bool wait_until_registered_;
-    std::uint32_t events_to_offer_;
+    std::uint16_t events_to_offer_;
     std::mutex mutex_;
     std::condition_variable condition_;
     std::thread offer_thread_;
     vsomeip::reliability_type_e reliability_type_;
 };
 
-static unsigned long service_number;
+static std::uint64_t service_number;
 static bool use_same_service_id;
-static std::uint32_t offer_multiple_events;
+static std::uint16_t offer_multiple_events;
 vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_UNKNOWN;
 
 TEST(someip_initial_event_test, set_field_once) {
@@ -152,6 +184,8 @@ int main(int argc, char** argv) {
             } else if (std::string("TCP_AND_UDP") == std::string(argv[i])) {
                 reliability_type = vsomeip::reliability_type_e::RT_BOTH;
                 std::cout << "Using reliability type RT_BOTH" << std::endl;
+            } else {
+                std::cerr << "Unknown argument: " << std::string(argv[i]) << std::endl;
             }
         }
     }
