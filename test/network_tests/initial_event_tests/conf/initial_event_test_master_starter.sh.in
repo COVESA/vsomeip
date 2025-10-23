@@ -24,13 +24,16 @@ PASSED_JSON_FILE=$1
 shift 1
 REMAINING_OPTIONS="$@"
 
+PID_SERVICE=0
 print_starter_message () {
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting initial event test on slave LXC with params $CLIENT_JSON_FILE $REMAINING_OPTIONS"
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/initial_event_tests; ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS\"" &
+    PID_SERVICE=$!
 elif [ ! -z "$USE_DOCKER" ]; then
     docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./initial_event_test_slave_starter.sh $CLIENT_JSON_FILE $REMAINING_OPTIONS" &
+    PID_SERVICE=$!
 else
 cat <<End-of-message
 *******************************************************************************
@@ -132,17 +135,11 @@ wait $PID_STOP_SERVICE
 kill $FIRST_PID
 wait $FIRST_PID || FAIL=$(($FAIL+1))
 
+wait $PID_SERVICE || FAIL=$(($FAIL+1))
+
 # shutdown the services
 kill $PID_SERVICE_THREE
 kill $PID_SERVICE_TWO
 kill $PID_SERVICE_ONE
 
-sleep 1
-
-# Check if they exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL
