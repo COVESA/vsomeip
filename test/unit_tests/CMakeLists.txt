@@ -17,4 +17,5 @@ add_subdirectory(utility_utility_tests)
 
 if (NOT WIN32)
 add_subdirectory(netlink_tests)
+add_subdirectory(usei_tests)
 endif()
