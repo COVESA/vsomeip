@@ -3315,10 +3315,13 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             break;
         }
         case routing_state_e::RS_RESUMED: {
-            if (!is_external_routing_ready()) {
-                VSOMEIP_INFO << "rmi::" << __func__ << " Network not running, delaying the resume of routing manager";
-                routing_state_ = routing_state_e::RS_DELAYED_RESUME;
-                return;
+            {
+                std::scoped_lock its_lock(on_state_change_mutex_);
+                if (!is_external_routing_ready()) {
+                    VSOMEIP_INFO << "rmi::" << __func__ << " Network not running, delaying the resume of routing manager";
+                    routing_state_ = routing_state_e::RS_DELAYED_RESUME;
+                    return;
+                }
             }
 
             VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to resume mode, diagnosis mode was "
@@ -3432,34 +3435,42 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
         }
     };
 
-    std::scoped_lock its_lock(on_state_change_mutex_);
-    if (_is_interface) {
-        if (_available != if_state_running_) {
-            log_change_message(_available);
+    bool switch_to_resumed = false;
+
+    {
+        std::scoped_lock its_lock(on_state_change_mutex_);
+        if (_is_interface) {
+            if (_available != if_state_running_) {
+                log_change_message(_available);
+            }
+            if_state_running_ = _available;
+            // When the interface goes down the sd route is also lost
+            if (!if_state_running_ && configuration_->get_sd_wait_route_netlink_notification()) {
+                sd_route_set_ = false;
+            }
+        } else {
+            if (_available != sd_route_set_) {
+                log_change_message(_available);
+            }
+            sd_route_set_ = _available;
         }
-        if_state_running_ = _available;
-        // When the interface goes down the sd route is also lost
-        if (!if_state_running_ && configuration_->get_sd_wait_route_netlink_notification()) {
-            sd_route_set_ = false;
+
+        if (is_external_routing_ready()) {
+            if (!routing_running_) {
+                start_ip_routing();
+            }
+
+            auto its_routing_state{get_routing_state()};
+            if (its_routing_state == routing_state_e::RS_DELAYED_RESUME) {
+                switch_to_resumed = true;
+            } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
+                init_pending_services();
+            }
         }
-    } else {
-        if (_available != sd_route_set_) {
-            log_change_message(_available);
-        }
-        sd_route_set_ = _available;
     }
 
-    if (is_external_routing_ready()) {
-        if (!routing_running_) {
-            start_ip_routing();
-        }
-
-        auto its_routing_state{get_routing_state()};
-        if (its_routing_state == routing_state_e::RS_DELAYED_RESUME) {
-            set_routing_state(routing_state_e::RS_RESUMED);
-        } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
-            init_pending_services();
-        }
+    if (switch_to_resumed) {
+        set_routing_state(routing_state_e::RS_RESUMED);
     }
 }
 
