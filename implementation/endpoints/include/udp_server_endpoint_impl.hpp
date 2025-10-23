@@ -85,8 +85,8 @@ private:
     bool send_queued_unlocked(const target_data_iterator_type _it);
     void leave_unlocked(const std::string& _address);
     void set_broadcast();
-    void receive_unicast_unlocked();
-    void receive_multicast_unlocked();
+    void receive_unicast_unlocked(std::shared_ptr<message_buffer_t> _unicast_recv_buffer);
+    void receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer);
     bool is_joined_unlocked(const std::string& _address) const;
     bool is_joined_unlocked(const std::string& _address, bool& _received) const;
     std::string get_remote_information(const target_data_iterator_type _it) const override;
@@ -95,13 +95,13 @@ private:
     std::string get_address_port_local_unlocked() const;
     bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const override;
 
-    void on_unicast_received(boost::system::error_code const& _error, std::size_t _bytes);
+    void on_unicast_received(const boost::system::error_code& _error, std::size_t _bytes, const message_buffer_t& _unicast_recv_buffer);
 
-    void on_multicast_received(boost::system::error_code const& _error, std::size_t _bytes, const boost::asio::ip::udp::endpoint& _sender,
-                               const boost::asio::ip::address& _destination);
+    void on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes, const boost::asio::ip::udp::endpoint& _sender,
+                               const boost::asio::ip::address& _destination, const message_buffer_t& _multicast_recv_buffer);
 
-    void on_message_received_unlocked(boost::system::error_code const& _error, std::size_t _bytes, bool _is_multicast,
-                                      endpoint_type const& _remote, message_buffer_t const& _buffer);
+    void on_message_received_unlocked(const boost::system::error_code& _error, std::size_t _bytes, bool _is_multicast,
+                                      const endpoint_type& _remote, const message_buffer_t& _buffer);
 
     bool is_same_subnet_unlocked(const boost::asio::ip::address& _address) const;
 
@@ -112,11 +112,9 @@ private:
 
     std::shared_ptr<socket_type> unicast_socket_;
     endpoint_type unicast_remote_;
-    message_buffer_t unicast_recv_buffer_;
 
     std::shared_ptr<socket_type> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
-    message_buffer_t multicast_recv_buffer_;
     std::atomic<unsigned> lifecycle_idx_;
     std::map<std::string, bool, std::less<>> joined_;
     std::map<std::string, bool, std::less<>> join_status_;

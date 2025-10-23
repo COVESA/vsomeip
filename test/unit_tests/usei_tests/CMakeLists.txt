@@ -19,7 +19,8 @@ target_link_libraries(
   ${DL_LIBRARY}
   gtest
   gmock
-  vsomeip_utilities)
+  vsomeip_utilities
+  "-Xlinker --wrap=setsockopt")
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 

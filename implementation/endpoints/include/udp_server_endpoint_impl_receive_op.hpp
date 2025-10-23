@@ -29,20 +29,20 @@ namespace udp_endpoint_receive_op {
 using socket_type_t = boost::asio::ip::udp::socket;
 using endpoint_type_t = boost::asio::ip::udp::endpoint;
 using receive_handler_t = std::function<void(boost::system::error_code const&, size_t, const boost::asio::ip::udp::endpoint&,
-                                             const boost::asio::ip::address&)>;
+                                             const boost::asio::ip::address&, message_buffer_t const&)>;
 
 struct storage : public std::enable_shared_from_this<storage> {
     std::weak_ptr<socket_type_t> socket_;
     receive_handler_t handler_;
-    byte_t* buffer_ = nullptr;
-    size_t length_;
+    std::shared_ptr<message_buffer_t> multicast_recv_buffer_;
     bool is_v4_;
     boost::asio::ip::address destination_;
     size_t bytes_;
 
-    storage(std::weak_ptr<socket_type_t> _socket, receive_handler_t _handler, byte_t* _buffer, size_t _length, bool _is_v4,
-            boost::asio::ip::address _destination, size_t _bytes) :
-        socket_(std::move(_socket)), handler_(std::move(_handler)), buffer_(_buffer), length_(_length), is_v4_(_is_v4),
+    storage(std::weak_ptr<socket_type_t> _socket, receive_handler_t _handler,
+            std::shared_ptr<message_buffer_t> const& _multicast_recv_buffer, bool _is_v4, boost::asio::ip::address _destination,
+            size_t _bytes) :
+        socket_(std::move(_socket)), handler_(std::move(_handler)), multicast_recv_buffer_(_multicast_recv_buffer), is_v4_(_is_v4),
         destination_(std::move(_destination)), bytes_(_bytes) { }
 
     static bool receive_cb(const std::shared_ptr<storage>& _data, boost::system::error_code _error_code) {
@@ -76,8 +76,8 @@ struct storage : public std::enable_shared_from_this<storage> {
                 WSABUF its_buf;
                 WSAMSG its_msg;
 
-                its_buf.buf = reinterpret_cast<CHAR*>(_data->buffer_);
-                its_buf.len = _data->length_;
+                its_buf.buf = reinterpret_cast<CHAR*>(_data->multicast_recv_buffer_->data());
+                its_buf.len = _data->multicast_recv_buffer_->size();
 
                 its_msg.lpBuffers = &its_buf;
                 its_msg.dwBufferCount = 1;
@@ -190,8 +190,8 @@ struct storage : public std::enable_shared_from_this<storage> {
                 struct iovec its_vec[1];
 
                 // Prepare
-                its_vec[0].iov_base = _data->buffer_;
-                its_vec[0].iov_len = _data->length_;
+                its_vec[0].iov_base = _data->multicast_recv_buffer_->data();
+                its_vec[0].iov_len = _data->multicast_recv_buffer_->size();
 
                 // Add io buffer
                 its_header.msg_iov = its_vec;
@@ -295,7 +295,7 @@ struct storage : public std::enable_shared_from_this<storage> {
         }
 
         // Call the handler
-        _data->handler_(_error_code, _data->bytes_, sender, _data->destination_);
+        _data->handler_(_error_code, _data->bytes_, sender, _data->destination_, *(_data->multicast_recv_buffer_));
         return false;
     }
 };
