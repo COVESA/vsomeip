@@ -161,3 +161,21 @@ cc_library_shared {
         "libboost_system"
     ]
 }
+
+// libvsomeip (without "3" suffix) is a compatibility lib, that was historically only turned on with VSOMEIP_COMPAT_NAME
+// unfortunately, the Android built by _by default_ - and so there are many Android HALs that link against the wrong lib
+// therefore deploy a dummy that links to libvsomeip3
+cc_library_shared {
+    name: "libvsomeip",
+    vendor: true,
+    nocrt: true,
+    no_libcrt: true,
+    system_shared_libs: [],
+    shared_libs: ["libvsomeip3"],
+    export_shared_lib_headers: ["libvsomeip3"],
+    // disable stripping, otherwise `strip` fails due to an empty lib
+    // see https://android.googlesource.com/platform/art/+/refs/heads/main/tools/create_minidebuginfo/create_minidebuginfo.cc#60
+    strip: {
+        none:true,
+    }
+}
