@@ -406,6 +406,8 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
             its_host->on_disconnect(this->shared_from_this());
 
             if (get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED || get_max_allowed_reconnects() >= ++reconnect_counter_) {
+                is_sending_ = false;
+                was_not_connected_ = true;
                 start_connect_timer();
             } else {
                 max_allowed_reconnects_reached();
