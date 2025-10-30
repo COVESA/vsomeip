@@ -628,17 +628,21 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
         auto self = shared_from_this();
         host_->on_subscription(
                 _service, _instance, _eventgroup, _client, _sec_client, get_env(_client), true,
-                [this, self, _client, _sec_client, _service, _instance, _eventgroup, _major, _event,
-                 _filter](const bool _subscription_accepted) {
+                [this, self, _client, _service, _instance, _eventgroup, _major, _event, _filter](const bool _subscription_accepted) {
                     (void)ep_mgr_->find_or_create_local(_client);
                     if (!_subscription_accepted) {
                         if (stub_)
                             stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
                     } else {
+                        std::set<event_t> its_already_subscribed_events;
+                        insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, &its_already_subscribed_events);
+
+                        // NOTE: order matters, send ACK _after_ inserting the subscription
                         if (stub_) {
                             stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
                         }
-                        routing_manager_base::subscribe(_client, _sec_client, _service, _instance, _eventgroup, _major, _event, _filter);
+
+                        notify_one_current_value(_client, _service, _instance, _eventgroup, _event, its_already_subscribed_events);
                     }
 
                     VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)

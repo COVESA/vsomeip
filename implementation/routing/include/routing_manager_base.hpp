@@ -94,7 +94,7 @@ public:
 
     virtual void subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                            eventgroup_t _eventgroup, major_version_t _major, event_t _event,
-                           const std::shared_ptr<debounce_filter_impl_t>& _filter);
+                           const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
 
     virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                              eventgroup_t _eventgroup, event_t _event);

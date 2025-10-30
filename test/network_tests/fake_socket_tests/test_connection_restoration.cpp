@@ -238,6 +238,24 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
     EXPECT_TRUE(client_->message_record_.wait_for(next_expected_message));
 }
 
+TEST_F(test_client_helper, server_suback_after_sub_insert) {
+    /// check whether server sends SUBSCRIPTION ACK after it has inserted the subscription
+    /// by forcing the server to send a notification after client receives SUBSCRIPTION ACK
+    /// (this of course only makes for an event; a field has an initial notification)
+
+
+    start_apps();
+
+    // wait for client to receive SUBSCRIPTION_ACK
+    ASSERT_TRUE(subscribe_to_event());
+
+    // server sends notification
+    send_first_message();
+
+    // ... check that client has received it
+    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
+}
+
 TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_with_events) {
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
