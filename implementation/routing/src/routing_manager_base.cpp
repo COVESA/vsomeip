@@ -704,18 +704,6 @@ void routing_manager_base::remove_known_client(client_t _client) {
     known_clients_.erase(_client);
 }
 
-void routing_manager_base::subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                                     eventgroup_t _eventgroup, major_version_t _major, event_t _event,
-                                     const std::shared_ptr<debounce_filter_impl_t>& _filter) {
-
-    (void)_major;
-    (void)_sec_client;
-
-    std::set<event_t> its_already_subscribed_events;
-    insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, &its_already_subscribed_events);
-    notify_one_current_value(_client, _service, _instance, _eventgroup, _event, its_already_subscribed_events);
-}
-
 void routing_manager_base::unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                                        eventgroup_t _eventgroup, event_t _event) {
 
@@ -1179,7 +1167,6 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
     std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
     if (its_event && !its_event->is_shadow()) {
         for (auto its_client : its_event->get_filtered_subscribers(_force)) {
-
             // local
             if (its_client == VSOMEIP_ROUTING_CLIENT) {
                 has_remote = true;
