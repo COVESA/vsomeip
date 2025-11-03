@@ -89,6 +89,7 @@ public:
     VSOMEIP_EXPORT bool is_v6() const;
 
     VSOMEIP_EXPORT bool has_console_log() const;
+    VSOMEIP_EXPORT bool has_slog2_log() const;
     VSOMEIP_EXPORT bool has_file_log() const;
     VSOMEIP_EXPORT bool has_dlt_log() const;
     VSOMEIP_EXPORT const std::string& get_logfile() const;
@@ -444,6 +445,7 @@ protected:
     diagnosis_t diagnosis_mask_;
 
     std::atomic_bool has_console_log_;
+    std::atomic_bool has_slog2_log_;
     std::atomic_bool has_file_log_;
     std::atomic_bool has_dlt_log_;
     std::string logfile_;
@@ -517,6 +519,7 @@ protected:
         ET_LOGGING_CONSOLE,
         ET_LOGGING_FILE,
         ET_LOGGING_DLT,
+        ET_LOGGING_SLOG2,
         ET_LOGGING_LEVEL,
         ET_ROUTING,
         ET_SERVICE_DISCOVERY_ENABLE,
