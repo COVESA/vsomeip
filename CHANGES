@@ -1,5 +1,41 @@
 Changes
 =======
+
+v3.6.0
+- global
+  - drop vsomeip2 compatibility
+  - keep libvsomeip for Android.bp
+  - logging improvements
+  - cleanup ANDROID+USE_DLT macros
+  - change return type of get_sec_client
+  - fix support for recent versions of cmake and boost
+  - remove hardcoded CXX FLAGS for optimisation level
+  - add support for forwarding to logs
+  - fix logging of SIZED_CSTRING
+
+- endpoint
+  - deserialize full name on assign_client command
+  - remove pointless mutex from endpoint manager
+  - cleanup is_closed+cei_state_e::CLOSED
+  - reset flags on connect_cbk
+
+- routing
+  - ensure sub ack is sent after sub insert
+  - fix rmi consistency across logging
+  - sync delay resume with net changes
+  - restrict routing state to routing_manager_impl
+  - small rework of on_message
+
+- tests
+  - fix initial event tests
+  - enable tracing for all tests
+  - doc and fix memory_test
+  - fix suspend_resume_test_initial test STR related issues
+  - fake socket tests - clear accept handlers on io_stop
+  - fix application_test_availability
+  - common utilities for network tests
+  - speedup huge_payload test
+
 v3.5.11
 - global
   - Add basic watchdog to track if stop offers are sent to the
