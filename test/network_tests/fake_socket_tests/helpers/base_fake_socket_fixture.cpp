@@ -120,14 +120,16 @@ void base_fake_socket_fixture::clear_command_record(std::string const& _from, st
     socket_manager_->clear_command_record(_from, _to);
 }
 
-/**
- * @see socket_manager::wait_for_command
- **/
 [[nodiscard]] bool base_fake_socket_fixture::wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
                                                               std::chrono::milliseconds _timeout) {
     return socket_manager_->wait_for_command(_from, _to, _id, _timeout);
 }
+
 void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail) {
     socket_manager_->fail_on_bind(_app, _fail);
+}
+
+void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
+    socket_manager_->set_ignore_broken_pipe(_app_name, _set);
 }
 }

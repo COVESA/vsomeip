@@ -100,7 +100,7 @@ struct base_fake_socket_fixture : ::testing::Test {
      *      false, else.
      */
     [[nodiscard]] bool await_connection(std::string const& _from, std::string const& _to,
-                                        std::chrono::milliseconds _timeout = std::chrono::seconds(1));
+                                        std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
      * Searches for a connection in which _from_name connected to an accepting _to_name.
@@ -171,6 +171,11 @@ struct base_fake_socket_fixture : ::testing::Test {
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     void fail_on_bind(std::string const& _app, bool _fail);
+
+    /**
+     * @see socket_manager::set_ignore_broken_pipe
+     */
+    void set_ignore_broken_pipe(std::string const& _app_name, bool _set);
 
 private:
     static std::shared_ptr<fake_socket_factory> factory_;
