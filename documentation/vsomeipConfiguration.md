@@ -39,9 +39,7 @@
 ## Logging
 
 - **logging** - Used to configure the log messages of vSomeIP
-
   - **console** - Specifies whether logging via console is enabled, valid values are `true` or `false`. The default value is `true`.
-
   - **file**:
     - **enable** - Specifies whether a log file should be created, valid values are `true` or `false`. The default value is `false`.
     - **path** - The absolute path of the log file. The default value is `/tmp/vsomeip.log`.
@@ -75,7 +73,6 @@
 ## Routing
 
 - **routing** (optional) - Specifies the properties of the routing. Either a string that specifies the application that hosts the routing component or a structure that specifies all properties of the routing. If the routing is not specified, the first started application will host the routing component.
-
   - **host** - Properties of the routing manager.
     - **name** - Name of the application that hosts the routing component.
     - **uid** - User identifier of the process that runs the routing component. Must be specified if credential checks are enabled by check_credentials set to true.
@@ -229,7 +226,6 @@ The following example assumes that different machines (i.e., with different IP a
     - **additional** - Generic way to define configuration data for plugins.
   - **debounce** - Client/Application specific configuration of debouncing.
   - **has_session_handling** - Configures the session handling. Mostly used for E2E use cases when the application handles the CRC calculation over the SOME/IP header by themself, and need the ability to switch off the session handling as otherwise their calculated checksum does not match reality after vsomeip inserts the session identifier. Valid values are `true` or `false`. The default value is `true`.
-  - **event_loop_periodicity** (optional) - If set to a positive value, it enables the io_context object's event processing run_for implementation to run the loop based on duration instead of running it until the work queue has work to be done. The default value is `0` seconds, which uses the io_context run interface.
 
 <details><summary>Example of Applications configuration</summary>
 

@@ -25,7 +25,6 @@ struct application_configuration {
     std::size_t max_detach_thread_wait_time_;
     std::size_t thread_count_;
     std::size_t request_debounce_time_;
-    std::size_t event_loop_periodicity_;
     std::map<plugin_type_e, std::set<std::string>> plugins_;
     int nice_level_;
     debounce_configuration_t debounces_;
