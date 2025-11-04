@@ -245,6 +245,16 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
         boost::asio::post(io_, [size, handler = std::move(_handler)] { handler(boost::system::error_code(), size); });
         return;
     }
+
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+
+    if (sm && sm->ignore_broken_pipe(*this)) {
+        return;
+    }
+
     boost::asio::post(io_, [handler = std::move(_handler)] {
         if (!handler) {
             return;

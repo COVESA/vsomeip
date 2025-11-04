@@ -429,6 +429,27 @@ void socket_manager::clear_command_record(std::string const& _from, std::string 
     return false;
 }
 
+void socket_manager::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
+    auto const lock = std::scoped_lock(mtx_);
+    if (_set) {
+        ignore_broken_pipe_.insert(_app_name);
+    } else {
+        ignore_broken_pipe_.erase(_app_name);
+    }
+}
+
+bool socket_manager::ignore_broken_pipe(fake_tcp_socket_handle const& _handle) {
+    auto const lock = std::scoped_lock(mtx_);
+    auto app_name = _handle.get_app_name();
+    auto const it = ignore_broken_pipe_.find(app_name);
+    if (it == ignore_broken_pipe_.end()) {
+        return false;
+    }
+
+    LOCAL_LOG << "ignoring broken_pipe for app: " << app_name;
+    return true;
+}
+
 std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>>
 socket_manager::get_connection(std::string const& _from, std::string const& _to) {
 
