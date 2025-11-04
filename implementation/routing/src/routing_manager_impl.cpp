@@ -10,6 +10,7 @@
 #include <fstream>
 #include <forward_list>
 #include <thread>
+#include <cinttypes>
 
 #if defined(__linux__) || defined(__QNX__)
 #include <unistd.h>
@@ -3914,7 +3915,8 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
     std::uint64_t its_dirtypages(0);
 
     if (EOF
-        == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib, &its_data,
+        == std::fscanf(its_file, "%" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64,
+                    &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib, &its_data,
                     &its_dirtypages)) {
         VSOMEIP_ERROR << "memory_log_timer_cbk: error reading: errno " << errno;
     }
