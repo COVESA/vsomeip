@@ -368,8 +368,6 @@ void application_impl::start() {
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
-    // Amount of time to run the IO context.
-    const size_t event_loop_periodicity = configuration_->get_event_loop_periodicity(name_);
     {
         std::scoped_lock its_lock{start_stop_mutex_};
         if (io_.stopped()) {
@@ -396,7 +394,7 @@ void application_impl::start() {
 #if defined(__linux__) || defined(__QNX__)
                      << " I/O nice " << io_thread_nice_level
 #endif
-                     << " boost event loop period " << event_loop_periodicity;
+                ;
 
         start_caller_id_ = std::this_thread::get_id();
         {
@@ -422,7 +420,7 @@ void application_impl::start() {
             routing_->start();
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
-            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level, event_loop_periodicity] {
+            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
 #if defined(__linux__)
                 {
                     std::stringstream s;
@@ -441,14 +439,18 @@ void application_impl::start() {
 
                 while (true) {
                     try {
-                        if (event_loop_periodicity) {
-                            io_.run_for(std::chrono::seconds(event_loop_periodicity));
-                        } else {
-                            io_.run();
+                        io_.run();
+
+                        if (!stopped_) {
+                            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0')
+                                          << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1 << ", application '" << name_
+                                          << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                                          << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                                          << ".";
                         }
-                        if (stopped_) {
-                            break;
-                        }
+                        break;
                     } catch (const std::exception& e) {
                         VSOMEIP_ERROR << "application_impl::start() "
                                          "caught exception: "
@@ -489,17 +491,20 @@ void application_impl::start() {
     utility::set_thread_niceness(io_thread_nice_level);
     while (true) {
         try {
-            if (event_loop_periodicity) {
-                io_.run_for(std::chrono::seconds(event_loop_periodicity));
-            } else {
-                io_.run();
+            io_.run();
+            if (!stopped_) {
+                VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0') << std::setw(4)
+                              << client_ << "_io00"
+                              << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                              << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                        ;
             }
-            if (stopped_) {
-                if (stop_thread_.joinable()) {
-                    stop_thread_.join();
-                }
-                break;
+            if (stop_thread_.joinable()) {
+                stop_thread_.join();
             }
+            break;
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }
