@@ -117,7 +117,7 @@ function(add_custom_test)
     # Skip valgrind
     if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
         set(TEST_ENTRYPOINT
-            ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq
+            ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq,/usr/bin/sleep,/usr/bin/netstat,/usr/bin/awk,/usr/bin/mawk,/usr/bin/grep,/usr/bin/wc,/usr/bin/pgrep
         )
     endif()
 

@@ -1,0 +1,40 @@
+@startuml
+
+Actor service_provider as SP
+
+participant routing_manager as RM
+
+SP -> RM : registration process
+
+RM --\ SP : REGISTER_ACK
+
+SP -> RM : OFFER
+
+note right of SP
+  Service Provider is now ready
+  to receive requests
+end note
+
+loop Until STOP_METHOD received
+
+  RM -> SP : REQUEST
+
+  note right of SP
+    Service Provider processes
+    the received request
+  end note
+
+  SP -> RM : RESPONSE
+
+end
+
+RM -> SP : STOP_METHOD
+
+SP -> RM : STOP OFFER
+
+note right of SP
+  Service Provider cleans up
+  and terminates
+end note
+
+@enduml
