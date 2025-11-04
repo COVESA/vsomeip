@@ -1,0 +1,73 @@
+@startuml
+
+Actor Service_Consumer as SC
+
+participant Routing_Manager as RM
+
+participant Service_Provider as SP
+
+note across
+  Wait for service availability
+endnote
+
+RM --> SC : OFFER
+
+SC -> SP : REQUEST
+
+loop For messages to send
+  SC -> SC : set payload
+
+  SC -> SC : set data
+
+  SC -> SP : send message
+
+  SC -> SC : messages_sent_++
+
+  note across
+    Wait for response
+  endnote
+
+  SP --> SC : response
+end
+
+SC -> SP : REQUEST event
+
+SC -> SP : REQUEST selective event
+
+SC -> SP : SUBSCRIBE eventgroup
+
+SC -> SP : SUBSCRIBE selective eventgroup
+
+note across
+  Wait for subscribe acks
+endnote
+
+SP --> SC : SUBSCRIBE ACK eventgroup
+
+SP --> SC : SUBSCRIBE ACK selective eventgroup
+
+SC -> SP : SEND notify method
+
+note across
+  Wait for all messages to be received
+endnote
+
+loop For messages received in background
+  alt If selective event received
+    SC -> SC : wait_until_selective_events_received_++
+  else
+    SC -> SC : wait_until_events_received_++
+  end
+end
+
+SC -> SP : SEND shutdown method
+
+note across
+  Wait for response to shutdown method
+endnote
+
+SP --> SC : response
+
+SC -> SC : stop
+
+@enduml
