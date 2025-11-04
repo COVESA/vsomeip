@@ -1,0 +1,47 @@
+@startuml
+
+Actor service_consumer as SC
+
+participant routing_manager as RM
+
+participant service_provider as SP
+
+SC -> RM : registration process
+
+RM --\ SC : REGISTER_ACK
+
+SC -> RM : REQUEST SERVICE
+
+note right of SC
+  Service Consumer waits for
+  service availability
+end note
+
+RM --\ SC : ON_AVAILABLE
+
+note right of SC
+  Service is now available,
+  consumer can send requests
+end note
+
+loop For each request to send
+
+  SC -> SP : REQUEST
+
+  SP -> SC : RESPONSE
+
+  note right of SC
+    Service Consumer validates
+    the received response
+  end note
+
+end
+
+note right of SC
+  All responses received,
+  test completed successfully
+end note
+
+SC -> SP : STOP_METHOD
+
+@enduml

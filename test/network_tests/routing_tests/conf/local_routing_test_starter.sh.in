@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -42,8 +42,6 @@ PID_VSOMEIPD=$!
 export VSOMEIP_APPLICATION_NAME=local_routing_test_service
 ./local_routing_test_service &
 SERVICE_PID=$!
-WAIT_PID_ONE=$!
-sleep 4;
 
 check_tcp_udp_sockets_are_closed  $SERVICE_PID
 
@@ -52,7 +50,6 @@ export VSOMEIP_APPLICATION_NAME=local_routing_test_client
 export VSOMEIP_CONFIGURATION=local_routing_test_client.json
 ./local_routing_test_client &
 CLIENT_PID=$!
-WAIT_PID_TWO=$!
 
 check_tcp_udp_sockets_are_closed  $SERVICE_PID
 check_tcp_udp_sockets_are_closed  $CLIENT_PID
@@ -60,8 +57,8 @@ check_tcp_udp_sockets_are_closed  $CLIENT_PID
 # Wait until client and service are finished
 # Fail gets incremented if either client or service exit
 # with a non-zero exit code
-wait $WAIT_PID_ONE || ((FAIL+=1))
-wait $WAIT_PID_TWO || ((FAIL+=1))
+wait $SERVICE_PID || ((FAIL+=1))
+wait $CLIENT_PID || ((FAIL+=1))
 
 kill $PID_VSOMEIPD
 
