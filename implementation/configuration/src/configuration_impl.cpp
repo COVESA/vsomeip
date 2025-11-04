@@ -894,7 +894,6 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
     std::size_t its_max_detached_thread_wait_time(VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS);
     std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
-    std::size_t its_event_loop_periodicity{VSOMEIP_DEFAULT_EVENT_LOOP_PERIODICITY};
     std::map<plugin_type_e, std::set<std::string>> plugins;
     int its_io_thread_nice_level(VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL);
     debounce_configuration_t its_debounces;
@@ -953,9 +952,6 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
             }
         } else if (its_key == "has_session_handling") {
             has_session_handling = (its_value != "false");
-        } else if (its_key == "event_loop_periodicity") {
-            its_converter << std::dec << its_value;
-            its_converter >> its_event_loop_periodicity;
         }
     }
     if (its_name != "") {
@@ -977,7 +973,6 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
                                        its_max_detached_thread_wait_time,
                                        its_io_thread_count,
                                        its_request_debounce_time,
-                                       its_event_loop_periodicity,
                                        plugins,
                                        its_io_thread_nice_level,
                                        its_debounces,
@@ -3078,17 +3073,6 @@ bool configuration_impl::has_session_handling(const std::string& _name) const {
         its_value = found_application->second.has_session_handling_;
 
     return its_value;
-}
-
-std::size_t configuration_impl::get_event_loop_periodicity(const std::string& _name) const {
-    std::size_t its_event_loop_periodicity = VSOMEIP_DEFAULT_EVENT_LOOP_PERIODICITY;
-
-    auto found_application = applications_.find(_name);
-    if (found_application != applications_.end()) {
-        its_event_loop_periodicity = found_application->second.event_loop_periodicity_;
-    }
-
-    return its_event_loop_periodicity;
 }
 
 std::set<std::pair<service_t, instance_t>> configuration_impl::get_remote_services() const {
