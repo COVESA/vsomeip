@@ -333,6 +333,38 @@ TEST_F(test_client_helper, client_ignores_server_connection_attempt_once) {
     EXPECT_TRUE(subscribe_to_event());
 }
 
+TEST_F(test_client_helper, client_ignores_server_connections_for_a_while) {
+    /// a somewhat more complex version of `client_ignores_server_connection_attempt_once`
+    /// except not only are the connections ignored, but also any writes
+
+    start_apps();
+
+    // client ignores connections
+    set_ignore_connections(client_name_, true);
+    // server has to ignore any broken pipes - so that not only does `connect()` never return, but also no `async_write` callbacks
+    set_ignore_broken_pipe(server_name_, true);
+    // server has to answer with an initial value
+    send_field_message();
+
+    // client subscribes to field
+    client_->request_service(service_instance_);
+    client_->subscribe_field(offered_field_);
+
+    // unfortunate, but we need to wait for magics amount of time - there will be background attempts to connect+write failures
+    EXPECT_FALSE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_),
+                                                        std::chrono::seconds(1)));
+
+    // accept connections again
+    // (and no need to worry about the broken pipe)
+    set_ignore_connections(client_name_, false);
+
+    // CONFIG_ID should be sent when the connection is established
+    EXPECT_TRUE(await_connection(server_name_, client_name_));
+    EXPECT_TRUE(wait_for_command(server_name_, client_name_, protocol::id_e::CONFIG_ID));
+    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+}
+
 TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection_is_re_established_then_the_subscription_confirmed) {
     start_apps();
     send_field_message();

@@ -146,6 +146,17 @@ public:
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
+     * Set whether a write on a disconnected socket should result in a silent error, or a broken pipe
+     */
+    void set_ignore_broken_pipe(std::string const& _app_name, bool _set);
+
+    /**
+     * Called by a fake_tcp_socket_handle when a broken pipe situation occurs.
+     * @return true, if the broken pipe should be ignored.
+     **/
+    [[nodiscard]] bool ignore_broken_pipe(fake_tcp_socket_handle const& _handle);
+
+    /**
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
      **/
     void add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io);
@@ -216,6 +227,7 @@ private:
     std::map<std::string, std::vector<boost::system::error_code>> app_to_next_connection_errors_;
     std::set<std::string> connections_to_ignore_;
     std::set<std::string> fail_on_bind_;
+    std::set<std::string> ignore_broken_pipe_;
 };
 }
 
