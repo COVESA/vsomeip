@@ -101,6 +101,8 @@ void routing_manager_stub::start() {
         root_->start();
     }
 
+    create_local_receiver();
+
     client_registration_running_ = true;
     {
         std::scoped_lock its_thread_pool_lock(client_registration_mutex_);
@@ -927,10 +929,6 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
 
     VSOMEIP_DEBUG << "ON_OFFER_SERVICE (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service
                   << "." << std::setw(4) << _instance << ":" << std::dec << static_cast<int>(_major) << "." << _minor << "]";
-
-    if (_client == host_->get_client()) {
-        create_local_receiver();
-    }
 
     std::scoped_lock its_guard{routing_info_mutex_};
     routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
