@@ -6,8 +6,9 @@
 #ifndef ROUTING_MANAGER_UT_SETUP_HPP
 #define ROUTING_MANAGER_UT_SETUP_HPP
 
+#include <utility>
+
 #include <boost/asio.hpp>
-#include <boost/asio/io_context.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
