@@ -7,6 +7,7 @@
 #define VSOMEIP_V3_TESTING_FAKE_SOCKET_FACTORY_HPP_
 
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
+#include "../../../implementation/endpoints/include/asio_timer.hpp"
 
 #include "fake_netlink_connector.hpp"
 #include "fake_tcp_socket.hpp"
@@ -48,6 +49,10 @@ private:
             return std::make_unique<fake_tcp_acceptor>(state);
         }
         return nullptr;
+    }
+    virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
+        // do not tinker with timeouts in network tests for now
+        return std::make_unique<asio_timer>(_io);
     }
 
     std::weak_ptr<socket_manager> socket_manager_;
