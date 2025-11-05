@@ -23,6 +23,7 @@ public:
 
     std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override;
     std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override;
+    std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override;
 };
 
 }

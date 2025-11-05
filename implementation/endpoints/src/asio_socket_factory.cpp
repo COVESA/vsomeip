@@ -5,6 +5,7 @@
 
 #include "../include/asio_socket_factory.hpp"
 #include "../include/asio_tcp_socket.hpp"
+#include "../include/asio_timer.hpp"
 #include "../include/netlink_connector.hpp"
 
 namespace vsomeip_v3 {
@@ -25,4 +26,7 @@ std::unique_ptr<tcp_acceptor> asio_socket_factory::create_tcp_acceptor(boost::as
     return std::make_unique<asio_tcp_acceptor>(_io);
 }
 
+std::unique_ptr<abstract_timer> asio_socket_factory::create_timer(boost::asio::io_context& _io) {
+    return std::make_unique<asio_timer>(_io);
+}
 }
