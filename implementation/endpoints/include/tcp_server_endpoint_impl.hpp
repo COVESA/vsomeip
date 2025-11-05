@@ -136,7 +136,7 @@ private:
     std::string instance_name_;
 
 private:
-    void remove_connection(connection* _connection);
+    void remove_connection(endpoint_type _endpoint, connection* _connection);
     void accept_cbk(connection::ptr _connection, boost::system::error_code const& _error);
     std::string get_remote_information(const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;
