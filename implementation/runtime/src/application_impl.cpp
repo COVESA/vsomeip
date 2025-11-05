@@ -476,6 +476,7 @@ void application_impl::start() {
 #endif
             ;
 
+    // NOTE: must happen *AFTER* `routing_->start()`, as plugins may already do offer_service
     auto its_plugins = configuration_->get_plugins(name_);
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
