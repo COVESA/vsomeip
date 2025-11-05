@@ -199,22 +199,49 @@ bool local_tcp_server_endpoint_impl::get_default_target(service_t, local_tcp_ser
 }
 
 void local_tcp_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
-    std::scoped_lock its_lock{connections_mutex_};
-    auto find_connection = connections_.find(_client);
-    if (find_connection != connections_.end()) {
-        VSOMEIP_WARNING << "Replacing already existing connection to client " << std::hex << _client
-                        << ", previous connection: " << connections_[_client] << ", new connection " << _connection << ", endpoint > "
-                        << this;
+    connection::ptr its_old_connection;
+    {
+        std::scoped_lock its_lock{connections_mutex_};
+        if (auto its_itr = connections_.find(_client); its_itr != connections_.end()) {
+            // save it to call connection stop and destructor outside of connections_mutex_
+            its_old_connection = its_itr->second;
+            VSOMEIP_WARNING << "Replacing already existing connection to client " << std::hex << _client
+                            << ", previous connection: " << connections_[_client] << ", new connection " << _connection << ", endpoint > "
+                            << this;
+        }
+
+        // save new connection
+        connections_[_client] = _connection;
     }
 
-    connections_[_client] = _connection;
+    if (its_old_connection) {
+        its_old_connection->stop();
+        its_old_connection.reset();
+    }
 }
 
-void local_tcp_server_endpoint_impl::remove_connection(const client_t& _client) {
-    std::scoped_lock its_lock{connections_mutex_};
-    if (!connections_.erase(_client)) {
-        VSOMEIP_WARNING << "Client " << std::hex << _client << " has no registered connection to "
-                        << " remove, endpoint > " << this;
+void local_tcp_server_endpoint_impl::remove_connection(const client_t& _client, connection* _connection) {
+    connection::ptr its_old_connection;
+    {
+        std::scoped_lock its_lock{connections_mutex_};
+        if (auto its_itr = connections_.find(_client); its_itr != connections_.end() && its_itr->second.get() == _connection) {
+            // save it to call connection stop and destructor outside of connections_mutex_
+            its_old_connection = its_itr->second;
+            if (!connections_.erase(_client)) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": client " << std::hex << _client << " has no registered connection to "
+                                << " remove, endpoint > " << this;
+            }
+            // if client still has a connection but a different one
+        } else if (its_itr != connections_.end() && its_itr->second.get() != _connection) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": tried to remove old connection " << _connection << " for client " << std::hex
+                            << std::setw(4) << _client << " new connection: " << connections_[_client];
+            its_old_connection = _connection->shared_from_this();
+        }
+    }
+
+    if (its_old_connection) {
+        its_old_connection->stop();
+        its_old_connection.reset();
     }
 }
 
@@ -367,7 +394,7 @@ std::unique_lock<std::mutex> local_tcp_server_endpoint_impl::connection::get_soc
 }
 
 void local_tcp_server_endpoint_impl::connection::start() {
-    std::scoped_lock its_lock{socket_mutex_};
+    std::unique_lock its_lock{socket_mutex_};
     if (socket_->is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
@@ -400,6 +427,7 @@ void local_tcp_server_endpoint_impl::connection::start() {
                 shrink_count_ = 0;
             }
         } catch (const std::exception& e) {
+            its_lock.unlock();
             handle_recv_buffer_exception(e);
             // don't start receiving again
             return;
@@ -746,7 +774,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
 
         shutdown_and_close(true);
         if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
-            its_server->remove_connection(bound_client_);
+            its_server->remove_connection(bound_client_, this);
             its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
         }
     } else {
@@ -835,7 +863,7 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(co
     if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
         std::shared_ptr<local_tcp_server_endpoint_impl> its_server = server_.lock();
         if (its_server) {
-            its_server->remove_connection(bound_client_);
+            its_server->remove_connection(bound_client_, this);
         }
     }
 }

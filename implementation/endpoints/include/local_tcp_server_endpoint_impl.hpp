@@ -142,7 +142,7 @@ private:
 private:
     void init_unlocked(const endpoint_type& _local, boost::system::error_code& _error);
     void add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection);
-    void remove_connection(const client_t& _client);
+    void remove_connection(const client_t& _client, connection* _connection);
     void accept_cbk(connection::ptr _connection, boost::system::error_code const& _error);
     std::string get_remote_information(const target_data_iterator_type _queue_iterator) const;
     std::string get_remote_information(const endpoint_type& _remote) const;

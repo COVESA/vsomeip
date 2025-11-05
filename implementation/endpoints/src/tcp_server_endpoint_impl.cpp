@@ -254,15 +254,27 @@ bool tcp_server_endpoint_impl::get_default_target(service_t, tcp_server_endpoint
     return false;
 }
 
-void tcp_server_endpoint_impl::remove_connection(tcp_server_endpoint_impl::connection* _connection) {
-    std::lock_guard<std::mutex> its_lock(connections_mutex_);
-    for (auto it = connections_.begin(); it != connections_.end();) {
-        if (it->second.get() == _connection) {
-            it = connections_.erase(it);
-            break;
-        } else {
-            ++it;
+void tcp_server_endpoint_impl::remove_connection(endpoint_type _endpoint, connection* _connection) {
+    connection::ptr its_old_connection;
+    {
+        std::scoped_lock its_lock(connections_mutex_);
+        if (auto its_itr = connections_.find(_endpoint); its_itr != connections_.end() && its_itr->second.get() == _connection) {
+            its_old_connection = its_itr->second;
+            if (!connections_.erase(_endpoint)) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": remote endpoint: " << _endpoint << " has no registered connection to "
+                                << " remove, endpoint > " << this;
+            }
+            // if client still has a connection but a different one
+        } else if (its_itr != connections_.end() && its_itr->second.get() != _connection) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": tried to remove old connection " << _connection << " for endpoint " << _endpoint
+                            << " new connection: " << connections_[_endpoint];
+            its_old_connection = _connection->shared_from_this();
         }
+    }
+
+    if (its_old_connection) {
+        its_old_connection->stop();
+        its_old_connection.reset();
     }
 }
 
@@ -421,7 +433,7 @@ void tcp_server_endpoint_impl::connection::start() {
 }
 
 void tcp_server_endpoint_impl::connection::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock(socket_mutex_);
     if (socket_.is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
@@ -457,6 +469,7 @@ void tcp_server_endpoint_impl::connection::receive() {
                 shrink_count_ = 0;
             }
         } catch (const std::exception& e) {
+            its_lock.unlock();
             handle_recv_buffer_exception(e);
             // don't start receiving again
             return;
@@ -852,7 +865,7 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const st
     }
     std::shared_ptr<tcp_server_endpoint_impl> its_server = server_.lock();
     if (its_server) {
-        its_server->remove_connection(this);
+        its_server->remove_connection(remote_, this);
     }
 }
 
@@ -905,7 +918,7 @@ void tcp_server_endpoint_impl::connection::stop_and_remove_connection() {
         std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
         stop();
     }
-    its_server->remove_connection(this);
+    its_server->remove_connection(remote_, this);
 }
 
 // Dummies
@@ -976,7 +989,7 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::
         std::lock_guard<std::mutex> its_lock_inner(its_server->connections_mutex_);
         stop();
     }
-    its_server->remove_connection(this);
+    its_server->remove_connection(remote_, this);
 }
 
 } // namespace vsomeip_v3
