@@ -240,6 +240,7 @@ private:
 };
 
 TEST(offer_test, multiple_offerings_same_service) {
+    setenv("VSOMEIP_CONFIGURATION", "offer_test_multiple_offerings.json", 1);
     const service_t service_id{0xfee2};
     const instance_t instance_id{0x0001};
     const major_version_t major{1};
@@ -259,17 +260,14 @@ TEST(offer_test, multiple_offerings_same_service) {
     client.wait_availability();
     VSOMEIP_INFO << "[TEST] Client is AVAILABLE";
 
-    // Without suspending the deamon, the client immediatly closes.
+    // Without suspending the deamon, the client immediately closes.
     daemon.set_routing_state(routing_state_e::RS_SUSPENDED);
 
     for (int i = 0; i < REQUESTS_NUMBER; ++i) {
         VSOMEIP_INFO << "[TEST] Sending Loop " << i;
-        // NOTE: Don't remove the sleep. VSOME/IP needs some time until it sends a PONG message to
-        // services. Otherwise we can't detect service availability correctly later.
-        std::this_thread::sleep_for(TIMEOUT_RESPONSE);
         std::vector<uint8_t> out_payload = {uint8_t(i)};
         client.send_message(out_payload);
-        // Independant of the number of offerings, the client must never fail it's assertions.
+        // Independent of the number of offerings, the client must never fail it's assertions.
         ASSERT_TRUE(client.was_message_received()) << "Message was not received";
         // Should be safe to read the payload without locks. No one is reading or writing to it.
         EXPECT_EQ(out_payload, client.getReceivedPayload()) << "Payload was not equal";
