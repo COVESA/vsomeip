@@ -54,8 +54,6 @@ kill -USR1 $PID_SERVICE_TWO
 kill -USR1 $PID_SERVICE_ONE
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_ONE || FAIL=$(($FAIL+1))
-sleep 1
-
 
 cat <<End-of-message
 *******************************************************************************
@@ -105,10 +103,9 @@ kill -USR1 $PID_SERVICE_THREE
 kill -USR1 $PID_SERVICE_TWO
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
-sleep 1
-kill $PID_VSOMEIPD
-sleep 1
 
+kill $PID_VSOMEIPD
+wait $PID_VSOMEIPD
 
 cat <<End-of-message
 *******************************************************************************
@@ -145,8 +142,9 @@ export VSOMEIP_APPLICATION_NAME="client-1"
 CLIENT_PID_ONE=$!
 
 # Kill the service
-sleep 1
+
 kill -KILL $PID_SERVICE_TWO
+wait $PID_SERVICE_TWO
 
 # reoffer the service
 export VSOMEIP_APPLICATION_NAME="service-3"
@@ -167,7 +165,7 @@ wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 kill -USR1 $PID_SERVICE_THREE
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
-sleep 1
+wait $PID_VSOMEIPD
 
 cat <<End-of-message
 *******************************************************************************
@@ -204,8 +202,8 @@ export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
-# Pause the service
 sleep 1
+# Pause the service
 kill -STOP $PID_SERVICE_TWO
 
 # reoffer the service
@@ -230,7 +228,7 @@ kill -USR1 $PID_SERVICE_THREE
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
-sleep 1
+wait $PID_VSOMEIPD
 
 cat <<End-of-message
 *******************************************************************************
@@ -302,11 +300,6 @@ wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_FOUR || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
+wait $PID_VSOMEIPD
 
-# Check if everything went well
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

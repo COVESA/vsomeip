@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -102,8 +102,8 @@ public:
         EXPECT_EQ(0x1, _instance);
         EXPECT_EQ(offer_test::big_msg_eventgroup_id, _eventgroup);
         EXPECT_EQ(offer_test::big_msg_event_id, _event);
-        VSOMEIP_DEBUG << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] has "
-                      << (!_error ? "sent subscribe ack" : " sent subscribe_nack") << ".";
+        VSOMEIP_DEBUG << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] has sent "
+                      << (!_error ? "subscribe ack" : "subscribe nack") << ".";
         if (_error == 0x0 /*OK*/) {
 
             std::lock_guard<std::mutex> its_lock(mutex_);
@@ -151,7 +151,7 @@ public:
         condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
         condition_.wait(its_lock, [this] { return !wait_until_subscribed_; });
 
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(3));
         std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
         its_req->set_service(1);
         its_req->set_instance(1);
