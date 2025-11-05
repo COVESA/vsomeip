@@ -535,9 +535,6 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
     }
 
     if (_client == get_client()) {
-        if (stub_)
-            stub_->create_local_receiver();
-
         protocol::service its_request(_service, _instance, _major, _minor);
         std::set<protocol::service> requests;
         requests.insert(its_request);
