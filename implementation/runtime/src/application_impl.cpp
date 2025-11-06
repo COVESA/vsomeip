@@ -835,6 +835,16 @@ availability_state_e application_impl::are_available_unlocked(available_t& _avai
 }
 
 void application_impl::send(std::shared_ptr<message> _message) {
+
+    // likely that the user created a message (with `runtime::create_message`) and forgot to set the type
+    // fail here in an obvious way, instead of down-the-line in some client-lookup code
+    if (_message->get_message_type() == message_type_e::MT_UNKNOWN) {
+        VSOMEIP_ERROR << "application_impl::" << __func__ << ": message [" << std::hex << std::setfill('0') << std::setw(4)
+                      << _message->get_service() << "." << std::setw(4) << _message->get_instance() << "." << std::setw(4)
+                      << _message->get_method() << "] has unknown type, cannot send!";
+        return;
+    }
+
     bool is_request = utility::is_request(_message);
     if (client_side_logging_
         && (client_side_logging_filter_.empty()
