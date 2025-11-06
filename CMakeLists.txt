@@ -152,11 +152,11 @@ if (NOT MSVC)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "massif")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.out)
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.%p.out)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "memcheck")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --leak-check=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --leak-check=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --log-file=${VALGRIND_LOGS_DIR}/test_name.%p.out)
         endif ()
     endif ()
 endif (NOT MSVC)
