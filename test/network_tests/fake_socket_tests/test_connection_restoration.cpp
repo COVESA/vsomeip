@@ -43,14 +43,18 @@ struct test_client_helper : public base_fake_socket_fixture {
         server_->offer_field(offered_field_);
     }
 
-    void start_apps() {
-        start_router();
-        start_server();
-
+    void start_client_app() {
         client_ = start_client(client_name_);
         ASSERT_NE(client_, nullptr);
         ASSERT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
     }
+
+    void start_apps() {
+        start_router();
+        start_server();
+        start_client_app();
+    }
+
     [[nodiscard]] bool subscribe_to_event(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
         client_->request_service(service_instance_);
         client_->subscribe_event(offered_event_);
@@ -131,6 +135,29 @@ TEST_F(test_client_helper, request_reply_with_sub) {
     client_->send_request(request_);
 
     ASSERT_TRUE(server_->message_record_.wait_for(expected_request_));
+    EXPECT_TRUE(client_->message_record_.wait_for(expected_reply_));
+}
+
+TEST_F(test_client_helper, request_reply_routingd) {
+    /// another boring request-reply, but this time the server is routingd
+
+    start_router();
+    start_client_app();
+    // no server! router will be server
+
+    // routingd offers service
+    routingmanagerd_->offer(service_instance_);
+    // ..and answers
+    std::vector<uint8_t> payload{0x2, 0x3};
+    routingmanagerd_->answer_request(request_, [payload] { return payload; });
+    expected_reply_.payload_ = payload;
+
+    client_->request_service(service_instance_);
+
+    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::available(service_instance_)));
+    client_->send_request(request_);
+
+    ASSERT_TRUE(routingmanagerd_->message_record_.wait_for(expected_request_));
     EXPECT_TRUE(client_->message_record_.wait_for(expected_reply_));
 }
 
