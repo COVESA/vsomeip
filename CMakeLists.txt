@@ -54,6 +54,9 @@ foreach (p LIB BIN INCLUDE CMAKE)
 endforeach ()
 
 ###################################################################################################
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
 if(NOT CMAKE_BUILD_TYPE)
