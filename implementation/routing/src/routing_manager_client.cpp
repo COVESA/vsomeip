@@ -156,7 +156,7 @@ void routing_manager_client::stop() {
     {
         std::scoped_lock its_receiver_lock(receiver_mutex_);
         if (receiver_) {
-            receiver_->stop();
+            receiver_->stop(false);
         }
         receiver_ = nullptr;
     }
@@ -164,7 +164,7 @@ void routing_manager_client::stop() {
     {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
-            sender_->stop();
+            sender_->stop(false);
         }
         // delete the sender
         sender_ = nullptr;
@@ -172,7 +172,7 @@ void routing_manager_client::stop() {
 
     for (const auto client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(client, true);
+            remove_local(client, true, false);
         }
     }
 }
@@ -1686,7 +1686,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                                  << its_address.to_string() + ":" << its_port;
 
                     // also removes guest
-                    remove_local(old_client, true);
+                    remove_local(old_client, true, true);
                 }
 
                 add_guest(its_client, its_address, its_port);
@@ -1780,7 +1780,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     // Remove all local connections/endpoints
     for (const auto& c : _clients) {
         if (c.first != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(c.first, true);
+            remove_local(c.first, true, true);
         }
     }
 
@@ -1795,7 +1795,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
                       << " to use the server endpoint due to credential check failed!";
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
-            sender_->stop();
+            sender_->stop(true);
         }
         return;
     }
@@ -2457,7 +2457,7 @@ void routing_manager_client::handle_client_error(client_t _client) {
         // First ensure that the connection is dropped, before enforcing a
         // reconnect from the client. Otherwise a client subscribe might
         // be handled by a partially cleaned-up connection
-        remove_local(_client, true);
+        remove_local(_client, true, true);
         // Remove the client from the local connections.
         {
             std::scoped_lock lock{receiver_mutex_};

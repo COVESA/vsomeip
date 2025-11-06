@@ -299,7 +299,7 @@ void routing_manager_impl::stop() {
 
     for (const auto client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(client, true);
+            remove_local(client, true, false);
         }
     }
 }
@@ -1525,7 +1525,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                         [this, ptr](std::shared_ptr<endpoint> _endpoint_to_stop) {
                             if (ep_mgr_impl_->remove_server_endpoint(_endpoint_to_stop->get_local_port(),
                                                                      _endpoint_to_stop->is_reliable())) {
-                                _endpoint_to_stop->stop();
+                                _endpoint_to_stop->stop(false);
                             }
                         },
                         ANY_SERVICE);
@@ -1997,7 +1997,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
     }
 }
 
-void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
+void routing_manager_impl::remove_local(client_t _client, bool _remove_uid, bool _remove_due_to_error) {
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> its_clients_subscriptions;
     its_clients_subscriptions = get_subscriptions(_client);
@@ -2013,7 +2013,7 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_uid) {
         }
         unsubscribe(_client, &its_sec_client, service, instance, eventgroup, ANY_EVENT);
     }
-    routing_manager_base::remove_local(_client, its_clients_subscriptions, _remove_uid);
+    routing_manager_base::remove_local(_client, its_clients_subscriptions, _remove_uid, _remove_due_to_error);
 
     for (const auto& s : get_requested_services(_client)) {
         release_service(_client, s.service_, s.instance_);
@@ -4059,7 +4059,7 @@ void routing_manager_impl::cleanup_server_endpoint(service_t _service, const std
         if (ep_mgr_impl_->remove_instance(_service, _endpoint.get())) {
             if (ep_mgr_impl_->remove_server_endpoint(_endpoint->get_local_port(), _endpoint->is_reliable())) {
                 // Stop endpoint (close socket) to release its async_handlers!
-                _endpoint->stop();
+                _endpoint->stop(false);
             }
         }
     }

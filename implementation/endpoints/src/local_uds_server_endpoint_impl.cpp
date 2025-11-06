@@ -114,9 +114,8 @@ void local_uds_server_endpoint_impl::start() {
     }
 }
 
-void local_uds_server_endpoint_impl::stop() {
+void local_uds_server_endpoint_impl::stop(bool /*_due_to_error*/) {
 
-    server_endpoint_impl::stop();
     {
         std::scoped_lock its_lock{acceptor_mutex_};
         if (acceptor_.is_open()) {

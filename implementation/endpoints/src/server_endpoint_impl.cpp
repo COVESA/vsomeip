@@ -101,7 +101,7 @@ void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
 }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::stop() { }
+void server_endpoint_impl<Protocol>::stop(bool /*_due_to_error*/) { }
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::is_client() const {
@@ -113,7 +113,7 @@ void server_endpoint_impl<Protocol>::restart(bool _force) {
     (void)_force;
 
     boost::system::error_code its_error;
-    this->stop();
+    this->stop(false);
     this->init(server_endpoint_impl<Protocol>::local_, its_error);
     this->start();
 }
