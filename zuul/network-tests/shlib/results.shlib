@@ -47,14 +47,18 @@ function valgrind-errors
 {
 	local outputs_folder="$1"
 	local test_name="$2"
+	local result=0
 
-	output_file="$outputs_folder/$test_name.out"
-	if [[ ! -f "$output_file" || -d "$output_file" ]]
-	then
-		echo 0
-		return
-	fi
-	(grep -oP 'ERROR SUMMARY: \K\d+' "$output_file" || echo 0) | sort -n | tail -n1
+	## write all of the valgrind logs into a single output file, for ease of check
+	cat "$outputs_folder/$test_name".*.out > "$outputs_folder/$test_name".combined.out
+
+	for output_file in "$outputs_folder/$test_name".*.out; do
+		if [[ -f "$output_file" ]]
+		then
+			result=$(($result + $((grep -oP 'ERROR SUMMARY: \K\d+' "$output_file" || echo 0) | sort -n | tail -n1)))
+		fi
+	done
+	echo $result
 }
 
 function gen-core-backtraces
