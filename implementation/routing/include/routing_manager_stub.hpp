@@ -106,7 +106,7 @@ public:
     client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const override;
     void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
 
-    void remove_local(client_t _client, bool _remove_sec_client) override;
+    void remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error) override;
 
     std::string get_env(client_t _client) const override;
 
@@ -164,7 +164,7 @@ private:
     }
     inline void remove_source(client_t _source) { connection_matrix_.erase(_source); }
 
-    void remove_client_connections(client_t _client);
+    void remove_client_connections(client_t _client, bool _remove_due_to_error);
 
     void send_client_routing_info(const client_t _target, protocol::routing_info_entry& _entry);
     void send_client_routing_info(const client_t _target, std::vector<protocol::routing_info_entry>&& _entries);
