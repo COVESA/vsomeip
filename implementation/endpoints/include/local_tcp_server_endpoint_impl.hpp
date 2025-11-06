@@ -37,7 +37,7 @@ public:
     void deinit();
 
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     void receive();
 
@@ -103,7 +103,7 @@ private:
         std::string get_path_local() const;
         std::string get_path_remote() const;
         void handle_recv_buffer_exception(const std::exception& _e);
-        void shutdown_and_close(bool _is_error = false);
+        void shutdown_and_close(bool _due_to_error);
         void shutdown_and_close_unlocked();
 
         std::mutex socket_mutex_;

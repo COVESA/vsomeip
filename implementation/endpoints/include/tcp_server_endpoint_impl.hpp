@@ -34,7 +34,7 @@ public:
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
     bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);

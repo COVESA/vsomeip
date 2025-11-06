@@ -126,10 +126,9 @@ void tcp_server_endpoint_impl::start() {
     VSOMEIP_INFO << instance_name_ << __func__ << ": done";
 }
 
-void tcp_server_endpoint_impl::stop() {
+void tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
     VSOMEIP_INFO << instance_name_ << __func__;
 
-    server_endpoint_impl::stop();
     {
         std::scoped_lock first_lock(acceptor_mutex_);
 

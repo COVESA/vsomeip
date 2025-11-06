@@ -454,7 +454,7 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
     if (!other_services_reachable_through_endpoint && its_endpoint) {
         release_used_client_port(its_remote_address, its_remote_port, _reliable, its_local_port);
 
-        its_endpoint->stop();
+        its_endpoint->stop(false);
     }
 }
 
@@ -540,7 +540,7 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
             its_udp_server_endpoint->leave(its_address);
 
         if (!is_used_endpoint(its_multicast_endpoint.get()))
-            its_multicast_endpoint->stop();
+            its_multicast_endpoint->stop(false);
     }
 }
 
@@ -1279,7 +1279,7 @@ void endpoint_manager_impl::suspend() {
 
     for (const auto& its_weak : weak_endpoints) {
         if (auto its_endpoint = its_weak.lock()) {
-            its_endpoint->stop();
+            its_endpoint->stop(false);
         }
     }
 }

@@ -62,7 +62,7 @@ void local_client_endpoint_impl<Protocol>::error_handler() {
     if (client_endpoint_impl<Protocol>::is_established_or_connected()) {
         std::lock_guard<std::mutex> its_lock(endpoint_impl<Protocol>::error_handler_mutex_);
         handler = endpoint_impl<Protocol>::error_handler_;
-        client_endpoint_impl<Protocol>::shutdown_and_close_socket(false);
+        client_endpoint_impl<Protocol>::shutdown_and_close_socket(false, true);
     } else {
         VSOMEIP_INFO << "lcei::" << __func__ << " connection no longer established/connected " << this;
     }

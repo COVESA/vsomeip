@@ -112,9 +112,8 @@ void local_tcp_server_endpoint_impl::start() {
     }
 }
 
-void local_tcp_server_endpoint_impl::stop() {
+void local_tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
 
-    server_endpoint_impl::stop();
     {
         std::scoped_lock its_lock{acceptor_mutex_};
         if (acceptor_->is_open()) {
@@ -714,7 +713,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
                                              << old_client << " removed due to new client " << std::hex << std::setfill('0') << std::setw(4)
                                              << its_client << " @ " << its_address.to_string() + ":" << its_guest_port;
 
-                                its_host->remove_local(old_client, true);
+                                its_host->remove_local(old_client, true, true);
                             }
 
                             its_host->add_guest(its_client, its_address, its_guest_port);
@@ -872,49 +871,47 @@ std::size_t local_tcp_server_endpoint_impl::connection::get_recv_buffer_capacity
     return recv_buffer_.capacity();
 }
 
-void local_tcp_server_endpoint_impl::connection::shutdown_and_close(bool _is_error) {
+void local_tcp_server_endpoint_impl::connection::shutdown_and_close(bool _due_to_error) {
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
     io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
 
     std::uint32_t retry_count(0);
-    if (!_is_error) {
-        while (true) {
-            {
-                std::scoped_lock its_lock(socket_mutex_); // Do not block this mutex while waiting, to let other operations finish
-                if (socket_ && socket_->is_open()) {
-                    socket_->io_control(send_buffer_size_cmd, its_error);
-                }
+    while (true) {
+        {
+            std::scoped_lock its_lock(socket_mutex_); // do not block this mutex while waiting, to let other operations finish
+            if (socket_ && socket_->is_open()) {
+                socket_->io_control(send_buffer_size_cmd, its_error);
             }
+        }
 
-            if (its_error) {
-                VSOMEIP_WARNING << "ltsei::" << __func__ << ": fail to read send_buffer_size  "
-                                << "(" << its_error.value() << "): " << its_error.message() << ", endpoint > " << this;
+        if (its_error) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": fail to read send_buffer_size  "
+                            << "(" << its_error.value() << "): " << its_error.message() << ", endpoint > " << this;
+            break;
+        }
+        const auto send_buffer_size = send_buffer_size_cmd.get();
+        if (send_buffer_size > 0) {
+            // shutdown_and_close_socket was called on error, do not wait to send remaining data
+            if (_due_to_error) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": dropping " << send_buffer_size << " bytes on error close, endpoint > "
+                                << this;
                 break;
-            }
-            const auto send_buffer_size = send_buffer_size_cmd.get();
-            if (send_buffer_size > 0) {
-                // shutdown_and_close_socket was called on error, do not wait to send remaining data
-                if (_is_error) {
-                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": dropping " << send_buffer_size << " bytes on error close, endpoint > "
-                                    << this;
-                    break;
-                } else {
-                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
-                                    << " bytes "
-                                    << ", endpoint > " << this;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
-                }
-
             } else {
-                break;
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
+                                << " bytes "
+                                << ", endpoint > " << this;
+                std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
             }
-            ++retry_count;
-            if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
-                VSOMEIP_ERROR << "ltsei::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size
-                              << " bytes on close, endpoint > " << this;
-                break;
-            }
+
+        } else {
+            break;
+        }
+        ++retry_count;
+        if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
+            VSOMEIP_ERROR << "ltsei::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size
+                          << " bytes on close, endpoint > " << this;
+            break;
         }
     }
 #endif

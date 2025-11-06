@@ -28,7 +28,7 @@ void virtual_server_endpoint_impl::prepare_stop(const endpoint::prepare_stop_han
     boost::asio::post(io_, [ptr, _handler]() { _handler(ptr); });
 }
 
-void virtual_server_endpoint_impl::stop() { }
+void virtual_server_endpoint_impl::stop(bool /*_due_to_error*/) { }
 
 bool virtual_server_endpoint_impl::is_established() const {
     return false;

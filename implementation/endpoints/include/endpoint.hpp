@@ -26,7 +26,12 @@ public:
 
     virtual void start() = 0;
     virtual void restart(bool _force = false) = 0;
-    virtual void stop() = 0;
+    /**
+     * @brief Stop endpoint
+     *
+     * @param _due_to_error if true, we are stopping due to an error - do not bother with graceful closure/ensuring message delivery/etc
+     */
+    virtual void stop(bool _due_to_error) = 0;
 
     virtual void prepare_stop(const prepare_stop_handler_t& _handler, service_t _service = ANY_SERVICE) = 0;
 

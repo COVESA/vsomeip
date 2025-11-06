@@ -115,7 +115,7 @@ public:
 
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
-    void remove_local(client_t _client, bool _remove_uid);
+    void remove_local(client_t _client, bool _remove_uid, bool _remove_due_to_error);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,

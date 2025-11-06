@@ -156,12 +156,12 @@ void routing_manager_stub::stop() {
     }
 
     if (root_ && !is_socket_activated_) {
-        root_->stop();
+        root_->stop(false);
         root_ = nullptr;
     }
 
     if (local_receiver_) {
-        local_receiver_->stop();
+        local_receiver_->stop(false);
         local_receiver_ = nullptr;
     }
 }
@@ -690,8 +690,8 @@ void routing_manager_stub::add_guest(client_t _client, const boost::asio::ip::ad
     host_->add_guest(_client, _address, _port);
 }
 
-void routing_manager_stub::remove_local(client_t _client, bool _remove_sec_client) {
-    host_->remove_local(_client, _remove_sec_client);
+void routing_manager_stub::remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error) {
+    host_->remove_local(_client, _remove_sec_client, _remove_due_to_error);
 }
 
 void routing_manager_stub::on_register_application(client_t _client, bool& continue_registration) {
@@ -719,7 +719,7 @@ void routing_manager_stub::on_register_application(client_t _client, bool& conti
 #endif // !VSOMEIP_DISABLE_SECURITY
     if (endpoint == nullptr || !endpoint->wait_connecting_timer()) {
         VSOMEIP_WARNING << "Application: " << std::hex << _client << " endpoint " << endpoint << " failed to start. Removing it.";
-        remove_client_connections(_client);
+        remove_client_connections(_client, true);
         continue_registration = false;
     }
 }
@@ -882,13 +882,13 @@ void routing_manager_stub::registration_func(client_t client_id, std::vector<reg
         if (type != registration_type_e::REGISTER) {
             // Don't remove client ID to UID maping as same client
             // could have passed its credentials again
-            remove_client_connections(client_id);
+            remove_client_connections(client_id, type == registration_type_e::DEREGISTER_ON_ERROR);
             utility::release_client_id(configuration_->get_network(), client_id);
         }
     }
 }
 
-void routing_manager_stub::remove_client_connections(client_t client_id) {
+void routing_manager_stub::remove_client_connections(client_t client_id, bool _remove_due_to_error) {
     {
         std::scoped_lock its_guard{routing_info_mutex_};
         auto find_connections = connection_matrix_.find(client_id);
@@ -908,7 +908,7 @@ void routing_manager_stub::remove_client_connections(client_t client_id) {
         }
         service_requests_.erase(client_id);
     }
-    host_->remove_local(client_id, false);
+    host_->remove_local(client_id, false, _remove_due_to_error);
     // notice that the effective shared_ptr copy is ensuring that the object
     // does not go out of scope during execution
     if (auto endpoint = std::dynamic_pointer_cast<server_endpoint>(root_)) {
@@ -1587,8 +1587,8 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
 
                 // we *definitely* need to do this in order - deregister old client, register new client
                 // therefore schedule another registration event
-                // NOTE: no danger of deeper recursion, because of `DEREGISTER` falling into another branch
-                update_registration(old_client, registration_type_e::DEREGISTER, _address, _port);
+                // NOTE: no danger of deeper recursion, because of `DEREGISTER_ON_ERROR` falling into another branch
+                update_registration(old_client, registration_type_e::DEREGISTER_ON_ERROR, _address, _port);
             }
 
             host_->add_guest(_client, _address, _port);

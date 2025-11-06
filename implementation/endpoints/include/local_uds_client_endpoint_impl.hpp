@@ -24,7 +24,7 @@ public:
     virtual ~local_uds_client_endpoint_impl() = default;
 
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     bool is_local() const;
 

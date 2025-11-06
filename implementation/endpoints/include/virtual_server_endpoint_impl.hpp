@@ -20,7 +20,7 @@ public:
 
     void start();
     void prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service);
-    void stop();
+    void stop(bool _due_to_error);
 
     bool is_established() const;
     bool is_established_or_connected() const;

@@ -35,7 +35,7 @@ public:
 
     void init(const endpoint_type& _local, boost::system::error_code& _error) override;
     void start() override;
-    void stop() override;
+    void stop(bool _due_to_error) override;
     void restart(bool _force) override;
     void receive() override;
 

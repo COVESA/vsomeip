@@ -24,7 +24,7 @@ public:
     virtual ~local_tcp_client_endpoint_impl();
 
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     bool is_local() const;
 

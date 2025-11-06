@@ -45,7 +45,7 @@ tcp_client_endpoint_impl::~tcp_client_endpoint_impl() {
     // ensure socket close() before boost destructor
     // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
     VSOMEIP_INFO << "tcei::~tcei: endpoint > " << this << " state_ > " << to_string(state_.load());
-    shutdown_and_close_socket(false);
+    shutdown_and_close_socket(false, true);
 
     std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
     if (its_host) {
@@ -805,7 +805,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
 
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
-            shutdown_and_close_socket(false);
+            shutdown_and_close_socket(false, false);
         } else {
             if (state_ == cei_state_e::CONNECTING) {
                 VSOMEIP_WARNING << "tce::send_cbk endpoint is already restarting:" << get_remote_information();

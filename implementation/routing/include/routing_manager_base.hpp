@@ -147,9 +147,9 @@ protected:
     services_t get_services_remote() const;
     virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
-    void remove_local(client_t _client, bool _remove_sec_client);
+    void remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error);
     void remove_local(client_t _client, const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                      bool _remove_sec_client);
+                      bool _remove_sec_client, bool _remove_due_to_error);
 
     std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
 

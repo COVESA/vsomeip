@@ -1002,13 +1002,13 @@ client_t routing_manager_base::find_local_client_unlocked(service_t _service, in
     return its_client;
 }
 
-void routing_manager_base::remove_local(client_t _client, bool _remove_uid) {
-    remove_local(_client, get_subscriptions(_client), _remove_uid);
+void routing_manager_base::remove_local(client_t _client, bool _remove_uid, bool _remove_due_to_error) {
+    remove_local(_client, get_subscriptions(_client), _remove_uid, _remove_due_to_error);
 }
 
 void routing_manager_base::remove_local(client_t _client,
                                         const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                                        bool _remove_sec_client) {
+                                        bool _remove_sec_client, bool _remove_due_to_error) {
 
     vsomeip_sec_client_t its_sec_client;
     configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
@@ -1025,7 +1025,7 @@ void routing_manager_base::remove_local(client_t _client,
                      << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << "." << std::setw(4) << ANY_EVENT
                      << "]";
     }
-    ep_mgr_->remove_local(_client);
+    ep_mgr_->remove_local(_client, _remove_due_to_error);
     remove_known_client(_client);
     remove_guest(_client);
     {
