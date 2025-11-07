@@ -20,7 +20,7 @@ not initial events, are received correctly
 
 ## Test Logic
 
-![Diagram](docs/subscribe_notify_test.png)
+![Diagram](docs/subscribe_notify_test_one_tests.png)
 
 ### Service provider
 
