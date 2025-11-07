@@ -25,17 +25,16 @@ namespace vsomeip_v3 {
 tcp_client_endpoint_impl::tcp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
                                                    const endpoint_type& _remote, boost::asio::io_context& _io,
-                                                   const std::shared_ptr<configuration>& _configuration) :
+                                                   const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies) :
     tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
+    use_magic_cookies_(_use_magic_cookies), last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)),
     recv_buffer_size_initial_(VSOMEIP_SOMEIP_HEADER_SIZE), recv_buffer_(std::make_shared<message_buffer_t>(recv_buffer_size_initial_, 0)),
     shrink_count_(0), buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()), remote_address_(_remote.address()),
-    remote_port_(_remote.port()), last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)),
+    remote_port_(_remote.port()),
     // send timeout after 2/3 of configured ttl, warning after 1/3
     send_timeout_(configuration_->get_sd_ttl() * 666), send_timeout_warning_(send_timeout_ / 2),
     tcp_restart_aborts_max_(configuration_->get_max_tcp_restart_aborts()),
     tcp_connect_time_max_(configuration_->get_max_tcp_connect_time()), aborted_restart_count_(0), sent_timer_(_io) {
-
-    is_supporting_magic_cookies_ = true;
 
     this->max_message_size_ = _configuration->get_max_message_size_reliable(_remote.address().to_string(), _remote.port());
     this->queue_limit_ = _configuration->get_endpoint_queue_limit(_remote.address().to_string(), _remote.port());
@@ -326,11 +325,13 @@ void tcp_client_endpoint_impl::receive(message_buffer_ptr_t _recv_buffer, std::s
 }
 
 void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) {
+    std::scoped_lock its_lock{socket_mutex_};
+
     const service_t its_service = bithelper::read_uint16_be(&(*_entry.first)[VSOMEIP_SERVICE_POS_MIN]);
     const method_t its_method = bithelper::read_uint16_be(&(*_entry.first)[VSOMEIP_METHOD_POS_MIN]);
     const client_t its_client = bithelper::read_uint16_be(&(*_entry.first)[VSOMEIP_CLIENT_POS_MIN]);
     const session_t its_session = bithelper::read_uint16_be(&(*_entry.first)[VSOMEIP_SESSION_POS_MIN]);
-    if (has_enabled_magic_cookies_) {
+    if (use_magic_cookies_) {
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
             send_magic_cookie(_entry.first);
@@ -348,7 +349,6 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::scoped_lock its_lock{socket_mutex_};
         if (socket_->is_open()) {
             socket_->async_write(
                     boost::asio::buffer(*_entry.first),
@@ -483,9 +483,9 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                 if (has_full_message) {
                     bool needs_forwarding(true);
                     if (is_magic_cookie(_recv_buffer, its_iteration_gap)) {
-                        has_enabled_magic_cookies_ = true;
+                        use_magic_cookies_ = true;
                     } else {
-                        if (has_enabled_magic_cookies_) {
+                        if (use_magic_cookies_) {
                             uint32_t its_offset =
                                     find_magic_cookie(&(*_recv_buffer)[its_iteration_gap], static_cast<uint32_t>(_recv_buffer_size));
                             if (its_offset < current_message_size) {
@@ -496,7 +496,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         }
                     }
                     if (needs_forwarding) {
-                        if (!has_enabled_magic_cookies_) {
+                        if (!use_magic_cookies_) {
                             its_lock.unlock();
                             its_host->on_message(&(*_recv_buffer)[its_iteration_gap], current_message_size, this, false,
                                                  VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
@@ -515,7 +515,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                     _recv_buffer_size -= current_message_size;
                     its_iteration_gap += current_message_size;
                     its_missing_capacity = 0;
-                } else if (has_enabled_magic_cookies_ && _recv_buffer_size > 0) {
+                } else if (use_magic_cookies_ && _recv_buffer_size > 0) {
                     const uint32_t its_offset = find_magic_cookie(&(*_recv_buffer)[its_iteration_gap], _recv_buffer_size);
                     if (its_offset < _recv_buffer_size) {
                         _recv_buffer_size -= its_offset;
@@ -574,7 +574,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         _recv_buffer_size = 0;
                         _recv_buffer->resize(recv_buffer_size_initial_, 0x0);
                         _recv_buffer->shrink_to_fit();
-                        if (has_enabled_magic_cookies_) {
+                        if (use_magic_cookies_) {
                             VSOMEIP_ERROR << "Received a TCP message which exceeds "
                                           << "maximum message size (" << std::dec << current_message_size
                                           << "). Magic Cookies are enabled: "
@@ -598,7 +598,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         its_missing_capacity = current_message_size - static_cast<std::uint32_t>(_recv_buffer_size);
                     } else if (VSOMEIP_SOMEIP_HEADER_SIZE > _recv_buffer_size) {
                         its_missing_capacity = VSOMEIP_SOMEIP_HEADER_SIZE - static_cast<std::uint32_t>(_recv_buffer_size);
-                    } else if (has_enabled_magic_cookies_ && _recv_buffer_size > 0) {
+                    } else if (use_magic_cookies_ && _recv_buffer_size > 0) {
                         // no need to check for magic cookie here again: has_full_message
                         // would have been set to true if there was one present in the data
                         _recv_buffer_size = 0;

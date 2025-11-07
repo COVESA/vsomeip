@@ -41,7 +41,6 @@ public:
     virtual bool send(const byte_t* _data, uint32_t _size) = 0;
     virtual bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) = 0;
     virtual bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) = 0;
-    virtual void enable_magic_cookies() = 0;
     virtual void receive() = 0;
 
     virtual bool wait_connecting_timer() { return true; };

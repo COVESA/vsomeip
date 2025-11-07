@@ -33,8 +33,6 @@ public:
     endpoint_impl(endpoint_impl<Protocol> const&&) = delete;
     virtual ~endpoint_impl() = default;
 
-    void enable_magic_cookies();
-
     void add_default_target(service_t, const std::string&, uint16_t);
     void remove_default_target(service_t);
     void remove_stop_handler(service_t);
@@ -67,19 +65,10 @@ protected:
     std::weak_ptr<endpoint_host> endpoint_host_;
     std::weak_ptr<routing_host> routing_host_;
 
-    bool is_supporting_magic_cookies_;
-    std::atomic<bool> has_enabled_magic_cookies_;
-
-    // Filter configuration
-    std::map<service_t, uint8_t> opened_;
-
     std::uint32_t max_message_size_;
-
-    std::atomic<uint32_t> use_count_;
 
     std::atomic<bool> sending_blocked_;
 
-    std::mutex local_mutex_;
     endpoint_type local_;
 
     error_handler_t error_handler_;
