@@ -186,6 +186,7 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(subscribe_notify_one_tests)
     add_subdirectory(subscribe_notify_tests)
     add_subdirectory(suspend_resume_tests)
+    add_subdirectory(start_stop_start_tests)
 endif()
 
 add_subdirectory(application_tests)

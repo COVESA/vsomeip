@@ -26,6 +26,7 @@
             ]
         }
     ],
+    "routing": "routingmanagerd",
     "service-discovery": {
         "enable": "true",
         "multicast": "224.251.192.252",
