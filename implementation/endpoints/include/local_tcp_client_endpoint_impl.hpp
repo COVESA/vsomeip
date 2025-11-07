@@ -46,8 +46,6 @@ public:
 private:
     void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry);
 
-    void send_magic_cookie();
-
     void connect();
     void receive();
     void receive_cbk(boost::system::error_code const& _error, std::size_t _bytes);

@@ -32,8 +32,6 @@ local_uds_client_endpoint_impl::local_uds_client_endpoint_impl(const std::shared
     // because we have no bind for local endpoints!
     recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
-    is_supporting_magic_cookies_ = false;
-
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
@@ -252,8 +250,6 @@ void local_uds_client_endpoint_impl::get_configured_times_from_endpoint(service_
     (void)_maximum_retention;
     VSOMEIP_ERROR << "local_client_endpoint_impl::get_configured_times_from_endpoint called.";
 }
-
-void local_uds_client_endpoint_impl::send_magic_cookie() { }
 
 void local_uds_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
 
