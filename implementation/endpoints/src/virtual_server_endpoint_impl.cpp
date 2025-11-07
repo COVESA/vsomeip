@@ -66,8 +66,6 @@ bool virtual_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_def
     return false;
 }
 
-void virtual_server_endpoint_impl::enable_magic_cookies() { }
-
 void virtual_server_endpoint_impl::receive() { }
 
 void virtual_server_endpoint_impl::add_default_target(service_t _service, const std::string& _address, uint16_t _port) {

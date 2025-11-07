@@ -30,7 +30,6 @@ public:
     bool send(const byte_t* _data, uint32_t _size);
     bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
     bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
-    void enable_magic_cookies();
     void receive();
 
     void add_default_target(service_t _service, const std::string& _address, uint16_t _port);

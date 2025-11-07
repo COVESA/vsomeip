@@ -24,12 +24,11 @@ namespace vsomeip_v3 {
 
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
-                                                   const std::shared_ptr<configuration>& _configuration) :
-    tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration), acceptor_(_io),
-    buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
+                                                   const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies) :
+    tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration), use_magic_cookies_(_use_magic_cookies),
+    acceptor_(_io), buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
     // send timeout after 2/3 of configured ttl, warning after 1/3
     send_timeout_(configuration_->get_sd_ttl() * 666) {
-    is_supporting_magic_cookies_ = true;
 
     static std::atomic<unsigned> instance_count = 0;
     instance_name_ = "tsei#" + std::to_string(++instance_count) + "::";
@@ -113,7 +112,7 @@ void tcp_server_endpoint_impl::start() {
     if (acceptor_.is_open()) {
         connection::ptr new_connection =
                 connection::create(std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), max_message_size_,
-                                   buffer_shrink_threshold_, has_enabled_magic_cookies_, io_, send_timeout_);
+                                   buffer_shrink_threshold_, use_magic_cookies_, io_, send_timeout_);
 
         acceptor_.async_accept(new_connection->get_socket(),
                                std::bind(&tcp_server_endpoint_impl::accept_cbk,
@@ -383,11 +382,11 @@ void tcp_server_endpoint_impl::disconnect_from(const client_t) {
 ///////////////////////////////////////////////////////////////////////////////
 tcp_server_endpoint_impl::connection::connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
                                                  std::uint32_t _recv_buffer_size_initial, std::uint32_t _buffer_shrink_threshold,
-                                                 bool _magic_cookies_enabled, boost::asio::io_context& _io,
+                                                 bool _use_magic_cookies, boost::asio::io_context& _io,
                                                  std::chrono::milliseconds _send_timeout) :
     socket_(_io), server_(_server), max_message_size_(_max_message_size), recv_buffer_size_initial_(_recv_buffer_size_initial),
     recv_buffer_(_recv_buffer_size_initial, 0), recv_buffer_size_(0), missing_capacity_(0), shrink_count_(0),
-    buffer_shrink_threshold_(_buffer_shrink_threshold), remote_port_(0), magic_cookies_enabled_(_magic_cookies_enabled),
+    buffer_shrink_threshold_(_buffer_shrink_threshold), remote_port_(0), use_magic_cookies_(_use_magic_cookies),
     last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)), send_timeout_(_send_timeout),
     send_timeout_warning_(_send_timeout / 2) {
     auto its_server(_server.lock());
@@ -516,7 +515,7 @@ void tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
     const method_t its_method = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_METHOD_POS_MIN]);
     const client_t its_client = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_CLIENT_POS_MIN]);
     const session_t its_session = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SESSION_POS_MIN]);
-    if (magic_cookies_enabled_) {
+    if (use_magic_cookies_) {
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
             if (send_magic_cookie(its_buffer)) {
@@ -571,6 +570,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                 << static_cast<int>( recv_buffer_[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
+    std::unique_lock its_lock(socket_mutex_);
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
@@ -593,18 +593,16 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                 if (has_full_message) {
                     bool needs_forwarding(true);
                     if (is_magic_cookie(its_iteration_gap)) {
-                        magic_cookies_enabled_ = true;
+                        use_magic_cookies_ = true;
                     } else {
-                        if (magic_cookies_enabled_) {
+                        if (use_magic_cookies_) {
                             uint32_t its_offset = its_server->find_magic_cookie(&recv_buffer_[its_iteration_gap], recv_buffer_size_);
                             if (its_offset < current_message_size) {
-                                {
-                                    std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                                    VSOMEIP_ERROR << instance_name_ << __func__
-                                                  << ": detected Magic Cookie within message data. "
-                                                     "Resyncing."
-                                                  << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
-                                }
+                                VSOMEIP_ERROR << instance_name_ << __func__
+                                              << ": detected Magic Cookie within message data. "
+                                                 "Resyncing."
+                                              << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
+
                                 if (!is_magic_cookie(its_iteration_gap)) {
                                     auto its_endpoint_host = its_server->endpoint_host_.lock();
                                     if (its_endpoint_host) {
@@ -631,14 +629,18 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                 its_server->clients_to_target_[to_clients_key(its_service, its_method, its_client)] = remote_;
                             }
                         }
-                        if (!magic_cookies_enabled_) {
+                        if (!use_magic_cookies_) {
+                            its_lock.unlock();
                             its_host->on_message(&recv_buffer_[its_iteration_gap], current_message_size, its_server.get(), false,
                                                  VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                            its_lock.lock();
                         } else {
                             // Only call on_message without a magic cookie in front of the buffer!
                             if (!is_magic_cookie(its_iteration_gap)) {
+                                its_lock.unlock();
                                 its_host->on_message(&recv_buffer_[its_iteration_gap], current_message_size, its_server.get(), false,
                                                      VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                                its_lock.lock();
                             }
                         }
                     }
@@ -646,19 +648,19 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                     missing_capacity_ = 0;
                     recv_buffer_size_ -= current_message_size;
                     its_iteration_gap += current_message_size;
-                } else if (magic_cookies_enabled_ && recv_buffer_size_ > 0) {
+                } else if (use_magic_cookies_ && recv_buffer_size_ > 0) {
                     uint32_t its_offset = its_server->find_magic_cookie(&recv_buffer_[its_iteration_gap], recv_buffer_size_);
                     if (its_offset < recv_buffer_size_) {
-                        {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": detected Magic Cookie within message data. Resyncing."
-                                          << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
-                        }
+                        VSOMEIP_ERROR << instance_name_ << __func__ << ": detected Magic Cookie within message data. Resyncing."
+                                      << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
+
                         if (!is_magic_cookie(its_iteration_gap)) {
                             auto its_endpoint_host = its_server->endpoint_host_.lock();
                             if (its_endpoint_host) {
+                                its_lock.unlock();
                                 its_endpoint_host->on_error(&recv_buffer_[its_iteration_gap], static_cast<length_t>(recv_buffer_size_),
                                                             its_server.get(), remote_address_, remote_port_);
+                                its_lock.lock();
                             }
                         }
                         recv_buffer_size_ -= its_offset;
@@ -667,8 +669,10 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                         if (!is_magic_cookie(its_iteration_gap)) {
                             auto its_endpoint_host = its_server->endpoint_host_.lock();
                             if (its_endpoint_host) {
+                                its_lock.unlock();
                                 its_endpoint_host->on_error(&recv_buffer_[its_iteration_gap], static_cast<length_t>(recv_buffer_size_),
                                                             its_server.get(), remote_address_, remote_port_);
+                                its_lock.lock();
                             }
                         }
                     }
@@ -682,21 +686,19 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                             || !utility::is_valid_return_code(
                                     static_cast<return_code_e>(recv_buffer_[its_iteration_gap + VSOMEIP_RETURN_CODE_POS])))) {
                         if (recv_buffer_[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
-                            {
-                                std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                                VSOMEIP_ERROR << instance_name_ << __func__ << ": wrong protocol version: 0x" << std::hex
-                                              << std::setfill('0') << std::setw(2)
-                                              << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS])
-                                              << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
-                                              << ". Closing connection due to missing/broken data TCP "
-                                                 "stream.";
-                            }
+                            VSOMEIP_ERROR << instance_name_ << __func__ << ": wrong protocol version: 0x" << std::hex << std::setfill('0')
+                                          << std::setw(2) << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS])
+                                          << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
+                                          << ". Closing connection due to missing/broken data TCP "
+                                             "stream.";
+
                             // ensure to send back a error message w/ wrong protocol version
+                            its_lock.unlock();
                             its_host->on_message(&recv_buffer_[its_iteration_gap], VSOMEIP_SOMEIP_HEADER_SIZE + 8, its_server.get(), false,
                                                  VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                            its_lock.lock();
                         } else if (!utility::is_valid_message_type(
                                            static_cast<message_type_e>(recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS]))) {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
                             VSOMEIP_ERROR << instance_name_ << __func__ << ": invalid message type: 0x" << std::hex << std::setfill('0')
                                           << std::setw(2) << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])
                                           << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
@@ -704,35 +706,34 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                              "stream.";
                         } else if (!utility::is_valid_return_code(
                                            static_cast<return_code_e>(recv_buffer_[its_iteration_gap + VSOMEIP_RETURN_CODE_POS]))) {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
                             VSOMEIP_ERROR << instance_name_ << __func__ << ": invalid return code: 0x" << std::hex << std::setfill('0')
                                           << std::setw(2) << std::uint32_t(recv_buffer_[its_iteration_gap + VSOMEIP_RETURN_CODE_POS])
                                           << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
                                           << ". Closing connection due to missing/broken data TCP "
                                              "stream.";
                         }
+
+                        its_lock.unlock();
                         wait_until_sent(boost::asio::error::operation_aborted);
                         return;
                     } else if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && current_message_size > max_message_size_) {
                         recv_buffer_size_ = 0;
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
-                        if (magic_cookies_enabled_) {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+                        if (use_magic_cookies_) {
                             VSOMEIP_ERROR << instance_name_ << __func__ << ": received a TCP message which exceeds "
                                           << "maximum message size (" << std::dec << current_message_size << " > " << std::dec
                                           << max_message_size_ << "). Magic Cookies are enabled: "
                                           << "Resetting receiver. local: " << get_address_port_local()
                                           << " remote: " << get_address_port_remote();
                         } else {
-                            {
-                                std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                                VSOMEIP_ERROR << instance_name_ << __func__ << ": received a TCP message which exceeds "
-                                              << "maximum message size (" << std::dec << current_message_size << " > " << std::dec
-                                              << max_message_size_ << ") Magic cookies are disabled: "
-                                              << "Connection will be closed! local: " << get_address_port_local()
-                                              << " remote: " << get_address_port_remote();
-                            }
+                            VSOMEIP_ERROR << instance_name_ << __func__ << ": received a TCP message which exceeds "
+                                          << "maximum message size (" << std::dec << current_message_size << " > " << std::dec
+                                          << max_message_size_ << ") Magic cookies are disabled: "
+                                          << "Connection will be closed! local: " << get_address_port_local()
+                                          << " remote: " << get_address_port_remote();
+
+                            its_lock.unlock();
                             wait_until_sent(boost::asio::error::operation_aborted);
                             return;
                         }
@@ -740,28 +741,26 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                         missing_capacity_ = current_message_size - static_cast<std::uint32_t>(recv_buffer_size_);
                     } else if (VSOMEIP_SOMEIP_HEADER_SIZE > recv_buffer_size_) {
                         missing_capacity_ = VSOMEIP_SOMEIP_HEADER_SIZE - static_cast<std::uint32_t>(recv_buffer_size_);
-                    } else if (magic_cookies_enabled_ && recv_buffer_size_ > 0) {
+                    } else if (use_magic_cookies_ && recv_buffer_size_ > 0) {
                         // no need to check for magic cookie here again: has_full_message
                         // would have been set to true if there was one present in the data
                         recv_buffer_size_ = 0;
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
                         missing_capacity_ = 0;
-                        std::lock_guard<std::mutex> its_lock(socket_mutex_);
                         VSOMEIP_ERROR << instance_name_ << __func__ << ": didn't find magic cookie in broken"
                                       << " data, trying to resync."
                                       << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                     } else {
-                        {
-                            std::lock_guard<std::mutex> its_lock(socket_mutex_);
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": recv_buffer_size is: " << std::dec << recv_buffer_size_
-                                          << " but couldn't read "
-                                             "out message_size. recv_buffer_capacity: "
-                                          << recv_buffer_.capacity() << " its_iteration_gap: " << its_iteration_gap
-                                          << "local: " << get_address_port_local() << " remote: " << get_address_port_remote()
-                                          << ". Closing connection due to missing/broken data TCP "
-                                             "stream.";
-                        }
+                        VSOMEIP_ERROR << instance_name_ << __func__ << ": recv_buffer_size is: " << std::dec << recv_buffer_size_
+                                      << " but couldn't read "
+                                         "out message_size. recv_buffer_capacity: "
+                                      << recv_buffer_.capacity() << " its_iteration_gap: " << its_iteration_gap
+                                      << "local: " << get_address_port_local() << " remote: " << get_address_port_remote()
+                                      << ". Closing connection due to missing/broken data TCP "
+                                         "stream.";
+
+                        its_lock.unlock();
                         wait_until_sent(boost::asio::error::operation_aborted);
                         return;
                     }
@@ -777,15 +776,18 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                     missing_capacity_ = 0;
                 }
             }
+
+            its_lock.unlock();
             receive();
         }
     }
     if (_error == boost::asio::error::eof || _error == boost::asio::error::connection_reset || _error == boost::asio::error::timed_out) {
         if (_error == boost::asio::error::timed_out) {
-            std::scoped_lock its_lock{socket_mutex_};
             VSOMEIP_WARNING << instance_name_ << __func__ << ": " << _error.message() << " local: " << get_address_port_local()
                             << " remote: " << get_address_port_remote();
         }
+
+        its_lock.unlock();
         wait_until_sent(boost::asio::error::operation_aborted);
     }
 }

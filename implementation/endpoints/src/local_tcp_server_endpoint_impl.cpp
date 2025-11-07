@@ -44,7 +44,6 @@ local_tcp_server_endpoint_impl::local_tcp_server_endpoint_impl(const std::shared
     local_tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
     acceptor_(abstract_socket_factory::get()->create_tcp_acceptor(_io)),
     buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()), is_routing_endpoint_(_is_routing_endpoint) {
-    is_supporting_magic_cookies_ = false;
 
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
