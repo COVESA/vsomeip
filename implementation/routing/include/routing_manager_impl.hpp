@@ -190,7 +190,7 @@ public:
     void send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
                     endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                    const std::shared_ptr<endpoint>& _endpoint, bool _unreliable_only);
+                                    const std::shared_ptr<endpoint>& _endpoint);
     void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                        const std::shared_ptr<endpoint>& _endpoint);
 

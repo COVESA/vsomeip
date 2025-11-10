@@ -2077,7 +2077,6 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                                           _unreliable_address, _unreliable_port, &is_unreliable_known);
 
     bool udp_inserted(false);
-    bool tcp_inserted(false);
     // Add endpoint(s) if necessary
     if (_reliable_port != ILLEGAL_PORT && !is_reliable_known) {
         std::shared_ptr<endpoint_definition> endpoint_def_tcp =
@@ -2087,10 +2086,8 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             ep_mgr_impl_->add_remote_service_info(_service, _instance, endpoint_def_tcp, endpoint_def_udp);
             udp_inserted = true;
-            tcp_inserted = true;
         } else {
             ep_mgr_impl_->add_remote_service_info(_service, _instance, endpoint_def_tcp);
-            tcp_inserted = true;
         }
 
         // check if service was requested and establish TCP connection if necessary
@@ -2159,34 +2156,26 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 }
             }
         }
-        if (!is_reliable_known && !tcp_inserted) {
-            // UDP only service can be marked as available instantly
-            if (has_requester_unlocked(_service, _instance, _major, _minor)) {
-                if (stub_)
-                    stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
-                on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
-            } else {
-                on_availability(_service, _instance, availability_state_e::AS_OFFERED, _major, _minor);
-            }
-        }
-        if (discovery_) {
-            std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
-            if (ep && ep->is_established()) {
-                discovery_->on_endpoint_connected(_service, _instance, ep);
-            }
-        }
     } else if (_unreliable_port != ILLEGAL_PORT && is_unreliable_known) {
         std::scoped_lock its_lock_inner{requested_services_mutex_};
         if (has_requester_unlocked(_service, _instance, _major, _minor)) {
             if (_reliable_port == ILLEGAL_PORT && !is_reliable_known && stub_
                 && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                      its_info->get_minor())) {
-                stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
-                on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
-                if (discovery_) {
-                    std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
-                    if (ep && ep->is_established()) {
-                        discovery_->on_endpoint_connected(_service, _instance, ep);
+                std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
+                if (ep) {
+                    if (ep->is_established()) {
+                        stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
+                        on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(),
+                                        its_info->get_minor());
+                        if (discovery_) {
+                            discovery_->on_endpoint_connected(_service, _instance, ep);
+                        }
+                    }
+                } else {
+                    ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
+                    for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major, _minor)) {
+                        its_info->add_client(its_client);
                     }
                 }
             }
@@ -4090,16 +4079,10 @@ void routing_manager_impl::print_stub_status() const {
 }
 
 void routing_manager_impl::service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major,
-                                                      minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint,
-                                                      bool _unreliable_only) {
-
-    if (!_unreliable_only) {
-        // Mark only TCP-only and TCP+UDP services available here
-        // UDP-only services are already marked as available in add_routing_info
-        if (stub_)
-            stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
-        on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
-    }
+                                                      minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
+    if (stub_)
+        stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
+    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
 
     auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
     its_timer->expires_after(std::chrono::milliseconds(3));

@@ -185,7 +185,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
 
     if (must_report)
         static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_endpoint, false);
+                                                                            its_info->get_minor(), its_endpoint);
 }
 
 void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance,
@@ -212,9 +212,9 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
 
     if (must_report) {
         static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_unreliable, false);
+                                                                            its_info->get_minor(), its_unreliable);
         static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_reliable, false);
+                                                                            its_info->get_minor(), its_reliable);
     }
 }
 
@@ -823,7 +823,6 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
         major_version_t major_;
         minor_version_t minor_;
         std::shared_ptr<endpoint> endpoint_;
-        bool service_is_unreliable_only_;
     };
 
     // Set to state CONNECTED as connection is not yet fully established in remote side POV
@@ -851,9 +850,8 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
                         const auto its_other_endpoint = its_info->get_endpoint(!endpoint_is_reliable);
 
                         if (!its_other_endpoint || (its_other_endpoint && its_other_endpoint->is_established_or_connected())) {
-                            services_to_report_.push_front({its_service.first, its_instance.first, its_info->get_major(),
-                                                            its_info->get_minor(), _endpoint,
-                                                            (!endpoint_is_reliable && !its_other_endpoint)});
+                            services_to_report_.push_front(
+                                    {its_service.first, its_instance.first, its_info->get_major(), its_info->get_minor(), _endpoint});
                         }
                     }
                 }
@@ -861,8 +859,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
         }
     }
     for (const auto& s : services_to_report_) {
-        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_,
-                                                                            s.service_is_unreliable_only_);
+        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_);
     }
     if (services_to_report_.empty()) {
         _endpoint->set_established(true);
