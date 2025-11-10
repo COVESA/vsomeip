@@ -52,6 +52,10 @@ private:
         auto opt = static_cast<int>(count);
         return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_KEEPCNT, &opt, sizeof(opt)) != -1;
     }
+    [[nodiscard]] bool set_quick_ack() override {
+        int flag = 1;
+        return setsockopt(socket_.native_handle(), IPPROTO_TCP, TCP_QUICKACK, &flag, sizeof(flag)) != -1;
+    }
 #endif
 #if defined(__linux__) || defined(__QNX__)
     [[nodiscard]] bool bind_to_device(std::string const& _device) override {
