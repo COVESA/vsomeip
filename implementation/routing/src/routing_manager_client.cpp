@@ -1210,10 +1210,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                     }
                                     VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): ["
                                                  << std::setw(4) << its_service << "." << std::setw(4) << its_instance << "."
-                                                 << std::setw(4) << its_eventgroup << ":" << std::setw(4) << its_event << ":" << std::dec
-                                                 << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
-                                                 << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                                                 << (_subscription_accepted ? std::to_string(its_count) + " accepted" : "not accepted");
+                                                 << std::setw(4) << its_eventgroup << ":" << std::setw(4) << its_event << ":"
+                                                 << static_cast<uint16_t>(its_major) << "] "
+                                                 << (_subscription_accepted ? "accepted." : "not accepted.") << " id=" << std::setw(4)
+                                                 << its_pending_id << std::dec << " subscribers=" << its_count;
                                 });
                     } else {
                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event, its_pending_id);
@@ -1332,8 +1332,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                 }
                 VSOMEIP_INFO << "UNSUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
                              << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << "."
-                             << std::setw(4) << its_event << "] " << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                             << std::dec << its_remote_subscriber_count;
+                             << std::setw(4) << its_event << "] id=" << std::setw(4) << its_pending_id << " subscribers=" << std::dec
+                             << its_remote_subscriber_count;
             } else
                 VSOMEIP_ERROR << __func__ << ": unsubscribe command deserialization failed (" << std::dec << static_cast<int>(its_error)
                               << ")";

@@ -6,17 +6,19 @@
 #ifndef VSOMEIP_V3_CONFIGURATION_HPP
 #define VSOMEIP_V3_CONFIGURATION_HPP
 
+#include <chrono>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
-#include <chrono>
+#include <utility>
 
 #include <boost/asio/ip/address.hpp>
 #include <boost/icl/interval_set.hpp>
 
-#include <vsomeip/export.hpp>
 #include <vsomeip/defines.hpp>
+#include <vsomeip/export.hpp>
 #include <vsomeip/plugin.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip_sec.h>
@@ -42,6 +44,7 @@ class policy_manager_impl;
 class security;
 class event;
 struct debounce_filter_impl_t;
+struct port_range_t;
 
 class configuration {
 public:
@@ -237,7 +240,6 @@ public:
     virtual bool is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const = 0;
     virtual bool is_secure_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const = 0;
 
-    typedef std::pair<std::uint16_t, std::uint16_t> port_range_t;
     virtual void set_sd_acceptance_rule(const boost::asio::ip::address& _address, port_range_t _port_range, port_type_e _type,
                                         const std::string& _path, bool _reliable, bool _enable, bool _default) = 0;
 
@@ -292,6 +294,29 @@ public:
     virtual bool is_remote_access_allowed() const = 0;
     virtual std::shared_ptr<policy_manager_impl> get_policy_manager() const = 0;
     virtual std::shared_ptr<security> get_security() const = 0;
+};
+
+/// Inclusive port range.
+struct port_range_t {
+    /// Start of the port range.
+    std::uint16_t start_{ANY_PORT};
+
+    /// End (inclusive) of the port range.
+    std::uint16_t end_{ANY_PORT};
+
+    /// Creates a new `port_range_t`.
+    port_range_t(const std::uint16_t _start, const std::uint16_t _end) : start_(_start), end_(_end) {
+        // Fix swapped values.
+        if (start_ > end_) {
+            std::swap(start_, end_);
+        }
+    }
+
+    /// Whether the given value is within this port range.
+    [[nodiscard]] bool contains(const std::uint16_t _value) const { return _value >= start_ && _value <= end_; }
+
+    /// Whether both ends of this range are set to `ANY_PORT`.
+    [[nodiscard]] bool is_any() const { return start_ == ANY_PORT && end_ == ANY_PORT; }
 };
 
 } // namespace vsomeip_v3
