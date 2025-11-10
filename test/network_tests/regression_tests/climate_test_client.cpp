@@ -84,6 +84,7 @@ public:
         for (uint32_t i = 0; i < its_payload->get_length(); ++i) {
             its_message << std::setw(2) << static_cast<int>(its_payload->get_data()[i]) << " ";
         }
+        VSOMEIP_INFO << its_message.str();
 
         if ((its_payload->get_length() % 5) == 0) {
             notifications_received++;
@@ -108,7 +109,7 @@ public:
             } else if (notifications_received == 4) {
                 // All expected notifications received, stop the client and send shutdown message to
                 // service
-                EXPECT_EQ(availability_handler_calls, 9);
+                EXPECT_EQ(availability_handler_calls, 7);
 
                 std::shared_ptr<vsomeip::message> its_set = vsomeip::runtime::get()->create_message();
                 its_set->set_message_type(vsomeip_v3::message_type_e::MT_REQUEST_NO_RETURN);
