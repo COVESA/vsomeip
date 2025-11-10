@@ -92,6 +92,12 @@ public:
      * On error errno will be set.
      **/
     [[nodiscard]] virtual bool set_keepcnt(uint32_t) = 0;
+    /**
+     * abstraction for setting the linux specific tcp option
+     * TCP_QUICKACK.
+     * On error errno will be set.
+     **/
+    [[nodiscard]] virtual bool set_quick_ack() = 0;
 #endif
 #if defined(__linux__) || defined(__QNX__)
     /**

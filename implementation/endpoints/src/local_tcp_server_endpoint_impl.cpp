@@ -562,6 +562,16 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
     std::uint32_t its_command_size = 0;
 
     if (!_error && 0 < _bytes) {
+
+#if defined(__linux__)
+        // set TCP QUICKACK
+        // necessary, because local connections are TCP RST'd, and in order to guarantee no
+        // loss of data, there is (active!) waiting for TCP ACKs - which relies on speedy delivery of TCP ACKs
+        if (!socket_->set_quick_ack()) {
+            VSOMEIP_WARNING << "ltsei::receive_cbk: could not setsockopt(TCP_QUICKACK), errno " << errno;
+        }
+#endif
+
 #if 0
         std::stringstream msg;
         msg << "lse::c<" << this << ">rcb: ";
