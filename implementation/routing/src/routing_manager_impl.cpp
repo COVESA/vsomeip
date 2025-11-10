@@ -2318,18 +2318,17 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
 }
 
 void routing_manager_impl::expire_services(const boost::asio::ip::address& _address) {
-    expire_services(_address, configuration::port_range_t(ANY_PORT, ANY_PORT), false);
+    expire_services(_address, port_range_t(ANY_PORT, ANY_PORT), false);
 }
 
 void routing_manager_impl::expire_services(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) {
-    expire_services(_address, configuration::port_range_t(_port, _port), _reliable);
+    expire_services(_address, port_range_t(_port, _port), _reliable);
 }
 
-void routing_manager_impl::expire_services(const boost::asio::ip::address& _address, const configuration::port_range_t& _range,
-                                           bool _reliable) {
+void routing_manager_impl::expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable) {
     std::map<service_t, std::vector<instance_t>> its_expired_offers;
 
-    const bool expire_all = (_range.first == ANY_PORT && _range.second == ANY_PORT);
+    const bool expire_all = _range.is_any();
 
     for (auto& s : get_services_remote()) {
         for (auto& i : s.second) {
@@ -2340,8 +2339,7 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
                 its_client_endpoint = std::dynamic_pointer_cast<client_endpoint>(i.second->get_endpoint(!_reliable));
             }
             if (its_client_endpoint) {
-                if ((expire_all
-                     || (its_client_endpoint->get_remote_port() >= _range.first && its_client_endpoint->get_remote_port() <= _range.second))
+                if ((expire_all || _range.contains(its_client_endpoint->get_remote_port()))
                     && its_client_endpoint->get_remote_address(its_address) && its_address == _address) {
                     if (discovery_) {
                         discovery_->unsubscribe_all(s.first, i.first);
@@ -2356,24 +2354,25 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
         for (auto& i : s.second) {
             VSOMEIP_INFO << "rmi::" << __func__ << " for address: " << _address << " : delete service/instance " << std::hex
                          << std::setfill('0') << std::setw(4) << s.first << "." << std::setw(4) << i << " port [" << std::dec
-                         << _range.first << "," << _range.second << "] reliability=" << std::boolalpha << _reliable;
+                         << _range.start_ << "," << _range.end_ << "] reliability=" << std::boolalpha << _reliable;
             del_routing_info(s.first, i, true, true, true);
         }
     }
 }
 
 void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address) {
-    expire_subscriptions(_address, configuration::port_range_t(ANY_PORT, ANY_PORT), false);
+    expire_subscriptions(_address, port_range_t(ANY_PORT, ANY_PORT), false);
 }
 
 void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) {
-    expire_subscriptions(_address, configuration::port_range_t(_port, _port), _reliable);
+    expire_subscriptions(_address, port_range_t(_port, _port), _reliable);
 }
 
-void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address, const configuration::port_range_t& _range,
-                                                bool _reliable) {
-    const bool expire_all = (_range.first == ANY_PORT && _range.second == ANY_PORT);
+void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable) {
+    std::stringstream log_header;
+    log_header << "rmi::" << __func__ << "{remote=" << _address << "}: ";
 
+    const bool expire_all = _range.is_any();
     eventgroups_t its_eventgroups;
     {
         std::scoped_lock its_lock{eventgroups_mutex_};
@@ -2383,47 +2382,34 @@ void routing_manager_impl::expire_subscriptions(const boost::asio::ip::address& 
     for (const auto& [key, its_eventgroup] : its_eventgroups) {
         for (auto& [eventgroup_id, its_info] : its_eventgroup) {
             for (auto its_subscription : its_info->get_remote_subscriptions()) {
+                std::stringstream subscription_details;
+                subscription_details << std::hex << std::setfill('0') << " eventgroup=" << std::setw(4) << key.service() << "."
+                                     << std::setw(4) << key.instance() << "." << std::setw(4) << eventgroup_id << " id=" << std::setw(4)
+                                     << its_subscription->get_id();
 
                 if (its_subscription->is_forwarded()) {
-                    VSOMEIP_WARNING << "rmi::" << __func__ << ": New remote subscription replaced expired [" << std::hex
-                                    << std::setfill('0') << std::setw(4) << key.service() << "." << std::setw(4) << key.instance() << "."
-                                    << std::setw(4) << eventgroup_id << "]";
+                    VSOMEIP_WARNING << log_header.str() << "Subscription replaced." << subscription_details.str();
                     continue;
                 }
 
-                // Note: get_remote_subscription delivers a copied
-                // set of subscriptions. Thus, its is possible to
-                // to remove them within the loop.
                 auto its_ep_definition = _reliable ? its_subscription->get_reliable() : its_subscription->get_unreliable();
+                if (!its_ep_definition && expire_all) {
+                    its_ep_definition = _reliable ? its_subscription->get_unreliable() : its_subscription->get_reliable();
+                }
 
-                if (!its_ep_definition && expire_all)
-                    its_ep_definition = (!_reliable) ? its_subscription->get_reliable() : its_subscription->get_unreliable();
+                if (!its_ep_definition) {
+                    continue;
+                }
 
-                if (its_ep_definition && its_ep_definition->get_address() == _address
-                    && (expire_all
-                        || (its_ep_definition->get_remote_port() >= _range.first
-                            && its_ep_definition->get_remote_port() <= _range.second))) {
-
-                    // TODO: Check whether subscriptions to different hosts are valid.
-                    // IF yes, we probably need to simply reset the corresponding
-                    // endpoint instead of removing the subscription...
-                    VSOMEIP_INFO << "rmi::" << __func__ << ": removing subscription to " << std::hex << its_info->get_service() << "."
-                                 << std::hex << its_info->get_instance() << "." << std::hex << its_info->get_eventgroup() << " from target "
-                                 << its_ep_definition->get_address() << ":" << std::dec << its_ep_definition->get_port()
-                                 << " reliable=" << std::boolalpha << its_ep_definition->is_reliable();
-                    if (expire_all) {
-                        its_ep_definition =
-                                (!its_ep_definition->is_reliable()) ? its_subscription->get_reliable() : its_subscription->get_unreliable();
-                        if (its_ep_definition) {
-                            VSOMEIP_INFO << "rmi::" << __func__ << ": removing subscription to " << std::hex << its_info->get_service()
-                                         << "." << std::hex << its_info->get_instance() << "." << std::hex << its_info->get_eventgroup()
-                                         << " from target " << its_ep_definition->get_address() << ":" << std::dec
-                                         << its_ep_definition->get_port() << " reliable=" << std::boolalpha
-                                         << its_ep_definition->is_reliable();
-                        }
+                const bool in_port_range = _range.is_any() || _range.contains(its_ep_definition->get_remote_port());
+                if (its_ep_definition->get_address() == _address && in_port_range) {
+                    if (its_subscription->is_expired()) {
+                        VSOMEIP_WARNING << log_header.str() << "Subscription already expired." << subscription_details.str();
+                    } else {
+                        VSOMEIP_INFO << log_header.str() << "Removing subscription." << subscription_details.str();
+                        its_subscription->set_expired();
+                        on_remote_unsubscribe(its_subscription);
                     }
-                    its_subscription->set_expired();
-                    on_remote_unsubscribe(its_subscription);
                 }
             }
         }
@@ -2611,7 +2597,8 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
                              << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]"
                              << " from " << its_subscription->get_subscriber()->get_address() << ":" << std::dec
                              << its_subscription->get_subscriber()->get_port()
-                             << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable") << " was accepted";
+                             << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable")
+                             << " was accepted. id=" << std::setw(4) << _id;
 
                 return;
             }
@@ -2681,7 +2668,8 @@ void routing_manager_impl::on_subscribe_nack(client_t _client, service_t _servic
                              << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]"
                              << " from " << its_subscription->get_subscriber()->get_address() << ":" << std::dec
                              << its_subscription->get_subscriber()->get_port()
-                             << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable") << " was not accepted";
+                             << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable")
+                             << " was not accepted. id=" << std::setw(4) << _id;
             }
             if (_remove)
                 its_eventgroup->remove_remote_subscription(_id);
@@ -2818,7 +2806,7 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
                     } else {
                         auto its_expiration = s->get_expiration(its_client);
                         if (its_expiration != std::chrono::steady_clock::time_point()) {
-                            if (its_expiration < now) {
+                            if (its_expiration < now && !s->is_expired()) {
                                 its_expired_subscriptions[s].insert(its_client);
                             } else if (its_expiration < its_next_expiration) {
                                 its_next_expiration = its_expiration;
@@ -3884,8 +3872,7 @@ void routing_manager_impl::register_routing_state_handler(const routing_state_ha
     routing_state_handler_ = _handler;
 }
 
-void routing_manager_impl::sd_acceptance_enabled(const boost::asio::ip::address& _address, const configuration::port_range_t& _range,
-                                                 bool _reliable) {
+void routing_manager_impl::sd_acceptance_enabled(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable) {
     expire_subscriptions(_address, _range, _reliable);
     expire_services(_address, _range, _reliable);
 }
@@ -3981,14 +3968,14 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
                 }
             }
         } else {
-            VSOMEIP_ERROR << "rmi::" << __func__ << ": Unknown StopSubscribe " << std::dec << _id << " for eventgroup [" << std::hex
-                          << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4)
-                          << _eventgroup << "]";
+            VSOMEIP_ERROR << __func__ << ": Unknown StopSubscribe for eventgroup [" << std::hex << std::setfill('0') << std::setw(4)
+                          << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "] id=" << std::setw(4)
+                          << _id;
         }
     } else {
         VSOMEIP_ERROR << "rmi::" << __func__ << ": Received StopSubscribe for unknown eventgroup: (" << std::hex << std::setfill('0')
                       << std::setw(4) << _client << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
-                      << std::setw(4) << _eventgroup << "]";
+                      << _eventgroup << "] id=" << std::setw(4) << _id;
     }
 }
 

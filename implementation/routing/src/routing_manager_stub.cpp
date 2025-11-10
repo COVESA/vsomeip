@@ -382,7 +382,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
 
             VSOMEIP_INFO << "SUBSCRIBE ACK(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
                          << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << "."
-                         << std::setw(4) << its_notifier << "]";
+                         << std::setw(4) << its_notifier << "] id=" << std::setw(4) << its_subscription_id;
         } else
             VSOMEIP_ERROR << __func__ << ": deserializing subscribe ack failed (" << std::dec << static_cast<int>(its_error) << ")";
 
@@ -406,7 +406,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
 
             VSOMEIP_INFO << "SUBSCRIBE NACK(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
                          << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << "."
-                         << std::setw(4) << its_notifier << "]";
+                         << std::setw(4) << its_notifier << "] id=" << std::setw(4) << its_subscription_id;
         } else
             VSOMEIP_ERROR << __func__ << ": deserializing subscribe nack failed (" << std::dec << static_cast<int>(its_error) << ")";
 
@@ -427,7 +427,8 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
             host_->on_unsubscribe_ack(its_client, its_service, its_instance, its_eventgroup, its_subscription_id);
 
             VSOMEIP_INFO << "UNSUBSCRIBE ACK(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
-                         << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << "]";
+                         << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup
+                         << "] id=" << std::setw(4) << its_subscription_id;
         } else
             VSOMEIP_ERROR << __func__ << ": deserializing unsubscribe ack failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;

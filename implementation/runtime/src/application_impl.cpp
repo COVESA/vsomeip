@@ -2630,7 +2630,7 @@ void application_impl::set_sd_acceptance_required(const remote_info_t& _remote, 
         return;
     }
 
-    configuration::port_range_t its_range{_remote.first_, _remote.last_};
+    port_range_t its_range{_remote.first_, _remote.last_};
     configuration_->set_sd_acceptance_rule(its_address, its_range, port_type_e::PT_UNKNOWN, _path, _remote.is_reliable_, _enable, true);
 
     if (_enable && routing_) {
