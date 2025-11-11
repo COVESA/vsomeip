@@ -74,7 +74,7 @@ cc_library_shared {
 
     cflags: [
         "-DWITHOUT_SYSTEMD",
-        "-DVSOMEIP_VERSION=\"3.6.0\"",
+        "-DVSOMEIP_VERSION=\"3.6.1\"",
         "-DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\"",
     ],
 
