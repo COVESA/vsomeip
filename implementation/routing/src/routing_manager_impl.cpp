@@ -1708,7 +1708,6 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
     return is_delivered;
 }
 
-#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
 bool routing_manager_impl::has_subscribed_eventgroup(service_t _service, instance_t _instance) const {
 
     std::scoped_lock its_lock{eventgroups_mutex_};
@@ -1725,7 +1724,6 @@ bool routing_manager_impl::has_subscribed_eventgroup(service_t _service, instanc
 
     return false;
 }
-#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
 
 bool routing_manager_impl::deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length,
                                                 bool _reliable, client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
@@ -1812,7 +1810,6 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
         }
 
     } else {
-#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
         if (has_subscribed_eventgroup(_service, _instance)) {
             if (!is_suppress_event(_service, _instance, its_event_id)) {
                 VSOMEIP_WARNING << "rmi::" << __func__ << ": Caching unregistered event [" << std::hex << std::setfill('0') << std::setw(4)
@@ -1836,13 +1833,6 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
                             << "." << std::setw(4) << _instance << "." << std::setw(4) << its_event_id << "] "
                             << "Service has no subscribed eventgroup.";
         }
-#else
-        if (!is_suppress_event(_service, _instance, its_event_id)) {
-            VSOMEIP_WARNING << "rmi::" << __func__ << ": Event [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                            << std::setw(4) << _instance << "." << std::setw(4) << its_event_id << "]"
-                            << " is not registered. The message is dropped.";
-        }
-#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
     }
     return true;
 }
