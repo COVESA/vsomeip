@@ -338,9 +338,7 @@ private:
     bool is_acl_message_allowed(endpoint* _receiver, service_t _service, instance_t _instance,
                                 const boost::asio::ip::address& _remote_address) const;
 
-#ifdef VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
     bool has_subscribed_eventgroup(service_t _service, instance_t _instance) const;
-#endif // VSOMEIP_ENABLE_DEFAULT_EVENT_CACHING
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;
