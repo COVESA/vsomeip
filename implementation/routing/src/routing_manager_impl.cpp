@@ -1404,7 +1404,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
     if (is_forwarded) {
         trace::header its_header;
         const boost::asio::ip::address_v4 its_remote_address =
-                _remote_address.is_v4() ? _remote_address.to_v4() : boost::asio::ip::address_v4::from_string("6.6.6.6");
+                _remote_address.is_v4() ? _remote_address.to_v4() : boost::asio::ip::make_address_v4("6.6.6.6");
         trace::protocol_e its_protocol = _receiver->is_local() ? trace::protocol_e::local
                 : _receiver->is_reliable()                     ? trace::protocol_e::tcp
                                                                : trace::protocol_e::udp;
@@ -1442,7 +1442,7 @@ bool routing_manager_impl::on_message(service_t _service, instance_t _instance, 
         std::shared_ptr<endpoint> _receiver = its_info->get_endpoint(_reliable);
         if (_receiver && _receiver.get()) {
             if(!is_acl_message_allowed(_receiver.get(), _service, _instance,
-                    boost::asio::ip::address_v4::from_string("127.0.0.1"))) {
+                    boost::asio::ip::make_address_v4("127.0.0.1"))) {
                 return false;
             }
         }
