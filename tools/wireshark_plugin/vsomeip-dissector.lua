@@ -4,7 +4,7 @@
     author: rui.graca@ctw.bmwgroup.com
 --]]
 
-protocol_name = 'vsomeip'
+protocol_name = 'vsomeip3'
 config = 'vsomeip_config'
 
 vsomeip_protocol = Proto(protocol_name, protocol_name:upper() .. ' Protocol')
@@ -74,7 +74,7 @@ vsomeip_protocol.fields = {
 }
 
 -- VSOMEIP_ROUTING_INFO
-vsomeip_routing_info_name = 'vsomeip_routing_info'
+vsomeip_routing_info_name = 'vsomeip3_routing_info'
 vsomeip_routing_info = Proto(vsomeip_routing_info_name, vsomeip_routing_info_name:upper())
 vsomeip_routing_info_command = ProtoField.uint8(vsomeip_routing_info_name .. '.subcommand' , "SubCommand", base.HEX)
 vsomeip_routing_info_size = ProtoField.uint32(vsomeip_routing_info_name .. '.size' , "Size", base.DEC)
@@ -94,7 +94,7 @@ vsomeip_routing_info.fields = {
     vsomeip_routing_info_size_service
 }
 
-vsomeip_routing_info_service_name = 'vsomeip_routing_info_service'
+vsomeip_routing_info_service_name = 'vsomeip3_routing_info_service'
 vsomeip_routing_info_service = Proto(vsomeip_routing_info_service_name, vsomeip_routing_info_service_name:upper())
 vsomeip_routing_info_service_id = ProtoField.uint16(vsomeip_routing_info_service_name .. '.serviceId' , "Service", base.HEX)
 vsomeip_routing_info_instance = ProtoField.uint16(vsomeip_routing_info_service_name .. '.instance' , "Instance", base.HEX)
@@ -108,7 +108,7 @@ vsomeip_routing_info_service.fields = {
 }
 
 -- VSOMEIP_REGISTER_EVENT
-vsomeip_register_event_name = 'vsomeip_register_event'
+vsomeip_register_event_name = 'vsomeip3_register_event'
 vsomeip_register_event = Proto(vsomeip_register_event_name, vsomeip_register_event_name:upper())
 vsomeip_register_event_service = ProtoField.uint16(vsomeip_register_event_name .. '.service', "Service", base.HEX)
 vsomeip_register_event_instance = ProtoField.uint16(vsomeip_register_event_name .. '.instance', "Instance", base.HEX)
@@ -125,7 +125,7 @@ vsomeip_register_event.fields = {vsomeip_register_event_service, vsomeip_registe
                                  vsomeip_register_event_iscyclic, vsomeip_register_event_numeventgroups}
 
 vsomeip_register_event_eventgroup = ProtoField.uint16(vsomeip_register_event_name .. '.eventgroup', "EventGroup", base.HEX)
-vsomeip_register_event_eventgroups_name = 'vsomeip_register_event_eventgroups'
+vsomeip_register_event_eventgroups_name = 'vsomeip3_register_event_eventgroups'
 vsomeip_register_event_eventgroups = Proto(vsomeip_register_event_eventgroups_name, vsomeip_register_event_eventgroups_name:upper())
 vsomeip_register_event_eventgroups.fields = {vsomeip_register_event_eventgroup}
 
@@ -811,7 +811,7 @@ function common_vsomeip_header(command_name, command_id, buffer, packet_info, tr
     local size_field = buffer(buffer_cursor, size_field_size)
     local message_size = size_field:le_uint()
 
-    local vsomeip_command_subtree = tree:add(vsomeip_protocol, buffer(), "vSomeip (" .. calc_vsomeip_message_size(command_name, message_size) .. " bytes) " .. command_name)
+    local vsomeip_command_subtree = tree:add(vsomeip_protocol, buffer(), "vsomeip3 (" .. calc_vsomeip_message_size(command_name, message_size) .. " bytes) " .. command_name)
     vsomeip_command_subtree:add_le(vsomeip_command, command_id):append_text(" (" .. command_name .. ")")
     vsomeip_command_subtree:add_le(vsomeip_version, version_field)
     if command_name ~= "VSOMEIP_SUSPEND" then
@@ -896,7 +896,7 @@ function try_read_vsomeip_packet(buffer, packet_info, tree)
     end
     local command = find_command_structure(command_id:uint())
     if (command) then
-        packet_info.cols.protocol = "vSomeip"
+        packet_info.cols.protocol = "vsomeip3"
         packet_info.cols.info = command["name"]
         -- Message size starts counting on the buffer_cursor value returned by the common_vsomeip_header
         local message_size, vsomeip_command_subtree = common_vsomeip_header(command["name"], command_id, try_seek(buffer, buffer_cursor), packet_info, tree)
@@ -942,7 +942,7 @@ function vsomeip_protocol.dissector(buffer, packet_info, root_tree)
         buffer = try_seek(buffer, end_packet_position)
     end
     if vsomeip_packets_counter > 1 then
-        packet_info.cols.info = " VSOMEIP [This TCP stream contains " .. vsomeip_packets_counter .. " vsomeip packets]"
+        packet_info.cols.info = " VSOMEIP3 [This TCP stream contains " .. vsomeip_packets_counter .. " vsomeip packets]"
     end
 end
 
