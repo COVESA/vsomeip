@@ -33,9 +33,10 @@ export VSOMEIP_APPLICATION_NAME="client-sample"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_ONE=$!
 
-# offer_test_external_slave_starter only offers a service so
-# allow the apps to start before and give time for offer_test_service
-# to respond to all client's messages
+# offer same service in an external host
+# but give time for the local offer to "win"
+# TODO: terrible.. instead of a sleep, could have a one-shot binary that checks for service availability!
+# NOTE: it is *THIS MUCH* because binaries can take >1s to startup under valgrind..
 sleep 3
 
 SLAVE_PID=0
@@ -64,7 +65,7 @@ fi
 # Wait until all clients and services are finished
 # Fail gets incremented if a client exits with a non-zero exit code
 wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
-wait $SLAVE_PID || FAIL=$(($FAIL+1))
+kill $SLAVE_PID
 kill -USR1 $PID_SERVICE_TWO
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
@@ -79,17 +80,21 @@ wait $PID_VSOMEIPD
 
 export VSOMEIP_CONFIGURATION=offer_test_external_master.json
 # start daemon
+export VSOMEIP_APPLICATION_NAME="routingmanager"
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the services
+export VSOMEIP_APPLICATION_NAME="service-sample"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
 
+export VSOMEIP_APPLICATION_NAME="client-sample"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_ONE=$!
 
-# allow the apps to start before offer_test_external_sd_msg_sender
-sleep 5
+# offer same service in an external host
+# but this time, some hacked-up code that sends SOME/IP-SD OFFERs directly
+sleep 3
 
 SLAVE_PID=0
 if [ ! -z "$USE_LXC_TEST" ]; then
@@ -115,7 +120,7 @@ fi
 # Wait until all clients and services are finished
 # Fail gets incremented if a client exits with a non-zero exit code
 wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
-wait $SLAVE_PID || FAIL=$(($FAIL+1))
+kill $SLAVE_PID
 kill -USR1 $PID_SERVICE_TWO
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 

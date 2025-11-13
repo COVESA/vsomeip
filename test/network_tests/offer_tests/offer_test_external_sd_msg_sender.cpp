@@ -25,16 +25,12 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
                                                     0x00, 0x06, 0x86, 0xcf, 0x00, 0x09, 0x04, 0x00, 0x0a, 0x00, 0x03,
                                                     0x7D, // slave address
                                                     0x00, 0x11, 0x75, 0x31};
-        for (int var = 0; var < 15; ++var) {
+        // send messages forever, caller will signal to stop
+        while (true) {
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
             ++its_offer_service_message[11];
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
-
-        // call shutdown method
-        std::uint8_t shutdown_call[] = {0x11, 0x11, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
-        boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(passed_address)), 30001);
-        udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
     } catch (const std::exception& e) {
         std::cerr << "Caught exception: " << e.what() << '\n';
         ASSERT_FALSE(true);

@@ -49,7 +49,6 @@ public:
     ~offer_test_service() { offer_thread_.join(); }
 
     void offer() {
-        app_->offer_service(service_info_.service_id, service_info_.instance_id);
         // this is allowed
         app_->offer_service(service_info_.service_id, service_info_.instance_id);
         // this is not allowed and will be rejected
@@ -92,14 +91,8 @@ public:
             condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
         }
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Calling stop method";
-        std::shared_ptr<vsomeip::message> msg(vsomeip::runtime::get()->create_request());
-        msg->set_service(service_info_.service_id);
-        msg->set_instance(service_info_.instance_id);
-        msg->set_method(service_info_.shutdown_method_id);
-        msg->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
-        app_->send(msg);
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Exiting";
+
         app_->clear_all_handler();
         app_->stop();
     }
