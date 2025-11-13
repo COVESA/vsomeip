@@ -1,0 +1,30 @@
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-4-SOMEIP_deployment_spec.fdepl"
+
+import "Event.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.Event
+{
+    SomeIpServiceID = 4665
+
+    // Field deployments
+    attribute temperature {
+        SomeIpGetterID = 0x2001
+        SomeIpSetterID = 0x2002
+        SomeIpNotifierID = 0x8001
+        SomeIpNotifierEventGroups = { 1 }
+    }
+
+}
+
+define org.genivi.commonapi.someip.deployment for provider as Service
+{
+    instance commonapi.examples.Event
+    {
+        InstanceId = "commonapi.examples.event"
+        SomeIpInstanceID = 0x1231
+        
+        SomeIpUnicastAddress = "127.0.0.1"
+        SomeIpReliableUnicastPort = 30499
+        SomeIpUnreliableUnicastPort = 30500   
+    }
+}

@@ -1,0 +1,69 @@
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip/build$ hello_serv
+[CAPI][INFO] Loading configuration file '../config/commonapi4someip.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[CAPI][DEBUG] Loading library for local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld stub.
+[CAPI][INFO] Loading configuration file /etc//commonapi-someip.ini
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld <--> [1234.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.HelloWorld:v0_1" stub adapter.
+[CAPI][DEBUG] Loading interface library "libHelloWorld-someip.so" succeeded.
+[CAPI][INFO] Registering stub for "local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld"
+2025-07-14 15:18:55.636594  [info] Security configuration is active.
+2025-07-14 15:18:55.636941  [info] Using configuration file: "../config/vsomeip-local-security.json".
+2025-07-14 15:18:55.636992  [info] Parsed vsomeip configuration in 0ms
+2025-07-14 15:18:55.637045  [info] Configuration module loaded.
+2025-07-14 15:18:55.637093  [info] Using internal security implementation!
+2025-07-14 15:18:55.637142  [info] Initializing vsomeip (3.5.6) application "service-sample".
+2025-07-14 15:18:55.637200  [info] Instantiating routing manager [Host].
+2025-07-14 15:18:55.637426  [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-07-14 15:18:55.639786  [info] Service Discovery enabled. Trying to load module.
+2025-07-14 15:18:55.640256  [info] Service Discovery module loaded.
+2025-07-14 15:18:55.640370  [info] Application(service-sample, 1277) is initialized (11, 100).
+2025-07-14 15:18:55.640715  [info] Starting vsomeip application "service-sample" (1277) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-14 15:18:55.640914  [info] rmi::offer_service added service: 1234 to pending_sd_offers_.size = 1
+2025-07-14 15:18:55.641133  [info] Client [1277] routes unicast:127.0.0.1, netmask:255.255.255.0
+2025-07-14 15:18:55.641114  [info] shutdown thread id from application: 1277 (service-sample) is: 7c9815199640 TID: 80527
+2025-07-14 15:18:55.641225  [info] main dispatch thread id from application: 1277 (service-sample) is: 7c981599a640 TID: 80526
+2025-07-14 15:18:55.649959  [info] create_local_server: Listening @ /tmp/vsomeip-1277
+2025-07-14 15:18:55.650109  [info] OFFER(1277): [1234.5678:0.1] (true)
+Successfully Registered Service!
+Waiting for calls ... (Abort with CTRL+C)
+2025-07-14 15:18:55.660262  [info] Watchdog is disabled!
+2025-07-14 15:18:55.660518  [info] io thread id from application: 1277 (service-sample) is: 7c981619b640 TID: 80525
+2025-07-14 15:18:55.660533  [info] io thread id from application: 1277 (service-sample) is: 7c98077fe640 TID: 80530
+2025-07-14 15:18:55.661056  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:18:55.661255  [warning] Network interface "lo" state changed: up
+2025-07-14 15:19:05.661418  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:19:15.661874  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:19:25.662354  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:19:35.662662  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:19:45.663516  [info] vSomeIP 3.5.6 | (default)
+Waiting for calls ... (Abort with CTRL+C)
+2025-07-14 15:19:55.664207  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:20:05.664779  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:20:15.665168  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:20:25.665371  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:20:35.665968  [info] vSomeIP 3.5.6 | (default)
+2025-07-14 15:20:38.561803  [info] Application/Client 1344 is registering.
+2025-07-14 15:20:38.561998  [info] emb::find_or_create_local: create_client 1344
+2025-07-14 15:20:38.562326  [info] Client [1277] is connecting to [1344] at /tmp/vsomeip-1344 endpoint > 0x7c9800001050
+2025-07-14 15:20:38.562644  [info] cei::wait_connecting_cbk: endpoint > 0x7c9800001050 socket state > 3
+2025-07-14 15:20:38.563520  [info] REGISTERED_ACK(1344)
+2025-07-14 15:20:38.566992  [info] REQUEST(1344): [1234.5678:0.4294967295]
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+2025-07-14 15:20:45.666463  [info] vSomeIP 3.5.6 | (default)

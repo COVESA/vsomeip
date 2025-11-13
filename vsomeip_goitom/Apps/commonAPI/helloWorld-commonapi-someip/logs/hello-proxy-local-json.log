@@ -1,0 +1,84 @@
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip$ export COMMONAPI_CONFIG=commonapi4someip.ini VSOMEIP_CONFIGURATION=config/vsomeip-local.json
+./build/HelloWorldClient
+[CAPI][INFO] Loading configuration file 'commonapi4someip.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[CAPI][DEBUG] Loading library for local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld proxy.
+[CAPI][INFO] Loading configuration file /etc//commonapi-someip.ini
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld <--> [1234.1234(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.HelloWorld:v0_1" stub adapter.
+[CAPI][DEBUG] Loading interface library "libHelloWorld-someip.so" succeeded.
+2025-07-14 11:47:13.105062  [warning] Reliability type for event [1234.5678.0777] was not configured Using : RT_UNRELIABLE
+2025-07-14 11:47:13.105150  [warning] Reliability type for event [1234.5678.0778] was not configured Using : RT_UNRELIABLE
+2025-07-14 11:47:13.105158  [warning] Reliability type for event [1234.5678.0779] was not configured Using : RT_UNRELIABLE
+2025-07-14 11:47:13.105289  [info] Using configuration file: "config/vsomeip-local.json".
+2025-07-14 11:47:13.105319  [info] Parsed vsomeip configuration in 0ms
+2025-07-14 11:47:13.105331  [info] Configuration module loaded.
+2025-07-14 11:47:13.105360  [info] Security disabled!
+2025-07-14 11:47:13.105373  [info] Initializing vsomeip (3.5.6) application "client-sample".
+2025-07-14 11:47:13.105381  [info] Instantiating routing manager [Proxy].
+2025-07-14 11:47:13.105465  [info] Client [1344] is connecting to [0] at /tmp/vsomeip-0 endpoint > 0x58dbc96da540
+2025-07-14 11:47:13.105501  [info] Application(client-sample, 1344) is initialized (11, 100).
+Checking availability !
+2025-07-14 11:47:13.106008  [info] Starting vsomeip application "client-sample" (1344) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-14 11:47:13.106226  [debug] Thread created. Number of active threads for client-sample : 1
+2025-07-14 11:47:13.106300  [info] main dispatch thread id from application: 1344 (client-sample) is: 71e7239fd640 TID: 41187
+2025-07-14 11:47:13.106495  [info] io thread id from application: 1344 (client-sample) is: 71e7241fe640 TID: 41186
+2025-07-14 11:47:13.106544  [info] cei::wait_connecting_cbk: endpoint > 0x58dbc96da540 socket state > 1
+2025-07-14 11:47:13.106558  [info] assign_client: (1344:client-sample)
+2025-07-14 11:47:13.106528  [info] shutdown thread id from application: 1344 (client-sample) is: 71e7231fc640 TID: 41188
+2025-07-14 11:47:13.106559  [info] io thread id from application: 1344 (client-sample) is: 71e7229fb640 TID: 41189
+2025-07-14 11:47:13.106564  [debug] rmc::assign_client: state_ change 1 -> 3
+2025-07-14 11:47:13.106975  [debug] rmc::on_client_assign_ack: state_ change 3 -> 4
+2025-07-14 11:47:13.115548  [info] create_local_server: Listening @ /tmp/vsomeip-1344
+2025-07-14 11:47:13.115637  [info] Client 1344 (client-sample) successfully connected to routing  ~> registering..
+2025-07-14 11:47:13.115676  [info] Client 1344 Registering to routing manager @ vsomeip-0
+2025-07-14 11:47:13.115711  [debug] rmc::register_application: state_ change 4 -> 2
+2025-07-14 11:47:13.116392  [info] Application/Client 1344 (client-sample) is registered.
+2025-07-14 11:47:13.116512  [debug] rmc::on_routing_info: state_ change 2 -> 0
+2025-07-14 11:47:13.127269  [info] ON_AVAILABLE(1344): [1234.1234:0.1]
+Available...
+2025-07-14 11:47:13.127558  [info] emb::find_or_create_local: create_client 1277
+2025-07-14 11:47:13.127611  [info] Client [1344] is connecting to [1277] at /tmp/vsomeip-1277 endpoint > 0x58dbc96dd920
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 1
+2025-07-14 11:47:13.127820  [info] cei::wait_connecting_cbk: endpoint > 0x58dbc96dd920 socket state > 1
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 2
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 3
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 4
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 5
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 6
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 7
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 8
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 9
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 10
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 11
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 12
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 13
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 14
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 15
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 16
+^C2025-07-14 11:47:30.104150  [info] Stopping vsomeip application "client-sample" (1344).
+2025-07-14 11:47:30.107944  [debug] Thread destroyed. Number of active threads for client-sample : 0
+^C^C2025-07-14 11:47:35.108538  [warning] 1344 couldn't deregister application - timeout
+2025-07-14 11:47:35.108810  [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x58dbc96da540 socket state > 0
+2025-07-14 11:47:35.108836  [info] emb::remove_local: client 1277
+2025-07-14 11:47:35.108883  [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x58dbc96dd920 socket state > 0
+2025-07-14 11:47:35.108890  [info] Client [1344] is closing connection to [1277] endpoint > 0x58dbc96dd920
+Remote call failed!
+2025-07-14 11:47:44.161418  [info] Stopping vsomeip application "client-sample" (1344).
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip$

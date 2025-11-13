@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+
+<dict>
+	<key>CFBundleExecutable</key>
+		<string>commonapi-someip-generator</string>
+	<key>CFBundleGetInfoString</key>
+		<string>Eclipse 4.8 for Mac OS X, Copyright IBM Corp. and others 2002, 2017. All rights reserved.</string>
+	<key>CFBundleIconFile</key>
+		<string>Eclipse.icns</string>
+	<key>CFBundleIdentifier</key>
+		<string>org.genivi.commonapi.someip.cli.product</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+	<key>CFBundleName</key>
+		<string>commonapi-someip-generator</string>
+	<key>CFBundlePackageType</key>
+		<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+		<string>3.2.15</string>
+	<key>CFBundleSignature</key>
+		<string>????</string>
+	<key>CFBundleVersion</key>
+		<string>3.2.15</string>
+	<key>NSHighResolutionCapable</key>
+		<true/>
+	<key>CFBundleDevelopmentRegion</key>
+		<string>English</string>		
+	<key>Eclipse</key>
+		<array>
+			<!-- to use a specific Java version (instead of the platform's default) uncomment one of the following options,
+					or add a VM found via $/usr/libexec/java_home -V
+				<string>-vm</string><string>/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Commands/java</string>
+				<string>-vm</string><string>/Library/Java/JavaVirtualMachines/1.8.0.jdk/Contents/Home/bin/java</string>
+			-->
+			<string>-keyring</string><string>~/.eclipse_keyring</string>
+		</array>
+</dict>
+
+</plist>
+

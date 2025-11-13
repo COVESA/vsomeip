@@ -1,0 +1,81 @@
+
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-4-SOMEIP_deployment_spec.fdepl"
+
+import "EventsAndFields.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.EventsAndFields
+{
+    SomeIpServiceID = 0x1235
+
+    // Field deployments
+    attribute temperature {
+        SomeIpGetterID = 0x2001
+        SomeIpSetterID = 0x2002
+        SomeIpNotifierID = 0x8001
+        SomeIpNotifierEventGroups = { 1 }
+    }
+    
+    attribute status {
+        SomeIpGetterID = 0x2003
+        SomeIpSetterID = 0x2004
+        SomeIpNotifierID = 0x8002
+        SomeIpNotifierEventGroups = { 1 }
+        SomeIpStringEncoding = utf16le      
+    }
+
+    // Event deployments
+    broadcast temperatureAlert {
+        SomeIpEventID = 0x8003
+        SomeIpEventGroups = { 2 }
+        SomeIpReliable = false
+        
+        out {
+            currentTemp { }
+            alertLevel {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+    
+    broadcast statusChanged {
+        SomeIpEventID = 0x8004
+        SomeIpEventGroups = { 2 }
+        SomeIpReliable = false
+        
+        out {
+            newStatus {
+                SomeIpStringEncoding = utf16le
+            }
+            timestamp { }
+        }
+    }
+    
+    // Method deployment
+    method getSystemInfo {
+        SomeIpMethodID = 0x2005
+        SomeIpReliable = true
+        
+        out {
+            systemVersion {
+                SomeIpStringEncoding = utf16le
+            }
+            status {
+                SomeIpStringEncoding = utf16le
+            }
+            temperature { }
+        }
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as Service
+{
+    instance commonapi.examples.EventsAndFields
+    {
+        InstanceId = "commonapi.examples.eventsandfields"
+        SomeIpInstanceID = 0x5678
+        
+        SomeIpUnicastAddress = "127.0.0.1"
+        SomeIpReliableUnicastPort = 30499
+        SomeIpUnreliableUnicastPort = 30500   
+    }
+}

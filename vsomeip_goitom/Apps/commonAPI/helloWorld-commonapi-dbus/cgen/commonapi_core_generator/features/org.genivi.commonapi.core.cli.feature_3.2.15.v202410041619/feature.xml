@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="org.genivi.commonapi.core.cli.feature"
+      label="GENIVI CommonAPI Core Console Interface Feature"
+      version="3.2.15.v202410041619"
+      provider-name="BMW AG">
+
+   <plugin
+         id="org.genivi.commonapi.core.cli"
+         download-size="12"
+         install-size="26"
+         version="3.2.15.v202410041619"
+         unpack="false"/>
+
+   <plugin
+         id="org.genivi.commonapi.core"
+         download-size="663"
+         install-size="1716"
+         version="3.2.15.v202410041619"
+         unpack="false"/>
+
+</feature>

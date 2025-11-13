@@ -1,0 +1,144 @@
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-4-SOMEIP_deployment_spec.fdepl"
+
+import "World.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.World
+{
+    SomeIpServiceID = 4660
+
+    method sayHello
+    {
+        SomeIpMethodID = 30000
+        in
+        {
+            name
+            {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+    method sayBye
+    {
+        SomeIpMethodID = 30001
+        in
+        {
+            name
+            {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as SomeIpServiceID
+{
+    instance commonapi.examples.World
+    {
+        InstanceId = "commonapi.examples.someip"
+        SomeIpInstanceID = 22136
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.BadServiceServiceID
+{
+    SomeIpServiceID = 4662
+
+    method sayHello
+    {
+        SomeIpMethodID = 30001
+        in
+        {
+            name
+            {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as SomeIpServiceID
+{
+    instance commonapi.examples.BadServiceServiceID
+    {
+        InstanceId = "commonapi.examples.someip.badserviceserviceid"
+        SomeIpInstanceID = 22136
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.BadServiceInstanceID
+{
+    SomeIpServiceID = 4660
+
+    method sayHello
+    {
+        SomeIpMethodID = 30002
+        in
+        {
+            name
+            {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as SomeIpServiceID
+{
+    instance commonapi.examples.BadServiceInstanceID
+    {
+        InstanceId = "commonapi.examples.someip.badserviceinstanceid"
+        SomeIpInstanceID = 22137
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.BadProxyServiceID
+{
+    SomeIpServiceID = 4663
+
+    method sayHello
+    {
+        SomeIpMethodID = 30003
+        in
+        {
+            name
+            {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as SomeIpServiceID
+{
+    instance commonapi.examples.BadProxyServiceID
+    {
+        InstanceId = "commonapi.examples.someip.badproxyserviceid"
+        SomeIpInstanceID = 22136
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.examples.BadProxyInstanceID
+{
+    SomeIpServiceID = 4661
+
+    method sayHello
+    {
+        SomeIpMethodID = 30004
+        in
+        {
+            name
+            {
+                SomeIpStringEncoding = utf16le
+            }
+        }
+    }
+}
+
+define org.genivi.commonapi.someip.deployment for provider as SomeIpServiceID
+{
+    instance commonapi.examples.BadProxyInstanceID
+    {
+        InstanceId = "commonapi.examples.someip.badproxyinstanceid"
+        SomeIpInstanceID = 22137
+    }
+}

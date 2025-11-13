@@ -1,0 +1,30 @@
+Manifest-Version: 1.0
+Bundle-SymbolicName: org.eclipse.equinox.launcher.win32.win32.x86; sin
+ gleton:=true
+Built-By: genie.releng
+Bundle-ManifestVersion: 2
+Eclipse-PlatformFilter: (& (osgi.ws=win32) (osgi.os=win32) (osgi.arch=
+ x86))
+Eclipse-SourceReferences: scm:git:git://git.eclipse.org/gitroot/equino
+ x/rt.equinox.framework.git;path="bundles/org.eclipse.equinox.launcher
+ .win32.win32.x86";tag="I20180827-2000";commitId=d649af7cd2b88425792a8
+ f9b4fa0b1e514726c90
+Bundle-Vendor: %providerName
+Fragment-Host: org.eclipse.equinox.launcher;bundle-version="[1.0.0,1.6
+ .0)"
+Bundle-Name: %pluginName
+Bundle-Version: 1.1.800.v20180827-1352
+Bundle-Localization: launcher.win32.win32.x86
+Created-By: Apache Maven 3.3.3
+Build-Jdk: 1.8.0_162
+Eclipse-BundleShape: dir
+
+Name: about.html
+SHA-256-Digest: 7mbS+ztMDS7S5/aYvJ7U49bPd/pcr0CtAylhJdsaxfA=
+
+Name: launcher.win32.win32.x86.properties
+SHA-256-Digest: l5+pnHypqxw8M1jUjbbUvxAFoyjSFm34TtaimixbtTk=
+
+Name: eclipse_1705.dll
+SHA-256-Digest: lRBHg1OhEUc2u4sNFQarjNXbfa6OMttZDIhC4vfO/6c=
+

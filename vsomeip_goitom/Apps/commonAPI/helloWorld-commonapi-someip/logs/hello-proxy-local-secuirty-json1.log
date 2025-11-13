@@ -1,0 +1,55 @@
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip/build$ hello_cl
+[CAPI][INFO] Loading configuration file '../config/commonapi4someip.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[CAPI][DEBUG] Loading library for local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld proxy.
+[CAPI][INFO] Loading configuration file /etc//commonapi-someip.ini
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.HelloWorld:v0_1:commonapi.examples.HelloWorld <--> [1234.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.HelloWorld:v0_1" stub adapter.
+[CAPI][DEBUG] Loading interface library "libHelloWorld-someip.so" succeeded.
+2025-07-14 15:20:38.554744  [info] Security configuration is active.
+2025-07-14 15:20:38.555094  [info] Using configuration file: "../config/vsomeip-local-security.json".
+2025-07-14 15:20:38.555156  [info] Parsed vsomeip configuration in 1ms
+2025-07-14 15:20:38.555248  [info] Configuration module loaded.
+2025-07-14 15:20:38.555304  [info] Using internal security implementation!
+2025-07-14 15:20:38.555324  [info] Initializing vsomeip (3.5.6) application "client-sample".
+2025-07-14 15:20:38.555370  [info] Instantiating routing manager [Proxy].
+2025-07-14 15:20:38.555437  [info] Client [1344] is connecting to [0] at /tmp/vsomeip-0 endpoint > 0x5a5ec4584280
+2025-07-14 15:20:38.555494  [info] Application(client-sample, 1344) is initialized (11, 100).
+2025-07-14 15:20:38.555812  [info] Starting vsomeip application "client-sample" (1344) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-14 15:20:38.556085  [info] main dispatch thread id from application: 1344 (client-sample) is: 7f69873fd640 TID: 80851
+2025-07-14 15:20:38.556129  [info] shutdown thread id from application: 1344 (client-sample) is: 7f6986bfc640 TID: 80852
+Checking availability !
+2025-07-14 15:20:38.556766  [info] io thread id from application: 1344 (client-sample) is: 7f6987bfe640 TID: 80850
+2025-07-14 15:20:38.556936  [info] cei::wait_connecting_cbk: endpoint > 0x5a5ec4584280 socket state > 1
+2025-07-14 15:20:38.557024  [info] assign_client: (1344:client-sample)
+2025-07-14 15:20:38.556755  [info] io thread id from application: 1344 (client-sample) is: 7f69863fb640 TID: 80853
+2025-07-14 15:20:38.560792  [info] create_local_server: Listening @ /tmp/vsomeip-1344
+2025-07-14 15:20:38.561514  [info] Client 1344 (client-sample) successfully connected to routing  ~> registering..
+2025-07-14 15:20:38.561605  [info] Client 1344 Registering to routing manager @ vsomeip-0
+2025-07-14 15:20:38.562871  [info] vSomeIP Security: UID/GID=1000.1000 : Check routing credentials failed as configured routing manager credentials do not match with routing manager credentials but will be allowed due to audit mode is active!
+2025-07-14 15:20:38.563297  [info] Application/Client 1344 (client-sample) is registered.
+2025-07-14 15:20:38.567201  [info] ON_AVAILABLE(1344): [1234.5678:0.1]
+Available...
+2025-07-14 15:20:38.567519  [info] emb::find_or_create_local: create_client 1277
+2025-07-14 15:20:38.567579  [info] Client [1344] is connecting to [1277] at /tmp/vsomeip-1277 endpoint > 0x5a5ec4583280
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 1
+2025-07-14 15:20:38.567782  [info] cei::wait_connecting_cbk: endpoint > 0x5a5ec4583280 socket state > 1
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 2
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 3
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 4
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 5
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 6
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 7
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 8
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 9
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 10

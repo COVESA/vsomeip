@@ -1,0 +1,89 @@
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip/build$ ./WorldService
+[CAPI][INFO] Loading configuration file '/home/a529220/tut/commonAPI2/project/helloWorld-commonapi-someip/config/commonapi4someip.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[CAPI][DEBUG] Loading library for local:commonapi.examples.World:v0_1:commonapi.examples.someip stub.
+[CAPI][INFO] Loading configuration file /etc//commonapi-someip.ini
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadProxyInstanceID:v0_1:commonapi.examples.someip.badproxyinstanceid <--> [1235.5679(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadProxyInstanceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadProxyServiceID:v0_1:commonapi.examples.someip.badproxyserviceid <--> [1237.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadProxyServiceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadServiceInstanceID:v0_1:commonapi.examples.someip.badserviceinstanceid <--> [1234.5679(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadServiceInstanceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadServiceServiceID:v0_1:commonapi.examples.someip.badserviceserviceid <--> [1236.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadServiceServiceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.World:v0_1:commonapi.examples.someip <--> [1234.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.World:v0_1" stub adapter.
+[CAPI][DEBUG] Loading interface library "libWorld-someip.so" succeeded.
+[CAPI][INFO] Registering stub for "local:commonapi.examples.World:v0_1:commonapi.examples.someip"
+2025-07-15 15:20:41.031385  [info] Security configuration is active.
+2025-07-15 15:20:41.032626  [info] Using configuration file: "/home/a529220/tut/commonAPI2/project/helloWorld-commonapi-someip/config/vsomeip-local-security.json".
+2025-07-15 15:20:41.032711  [info] Parsed vsomeip configuration in 2ms
+2025-07-15 15:20:41.032734  [info] Configuration module loaded.
+2025-07-15 15:20:41.032785  [info] Using internal security implementation!
+2025-07-15 15:20:41.032836  [info] Initializing vsomeip (3.5.6) application "service-sample".
+2025-07-15 15:20:41.032890  [info] Instantiating routing manager [Host].
+2025-07-15 15:20:41.033699  [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-07-15 15:20:41.036118  [info] Service Discovery enabled. Trying to load module.
+2025-07-15 15:20:41.038498  [info] Service Discovery module loaded.
+2025-07-15 15:20:41.038678  [info] Application(service-sample, 1277) is initialized (11, 100).
+2025-07-15 15:20:41.039015  [info] Starting vsomeip application "service-sample" (1277) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-15 15:20:41.039285  [info] main dispatch thread id from application: 1277 (service-sample) is: 72d0b17fc640 TID: 75447
+2025-07-15 15:20:41.039323  [info] Client [1277] routes unicast:127.0.0.1, netmask:255.255.255.0
+2025-07-15 15:20:41.039336  [info] shutdown thread id from application: 1277 (service-sample) is: 72d0b0ffb640 TID: 75448
+2025-07-15 15:20:41.039881  [info] rmi::offer_service added service: 1234 to pending_sd_offers_.size = 1
+2025-07-15 15:20:41.046565  [info] Watchdog is disabled!
+2025-07-15 15:20:41.047252  [info] io thread id from application: 1277 (service-sample) is: 72d0b1ffd640 TID: 75446
+2025-07-15 15:20:41.047248  [info] io thread id from application: 1277 (service-sample) is: 72d0a2ffd640 TID: 75451
+2025-07-15 15:20:41.047479  [info] vSomeIP 3.5.6 | (default)
+2025-07-15 15:20:41.047822  [warning] Network interface "lo" state changed: up
+2025-07-15 15:20:41.056728  [info] create_local_server: Listening @ /tmp/vsomeip-1277
+2025-07-15 15:20:41.056852  [info] OFFER(1277): [1234.5678:0.1] (true)
+[CAPI][DEBUG] Loading library for local:commonapi.examples.BadServiceServiceID:v0_1:commonapi.examples.someip.badserviceserviceid stub.
+[CAPI][INFO] Registering stub for "local:commonapi.examples.BadServiceServiceID:v0_1:commonapi.examples.someip.badserviceserviceid"
+2025-07-15 15:20:41.057262  [info] vSomeIP Security: UID/GID=1000/1000 isn't allowed to offer service/instance 1236/5678 ~> Skip offer!
+2025-07-15 15:20:41.057316  [warning] routing_manager_impl::offer_service: Security: Client 0x1277 isn't allowed to offer the following service/instance 1236/5678 ~> Skip offer!
+[CAPI][DEBUG] Loading library for local:commonapi.examples.BadServiceInstanceID:v0_1:commonapi.examples.someip.badserviceinstanceid stub.
+[CAPI][INFO] Registering stub for "local:commonapi.examples.BadServiceInstanceID:v0_1:commonapi.examples.someip.badserviceinstanceid"
+2025-07-15 15:20:41.057596  [info] vSomeIP Security: UID/GID=1000/1000 isn't allowed to offer service/instance 1234/5679 ~> Skip offer!
+2025-07-15 15:20:41.057640  [warning] routing_manager_impl::offer_service: Security: Client 0x1277 isn't allowed to offer the following service/instance 1234/5679 ~> Skip offer!
+Successfully Registered Service!
+Waiting for calls ... (Abort with CTRL+C)
+2025-07-15 15:20:51.048259  [info] vSomeIP 3.5.6 | (default)
+2025-07-15 15:21:01.049115  [info] vSomeIP 3.5.6 | (default)
+2025-07-15 15:21:11.049567  [info] vSomeIP 3.5.6 | (default)
+2025-07-15 15:21:21.049795  [info] vSomeIP 3.5.6 | (default)
+2025-07-15 15:21:27.451738  [info] Application/Client 1344 is registering.
+2025-07-15 15:21:27.451881  [info] emb::find_or_create_local: create_client 1344
+2025-07-15 15:21:27.452113  [info] Client [1277] is connecting to [1344] at /tmp/vsomeip-1344 endpoint > 0x72d09c001050
+2025-07-15 15:21:27.452408  [info] cei::wait_connecting_cbk: endpoint > 0x72d09c001050 socket state > 3
+2025-07-15 15:21:27.452841  [info] REGISTERED_ACK(1344)
+2025-07-15 15:21:27.456462  [info] REQUEST(1344): [1234.5678:0.4294967295]
+2025-07-15 15:21:27.456553  [info] vSomeIP Security: UID/GID=1000/1000 : Isn't allowed to communicate with service/instance/(method / event) 1235/5679/0 ~> Skip!
+2025-07-15 15:21:27.456599  [warning] vSomeIP Security: Client 0x1277 received a request from client 0x1344 to service/instance 1235/5679 ~> skip message!
+2025-07-15 15:21:27.456642  [info] vSomeIP Security: UID/GID=1000/1000 : Isn't allowed to communicate with service/instance/(method / event) 1237/5678/0 ~> Skip!
+2025-07-15 15:21:27.456688  [warning] vSomeIP Security: Client 0x1277 received a request from client 0x1344 to service/instance 1237/5678 ~> skip message!
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+2025-07-15 15:21:31.050276  [info] vSomeIP 3.5.6 | (default)
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!

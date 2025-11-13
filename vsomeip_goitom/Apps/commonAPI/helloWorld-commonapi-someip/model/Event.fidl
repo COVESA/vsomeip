@@ -1,0 +1,7 @@
+package commonapi.examples
+
+interface Event {
+    version { major 1 minor 0 }
+
+    attribute Int32 temperature
+}

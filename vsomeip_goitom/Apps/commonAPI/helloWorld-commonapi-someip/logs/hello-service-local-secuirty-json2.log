@@ -1,0 +1,81 @@
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip/build$ ./WorldService
+[CAPI][INFO] Loading configuration file '/home/a529220/tut/commonAPI2/project/helloWorld-commonapi-someip/config/commonapi4someip.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[CAPI][DEBUG] Loading library for local:commonapi.examples.World:v0_1:commonapi.examples.someip stub.
+[CAPI][INFO] Loading configuration file /etc//commonapi-someip.ini
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.World:v0_1:commonapi.examples.someip <--> [1234.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.World:v0_1" stub adapter.
+[CAPI][DEBUG] Loading interface library "libWorld-someip.so" succeeded.
+[CAPI][INFO] Registering stub for "local:commonapi.examples.World:v0_1:commonapi.examples.someip"
+2025-07-15 10:36:49.554102  [info] Security configuration is active.
+2025-07-15 10:36:49.554808  [info] Using configuration file: "/home/a529220/tut/commonAPI2/project/helloWorld-commonapi-someip/config/vsomeip-local-security.json".
+2025-07-15 10:36:49.554873  [info] Parsed vsomeip configuration in 2ms
+2025-07-15 10:36:49.554894  [info] Configuration module loaded.
+2025-07-15 10:36:49.554947  [info] Using internal security implementation!
+2025-07-15 10:36:49.554997  [info] Initializing vsomeip (3.5.6) application "service-sample".
+2025-07-15 10:36:49.555053  [info] Instantiating routing manager [Host].
+2025-07-15 10:36:49.555801  [info] create_routing_root: Routing root @ /tmp/vsomeip-0
+2025-07-15 10:36:49.558369  [info] Service Discovery enabled. Trying to load module.
+2025-07-15 10:36:49.561385  [info] Service Discovery module loaded.
+2025-07-15 10:36:49.561538  [info] Application(service-sample, 1277) is initialized (11, 100).
+2025-07-15 10:36:49.561895  [info] Starting vsomeip application "service-sample" (1277) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-15 10:36:49.562278  [info] main dispatch thread id from application: 1277 (service-sample) is: 721d23d9a640 TID: 15235
+2025-07-15 10:36:49.562329  [info] Client [1277] routes unicast:127.0.0.1, netmask:255.255.255.0
+2025-07-15 10:36:49.562461  [info] shutdown thread id from application: 1277 (service-sample) is: 721d23599640 TID: 15236
+2025-07-15 10:36:49.562922  [info] rmi::offer_service added service: 1234 to pending_sd_offers_.size = 1
+2025-07-15 10:36:49.569427  [info] Watchdog is disabled!
+2025-07-15 10:36:49.570155  [info] io thread id from application: 1277 (service-sample) is: 721d2459b640 TID: 15234
+2025-07-15 10:36:49.570153  [info] io thread id from application: 1277 (service-sample) is: 721d21d96640 TID: 15239
+2025-07-15 10:36:49.570397  [info] vSomeIP 3.5.6 | (default)
+2025-07-15 10:36:49.570481  [warning] Network interface "lo" state changed: up
+2025-07-15 10:36:49.579531  [info] create_local_server: Listening @ /tmp/vsomeip-1277
+2025-07-15 10:36:49.579690  [info] OFFER(1277): [1234.5678:0.1] (true)
+Successfully Registered Service!
+Waiting for calls ... (Abort with CTRL+C)
+2025-07-15 10:36:51.017774  [info] Application/Client 1344 is registering.
+2025-07-15 10:36:51.017919  [info] emb::find_or_create_local: create_client 1344
+2025-07-15 10:36:51.018034  [info] Client [1277] is connecting to [1344] at /tmp/vsomeip-1344 endpoint > 0x721d0c001050
+2025-07-15 10:36:51.018336  [info] cei::wait_connecting_cbk: endpoint > 0x721d0c001050 socket state > 1
+2025-07-15 10:36:51.019270  [info] REGISTERED_ACK(1344)
+2025-07-15 10:36:51.025422  [info] REQUEST(1344): [1234.5678:0.4294967295]
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+2025-07-15 10:36:59.570594  [info] vSomeIP 3.5.6 | (default)
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+sayBye called!
+sayBye('World'): 'Bye World!'
+sayHello called!
+sayHello('World'): 'Hello World!'
+2025-07-15 10:37:09.570954  [info] vSomeIP 3.5.6 | (default)

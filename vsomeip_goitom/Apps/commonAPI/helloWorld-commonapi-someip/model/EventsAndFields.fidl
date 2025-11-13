@@ -1,0 +1,35 @@
+
+package commonapi.examples
+
+interface EventsAndFields{
+    version { major 1 minor 0 }
+    
+    // // Field (attribute)
+ 
+    attribute Int32 temperature
+    attribute String status
+
+    // Events (broadcasts)
+    broadcast temperatureAlert {
+        out {
+            Int32 currentTemp
+            String alertLevel
+        }
+    }
+    
+    broadcast statusChanged {
+        out {
+            String newStatus
+            UInt64 timestamp
+        }
+    }
+    
+    // Regular method for comparison
+    method getSystemInfo {
+        out {
+            String systemVersion
+            String status
+            UInt32 temperature
+        }
+    } 
+}

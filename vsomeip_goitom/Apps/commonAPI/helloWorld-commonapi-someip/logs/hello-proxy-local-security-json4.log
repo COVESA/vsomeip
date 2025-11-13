@@ -1,0 +1,67 @@
+a529220@SEGOTWHT1SW14:~/tut/commonAPI2/project/helloWorld-commonapi-someip/build$ ./WorldClient
+[CAPI][INFO] Loading configuration file '/home/a529220/tut/commonAPI2/project/helloWorld-commonapi-someip/config/commonapi4someip.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[CAPI][DEBUG] Loading library for local:commonapi.examples.World:v0_1:commonapi.examples.someip proxy.
+[CAPI][INFO] Loading configuration file /etc//commonapi-someip.ini
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadProxyInstanceID:v0_1:commonapi.examples.someip.badproxyinstanceid <--> [1235.5679(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadProxyInstanceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadProxyServiceID:v0_1:commonapi.examples.someip.badproxyserviceid <--> [1237.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadProxyServiceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadServiceInstanceID:v0_1:commonapi.examples.someip.badserviceinstanceid <--> [1234.5679(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadServiceInstanceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.BadServiceServiceID:v0_1:commonapi.examples.someip.badserviceserviceid <--> [1236.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.BadServiceServiceID:v0_1" stub adapter.
+[CAPI][DEBUG] Added address mapping: local:commonapi.examples.World:v0_1:commonapi.examples.someip <--> [1234.5678(0.1)]
+[CAPI][INFO] Registering function for creating "commonapi.examples.World:v0_1" stub adapter.
+[CAPI][DEBUG] Loading interface library "libWorld-someip.so" succeeded.
+2025-07-15 15:21:27.444477  [info] Security configuration is active.
+2025-07-15 15:21:27.444776  [info] Using configuration file: "/home/a529220/tut/commonAPI2/project/helloWorld-commonapi-someip/config/vsomeip-local-security.json".
+2025-07-15 15:21:27.444840  [info] Parsed vsomeip configuration in 1ms
+2025-07-15 15:21:27.444893  [info] Configuration module loaded.
+2025-07-15 15:21:27.444938  [info] Using internal security implementation!
+2025-07-15 15:21:27.444989  [info] Initializing vsomeip (3.5.6) application "client-sample".
+2025-07-15 15:21:27.445030  [info] Instantiating routing manager [Proxy].
+2025-07-15 15:21:27.445094  [info] Client [1344] is connecting to [0] at /tmp/vsomeip-0 endpoint > 0x559dd0667870
+2025-07-15 15:21:27.445145  [info] Application(client-sample, 1344) is initialized (11, 100).
+2025-07-15 15:21:27.445495  [info] Starting vsomeip application "client-sample" (1344) using 2 threads I/O nice 0 boost event loop period 0
+2025-07-15 15:21:27.446138  [info] shutdown thread id from application: 1344 (client-sample) is: 715653fff640 TID: 75612
+[CAPI][DEBUG] Loading library for local:commonapi.examples.BadProxyServiceID:v0_1:commonapi.examples.someip.badproxyserviceid proxy.
+2025-07-15 15:21:27.446349  [info] [CAPI][DEBUG] Loading library for local:commonapi.examples.BadProxyInstanceID:v0_1:commonapi.examples.someip.badproxyinstanceid proxy.
+main dispatch thread id from application: 1344 (client-sample) is: 715658bfd640 TID: 75611
+Checking availability !
+Not Available...
+Not Available...
+2025-07-15 15:21:27.446566  [info] io thread id from application: 1344 (client-sample) is: 7156593fe640 TID: 75610
+2025-07-15 15:21:27.447187  [info] cei::wait_connecting_cbk: endpoint > 0x559dd0667870 socket state > 1
+2025-07-15 15:21:27.447239  [info] assign_client: (1344:client-sample)
+2025-07-15 15:21:27.446585  [info] io thread id from application: 1344 (client-sample) is: 7156537fe640 TID: 75613
+2025-07-15 15:21:27.451435  [info] create_local_server: Listening @ /tmp/vsomeip-1344
+2025-07-15 15:21:27.451552  [info] Client 1344 (client-sample) successfully connected to routing  ~> registering..
+2025-07-15 15:21:27.451602  [info] Client 1344 Registering to routing manager @ vsomeip-0
+2025-07-15 15:21:27.452421  [info] vSomeIP Security: UID/GID=1000.1000 : Check routing credentials failed as configured routing manager credentials do not match with routing manager credentials but will be allowed due to audit mode is active!
+2025-07-15 15:21:27.452630  [info] Application/Client 1344 (client-sample) is registered.
+2025-07-15 15:21:27.457153  [info] ON_AVAILABLE(1344): [1234.5678:0.1]
+Available...
+2025-07-15 15:21:27.457626  [info] emb::find_or_create_local: create_client 1277
+2025-07-15 15:21:27.457703  [info] Client [1344] is connecting to [1277] at /tmp/vsomeip-1277 endpoint > 0x559dd066a520
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 1
+2025-07-15 15:21:27.457886  [info] cei::wait_connecting_cbk: endpoint > 0x559dd066a520 socket state > 1
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 2
+Got message: 'Bye World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 3
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 4
+Got message: 'Bye World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 5
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 6
+Got message: 'Bye World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 7
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 8
+Got message: 'Bye World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 9
+Got message: 'Hello World!'
+[CAPI][DEBUG] Message sent: SenderID: 1234 - ClientID: 4932, SessionID: 10

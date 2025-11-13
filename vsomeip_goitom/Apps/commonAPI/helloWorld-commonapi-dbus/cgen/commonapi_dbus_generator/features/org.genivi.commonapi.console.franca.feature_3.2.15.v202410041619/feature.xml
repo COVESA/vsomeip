@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="org.genivi.commonapi.console.franca.feature"
+      label="GENIVI CommonAPI Franca Core Dependencies Feature"
+      version="3.2.15.v202410041619"
+      provider-name="BMW AG">
+
+   <description url="http://www.example.com/description">
+      [Enter Feature Description here.]
+   </description>
+
+   <copyright url="http://www.example.com/copyright">
+      [Enter Copyright Description here.]
+   </copyright>
+
+   <license url="http://www.example.com/license">
+      [Enter License Description here.]
+   </license>
+
+   <plugin
+         id="org.franca.core"
+         download-size="349"
+         install-size="816"
+         version="0.13.1.201807231814"
+         unpack="false"/>
+
+   <plugin
+         id="org.franca.core.dsl"
+         download-size="629"
+         install-size="1582"
+         version="0.13.1.201807231814"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtext"
+         download-size="2678"
+         install-size="6130"
+         version="2.25.0.v20210301-0843"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtext.logging"
+         download-size="12"
+         install-size="18"
+         version="1.2.15.v20210301-0928"
+         fragment="true"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtext.util"
+         download-size="303"
+         install-size="647"
+         version="2.25.0.v20210301-0843"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtext.xbase.lib"
+         download-size="160"
+         install-size="411"
+         version="2.25.0.v20210301-0821"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtend"
+         download-size="535"
+         install-size="1137"
+         version="2.2.0.v201605260315"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtend.lib"
+         download-size="108"
+         install-size="258"
+         version="2.25.0.v20210301-0821"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtend.lib.macro"
+         download-size="76"
+         install-size="144"
+         version="2.25.0.v20210301-0821"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtend.typesystem.emf"
+         download-size="64"
+         install-size="132"
+         version="2.2.0.v201605260315"
+         unpack="false"/>
+
+   <plugin
+         id="org.apache.log4j"
+         download-size="325"
+         install-size="631"
+         version="1.2.25"
+         unpack="false"/>
+
+   <plugin
+         id="com.google.guava"
+         download-size="2963"
+         install-size="6687"
+         version="30.1.0.v20210127-2300"
+         unpack="false"/>
+
+   <plugin
+         id="com.google.inject"
+         download-size="816"
+         install-size="1865"
+         version="5.0.1.v20221112-0806"
+         unpack="false"/>
+
+   <plugin
+         id="org.apache.commons.logging"
+         download-size="71"
+         install-size="145"
+         version="1.2.0.v20180409-1502"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.emf.ecore.xmi"
+         download-size="248"
+         install-size="513"
+         version="2.38.0.v20240721-0634"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.emf.ecore"
+         download-size="1362"
+         install-size="3284"
+         version="2.37.0.v20240721-0802"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.emf.mwe.core"
+         download-size="193"
+         install-size="360"
+         version="1.7.0.v20220519-1115"
+         unpack="false"/>
+
+   <plugin
+         id="javax.inject"
+         download-size="14"
+         install-size="24"
+         version="1.0.0.v20091030"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.emf.common"
+         download-size="393"
+         install-size="805"
+         version="2.31.0.v20240731-0952"
+         unpack="false"/>
+
+   <plugin
+         id="org.antlr.runtime"
+         download-size="209"
+         install-size="444"
+         version="3.2.0.v201101311130"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.emf.mwe.utils"
+         download-size="40"
+         install-size="71"
+         version="1.7.0.v20220519-1115"
+         unpack="false"/>
+
+   <plugin
+         id="org.apache.commons.lang"
+         download-size="291"
+         install-size="618"
+         version="2.6.0.v201404270220"
+         unpack="false"/>
+
+   <plugin
+         id="org.apache.commons.cli"
+         download-size="64"
+         install-size="129"
+         version="1.4.0.v20200417-1444"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.emf.mwe2.runtime"
+         download-size="16"
+         install-size="21"
+         version="2.13.0.v20220519-1115"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.expressions"
+         download-size="91"
+         install-size="180"
+         version="3.6.200.v20180817-1401"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.variables"
+         download-size="35"
+         install-size="65"
+         version="3.4.200.v20180821-1744"
+         unpack="false"/>
+
+   <plugin
+         id="javax.annotation"
+         download-size="28"
+         install-size="58"
+         version="1.2.0.v201602091430"
+         unpack="false"/>
+
+   <plugin
+         id="javax.xml"
+         download-size="249"
+         install-size="406"
+         version="1.3.4.v201005080400"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.commands"
+         download-size="113"
+         install-size="214"
+         version="3.9.200.v20180827-1727"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.contenttype"
+         download-size="103"
+         install-size="217"
+         version="3.7.100.v20180817-1401"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.jobs"
+         download-size="105"
+         install-size="209"
+         version="3.10.100.v20180817-1215"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xpand"
+         download-size="228"
+         install-size="504"
+         version="2.2.0.v201605260315"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtext.ecore"
+         download-size="15"
+         install-size="27"
+         version="2.25.0.v20210301-0909"
+         unpack="false"/>
+
+   <plugin
+         id="com.ibm.icu"
+         download-size="12503"
+         install-size="27568"
+         version="62.1.0.v20180727-1652"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.xtext.generator"
+         download-size="857"
+         install-size="2186"
+         version="2.25.0.v20210301-0909"
+         unpack="false"/>
+
+   <plugin
+         id="org.franca.deploymodel.dsl"
+         download-size="748"
+         install-size="1874"
+         version="0.13.1.201807231814"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.resources"
+         download-size="869"
+         install-size="1893"
+         version="3.13.100.v20180828-0158"
+         unpack="false"/>
+
+   <plugin
+         id="org.eclipse.core.filesystem"
+         download-size="65"
+         install-size="123"
+         version="1.7.200.v20180828-0158"
+         unpack="false"/>
+
+</feature>
