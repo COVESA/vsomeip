@@ -1,0 +1,61 @@
+{
+  "unicast" : "192.168.1.101",
+  "netmask" : "255.255.255.0",
+  "logging": {
+    "level": "info",
+    "console": "true",
+    "file": {
+      "enable": "true",
+      "path": "/var/log/vsomeip-client.log"
+    },
+    "dlt": "false"
+  },
+  "applications": [
+    {
+      "name": "RoutingManagerClient",
+      "id": "0x3333"
+    },
+    {
+      "name": "ClientApp",
+      "id": "0x4444"
+    }
+  ],
+  "clients": [
+    {
+      "service": "0x1234",
+      "instance": "0x5678",
+      "unreliable" : "30509"
+    }
+  ],
+  "routing": {
+    "host": {
+      "name": "RoutingManagerClient",
+      "unicast": "192.168.1.101",
+      "port": 30490
+    },
+    "guests": {
+      "unicast" : "192.168.10.1",
+      "ports": [
+        {
+          "ranges": [
+            { "first": 30500, "last": 30529 }
+          ]
+        }
+      ]
+    }
+  },
+  "service-discovery": {
+    "enable": "true",
+    "multicast": "224.244.224.245",
+    "port": "30490",
+    "protocol": "udp",
+    "initial_delay_min": "10",
+    "initial_delay_max": "100",
+    "repetitions_base_delay": "200",
+    "repetitions_max": "3",
+    "ttl": "3",
+    "cyclic_offer_delay": "2000",
+    "request_response_delay": "1500"
+  }
+
+}

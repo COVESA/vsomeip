@@ -1,0 +1,566 @@
+get@Ubuntu-22:~/repo/vsomeip/vsomeip_goitom/Apps/vlan-apps-inv/build$ routing_samp2
+2025-11-07 10:20:01.388925  [info] Using configuration file: "../config/vsomeip-udp-service-170.json".
+2025-11-07 10:20:01.389006  [info] Parsed vsomeip configuration in 0ms
+2025-11-07 10:20:01.389030  [info] Configuration module loaded.
+2025-11-07 10:20:01.389050  [info] Security disabled!
+2025-11-07 10:20:01.389068  [info] Initializing vsomeip (3.5.8) application "SRVGW170".
+2025-11-07 10:20:01.389095  [info] Instantiating routing manager [Host].
+2025-11-07 10:20:01.389193  [info] create_routing_root: Routing root @ /tmp/VLAN170-0
+2025-11-07 10:20:01.389345  [info] Service Discovery enabled. Trying to load module.
+2025-11-07 10:20:01.389492  [info] Service Discovery module loaded.
+2025-11-07 10:20:01.389724  [info] Application(SRVGW170, 1270) is initialized (11, 100).
+2025-11-07 10:20:01.389909  [info] Using configuration file: "../config/vsomeip-udp-service-180.json".
+2025-11-07 10:20:01.389936  [info] Parsed vsomeip configuration in 0ms
+2025-11-07 10:20:01.389957  [info] Configuration module loaded.
+2025-11-07 10:20:01.389977  [info] Security disabled!
+2025-11-07 10:20:01.389996  [info] Initializing vsomeip (3.5.8) application "SRVGW180".
+2025-11-07 10:20:01.390021  [info] Instantiating routing manager [Host].
+2025-11-07 10:20:01.390073  [info] create_routing_root: Routing root @ /tmp/VLAN180-0
+2025-11-07 10:20:01.390145  [info] Service Discovery enabled. Trying to load module.
+2025-11-07 10:20:01.390168  [info] Service Discovery module loaded.
+2025-11-07 10:20:01.390340  [info] Application(SRVGW180, 1280) is initialized (11, 100).
+2025-11-07 10:20:01.390458  [info] Starting vsomeip application "SRVGW170" (1270) using 2 threads I/O nice 0 boost event loop period 0
+2025-11-07 10:20:01.390498  [info] Starting vsomeip application "SRVGW180" (1280) using 2 threads I/O nice 0 boost event loop period 0
+2025-11-07 10:20:01.390563  [debug] Thread created. Number of active threads for SRVGW180 : 1
+2025-11-07 10:20:01.390651  [info] Client [1280] routes unicast:192.168.180.2, netmask:255.255.255.0
+2025-11-07 10:20:01.390713  [info] netlink: from 0 to 1, if=0, mc=0, count=0
+2025-11-07 10:20:01.390784  [info] Watchdog is disabled!
+2025-11-07 10:20:01.390593  [debug] Thread created. Number of active threads for SRVGW170 : 1
+2025-11-07 10:20:01.390847  [info] Client [1270] routes unicast:192.168.170.2, netmask:255.255.255.0
+2025-11-07 10:20:01.391103  [info] netlink: from 0 to 1, if=0, mc=0, count=0
+2025-11-07 10:20:01.391145  [info] Watchdog is disabled!
+2025-11-07 10:20:01.391259  [info] io thread id from application: 1270 (SRVGW170) is: 7cdf089fc640 TID: 3476
+2025-11-07 10:20:01.391300  [info] netlink: from 1 to 2, if=3, mc=0, count=0
+2025-11-07 10:20:01.390669  [info] shutdown thread id from application: 1280 (SRVGW180) is: 7cdf061f7640 TID: 3481
+2025-11-07 10:20:01.391268  [info] shutdown thread id from application: 1270 (SRVGW170) is: 7cdf051f5640 TID: 3483
+2025-11-07 10:20:01.390600  [info] main dispatch thread id from application: 1280 (SRVGW180) is: 7cdf071f9640 TID: 3479
+2025-11-07 10:20:01.391284  [info] io thread id from application: 1270 (SRVGW170) is: 7cdeeffff640 TID: 3485
+2025-11-07 10:20:01.391338  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:01.390610  [info] main dispatch thread id from application: 1270 (SRVGW170) is: 7cdf069f8640 TID: 3480
+[SRVGW170] is registered
+[SRVGW170] Offering service 0x1234/0x5678
+2025-11-07 10:20:01.391380  [info] rmi::offer_service added service: 1234 to pending_sd_offers_.size = 1
+2025-11-07 10:20:01.391388  [debug] ON_OFFER_SERVICE(1270): [1234.5678:0.0]
+2025-11-07 10:20:01.391486  [info] create_local_server: Listening @ /tmp/VLAN170-1270
+[SRVGW180] is registered
+[SRVGW180] Offering service 0x1235/0x5679
+2025-11-07 10:20:01.391590  [info] OFFER(1270): [1234.5678:0.0] (true)
+2025-11-07 10:20:01.391611  [info] io thread id from application: 1280 (SRVGW180) is: 7cdeef7fe640 TID: 3486
+2025-11-07 10:20:01.391623  [info] netlink: from 1 to 2, if=4, mc=0, count=0
+2025-11-07 10:20:01.391662  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:01.391577  [info] rmi::offer_service added service: 1235 to pending_sd_offers_.size = 1
+2025-11-07 10:20:01.391684  [debug] ON_OFFER_SERVICE(1280): [1235.5679:0.0]
+2025-11-07 10:20:01.391716  [info] create_local_server: Listening @ /tmp/VLAN180-1280
+2025-11-07 10:20:01.391725  [info] OFFER(1280): [1235.5679:0.0] (true)
+2025-11-07 10:20:01.391550  [info] io thread id from application: 1280 (SRVGW180) is: 7cdf079fa640 TID: 3478
+2025-11-07 10:20:01.391741  [info] netlink: from 2 to 3, if=4, mc=0, count=1
+2025-11-07 10:20:01.391766  [warning] Network interface "enp0s3.180" state changed: up
+2025-11-07 10:20:01.391672  [info] netlink: from 2 to 3, if=3, mc=0, count=1
+2025-11-07 10:20:01.391786  [warning] Network interface "enp0s3.170" state changed: up
+2025-11-07 10:20:01.391805  [info] netlink: from 3 to 4, if=3, mc=1, count=1
+2025-11-07 10:20:01.391811  [warning] Route "enp0s3.170" state changed: up
+2025-11-07 10:20:01.391821  [info] usei#1::constructor
+2025-11-07 10:20:01.391826  [info] usei#1::init: 192.168.170.2:30490, lifecycle_idx=0
+2025-11-07 10:20:01.391841  [info] usei#1::init_unlocked: failed to force receive buffer size, Unknown error -1
+2025-11-07 10:20:01.391849  [info] usei#1::192.168.170.2:30490::init: lifecycle_idx=0, Success
+2025-11-07 10:20:01.391854  [info] usei#1::192.168.170.2:30490::start, lifecycle_idx=0
+2025-11-07 10:20:01.391858  [info] usei#1::192.168.170.2:30490::start_unlocked: start unicast data handler, lifecycle_idx=1
+2025-11-07 10:20:01.391865  [info] usei#1::192.168.170.2:30490::start_unlocked: join 0 groups
+2025-11-07 10:20:01.391888  [info] usei#1::192.168.170.2:30490::start: done, lifecycle_idx=1
+2025-11-07 10:20:01.391896  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:01.391908  [info] SOME/IP routing ready.
+2025-11-07 10:20:01.391885  [info] netlink: from 3 to 4, if=4, mc=1, count=1
+2025-11-07 10:20:01.391920  [warning] Route "enp0s3.180" state changed: up
+2025-11-07 10:20:01.391931  [info] usei#2::constructor
+2025-11-07 10:20:01.391946  [info] usei#2::init: 192.168.180.2:30491, lifecycle_idx=0
+2025-11-07 10:20:01.391956  [info] usei#2::init_unlocked: failed to force receive buffer size, Unknown error -1
+2025-11-07 10:20:01.391938  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:01.391978  [info] usei#1::192.168.170.2:30490::set_multicast_option: failed to force received buffer size, Unknown error -1
+2025-11-07 10:20:01.391936  [info] usei#3::constructor
+2025-11-07 10:20:01.391991  [info] usei#3::init: 192.168.170.2:30509, lifecycle_idx=0
+2025-11-07 10:20:01.392000  [info] usei#3::init_unlocked: failed to force receive buffer size, Unknown error -1
+2025-11-07 10:20:01.391983  [info] usei#2::192.168.180.2:30491::init: lifecycle_idx=0, Success
+2025-11-07 10:20:01.392013  [info] usei#2::192.168.180.2:30491::start, lifecycle_idx=0
+2025-11-07 10:20:01.392017  [info] usei#2::192.168.180.2:30491::start_unlocked: start unicast data handler, lifecycle_idx=1
+2025-11-07 10:20:01.392004  [info] usei#1::192.168.170.2:30490::set_multicast_option: start multicast data handler, lifecycle_idx=1
+2025-11-07 10:20:01.392021  [info] usei#3::192.168.170.2:30509::init: lifecycle_idx=0, Success
+2025-11-07 10:20:01.392321  [info] usei#3::192.168.170.2:30509::start, lifecycle_idx=0
+2025-11-07 10:20:01.392331  [info] usei#3::192.168.170.2:30509::start_unlocked: start unicast data handler, lifecycle_idx=1
+2025-11-07 10:20:01.392338  [info] usei#3::192.168.170.2:30509::start_unlocked: join 0 groups
+2025-11-07 10:20:01.392345  [info] usei#3::192.168.170.2:30509::start: done, lifecycle_idx=1
+2025-11-07 10:20:01.392350  [info] init_pending_services: pending services cleared.
+2025-11-07 10:20:01.392029  [info] usei#2::192.168.180.2:30491::start_unlocked: join 0 groups
+2025-11-07 10:20:01.392393  [info] usei#2::192.168.180.2:30491::start: done, lifecycle_idx=1
+2025-11-07 10:20:01.392403  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:01.392414  [info] SOME/IP routing ready.
+2025-11-07 10:20:01.392427  [info] usei#4::constructor
+2025-11-07 10:20:01.392432  [info] usei#4::init: 192.168.180.2:30510, lifecycle_idx=0
+2025-11-07 10:20:01.392445  [info] usei#4::init_unlocked: failed to force receive buffer size, Unknown error -1
+2025-11-07 10:20:01.392451  [info] usei#4::192.168.180.2:30510::init: lifecycle_idx=0, Success
+2025-11-07 10:20:01.392456  [info] usei#4::192.168.180.2:30510::start, lifecycle_idx=0
+2025-11-07 10:20:01.392461  [info] usei#4::192.168.180.2:30510::start_unlocked: start unicast data handler, lifecycle_idx=1
+2025-11-07 10:20:01.392468  [info] usei#4::192.168.180.2:30510::start_unlocked: join 0 groups
+2025-11-07 10:20:01.392472  [info] usei#4::192.168.180.2:30510::start: done, lifecycle_idx=1
+2025-11-07 10:20:01.392477  [info] init_pending_services: pending services cleared.
+2025-11-07 10:20:01.392511  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:01.392526  [info] usei#2::192.168.180.2:30491::set_multicast_option: failed to force received buffer size, Unknown error -1
+2025-11-07 10:20:01.392533  [info] usei#2::192.168.180.2:30491::set_multicast_option: start multicast data handler, lifecycle_idx=1
+2025-11-07 10:20:01.396367  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:01.396384  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW180] Received method 0x421 from client 0x1380 session 0x1
+[SRVGW170] Received method 0x421 from client 0x1370 session 0x1
+2025-11-07 10:20:07.040291  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:07.040322  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:07.040352  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:07.040677  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:07.040683  [info] usei#1::192.168.170.2:30490::set_multicast_option: stop multicast
+2025-11-07 10:20:07.040758  [warning] usei#1::192.168.170.2:30490::receive_multicast_unlocked: stop data handler, lifecycle_idx=1 vs 1, Operation canceled, stopped=0
+2025-11-07 10:20:07.040791  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:07.040819  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:07.040865  [info] usei#1::192.168.170.2:30490::set_multicast_option: failed to force received buffer size, Unknown error -1
+2025-11-07 10:20:07.040870  [info] usei#1::192.168.170.2:30490::set_multicast_option: start multicast data handler, lifecycle_idx=1
+2025-11-07 10:20:07.041328  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:07.053631  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:07.053704  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:07.053732  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:07.053753  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:07.054316  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:07.054327  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:07.054533  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0x2
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0x2
+2025-11-07 10:20:11.391588  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:11.392586  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:11.441496  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:11.441538  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:11.441547  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:11.441558  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:11.441815  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:11.441840  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:11.442427  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:11.453929  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:11.453969  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:11.453983  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:11.454019  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:11.454595  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:11.454625  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:11.455195  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:20:15.841676  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:15.841714  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:15.841726  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:15.841734  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:15.842253  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:15.842269  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:15.842503  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:15.854272  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:15.854326  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:15.854344  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:15.854354  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:15.854887  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:15.856526  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:15.858759  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW180] Received method 0x421 from client 0x1380 session 0x4
+[SRVGW170] Received method 0x421 from client 0x1370 session 0x4
+2025-11-07 10:20:20.243339  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:20.243496  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:20.243535  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:20.243760  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:20.245773  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:20.245933  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:20.247389  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:20.256833  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:20.256886  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:20.256906  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:20.256948  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:20.266625  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:20.266661  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:20.267348  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:20:21.392201  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:21.392758  [info] vSomeIP 3.5.8 | (default)
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0x5
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0x5
+2025-11-07 10:20:24.643826  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:24.643886  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:24.643908  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:24.644044  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:24.645482  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:24.646424  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:24.646912  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:24.658373  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:24.658414  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:24.658430  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:24.658458  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:24.661136  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:24.661224  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:24.662501  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received SET method 0x2 from client 0x1370 session 0x6
+[SRVGW170] SET payload length: 6
+[SRVGW180] Received SET method 0x2 from client 0x1380 session 0x6
+[SRVGW180] SET payload length: 6
+2025-11-07 10:20:29.044379  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:29.044818  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:29.044931  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:29.044987  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:29.047798  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:29.047941  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:29.048803  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:29.060276  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:29.060302  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:29.060313  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:29.060336  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:29.060614  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:29.060624  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:29.071556  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:20:31.392784  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:31.393047  [info] vSomeIP 3.5.8 | (default)
+[SRVGW180] Received method 0x421 from client 0x1380 session 0x7
+[SRVGW170] Received method 0x421 from client 0x1370 session 0x7
+2025-11-07 10:20:33.446335  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:33.446481  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:33.446509  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:33.446523  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:33.447437  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:33.447472  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:33.448207  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:33.460450  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:33.460493  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:33.460507  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:33.460524  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:33.460812  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:33.460829  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:33.461363  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:20:37.846741  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:37.846896  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:37.846963  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:37.847001  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:37.848366  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:37.848456  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:37.849238  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:37.863227  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:37.863325  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:37.863407  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:37.863439  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:37.864383  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:37.864434  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:37.865244  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0x8
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0x8
+2025-11-07 10:20:41.393245  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:41.393377  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:42.248133  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:42.248228  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:42.248254  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:42.248269  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:42.248486  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:42.248517  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:42.248709  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:42.270197  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:42.270218  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:42.270226  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:42.270240  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:42.270482  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:42.270488  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:42.270633  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received SET method 0x2 from client 0x1370 session 0x9
+[SRVGW180] Received SET method 0x2 from client 0x1380 session 0x9
+[SRVGW180] SET payload length: 6
+[SRVGW170] SET payload length: 6
+2025-11-07 10:20:46.648499  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:46.648620  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:46.648656  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:46.648676  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:46.649407  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:46.649425  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:46.649644  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:46.673209  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:46.673234  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:46.673242  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:46.673256  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:46.673492  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:46.673500  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:46.673752  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received method 0x421 from client 0x1370 session 0xa
+[SRVGW180] Received method 0x421 from client 0x1380 session 0xa
+2025-11-07 10:20:51.049107  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:51.049133  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:51.049141  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:51.049204  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:51.049414  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:51.049421  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:51.049564  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:51.073359  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:51.073383  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:51.073391  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:51.073439  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:51.073638  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:51.073667  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:51.073888  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:20:51.393487  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:51.393540  [info] vSomeIP 3.5.8 | (default)
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0xb
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0xb
+2025-11-07 10:20:55.450243  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:55.450283  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:55.450294  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:55.450378  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:55.450636  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:55.450649  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:55.451343  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:55.473745  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:55.473767  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:55.473774  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:55.473804  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:55.474035  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:55.474043  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:55.474246  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW180] Received SET method 0x2 from client 0x1380 session 0xc
+[SRVGW180] SET payload length: 6
+[SRVGW170] Received SET method 0x2 from client 0x1370 session 0xc
+[SRVGW170] SET payload length: 6
+2025-11-07 10:20:59.850809  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:59.850912  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:20:59.851012  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:20:59.851262  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:59.853415  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:20:59.853602  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:59.855218  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:20:59.875316  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:59.875337  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:20:59.875344  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:20:59.875358  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:59.875744  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:20:59.875751  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:59.876158  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:21:01.394223  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:01.394355  [info] vSomeIP 3.5.8 | (default)
+[SRVGW180] Received method 0x421 from client 0x1380 session 0xd
+[SRVGW170] Received method 0x421 from client 0x1370 session 0xd
+2025-11-07 10:21:04.251647  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:04.251716  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:04.251739  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:04.251914  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:04.253431  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:04.253528  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:04.254450  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:04.279443  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:04.279467  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:04.279476  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:04.279490  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:04.280295  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:04.280304  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:04.280467  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0xe
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0xe
+2025-11-07 10:21:08.652196  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:08.652230  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:08.652239  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:08.652314  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:08.652570  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:08.652578  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:08.653140  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:08.680771  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:08.680801  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:08.680809  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:08.680828  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:08.681242  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:08.681250  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:08.681371  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:21:11.394592  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:11.394741  [info] vSomeIP 3.5.8 | (default)
+[SRVGW180] Received SET method 0x2 from client 0x1380 session 0xf
+[SRVGW180] SET payload length: 6
+[SRVGW170] Received SET method 0x2 from client 0x1370 session 0xf
+[SRVGW170] SET payload length: 6
+2025-11-07 10:21:13.052414  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:13.052494  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:13.052509  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:13.052555  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:13.053556  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:13.053599  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:13.054445  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:13.080881  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:13.080905  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:13.080917  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:13.080958  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:13.081232  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:13.081263  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:13.081407  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:21:17.452956  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:17.452987  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:17.452995  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:17.453010  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:17.453262  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:17.453278  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:17.453407  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:17.481111  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:17.481152  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:17.481160  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:17.481173  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:17.481349  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:17.481359  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:17.481491  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received method 0x421 from client 0x1370 session 0x10
+[SRVGW180] Received method 0x421 from client 0x1380 session 0x10
+2025-11-07 10:21:21.395421  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:21.395523  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:21.853401  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:21.853495  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:21.853515  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:21.853544  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:21.854610  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:21.854645  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:21.855538  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:21.881752  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:21.881869  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:21.881909  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:21.881931  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:21.883580  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:21.883661  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:21.884818  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0x11
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0x11
+2025-11-07 10:21:26.254473  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:26.254810  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:26.254925  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:26.254982  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:26.256752  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:26.256881  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:26.257741  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:26.283288  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:26.283316  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:26.283324  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:26.283337  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:26.283703  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:26.283709  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:26.284220  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received SET method 0x2 from client 0x1370 session 0x12
+[SRVGW170] SET payload length: 6
+[SRVGW180] Received SET method 0x2 from client 0x1380 session 0x12
+[SRVGW180] SET payload length: 6
+2025-11-07 10:21:30.655913  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:30.656216  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:30.656297  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:30.656339  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:30.658978  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:30.659088  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:30.660513  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:30.689342  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:30.689367  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:30.689374  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:30.689389  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:30.690300  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:30.690316  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:30.690450  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:21:31.395812  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:31.395980  [info] vSomeIP 3.5.8 | (default)
+[SRVGW180] Received method 0x421 from client 0x1380 session 0x13
+[SRVGW170] Received method 0x421 from client 0x1370 session 0x13
+2025-11-07 10:21:35.056878  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:35.056926  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:35.056941  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:35.057454  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:35.058504  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:35.058561  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:35.059276  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:35.095197  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:35.095228  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:35.095237  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:35.095254  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:35.095589  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:35.095597  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:35.097371  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0x14
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0x14
+2025-11-07 10:21:39.458261  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:39.458512  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:39.458588  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:39.458621  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:39.459658  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:39.459686  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:39.460546  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:39.496624  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:39.496647  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:39.496655  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:39.496679  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:39.497300  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:39.497319  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:39.497511  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:21:41.396300  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:41.396481  [info] vSomeIP 3.5.8 | (default)
+[SRVGW180] Received SET method 0x2 from client 0x1380 session 0x15
+[SRVGW180] SET payload length: 6
+[SRVGW170] Received SET method 0x2 from client 0x1370 session 0x15
+[SRVGW170] SET payload length: 6
+2025-11-07 10:21:43.858890  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:43.858935  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:43.858951  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:43.858981  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:43.859824  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:43.859882  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:43.860600  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:43.901392  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:43.901428  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:43.901437  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:43.901455  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:43.902329  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:43.902342  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:43.902510  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW170] Received method 0x421 from client 0x1370 session 0x16
+[SRVGW180] Received method 0x421 from client 0x1380 session 0x16
+2025-11-07 10:21:48.263233  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:48.263257  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:48.263264  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:48.263274  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:48.264836  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:48.264862  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:48.265363  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:48.302645  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:48.302667  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:48.302674  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:48.302687  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:48.303367  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:48.303380  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:48.303507  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+2025-11-07 10:21:51.396635  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:51.396776  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:52.663716  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:52.663755  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:52.663768  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:52.663794  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:52.664637  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:52.664707  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:52.665476  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:52.705383  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:52.705409  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:52.705421  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:52.705435  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:52.706044  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:52.706050  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:52.706295  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+[SRVGW180] Received GET method 0x1 from client 0x1380 session 0x17
+[SRVGW170] Received GET method 0x1 from client 0x1370 session 0x17
+2025-11-07 10:21:57.064272  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:57.064331  [info] usei#1::192.168.170.2:30490::leave: 224.244.224.245
+2025-11-07 10:21:57.064351  [info] usei#1::192.168.170.2:30490::join: 224.244.224.245
+2025-11-07 10:21:57.064494  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:57.065716  [info] usei#1::192.168.170.2:30490::set_multicast_option: leave successful
+2025-11-07 10:21:57.065809  [info] usei#1::192.168.170.2:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:57.066601  [info] usei#1::192.168.170.2:30490::set_multicast_option: join successful
+2025-11-07 10:21:57.105539  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:21:57.105616  [info] usei#2::192.168.180.2:30491::leave: 224.244.224.246
+2025-11-07 10:21:57.105636  [info] usei#2::192.168.180.2:30491::join: 224.244.224.246
+2025-11-07 10:21:57.105648  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:57.105942  [info] usei#2::192.168.180.2:30491::set_multicast_option: leave successful
+2025-11-07 10:21:57.105970  [info] usei#2::192.168.180.2:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:21:57.106261  [info] usei#2::192.168.180.2:30491::set_multicast_option: join successful
+^C2025-11-07 10:21:57.717132  [info] Stopping vsomeip application "SRVGW180" (1280).
+2025-11-07 10:21:57.717162  [info] Stopping vsomeip application "SRVGW170" (1270).
+2025-11-07 10:21:57.717280  [debug] Thread destroyed. Number of active threads for SRVGW170 : 0
+2025-11-07 10:21:57.717632  [info] usei#3::192.168.170.2:30509::stop, lifecycle_idx=1
+2025-11-07 10:21:57.717651  [info] usei#3::192.168.170.2:30509::stop: done, lifecycle_idx=2
+2025-11-07 10:21:57.718377  [debug] Thread destroyed. Number of active threads for SRVGW180 : 0
+2025-11-07 10:21:57.718551  [info] usei#4::192.168.180.2:30510::stop, lifecycle_idx=1
+2025-11-07 10:21:57.718591  [info] usei#4::192.168.180.2:30510::stop: done, lifecycle_idx=2
+2025-11-07 10:21:57.718610  [warning] usei#4::192.168.180.2:30510::receive_unicast_unlocked: stop data handler, lifecycle_idx=1 vs 2, Operation canceled, stopped=1
+2025-11-07 10:21:57.718631  [info] usei#4::192.168.180.2:30510::destructor, lifecycle_idx=2
+^C

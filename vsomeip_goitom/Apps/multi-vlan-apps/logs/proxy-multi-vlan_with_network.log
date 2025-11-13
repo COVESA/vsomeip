@@ -1,0 +1,259 @@
+gett@Ubuntu-22:~/repo/vsomeip/vsomeip_goitom/Apps/vlan-apps-inv/build$ routing_samp2 
+2025-11-07 10:20:03.380913  [info] Using configuration file: "../config/vsomeip-udp-client-170.json".
+2025-11-07 10:20:03.381004  [info] Parsed vsomeip configuration in 0ms
+2025-11-07 10:20:03.381033  [info] Configuration module loaded.
+2025-11-07 10:20:03.381059  [info] Security disabled!
+2025-11-07 10:20:03.381078  [info] Initializing vsomeip (3.5.8) application "CLGW170".
+2025-11-07 10:20:03.381105  [info] Instantiating routing manager [Host].
+2025-11-07 10:20:03.381214  [info] create_routing_root: Routing root @ /tmp/VLAN170-0
+2025-11-07 10:20:03.381402  [info] Service Discovery enabled. Trying to load module.
+2025-11-07 10:20:03.381620  [info] Service Discovery module loaded.
+2025-11-07 10:20:03.381861  [info] Application(CLGW170, 1370) is initialized (11, 100).
+[CLGW170] Initialized for service 0x1234/0x5678
+2025-11-07 10:20:03.382086  [info] Using configuration file: "../config/vsomeip-udp-client-180.json".
+2025-11-07 10:20:03.382110  [info] Parsed vsomeip configuration in 0ms
+2025-11-07 10:20:03.382131  [info] Configuration module loaded.
+2025-11-07 10:20:03.382175  [info] Security disabled!
+2025-11-07 10:20:03.382196  [info] Initializing vsomeip (3.5.8) application "CLGW180".
+2025-11-07 10:20:03.382222  [info] Instantiating routing manager [Host].
+2025-11-07 10:20:03.382300  [info] create_routing_root: Routing root @ /tmp/VLAN180-0
+2025-11-07 10:20:03.382400  [info] Service Discovery enabled. Trying to load module.
+2025-11-07 10:20:03.382436  [info] Service Discovery module loaded.
+2025-11-07 10:20:03.382830  [info] Application(CLGW180, 1380) is initialized (11, 100).
+[CLGW180] Initialized for service 0x1235/0x5679
+2025-11-07 10:20:03.382962  [info] Starting vsomeip application "CLGW170" (1370) using 2 threads I/O nice 0 boost event loop period 0
+2025-11-07 10:20:03.383004  [info] Starting vsomeip application "CLGW180" (1380) using 2 threads I/O nice 0 boost event loop period 0
+2025-11-07 10:20:03.383042  [debug] Thread created. Number of active threads for CLGW180 : 1
+2025-11-07 10:20:03.383106  [info] Client [1380] routes unicast:192.168.180.1, netmask:255.255.255.0
+2025-11-07 10:20:03.383201  [info] netlink: from 0 to 1, if=0, mc=0, count=0
+2025-11-07 10:20:03.383266  [info] Watchdog is disabled!
+2025-11-07 10:20:03.383407  [info] io thread id from application: 1380 (CLGW180) is: 7dff5c5fa640 TID: 3934
+2025-11-07 10:20:03.383059  [debug] Thread created. Number of active threads for CLGW170 : 1
+2025-11-07 10:20:03.383076  [info] main dispatch thread id from application: 1380 (CLGW180) is: 7dff5bdf9640 TID: 3935
+2025-11-07 10:20:03.383114  [info] main dispatch thread id from application: 1370 (CLGW170) is: 7dff5b5f8640 TID: 3936
+2025-11-07 10:20:03.383154  [info] shutdown thread id from application: 1380 (CLGW180) is: 7dff5adf7640 TID: 3937
+2025-11-07 10:20:03.383418  [info] io thread id from application: 1380 (CLGW180) is: 7dff59df5640 TID: 3939
+2025-11-07 10:20:03.383481  [info] netlink: from 1 to 2, if=4, mc=0, count=0
+2025-11-07 10:20:03.383531  [info] vSomeIP 3.5.8 | (default)
+[[CLGW170] Service 0x1234/0x5678 is NOT available
+CLGW180] Service 0x1235/0x5679 is NOT available
+[CLGW180] is registered
+[CLGW180] Requesting service 0x1235/0x5679
+2025-11-07 10:20:03.383648  [info] REQUEST(1380): [1235.5679:255.4294967295]
+2025-11-07 10:20:03.383575  [info] shutdown thread id from application: 1370 (CLGW170) is: 7dff595f4640 TID: 3940
+2025-11-07 10:20:03.383589  [info] Client [1370] routes unicast:192.168.170.1, netmask:255.255.255.0
+2025-11-07 10:20:03.383744  [info] netlink: from 0 to 1, if=0, mc=0, count=0
+2025-11-07 10:20:03.383542  [info] netlink: from 2 to 3, if=4, mc=0, count=1
+2025-11-07 10:20:03.383782  [info] create_local_server: Listening @ /tmp/VLAN180-1380
+2025-11-07 10:20:03.383837  [warning] Network interface "enp0s3.180" state changed: up
+2025-11-07 10:20:03.383860  [info] netlink: from 3 to 4, if=4, mc=1, count=1
+2025-11-07 10:20:03.383877  [warning] Route "enp0s3.180" state changed: up
+2025-11-07 10:20:03.383818  [info] Watchdog is disabled!
+[CLGW170] is registered
+[CLGW170] Requesting service 0x1234/0x5678
+2025-11-07 10:20:03.383913  [info] REQUEST(1370): [1234.5678:255.4294967295]
+2025-11-07 10:20:03.384070  [info] create_local_server: Listening @ /tmp/VLAN170-1370
+2025-11-07 10:20:03.383893  [info] usei#1::constructor
+2025-11-07 10:20:03.384094  [info] usei#1::init: 192.168.180.1:30491, lifecycle_idx=0
+2025-11-07 10:20:03.384114  [info] usei#1::init_unlocked: failed to force receive buffer size, Unknown error -1
+2025-11-07 10:20:03.384123  [info] usei#1::192.168.180.1:30491::init: lifecycle_idx=0, Success
+2025-11-07 10:20:03.384172  [info] usei#1::192.168.180.1:30491::start, lifecycle_idx=0
+2025-11-07 10:20:03.384187  [info] usei#1::192.168.180.1:30491::start_unlocked: start unicast data handler, lifecycle_idx=1
+2025-11-07 10:20:03.384196  [info] usei#1::192.168.180.1:30491::start_unlocked: join 0 groups
+2025-11-07 10:20:03.384202  [info] usei#1::192.168.180.1:30491::start: done, lifecycle_idx=1
+2025-11-07 10:20:03.384240  [info] usei#1::192.168.180.1:30491::join: 224.244.224.246
+2025-11-07 10:20:03.384277  [info] SOME/IP routing ready.
+2025-11-07 10:20:03.384289  [info] io thread id from application: 1370 (CLGW170) is: 7dff3bfff640 TID: 3942
+2025-11-07 10:20:03.384389  [info] netlink: from 1 to 2, if=3, mc=0, count=0
+2025-11-07 10:20:03.384416  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:03.384231  [info] io thread id from application: 1370 (CLGW170) is: 7dff5d5fc640 TID: 3932
+2025-11-07 10:20:03.384323  [info] usei#1::192.168.180.1:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:03.384455  [info] usei#1::192.168.180.1:30491::set_multicast_option: failed to force received buffer size, Unknown error -1
+2025-11-07 10:20:03.384463  [info] netlink: from 2 to 3, if=3, mc=0, count=1
+2025-11-07 10:20:03.384488  [warning] Network interface "enp0s3.170" state changed: up
+2025-11-07 10:20:03.384474  [info] usei#1::192.168.180.1:30491::set_multicast_option: start multicast data handler, lifecycle_idx=1
+2025-11-07 10:20:03.384939  [info] netlink: from 3 to 4, if=3, mc=1, count=1
+2025-11-07 10:20:03.384964  [warning] Route "enp0s3.170" state changed: up
+2025-11-07 10:20:03.384978  [info] usei#2::constructor
+2025-11-07 10:20:03.384984  [info] usei#2::init: 192.168.170.1:30490, lifecycle_idx=0
+2025-11-07 10:20:03.384998  [info] usei#2::init_unlocked: failed to force receive buffer size, Unknown error -1
+2025-11-07 10:20:03.385003  [info] usei#2::192.168.170.1:30490::init: lifecycle_idx=0, Success
+2025-11-07 10:20:03.385006  [info] usei#2::192.168.170.1:30490::start, lifecycle_idx=0
+2025-11-07 10:20:03.385009  [info] usei#2::192.168.170.1:30490::start_unlocked: start unicast data handler, lifecycle_idx=1
+2025-11-07 10:20:03.385013  [info] usei#2::192.168.170.1:30490::start_unlocked: join 0 groups
+2025-11-07 10:20:03.385015  [info] usei#2::192.168.170.1:30490::start: done, lifecycle_idx=1
+2025-11-07 10:20:03.385020  [info] usei#2::192.168.170.1:30490::join: 224.244.224.245
+2025-11-07 10:20:03.385029  [info] SOME/IP routing ready.
+2025-11-07 10:20:03.385071  [info] usei#2::192.168.170.1:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:03.385088  [info] usei#2::192.168.170.1:30490::set_multicast_option: failed to force received buffer size, Unknown error -1
+2025-11-07 10:20:03.385095  [info] usei#2::192.168.170.1:30490::set_multicast_option: start multicast data handler, lifecycle_idx=1
+2025-11-07 10:20:03.385269  [info] usei#2::192.168.170.1:30490::set_multicast_option: join successful
+2025-11-07 10:20:03.385278  [info] usei#1::192.168.180.1:30491::set_multicast_option: join successful
+2025-11-07 10:20:03.433049  [info] endpoint_manager_impl::create_remote_client: 192.168.170.2:30509 reliable: 0 using local port: 0
+2025-11-07 10:20:03.433135  [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.170.2:30509
+2025-11-07 10:20:03.433158  [debug] ON_OFFER_SERVICE(0000): [1234.5678:0.0]
+[CLGW170] Service 0x1234/0x5678 is AVAILABLE
+2025-11-07 10:20:03.448100  [info] endpoint_manager_impl::create_remote_client: 192.168.180.2:30510 reliable: 0 using local port: 0
+2025-11-07 10:20:03.448175  [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.180.2:30510
+2025-11-07 10:20:03.448200  [debug] ON_OFFER_SERVICE(0000): [1235.5679:0.0]
+[CLGW180] Service 0x1235/0x5679 is AVAILABLE
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0x1 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0x1 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0x2 payload length: 4 [01 02 03 04 ...]
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0x2 payload length: 4 [01 02 03 04 ...]
+2025-11-07 10:20:12.819537  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:12.819692  [info] usei#1::192.168.180.1:30491::leave: 224.244.224.246
+2025-11-07 10:20:12.819727  [info] usei#1::192.168.180.1:30491::join: 224.244.224.246
+2025-11-07 10:20:12.819968  [info] usei#1::192.168.180.1:30491::set_multicast_option: leave 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:12.821329  [info] usei#1::192.168.180.1:30491::set_multicast_option: leave successful
+2025-11-07 10:20:12.821483  [info] usei#1::192.168.180.1:30491::set_multicast_option: join 224.244.224.246, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:12.822345  [info] usei#1::192.168.180.1:30491::set_multicast_option: join successful
+2025-11-07 10:20:12.851946  [warning] Didn't receive a multicast SD message for 4400ms.
+2025-11-07 10:20:12.852008  [info] usei#2::192.168.170.1:30490::leave: 224.244.224.245
+2025-11-07 10:20:12.852027  [info] usei#2::192.168.170.1:30490::join: 224.244.224.245
+2025-11-07 10:20:12.852052  [info] usei#2::192.168.170.1:30490::set_multicast_option: leave 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:12.852382  [info] usei#2::192.168.170.1:30490::set_multicast_option: leave successful
+2025-11-07 10:20:12.852399  [info] usei#2::192.168.170.1:30490::set_multicast_option: join 224.244.224.245, lifecycle_idx=1, stopped=0
+2025-11-07 10:20:12.865076  [info] usei#2::192.168.170.1:30490::set_multicast_option: join successful
+2025-11-07 10:20:13.384170  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:13.384992  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:13.394558  [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x7dff54009070 socket state > 0
+[CLGW170] Service 0x1234/0x5678 is NOT available
+[CLGW180] Service 0x1235/0x5679 is NOT available
+2025-11-07 10:20:13.407932  [info] update_routing_info: elapsed=2000 : delete service/instance 1234.5678
+2025-11-07 10:20:13.397932  [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x7dff4c008f00 socket state > 0
+2025-11-07 10:20:13.407978  [info] update_routing_info: elapsed=2000 : delete service/instance 1235.5679
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+2025-11-07 10:20:13.533029  [warning] rmi:: send {_client=1370 _message=1234.0002.00.00 _force=0}: Remote service not available. instance=5678 version=000
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+2025-11-07 10:20:13.533220  [warning] rmi:: send {_client=1380 _message=1235.0002.00.00 _force=0}: Remote service not available. instance=5679 version=000
+2025-11-07 10:20:14.818946  [info] endpoint_manager_impl::create_remote_client: 192.168.180.2:30510 reliable: 0 using local port: 0
+2025-11-07 10:20:14.818999  [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.180.2:30510
+2025-11-07 10:20:14.819014  [debug] ON_OFFER_SERVICE(0000): [1235.5679:0.0]
+[CLGW180] Service 0x1235/0x5679 is AVAILABLE
+2025-11-07 10:20:14.849160  [info] endpoint_manager_impl::create_remote_client: 192.168.170.2:30509 reliable: 0 using local port: 0
+2025-11-07 10:20:14.849232  [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.170.2:30509
+2025-11-07 10:20:14.849254  [debug] ON_OFFER_SERVICE(0000): [1234.5678:0.0]
+[CLGW170] Service 0x1234/0x5678 is AVAILABLE
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0x4 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0x4 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+2025-11-07 10:20:23.385223  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:23.385445  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0x5 payload length: 4 [01 02 03 04 ...]
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0x5 payload length: 4 [01 02 03 04 ...]
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW170] Received RESPONSE for method 0x2 from service 0x1234/0x5678 session 0x6
+[CLGW180] Received RESPONSE for method 0x2 from service 0x1235/0x5679 session 0x6
+2025-11-07 10:20:33.385939  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:33.386173  [info] vSomeIP 3.5.8 | (default)
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0x7 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0x7 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0x8 payload length: 4 [01 02 03 04 ...]
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0x8 payload length: 4 [01 02 03 04 ...]
+2025-11-07 10:20:43.386982  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:43.387273  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW170] Received RESPONSE for method 0x2 from service 0x1234/0x5678 session 0x9
+[CLGW180] Received RESPONSE for method 0x2 from service 0x1235/0x5679 session 0x9
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0xa payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0xa payload length: 120 [00 01 02 03 04 05 06 07 ...]
+2025-11-07 10:20:53.387338  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:20:53.387488  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0xb payload length: 4 [01 02 03 04 ...]
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0xb payload length: 4 [01 02 03 04 ...]
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW170] Received RESPONSE for method 0x2 from service 0x1234/0x5678 session 0xc
+[CLGW180] Received RESPONSE for method 0x2 from service 0x1235/0x5679 session 0xc
+2025-11-07 10:21:03.387821  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:03.387971  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0xd payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0xd payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0xe payload length: 4 [01 02 03 04 ...]
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0xe payload length: 4 [01 02 03 04 ...]
+2025-11-07 10:21:13.388213  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:13.388491  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x2 from service 0x1235/0x5679 session 0xf
+[CLGW170] Received RESPONSE for method 0x2 from service 0x1234/0x5678 session 0xf
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0x10 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0x10 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+2025-11-07 10:21:23.388965  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:23.389301  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0x11 payload length: 4 [01 02 03 04 ...]
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0x11 payload length: 4 [01 02 03 04 ...]
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+[CLGW170] Received RESPONSE for method 0x2 from service 0x1234/0x5678 session 0x12
+[CLGW180] Received RESPONSE for method 0x2 from service 0x1235/0x5679 session 0x12
+2025-11-07 10:21:33.389522  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:33.389975  [info] vSomeIP 3.5.8 | (default)
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0x13 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0x13 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0x14 payload length: 4 [01 02 03 04 ...]
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0x14 payload length: 4 [01 02 03 04 ...]
+2025-11-07 10:21:43.390166  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:43.390282  [info] vSomeIP 3.5.8 | (default)
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW180] Received RESPONSE for method 0x2 from service 0x1235/0x5679 session 0x15
+[CLGW170] Received RESPONSE for method 0x2 from service 0x1234/0x5678 session 0x15
+[CLGW180] Sending request method 0x421 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x421 to service 0x1234/0x5678
+[CLGW180] Received RESPONSE for method 0x421 from service 0x1235/0x5679 session 0x16 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+[CLGW170] Received RESPONSE for method 0x421 from service 0x1234/0x5678 session 0x16 payload length: 120 [00 01 02 03 04 05 06 07 ...]
+2025-11-07 10:21:53.390965  [info] vSomeIP 3.5.8 | (default)
+2025-11-07 10:21:53.391242  [info] vSomeIP 3.5.8 | (default)
+[CLGW180] Sending request method 0x1 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x1 to service 0x1234/0x5678
+[CLGW170] Received RESPONSE for method 0x1 from service 0x1234/0x5678 session 0x17 payload length: 4 [01 02 03 04 ...]
+[CLGW180] Received RESPONSE for method 0x1 from service 0x1235/0x5679 session 0x17 payload length: 4 [01 02 03 04 ...]
+[CLGW170] Service 0x1234/0x5678 is NOT available
+2025-11-07 10:21:58.510147  [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x7dff5400acd0 socket state > 0
+[CLGW180] Sending request method 0x2 to service 0x1235/0x5679
+[CLGW170] Sending request method 0x2 to service 0x1234/0x5678
+2025-11-07 10:21:59.063295  [warning] rmi:: send {_client=1370 _message=1234.0002.00.00 _force=0}: Remote service not available. instance=5678 version=000
+2025-11-07 10:21:59.070188  [warning] uce::receive_cbk: local: 192.168.180.1:53461 remote: 192.168.180.2:30510 error: Connection refused
+[CLGW180] Service 0x1235/0x5679 is NOT available
+2025-11-07 10:21:59.070464  [warning] service_endpoint_disconnected: lost connection to remote service: [1235.5679]
+2025-11-07 10:21:59.070569  [warning] uce::restart: local: 192.168.180.1:53461 remote: 192.168.180.2:30510
+2025-11-07 10:21:59.070611  [info] cei::shutdown_and_close_socket_unlocked: not recreating socket  endpoint > 0x7dff4c00aa90 socket state > 0
+2025-11-07 10:21:59.170884  [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992 (1703936) local port:0 remote:192.168.180.2:30510
+^C2025-11-07 10:22:01.179069  [info] Stopping vsomeip application "CLGW180" (1380).
+2025-11-07 10:22:01.179427  [debug] Thread destroyed. Number of active threads for CLGW180 : 0
+2025-11-07 10:22:01.177160  [info] Stopping vsomeip application "CLGW170" (1370).
+2025-11-07 10:22:01.180496  [debug] Thread destroyed. Number of active threads for CLGW170 : 0
+terminate called without an active exception
+Aborted (core dumped)
+gett@Ubuntu-22:~/repo/vsomeip/vsomeip_goitom/Apps/vlan-apps-inv/build$ 
