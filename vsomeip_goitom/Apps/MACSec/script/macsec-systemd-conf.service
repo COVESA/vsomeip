@@ -1,0 +1,44 @@
+# Create /etc/systemd/system/macsec.service with this content:
+[Unit]
+Description=MACsec setup via wpa_supplicant (PSK mode)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/macsec-setup.sh # path to the configuration file.
+RemainAfterExit=yes
+TimeoutSec=30
+
+[Install]
+WantedBy=multi-user.target
+
+# Enable it on boot
+sudo systemctl daemon-reload
+sudo systemctl enable macsec.service
+sudo systemctl start macsec.service
+
+# Verify
+
+sudo systemctl status macsec.service
+journalctl -u macsec.service
+
+ip link show macsec0
+ip macsec show
+ping 192.168.10.4   # or .10.1 from peer
+
+Optional: add cleanup
+If you want the service to also tear down MACsec when stopping/restarting, 
+you can add ExecStop= to the unit and create /usr/local/sbin/macsec-teardown.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/macsec-setup.sh
+ExecStop=/usr/local/sbin/macsec-teardown.sh
+RemainAfterExit=yes
+
+where macsec-teardown.sh might simply be:
+
+#!/bin/bash
+sudo pkill wpa_supplicant || true
+sudo ip link del macsec0 || true
