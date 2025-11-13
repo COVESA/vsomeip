@@ -844,6 +844,9 @@ void routing_manager_stub::client_registration_func(void) {
 
 void routing_manager_stub::registration_func(client_t client_id, std::vector<registration_type_e> registration_type) {
     for (auto type : registration_type) {
+        VSOMEIP_INFO << "Application/Client " << std::hex << client_id << " is "
+                     << (type == registration_type_e::REGISTER ? "registering" : "deregistering");
+
         bool continue_registration = true;
         on_deregister_application(client_id);
         if (type == registration_type_e::REGISTER) {
@@ -1571,8 +1574,8 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
         its_client << " @ " << _address.to_string() << ":" << std::dec << _port;
     }
 
-    VSOMEIP_INFO << "Application/Client " << its_client.str() << " is "
-                 << (_type == registration_type_e::REGISTER ? "registering." : "deregistering.");
+    VSOMEIP_INFO << "Queueing a " << (_type == registration_type_e::REGISTER ? "register" : "deregister")
+                 << " request for application/client " << its_client.str();
 
     if (_type != registration_type_e::REGISTER) {
         configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
@@ -1627,6 +1630,9 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
     if (it != pending_client_registrations_queue_.end()) {
         if (_type != it->second.back()) {
             it->second.emplace_back(_type);
+        } else {
+            VSOMEIP_WARNING << "rms::" << __func__ << " application/client " << its_client.str() << " already has a "
+                            << (_type == registration_type_e::REGISTER ? "REGISTER" : "DEREGISTER") << " request queued. Ignoring!";
         }
     } else {
         pending_client_registrations_queue_.emplace_back(_client, std::vector<registration_type_e>{_type});
