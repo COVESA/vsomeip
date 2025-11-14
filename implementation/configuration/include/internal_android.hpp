@@ -138,7 +138,8 @@
 #define VSOMEIP_DEFAULT_SHM_PERMISSION          0666
 #define VSOMEIP_DEFAULT_UDS_PERMISSIONS         0666
 
-#define VSOMEIP_ROUTING_READY_MESSAGE           "SOME/IP routing ready."
+#define VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE           "SOME/IP routing ready."
+#define VSOMEIP_INTERNAL_ROUTING_READY_MESSAGE           "vSomeIP routing ready."
 
 #ifndef VSOMEIP_VERSION
 #define VSOMEIP_VERSION "unknown version"

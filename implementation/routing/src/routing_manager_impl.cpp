@@ -245,6 +245,8 @@ void routing_manager_impl::start() {
         statistics_log_timer_.expires_after(std::chrono::seconds(0));
         statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::statistics_log_timer_cbk, this, std::placeholders::_1));
     }
+
+    VSOMEIP_INFO << VSOMEIP_INTERNAL_ROUTING_READY_MESSAGE;
 }
 
 void routing_manager_impl::stop() {
@@ -3333,6 +3335,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
             init_pending_services();
 
+            VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
+
             VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to resume mode done, diagnosis mode was "
                          << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
             break;
@@ -3431,6 +3435,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
                 switch_to_resumed = true;
             } else if (its_routing_state != routing_state_e::RS_SUSPENDED) {
                 init_pending_services();
+                VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
             }
         }
     }
@@ -3458,7 +3463,6 @@ void routing_manager_impl::start_ip_routing() {
     }
 
     routing_running_ = true;
-    VSOMEIP_INFO << VSOMEIP_ROUTING_READY_MESSAGE;
 }
 
 void routing_manager_impl::init_pending_services() {
