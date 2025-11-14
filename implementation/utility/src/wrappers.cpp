@@ -176,9 +176,7 @@ void react(int fd, const char* func) {
         std::cerr << frame;
     }
 
-    if (getenv(VSOMEIP_ENV_ABORT_ON_CRIT_SYSCALL_ERROR)) {
-        abort();
-    }
+    VSOMEIP_TERMINATE("EBADF");
 }
 
 #endif
