@@ -12,6 +12,7 @@
 #include <vector>
 #include <stdexcept>
 #include <cstdio>
+#include <cinttypes>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -86,7 +87,7 @@ std::uint64_t cpu_load_measurer::read_proc_pid_stat() {
     std::int64_t cstime(0);
     if (std::fscanf(f,
                     "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u "
-                    "%lu %lu %ld %ld", // utime, stime, cutime, cstime
+                    "%" SCNu64 " %" SCNu64 " %" SCNi64 " %" SCNi64, // utime, stime, cutime, cstime
                     &utime, &stime, &cutime, &cstime)
         == EOF) {
         std::cerr << "Failed to read " + path << std::endl;
@@ -116,7 +117,8 @@ std::uint64_t cpu_load_measurer::read_proc_stat(std::uint64_t* _idle) {
     std::uint64_t steal(0);
     std::uint64_t guest(0);
     std::uint64_t guest_nice(0);
-    if (std::fscanf(f, "%*s %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu", &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest,
+    if (std::fscanf(f, "%*s %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64,
+                    &user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest,
                     &guest_nice)
         == EOF) {
         std::cerr << "Failed to read /proc/stat" << std::endl;
