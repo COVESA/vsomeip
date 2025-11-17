@@ -1790,7 +1790,7 @@ On startup of a vSomeIP application, the following environment variables are rea
     **NOTES**:
     - If the file/folder that is configured by VSOMEIP_CONFIGURATION does not exist, the default configuration locations will be used.
 
-    - vsomeip will parse and use the configuration from all files in a configuration folder but will not consider directories within the configuration folder.
+    - vsomeip will parse and use the configuration from all files in a configuration folder but will not consider directories within the configuration folder and will ignore with a logging warning files that don't have `.json` (case-insensitive) extension.
 
 - **VSOMEIP_CONFIGURATION_\<application\>**: Application-specific version of `VSOMEIP_CONFIGURATION`. Please note that must be valid as part of an environment variable.
 
@@ -1811,8 +1811,6 @@ To enable service-specific logs, provide a space- or colon-separated list of Ser
 - **VSOMEIP_E2E_PROTECTION_MODULE** - Used to load external E2E modules. Defaults to `libvsomeip3-e2e.so.@VSOMEIP_MAJOR_VERSION@`, `vsomeip3-e2e.dll`(WIN), and `libvsomeip_e2e.so` (Android).
 
 - **VSOMEIP_LOAD_PLUGINS** - Used to load external plugins.
-
-- **VSOMEIP_ABORT_ON_CRIT_SYSCALL_ERROR** - Used to abort when incorrect state (e.g. errno EBADF) is detected for critical syscall/libc calls such as recvfrom/sendto/epoll_wait. Under these situations, the process using libvsomeip is incorrectly handling file descriptors (e.g. double close with invalid fd value) leading to a libvsomeip state that is incorrect and not recoverable. The abort will cause a core dump and platforms can decide on recovery strategies (e.g. restarting service). Any non-empty value is considered true.
 
 <details><summary>Using environment variables</summary>
 
