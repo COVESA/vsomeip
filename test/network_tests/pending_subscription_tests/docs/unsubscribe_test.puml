@@ -1,0 +1,49 @@
+@startuml unsubscribe_test
+title UNSUBSCRIBE Test - pending_subscription_test_unsubscribe
+
+box "Client Container"
+participant "Client" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+== First Subscription ==
+Client -> Routing: Subscribe to EG 0x1000 and EG 0x1001
+Routing -> Service: Forward subscription request
+Service -> Service: count_subscribe++
+Service -> Routing: Accept subscription
+Routing --> Client: SubscribeAck to EG 0x1000 and EG 0x1001
+
+== Unsubscription ==
+loop 13 times
+    Client -> Routing: Unsubscribe from EG 0x1000 and EG 0x1001
+    Routing -> Service: Forward unsubscribe request
+    Service -> Service: count_unsubscribe++
+    Service -> Routing: Unsubscribe_Ack
+end
+
+== Second Subscription ==
+Client -> Routing: Subscribe to EG 0x1000 and EG 0x1001
+Routing -> Service: Forward subscription request
+Service -> Service: count_subscribe++
+Service -> Routing: Accept subscription
+Routing --> Client: SubscribeAck to EG 0x1000 and EG 0x1001
+
+== Notification ==
+Client -> Routing: Trigger notification
+Routing -> Service: Forward method call
+Service -> Routing: Send notifications
+Routing -> Client: Forward notifications
+
+== Shutdown ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+Service -> Routing: Stop Offer
+
+@enduml

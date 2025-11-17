@@ -1,0 +1,50 @@
+@startuml subscribe_unsubscribe_same_port_test
+title SUBSCRIBE_UNSUBSCRIBE_SAME_PORT Test - Same Port Operations
+
+box "Client Container"
+participant "Client\n(Same Port)" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+note over Client: All operations from\nthe same source port
+
+== Subscribe/Unsubscribe Cycles ==
+
+loop 8 times
+    Client -> Routing: Subscribe to EG 0x1000 and EG 0x1001\n(same port)
+    Routing -> Service: Forward subscription request
+    note right of Routing: All requests containing an UDP and TCP endpoint option with the same port
+
+    Service -> Service: count_subscribe++
+    Service -> Routing: Accept subscription
+    Routing --> Client: SubscribeAck to EG 0x1000 and EG 0x1001
+
+    alt Not last iteration (i < 7)
+        Client -> Routing: Unsubscribe from EG 0x1000 and EG 0x1001\n(same port)
+        Routing -> Service: Forward unsubscribe request
+        Service -> Service: count_unsubscribe ++
+        Service -> Routing: Unsubscribe_Ack
+    end
+end
+
+note over Service: Validates port-independent handling\nFinal: 8 subscribes, 7 unsubscribes per EG
+
+== Notification ==
+Client -> Routing: Trigger notify method
+Routing -> Service: Forward method call
+Service -> Routing: Send notifications
+Routing -> Client: Forward notifications
+
+== Shutdown ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+Service -> Routing: Stop Offer
+
+@enduml

@@ -194,7 +194,7 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
             if (_subscribed) {
-                _cbk(((count_subscribe + 1) % 2)); // nack every second subscription
+                _cbk(((count_subscribe + 1) % 2)); // nack every first subscription
             } else {
                 _cbk(true);
             }

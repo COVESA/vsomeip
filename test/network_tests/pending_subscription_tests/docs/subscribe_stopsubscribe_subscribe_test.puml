@@ -1,0 +1,49 @@
+@startuml subscribe_stopsubscribe_subscribe_test
+title SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE Test - pending_subscription_test_subscribe_stopsubscribe_subscribe
+
+box "Client Container"
+participant "Client" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+== Initial Subscription ==
+Client -> Routing: Subscribe to EG 0x1000
+Routing -> Service: Forward subscription request
+Service -> Service: subscription_handler_async()\n- was_called = 1\n- Accept immediately
+Service -> Routing: Accept subscription
+Routing --> Client: SubscribeAck
+
+note over Service: Subscription active\n(Sync EG 0x1001 not used in test)
+
+== Stop Subscription ==
+Client -> Routing: StopSubscribe EG 0x1000
+Routing -> Service: Update subscription state
+note over Service: Subscription stopped\n(state: inactive)
+
+== Resubscription ==
+Client -> Routing: Subscribe to EG 0x1000 (again)
+Routing -> Routing: Detect stopped subscription\nReactivate without calling handler
+note over Service: Handler NOT called again\n(was_called must remain 1)\nReuses/reactivates subscription
+Routing --> Client: SubscribeAck
+
+note over Client, Service: Validates:\n- Handler called only once\n- Stop/resubscribe transitions\n- State correctly managed
+
+== Notification ==
+Client -> Routing: Trigger notification
+Routing -> Service: Forward method call
+Service -> Routing: Send notification\n(to reactivated subscription)
+Routing -> Client: Forward notification
+
+== Shutdown ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+Service -> Routing: Stop Offer
+
+@enduml

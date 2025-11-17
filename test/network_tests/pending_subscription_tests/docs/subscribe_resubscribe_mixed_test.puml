@@ -1,0 +1,55 @@
+@startuml subscribe_resubscribe_mixed_test
+title SUBSCRIBE_RESUBSCRIBE_MIXED Test - Subscription Sequence Flow
+
+box "Client Container"
+participant "Client" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+== Initial Trigger ==
+Client -> Service: Call trigger_notifications method (0x4242) Type: 0x01 (Request no response)
+note over Service: Prepares service to\ngenerate initial events
+
+== First Subscription (EG 0x1001) ==
+Client -> Routing: Subscribe to EG 0x1001\n(TTL=3s)
+Routing -> Service: Forward subscription request
+Service -> Service: subscription_handler()\n- Check EG 0x1001\n- was_called++
+Service -> Routing: Accept subscription
+Routing --> Client: SubscribeAck (EG 0x1001)
+
+Service -> Routing: Send initial event\nfor EG 0x1001
+Routing -> Client: Initial notification\n(Event ID + 1)
+note over Client: first_initial_event_received\npromise fulfilled
+
+== Mixed Message - New Subscription + Re-subscription ==
+Client -> Routing: SD Message with:\n- Subscribe to EG 0x1000 (TTL=3s)\n- Re-subscribe to EG 0x1001 (TTL=3s)
+note over Client, Routing: Both subscriptions in\nthe same SD message
+
+Routing -> Service: Forward subscription\nrequest for EG 0x1000 and EG 0x1001
+Service -> Service: subscription_handler()\n- Check EG 0x1000\n- was_called++
+Service -> Service: Process re-subscription\nfor EG 0x1001
+note over Service: Handler NOT called again\n(active subscription already exists)
+Service -> Routing: Accept subscription
+Routing --> Client: SubscribeAck (EG 0x1000 and EG 0x1001)
+
+Service -> Routing: Send initial event\nfor EG 0x1000
+Routing -> Client: Initial notification\n(Event ID)
+note over Client: second_initial_event_received\npromise fulfilled
+
+note over Client, Service: Validations:\n- 3 SubscribeAcks Entries received\n- 2 initial events received\n- EG 0x1001: event received before\n- EG 0x1000: event received now\n- Re-subscription does not duplicate handler
+
+== Shutdown ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+Service -> Routing: Stop Offer
+
+note over Client, Service: Test validates:\n✓ Initial subscription works\n✓ Initial events sent correctly\n✓ Mixed message processes both entries\n✓ Re-subscription does not break state\n✓ Handlers called appropriately
+
+@enduml
