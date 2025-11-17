@@ -1,0 +1,55 @@
+@startuml subscribe_unsubscribe_nack_test
+title SUBSCRIBE_UNSUBSCRIBE_NACK Test - pending_subscription_test_alternating_subscribe_unsubscribe_nack
+
+box "Client Container"
+participant "Client" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+== Subscription Cycles (8 subscribes, 7 unsubscribes) ==
+
+loop 8 times
+    Client -> Routing: Subscribe to EG 0x1000 and EG 0x1001
+    Routing -> Service: Forward subscription request
+    Service -> Service: count_subscribe ++
+    alt ((count_subscribe + 1) % 2) == 0
+        Service -> Routing: Reject subscription
+        Routing --> Client: SubscribeNack to EG 0x1000 and EG 0x1001
+    else ((count_subscribe + 1) % 2) == 1
+        Service -> Routing: Accept subscription
+        Routing --> Client: SubscribeAck to EG 0x1000 and EG 0x1001
+    end
+
+    alt Not last iteration (i < 7)
+    Client -> Routing: Unsubscribe from EG 0x1000 and EG 0x1001
+    Routing -> Service: Forward unsubscribe request
+    Service -> Service: count_unsubscribe ++
+    Service -> Routing: Unsubscribe_Ack
+    end
+end
+
+note over Service: Pattern continues...\nOdd subscribes (1,3,5,7) → NACK ❌\nEven subscribes (2,4,6,8) → ACK ✅
+
+== Notification Phase ==
+Client -> Routing: Call notify method (0x8888)
+Routing -> Service: Forward method call
+Service -> Service: on_notify_method_called()
+Service -> Routing: Notify event 0x8001 (payload: 0xDD)
+Service -> Routing: Notify event 0x8002 (payload: 0xDD)
+Routing -> Client: Forward notification (0x8001)
+Routing -> Client: Forward notification (0x8002)
+Client -> Client: Validate notifications received ✓
+
+== Shutdown Phase ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+Service -> Routing: Stop offer
+
+@enduml

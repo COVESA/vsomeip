@@ -1,0 +1,43 @@
+@startuml subscribe_test
+title SUBSCRIBE Test - pending_subscription_test_subscribe
+
+box "Client Container"
+participant "Client" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+== Subscription Phase ==
+loop 15 times
+    Client -> Routing: Subscribe to EG 0x1000 (async handler) and EG 0x1001 (sync handler)
+    Routing -> Service: Forward subscription request
+    Service -> Service: (0x1000) subscription_handler_async()\n- Stores callback
+    Service -> Service: (0x1001) subscription_handler()\n- Returns true immediately
+
+    Service -> Routing: (0x1000) Accept subscription via callback
+    Service -> Routing: (0x1001) Accept subscription immediately
+    Routing --> Client: SubscribeAck (EG 0x1000 and 0x1001)
+
+end
+
+== Notification Phase ==
+Client -> Routing: Call notify method (0x8888)
+Routing -> Service: Forward method call
+Service -> Service: on_notify_method_called()
+Service -> Routing: Notify event 0x8001 (payload: 0xDD)
+Service -> Routing: Notify event 0x8002 (payload: 0xDD)
+Routing -> Client: Forward notification (0x8001)
+Routing -> Client: Forward notification (0x8002)
+Client -> Client: Validate notifications received ✓
+
+== Shutdown Phase ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+Service -> Routing: Stop offer
+@enduml

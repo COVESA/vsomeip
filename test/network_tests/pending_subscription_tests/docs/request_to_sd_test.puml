@@ -1,0 +1,57 @@
+@startuml request_to_sd_test
+title REQUEST_TO_SD Test - pending_subscription_test_send_request_to_sd_port
+
+box "Client Container"
+participant "Client" as Client
+end box
+
+box "Service Container"
+participant "Routing\nManager" as Routing
+participant "Service" as Service
+end box
+
+== Initial State - SD Operating Normally ==
+note over Client: Joins multicast group\n224.0.23.1
+Routing -> Routing: Cyclic repetition continues
+Routing -> Client: OFFER_SERVICE (periodic)\n- Service 0x1122:0x0001\n- TTL = 0xFFFFFF (max)
+
+== Malformed Messages ==
+loop 15 times
+    Client -> Routing: ⚠️ MALFORMED SD Message\n- Message Type = 0x00 (REQUEST)\n- Contains SubscribeEventgroup entries\n- Sent to SD port 30490
+    note right of Routing: ❌ Invalid Message Type\nExpected: 0x02 (NOTIFICATION)\nReceived: 0x00 (REQUEST)
+    Routing -> Routing: Validate message type
+    Routing -> Routing: ❌ IGNORE malformed message\n(wrong type for SD)
+end
+
+note over Routing: SD remains stable\nIgnores all 15 malformed messages
+
+== SD Continues Normal Operation ==
+Routing -> Routing: Cyclic repetition continues
+Routing -> Client: OFFER_SERVICE (1)\n- Service 0x1122:0x0001\n- TTL = 0xFFFFFF
+note over Client: ✓ Offer #1 received
+
+Client -> Client: Wait for next offer...
+
+Routing -> Client: OFFER_SERVICE (2)\n- Service 0x1122:0x0001\n- TTL = 0xFFFFFF
+note over Client: ✓ Offer #2 received
+
+Client -> Client: Wait for next offer...
+
+Routing -> Client: OFFER_SERVICE (3)\n- Service 0x1122:0x0001\n- TTL = 0xFFFFFF
+note over Client: ✓ Offer #3 received\nall_offers_received = true
+
+== Notification ==
+Client -> Routing: Call trigger_notifications (0x4242)\n(no subscriptions, ignored)
+Routing -> Service: Forward method call
+note over Service: No subscribers\nNo action taken
+
+== Shutdown ==
+Client -> Routing: Call shutdown method (0x1404)
+Routing -> Service: Forward shutdown request
+Service -> Service: on_shutdown_method_called()
+Service -> Routing: Response to shutdown
+Routing -> Client: Forward response
+
+note over Client, Service: Test Validates:\n✓ SD ignores messages with wrong type\n✓ SD continues periodic offers (3+ received)\n✓ Service responds normally to valid requests
+
+@enduml

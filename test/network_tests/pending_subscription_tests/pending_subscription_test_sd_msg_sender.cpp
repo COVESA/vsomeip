@@ -29,6 +29,64 @@
 static char* remote_address;
 static char* local_address;
 
+// Helper function to wait for OFFER_SERVICE message
+void wait_for_offer_service(boost::asio::ip::udp::socket& udp_socket) {
+    udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address_v4("224.0.23.1")));
+
+    std::vector<std::uint8_t> receive_buffer(4096);
+    boost::system::error_code error;
+    bool keep_receiving = true;
+    int offer_service_received = 0;
+
+    while (keep_receiving) {
+        std::size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+        if (error) {
+            ADD_FAILURE() << __func__ << " error: " << error.message();
+            break;
+        }
+
+        vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
+        vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
+        vsomeip::method_t its_method = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_METHOD_POS_MIN]);
+
+        if (its_service == vsomeip::sd::service && its_method == vsomeip::sd::method) {
+            vsomeip::sd::message_impl sd_msg;
+            EXPECT_TRUE(sd_msg.deserialize(&its_deserializer));
+            EXPECT_EQ(1u, sd_msg.get_entries().size());
+
+            for (const auto& e : sd_msg.get_entries()) {
+                if (e->get_type() == vsomeip::sd::entry_type_e::OFFER_SERVICE) {
+                    offer_service_received++;
+                    // HACK(dsantiago): Verify more than one offer to ensure that all offer processing has been completed on the routing
+                    // manager side.
+                    // It was verified that sporadically, when the client receives the first offer, upon starting to send the
+                    // subscribes, the routing manager has not yet finished the on_multicast_received process therefore has not yet set the
+                    // accepting remote subscriptions (set_accepting_remote_subscriptions) which consequently rejects the subscriptions with
+                    // NACK until the process completes.
+                    if (offer_service_received > 1) {
+                        udp_socket.set_option(boost::asio::ip::multicast::leave_group(boost::asio::ip::make_address_v4("224.0.23.1")));
+                        keep_receiving = false;
+                        std::cout << "[CLIENT] Received OFFER_SERVICE messages - the test can start now." << std::endl;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper function to setup socket
+template<typename Protocol>
+void setup_socket(boost::asio::basic_socket<Protocol>& socket, unsigned short port, boost::system::error_code& ec) {
+    socket.open(Protocol::v4(), ec);
+    ASSERT_EQ(0, ec.value()) << "Failed to open socket: " << ec.message();
+
+    socket.set_option(boost::asio::socket_base::reuse_address(true));
+    socket.set_option(boost::asio::socket_base::linger(true, 0));
+
+    socket.bind(typename Protocol::endpoint(Protocol::v4(), port), ec);
+    ASSERT_EQ(0, ec.value()) << "Failed to bind socket: " << ec.message();
+}
+
 class pending_subscription : public ::testing::Test {
 public:
     pending_subscription() :
@@ -50,17 +108,19 @@ protected:
 };
 
 /*
- * @test Send 16 subscriptions to the service and check that every
+ * @test Send 15 subscriptions to the service and check that every
  * subscription is answered with an SubscribeEventgroupAck entry by the service.
  * Check that the subscription is active at the end of the test and check that
  * the notifications send by the service receive the client
  */
 TEST_F(pending_subscription, send_multiple_subscriptions) {
     std::promise<bool> trigger_notifications;
+    boost::system::error_code ec;
 
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::asio::ip::udp::socket udp_socket(io_);
+    setup_socket(udp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         bool keep_receiving(true);
@@ -107,6 +167,7 @@ TEST_F(pending_subscription, send_multiple_subscriptions) {
                                 EXPECT_TRUE(its_casted_entry->get_eventgroup() == pending_subscription_test::service.eventgroup_id
                                             || its_casted_entry->get_eventgroup() == pending_subscription_test::service.eventgroup_id + 1);
                                 subscribe_acks_receiveid++;
+                                std::cout << "[CLIENT] Received Subscribe ACK " << static_cast<int>(subscribe_acks_receiveid) << std::endl;
                             }
                         }
                         EXPECT_EQ(0u, sd_msg.get_options().size());
@@ -125,6 +186,7 @@ TEST_F(pending_subscription, send_multiple_subscriptions) {
                                 EXPECT_EQ(static_cast<vsomeip::event_t>(pending_subscription_test::service.event_id + 1u),
                                           its_received_events[1]);
                                 events_received = 2;
+                                std::cout << "[CLIENT] Received Notification " << std::endl;
                             }
                             EXPECT_EQ(1u, msg.get_payload()->get_length());
                             EXPECT_EQ(0xDD, *msg.get_payload()->get_data());
@@ -150,10 +212,10 @@ TEST_F(pending_subscription, send_multiple_subscriptions) {
             std::uint8_t its_subscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x40, // length
                                                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00,
                                                     0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, // length entries array
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
-                                                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x00, // eventgroup
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
-                                                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, // eventgroup 2
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
+                                                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
+                                                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
                                                     0x00, 0x00, 0x00, 0x0c, // length options array
                                                     0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
                                                     0x00, 0x11, 0x77, 0x1a};
@@ -161,25 +223,35 @@ TEST_F(pending_subscription, send_multiple_subscriptions) {
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
+            std::cout << "============ SUBSCRIPTION PHASE ============" << std::endl;
             for (int var = 0; var < 15; ++var) {
+                std::cout << "[CLIENT] Sending subscription " << static_cast<int>(var + 1) << std::endl;
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
+                // Debug: allows you to receive the ack before sending the next message
+                // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             if (std::future_status::timeout == trigger_notifications.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAcks within time";
             } else {
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 // call notify method
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+                std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10)); // to ensure the expected behavior (notification response before shutdown)
             }
 
             // call shutdown method
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -188,13 +260,12 @@ TEST_F(pending_subscription, send_multiple_subscriptions) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
 }
 
 /*
- * @test Send 16 subscriptions to the service while alternating between Subscribe
+ * @test Send 15 subscriptions to the service while alternating between Subscribe
  * and Unsubscribe and check that every SubscribeEventgroupEntry (ttl > 0)
  * is answered with an SubscribeEventgroupAck entry by the service.
  * Check that the subscription is active at the end of the test and check that
@@ -202,10 +273,12 @@ TEST_F(pending_subscription, send_multiple_subscriptions) {
  */
 TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
     std::promise<bool> trigger_notifications;
+    boost::system::error_code ec;
 
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::asio::ip::udp::socket udp_socket(io_);
+    setup_socket(udp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         const std::uint32_t expected_acks(8);
@@ -274,6 +347,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
                         }
                         EXPECT_EQ(0u, sd_msg.get_options().size());
                         acks_received++;
+                        std::cout << "[CLIENT] Received Subscribe ACK " << static_cast<int>(acks_received) << std::endl;
                     } else { // non-sd-message
                         vsomeip::message_impl msg;
                         EXPECT_TRUE(msg.deserialize(&its_deserializer));
@@ -283,6 +357,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received Response " << static_cast<int>(responses_received) << std::endl;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
                             its_received_events.push_back(msg.get_method());
                             if (its_received_events.size() == 2) {
@@ -295,6 +370,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
                             notifications_received++;
+                            std::cout << "[CLIENT] Received Notification " << static_cast<int>(notifications_received) << std::endl;
                         }
                     }
 
@@ -320,12 +396,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
             std::uint8_t its_subscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x40, // length
                                                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00,
                                                     0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, // length entries array
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x00, // eventgroup
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
+                                                    0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 2
+                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
                                                     0x00, 0x00, 0x00, 0x0c, // length options array
                                                     0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
                                                     0x00, 0x11, 0x77, 0x1a};
@@ -333,8 +409,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
             boost::asio::ip::address its_local_address = boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
+            std::cout << "============ SUBSCRIPTION PHASE ============" << std::endl;
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
+                std::cout << "[CLIENT] Sending "
+                          << ((its_subscribe_message[35] == 16 && its_subscribe_message[51] == 16) ? "subscription" : "unsubscription")
+                          << std::endl;
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
                 if (its_subscribe_message[11] % 2) {
@@ -344,22 +424,30 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
                     its_subscribe_message[35] = 0;
                     its_subscribe_message[51] = 0;
                 }
+                // Debug: allows you to receive the ack before sending the next message
+                // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             if (std::future_status::timeout == trigger_notifications.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAcks within time";
             } else {
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 // call notify method
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+                std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10)); // to ensure the expected behavior (notification response before shutdown)
             }
 
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             // call shutdown method
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -368,13 +456,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
 }
 
 /*
- * @test Send 16 subscriptions to the service while only two contain a
+ * @test Send 15 subscriptions to the service while only two contain a
  * SubscribeEventgroupEntry and the rest contain StopSubscribeEventgroupEntries
  * and check that all subscriptions with SubscribeEventgroupEntries are
  * answered with an SubscribeEventgroupAck entry by the service.
@@ -383,10 +470,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
  */
 TEST_F(pending_subscription, send_multiple_unsubscriptions) {
     std::promise<bool> trigger_notifications;
+    boost::system::error_code ec;
 
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::asio::ip::udp::socket udp_socket(io_);
+    setup_socket(udp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         const std::uint32_t expected_acks(2);
@@ -454,6 +543,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
                         }
                         EXPECT_EQ(0u, sd_msg.get_options().size());
                         acks_received++;
+                        std::cout << "[CLIENT] Received Subscribe ACK " << static_cast<int>(acks_received) << std::endl;
                     } else { // non-sd-message
                         vsomeip::message_impl msg;
                         EXPECT_TRUE(msg.deserialize(&its_deserializer));
@@ -463,6 +553,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received Response " << static_cast<int>(responses_received) << std::endl;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
                             its_received_events.push_back(msg.get_method());
                             if (its_received_events.size() == 2) {
@@ -475,6 +566,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
                             notifications_received++;
+                            std::cout << "[CLIENT] Received Notification " << static_cast<int>(notifications_received) << std::endl;
                         }
                     }
                 }
@@ -500,12 +592,12 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
             std::uint8_t its_subscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x40, // length
                                                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00,
                                                     0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, // length entries array
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1112/ instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x00, // eventgroup
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
+                                                    0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1112/ instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 2
+                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
                                                     0x00, 0x00, 0x00, 0x0c, // length options array
                                                     0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
                                                     0x00, 0x11, 0x77, 0x1a};
@@ -513,6 +605,7 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
             boost::asio::ip::address its_local_address = boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
+            std::cout << "============ SUBSCRIPTION PHASE ============" << std::endl;
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
                 if (its_subscribe_message[11] == 15 || its_subscribe_message[11] == 0x1) {
@@ -522,24 +615,35 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
                     its_subscribe_message[35] = 0;
                     its_subscribe_message[51] = 0;
                 }
+                std::cout << "[CLIENT] Sending "
+                          << ((its_subscribe_message[35] == 16 && its_subscribe_message[51] == 16) ? "subscription" : "unsubscription")
+                          << std::endl;
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
+                // Debug: allows you to receive the ack before sending the next message
+                // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             if (std::future_status::timeout == trigger_notifications.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAcks within time";
             } else {
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 // call notify method
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+                std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10)); // to ensure the expected behavior (notification response before shutdown)
             }
 
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             // call shutdown method
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -548,23 +652,24 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
 }
 
 /*
- * @test Send 16 subscriptions to the service and check that every second
+ * @test Send 15 subscriptions to the service and check that every first
  * subscription is answered with an SubscribeEventgroupNack entry by the service.
  * Check that the subscription is active at the end of the test and check that
  * the notifications send by the service receive the client
  */
 TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
     std::promise<bool> trigger_notifications;
+    boost::system::error_code ec;
 
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::asio::ip::udp::socket udp_socket(io_);
+    setup_socket(udp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         const std::uint32_t expected_acks(8);
@@ -626,9 +731,11 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
                             if (e->get_ttl()) {
                                 EXPECT_EQ(16u, e->get_ttl());
                                 acks_received++;
+                                std::cout << "[CLIENT] Received subscription ACK " << static_cast<int>(acks_received) << std::endl;
                             } else {
                                 EXPECT_EQ(0u, e->get_ttl());
                                 nacks_received++;
+                                std::cout << "[CLIENT] Received subscription NACK " << static_cast<int>(nacks_received) << std::endl;
                             }
                             EXPECT_EQ(pending_subscription_test::service.service_id, e->get_service());
                             EXPECT_EQ(pending_subscription_test::service.instance_id, e->get_instance());
@@ -649,6 +756,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received response " << static_cast<int>(responses_received) << std::endl;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
                             its_received_events.push_back(msg.get_method());
                             if (its_received_events.size() == 2) {
@@ -661,6 +769,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
                             notifications_received++;
+                            std::cout << "[CLIENT] Received notification " << static_cast<int>(notifications_received) << std::endl;
                         }
                     }
 
@@ -688,12 +797,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
             std::uint8_t its_subscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x40, // length
                                                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00,
                                                     0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, // length entries array
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x00, // eventgroup
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
+                                                    0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 2
+                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
                                                     0x00, 0x00, 0x00, 0x0c, // length options array
                                                     0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
                                                     0x00, 0x11, 0x77, 0x1a};
@@ -701,8 +810,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
             boost::asio::ip::address its_local_address = boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
+            std::cout << "============ SUBSCRIPTION PHASE ============" << std::endl;
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
+                std::cout << "[CLIENT] Sending "
+                          << ((its_subscribe_message[35] == 16 && its_subscribe_message[51] == 16) ? "subscription" : "unsubscription")
+                          << std::endl;
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
                 if (its_subscribe_message[11] % 2) {
@@ -712,22 +825,30 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
                     its_subscribe_message[35] = 0;
                     its_subscribe_message[51] = 0;
                 }
+                // Debug: allows you to receive the ack before sending the next message
+                // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             if (std::future_status::timeout == trigger_notifications.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAcks within time";
             } else {
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 // call notify method
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+                std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10)); // to ensure the expected behavior (notification response before shutdown)
             }
 
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             // call shutdown method
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -736,13 +857,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
 }
 
 /*
- * @test Send 16 subscriptions containing an UDP and TCP endpoint option
+ * @test Send 15 subscriptions containing an UDP and TCP endpoint option
  * to the service while alternating between Subscribe
  * and Unsubscribe and check that every SubscribeEventgroupEntry (ttl > 0)
  * is answered with an SubscribeEventgroupAck entry by the service.
@@ -752,12 +872,15 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
 TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
     std::promise<bool> trigger_notifications;
     std::promise<void> tcp_connected;
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
-    boost::asio::ip::tcp::socket tcp_socket(io_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 30490));
-    tcp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    tcp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::system::error_code ec;
+
+    boost::asio::ip::udp::socket udp_socket(io_);
+    boost::asio::ip::tcp::socket tcp_socket(io_);
+
+    setup_socket(udp_socket, 30490, ec);
+    setup_socket(tcp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         const std::uint32_t expected_acks(8);
@@ -776,7 +899,13 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(remote_address), 34511), ec);
-        ASSERT_EQ(0, ec.value());
+        ASSERT_EQ(0, ec.value()) << "Failed to connect TCP: " << ec.message() << std::endl;
+        // HACK(dsantiago): testing on some valgrind types delays the TCP connection from being fully established, such that introducing
+        // this delay fixes odd, sporadic behaviours in the TCP connection, stabilizing the test.
+        // Error:
+        // [info] tsei#1::169.254.87.2:34511::is_established_to: didn't find TCP connection: Subscription rejected for: 169.254.87.1:30490
+        // [error] TCP connection to target2 : [169.254.87.1:30490] not established for subscription to: [1122.0001.1000]
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         tcp_connected.set_value();
 
         bool keep_receiving(true);
@@ -824,6 +953,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
                         }
                         EXPECT_EQ(0u, sd_msg.get_options().size());
                         acks_received++;
+                        std::cout << "[CLIENT] Received subscription Ack " << static_cast<int>(acks_received) << std::endl;
                     } else { // non-sd-message
                         vsomeip::message_impl msg;
                         EXPECT_TRUE(msg.deserialize(&its_deserializer));
@@ -833,6 +963,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received Response " << static_cast<int>(responses_received) << std::endl;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
                             its_received_events.push_back(msg.get_method());
                             if (its_received_events.size() == 2) {
@@ -845,6 +976,7 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
                             notifications_received++;
+                            std::cout << "[CLIENT] Received notification " << static_cast<int>(notifications_received) << std::endl;
                         }
                     }
 
@@ -876,13 +1008,13 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
                                                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00,
                                                     0x00, 0x00, 0x00, 0x20, // length entries array
                                                     0x06, 0x00, 0x00, 0x20, 0x11, 0x22, 0x00,
-                                                    0x01, // service / instance
+                                                    0x01, // service 0x1122 / instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x00, // eventgroup
+                                                    0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
                                                     0x06, 0x00, 0x00, 0x20, 0x11, 0x22, 0x00,
-                                                    0x01, // service / instance
+                                                    0x01, // service 0x1122 / instance 0x0001
                                                     0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 2
+                                                    0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
                                                     0x00, 0x00, 0x00, 0x18, // length options array
                                                     0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff,
                                                     0xff, // ip address
@@ -893,8 +1025,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
             std::memcpy(&its_subscribe_message[76], &its_local_address.to_v4().to_bytes()[0], 4);
 
+            std::cout << "============ SUBSCRIPTION PHASE ============" << std::endl;
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
+                std::cout << "[CLIENT] Sending "
+                          << ((its_subscribe_message[35] == 16 && its_subscribe_message[51] == 16) ? "subscription" : "unsubscription")
+                          << std::endl;
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
                 if (its_subscribe_message[11] % 2) {
@@ -904,22 +1040,30 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
                     its_subscribe_message[35] = 0;
                     its_subscribe_message[51] = 0;
                 }
+                // Debug: allows you to receive the response before sending the next message
+                // std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             if (std::future_status::timeout == trigger_notifications.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAcks within time";
             } else {
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 // call notify method
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+                std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10)); // to ensure the expected behavior (notification response before shutdown)
             }
 
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             // call shutdown method
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -928,7 +1072,6 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     tcp_socket.close(ec);
@@ -943,10 +1086,12 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe_same_port) {
 TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
     std::promise<void> first_initial_event_received;
     std::promise<void> second_initial_event_received;
+    boost::system::error_code ec;
 
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::asio::ip::udp::socket udp_socket(io_);
+    setup_socket(udp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         std::vector<std::uint8_t> receive_buffer(4096);
@@ -998,6 +1143,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
                             EXPECT_EQ(pending_subscription_test::service.instance_id, e->get_instance());
                             if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP_ACK) {
                                 acks_received++;
+                                std::cout << "[CLIENT] Received subscription Ack " << static_cast<int>(acks_received) << std::endl;
                                 std::shared_ptr<vsomeip::sd::eventgroupentry_impl> its_casted_entry =
                                         std::static_pointer_cast<vsomeip::sd::eventgroupentry_impl>(e);
                                 EXPECT_TRUE(its_casted_entry->get_eventgroup() == pending_subscription_test::service.eventgroup_id
@@ -1014,6 +1160,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received response " << static_cast<int>(responses_received) << std::endl;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
                             its_received_events.insert(msg.get_method());
                             if (its_received_events.size() == 2) {
@@ -1028,6 +1175,7 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
                             notifications_received = its_received_events.size();
+                            std::cout << "[CLIENT] Received notification " << static_cast<int>(notifications_received) << std::endl;
                         }
                     }
 
@@ -1065,16 +1213,20 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
     std::thread send_thread([&]() {
         try {
             // call notify method to ensure to receive initial events
+
+            std::cout << "============ INITIAL TRIGGER ============" << std::endl;
             std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                          0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending initial trigger notification" << std::endl;
             udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
 
+            std::cout << "============ First Subscription (EG 0x1001) ============" << std::endl;
             std::uint8_t its_subscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                                                     0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00,
                                                     0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
-                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
-                                                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, // eventgroup
+                                                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1112 / instance 0x0001
+                                                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
                                                     0x00, 0x00, 0x00, 0x0c, // length options array
                                                     0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
                                                     0x00, 0x11, 0x77, 0x1a};
@@ -1082,32 +1234,42 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
             std::memcpy(&its_subscribe_message[48], &its_local_address.to_v4().to_bytes()[0], 4);
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
-
+            std::cout << "[CLIENT] Sending first subscription" << std::endl;
             udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
+            // DEBUG: allow you to receive the response before sending the next message
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
             if (std::future_status::timeout == first_initial_event_received.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAck of first subscription within time";
             }
 
+            std::cout << "============ Mixed Message - New Subscription + Re-subscription ============" << std::endl;
             // send second subscription with resubscription and new subscription
-            std::uint8_t its_subscribe_resubscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x40, // length
-                                                                0x00, 0x00, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00,
-                                                                0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, // length entries array
-                                                                0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
-                                                                0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x00, // eventgroup
-                                                                0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service / instance
-                                                                0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, // eventgroup 2
-                                                                0x00, 0x00, 0x00, 0x0c, // length options array
-                                                                0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
-                                                                0x00, 0x11, 0x77, 0x1a};
+            std::uint8_t its_subscribe_resubscribe_message[] = {
+                    0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x40, // length
+                    0x00, 0x00, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, // length entries array
+                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
+                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
+                    0x06, 0x00, 0x00, 0x10, 0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
+                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, // eventgroup 0x1001
+                    0x00, 0x00, 0x00, 0x0c, // length options array
+                    0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
+                    0x00, 0x11, 0x77, 0x1a};
             std::memcpy(&its_subscribe_resubscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
+
+            std::cout << "[CLIENT] Sending mixed resubscription + new subscription message" << std::endl;
             udp_socket.send_to(boost::asio::buffer(its_subscribe_resubscribe_message), target_sd);
+            // DEBUG: allow you to receive the response before sending the next message
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
             if (std::future_status::timeout == second_initial_event_received.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAck of second subscription within time";
             }
+
             // call shutdown method
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -1116,7 +1278,6 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
 }
@@ -1128,12 +1289,15 @@ TEST_F(pending_subscription, subscribe_resubscribe_mixed) {
 TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
     std::promise<bool> trigger_notifications;
     std::promise<void> tcp_connected;
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
-    boost::asio::ip::tcp::socket tcp_socket(io_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 30490));
-    tcp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    tcp_socket.set_option(boost::asio::socket_base::linger(true, 0));
+    boost::system::error_code ec;
+
+    boost::asio::ip::udp::socket udp_socket(io_);
+    boost::asio::ip::tcp::socket tcp_socket(io_);
+
+    setup_socket(udp_socket, 30490, ec);
+    setup_socket(tcp_socket, 30490, ec);
+
+    wait_for_offer_service(udp_socket);
 
     std::thread receive_thread([&]() {
         const std::uint32_t expected_acks(2);
@@ -1152,7 +1316,13 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
 
         boost::system::error_code ec;
         tcp_socket.connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(remote_address), 34511), ec);
-        ASSERT_EQ(0, ec.value());
+        ASSERT_EQ(0, ec.value()) << "Failed to connect TCP: " << ec.message() << std::endl;
+        // HACK(dsantiago): testing on some valgrind types delays the TCP connection from being fully established, such that introducing
+        // this delay fixes odd, sporadic behaviours in the TCP connection, stabilizing the test.
+        // Error:
+        // [info] tsei#1::169.254.87.2:34511::is_established_to: didn't find TCP connection: Subscription rejected for: 169.254.87.1:30490
+        // [error] TCP connection to target2 : [169.254.87.1:30490] not established for subscription to: [1122.0001.1000]
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         tcp_connected.set_value();
 
         bool keep_receiving(true);
@@ -1209,6 +1379,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
                         }
                         EXPECT_EQ(0u, sd_msg.get_options().size());
                         acks_received++;
+                        std::cout << "[CLIENT] Received subscription Ack " << static_cast<int>(acks_received) << std::endl;
                     } else { // non-sd-message
                         vsomeip::message_impl msg;
                         EXPECT_TRUE(msg.deserialize(&its_deserializer));
@@ -1218,6 +1389,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received Response " << static_cast<int>(responses_received) << std::endl;
                         } else if (msg.get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
                             its_received_events.push_back(msg.get_method());
                             EXPECT_EQ(1u, its_received_events.size());
@@ -1226,6 +1398,7 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, msg.get_service());
                             EXPECT_EQ(0x0, msg.get_client());
                             notifications_received++;
+                            std::cout << "[CLIENT] Received notification " << static_cast<int>(notifications_received) << std::endl;
                         }
                     }
 
@@ -1255,26 +1428,27 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
                                                            0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00,
                                                            0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
                                                            0x06, 0x00, 0x00, 0x10, // subscribe Eventgroup entry
-                                                           0x11, 0x22, 0x00, 0x01, // service / instance
+                                                           0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
                                                            0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                           0x00, 0x00, 0x10, 0x00, // eventgroup
+                                                           0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
                                                            0x00, 0x00, 0x00, 0x0c, // length options array
                                                            0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
                                                            0x00, 0x11, 0x77, 0x1a};
-            std::uint8_t its_subscribe_message[] = {0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x50, // length
-                                                    0x00, 0x00, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00,
-                                                    0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, // length entries array
-                                                    0x06, 0x00, 0x00, 0x10, // subscribe Eventgroup entry
-                                                    0x11, 0x22, 0x00, 0x01, // service / instance
-                                                    0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
-                                                    0x00, 0x00, 0x10, 0x00, // eventgroup
-                                                    0x06, 0x00, 0x00, 0x10, // Stop subscribe Eventgroup entry
-                                                    0x11, 0x22, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-                                                    0x00, 0x00, 0x10, 0x00, 0x06, 0x00, 0x00, 0x10, // subscribe Eventgroup entry
-                                                    0x11, 0x22, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10,
-                                                    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0c, // length options array
-                                                    0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
-                                                    0x00, 0x11, 0x77, 0x1a};
+            std::uint8_t its_subscribe_message[] = {
+                    0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x50, // length
+                    0x00, 0x00, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00,
+                    0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, // length entries array
+                    0x06, 0x00, 0x00, 0x10, // subscribe Eventgroup entry
+                    0x11, 0x22, 0x00, 0x01, // service 0x1122 / instance 0x0001
+                    0x00, 0x00, 0x00, 0x10, // 16 seconds TTL
+                    0x00, 0x00, 0x10, 0x00, // eventgroup 0x1000
+                    0x06, 0x00, 0x00, 0x10, // Stop subscribe Eventgroup entry
+                    0x11, 0x22, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x10, 0x00, 0x06, 0x00, 0x00, 0x10, // subscribe Eventgroup entry
+                    0x11, 0x22, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10, // service 0x1122 / instance 0x0001 / 16 seconds TTL
+                    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0c, // eventgroup 0x1000 / length options array
+                    0x00, 0x09, 0x04, 0x00, 0xff, 0xff, 0xff, 0xff, // ip address
+                    0x00, 0x11, 0x77, 0x1a};
 
             boost::asio::ip::address its_local_address = boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[80], &its_local_address.to_v4().to_bytes()[0], 4);
@@ -1282,23 +1456,38 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
 
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
 
+            std::cout << "============ Initial Subscription ============" << std::endl;
+            std::cout << "[CLIENT] Sending normal subscription" << std::endl;
             udp_socket.send_to(boost::asio::buffer(its_normal_subscribe_message), target_sd);
+            // DEBUG: allow you to receive the response before sending the next message
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+            std::cout << "============ StopSubscribe + Subscribe ============" << std::endl;
+            std::cout << "[CLIENT] Sending stopsubscribe + subscribe message" << std::endl;
             udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
+            // DEBUG: allow you to receive the response before sending the next message
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
             if (std::future_status::timeout == trigger_notifications.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive all SubscribeAcks within time";
             } else {
                 // call notify method
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
+                std::this_thread::sleep_for(
+                        std::chrono::milliseconds(10)); // to ensure the expected behavior (notification response before shutdown)
             }
 
             // call shutdown method
+            std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
             std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::cout << "[CLIENT] Sending shutdown request" << std::endl;
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (...) {
             ASSERT_FALSE(true);
@@ -1306,7 +1495,6 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
     });
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     tcp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     tcp_socket.close(ec);
@@ -1319,12 +1507,15 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
  */
 TEST_F(pending_subscription, send_request_to_sd_port) {
     std::promise<bool> all_offers_received;
+    boost::system::error_code ec;
 
-    boost::asio::ip::udp::socket udp_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
+    boost::asio::ip::udp::socket udp_socket(io_);
+    setup_socket(udp_socket, 30490, ec);
     udp_socket.set_option(boost::asio::ip::multicast::enable_loopback(false));
+
+    wait_for_offer_service(udp_socket);
+
     udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.23.1").to_v4()));
-    udp_socket.set_option(boost::asio::socket_base::reuse_address(true));
-    udp_socket.set_option(boost::asio::socket_base::linger(true, 0));
 
     std::thread receive_thread([&]() {
         bool keep_receiving(true);
@@ -1375,6 +1566,7 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
                             EXPECT_EQ(pending_subscription_test::service.service_id, e->get_service());
                             EXPECT_EQ(pending_subscription_test::service.instance_id, e->get_instance());
                             offers_received++;
+                            std::cout << "[CLIENT] Received Offer " << static_cast<int>(offers_received) << std::endl;
                         }
                     } else { // non-sd-message
                         vsomeip::message_impl msg;
@@ -1385,6 +1577,7 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
                             EXPECT_EQ(pending_subscription_test::service.shutdown_method_id, msg.get_method());
                             EXPECT_EQ(0x2222, msg.get_client());
                             responses_received++;
+                            std::cout << "[CLIENT] Received Response " << static_cast<int>(responses_received) << std::endl;
                         }
                     }
 
@@ -1416,8 +1609,10 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
             boost::asio::ip::address its_local_address = boost::asio::ip::make_address(std::string(local_address));
             std::memcpy(&its_subscribe_message[64], &its_local_address.to_v4().to_bytes()[0], 4);
 
+            std::cout << "============ Malformed Messages ============" << std::endl;
             boost::asio::ip::udp::socket::endpoint_type target_sd(boost::asio::ip::make_address(std::string(remote_address)), 30490);
             for (int var = 0; var < 15; ++var) {
+                std::cout << "[CLIENT] Sending malformed message " << var + 1 << std::endl;
                 udp_socket.send_to(boost::asio::buffer(its_subscribe_message), target_sd);
                 ++its_subscribe_message[11];
             }
@@ -1427,21 +1622,25 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
             }
 
             {
+                std::cout << "============ NOTIFICATION PHASE ============" << std::endl;
                 // call notify method (but don't expect notifications) to allow
                 // service to exit
                 std::uint8_t trigger_notifications_call[] = {0x11, 0x22, 0x42, 0x42, 0x00, 0x00, 0x00, 0x08,
                                                              0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending notification" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(trigger_notifications_call), target_service);
             }
 
             {
+                std::cout << "============== SHUTDOWN PHASE ==============" << std::endl;
                 // call shutdown method
                 std::uint8_t shutdown_call[] = {0x11, 0x22, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08,
                                                 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
                 boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)),
                                                                            30001);
+                std::cout << "[CLIENT] Sending shutdown request" << std::endl;
                 udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
             }
 
@@ -1452,7 +1651,6 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
 
     send_thread.join();
     receive_thread.join();
-    boost::system::error_code ec;
     udp_socket.shutdown(boost::asio::socket_base::shutdown_both, ec);
     udp_socket.close(ec);
 }

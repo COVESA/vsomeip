@@ -44,6 +44,7 @@
         "multicast":"224.0.23.1",
         "port":"30490",
         "protocol":"udp",
-        "cyclic_offer_delay" : "1000"
+        "cyclic_offer_delay" : "1000",
+        "repetitions_max" : "0"
     }
 }
