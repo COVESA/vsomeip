@@ -297,8 +297,8 @@ bool configuration_impl::load(const std::string& _name) {
         logger::logger_impl::init(shared_from_this());
     }
 
-    // Tell, if reading of configuration file(s) failed.
-    // (This may file if the logger configuration is incomplete/missing).
+    // Log about reading of configuration file(s) that failed.
+    // (This may fail if the logger configuration is incomplete/missing).
     for (const auto& f : its_failed)
         VSOMEIP_WARNING << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
 
@@ -449,7 +449,14 @@ void configuration_impl::read_data(const std::set<std::string>& _input, std::vec
             std::map<std::string, bool> its_names;
             boost::filesystem::path its_path(i);
             for (auto j = boost::filesystem::directory_iterator(its_path); j != boost::filesystem::directory_iterator(); j++) {
-                if (!boost::filesystem::is_directory(j->path())) {
+                const auto& p = j->path();
+                if (!boost::filesystem::is_directory(p)) {
+                    auto ext = p.extension().string();
+                    if (!_mandatory_only && !boost::iequals(ext, ".json")) {
+                        VSOMEIP_INFO << "Configuration '" << p.string() << "' skipped: not json extension";
+                        continue;
+                    }
+
                     its_names[j->path().string()] = _mandatory_only;
                 } else if (_read_second_level) {
                     //_read_second_level to read the second level folders only after
