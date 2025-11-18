@@ -1,0 +1,12 @@
+{
+    "unicast":"127.0.0.1",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+}

@@ -8,8 +8,6 @@
 namespace vsomeip_v3::testing {
 using namespace std::chrono_literals;
 
-std::shared_ptr<fake_factory> test_timer_base::factory_{std::make_shared<fake_factory>()};
-
 struct test_timer_with_fake : public test_timer_base {
 
     test_timer_with_fake() { factory_->timer_ = std::make_unique<fake_timer>(timer_state_); }

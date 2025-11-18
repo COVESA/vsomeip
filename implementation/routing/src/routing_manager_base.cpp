@@ -9,6 +9,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/routing_manager_base.hpp"
+#include "../../endpoints/include/local_endpoint.hpp"
 #include "../../configuration/include/debounce_filter_impl.hpp"
 #include "../../protocol/include/send_command.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
@@ -1175,7 +1176,7 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
                 has_local = true;
             }
 
-            std::shared_ptr<endpoint> its_local_target = ep_mgr_->find_local(its_client);
+            std::shared_ptr<local_endpoint> its_local_target = ep_mgr_->find_local(its_client);
             if (its_local_target) {
                 send_local(its_local_target, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
             }
@@ -1192,7 +1193,7 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
     return has_remote;
 }
 
-bool routing_manager_base::send_local(std::shared_ptr<endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size,
+bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size,
                                       instance_t _instance, bool _reliable, protocol::id_e _command, uint8_t _status_check) const {
 
     bool has_sent(false);

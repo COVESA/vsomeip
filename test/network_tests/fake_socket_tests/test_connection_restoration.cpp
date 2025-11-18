@@ -502,6 +502,14 @@ TEST_F(test_client_helper, missing_initial_events) {
     // 1.
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
+    // ASSERT_TRUE(await_connectable(server_name_)); wouldn't work as the receiver is only started after sender received a client_id
+    // TODO at this point in time application::start() is called on a background thread and the receiver has tried to claim some port.
+    // But it can happen that this port is not free, while we continue with the "sending" of the field.
+    // Only after some port is claimed will the unguarded sec_client be set for the "send" preparation,
+    // while the send preparation already requires the sec_client. This is a race condition
+    // within the vsomeip application (to not protect against such a send preparation while not being set up properly yet),
+    // but not the focuse of this tests
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     // 3.
     server_->offer(service_instance_);
     server_->offer_event(offered_event_);

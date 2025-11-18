@@ -15,6 +15,7 @@
 namespace vsomeip_v3 {
 
 class routing_host;
+class local_server;
 
 class endpoint_manager_impl : public endpoint_manager_base {
 public:
@@ -52,7 +53,7 @@ public:
 
     void print_status() const;
 
-    bool create_routing_root(std::shared_ptr<endpoint>& _root, bool& _is_socket_activated, const std::shared_ptr<routing_host>& _host);
+    bool create_routing_root(std::shared_ptr<local_server>& _root, bool& _is_socket_activated, const std::shared_ptr<routing_host>& _host);
 
     instance_t find_instance(service_t _service, endpoint* const _endpoint) const;
     instance_t find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const;

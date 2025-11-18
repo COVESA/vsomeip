@@ -293,9 +293,11 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
         }
     }
 
-    if (command_message m; parse(input, m)) {
-        TEST_LOG << "[fake-socket] " << socket_id_ << " received command_message: " << m;
-        received_command_record_.record(m.id_);
+    if (std::vector<command_message> m; parse(input, m)) {
+        for (auto const& cm : m) {
+            TEST_LOG << "[fake-socket] " << socket_id_ << " received command_message: " << cm;
+            received_command_record_.record(cm.id_);
+        }
     } else {
         TEST_LOG << "[fake-socket] Error: unable to parse input. Size of the input: " << input.size();
     }
@@ -401,6 +403,16 @@ void fake_tcp_acceptor_handle::close() {
     {
         auto lock = std::scoped_lock(mtx_);
         is_open_ = false;
+        if (connection_) {
+            handler = std::move(connection_->handler_);
+            connection_ = std::nullopt;
+        }
+    }
+}
+void fake_tcp_acceptor_handle::cancel() {
+    connect_handler handler{};
+    {
+        auto lock = std::scoped_lock(mtx_);
         if (connection_) {
             handler = std::move(connection_->handler_);
             connection_ = std::nullopt;

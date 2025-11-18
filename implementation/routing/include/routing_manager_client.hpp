@@ -24,6 +24,7 @@ namespace vsomeip_v3 {
 
 class configuration;
 class event;
+class local_server;
 class routing_manager_host;
 
 namespace protocol {
@@ -182,6 +183,8 @@ private:
      */
     void clear_remote_subscriptions();
 
+    void restart_sender();
+
 private:
     enum class inner_state_type_e : std::uint8_t {
         ST_REGISTERED = 0x0,
@@ -203,10 +206,10 @@ private:
     std::mutex keepalive_mutex_;
 
     mutable std::recursive_mutex sender_mutex_;
-    std::shared_ptr<endpoint> sender_; // --> stub
+    std::shared_ptr<local_endpoint> sender_; // --> stub
 
     mutable std::mutex receiver_mutex_;
-    std::shared_ptr<endpoint> receiver_; // --> from everybody
+    std::shared_ptr<local_server> receiver_; // --> from everybody
 
     std::mutex pending_offers_mutex_;
     std::set<protocol::service> pending_offers_;

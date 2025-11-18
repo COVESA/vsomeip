@@ -244,6 +244,8 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
      **/
     void close();
 
+    void cancel();
+
     /**
      * Reads the is_open attribute.
      * Used by the fake_tcp_acceptor.

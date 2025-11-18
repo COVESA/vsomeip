@@ -16,45 +16,78 @@
 
 namespace vsomeip_v3::testing {
 
-[[nodiscard]] bool parse(std::vector<unsigned char> const& _message, command_message& _out) {
-    if (_message.size() < protocol::COMMAND_POSITION_PAYLOAD + 2 * protocol::TAG_SIZE) {
+[[nodiscard]] bool parse(std::vector<unsigned char> const& _message, std::vector<command_message>& _out) {
+    if (_message.size() < protocol::COMMAND_POSITION_PAYLOAD) {
         TEST_LOG << "wire bytes were not long enough to contain the header";
         return false;
     }
-    auto const deal_with_important_command = [&](auto command) {
-        std::vector<unsigned char> payload;
-        payload.reserve(_message.size() - 2 * protocol::TAG_SIZE);
-        std::copy(_message.begin() + protocol::TAG_SIZE, _message.end() - protocol::TAG_SIZE, std::back_inserter(payload));
-        protocol::error_e e;
-        command.deserialize(payload, e);
-        if (e == protocol::error_e::ERROR_OK) {
-            _out.id_ = command.get_id();
-            _out.client_id_ = command.get_client();
-            _out.payload_ = command_payload(std::move(command));
-            return true;
+
+    auto handle_message = [&_out](uint8_t const* _begin, size_t _size) {
+        command_message out;
+        if (_size < protocol::COMMAND_POSITION_PAYLOAD) {
+            TEST_LOG << "wire bytes were not long enough to contain the header";
+            return false;
         }
-        return false;
+        auto const deal_with_important_command = [&](auto command) {
+            std::vector<unsigned char> payload;
+            payload.reserve(_size);
+            std::copy(_begin, _begin + _size, std::back_inserter(payload));
+            protocol::error_e e;
+            command.deserialize(payload, e);
+            if (e == protocol::error_e::ERROR_OK) {
+                out.id_ = command.get_id();
+                out.client_id_ = command.get_client();
+                out.payload_ = command_payload(std::move(command));
+                return true;
+            }
+            return false;
+        };
+
+        // understand how to parse the data
+        std::memcpy(&out.id_, &_begin[protocol::COMMAND_POSITION_ID], 1);
+
+        if (out.id_ == protocol::id_e::ROUTING_INFO_ID && deal_with_important_command(protocol::routing_info_command{})) {
+            _out.push_back(std::move(out));
+        } else if (out.id_ == protocol::id_e::CONFIG_ID && deal_with_important_command(protocol::config_command{})) {
+            _out.push_back(std::move(out));
+        } else {
+            // the data is not important enough to parse the command payload. Lets parse the client
+            // and copy the payload as is.
+            std::memcpy(&out.client_id_, &_begin[protocol::COMMAND_POSITION_CLIENT], 2);
+            uint32_t length;
+            std::memcpy(&length, &_begin[protocol::COMMAND_POSITION_SIZE], 4);
+            std::vector<unsigned char> payload;
+            payload.reserve(length);
+            std::copy(_begin + protocol::COMMAND_POSITION_PAYLOAD, _begin + _size, std::back_inserter(payload));
+            out.payload_ = command_payload(std::move(payload));
+            _out.push_back(std::move(out));
+        }
+        return true;
     };
-
-    // understand how to parse the data
-    std::memcpy(&_out.id_, &_message[protocol::TAG_SIZE + protocol::COMMAND_POSITION_ID], 1);
-    if (_out.id_ == protocol::id_e::ROUTING_INFO_ID && deal_with_important_command(protocol::routing_info_command{})) {
-        return true;
-    } else if (_out.id_ == protocol::id_e::CONFIG_ID && deal_with_important_command(protocol::config_command{})) {
-        return true;
+    uint32_t length = 0;
+    size_t consumed_bytes = 0;
+    size_t remaining_bytes = _message.size();
+    while (remaining_bytes >= protocol::COMMAND_POSITION_SIZE + sizeof(length)) {
+        memcpy(&length, &_message[consumed_bytes + protocol::COMMAND_POSITION_SIZE], sizeof(length));
+        if (std::numeric_limits<uint32_t>::max() - protocol::COMMAND_HEADER_SIZE < length) {
+            TEST_LOG << "ERROR message length: " << length << " exceeded allowed message size";
+            return false;
+        }
+        auto const size = length + protocol::COMMAND_HEADER_SIZE;
+        if (size > remaining_bytes) {
+            TEST_LOG << "ERROR remaining_bytes are insufficient";
+            return false;
+        }
+        if (size <= std::numeric_limits<uint32_t>::max()) {
+            if (!handle_message(&_message[consumed_bytes], static_cast<uint32_t>(size))) {
+                TEST_LOG << "ERROR message could not be parsed";
+                return false;
+            }
+        }
+        // guaranteed to work by above checks
+        consumed_bytes += size;
+        remaining_bytes -= size;
     }
-
-    // the data is not important enough to parse the command payload. Lets parse the client
-    // and copy the payload as is.
-    std::memcpy(&_out.client_id_, &_message[protocol::TAG_SIZE + protocol::COMMAND_POSITION_CLIENT], 2);
-    uint32_t length;
-    std::memcpy(&length, &_message[protocol::TAG_SIZE + protocol::COMMAND_POSITION_SIZE], 4);
-    std::vector<unsigned char> payload;
-    payload.reserve(length);
-    std::copy(_message.begin() + protocol::TAG_SIZE + protocol::COMMAND_POSITION_PAYLOAD, _message.end() - protocol::TAG_SIZE,
-              std::back_inserter(payload));
-    _out.payload_ = command_payload(std::move(payload));
-
     return true;
 }
 

@@ -93,6 +93,7 @@ private:
     void open(boost::asio::ip::tcp::endpoint::protocol_type pt, boost::system::error_code& ec) override { acceptor_.open(pt, ec); }
     void bind(boost::asio::ip::tcp::endpoint const& ep, boost::system::error_code& ec) override { acceptor_.bind(ep, ec); }
     void close(boost::system::error_code& ec) override { acceptor_.close(ec); }
+    void cancel(boost::system::error_code& ec) override { acceptor_.cancel(ec); }
     void listen(int backlog, boost::system::error_code& ec) override { acceptor_.listen(backlog, ec); }
 
     void set_option(boost::asio::ip::tcp::socket::reuse_address ra, boost::system::error_code& ec) override {

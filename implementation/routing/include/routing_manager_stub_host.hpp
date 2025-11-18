@@ -15,6 +15,7 @@ namespace vsomeip_v3 {
 
 struct debounce_filter_impl_t;
 class endpoint_manager_impl;
+class local_endpoint;
 
 class routing_manager_stub_host {
 public:
@@ -66,9 +67,9 @@ public:
     virtual void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
                                  minor_version_t _minor) = 0;
 
-    virtual std::shared_ptr<endpoint> find_local(client_t _client) = 0;
+    virtual std::shared_ptr<local_endpoint> find_local(client_t _client) = 0;
 
-    virtual std::shared_ptr<endpoint> find_or_create_local(client_t _client) = 0;
+    virtual std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) = 0;
     /// @brief Remove local client
     ///
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it

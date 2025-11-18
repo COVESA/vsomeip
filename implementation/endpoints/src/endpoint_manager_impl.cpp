@@ -7,10 +7,9 @@
 
 #include <vsomeip/internal/logger.hpp>
 
-#include "../include/local_tcp_server_endpoint_impl.hpp"
-#if defined(__linux__) || defined(__QNX__)
-#include "../include/local_uds_server_endpoint_impl.hpp"
-#endif
+#include "../include/local_server.hpp"
+#include "../include/local_acceptor_uds_impl.hpp"
+#include "../include/local_acceptor_tcp_impl.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../include/tcp_client_endpoint_impl.hpp"
@@ -560,13 +559,7 @@ bool endpoint_manager_impl::supports_selective(service_t _service, instance_t _i
 
 void endpoint_manager_impl::print_status() const {
     // local client endpoints
-    {
-        std::map<client_t, std::shared_ptr<endpoint>> lces = get_local_endpoints();
-        VSOMEIP_INFO << "status local client endpoints: " << std::dec << lces.size();
-        for (const auto& lce : lces) {
-            lce.second->print_status();
-        }
-    }
+    endpoint_manager_base::print_status();
 
     // udp and tcp client endpoints
     {
@@ -608,7 +601,7 @@ void endpoint_manager_impl::print_status() const {
     }
 }
 
-bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root, bool& _is_socket_activated,
+bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _root, bool& _is_socket_activated,
                                                 const std::shared_ptr<routing_host>& _host) {
 
     std::stringstream its_endpoint_path_ss;
@@ -639,21 +632,20 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
             VSOMEIP_INFO << "Using native socket created by systemd socket activation! fd: " << its_socket;
             if (is_local_routing_) {
                 try {
-                    auto its_root{std::make_shared<local_uds_server_endpoint_impl>(shared_from_this(), _host, io_, configuration_, true)};
-                    if (its_root) {
-                        boost::asio::local::stream_protocol::endpoint its_endpoint(its_endpoint_path);
+                    auto its_acceptor = std::make_shared<local_acceptor_uds_impl>(
+                            io_, boost::asio::local::stream_protocol::endpoint(its_endpoint_path), configuration_);
+                    if (its_acceptor) {
                         boost::system::error_code its_error;
 
-                        its_root->init(its_endpoint, its_socket, its_error);
+                        its_acceptor->init(its_error, its_socket);
                         if (its_error) {
                             VSOMEIP_ERROR << "Routing endpoint creation failed. Client ID: " << std::hex << std::setfill('0')
                                           << std::setw(4) << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
 
-                            its_root->deinit();
                             return false;
                         }
 
-                        _root = its_root;
+                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
                     }
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -665,21 +657,20 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
                 try {
                     VSOMEIP_INFO << __func__ << ": Routing root @ " << its_endpoint_path;
 
-                    auto its_root{std::make_shared<local_uds_server_endpoint_impl>(shared_from_this(), _host, io_, configuration_, true)};
-                    if (its_root) {
-                        boost::asio::local::stream_protocol::endpoint its_endpoint(its_endpoint_path);
+                    auto its_acceptor = std::make_shared<local_acceptor_uds_impl>(
+                            io_, boost::asio::local::stream_protocol::endpoint(its_endpoint_path), configuration_);
+                    if (its_acceptor) {
                         boost::system::error_code its_error;
 
-                        its_root->init(its_endpoint, its_error);
+                        its_acceptor->init(its_error, std::nullopt);
                         if (its_error) {
                             VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: " << std::hex << std::setfill('0')
                                           << std::setw(4) << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
 
-                            its_root->deinit();
                             return false;
                         }
 
-                        _root = its_root;
+                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
                     }
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -689,23 +680,22 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
         }
 #else
         try {
-            port_t port = VSOMEIP_INTERNAL_BASE_PORT;
-            VSOMEIP_INFO << __func__ << ": Routing root @ " << std::dec << port;
+            port_t its_port = VSOMEIP_INTERNAL_BASE_PORT;
+            VSOMEIP_INFO << __func__ << ": Routing root @ " << std::dec << its_port;
+            auto const its_address = boost::asio::ip::tcp::v4();
+            auto its_acceptor = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
 
-            auto its_root{std::make_shared<local_tcp_server_endpoint_impl>(shared_from_this(), _host, io_, configuration_, true)};
-            if (its_root) {
-                boost::asio::ip::tcp::endpoint its_endpoint(boost::asio::ip::tcp::v4(), port);
+            if (its_acceptor) {
                 boost::system::error_code its_error;
 
-                its_root->init(its_endpoint, its_error);
+                its_acceptor->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
                 if (its_error) {
                     VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: " << std::hex << std::setfill('0') << std::setw(4)
                                   << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
-                    its_root->deinit();
                     return false;
                 }
 
-                _root = its_root;
+                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -720,21 +710,19 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
 
             VSOMEIP_INFO << __func__ << ": Routing root @ " << its_address.to_string() << ":" << std::dec << its_port;
 
-            auto its_root{std::make_shared<local_tcp_server_endpoint_impl>(shared_from_this(), _host, io_, configuration_, true)};
-            if (its_root) {
-                boost::asio::ip::tcp::endpoint its_endpoint(its_address, its_port);
+            auto its_acceptor = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
+            if (its_acceptor) {
                 boost::system::error_code its_error;
 
                 int its_retry{0};
                 do {
-                    its_root->init(its_endpoint, its_error);
+                    its_acceptor->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
                     if (its_error) {
                         VSOMEIP_ERROR << "endpoint_manager_impl::create_routing_root: "
                                       << "Remote routing root endpoint creation failed (" << its_retry << ") "
                                       << "Client: " << std::hex << std::setfill('0') << std::setw(4) << VSOMEIP_ROUTING_CLIENT << ": "
                                       << its_error.message();
 
-                        its_root->deinit();
                         std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL));
                     }
                     its_retry++;
@@ -744,7 +732,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<endpoint>& _root
                     return false;
                 }
 
-                _root = its_root;
+                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << __func__ << ": " << e.what();
