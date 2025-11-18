@@ -777,80 +777,181 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                                 bool _sent_from_remote, bool _force) {
 
     bool is_sent(false);
-    if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
-        std::shared_ptr<endpoint> its_target;
-        bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-        bool is_notification = utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-        bool is_response = utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-        client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
-        service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-        method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-        client_t its_target_client = get_client();
+    if (_size <= VSOMEIP_MESSAGE_TYPE_POS) {
+        return is_sent;
+    }
+    bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
+    bool is_notification = utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]);
+    bool is_response = utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS]);
+    client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
+    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+    method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+    client_t its_target_client = get_client();
 
-        bool is_service_discovery = (its_service == sd::service && its_method == sd::method);
+    bool is_service_discovery = (its_service == sd::service && its_method == sd::method);
 
-        if (is_request) {
-            its_target_client = find_local_client(its_service, _instance);
-            its_target = find_local(its_target_client);
-        } else if (!is_notification) {
-            its_target = find_local(its_client);
-            its_target_client = its_client;
-        } else if (is_notification && _client && !is_service_discovery) { // Selective notifications!
-            if (_client == get_client()) {
-                deliver_message(_data, _size, _instance, _reliable, _bound_client, _sec_client, _status_check, _sent_from_remote);
-                trace::header its_header;
-                if (its_header.prepare(its_target, true, _instance))
-                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-                return true;
-            }
-            its_target = find_local(_client);
-            its_target_client = _client;
+    std::shared_ptr<local_endpoint> its_local_target;
+    if (is_request) {
+        its_target_client = find_local_client(its_service, _instance);
+        its_local_target = find_local(its_target_client);
+    } else if (!is_notification) {
+        its_local_target = find_local(its_client);
+        its_target_client = its_client;
+    } else if (is_notification && _client && !is_service_discovery) { // Selective notifications!
+        if (_client == get_client()) {
+            deliver_message(_data, _size, _instance, _reliable, _bound_client, _sec_client, _status_check, _sent_from_remote);
+            if (trace::header its_header; its_header.prepare(its_local_target, true, _instance))
+                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+            return true;
         }
+        its_local_target = find_local(_client);
+        its_target_client = _client;
+    }
 
-        if (its_target) {
-            is_sent = send_local(its_target, its_target_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
-            if (is_sent
-                && ((is_request && its_client == get_client()) || (is_response && find_local_client(its_service, _instance) == get_client())
-                    || (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT))) {
+    if (its_local_target) {
+        is_sent =
+                send_local(its_local_target, its_target_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+        if (is_sent
+            && ((is_request && its_client == get_client()) || (is_response && find_local_client(its_service, _instance) == get_client())
+                || (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT))) {
 
-                trace::header its_header;
-                if (its_header.prepare(its_target, true, _instance))
-                    tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+            trace::header its_header;
+            if (its_header.prepare(its_local_target, true, _instance))
+                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+        }
+        return is_sent;
+    }
+
+    std::shared_ptr<endpoint> its_target;
+    // Check whether hosting application should get the message
+    // If not, check routes to external
+    if ((its_client == host_->get_client() && is_response)
+        || (find_local_client(its_service, _instance) == host_->get_client() && is_request)) {
+        // TODO: Find out how to handle session id here
+        is_sent = deliver_message(_data, _size, _instance, _reliable, VSOMEIP_ROUTING_CLIENT, _sec_client, _status_check);
+    } else {
+        e2e_buffer its_buffer;
+
+        if (e2e_provider_) {
+            if (!is_service_discovery) {
+                service_t its_service_inner = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
+                method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+#ifndef ANDROID
+                if (e2e_provider_->is_protected({its_service_inner, its_method_inner})) {
+                    // Find out where the protected area starts
+                    size_t its_base = e2e_provider_->get_protection_base({its_service_inner, its_method_inner});
+
+                    // Build a corresponding buffer
+                    its_buffer.assign(_data + its_base, _data + _size);
+
+                    e2e_provider_->protect({its_service_inner, its_method_inner}, its_buffer, _instance);
+
+                    // Prepend header
+                    its_buffer.insert(its_buffer.begin(), _data, _data + its_base);
+
+                    _data = its_buffer.data();
+                }
+#endif
+            }
+        }
+        if (is_request) {
+            its_target = ep_mgr_impl_->find_or_create_remote_client(its_service, _instance, _reliable);
+            if (its_target) {
+                is_sent = its_target->send(_data, _size);
+                if (is_sent) {
+                    trace::header its_header;
+                    if (its_header.prepare(its_target, true, _instance))
+                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+                }
+            } else {
+                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+                VSOMEIP_ERROR << "Routing info for remote service could not be found! (" << std::hex << std::setfill('0') << std::setw(4)
+                              << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4) << _instance << "."
+                              << std::setw(4) << its_method << "] " << std::setw(4) << its_session;
             }
         } else {
-            // Check whether hosting application should get the message
-            // If not, check routes to external
-            if ((its_client == host_->get_client() && is_response)
-                || (find_local_client(its_service, _instance) == host_->get_client() && is_request)) {
-                // TODO: Find out how to handle session id here
-                is_sent = deliver_message(_data, _size, _instance, _reliable, VSOMEIP_ROUTING_CLIENT, _sec_client, _status_check);
-            } else {
-                e2e_buffer its_buffer;
+            std::shared_ptr<serviceinfo> its_info(find_service(its_service, _instance));
+            if (its_info || is_service_discovery) {
+                if (is_notification && !is_service_discovery) {
+                    static_cast<void>(send_local_notification(get_client(), _data, _size, _instance, _reliable, _status_check, _force));
+                    method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
+                    std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method_inner);
+                    if (its_event) {
+                        bool has_sent(false);
+                        std::set<std::shared_ptr<endpoint_definition>> its_targets;
+                        // we need both endpoints as clients can subscribe to events via TCP
+                        // and UDP
+                        std::shared_ptr<endpoint> its_udp_server_endpoint = its_info->get_endpoint(false);
+                        std::shared_ptr<endpoint> its_tcp_server_endpoint = its_info->get_endpoint(true);
 
-                if (e2e_provider_) {
-                    if (!is_service_discovery) {
-                        service_t its_service_inner = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-                        method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-#ifndef ANDROID
-                        if (e2e_provider_->is_protected({its_service_inner, its_method_inner})) {
-                            // Find out where the protected area starts
-                            size_t its_base = e2e_provider_->get_protection_base({its_service_inner, its_method_inner});
-
-                            // Build a corresponding buffer
-                            its_buffer.assign(_data + its_base, _data + _size);
-
-                            e2e_provider_->protect({its_service_inner, its_method_inner}, its_buffer, _instance);
-
-                            // Prepend header
-                            its_buffer.insert(its_buffer.begin(), _data, _data + its_base);
-
-                            _data = its_buffer.data();
+                        if (its_udp_server_endpoint || its_tcp_server_endpoint) {
+                            const auto its_reliability = its_event->get_reliability();
+                            for (auto its_group : its_event->get_eventgroups()) {
+                                auto its_eventgroup = find_eventgroup(its_service, _instance, its_group);
+                                if (its_eventgroup) {
+                                    // Unicast targets
+                                    for (const auto& its_remote : its_eventgroup->get_unicast_targets()) {
+                                        if (its_remote->is_reliable() && its_tcp_server_endpoint) {
+                                            if (its_reliability == reliability_type_e::RT_RELIABLE
+                                                || its_reliability == reliability_type_e::RT_BOTH) {
+                                                its_targets.insert(its_remote);
+                                            }
+                                        } else if (its_udp_server_endpoint && !its_eventgroup->is_sending_multicast()) {
+                                            if (its_reliability == reliability_type_e::RT_UNRELIABLE
+                                                || its_reliability == reliability_type_e::RT_BOTH) {
+                                                its_targets.insert(its_remote);
+                                            }
+                                        }
+                                    }
+                                    // Send to multicast targets if subscribers are still
+                                    // interested
+                                    if (its_eventgroup->is_sending_multicast()) {
+                                        if (its_reliability == reliability_type_e::RT_UNRELIABLE
+                                            || its_reliability == reliability_type_e::RT_BOTH) {
+                                            boost::asio::ip::address its_address;
+                                            uint16_t its_port;
+                                            if (its_eventgroup->get_multicast(its_address, its_port)) {
+                                                std::shared_ptr<endpoint_definition> its_multicast_target;
+                                                its_multicast_target =
+                                                        endpoint_definition::get(its_address, its_port, false, its_service, _instance);
+                                                its_targets.insert(its_multicast_target);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-#endif
+
+                        for (auto const& target : its_targets) {
+                            if (target->is_reliable()) {
+                                its_tcp_server_endpoint->send_to(target, _data, _size);
+                            } else {
+                                its_udp_server_endpoint->send_to(target, _data, _size);
+                            }
+                            has_sent = true;
+                        }
+                        if (has_sent) {
+                            trace::header its_header;
+                            if (its_header.prepare(nullptr, true, _instance))
+                                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+                        }
                     }
-                }
-                if (is_request) {
-                    its_target = ep_mgr_impl_->find_or_create_remote_client(its_service, _instance, _reliable);
+                } else {
+                    if ((utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS]) || utility::is_error(_data[VSOMEIP_MESSAGE_TYPE_POS]))
+                        && its_info && !its_info->is_local()) {
+                        // We received a response/error but neither the hosting application
+                        // nor another local client could be found --> drop
+                        const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+                        VSOMEIP_ERROR << "rmi::" << __func__
+                                      << ": Received "
+                                         "response/error for unknown client ("
+                                      << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
+                                      << its_service << "." << std::setw(4) << _instance << "." << std::setw(4) << its_method << "] "
+                                      << std::setw(4) << its_session;
+                        return false;
+                    }
+                    its_target =
+                            is_service_discovery ? (sd_info_ ? sd_info_->get_endpoint(false) : nullptr) : its_info->get_endpoint(_reliable);
                     if (its_target) {
                         is_sent = its_target->send(_data, _size);
                         if (is_sent) {
@@ -860,119 +961,18 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                         }
                     } else {
                         const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                        VSOMEIP_ERROR << "Routing info for remote service could not be found! (" << std::hex << std::setfill('0')
+                        VSOMEIP_ERROR << "rmi::" << __func__ << ": Routing error. Endpoint for service (" << std::hex << std::setfill('0')
                                       << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4)
-                                      << _instance << "." << std::setw(4) << its_method << "] " << std::setw(4) << its_session;
+                                      << _instance << "." << std::setw(4) << its_method << "] " << std::setw(4) << its_session
+                                      << " could not be found!";
                     }
-                } else {
-                    std::shared_ptr<serviceinfo> its_info(find_service(its_service, _instance));
-                    if (its_info || is_service_discovery) {
-                        if (is_notification && !is_service_discovery) {
-                            static_cast<void>(
-                                    send_local_notification(get_client(), _data, _size, _instance, _reliable, _status_check, _force));
-                            method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-                            std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method_inner);
-                            if (its_event) {
-                                bool has_sent(false);
-                                std::set<std::shared_ptr<endpoint_definition>> its_targets;
-                                // we need both endpoints as clients can subscribe to events via TCP
-                                // and UDP
-                                std::shared_ptr<endpoint> its_udp_server_endpoint = its_info->get_endpoint(false);
-                                std::shared_ptr<endpoint> its_tcp_server_endpoint = its_info->get_endpoint(true);
-
-                                if (its_udp_server_endpoint || its_tcp_server_endpoint) {
-                                    const auto its_reliability = its_event->get_reliability();
-                                    for (auto its_group : its_event->get_eventgroups()) {
-                                        auto its_eventgroup = find_eventgroup(its_service, _instance, its_group);
-                                        if (its_eventgroup) {
-                                            // Unicast targets
-                                            for (const auto& its_remote : its_eventgroup->get_unicast_targets()) {
-                                                if (its_remote->is_reliable() && its_tcp_server_endpoint) {
-                                                    if (its_reliability == reliability_type_e::RT_RELIABLE
-                                                        || its_reliability == reliability_type_e::RT_BOTH) {
-                                                        its_targets.insert(its_remote);
-                                                    }
-                                                } else if (its_udp_server_endpoint && !its_eventgroup->is_sending_multicast()) {
-                                                    if (its_reliability == reliability_type_e::RT_UNRELIABLE
-                                                        || its_reliability == reliability_type_e::RT_BOTH) {
-                                                        its_targets.insert(its_remote);
-                                                    }
-                                                }
-                                            }
-                                            // Send to multicast targets if subscribers are still
-                                            // interested
-                                            if (its_eventgroup->is_sending_multicast()) {
-                                                if (its_reliability == reliability_type_e::RT_UNRELIABLE
-                                                    || its_reliability == reliability_type_e::RT_BOTH) {
-                                                    boost::asio::ip::address its_address;
-                                                    uint16_t its_port;
-                                                    if (its_eventgroup->get_multicast(its_address, its_port)) {
-                                                        std::shared_ptr<endpoint_definition> its_multicast_target;
-                                                        its_multicast_target = endpoint_definition::get(its_address, its_port, false,
-                                                                                                        its_service, _instance);
-                                                        its_targets.insert(its_multicast_target);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                for (auto const& target : its_targets) {
-                                    if (target->is_reliable()) {
-                                        its_tcp_server_endpoint->send_to(target, _data, _size);
-                                    } else {
-                                        its_udp_server_endpoint->send_to(target, _data, _size);
-                                    }
-                                    has_sent = true;
-                                }
-                                if (has_sent) {
-                                    trace::header its_header;
-                                    if (its_header.prepare(nullptr, true, _instance))
-                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-                                }
-                            }
-                        } else {
-                            if ((utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS])
-                                 || utility::is_error(_data[VSOMEIP_MESSAGE_TYPE_POS]))
-                                && its_info && !its_info->is_local()) {
-                                // We received a response/error but neither the hosting application
-                                // nor another local client could be found --> drop
-                                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                                VSOMEIP_ERROR << "rmi::" << __func__
-                                              << ": Received "
-                                                 "response/error for unknown client ("
-                                              << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
-                                              << its_service << "." << std::setw(4) << _instance << "." << std::setw(4) << its_method
-                                              << "] " << std::setw(4) << its_session;
-                                return false;
-                            }
-                            its_target = is_service_discovery ? (sd_info_ ? sd_info_->get_endpoint(false) : nullptr)
-                                                              : its_info->get_endpoint(_reliable);
-                            if (its_target) {
-                                is_sent = its_target->send(_data, _size);
-                                if (is_sent) {
-                                    trace::header its_header;
-                                    if (its_header.prepare(its_target, true, _instance))
-                                        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-                                }
-                            } else {
-                                const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                                VSOMEIP_ERROR << "rmi::" << __func__ << ": Routing error. Endpoint for service (" << std::hex
-                                              << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service
-                                              << "." << std::setw(4) << _instance << "." << std::setw(4) << its_method << "] "
-                                              << std::setw(4) << its_session << " could not be found!";
-                            }
-                        }
-                    } else {
-                        if (!is_notification) {
-                            const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                            VSOMEIP_ERROR << "rmi::" << __func__ << ": Routing error. Not hosting service (" << std::hex
-                                          << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "."
-                                          << std::setw(4) << _instance << "." << std::setw(4) << its_method << "] " << std::setw(4)
-                                          << its_session;
-                        }
-                    }
+                }
+            } else {
+                if (!is_notification) {
+                    const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+                    VSOMEIP_ERROR << "rmi::" << __func__ << ": Routing error. Not hosting service (" << std::hex << std::setfill('0')
+                                  << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4) << _instance
+                                  << "." << std::setw(4) << its_method << "] " << std::setw(4) << its_session;
                 }
             }
         }
@@ -1784,7 +1784,7 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
                 if (its_local_client == host_->get_client()) {
                     deliver_message(_data, _length, _instance, _reliable, _bound_client, _sec_client, _status_check, _is_from_remote);
                 } else {
-                    std::shared_ptr<endpoint> its_local_target = find_local(its_local_client);
+                    std::shared_ptr<local_endpoint> its_local_target = find_local(its_local_client);
                     if (its_local_target) {
                         send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
                                    _status_check);
@@ -1802,7 +1802,7 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
                 if (its_client_id == host_->get_client()) {
                     deliver_message(_data, _length, _instance, _reliable, _bound_client, _sec_client, _status_check, _is_from_remote);
                 } else {
-                    std::shared_ptr<endpoint> its_local_target = find_local(its_client_id);
+                    std::shared_ptr<local_endpoint> its_local_target = find_local(its_client_id);
                     if (its_local_target) {
                         send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
                                    _status_check);

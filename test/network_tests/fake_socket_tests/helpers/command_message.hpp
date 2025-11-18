@@ -56,7 +56,7 @@ struct command_message {
     // the hard coded version is of little interest
 };
 
-[[nodiscard]] bool parse(std::vector<unsigned char> const& _message, command_message& _out);
+[[nodiscard]] bool parse(std::vector<unsigned char> const& _message, std::vector<command_message>& _out);
 
 std::ostream& operator<<(std::ostream& _out, command_message const& _m);
 

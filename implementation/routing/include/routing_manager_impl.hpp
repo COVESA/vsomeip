@@ -27,6 +27,7 @@
 #include "../../endpoints/include/abstract_netlink_connector.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
 #include "../../endpoints/include/endpoint_manager_impl.hpp"
+#include "../../endpoints/include/local_endpoint.hpp"
 
 namespace vsomeip_v3 {
 
@@ -110,8 +111,8 @@ public:
                            remote_subscription_id_t _id);
 
     // interface to stub
-    inline std::shared_ptr<endpoint> find_local(client_t _client) { return ep_mgr_->find_local(_client); }
-    inline std::shared_ptr<endpoint> find_or_create_local(client_t _client) { return ep_mgr_->find_or_create_local(_client); }
+    inline std::shared_ptr<local_endpoint> find_local(client_t _client) { return ep_mgr_->find_local(_client); }
+    inline std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) { return ep_mgr_->find_or_create_local(_client); }
 
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 

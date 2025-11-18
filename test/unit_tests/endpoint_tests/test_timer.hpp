@@ -6,6 +6,14 @@
 #ifndef VSOMEIP_V3_TIMER_TESTING_
 #define VSOMEIP_V3_TIMER_TESTING_
 
+#include "base_endpoint_fixture.hpp"
+
+#include "../../../implementation/endpoints/include/timer.hpp"
+#include "../../../implementation/endpoints/include/asio_timer.hpp"
+#include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
+#include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
+#include "../../../implementation/endpoints/include/abstract_timer.hpp"
+
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/system/error_code.hpp>
 #include <gtest/gtest.h>
@@ -14,12 +22,6 @@
 #include <chrono>
 #include <memory>
 #include <optional>
-
-#include "../../../implementation/endpoints/include/timer.hpp"
-#include "../../../implementation/endpoints/include/asio_timer.hpp"
-#include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
-#include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
-#include "../../../implementation/endpoints/include/abstract_timer.hpp"
 
 namespace vsomeip_v3::testing {
 
@@ -60,10 +62,10 @@ public:
     std::unique_ptr<abstract_timer> timer_;
 };
 
-struct test_timer_base : ::testing::Test {
+struct test_timer_base : base_endpoint_fixture {
+    test_timer_base() : factory_(std::make_shared<fake_factory>()) { delegate_->impl_ = factory_; }
 
-    static void SetUpTestSuite() { vsomeip_v3::set_abstract_factory(factory_); }
-    static std::shared_ptr<fake_factory> factory_;
+    std::shared_ptr<fake_factory> factory_;
 };
 }
 #endif

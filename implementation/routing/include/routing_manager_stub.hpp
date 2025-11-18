@@ -33,6 +33,7 @@ namespace vsomeip_v3 {
 
 class configuration;
 class routing_manager_stub_host;
+class local_server;
 
 struct debounce_filter_impl_t;
 struct policy;
@@ -201,9 +202,9 @@ private:
     std::set<client_t> used_client_ids_;
     std::mutex used_client_ids_mutex_;
 
-    std::shared_ptr<endpoint> root_; // Routing manager endpoint
+    std::shared_ptr<local_server> root_; // Routing manager endpoint
 
-    std::shared_ptr<endpoint> local_receiver_;
+    std::shared_ptr<local_server> local_receiver_;
     std::mutex local_receiver_mutex_;
 
     std::map<client_t, std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>>>

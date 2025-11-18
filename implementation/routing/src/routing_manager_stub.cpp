@@ -24,6 +24,8 @@
 #include "../../endpoints/include/endpoint_manager_impl.hpp"
 #include "../../endpoints/include/abstract_socket_factory.hpp"
 #include "../../endpoints/include/server_endpoint.hpp"
+#include "../../endpoints/include/local_endpoint.hpp"
+#include "../../endpoints/include/local_server.hpp"
 #include "../../protocol/include/deregister_application_command.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
 #include "../../protocol/include/dummy_command.hpp"
@@ -156,12 +158,12 @@ void routing_manager_stub::stop() {
     }
 
     if (root_ && !is_socket_activated_) {
-        root_->stop(false);
+        root_->stop();
         root_ = nullptr;
     }
 
     if (local_receiver_) {
-        local_receiver_->stop(false);
+        local_receiver_->stop();
         local_receiver_ = nullptr;
     }
 }
@@ -915,8 +917,8 @@ void routing_manager_stub::remove_client_connections(client_t client_id, bool _r
     host_->remove_local(client_id, false, _remove_due_to_error);
     // notice that the effective shared_ptr copy is ensuring that the object
     // does not go out of scope during execution
-    if (auto endpoint = std::dynamic_pointer_cast<server_endpoint>(root_)) {
-        endpoint->disconnect_from(client_id);
+    if (root_) {
+        root_->disconnect_from(client_id, _remove_due_to_error);
     }
 }
 

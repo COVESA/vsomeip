@@ -31,6 +31,8 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../endpoints/include/server_endpoint.hpp"
 #include "../../endpoints/include/abstract_socket_factory.hpp"
+#include "../../endpoints/include/local_server.hpp"
+#include "../../endpoints/include/local_endpoint.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/serializer.hpp"
@@ -110,16 +112,7 @@ void routing_manager_client::start() {
             receiver_ = ep_mgr_->create_local_server(shared_from_this());
         }
     }
-    {
-        std::scoped_lock its_sender_lock(sender_mutex_);
-        if (!sender_) {
-            // application has been stopped and started again
-            sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-        }
-        if (sender_) {
-            sender_->start();
-        }
-    }
+    restart_sender();
 }
 
 void routing_manager_client::stop() {
@@ -139,6 +132,14 @@ void routing_manager_client::stop() {
     }
 
     if (state_ == inner_state_type_e::ST_REGISTERED) {
+        {
+            // the subsequent deregister_application might lead to a "end of file"
+            // error in the sender, which could initiate a reconnection attempt
+            std::scoped_lock its_sender_lock{sender_mutex_};
+            if (sender_) {
+                sender_->register_error_handler(nullptr);
+            }
+        }
         deregister_application();
         // Waiting de-register acknowledge to synchronize shutdown
         std::unique_lock its_lock(state_condition_mutex_);
@@ -156,7 +157,7 @@ void routing_manager_client::stop() {
     {
         std::scoped_lock its_receiver_lock(receiver_mutex_);
         if (receiver_) {
-            receiver_->stop(false);
+            receiver_->stop();
         }
         receiver_ = nullptr;
     }
@@ -759,7 +760,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
         }
     }
     if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
-        std::shared_ptr<endpoint> its_target;
+        std::shared_ptr<local_endpoint> its_target;
         if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
             // Request
             service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
@@ -1802,18 +1803,32 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
 #endif
 
     {
-        std::scoped_lock its_receiver_lock{receiver_mutex_};
-        if (receiver_) {
-            receiver_->restart(true);
+        std::scoped_lock lock(receiver_mutex_);
+        if (!configuration_->is_local_routing()) {
+            // tcp needs to claim a port to ensure that the sender is not
+            // blocking a wrong port
+            if (receiver_) {
+                // stop accepting connections + stop existing connections,
+                // but don't close the socket to not free the claimed port.
+                receiver_->halt();
+            } else {
+                // TODO this might end up looping forever, if the network is assumed
+                // to be down. How to break out of this loop in case of "stop" ?
+                receiver_ = ep_mgr_->create_local_server(shared_from_this());
+            }
+        } else {
+            // But the actual reconnect
+            // can lead to a change in the client id, for which reason the
+            // uds receiver should only be set up, once the "new" client id
+            // is known.
+            if (receiver_) {
+                receiver_->stop();
+                receiver_ = nullptr;
+            }
         }
     }
 
-    {
-        std::scoped_lock its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->restart(true);
-        }
-    }
+    restart_sender();
 }
 
 void routing_manager_client::assign_client() {
@@ -2312,13 +2327,10 @@ void routing_manager_client::assign_client_timeout_cbk(boost::system::error_code
             }
         }
         if (register_again) {
-            std::scoped_lock its_sender_lock{sender_mutex_};
             VSOMEIP_ERROR << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                           << " ASSIGN_CLIENT_ACK timeout, no response from host! Will reconnect";
 
-            if (sender_) {
-                sender_->restart();
-            }
+            restart_sender();
         }
     } else if (_error != boost::asio::error::operation_aborted) { // ignore error when timer is
                                                                   // deliberately cancelled
@@ -2340,12 +2352,10 @@ void routing_manager_client::register_application_timeout_cbk(boost::system::err
     }
 
     if (register_again) {
-        std::scoped_lock its_sender_lock{sender_mutex_};
         VSOMEIP_ERROR << "Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                       << " REGISTER_APPLICATION timeout, no response from host! Will reconnect";
 
-        if (sender_)
-            sender_->restart();
+        restart_sender();
     }
 }
 
@@ -2461,8 +2471,8 @@ void routing_manager_client::handle_client_error(client_t _client) {
         // Remove the client from the local connections.
         {
             std::scoped_lock lock{receiver_mutex_};
-            if (auto endpoint = std::dynamic_pointer_cast<server_endpoint>(receiver_)) {
-                endpoint->disconnect_from(_client);
+            if (receiver_) {
+                receiver_->disconnect_from(_client, true /*error encountered*/);
             }
         }
 
@@ -2658,9 +2668,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
 
                     host_->set_client(VSOMEIP_CLIENT_UNSET);
 
-                    std::scoped_lock its_sender_lock{sender_mutex_};
-                    if (sender_)
-                        sender_->restart();
+                    restart_sender();
                 }
             } else {
                 VSOMEIP_WARNING << __func__ << ": (" << host_->get_name() << ":" << std::hex << std::setfill('0') << std::setw(4) << _client
@@ -2695,6 +2703,18 @@ void routing_manager_client::clear_remote_subscriptions() {
 
     // Remove all entries.
     remote_subscriber_count_.clear();
+}
+
+void routing_manager_client::restart_sender() {
+    std::scoped_lock its_sender_lock(sender_mutex_);
+    if (sender_) {
+        sender_->stop(false);
+        sender_ = nullptr;
+    }
+    sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
+    if (sender_) {
+        sender_->start();
+    }
 }
 
 const char* routing_manager_client::to_string(routing_manager_client::inner_state_type_e state) {

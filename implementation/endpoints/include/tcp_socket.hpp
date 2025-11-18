@@ -31,6 +31,7 @@ public:
     virtual void bind(boost::asio::ip::tcp::endpoint const&, boost::system::error_code&) = 0;
 
     virtual void close(boost::system::error_code&) = 0;
+    virtual void cancel(boost::system::error_code&) = 0;
 
     static constexpr auto shutdown_both = boost::asio::ip::tcp::socket::shutdown_both;
 };

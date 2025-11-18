@@ -24,6 +24,8 @@ namespace vsomeip_v3 {
 class routing_manager_base;
 class configuration;
 class routing_host;
+class local_server;
+class local_endpoint;
 
 class endpoint_manager_base : public std::enable_shared_from_this<endpoint_manager_base>, public endpoint_host {
 public:
@@ -31,16 +33,16 @@ public:
                           const std::shared_ptr<configuration>& _configuration);
     virtual ~endpoint_manager_base() = default;
 
-    std::shared_ptr<endpoint> create_local(client_t _client);
+    std::shared_ptr<local_endpoint> create_local(client_t _client);
     void remove_local(client_t _client, bool _remove_due_to_error);
 
-    std::shared_ptr<endpoint> find_or_create_local(client_t _client);
-    std::shared_ptr<endpoint> find_local(client_t _client);
-    std::shared_ptr<endpoint> find_local(service_t _service, instance_t _instance);
+    std::shared_ptr<local_endpoint> find_or_create_local(client_t _client);
+    std::shared_ptr<local_endpoint> find_local(client_t _client);
+    std::shared_ptr<local_endpoint> find_local(service_t _service, instance_t _instance);
 
     std::unordered_set<client_t> get_connected_clients() const;
 
-    std::shared_ptr<endpoint> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
+    std::shared_ptr<local_server> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
 
     // endpoint_host interface
     virtual void on_connect(std::shared_ptr<endpoint> _endpoint);
@@ -64,11 +66,11 @@ public:
     virtual void resume();
 
 protected:
-    std::map<client_t, std::shared_ptr<endpoint>> get_local_endpoints() const;
+    void print_status() const;
 
 private:
-    std::shared_ptr<endpoint> create_local_unlocked(client_t _client);
-    std::shared_ptr<endpoint> find_local_unlocked(client_t _client);
+    std::shared_ptr<local_endpoint> create_local_unlocked(client_t _client);
+    std::shared_ptr<local_endpoint> find_local_unlocked(client_t _client);
 
     bool get_local_server_port(port_t& _port, const std::set<port_t>& _used_ports) const;
 
@@ -83,7 +85,7 @@ protected:
 
 private:
     mutable std::mutex local_endpoint_mutex_;
-    std::map<client_t, std::shared_ptr<endpoint>> local_endpoints_;
+    std::map<client_t, std::shared_ptr<local_endpoint>> local_endpoints_;
 };
 
 } // namespace vsomeip_v3

@@ -201,6 +201,10 @@ private:
         _ec = boost::system::error_code();
         state_->close();
     }
+    virtual void cancel(boost::system::error_code& _ec) override {
+        _ec = boost::system::error_code();
+        state_->cancel();
+    }
     virtual void set_option(boost::asio::ip::tcp::socket::reuse_address, boost::system::error_code& _ec) override {
 
         _ec = boost::system::error_code();
