@@ -134,7 +134,7 @@ v3.5.9
   - Add vsomeip version to cmake log
   - Add support for VSOMEIP_ABORT_ON_CRIT_SYSCALL_ERROR
   - Remove use of strerror
-  - React on Bad File Descriptor (EOBADF) for epoll_wait
+  - React on Bad File Descriptor (EBADF) for epoll_wait
   - Remove leftover configurations
   - Improve logger performance, turn it almost lock-free
   - Fix use of boost non-asio error codes
