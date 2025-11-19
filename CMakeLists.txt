@@ -184,7 +184,7 @@ add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 find_package(Threads REQUIRED)
 
 # Boost
-find_package( Boost 1.66 COMPONENTS system thread filesystem REQUIRED )
+find_package( Boost 1.74 COMPONENTS system thread filesystem REQUIRED )
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     include_directories(${Boost_INCLUDE_DIR} )
 else()

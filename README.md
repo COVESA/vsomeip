@@ -28,7 +28,7 @@ The stack consists out of:
 
 - A C++17 enabled compiler is needed.
 - vSomeIP uses CMake as buildsystem.
-- vSomeIP uses Boost >= 1.66.0:
+- vSomeIP uses Boost >= 1.74.0:
 
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
 -- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
@@ -96,7 +96,7 @@ If you encounter build issues on Ubuntu 24.04, consider using Ubuntu 22.04 as a 
 
 ###### Dependencies
 
-- vSomeIP uses Boost >= 1.66. The boost libraries (system, thread and log) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
+- vSomeIP uses Boost >= 1.74. The boost libraries (system, thread and log) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
 
 ###### Compilation
 
@@ -126,7 +126,7 @@ PRODUCT_PACKAGES += \
     - Windows 10/11 SDK
     - CMake for Windows
 - vSomeIP uses CMake as buildsystem.
-- vSomeIP uses Boost >= 1.71.0:
+- vSomeIP uses Boost >= 1.74.0:
 - GIT
 
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.

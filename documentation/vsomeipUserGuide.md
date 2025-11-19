@@ -40,7 +40,7 @@ The stack consists out of:
 
 * A C++17 enabled compiler is needed
 * vSomeIP uses cmake as buildsystem.
-* vSomeIP uses Boost >= 1.66:
+* vSomeIP uses Boost >= 1.74:
     * Ubuntu 22.04:
         * `sudo apt-get install libboost-system1.74-dev libboost-thread1.74-dev libboost-log1.74-dev`
 * For the tests Google's test framework
