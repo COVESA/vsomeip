@@ -29,33 +29,32 @@ public:
                                    bool _is_routing_endpoint);
     virtual ~local_uds_server_endpoint_impl() = default;
 
-    void init(const endpoint_type& _local, boost::system::error_code& _error);
+    void init(const endpoint_type& _local, boost::system::error_code& _error) override;
     void init(const endpoint_type& _local, const int _socket, boost::system::error_code& _error);
     void deinit();
 
-    void start();
-    void stop();
+    void start() override;
+    void stop() override;
 
-    void receive();
+    void receive() override;
 
     // this overrides server_endpoint_impl::send to disable the nPDU feature
     // for local communication
-    bool send(const uint8_t* _data, uint32_t _size);
-    bool send_to(const std::shared_ptr<endpoint_definition>, const byte_t* _data, uint32_t _size);
-    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
-    bool send_queued(const target_data_iterator_type _queue_iterator);
+    bool send(const uint8_t* _data, uint32_t _size) override;
+    bool send_to(const std::shared_ptr<endpoint_definition>, const byte_t* _data, uint32_t _size) override;
+    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
+    bool send_queued(const target_data_iterator_type _queue_iterator) override;
     void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
-                                            std::chrono::nanoseconds* _maximum_retention) const;
+                                            std::chrono::nanoseconds* _maximum_retention) const override;
 
-    bool get_default_target(service_t, endpoint_type&) const;
+    bool get_default_target(service_t, endpoint_type&) const override;
 
-    bool is_local() const;
+    bool is_local() const override;
 
-    void accept_client_func();
-    void print_status();
+    void print_status() override;
 
-    bool is_reliable() const;
-    std::uint16_t get_local_port() const;
+    bool is_reliable() const override;
+    std::uint16_t get_local_port() const override;
 
     client_t assign_client(const byte_t* _data, uint32_t _size);
 
@@ -147,8 +146,8 @@ private:
     void add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection);
     void remove_connection(const client_t& _client);
     void accept_cbk(connection::ptr _connection, boost::system::error_code const& _error);
-    std::string get_remote_information(const target_data_iterator_type _queue_iterator) const;
-    std::string get_remote_information(const endpoint_type& _remote) const;
+    std::string get_remote_information(const target_data_iterator_type _queue_iterator) const override;
+    std::string get_remote_information(const endpoint_type& _remote) const override;
 
     bool check_packetizer_space(message_buffer_ptr_t* _packetizer, std::uint32_t _size) const;
     bool queue_train_buffer(target_data_iterator_type _it, message_buffer_ptr_t* _packetizer, std::uint32_t _size) const;
