@@ -80,6 +80,7 @@ public:
     static std::string get_base_path(const std::string& _network);
 
     static client_t request_client_id(const std::shared_ptr<configuration>& _config, const std::string& _name, client_t _client);
+    static std::string get_client_name(const std::shared_ptr<configuration>& _config, client_t _client);
     static void release_client_id(const std::string& _network, client_t _client);
     static std::set<client_t> get_used_client_ids(const std::string& _network);
     static void reset_client_ids(const std::string& _network);

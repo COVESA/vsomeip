@@ -265,6 +265,18 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
     if (receive_buffer_.next_message(result)) {
         if (receive_buffer_[protocol::COMMAND_POSITION_ID] == protocol::id_e::ASSIGN_CLIENT_ID && is_router_) {
             auto client_id = assign_client(result.message_size_);
+
+            std::stringstream ss;
+            ss << "ls::" << __func__ << ": Assigned client ID " << std::hex << std::setw(4) << client_id << " to \""
+               << utility::get_client_name(configuration_, client_id) << "\"";
+
+            // check if is uds socket
+            if (socket_->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
+                ss << " @ " << socket_->peer_endpoint().address() << ":" << std::dec << socket_->peer_endpoint().port();
+            }
+
+            VSOMEIP_INFO << ss.str();
+
             send_client_id(client_id);
         } else if (receive_buffer_[protocol::COMMAND_POSITION_ID] == protocol::id_e::CONFIG_ID && !is_router_) {
             confirm_connection(result.message_size_);
