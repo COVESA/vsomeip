@@ -2228,7 +2228,7 @@ void routing_manager_client::init_receiver() {
     } else {
         std::uint16_t its_port = receiver_->get_local_port();
         if (its_port != ILLEGAL_PORT)
-            VSOMEIP_INFO << "Reusing local server endpoint@" << its_port << " endpoint: " << receiver_;
+            VSOMEIP_INFO << "Reusing local server endpoint @ " << its_port << " endpoint: " << receiver_;
     }
 }
 
