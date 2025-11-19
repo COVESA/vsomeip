@@ -323,37 +323,52 @@ bool configuration_impl::load(const std::string& _name) {
 }
 
 #ifndef VSOMEIP_DISABLE_SECURITY
-bool configuration_impl::lazy_load_security(const std::string& _client_host) {
-    bool result(false);
+void configuration_impl::lazy_load_security(const std::string& _client_host) {
 
     std::string its_folder = policy_manager_->get_policy_extension_path(_client_host);
-    if (!its_folder.empty()) {
-        std::set<std::string> its_input;
-        std::set<std::string> its_failed;
-        std::vector<configuration_element> its_mandatory_elements;
-
-        its_input.insert(its_folder);
-        // load security configuration files from UID_GID sub folder if existing
-        std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
-
-        if (!its_security_config_folder.empty())
-            its_input.insert(its_security_config_folder);
-
-        read_data(its_input, its_mandatory_elements, its_failed, true, true);
-
-        for (const auto& e : its_mandatory_elements) {
-            policy_manager_->load(e, true);
-        }
-
-        for (auto f : its_failed)
-            VSOMEIP_WARNING << __func__ << ": Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete.";
-
-        result = (its_failed.empty() && !its_mandatory_elements.empty());
-        if (result)
-            policy_manager_->set_is_policy_extension_loaded(_client_host, true);
+    if (its_folder.empty()) {
+        return; // nothing to do, host does not exist
     }
 
-    return result;
+    if (policy_manager_->is_policy_extension_loaded(_client_host) == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_LOADED) {
+        return; // nothing to do, host already loaded
+    }
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    std::set<std::string> its_input{its_folder};
+    std::set<std::string> its_failed;
+    std::vector<configuration_element> its_mandatory_elements;
+
+    // load security configuration files from UID_GID sub folder if existing
+    std::string its_security_config_folder = policy_manager_->get_security_config_folder(its_folder);
+    if (!its_security_config_folder.empty())
+        its_input.insert(its_security_config_folder);
+
+    read_data(its_input, its_mandatory_elements, its_failed, true, true);
+
+    for (const auto& e : its_mandatory_elements) {
+        policy_manager_->load(e, true);
+    }
+
+    for (auto f : its_failed) {
+        VSOMEIP_WARNING << __func__ << ": Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
+    }
+
+    policy_manager_->set_is_policy_extension_loaded(_client_host, true);
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+#if defined(__linux__) || defined(__QNX__)
+    uid_t uid = getuid();
+    gid_t gid = getgid();
+#else
+    uid_t uid = 0;
+    gid_t gid = 0;
+#endif
+
+    VSOMEIP_INFO << "vSomeIP Security: Loaded security policies for host: " << _client_host << " at UID/GID: " << std::dec << uid << "/"
+                 << gid << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
 

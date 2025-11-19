@@ -57,7 +57,12 @@ public:
 
     virtual bool load(const std::string& _name) = 0;
 #ifndef VSOMEIP_DISABLE_SECURITY
-    virtual bool lazy_load_security(const std::string& _client_host) = 0;
+    /**
+     * @brief Lazy-load security policy for a given host
+     *
+     * Does nothing if the policy is already loaded or if `_client_host` is nonsense
+     */
+    virtual void lazy_load_security(const std::string& _client_host) = 0;
 #endif // !VSOMEIP_DISABLE_SECURITY
     virtual bool remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
                                        bool _magic_cookies_enabled) = 0;

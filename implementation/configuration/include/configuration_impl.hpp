@@ -68,7 +68,7 @@ public:
 
     VSOMEIP_EXPORT bool load(const std::string& _name);
 #ifndef VSOMEIP_DISABLE_SECURITY
-    VSOMEIP_EXPORT bool lazy_load_security(const std::string& _client_host);
+    VSOMEIP_EXPORT void lazy_load_security(const std::string& _client_host);
 #endif // !VSOMEIP_DISABLE_SECURITY
     VSOMEIP_EXPORT bool remote_offer_info_add(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
                                               bool _magic_cookies_enabled);
