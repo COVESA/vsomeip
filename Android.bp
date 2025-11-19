@@ -52,7 +52,7 @@ cc_defaults {
     name: "vsomeip_lib_defaults",
 
     cflags: [
-        "-DVSOMEIP_BOOST_VERSION=107100",
+        "-DVSOMEIP_BOOST_VERSION=107400",
         "-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED",
     ],
 
