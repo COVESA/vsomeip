@@ -77,22 +77,23 @@ private:
 #define VSOMEIP_LOG_DEFAULT_APPLICATION_NAME    "vSomeIP application|SysInfra|IPC"
 
 /**
- * @brief Flush DLTs and terminate process
+ * @brief Flush DLTs and abort process
  *
  * Write also to stderr - guarantees that _something_ appears, even if the DLT
  * infrastructure is somewhat broken
  */
 #define VSOMEIP_TERMINATE(reason)                             \
     do {                                                      \
-        VSOMEIP_FATAL << "TERMINATING DUE TO '%s'" << reason; \
-        fprintf(stderr, "TERMINATING DUE TO '%s'", reason);   \
+        auto r = (reason);                                    \
+        VSOMEIP_FATAL << "TERMINATING DUE TO '" << r << "'";  \
+        fprintf(stderr, "TERMINATING DUE TO '%s'", r);        \
         fflush(stderr);                                       \
         ; /* no better way to flush DLTs than to wait */      \
         std::this_thread::sleep_for(std::chrono::seconds(2)); \
         VSOMEIP_FATAL << "TERMINATING";                       \
         fprintf(stderr, "TERMINATING");                       \
         fflush(stderr);                                       \
-        std::terminate();                                     \
+        std::abort();                                         \
     } while (0)
 
 #endif // VSOMEIP_V3_LOGGER_HPP_
