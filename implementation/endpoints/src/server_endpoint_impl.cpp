@@ -488,6 +488,10 @@ bool server_endpoint_impl<Protocol>::queue_train(target_data_iterator_type _it, 
 
     if (!its_data.is_sending_) { // no writing in progress
         must_erase = send_queued(_it);
+    } else if (get_local_port() == this->configuration_->get_sd_port()
+               && is_reliable() == (this->configuration_->get_sd_protocol() == "tcp")) {
+        VSOMEIP_WARNING << "sei::" << __func__ << " sd endpoint is currently sending " << its_data.is_sending_
+                        << " queue size: " << its_data.queue_size_ << " target address: " << _it->first;
     }
 
     return must_erase;
