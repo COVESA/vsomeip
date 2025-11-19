@@ -127,6 +127,7 @@ LOCAL_LDFLAGS := \
     -Wl,-wrap,sendto \
     -Wl,-wrap,sendmsg \
     -Wl,-wrap,epoll_wait \
+    -Wl,-wrap,epoll_pwait \
 
 include $(BUILD_SHARED_LIBRARY)
 
