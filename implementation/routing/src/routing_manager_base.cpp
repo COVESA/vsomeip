@@ -672,24 +672,8 @@ void routing_manager_base::add_known_client(client_t _client, const std::string&
 #if !defined(VSOMEIP_DISABLE_SECURITY) && (defined(__linux__))
     std::lock_guard<std::mutex> lazy_lock(add_known_client_mutex_);
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
-        // Ignore if we have already loaded the policy extension
-        policy_manager_impl::policy_loaded_e policy_loaded = configuration_->get_policy_manager()->is_policy_extension_loaded(_client_host);
-
-        if (policy_loaded == policy_manager_impl::policy_loaded_e::POLICY_PATH_FOUND_AND_NOT_LOADED) {
-            if (configuration_->lazy_load_security(_client_host)) {
-                VSOMEIP_INFO << __func__ << " vSomeIP Security: Loaded security policies for host: " << _client_host
-                             << " at UID/GID: " << std::dec << getuid() << "/" << getgid();
-            }
-        } else if (policy_loaded == policy_manager_impl::policy_loaded_e::POLICY_PATH_INEXISTENT) {
-            if (configuration_->lazy_load_security(_client_host)) {
-                VSOMEIP_INFO << __func__ << " vSomeIP Security: Loaded security policies for host: " << _client_host
-                             << " at UID/GID: " << std::dec << getuid() << "/" << getgid();
-            } else if (configuration_->lazy_load_security(get_client_host())) { // necessary for lazy loading from inside
-                                                                                // android container
-                VSOMEIP_INFO << __func__ << " vSomeIP Security: Loaded security policies for host: " << get_client_host()
-                             << " at UID/GID: " << std::dec << getuid() << "/" << getgid();
-            }
-        }
+        configuration_->lazy_load_security(_client_host);
+        configuration_->lazy_load_security(get_client_host()); // necessary for lazy loading from inside android container
     }
 #endif
     std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
