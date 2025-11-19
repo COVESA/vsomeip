@@ -31,7 +31,7 @@ namespace ip = boost::asio::ip;
 
 namespace {
 
-unsigned int find_scope_id(const std::string& _local_address) {
+std::int64_t find_scope_id(const std::string& _local_address) {
     std::vector<unsigned int> indices(0);
 
     struct sockaddr_in6 searched_address;
@@ -183,8 +183,9 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         is_v4_ = false;
         // TODO(): an interface index is expected not a scope_id
 
-        scope_id_ = find_scope_id(_local.address().to_string());
-        if (scope_id_ < 0) {
+        if (auto scope_id = find_scope_id(_local.address().to_string()); scope_id >= 0) {
+            scope_id_ = static_cast<unsigned int>(scope_id);
+        } else {
             scope_id_ = static_cast<unsigned int>(_local.address().to_v6().scope_id());
         }
 
