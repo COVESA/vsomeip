@@ -73,6 +73,11 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         unicast_socket_.reset();
     }
 
+    // reset sending flag for all targets
+    for (auto& [client, endpoint_type] : targets_) {
+        endpoint_type.is_sending_ = false;
+    }
+
     unicast_socket_ = std::make_shared<socket_type>(io_, _local.protocol());
     if (!unicast_socket_) {
         _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
