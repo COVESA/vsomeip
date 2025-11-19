@@ -449,6 +449,10 @@ void application_impl::start() {
                                           << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
                                           << ".";
+                            // something is *very* wrong if the io threads were not stopped intentionally
+                            // e.g., user messed with the internal io_context descriptors
+                            // therefore SIGABRT
+                            VSOMEIP_TERMINATE("io_context exited unexpectedly");
                         }
                         break;
                     } catch (const std::exception& e) {
@@ -501,6 +505,10 @@ void application_impl::start() {
                               << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
                         ;
+                // something is *very* wrong if the io threads were not stopped intentionally
+                // e.g., user messed with the internal io_context descriptors
+                // therefore SIGABRT
+                VSOMEIP_TERMINATE("io_context exited unexpectedly");
             }
             if (stop_thread_.joinable()) {
                 stop_thread_.join();
