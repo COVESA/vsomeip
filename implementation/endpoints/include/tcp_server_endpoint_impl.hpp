@@ -32,28 +32,28 @@ public:
                              boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
     virtual ~tcp_server_endpoint_impl();
 
-    void init(const endpoint_type& _local, boost::system::error_code& _error);
-    void start();
-    void stop();
+    void init(const endpoint_type& _local, boost::system::error_code& _error) override;
+    void start() override;
+    void stop() override;
 
-    bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
-    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
-    bool send_queued(const target_data_iterator_type _it);
+    bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
+    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
+    bool send_queued(const target_data_iterator_type _it) override;
     void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
-                                            std::chrono::nanoseconds* _maximum_retention) const;
+                                            std::chrono::nanoseconds* _maximum_retention) const override;
 
     VSOMEIP_EXPORT bool is_established_to(const std::shared_ptr<endpoint_definition>& _endpoint);
 
-    bool get_default_target(service_t, endpoint_type&) const;
+    bool get_default_target(service_t, endpoint_type&) const override;
 
-    std::uint16_t get_local_port() const;
-    bool is_reliable() const;
-    bool is_local() const;
+    std::uint16_t get_local_port() const override;
+    bool is_reliable() const override;
+    bool is_local() const override;
 
     // dummies to implement endpoint_impl interface
     // TODO: think about a better design!
-    void receive();
-    void print_status();
+    void receive() override;
+    void print_status() override;
 
     bool is_suspended() const;
 
@@ -140,8 +140,8 @@ private:
 private:
     void remove_connection(connection* _connection);
     void accept_cbk(connection::ptr _connection, boost::system::error_code const& _error);
-    std::string get_remote_information(const target_data_iterator_type _it) const;
-    std::string get_remote_information(const endpoint_type& _remote) const;
+    std::string get_remote_information(const target_data_iterator_type _it) const override;
+    std::string get_remote_information(const endpoint_type& _remote) const override;
 };
 
 } // namespace vsomeip_v3
