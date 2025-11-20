@@ -850,9 +850,11 @@ void routing_manager_stub::registration_func(client_t client_id, std::vector<reg
                      << (type == registration_type_e::REGISTER ? "registering" : "deregistering");
 
         bool continue_registration = true;
-        on_deregister_application(client_id);
+
         if (type == registration_type_e::REGISTER) {
             on_register_application(client_id, continue_registration);
+        } else {
+            on_deregister_application(client_id);
         }
 
         if (!continue_registration) {
