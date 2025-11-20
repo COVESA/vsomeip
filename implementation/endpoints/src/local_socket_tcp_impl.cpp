@@ -33,7 +33,7 @@ namespace vsomeip_v3 {
 local_socket_tcp_impl::local_socket_tcp_impl(boost::asio::io_context& _io, std::unique_ptr<tcp_socket> _socket,
                                              boost::asio::ip::tcp::endpoint _own, boost::asio::ip::tcp::endpoint _peer,
                                              socket_role_e _role) :
-    socket_(std::move(_socket)), io_context_(_io), peer_endpoint_(std::move(_peer)), own_endpoint_(std::move(_own)),
+    socket_(std::move(_socket)), role_(_role), io_context_(_io), peer_endpoint_(std::move(_peer)), own_endpoint_(std::move(_own)),
     name_(::to_string(own_endpoint_, peer_endpoint_, this, _role)) { }
 
 local_socket_tcp_impl::local_socket_tcp_impl(boost::asio::io_context& _io, boost::asio::ip::tcp::endpoint _own,
@@ -181,6 +181,13 @@ bool local_socket_tcp_impl::update(vsomeip_sec_client_t& _client, configuration 
         _client.host = htonl(uint32_t(address.to_v4().to_uint()));
     }
     _client.port = htons(port);
+    if (role_ == socket_role_e::SENDER) {
+        // temporary hack, because this used to be called only for incoming (not outgoing!)
+        // tcp connections, and security lib does not have configuration for _some_ outgoing
+        // connections
+        _client.port += 1;
+    }
+
     _configuration.get_security()->sync_client(&_client);
     return true;
 }
