@@ -85,6 +85,7 @@ private:
     std::unique_ptr<tcp_socket> const socket_;
     std::mutex socket_mtx_;
 
+    socket_role_e const role_;
     boost::asio::io_context& io_context_;
     boost::asio::ip::tcp::endpoint const peer_endpoint_;
     boost::asio::ip::tcp::endpoint const own_endpoint_;
