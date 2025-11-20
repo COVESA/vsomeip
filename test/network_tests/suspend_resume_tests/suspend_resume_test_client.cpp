@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -38,8 +38,8 @@ public:
         start();
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
-            auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
+            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            auto r = availability_cv_.wait_for(its_lock, std::chrono::seconds(10));
             ASSERT_EQ(r, std::cv_status::no_timeout);
             VSOMEIP_DEBUG << "[TEST] Process: service available";
         }
@@ -73,10 +73,13 @@ public:
             // Wait for availability to become false
             std::chrono::steady_clock::time_point unavailable_time;
             {
-                std::unique_lock<std::mutex> its_lock(mutex_);
+                std::unique_lock<std::mutex> its_lock(availability_mutex_);
+                // Ensure that was_unavailable_ is only set in this iteration instead of coming already set from the previous iteration
+                was_unavailable_ = false;
                 VSOMEIP_DEBUG << "[TEST] Process: waiting availability=false event, iteration#" << std::dec << i
                               << ", is_available=" << std::boolalpha << is_available_.load();
-                ASSERT_TRUE(cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return !is_available_.load(); }));
+                ASSERT_TRUE(availability_cv_.wait_for(its_lock, std::chrono::seconds(20),
+                                                      [this]() { return !is_available_.load() || was_unavailable_.load(); }));
                 unavailable_time = std::chrono::steady_clock::now();
                 VSOMEIP_INFO << "[TEST] Process: received availability=false, iteration#" << std::dec << i;
             }
@@ -84,10 +87,10 @@ public:
             // Wait for availability to become true again
             std::chrono::steady_clock::time_point available_time;
             {
-                std::unique_lock<std::mutex> its_lock(mutex_);
+                std::unique_lock<std::mutex> its_lock(availability_mutex_);
                 VSOMEIP_DEBUG << "[TEST] Process: waiting availability=true event, iteration#" << std::dec << i
                               << ", is_available=" << std::boolalpha << is_available_.load();
-                ASSERT_TRUE(cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return is_available_.load(); }));
+                ASSERT_TRUE(availability_cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return is_available_.load(); }));
                 available_time = std::chrono::steady_clock::now();
                 VSOMEIP_INFO << "[TEST] Process: received availability=true, iteration#" << std::dec << i;
             }
@@ -192,18 +195,20 @@ private:
                       << ", has_received=" << std::boolalpha << has_received_ << ", is_registered_=" << std::boolalpha << is_registered_;
 
         if (_service == TEST_SERVICE && _instance == TEST_INSTANCE && _is_available != is_available_) {
-            std::unique_lock<std::mutex> its_lock(mutex_);
-
-            is_available_ = _is_available;
+            std::unique_lock<std::mutex> its_lock(availability_mutex_);
 
             if (_is_available) {
                 VSOMEIP_DEBUG << "[TEST] Availability triggers signal";
+                if (!is_available_) {
+                    was_unavailable_ = true;
+                }
             } else {
                 VSOMEIP_DEBUG << "[TEST] Unavailability clears flag";
                 has_received_ = false;
             }
 
-            cv_.notify_one();
+            availability_cv_.notify_one();
+            is_available_ = _is_available;
         }
     }
 
@@ -289,11 +294,14 @@ private: // members
     std::string name_;
     std::shared_ptr<vsomeip::application> app_;
     std::mutex mutex_;
+    std::mutex availability_mutex_;
     std::condition_variable cv_;
+    std::condition_variable availability_cv_;
     std::atomic<bool> started_;
     std::atomic<bool> has_received_{false};
     std::atomic<bool> is_available_{false};
     std::atomic<bool> is_registered_{false};
+    std::atomic<bool> was_unavailable_{false};
     std::thread runner_;
 };
 
