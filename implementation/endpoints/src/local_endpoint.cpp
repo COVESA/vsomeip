@@ -62,8 +62,7 @@ std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
                                local_receive_buffer _receive_buffer, bool _is_routing_endpoint, state_e _initial_state) :
     is_routing_endpoint_(_is_routing_endpoint), state_(_initial_state), peer_(_params.peer_),
-    max_connection_attempts_(_context.configuration_->get_max_message_size_local()),
-    max_message_size_(_context.configuration_->get_max_message_size_local()),
+    max_connection_attempts_(MAX_RECONNECTS_LOCAL), max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
     socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_),
     endpoint_host_(_context.endpoint_host_) { }
