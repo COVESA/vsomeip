@@ -90,7 +90,7 @@ void local_endpoint::start() {
             return;
         }
     } else {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Unexpected state when trying to start: " << status();
+        VSOMEIP_ERROR << "le::" << __func__ << ": Unexpected state when trying to start: " << status_unlock();
     }
 }
 
