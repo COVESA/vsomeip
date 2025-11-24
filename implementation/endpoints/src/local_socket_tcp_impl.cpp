@@ -180,13 +180,13 @@ bool local_socket_tcp_impl::update(vsomeip_sec_client_t& _client, configuration 
     if (address.is_v4()) {
         _client.host = htonl(uint32_t(address.to_v4().to_uint()));
     }
-    _client.port = htons(port);
     if (role_ == socket_role_e::SENDER) {
         // temporary hack, because this used to be called only for incoming (not outgoing!)
         // tcp connections, and security lib does not have configuration for _some_ outgoing
         // connections
-        _client.port += 1;
+        port += 1;
     }
+    _client.port = htons(port);
 
     _configuration.get_security()->sync_client(&_client);
     return true;
