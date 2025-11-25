@@ -436,10 +436,12 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
 
         send_pending_subscriptions(_service, _instance, _major);
     }
-    erase_offer_command(_service, _instance);
     if (stub_)
         stub_->on_offer_service(_client, _service, _instance, _major, _minor);
+    // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed before
+    // starting the next one, otherwise, we may have the availability being reported in the wrong order
     on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
+    erase_offer_command(_service, _instance);
 
     VSOMEIP_INFO << "OFFER(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service << "."
                  << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]"
@@ -1539,10 +1541,13 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                     if (!ready_to_stop->done_) {
                         ready_to_stop->done_ = true;
                         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
-                        erase_offer_command(_service, _instance);
                         if (stub_)
                             stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+                        // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process
+                        // has completed before starting the next one, otherwise, we may have the availability being reported in the wrong
+                        // order
                         on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+                        erase_offer_command(_service, _instance);
                     } else {
                         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
                     }
@@ -1558,10 +1563,12 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         }
 
         if (!its_reliable_endpoint && !its_unreliable_endpoint) {
-            erase_offer_command(_service, _instance);
             if (stub_)
                 stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+            // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has
+            // completed before starting the next one, otherwise, we may have the availability being reported in the wrong order
             on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+            erase_offer_command(_service, _instance);
         }
 
         std::set<std::shared_ptr<eventgroupinfo>> its_eventgroup_info_set;
@@ -1580,10 +1587,12 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
             e->clear_remote_subscriptions();
         }
     } else {
-        erase_offer_command(_service, _instance);
         if (stub_)
             stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+        // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed
+        // before starting the next one, otherwise, we may have the availability being reported in the wrong order
         on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+        erase_offer_command(_service, _instance);
     }
 }
 
