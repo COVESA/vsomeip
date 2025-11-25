@@ -18,7 +18,6 @@
 
 #include "buffer.hpp"
 #include "endpoint_impl.hpp"
-#include "server_endpoint.hpp"
 #include "tp.hpp"
 #if defined(__QNX__)
 #include "../../utility/include/qnx_helper.hpp"
@@ -27,9 +26,7 @@
 namespace vsomeip_v3 {
 
 template<typename Protocol>
-class server_endpoint_impl : public server_endpoint,
-                             public endpoint_impl<Protocol>,
-                             public std::enable_shared_from_this<server_endpoint_impl<Protocol>> {
+class server_endpoint_impl : public endpoint_impl<Protocol>, public std::enable_shared_from_this<server_endpoint_impl<Protocol>> {
 public:
     typedef typename Protocol::socket socket_type;
     typedef typename Protocol::endpoint endpoint_type;

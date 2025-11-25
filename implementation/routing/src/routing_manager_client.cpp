@@ -29,7 +29,6 @@
 #include "../include/routing_manager_host.hpp"
 #include "../include/routing_manager_client.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../endpoints/include/server_endpoint.hpp"
 #include "../../endpoints/include/abstract_socket_factory.hpp"
 #include "../../endpoints/include/local_server.hpp"
 #include "../../endpoints/include/local_endpoint.hpp"

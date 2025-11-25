@@ -70,11 +70,6 @@ public:
     bool is_joined(const std::string& _address) const;
     bool is_joined(const std::string& _address, bool& _received) const;
 
-    /// @brief Disconnects from the given client.
-    ///
-    /// @param _client ID of the remote client.
-    void disconnect_from(const client_t _client) override;
-
 private:
     void start_unlocked();
     void stop_unlocked();
