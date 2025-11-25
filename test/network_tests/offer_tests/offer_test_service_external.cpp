@@ -85,6 +85,9 @@ public:
             std::unique_lock<std::mutex> its_lock(mutex_);
             condition_.wait(its_lock, [this] { return !wait_until_registered_; });
 
+            // Wait until master service is available
+            condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
+
             VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
             offer();
 
