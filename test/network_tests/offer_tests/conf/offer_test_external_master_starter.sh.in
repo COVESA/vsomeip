@@ -33,12 +33,6 @@ export VSOMEIP_APPLICATION_NAME="client-sample"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_ONE=$!
 
-# offer same service in an external host
-# but give time for the local offer to "win"
-# TODO: terrible.. instead of a sleep, could have a one-shot binary that checks for service availability!
-# NOTE: it is *THIS MUCH* because binaries can take >1s to startup under valgrind..
-sleep 3
-
 SLAVE_PID=0
 if [ ! -z "$USE_LXC_TEST" ]; then
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/offer_tests; ./offer_test_external_slave_starter.sh\"" &
@@ -66,6 +60,7 @@ fi
 # Fail gets incremented if a client exits with a non-zero exit code
 wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
 kill $SLAVE_PID
+wait $SLAVE_PID
 kill -USR1 $PID_SERVICE_TWO
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
@@ -91,10 +86,6 @@ PID_SERVICE_TWO=$!
 export VSOMEIP_APPLICATION_NAME="client-sample"
 ./offer_test_client SUBSCRIBE &
 CLIENT_PID_ONE=$!
-
-# offer same service in an external host
-# but this time, some hacked-up code that sends SOME/IP-SD OFFERs directly
-sleep 3
 
 SLAVE_PID=0
 if [ ! -z "$USE_LXC_TEST" ]; then
