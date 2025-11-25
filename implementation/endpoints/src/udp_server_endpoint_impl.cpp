@@ -521,10 +521,6 @@ void udp_server_endpoint_impl::leave(const std::string& _address) {
     leave_unlocked(_address);
 }
 
-void udp_server_endpoint_impl::disconnect_from(const client_t _client) {
-    std::ignore = _client;
-}
-
 void udp_server_endpoint_impl::leave_unlocked(const std::string& _address) {
     // The caller must hold the lock
 
