@@ -170,11 +170,13 @@ int main(int argc, char** argv) {
 
     if (argc > 2) {
         for (int i = 2; i < argc; i++) {
+
             if (std::string("SAME_SERVICE_ID") == std::string(argv[i])) {
                 use_same_service_id = true;
                 std::cout << "Using same service ID" << std::endl;
             } else if (std::string("MULTIPLE_EVENTS") == std::string(argv[i])) {
                 offer_multiple_events = 5;
+                std::cout << "Offering to multiple events" << std::endl;
             } else if (std::string("TCP") == std::string(argv[i])) {
                 reliability_type = vsomeip::reliability_type_e::RT_RELIABLE;
                 std::cout << "Using reliability type RT_RELIABLE" << std::endl;
@@ -184,8 +186,15 @@ int main(int argc, char** argv) {
             } else if (std::string("TCP_AND_UDP") == std::string(argv[i])) {
                 reliability_type = vsomeip::reliability_type_e::RT_BOTH;
                 std::cout << "Using reliability type RT_BOTH" << std::endl;
+            } else if (std::string("SUBSCRIBE_ON_AVAILABILITY") == std::string(argv[i])
+                       || std::string("SUBSCRIBE_BEFORE_START") == std::string(argv[i])
+                       || std::string("STRICT_CHECKING") == std::string(argv[i]) || std::string("DONT_EXIT") == std::string(argv[i])
+                       || std::string("SUBSCRIBE_ONLY_ONE") == std::string(argv[i])
+                       || std::string("CLIENT_SUBSCRIBES_TWICE") == std::string(argv[i])) {
+                std::cout << std::string(argv[i]) << " will be unused for service" << std::endl;
             } else {
                 std::cerr << "Unknown argument: " << std::string(argv[i]) << std::endl;
+                return EXIT_FAILURE;
             }
         }
     }

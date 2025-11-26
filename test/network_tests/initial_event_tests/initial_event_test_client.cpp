@@ -516,19 +516,25 @@ int main(int argc, char** argv) {
         for (int i = 2; i < argc; i++) {
             if (std::string("SUBSCRIBE_ON_AVAILABILITY") == std::string(argv[i])) {
                 subscribe_on_available = true;
+                std::cout << "Subscribing on availability" << std::endl;
             } else if (std::string("SUBSCRIBE_BEFORE_START") == std::string(argv[i])) {
                 subscribe_on_available = false;
+                std::cout << "Subscribing on start" << std::endl;
             } else if (std::string("SAME_SERVICE_ID") == std::string(argv[i])) {
                 use_same_service_id = true;
                 std::cout << "Using same service ID" << std::endl;
             } else if (std::string("MULTIPLE_EVENTS") == std::string(argv[i])) {
                 subscribe_multiple_events = 5;
+                std::cout << "Subscribing to multiple events" << std::endl;
             } else if (std::string("STRICT_CHECKING") == std::string(argv[i])) {
                 initial_event_strict_checking = true;
+                std::cout << "Checking if the number of events received is correct" << std::endl;
             } else if (std::string("DONT_EXIT") == std::string(argv[i])) {
                 dont_exit = true;
+                std::cout << "Waiting for all notifications to be received" << std::endl;
             } else if (std::string("SUBSCRIBE_ONLY_ONE") == std::string(argv[i])) {
                 subscribe_only_one = true;
+                std::cout << "Subscribing to only one event" << std::endl;
             } else if (std::string("TCP") == std::string(argv[i])) {
                 reliability_type = vsomeip::reliability_type_e::RT_RELIABLE;
                 std::cout << "Using reliability type RT_RELIABLE" << std::endl;
@@ -543,6 +549,9 @@ int main(int argc, char** argv) {
                 std::cout << "Testing for initial event after a second subscribe from same client "
                              "CLIENT_SUBSCRIBES_TWICE"
                           << std::endl;
+            } else {
+                std::cerr << "Unknown argument: " << std::string(argv[i]) << std::endl;
+                return EXIT_FAILURE;
             }
         }
     }
