@@ -51,8 +51,7 @@ application_impl::application_impl(const std::string& _name, const std::string& 
 #if defined(__linux__) || defined(__QNX__)
     start_thread_{0},
 #endif
-    work_{std::make_shared<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(io_.get_executor())},
-    routing_{nullptr}, state_{state_type_e::ST_DEREGISTERED}, security_mode_{security_mode_e::SM_ON},
+    work_(io_.get_executor()), routing_{nullptr}, state_{state_type_e::ST_DEREGISTERED}, security_mode_{security_mode_e::SM_ON},
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
     signals_{io_, SIGINT, SIGTERM},
 #endif
@@ -2191,7 +2190,6 @@ void application_impl::shutdown() {
     }
 
     try {
-        work_.reset();
         io_.stop();
     } catch (const std::exception& e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping io, "

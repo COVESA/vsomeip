@@ -305,7 +305,7 @@ private:
 
     boost::asio::io_context io_;
     std::vector<std::shared_ptr<std::thread>> io_threads_;
-    std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_;
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_;
 
     // Proxy to or the Routing Manager itself
     std::shared_ptr<routing_manager> routing_;
