@@ -21,9 +21,25 @@ check_tcp_udp_sockets_are_open ()
     # awk is used to avoid the case when a inode number is the same as a PID. The awk
     # program filters the netstat output down to the protocol (1st field) and
     # the PID/Program name (last field) fields.
-    SERVICE_SOCKETS_LISTENING=$(netstat -tulpen 2> /dev/null | awk '{print $1 "\t"  $NF}' | grep $1 | wc -l)
-    if [ $SERVICE_SOCKETS_LISTENING -lt $2 ]
-    then
+
+    local MAX_ATTEMPTS=8  # 8 attempts * 250ms = 2000ms = 2 seconds
+    local ATTEMPT=0
+    local SOCKETS_OPEN=false
+
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        SERVICE_SOCKETS_LISTENING=$(netstat -tulpen 2> /dev/null | awk '{print $1 "\t"  $NF}' | grep $1 | wc -l)
+
+        if [ $SERVICE_SOCKETS_LISTENING -ge $2 ]; then
+            SOCKETS_OPEN=true
+            break
+        fi
+
+        ((ATTEMPT+=1))
+        sleep 0.25
+    done
+
+    if [ "$SOCKETS_OPEN" = false ]; then
+        echo "ERROR: Sockets not open after 2 seconds for PID $1 (expected: $2, found: $SERVICE_SOCKETS_LISTENING)"
         ((FAIL+=1))
     fi
 }
@@ -55,8 +71,8 @@ export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 ./payload_test_service --udp &
 SERVICE_PID=$!
 
-# To ensure that sockets are open
-sleep 2
+# The service should listen on a TCP and UDP socket now
+check_tcp_udp_sockets_are_open $SERVICE_PID 2
 
 # Initialize EXTERNAL_CLIENT_PID to avoid unbound variable error
 EXTERNAL_CLIENT_PID=0
@@ -85,10 +101,6 @@ cat <<End-of-message
 End-of-message
 fi
 
-# The service should listen on a TCP and UDP socket now
-sleep 1
-check_tcp_udp_sockets_are_open $SERVICE_PID 2
-
 # Wait until service is finished
 # The client remotely shuts down the service if he has successfully transmitted
 # all the packets with different payloads. Therefore we can assume that everything
@@ -105,7 +117,6 @@ export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 SERVICE_PID=$!
 
 # The service should listen on a TCP and UDP socket now
-sleep 2
 check_tcp_udp_sockets_are_open $SERVICE_PID 2
 
 # Wait until service is finished
