@@ -1266,7 +1266,8 @@ void endpoint_manager_impl::suspend() {
 }
 
 void endpoint_manager_impl::resume() {
-    std::vector<std::weak_ptr<endpoint>> weak_endpoints;
+    std::vector<std::tuple<boost::asio::ip::address, uint16_t, bool, partition_id_t>> clients;
+    std::vector<std::tuple<uint16_t, bool>> servers;
 
     {
         std::scoped_lock its_lock{endpoint_mutex_};
@@ -1277,7 +1278,7 @@ void endpoint_manager_impl::resume() {
             for (const auto& [its_port, protocols] : ports) {
                 for (const auto& [its_protocol, partitions] : protocols) {
                     for (const auto& [its_partition, its_endpoint] : partitions) {
-                        weak_endpoints.push_back(its_endpoint);
+                        clients.push_back(std::make_tuple(its_address, its_port, its_protocol, its_partition));
                     }
                 }
             }
@@ -1287,14 +1288,89 @@ void endpoint_manager_impl::resume() {
 
         for (const auto& [its_port, protocols] : server_endpoints_) {
             for (const auto& [its_protocol, its_endpoint] : protocols) {
-                weak_endpoints.push_back(its_endpoint);
+                servers.push_back(std::make_tuple(its_port, its_protocol));
             }
         }
     }
 
-    for (const auto& its_weak : weak_endpoints) {
-        if (auto its_endpoint = its_weak.lock()) {
-            its_endpoint->restart();
+    for (const auto& [its_address, its_port, its_protocol, its_partition] : clients) {
+        std::shared_ptr<endpoint> its_endpoint;
+
+        {
+            std::scoped_lock its_lock{endpoint_mutex_};
+
+            const auto& ports = client_endpoints_.find(its_address);
+            if (ports == client_endpoints_.end()) {
+                continue;
+            }
+
+            const auto& protocols = ports->second.find(its_port);
+            if (protocols == ports->second.end()) {
+                continue;
+            }
+
+            const auto& partitions = protocols->second.find(its_protocol);
+            if (partitions == protocols->second.end()) {
+                continue;
+            }
+
+            const auto& endpoint = partitions->second.find(its_partition);
+            if (endpoint == partitions->second.end()) {
+                continue;
+            }
+
+            its_endpoint = endpoint->second;
+        }
+
+        // From here, there is the risk that this endpoint will be removed from
+        // the client list because we don't have the lock on endpoint_mutex_.
+        // The consequence is that the old client is restarted and will occupy
+        // the endpoint used by another client.
+
+        its_endpoint->restart();
+    }
+
+    for (const auto& [its_port, its_protocol] : servers) {
+        std::shared_ptr<endpoint> its_endpoint;
+
+        {
+            std::scoped_lock its_lock{endpoint_mutex_};
+
+            const auto& ports = server_endpoints_.find(its_port);
+            if (ports == server_endpoints_.end()) {
+                continue;
+            }
+
+            const auto& endpoint = ports->second.find(its_protocol);
+            if (endpoint == ports->second.end()) {
+                continue;
+            }
+
+            its_endpoint = endpoint->second;
+        }
+
+        // Restart the server and then check that it is
+        // still in the active list of servers.
+
+        its_endpoint->restart();
+
+        std::shared_ptr<endpoint> its_check_endpoint;
+
+        {
+            std::scoped_lock its_lock{endpoint_mutex_};
+
+            const auto& ports = server_endpoints_.find(its_port);
+            if (ports != server_endpoints_.end()) {
+                const auto& endpoint = ports->second.find(its_protocol);
+                if (endpoint != ports->second.end()) {
+                    its_check_endpoint = endpoint->second;
+                }
+            }
+        }
+
+        if (its_check_endpoint != its_endpoint) {
+            VSOMEIP_ERROR << __func__ << ": server has been removed from active list, stop it";
+            its_endpoint->stop(true);
         }
     }
 }
