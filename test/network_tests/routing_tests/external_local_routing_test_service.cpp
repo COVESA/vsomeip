@@ -38,12 +38,6 @@ void external_local_routing_test_service::start() {
     app_->start();
 }
 
-void external_local_routing_test_service::stop() {
-    VSOMEIP_INFO << "Stopping...";
-    app_->clear_all_handler();
-    app_->stop();
-}
-
 void external_local_routing_test_service::join_offer_thread() {
     offer_thread_.join();
 }
@@ -125,6 +119,8 @@ void external_local_routing_test_service::run() {
     // magic sleep to give time for the last message to be sent
     // TODO: FIXME! REMOVE THIS!
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+    VSOMEIP_INFO << "Stopping...";
 
     app_->stop();
 }

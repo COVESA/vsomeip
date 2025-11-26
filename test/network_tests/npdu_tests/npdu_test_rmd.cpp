@@ -83,7 +83,11 @@ void npdu_test_rmd::on_message_shutdown(const std::shared_ptr<vsomeip::message>&
         request->set_method(npdu_test::RMD_SHUTDOWN_METHOD_ID);
         request->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
         app_->send(request);
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        // magic sleep to give time for the last message to be sent
+        // TODO: FIXME! REMOVE THIS!
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         stop();
     }
 #elif defined RMD_SERVICE_SIDE

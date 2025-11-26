@@ -34,12 +34,6 @@ void header_factory_test_service::start() {
     app_->start();
 }
 
-void header_factory_test_service::stop() {
-    VSOMEIP_INFO << "Stopping...";
-    app_->clear_all_handler();
-    app_->stop();
-}
-
 void header_factory_test_service::join_offer_thread() {
     offer_thread_.join();
 }
@@ -109,10 +103,17 @@ void header_factory_test_service::run() {
         offer();
     }
     condition_.wait(its_lock, [this] { return blocked_; });
+
+    // magic sleep to give time for the last message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+    VSOMEIP_INFO << "Stopping...";
+
     app_->stop();
 }
 
-TEST(someip_header_factory_test, reveice_message_ten_times_test) {
+TEST(someip_header_factory_test, receive_message_ten_times_test) {
     bool use_static_routing = true;
     header_factory_test_service test_service(use_static_routing);
     if (test_service.init()) {

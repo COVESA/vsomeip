@@ -98,7 +98,11 @@ public:
 
     void on_shutdown_method_called(const std::shared_ptr<vsomeip::message>& _message) {
         app_->send(vsomeip::runtime::get()->create_response(_message));
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        // magic sleep to give time for the last message to be sent
+        // TODO: FIXME! REMOVE THIS!
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         VSOMEIP_WARNING << "************************************************************";
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
         VSOMEIP_WARNING << "************************************************************";

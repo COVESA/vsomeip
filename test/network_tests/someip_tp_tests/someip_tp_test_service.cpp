@@ -88,6 +88,11 @@ public:
     void offer() { app_->offer_service(service_info_.service_id, 0x1); }
 
     void stop() {
+
+        // magic sleep to give time for the last message to be sent
+        // TODO: FIXME! REMOVE THIS!
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
         app_->clear_all_handler();
         app_->stop();

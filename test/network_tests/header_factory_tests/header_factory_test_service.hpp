@@ -22,7 +22,6 @@ public:
     header_factory_test_service(bool _use_static_routing);
     bool init();
     void start();
-    void stop();
     void offer();
     void stop_offer();
     void join_offer_thread();

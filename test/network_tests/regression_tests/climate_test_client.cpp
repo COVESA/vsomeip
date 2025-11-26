@@ -117,7 +117,11 @@ public:
                 its_set->set_instance(service_info_.instance_id);
                 its_set->set_method(service_info_.shutdown_method_id);
                 app_->send(its_set);
-                std::this_thread::sleep_for(climate_test::MSG_SEND_WAIT_INTERVAL);
+
+                // magic sleep to give time for the last message to be sent
+                // TODO: FIXME! REMOVE THIS!
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
                 stop();
             }
         }

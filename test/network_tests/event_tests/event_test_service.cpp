@@ -108,8 +108,11 @@ public:
 
         condition_.wait(its_lock, [this] { return !wait_until_shutdown_method_called_; });
         its_lock.unlock();
-        // Ensure the message is processed before endpoint is destroyed
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        // magic sleep to give time for the last message to be sent
+        // TODO: FIXME! REMOVE THIS!
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         stop();
     }
 
