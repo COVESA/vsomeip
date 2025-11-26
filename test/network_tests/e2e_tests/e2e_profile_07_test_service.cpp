@@ -50,8 +50,8 @@ bool e2e_profile_07_test_service::init() {
                                   0x01, 0x3c, 0x1f, 0xf5, 0xf6, 0x01, 0x01, 0x3c, 0x2b, 0xb1, 0xa2, 0x00};
     its_payload->set_data(its_data, sizeof(its_data));
 
-    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
-                 its_payload);
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                 static_cast<vsomeip::event_t>(PROFILE_07_EVENT), its_payload);
 
     return true;
 }

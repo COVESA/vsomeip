@@ -21,6 +21,13 @@ constexpr vsomeip::instance_t TEST_SERVICE_INSTANCE_ID = 0x5678;
 constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID = 0x8421;
 constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID_SHUTDOWN = 0x7777;
 constexpr vsomeip::client_t TEST_SERVICE_CLIENT_ID = 0x1277;
+constexpr vsomeip::event_t TEST_SERVICE_EVENT_ID_PF1 = 0x8001;
+constexpr vsomeip::eventgroup_t TEST_SERVICE_EVENTGROUP_PF1 = 0x01;
+
+// Custom Service
+constexpr vsomeip::method_t TEST_SERVICE_METHOD_ID_CUSTOM = 0x6543;
+constexpr vsomeip::event_t TEST_SERVICE_EVENT_ID_CUSTOM = 0x8002;
+constexpr vsomeip::eventgroup_t TEST_SERVICE_EVENTGROUP_CUSTOM = 0x02;
 
 // Client local
 constexpr vsomeip::client_t TEST_CLIENT_CLIENT_ID = 0x1255;

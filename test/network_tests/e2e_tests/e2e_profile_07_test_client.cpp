@@ -101,7 +101,8 @@ void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::messa
     // check fixed payload / CRC in response for service: d025 method: 0001
     if (vsomeip::message_type_e::MT_RESPONSE == _message->get_message_type() && PROFILE_07_METHOD == _message->get_method()) {
         // check for calculated CRC status OK for the predefined fixed payload sent by service
-        VSOMEIP_INFO << "Method ID 0x0001 -> IS_VALID_CRC = " << std::boolalpha << _message->is_valid_crc();
+        VSOMEIP_INFO << "Method ID 0x" << std::hex << std::setfill('0') << std::setw(4) << PROFILE_07_METHOD
+                     << " -> IS_VALID_CRC = " << std::boolalpha << _message->is_valid_crc();
         EXPECT_EQ(true, _message->is_valid_crc());
 
         // check if payload is as expected as well (including CRC / counter / data ID)
@@ -116,7 +117,8 @@ void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::messa
 
         // check CRC / payload calculated by sender for event 0x8001 against expected payload
         // check for calculated CRC status OK for the calculated CRC / payload sent by service
-        VSOMEIP_INFO << __func__ << ": Event 0x8001 -> IS_VALID_CRC = " << std::boolalpha << _message->is_valid_crc();
+        VSOMEIP_INFO << __func__ << ": Event 0x" << std::hex << std::setfill('0') << std::setw(4) << PROFILE_07_EVENT
+                     << " -> IS_VALID_CRC = " << std::boolalpha << _message->is_valid_crc();
         EXPECT_EQ(true, _message->is_valid_crc());
 
         // check if payload is as expected as well (including CRC / counter / data ID nibble)

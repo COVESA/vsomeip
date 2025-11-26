@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2015-2018 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,29 +17,9 @@ then
     exit 1
 fi
 
+# Initialize error tracking
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=$1
 export VSOMEIP_APPLICATION_NAME=service-sample
-./e2e_test_service --remote &
-PID_SERVICE=$!
-
-# Wait until client and service are finished
-for client_pid in "${PID_SERVICE}"
-do
-    if [ -n "$client_pid" ]; then
-        # Fail gets incremented if either client or service exit
-        # with a non-zero exit code
-        wait "$client_pid" || ((FAIL+=1))
-    fi
-done
-
-kill $PID_SERVICE
-
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+./e2e_test_service --remote

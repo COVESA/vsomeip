@@ -1,0 +1,34 @@
+@startuml e2e_test_external
+title Basic E2E Test
+
+box "Client Container"
+    participant "Client\n(Master)" as Client
+end box
+
+box "Service Container"
+    participant "Service\n(Slave)" as Service
+end box
+
+== Initial State - SD Operating Normally ==
+Client -> Service: Discover service
+
+== Profile 01 Method (TEST_SERVICE_METHOD_ID) ==
+loop NUMBER_OF_MESSAGES_TO_SEND times
+    Client -> Service: Request to method (TEST_SERVICE_METHOD_ID)\n(Profile 01 protection)
+    Service -> Client: Response from (TEST_SERVICE_METHOD_ID)\n(Profile 01 protection)
+    Service -> Client: Event TEST_SERVICE_EVENT_ID_PF1 (Profile 01)
+end
+
+== Custom Profile Method (CUSTOM_PROFILE_METHOD_ID) ==
+loop NUMBER_OF_MESSAGES_TO_SEND times
+    Client -> Service: Request to method (CUSTOM_PROFILE_METHOD_ID)\n(Custom profile protection)
+    Service -> Client: Response from (CUSTOM_PROFILE_METHOD_ID)\n(Custom profile protection)
+    Service -> Client: Event TEST_SERVICE_EVENT_ID_CUSTOM (Custom)
+end
+
+note over Client, Service: **Expected:** NUMBER_OF_MESSAGES_TO_SEND * 4 total messages\n (NUMBER_OF_MESSAGES_TO_SEND (requests) + NUMBER_OF_MESSAGES_TO_SEND (responses) + events)\n
+
+== Shutdown Method (TEST_SERVICE_METHOD_ID_SHUTDOWN) ==
+Client -> Service: Shutdown (method TEST_SERVICE_METHOD_ID_SHUTDOWN)
+
+@enduml
