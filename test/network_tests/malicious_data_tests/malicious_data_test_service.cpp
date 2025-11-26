@@ -87,6 +87,11 @@ public:
         VSOMEIP_WARNING << "************************************************************";
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
         VSOMEIP_WARNING << "************************************************************";
+
+        // magic sleep to give time for the last message to be sent
+        // TODO: FIXME! REMOVE THIS!
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         std::lock_guard<std::mutex> its_lock(mutex_);
         wait_until_shutdown_method_called_ = false;
         condition_.notify_one();

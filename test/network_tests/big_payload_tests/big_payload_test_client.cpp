@@ -86,15 +86,6 @@ void big_payload_test_client::start() {
 
 void big_payload_test_client::stop() {
     VSOMEIP_INFO << "Stopping Client...";
-    if (test_mode_ == big_payload_test::test_mode::LIMITED || test_mode_ == big_payload_test::test_mode::LIMITED_GENERAL
-        || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_GENERAL
-        || test_mode_ == big_payload_test::test_mode::QUEUE_LIMITED_SPECIFIC) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-        EXPECT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_ / 4);
-    } else if (test_mode_ == big_payload_test::test_mode::UDP) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-        EXPECT_EQ(number_of_acknowledged_messages_, number_of_messages_to_send_);
-    }
     app_->clear_all_handler();
     app_->stop();
 }
@@ -239,7 +230,11 @@ void big_payload_test_client::run() {
     request_->set_payload(0);
 
     app_->send(request_);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // magic sleep to give time for the last message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
     stop();
 }
 

@@ -51,8 +51,6 @@ void lazy_load_test_client::start() {
 void lazy_load_test_client::stop() {
     VSOMEIP_INFO << "Stopping...";
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
     app_->clear_all_handler();
     app_->stop();
 }

@@ -52,7 +52,9 @@ void lazy_load_lazy_client::stop() {
     VSOMEIP_INFO << "Stopping...";
     shutdown_service();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // magic sleep to give time for the last message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     app_->clear_all_handler();
     app_->stop();

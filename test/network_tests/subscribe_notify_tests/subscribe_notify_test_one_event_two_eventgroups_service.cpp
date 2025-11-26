@@ -86,6 +86,7 @@ public:
             wait_for_shutdown_ = false;
             shutdown_condition_.notify_one();
         }
+
         app_->clear_all_handler();
         stop_offer();
         notify_thread_.join();
@@ -137,7 +138,11 @@ public:
         }
 
         app_->clear_all_handler();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        // magic sleep to give time for the last message to be sent
+        // TODO: FIXME! REMOVE THIS!
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         stop_offer();
         app_->stop();
     }
