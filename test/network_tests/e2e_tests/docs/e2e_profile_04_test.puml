@@ -1,0 +1,28 @@
+@startuml e2e_profile_04_test
+title E2E Profile 04 Test
+
+box "Client Container"
+    participant "Client\n(Master)" as Client
+end box
+
+box "Service Container"
+    participant "Service\n(Slave)" as Service
+end box
+
+Client -> Service: Discover service
+
+== Profile 04 Method (PROFILE_04_METHOD) ==
+loop PROFILE_O4_NUM_MESSAGES times
+    Client -> Service: Request to PROFILE_04_METHOD\n(Profile 04 CRC32)
+    Service -> Client: Response from PROFILE_04_METHOD\n(Profile 04 CRC32)
+end
+
+== Event Notification ==
+Service -> Client: Event PROFILE_04_EVENT\n(Profile 04 protection)
+
+note over Client, Service: **Expected:** PROFILE_O4_NUM_MESSAGES * 2 total responses\n (PROFILE_O4_NUM_MESSAGES (requests) + PROFILE_O4_NUM_MESSAGES (responses) + events)
+
+== Shutdown Method (PROFILE_04_SHUTDOWN) ==
+Client -> Service: Request to PROFILE_04_SHUTDOWN\n
+
+@enduml

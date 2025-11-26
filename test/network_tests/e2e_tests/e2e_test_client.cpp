@@ -19,7 +19,7 @@ std::map<vsomeip::method_t, uint32_t> received_responses_counters_;
 
 e2e_test_client::e2e_test_client() :
     app_(vsomeip::runtime::get()->create_application()), is_available_(false), sender_(std::bind(&e2e_test_client::run, this)),
-    received_responses_(0), received_allowed_events_(0) { }
+    received_responses_(0) { }
 
 bool e2e_test_client::init() {
     if (!app_->init()) {
@@ -56,18 +56,18 @@ void e2e_test_client::on_state(vsomeip::state_type_e _state) {
 
         // request events of eventgroup 0x01 which holds events 0x8001 (CRC8)
         std::set<vsomeip::eventgroup_t> its_eventgroups;
-        its_eventgroups.insert(0x01);
+        its_eventgroups.insert(vsomeip_test::TEST_SERVICE_EVENTGROUP_PF1);
 
         // request events of eventgroup 0x02 which holds events 0x8002 (CRC32)
         std::set<vsomeip::eventgroup_t> its_eventgroups_2;
-        its_eventgroups_2.insert(0x02);
+        its_eventgroups_2.insert(vsomeip_test::TEST_SERVICE_EVENTGROUP_CUSTOM);
 
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                            static_cast<vsomeip::event_t>(0x8001), its_eventgroups, vsomeip::event_type_e::ET_FIELD,
-                            vsomeip::reliability_type_e::RT_UNRELIABLE);
+                            static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_PF1), its_eventgroups,
+                            vsomeip::event_type_e::ET_FIELD, vsomeip::reliability_type_e::RT_UNRELIABLE);
         app_->request_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
-                            static_cast<vsomeip::event_t>(0x8002), its_eventgroups_2, vsomeip::event_type_e::ET_FIELD,
-                            vsomeip::reliability_type_e::RT_UNRELIABLE);
+                            static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM), its_eventgroups_2,
+                            vsomeip::event_type_e::ET_FIELD, vsomeip::reliability_type_e::RT_UNRELIABLE);
     }
 }
 
@@ -89,8 +89,10 @@ void e2e_test_client::on_availability(vsomeip::service_t _service, vsomeip::inst
         } else if (_is_available && !is_available_) {
             is_available_ = true;
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x01);
-            app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x02);
+            app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                            vsomeip_test::TEST_SERVICE_EVENTGROUP_PF1);
+            app_->subscribe(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                            vsomeip_test::TEST_SERVICE_EVENTGROUP_CUSTOM);
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             condition_.notify_one();
         }
@@ -108,7 +110,8 @@ void e2e_test_client::on_message(const std::shared_ptr<vsomeip::message>& _respo
     if (_response->get_message_type() == vsomeip::message_type_e::MT_RESPONSE
         && vsomeip_test::TEST_SERVICE_METHOD_ID == _response->get_method()) {
         // check for calculated CRC status OK for the predefined fixed payload sent by service
-        VSOMEIP_INFO << "Method ID 0x8421 -> IS_VALID_CRC 8 = " << std::hex << _response->is_valid_crc();
+        VSOMEIP_INFO << "Method ID " << std::hex << std::setfill('0') << std::setw(4) << vsomeip_test::TEST_SERVICE_METHOD_ID
+                     << " -> IS_VALID_CRC 8 = " << std::hex << _response->is_valid_crc();
         EXPECT_EQ(true, _response->is_valid_crc());
 
         // check if payload is as expected as well (including CRC / counter / data ID nibble)
@@ -120,10 +123,12 @@ void e2e_test_client::on_message(const std::shared_ptr<vsomeip::message>& _respo
                                            % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
         }
         received_responses_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID]++;
-    } else if (_response->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION && 0x8001 == _response->get_method()) {
+    } else if (_response->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION
+               && vsomeip_test::TEST_SERVICE_EVENT_ID_PF1 == _response->get_method()) {
         // check CRC / payload calculated by sender for event 0x8001 against expected payload
         // check for calculated CRC status OK for the calculated CRC / payload sent by service
-        VSOMEIP_INFO << "Event ID 0x8001 -> IS_VALID_CRC 8 = " << std::hex << _response->is_valid_crc();
+        VSOMEIP_INFO << "Event ID " << std::hex << std::setfill('0') << std::setw(4) << vsomeip_test::TEST_SERVICE_EVENT_ID_PF1
+                     << " -> IS_VALID_CRC 8 = " << std::hex << _response->is_valid_crc();
         EXPECT_EQ(true, _response->is_valid_crc());
 
         // check if payload is as expected as well (including CRC / counter / data ID nibble)
@@ -131,12 +136,15 @@ void e2e_test_client::on_message(const std::shared_ptr<vsomeip::message>& _respo
         uint8_t* dataptr = pl->get_data(); // start after length field
         for (uint32_t i = 0; i < pl->get_length(); i++) {
             EXPECT_EQ(dataptr[i],
-                      event_payloads_profile_01_[received_responses_counters_[0x8001] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
+                      event_payloads_profile_01_[received_responses_counters_[vsomeip_test::TEST_SERVICE_EVENT_ID_PF1]
+                                                 % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
         }
-        received_responses_counters_[0x8001]++;
-    } else if (_response->get_message_type() == vsomeip::message_type_e::MT_RESPONSE && 0x6543 == _response->get_method()) {
+        received_responses_counters_[vsomeip_test::TEST_SERVICE_EVENT_ID_PF1]++;
+    } else if (_response->get_message_type() == vsomeip::message_type_e::MT_RESPONSE
+               && vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM == _response->get_method()) {
         // check for calculated CRC status OK for the predefined fixed payload sent by service
-        VSOMEIP_INFO << "Method ID 0x6543 -> IS_VALID_CRC 32 = " << std::hex << _response->is_valid_crc();
+        VSOMEIP_INFO << "Method ID " << std::hex << std::setfill('0') << std::setw(4) << vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM
+                     << " -> IS_VALID_CRC 32 = " << std::hex << _response->is_valid_crc();
         EXPECT_EQ(true, _response->is_valid_crc());
 
         // check if payload is as expected as well (including CRC / counter / data ID nibble)
@@ -144,11 +152,14 @@ void e2e_test_client::on_message(const std::shared_ptr<vsomeip::message>& _respo
         uint8_t* dataptr = pl->get_data(); // start after length field
         for (uint32_t i = 0; i < pl->get_length(); i++) {
             EXPECT_EQ(dataptr[i],
-                      payloads_custom_profile_[received_responses_counters_[0x6543] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
+                      payloads_custom_profile_[received_responses_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM]
+                                               % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
         }
-        received_responses_counters_[0x6543]++;
-    } else if (_response->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION && 0x8002 == _response->get_method()) {
-        VSOMEIP_INFO << "Event ID 0x8002 -> IS_VALID_CRC 32 = " << std::hex << _response->is_valid_crc();
+        received_responses_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM]++;
+    } else if (_response->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION
+               && vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM == _response->get_method()) {
+        VSOMEIP_INFO << "Event ID " << std::hex << std::setfill('0') << std::setw(4) << vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM
+                     << " -> IS_VALID_CRC 32 = " << std::hex << _response->is_valid_crc();
         EXPECT_EQ(true, _response->is_valid_crc());
 
         // check if payload is as expected as well (including CRC)
@@ -156,9 +167,10 @@ void e2e_test_client::on_message(const std::shared_ptr<vsomeip::message>& _respo
         uint8_t* dataptr = pl->get_data(); // start after length field
         for (uint32_t i = 0; i < pl->get_length(); i++) {
             EXPECT_EQ(dataptr[i],
-                      event_payloads_custom_profile_[received_responses_counters_[0x8002] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
+                      event_payloads_custom_profile_[received_responses_counters_[vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM]
+                                                     % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND][i]);
         }
-        received_responses_counters_[0x8002]++;
+        received_responses_counters_[vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM]++;
     }
 
     received_responses_++;
@@ -186,7 +198,7 @@ void e2e_test_client::run() {
         // send a request which is not e2e protected and expect an
         // protected answer holding a fixed payload (custom profile CRC32)
         // this call triggers also an event 0x8002 which holds a calculated payload
-        request->set_method(0x6543);
+        request->set_method(vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM);
         app_->send(request);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
@@ -210,7 +222,6 @@ void e2e_test_client::shutdown_service() {
 
     // expect 10 x response messages for both method IDs and events for both Event IDs
     EXPECT_EQ(received_responses_, vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND * 4);
-    // EXPECT_EQ(received_allowed_events_, vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND);
 }
 
 TEST(someip_e2e_test, basic_subscribe_request_response) {
@@ -309,10 +320,10 @@ int main(int argc, char** argv) {
     event_payloads_custom_profile_.push_back({{0x41, 0xd7, 0x36, 0x88, 0xff, 0xff, 0x08, 0x32}});
     event_payloads_custom_profile_.push_back({{0x58, 0xcc, 0x07, 0xc9, 0xff, 0xff, 0x09, 0x32}});
 
-    received_responses_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID] = 0;
-    received_responses_counters_[0x8001] = 0;
-    received_responses_counters_[0x6543] = 0;
-    received_responses_counters_[0x8002] = 0;
+    received_responses_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID] = 0; // 0x8421
+    received_responses_counters_[vsomeip_test::TEST_SERVICE_EVENT_ID_PF1] = 0; // 0x8001
+    received_responses_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM] = 0; // 0x6543
+    received_responses_counters_[vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM] = 0; // 0x8002
 
     std::string test_remote("--remote");
     std::string test_local("--local");

@@ -1,0 +1,29 @@
+@startuml e2e_profile_07_test
+title E2E Profile 07 Test
+
+box "Client Container"
+    participant "Client\n(Master)" as Client
+end box
+
+box "Service Container"
+    participant "Service\n(Slave)" as Service
+end box
+
+== Initial State - SD Operating Normally ==
+Client -> Service: Discover service
+
+== Profile 07 Method (PROFILE_07_METHOD) ==
+loop PROFILE_O7_NUM_MESSAGES times
+    Client -> Service: Request to PROFILE_07_METHOD\n(Profile 07 CRC32)
+    Service -> Client: Response from PROFILE_07_METHOD\n(Profile 07 CRC32)
+end
+
+== Event Notification ==
+Service -> Client: Event PROFILE_07_EVENT\n(Profile 07 protection)
+
+note over Client, Service: **Expected:** PROFILE_07_NUM_MESSAGES * 2 total responses\n (PROFILE_07_NUM_MESSAGES (requests) + PROFILE_07_NUM_MESSAGES (responses) + events)\n
+
+== Shutdown Method (PROFILE_07_SHUTDOWN)==
+Client -> Service: Request to PROFILE_07_SHUTDOWN\n
+
+@enduml

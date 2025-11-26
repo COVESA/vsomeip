@@ -31,7 +31,8 @@ bool e2e_test_service::init() {
                                    std::bind(&e2e_test_service::on_message, this, std::placeholders::_1));
 
     // custom profile CRC32 Method ID: 0x6543
-    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, 0x6543,
+    app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                                   vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM,
                                    std::bind(&e2e_test_service::on_message, this, std::placeholders::_1));
 
     app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
@@ -42,15 +43,16 @@ bool e2e_test_service::init() {
 
     // offer field 0x8001 eventgroup 0x01
     std::set<vsomeip::eventgroup_t> its_eventgroups;
-    its_eventgroups.insert(0x01);
+    its_eventgroups.insert(vsomeip_test::TEST_SERVICE_EVENTGROUP_PF1);
 
     // offer field 0x8002 eventgroup 0x02
     std::set<vsomeip::eventgroup_t> its_eventgroups_2;
-    its_eventgroups_2.insert(0x02);
+    its_eventgroups_2.insert(vsomeip_test::TEST_SERVICE_EVENTGROUP_CUSTOM);
 
     // profile01 CRC8 Event ID: 0x8001
-    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
-                      its_eventgroups, vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
+    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                      static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_PF1), its_eventgroups,
+                      vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
                       vsomeip::reliability_type_e::RT_UNRELIABLE);
 
     // set value to field which gets filled by e2e protection  with CRC on sending
@@ -60,23 +62,24 @@ bool e2e_test_service::init() {
     vsomeip::byte_t its_data[8] = {0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff};
     its_payload->set_data(its_data, 8);
 
-    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
-                 its_payload);
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                 static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_PF1), its_payload);
 
     // custom profile CRC32 Event ID: 0x8002
-    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8002),
-                      its_eventgroups_2, vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
+    app_->offer_event(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                      static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM), its_eventgroups_2,
+                      vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
                       vsomeip::reliability_type_e::RT_UNRELIABLE);
 
     // set value to field which gets filled by e2e protection  with CRC on sending
     // after e2e protection the payload for first event should look like:
-    // {{0x89, 0x0e, 0xbc, 0x80, 0xff, 0xff, 0x00, 0x32}
-    std::shared_ptr<vsomeip::payload> its_payload_8002 = vsomeip::runtime::get()->create_payload();
-    vsomeip::byte_t its_data_8002[8] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x32};
-    its_payload_8002->set_data(its_data_8002, 8);
+    // {{0x89, 0x0e, 0xbc, 0x80, 0xff, 0xff, 0x00, 0x32}TEST_SERVICE_EVENT_ID_CUSTOM
+    std::shared_ptr<vsomeip::payload> its_payload_event_custom = vsomeip::runtime::get()->create_payload();
+    vsomeip::byte_t its_data_event_custom[8] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x32};
+    its_payload_event_custom->set_data(its_data_event_custom, 8);
 
-    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8002),
-                 its_payload_8002);
+    app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                 static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM), its_payload_event_custom);
 
     return true;
 }
@@ -145,22 +148,24 @@ void e2e_test_service::on_message(const std::shared_ptr<vsomeip::message>& _requ
         vsomeip::byte_t its_data[8] = {
                 0x00, 0x00, (uint8_t)received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID], 0xff, 0xff, 0xff, 0xff, 0xff};
         its_event_payload->set_data(its_data, 8);
-        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8001),
-                     its_event_payload);
+        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                     static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_PF1), its_event_payload);
         received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID]++;
-    } else if (_request->get_method() == 0x6543) {
+    } else if (_request->get_method() == vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM) {
         // send fixed payload for custom profile CRC32
-        its_vsomeip_payload->set_data(
-                payloads_custom_profile_[received_requests_counters_[0x6543] % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
+        its_vsomeip_payload->set_data(payloads_custom_profile_[received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM]
+                                                               % vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND]);
         its_response->set_payload(its_vsomeip_payload);
         app_->send(its_response);
 
         // set value to field which gets filled by e2e protection with 4 byte CRC 32 on sending
-        vsomeip::byte_t its_data[8] = {0x00, 0x00, 0x00, 0x00, 0xff, 0xff, (uint8_t)received_requests_counters_[0x6543], 0x32};
+        vsomeip::byte_t its_data[8] = {
+                0x00, 0x00, 0x00, 0x00, 0xff, 0xff, (uint8_t)received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM],
+                0x32};
         its_event_payload->set_data(its_data, 8);
-        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID, static_cast<vsomeip::event_t>(0x8002),
-                     its_event_payload);
-        received_requests_counters_[0x6543]++;
+        app_->notify(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
+                     static_cast<vsomeip::event_t>(vsomeip_test::TEST_SERVICE_EVENT_ID_CUSTOM), its_event_payload);
+        received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM]++;
     }
 
     number_of_received_messages_++;
@@ -234,9 +239,7 @@ int main(int argc, char** argv) {
     payloads_custom_profile_.push_back({{0xab, 0x63, 0x4e, 0x90, 0xff, 0x09, 0xff, 0x32}});
 
     received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID] = 0;
-    received_requests_counters_[0x7654] = 0;
-    received_requests_counters_[0x6543] = 0;
-    received_requests_counters_[0x5432] = 0;
+    received_requests_counters_[vsomeip_test::TEST_SERVICE_METHOD_ID_CUSTOM] = 0;
 
     std::string test_remote("--remote");
     std::string test_local("--local");
