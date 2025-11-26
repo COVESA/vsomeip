@@ -16,6 +16,7 @@
 #include <memory>
 #include <map>
 #include <optional>
+#include <unordered_map>
 
 namespace vsomeip_v3 {
 

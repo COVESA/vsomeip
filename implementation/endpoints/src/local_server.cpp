@@ -9,7 +9,6 @@
 #include "../include/local_socket.hpp"
 
 #include "../../configuration/include/configuration.hpp"
-#include "../../configuration/include/internal.hpp"
 
 #include "../../protocol/include/protocol.hpp"
 #include "../../protocol/include/assign_client_command.hpp"
