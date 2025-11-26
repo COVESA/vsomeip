@@ -325,10 +325,8 @@ command_field_size = 1
 version_field_size = 2
 client_field_size = 2
 size_field_size = 4
-magic_cookie_size = 4
-pre_header_size = magic_cookie_size + command_field_size + version_field_size + client_field_size + size_field_size
-post_header_size = magic_cookie_size
-vsomeip_extra_header_sized = pre_header_size + post_header_size
+pre_header_size = command_field_size + version_field_size + client_field_size + size_field_size
+vsomeip_extra_header_sized = pre_header_size
 
 -- Command handling functions
 
@@ -887,8 +885,8 @@ end
 -- If command is not found returns -1
 function try_read_vsomeip_packet(buffer, packet_info, tree)
     local command_field_size = 1
-    local command_id = buffer(magic_cookie_size, command_field_size)
-    local buffer_cursor = magic_cookie_size + command_field_size
+    local command_id = buffer(0, command_field_size)
+    local buffer_cursor = command_field_size
     local MINIMAL_VSOMEIP_PAYLOAD_LENGTH = 11
     if buffer:len() < MINIMAL_VSOMEIP_PAYLOAD_LENGTH then
         -- Command is not big enough to be a vsomeip command
@@ -911,28 +909,12 @@ function try_read_vsomeip_packet(buffer, packet_info, tree)
     end
 end
 
--- Check if it is a vsomeip packet by verifying the start and end of the packet
-function is_vsomeip_packet(buffer)
-    if buffer:len() < vsomeip_extra_header_sized then
-        return false
-    end
-    -- Magic cookie used at the start and end of the packet to identify if it's a vsomeip packet
-    local VSOMEIP_START = 0x67376D07
-    local VSOMEIP_END = 0x076D3767
-    return buffer(0, magic_cookie_size):uint() == VSOMEIP_START and buffer(buffer:len() - magic_cookie_size, magic_cookie_size):uint() == VSOMEIP_END
-end
-
 function vsomeip_protocol.dissector(buffer, packet_info, root_tree)
     local vsomeip_packets_counter = 0
     -- Limitations:
     -- * TCP stream only contains vsomeip packets
     -- * TCP stream is correctly splitted and contains the full vsomeip packet
     while buffer ~= nil do
-        -- Check if it's a vsomeip packet
-        if not is_vsomeip_packet(buffer) then
-            return
-        end
-
         end_packet_position = try_read_vsomeip_packet(buffer, packet_info, root_tree)
         if end_packet_position == -1 then
             -- TODO: Malformed packet

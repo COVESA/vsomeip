@@ -1,4 +1,5 @@
 # vsomeip-dissector
+
 Wireshark dissector for vSomeip internal communication via TCP
 
 ## How To Use
@@ -8,8 +9,8 @@ Wireshark dissector for vSomeip internal communication via TCP
    - Windows: `C:\Users\(username)\AppData\Roaming\Wireshark\plugins\`
    - (create `plugins` directory if it doesn't exist)
 2. In wireshark go to `Analyze` > `Reload Lua Plugins`
-3. In wireshark go to `Analyze` > `Enable Protocols` and search for `vsomeip` and enable it
+3. In wireshark go to `Analyze` > `Enable Protocols` and search for `vsomeip3` and enable it
 
-## Referances
+## References
 
 vSomeip Protocol definitions: documentation/vsomeipProtocol.md
