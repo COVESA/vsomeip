@@ -1604,7 +1604,7 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
 
     auto its_deserializer = get_deserializer();
     its_deserializer->set_data(_data, _size);
-    std::shared_ptr<message_impl> its_message(its_deserializer->deserialize_message());
+    std::shared_ptr<message_impl> its_message = its_deserializer->deserialize_message();
     its_deserializer->reset();
     put_deserializer(its_deserializer);
 

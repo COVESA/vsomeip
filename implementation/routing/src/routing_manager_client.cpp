@@ -964,7 +964,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
 
                 auto a_deserializer = get_deserializer();
                 a_deserializer->set_data(its_send_command.get_message());
-                std::shared_ptr<message_impl> its_message(a_deserializer->deserialize_message());
+                std::shared_ptr<message_impl> its_message = a_deserializer->deserialize_message();
                 a_deserializer->reset();
                 put_deserializer(a_deserializer);
 

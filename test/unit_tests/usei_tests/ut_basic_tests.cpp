@@ -71,8 +71,8 @@ struct usei_fixture : public ::testing::Test {
         // Boost ASIO main loop
         context_->stop();
         mainloop_.join();
-        context_.reset();
         work_guard_.reset();
+        context_.reset();
     }
 
     void send(const boost::asio::ip::udp::endpoint& target, const std::byte* buffer, std::size_t len) {

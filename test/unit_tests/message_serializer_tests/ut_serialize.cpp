@@ -27,16 +27,15 @@ bool dont_omit_last_byte = false;
 TEST(serialize_test, serialize_from_serializable_pointer) {
     std::vector<vsomeip_v3::byte_t> data_vector_{uint8_num1, uint8_num2, uint8_num3, uint8_num1};
 
-    auto its_serializable = new vsomeip_v3::payload_impl(data_vector_);
+    auto its_serializable = std::make_unique<vsomeip_v3::payload_impl>(data_vector_);
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
-
-    ASSERT_TRUE(its_serializer->serialize(its_serializable));
+    ASSERT_TRUE(its_serializer->serialize(its_serializable.get()));
     ASSERT_EQ(its_serializer->get_size(), 4);
 }
 
 TEST(serialize_test, serialize_from_uint8) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint8_num1));
@@ -51,7 +50,7 @@ TEST(serialize_test, serialize_from_uint8) {
 }
 
 TEST(serialize_test, serialize_from_uint16) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint16_num1));
@@ -75,7 +74,7 @@ TEST(serialize_test, serialize_from_uint16) {
 }
 
 TEST(serialize_test, serialize_from_uint32_omit_last_byte) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint32_num1, omit_last_byte));
@@ -104,7 +103,7 @@ TEST(serialize_test, serialize_from_uint32_omit_last_byte) {
 }
 
 TEST(serialize_test, serialize_from_uint32_dont_omit_last_byte) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     // add 1 2 3 to the data of the serializer.
     ASSERT_TRUE(its_serializer->serialize(uint32_num1, dont_omit_last_byte));
@@ -133,7 +132,7 @@ TEST(serialize_test, serialize_from_uint32_dont_omit_last_byte) {
 }
 
 TEST(serialize_test, serialize_from_uint8_array_with_length) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
     std::vector<std::uint8_t> data_{uint8_num1, uint8_num2, uint8_num3};
 
     ASSERT_TRUE(its_serializer->serialize(data_.data(), static_cast<std::uint32_t>(data_.size())));
@@ -146,13 +145,13 @@ TEST(serialize_test, serialize_from_uint8_array_with_length) {
 }
 
 TEST(serialize_test, serializer_get_capacity) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     ASSERT_GT(its_serializer->get_capacity(), 0);
 }
 
 TEST(serialize_test, serializer_get_size) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     ASSERT_EQ(its_serializer->get_size(), 0);
     ASSERT_TRUE(its_serializer->serialize(uint8_num1));
@@ -164,7 +163,7 @@ TEST(serialize_test, serializer_get_size) {
 }
 
 TEST(serialize_test, serializer_reset) {
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     ASSERT_EQ(its_serializer->get_size(), 0);
     ASSERT_TRUE(its_serializer->serialize(uint8_num1));
@@ -178,7 +177,7 @@ TEST(serialize_test, serializer_reset) {
 
 TEST(serialize_test, serializer_reset_shrink) {
     // Not sure how this is supposed to go.
-    std::unique_ptr<vsomeip_v3::serializer> its_serializer(new vsomeip_v3::serializer(1));
+    auto its_serializer = std::make_unique<vsomeip_v3::serializer>(1);
 
     ASSERT_TRUE(its_serializer->serialize(uint8_num1));
     ASSERT_TRUE(its_serializer->serialize(uint8_num2));
