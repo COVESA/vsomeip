@@ -70,7 +70,7 @@ public:
                         << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -80,7 +80,7 @@ public:
         VSOMEIP_DEBUG << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                       << (_is_available ? "available" : "not available") << ".";
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (_is_available) {
             auto found_service = services_available_subribed_.find(_service);
             if (found_service != services_available_subribed_.end()) {
@@ -106,7 +106,7 @@ public:
                       << (!_error ? "subscribe ack" : "subscribe nack") << ".";
         if (_error == 0x0 /*OK*/) {
 
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             auto found_service = services_available_subribed_.find(_service);
             if (found_service != services_available_subribed_.end()) {
                 found_service->second.second++;
@@ -138,7 +138,7 @@ public:
         EXPECT_EQ(service_info_.shutdown_method_id, _message->get_method());
         EXPECT_EQ(0x1, _message->get_instance());
         if (service_info_.shutdown_method_id == _message->get_method()) {
-            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
             VSOMEIP_INFO << "going down";
             stop_condition_.notify_one();

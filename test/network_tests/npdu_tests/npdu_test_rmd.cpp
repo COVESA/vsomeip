@@ -19,7 +19,7 @@ npdu_test_rmd::npdu_test_rmd() :
 }
 
 void npdu_test_rmd::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     app_->init();
 
@@ -55,7 +55,7 @@ void npdu_test_rmd::on_state(vsomeip::state_type_e _state) {
 
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_registered_ = true;
             blocked_ = true;
             // "start" the run method thread

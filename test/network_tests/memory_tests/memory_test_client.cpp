@@ -62,7 +62,7 @@ void memory_test_client::on_message(const std::shared_ptr<vsomeip::message>& mes
         its_message->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
         its_message->set_payload(message_->get_payload());
         _app->send(its_message);
-        std::lock_guard<std::mutex> lk(event_counter_mutex);
+        std::scoped_lock lk(event_counter_mutex);
         received_messages_counter++;
         sec = std::chrono::system_clock::now();
     }
@@ -105,7 +105,7 @@ void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
     // 3. Wait for service to send all the messages
     while (!stop_watchdog) {
         std::this_thread::sleep_for(WATCHDOG_INTERVAL);
-        std::lock_guard<std::mutex> lk(event_counter_mutex);
+        std::scoped_lock lk(event_counter_mutex);
         if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - sec).count() > 10) {
             stop_watchdog = true;
         }

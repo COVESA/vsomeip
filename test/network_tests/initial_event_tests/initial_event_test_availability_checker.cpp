@@ -55,7 +55,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -76,7 +76,7 @@ public:
                         other_services_available_.cbegin(), other_services_available_.cend(),
                         [](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; })) {
 
-                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                std::scoped_lock its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();
             }

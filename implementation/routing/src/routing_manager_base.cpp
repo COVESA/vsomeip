@@ -45,7 +45,7 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
                                                        const std::shared_ptr<debounce_filter_impl_t>& _filter) {
     if (!_error) {
         if (!_event) {
-            std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+            std::scoped_lock its_lock(debounce_mutex_);
             if (debounce_clients_.size() > 0) {
                 debounce_timer.expires_after(std::chrono::duration_cast<std::chrono::milliseconds>(debounce_clients_.begin()->first
                                                                                                    - std::chrono::steady_clock::now()));
@@ -60,7 +60,7 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
 
         bool notify_client{false};
         {
-            std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+            std::scoped_lock its_lock(debounce_mutex_);
             if (its_subscribers.find(_client) != its_subscribers.end() && _filter) {
                 bool is_elapsed{false};
                 auto its_current = std::chrono::steady_clock::now();
@@ -107,7 +107,7 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
 void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
                                              const std::shared_ptr<vsomeip_v3::event>& _event) {
     if (_filter->send_current_value_after_ == true) {
-        std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+        std::scoped_lock its_lock(debounce_mutex_);
         auto sec = std::chrono::milliseconds(_filter->interval_);
         auto timeout = std::chrono::steady_clock::now() + sec;
 
@@ -129,7 +129,7 @@ void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filt
 void routing_manager_base::remove_debounce(client_t _client, event_t _event) {
     std::vector<std::chrono::steady_clock::time_point> temp_client_vector;
 
-    std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+    std::scoped_lock its_lock(debounce_mutex_);
     for (auto& debounce_client : debounce_clients_) {
         if ((std::get<0>(debounce_client.second) == _client) && (std::get<3>(debounce_client.second) == _event)) {
             temp_client_vector.push_back(debounce_client.first);
@@ -141,7 +141,7 @@ void routing_manager_base::remove_debounce(client_t _client, event_t _event) {
 }
 
 void routing_manager_base::update_debounce_clients(const std::set<client_t>& _clients, event_t _event) {
-    std::lock_guard<std::mutex> its_lock(debounce_mutex_);
+    std::scoped_lock its_lock(debounce_mutex_);
     for (auto& debounce_client : debounce_clients_) {
         if (_event == std::get<3>(debounce_client.second)) {
             std::get<1>(debounce_client.second) = true;
@@ -183,13 +183,13 @@ void routing_manager_base::set_sec_client_port(port_t _port) {
 }
 
 std::string routing_manager_base::get_client_host() const {
-    std::lock_guard<std::mutex> its_env_lock(env_mutex_);
+    std::scoped_lock its_env_lock(env_mutex_);
     return env_;
 }
 
 void routing_manager_base::set_client_host(const std::string& _client_host) {
 
-    std::lock_guard<std::mutex> its_env_lock(env_mutex_);
+    std::scoped_lock its_env_lock(env_mutex_);
     env_ = _client_host;
 }
 
@@ -223,7 +223,7 @@ bool routing_manager_base::offer_service(client_t _client, service_t _service, i
         its_info = create_service_info(_service, _instance, _major, _minor, DEFAULT_TTL, true);
     }
     {
-        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        std::scoped_lock its_lock(events_mutex_);
         // Set major version for all registered events of this service and instance
         const auto search = events_.find(service_instance_t{_service, _instance});
 
@@ -244,7 +244,7 @@ void routing_manager_base::stop_offer_service(client_t _client, service_t _servi
 
     std::map<event_t, std::shared_ptr<event>> events;
     {
-        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        std::scoped_lock its_lock(events_mutex_);
         const auto search = events_.find(service_instance_t{_service, _instance});
         if (search != events_.end()) {
             for (const auto& [event_id, event_ptr] : search->second) {
@@ -284,7 +284,7 @@ void routing_manager_base::release_service(client_t _client, service_t _service,
         its_info->remove_client(_client);
     }
     {
-        std::lock_guard<std::mutex> its_service_guard(local_services_mutex_);
+        std::scoped_lock its_service_guard(local_services_mutex_);
         auto found_service = local_services_history_.find(_service);
         if (found_service != local_services_history_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -303,7 +303,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                                           reliability_type_e _reliability, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
                                           bool _update_on_change, epsilon_change_func_t _epsilon_change_func, bool _is_provided,
                                           bool _is_shadow, bool _is_cache_placeholder) {
-    std::lock_guard<std::mutex> its_registration_lock(event_registration_mutex_);
+    std::scoped_lock its_registration_lock(event_registration_mutex_);
 
     auto determine_event_reliability = [this, &_service, &_instance, &_notifier, &_reliability]() {
         reliability_type_e its_reliability = configuration_->get_event_reliability(_service, _instance, _notifier);
@@ -532,13 +532,13 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
             its_eventgroupinfo->set_instance(_instance);
             its_eventgroupinfo->set_eventgroup(eg);
             its_eventgroupinfo->set_max_remote_subscribers(configuration_->get_max_remote_subscribers());
-            std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+            std::scoped_lock its_lock(eventgroups_mutex_);
             eventgroups_[service_instance_t{_service, _instance}][eg] = its_eventgroupinfo;
         }
         its_eventgroupinfo->add_event(its_event);
     }
 
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     events_[service_instance_t{_service, _instance}][_notifier] = its_event;
 }
 
@@ -546,7 +546,7 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
     (void)_client;
     std::shared_ptr<event> its_unrefed_event;
     {
-        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        std::scoped_lock its_lock(events_mutex_);
         const auto search = events_.find(service_instance_t{_service, _instance});
         if (search != events_.end()) {
             const auto found_event = search->second.find(_event);
@@ -578,7 +578,7 @@ void routing_manager_base::unregister_event(client_t _client, service_t _service
 
 std::set<std::shared_ptr<event>> routing_manager_base::find_events(service_t _service, instance_t _instance,
                                                                    eventgroup_t _eventgroup) const {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    std::scoped_lock its_lock(eventgroups_mutex_);
 
     const auto search = eventgroups_.find(service_instance_t{_service, _instance});
     if (search != eventgroups_.end()) {
@@ -593,7 +593,7 @@ std::set<std::shared_ptr<event>> routing_manager_base::find_events(service_t _se
 
 std::vector<event_t> routing_manager_base::find_events(service_t _service, instance_t _instance) const {
     std::vector<event_t> its_events;
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     const auto search = events_.find(service_instance_t{_service, _instance});
 
     if (search != events_.end()) {
@@ -612,7 +612,7 @@ bool routing_manager_base::is_response_allowed(client_t _sender, service_t _serv
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        std::scoped_lock its_lock(local_services_mutex_);
         if (_sender == find_local_client_unlocked(_service, _instance)) {
             // sender is still offering the service
             return true;
@@ -670,13 +670,13 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
 
 void routing_manager_base::add_known_client(client_t _client, const std::string& _client_host) {
 #if !defined(VSOMEIP_DISABLE_SECURITY) && (defined(__linux__))
-    std::lock_guard<std::mutex> lazy_lock(add_known_client_mutex_);
+    std::scoped_lock lazy_lock(add_known_client_mutex_);
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
         configuration_->lazy_load_security(_client_host);
         configuration_->lazy_load_security(get_client_host()); // necessary for lazy loading from inside android container
     }
 #endif
-    std::lock_guard<std::mutex> its_lock(known_clients_mutex_);
+    std::scoped_lock its_lock(known_clients_mutex_);
     if (known_clients_.find(_client) == known_clients_.end()) {
         known_clients_[_client] = _client_host;
     } else if (!_client_host.empty()) {
@@ -759,7 +759,7 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance, 
 void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_t _instance) {
     std::set<std::shared_ptr<event>> its_events;
     {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        std::scoped_lock its_lock(eventgroups_mutex_);
         const auto search = eventgroups_.find(service_instance_t{_service, _instance});
 
         if (search != eventgroups_.end()) {
@@ -783,7 +783,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
     std::set<std::shared_ptr<event>> its_events;
     {
-        std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+        std::scoped_lock its_lock(eventgroups_mutex_);
         const auto search = eventgroups_.find(service_instance_t{_service, _instance});
 
         if (search != eventgroups_.end()) {
@@ -859,11 +859,11 @@ std::shared_ptr<serviceinfo> routing_manager_base::create_service_info(service_t
                                                                        minor_version_t _minor, ttl_t _ttl, bool _is_local_service) {
     std::shared_ptr<serviceinfo> its_info = std::make_shared<serviceinfo>(_service, _instance, _major, _minor, _ttl, _is_local_service);
     {
-        std::lock_guard<std::mutex> its_lock(services_mutex_);
+        std::scoped_lock its_lock(services_mutex_);
         services_[_service][_instance] = its_info;
     }
     if (!_is_local_service) {
-        std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+        std::scoped_lock its_lock(services_remote_mutex_);
         services_remote_[_service][_instance] = its_info;
     }
     return its_info;
@@ -871,7 +871,7 @@ std::shared_ptr<serviceinfo> routing_manager_base::create_service_info(service_t
 
 std::shared_ptr<serviceinfo> routing_manager_base::find_service(service_t _service, instance_t _instance) const {
     std::shared_ptr<serviceinfo> its_info;
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     auto found_service = services_.find(_service);
     if (found_service != services_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -891,7 +891,7 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
     bool deleted_instance(false);
     bool deleted_service(false);
     {
-        std::lock_guard<std::mutex> its_lock(services_mutex_);
+        std::scoped_lock its_lock(services_mutex_);
 
         // Clear service_info and service_group
         std::shared_ptr<endpoint> its_empty_endpoint;
@@ -909,7 +909,7 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
     }
 
     if ((deleted_instance || deleted_service) && !its_info->is_local()) {
-        std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+        std::scoped_lock its_lock(services_remote_mutex_);
         if (deleted_service) {
             services_remote_.erase(_service);
         } else if (deleted_instance) {
@@ -919,18 +919,18 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
 }
 
 services_t routing_manager_base::get_services() const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     return services_;
 }
 
 services_t routing_manager_base::get_services_remote() const {
-    std::lock_guard<std::mutex> its_lock(services_remote_mutex_);
+    std::scoped_lock its_lock(services_remote_mutex_);
     return services_remote_;
 }
 
 bool routing_manager_base::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
     bool available(false);
-    std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+    std::scoped_lock its_lock(local_services_mutex_);
 
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
@@ -953,7 +953,7 @@ bool routing_manager_base::is_available(service_t _service, instance_t _instance
 
 std::set<client_t> routing_manager_base::find_local_clients(service_t _service, instance_t _instance) {
     std::set<client_t> its_clients;
-    std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+    std::scoped_lock its_lock(local_services_mutex_);
     auto its_service = local_services_.find(_service);
     if (its_service != local_services_.end()) {
         if (_instance == ANY_INSTANCE) {
@@ -971,7 +971,7 @@ std::set<client_t> routing_manager_base::find_local_clients(service_t _service, 
 }
 
 client_t routing_manager_base::find_local_client(service_t _service, instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+    std::scoped_lock its_lock(local_services_mutex_);
     return find_local_client_unlocked(_service, _instance);
 }
 
@@ -1014,7 +1014,7 @@ void routing_manager_base::remove_local(client_t _client,
     remove_known_client(_client);
     remove_guest(_client);
     {
-        std::lock_guard<std::mutex> its_lock(local_services_mutex_);
+        std::scoped_lock its_lock(local_services_mutex_);
         // Finally remove all services that are implemented by the client.
         std::set<std::pair<service_t, instance_t>> its_services;
         for (const auto& s : local_services_) {
@@ -1060,7 +1060,7 @@ void routing_manager_base::remove_local(client_t _client,
 }
 
 std::shared_ptr<event> routing_manager_base::find_event(service_t _service, instance_t _instance, event_t _event) const {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     std::shared_ptr<event> its_event;
 
     const auto search = events_.find(service_instance_t{_service, _instance});
@@ -1079,7 +1079,7 @@ std::set<std::shared_ptr<eventgroupinfo>> routing_manager_base::find_eventgroups
 
     std::set<std::shared_ptr<eventgroupinfo>> its_eventgroups;
 
-    std::lock_guard<std::mutex> its_lock{eventgroups_mutex_};
+    std::scoped_lock its_lock{eventgroups_mutex_};
     const auto search = eventgroups_.find(service_instance_t{_service, _instance});
 
     if (search != eventgroups_.end()) {
@@ -1093,7 +1093,7 @@ std::set<std::shared_ptr<eventgroupinfo>> routing_manager_base::find_eventgroups
 
 std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(service_t _service, instance_t _instance,
                                                                       eventgroup_t _eventgroup) const {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    std::scoped_lock its_lock(eventgroups_mutex_);
 
     std::shared_ptr<eventgroupinfo> its_info(nullptr);
 
@@ -1130,7 +1130,7 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(service_t 
 }
 
 void routing_manager_base::remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
-    std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
+    std::scoped_lock its_lock(eventgroups_mutex_);
     const auto search = eventgroups_.find(service_instance_t{_service, _instance});
 
     if (search != eventgroups_.end()) {
@@ -1272,7 +1272,7 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
 void routing_manager_base::put_serializer(const std::shared_ptr<serializer>& _serializer) {
 
-    std::lock_guard<std::mutex> its_lock(serializer_mutex_);
+    std::scoped_lock its_lock(serializer_mutex_);
     serializers_.push(_serializer);
     serializer_condition_.notify_one();
 }
@@ -1294,7 +1294,7 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 
 void routing_manager_base::put_deserializer(const std::shared_ptr<deserializer>& _deserializer) {
 
-    std::lock_guard<std::mutex> its_lock(deserializer_mutex_);
+    std::scoped_lock its_lock(deserializer_mutex_);
     deserializers_.push(_deserializer);
     deserializer_condition_.notify_one();
 }
@@ -1340,7 +1340,7 @@ void routing_manager_base::remove_pending_subscription(service_t _service, insta
 
 std::set<std::tuple<service_t, instance_t, eventgroup_t>> routing_manager_base::get_subscriptions(const client_t _client) {
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> result;
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
 
     for (const auto& [key, eventmap] : events_) {
         for (auto [event_id, event] : eventmap) {
@@ -1355,7 +1355,7 @@ std::set<std::tuple<service_t, instance_t, eventgroup_t>> routing_manager_base::
 }
 
 void routing_manager_base::clear_shadow_subscriptions(void) {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
 
     for (const auto& [service_instance_key, eventmap] : events_) {
         for (auto [event_id, event] : eventmap) {

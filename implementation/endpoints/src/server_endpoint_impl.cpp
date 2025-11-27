@@ -36,7 +36,7 @@ server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shared_ptr<endpo
 template<typename Protocol>
 void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service) {
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     std::vector<target_data_iterator_type> its_erased;
 
     if (_service == ANY_SERVICE) {
@@ -503,7 +503,7 @@ bool server_endpoint_impl<Protocol>::flush(endpoint_type _key) {
     bool has_queued(true);
     bool is_current_train(true);
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     auto it = targets_.find(_key);
     if (it == targets_.end())
@@ -609,7 +609,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
         }
     };
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     auto it = targets_.find(_key);
     if (it == targets_.end())
@@ -720,7 +720,7 @@ void server_endpoint_impl<Protocol>::remove_stop_handler(service_t _service) {
     std::stringstream its_services_log;
     its_services_log << __func__ << ": ";
 
-    std::lock_guard<std::mutex> its_lock{mutex_};
+    std::scoped_lock its_lock{mutex_};
     for (const auto& its_service : prepare_stop_handlers_)
         its_services_log << std::hex << std::setfill('0') << std::setw(4) << its_service.first << ' ';
 
@@ -732,7 +732,7 @@ template<typename Protocol>
 size_t server_endpoint_impl<Protocol>::get_queue_size() const {
     size_t its_queue_size(0);
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         for (const auto& t : targets_) {
             its_queue_size += t.second.queue_size_;
         }

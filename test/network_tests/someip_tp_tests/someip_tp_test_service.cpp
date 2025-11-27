@@ -105,7 +105,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -113,7 +113,7 @@ public:
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _available) {
         if (_service == someip_tp_test::service_slave.service_id && _instance == someip_tp_test::service_slave.instance_id && _available) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_for_slave_service_available_ = false;
             condition_.notify_one();
             VSOMEIP_INFO << "Service available Service/Instance [" << std::hex << std::setfill('0') << std::setw(4) << _service << "/"
@@ -130,7 +130,7 @@ public:
         response->set_payload(payload);
         app_->send(response);
         if (++number_requests_from_slave_ == 2) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_for_two_requests_of_slave_ = false;
             condition_.notify_one();
         }
@@ -165,7 +165,7 @@ public:
         EXPECT_EQ(its_cmp_data, its_rcv_data);
         EXPECT_EQ(0, std::memcmp(static_cast<void*>(&its_cmp_data[0]), static_cast<void*>(&its_rcv_data[0]), its_cmp_data.size()));
         if (++number_notifications_of_slave_ == 2) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_for_two_notifications_of_slave_ = false;
             condition_.notify_one();
         }
@@ -176,7 +176,7 @@ public:
         VSOMEIP_WARNING << "************************************************************";
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
         VSOMEIP_WARNING << "************************************************************";
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_method_called_ = false;
         condition_.notify_one();
     }
@@ -243,7 +243,7 @@ public:
         if (++number_responses_of_slave_ < 2) {
             send_fragmented_request_to_slave();
         } else {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_for_two_responses_of_slave_ = false;
             condition_.notify_one();
         }
@@ -294,7 +294,7 @@ public:
         EXPECT_EQ(1, was_called);
         EXPECT_TRUE(_subscribed);
         _cbk(true);
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_for_slave_subscription_ = false;
         condition_.notify_one();
     }

@@ -19,7 +19,7 @@ void profile_01_checker::check(const e2e_buffer& _buffer, instance_t _instance,
 
     (void)_instance;
 
-    std::lock_guard<std::mutex> lock(check_mutex_);
+    std::scoped_lock lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
     if (profile_01::is_buffer_length_valid(config_, _buffer)) {

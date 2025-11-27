@@ -72,7 +72,7 @@ private:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered" : "deregistered") << " on service.";
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -85,7 +85,7 @@ private:
         VSOMEIP_WARNING << "Shutdown method called on service -> going down!";
         VSOMEIP_WARNING << "************************************************************";
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_method_called_ = false;
         condition_.notify_one();
     }
@@ -99,7 +99,7 @@ private:
         response->set_payload(_message->get_payload());
         app_->send(response);
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         messages_received_++;
 
         if (messages_received_ == second_address_test::number_of_messages_to_send) {
@@ -116,7 +116,7 @@ private:
         auto its_payload = _message->get_payload();
         notifications_to_send_ = its_payload->get_data()[0];
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_notify_method_called_ = false;
         condition_.notify_one();
     }

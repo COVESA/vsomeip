@@ -13,7 +13,7 @@ external_local_routing_test_service::external_local_routing_test_service(bool _u
     offer_thread_(std::bind(&external_local_routing_test_service::run, this)) { }
 
 bool external_local_routing_test_service::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     if (!app_->init()) {
         ADD_FAILURE() << "Couldn't initialize application";
@@ -56,7 +56,7 @@ void external_local_routing_test_service::on_state(vsomeip::state_type_e _state)
 
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_registered_ = true;
             blocked_ = true;
             // "start" the run method thread
@@ -98,7 +98,7 @@ void external_local_routing_test_service::on_message(const std::shared_ptr<vsome
 
     if (number_received_messages_local_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND
         && number_received_messages_external_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         blocked_ = true;
         condition_.notify_one();
     }

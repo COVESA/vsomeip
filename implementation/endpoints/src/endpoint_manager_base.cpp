@@ -88,7 +88,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(clie
     return its_endpoint;
 }
 std::shared_ptr<local_endpoint> endpoint_manager_base::find_local(client_t _client) {
-    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
+    std::scoped_lock its_lock(local_endpoint_mutex_);
     return find_local_unlocked(_client);
 }
 
@@ -97,7 +97,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_local(service_t _ser
 }
 
 std::unordered_set<client_t> endpoint_manager_base::get_connected_clients() const {
-    std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
+    std::scoped_lock its_lock(local_endpoint_mutex_);
     std::unordered_set<client_t> clients;
     for (const auto& its_client : local_endpoints_) {
         clients.insert(its_client.first);
@@ -238,7 +238,7 @@ void endpoint_manager_base::log_client_states() const {
     std::stringstream its_log;
 
     {
-        std::lock_guard<std::mutex> its_lock(local_endpoint_mutex_);
+        std::scoped_lock its_lock(local_endpoint_mutex_);
         for (const auto& e : local_endpoints_) {
             size_t its_queue_size = e.second->get_queue_size();
             if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE) {

@@ -55,12 +55,12 @@ public:
 
     ~cpu_load_test_client() {
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_for_availability_ = false;
             condition_.notify_one();
         }
         {
-            std::lock_guard<std::mutex> its_lock(all_msg_acknowledged_mutex_);
+            std::scoped_lock its_lock(all_msg_acknowledged_mutex_);
             wait_for_all_msg_acknowledged_ = false;
             all_msg_acknowledged_cv_.notify_one();
         }
@@ -97,7 +97,7 @@ private:
                 is_available_ = false;
             } else if (_is_available && !is_available_) {
                 is_available_ = true;
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_for_availability_ = false;
                 condition_.notify_one();
             }
@@ -110,18 +110,18 @@ private:
         ASSERT_EQ(_response->get_method(), cpu_load_test::method_id);
         if (call_service_sync_) {
             // We notify the sender thread every time a message was acknowledged
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
+            std::scoped_lock lk(all_msg_acknowledged_mutex_);
             wait_for_all_msg_acknowledged_ = false;
             all_msg_acknowledged_cv_.notify_one();
         } else {
             // We notify the sender thread only if all sent messages have been acknowledged
             if (number_of_acknowledged_messages_ == number_of_calls_current_) {
-                std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
+                std::scoped_lock lk(all_msg_acknowledged_mutex_);
                 number_of_acknowledged_messages_ = 0;
                 wait_for_all_msg_acknowledged_ = false;
                 all_msg_acknowledged_cv_.notify_one();
             } else if (number_of_acknowledged_messages_ % sliding_window_size_ == 0) {
-                std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
+                std::scoped_lock lk(all_msg_acknowledged_mutex_);
                 wait_for_all_msg_acknowledged_ = false;
                 all_msg_acknowledged_cv_.notify_one();
             }

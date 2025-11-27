@@ -230,7 +230,7 @@ protected:
 
     void on_state(vsomeip::state_type_e _state) {
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_registered_ = true;
             cv_.notify_one();
         }
@@ -240,7 +240,7 @@ protected:
         (void)_service;
         (void)_instance;
         if (_is_available) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_available_ = _is_available;
             cv_.notify_one();
         }
@@ -323,7 +323,7 @@ protected:
 
     void on_state(vsomeip::state_type_e _state) {
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_registered_ = true;
             cv_.notify_one();
         }
@@ -333,7 +333,7 @@ protected:
         (void)_service;
         (void)_instance;
         if (_is_available) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_available_ = _is_available;
             cv_.notify_one();
         }
@@ -349,7 +349,7 @@ protected:
     void on_message_exception(const std::shared_ptr<message>& _request) {
         (void)_request;
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             exception_method_called_ = true;
             cv_.notify_one();
         }

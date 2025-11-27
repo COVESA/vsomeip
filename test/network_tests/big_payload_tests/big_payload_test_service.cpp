@@ -61,7 +61,7 @@ big_payload_test_service::big_payload_test_service(big_payload_test::test_mode _
 }
 
 bool big_payload_test_service::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     std::srand(static_cast<unsigned int>(std::time(0)));
     if (!app_->init()) {
         ADD_FAILURE() << "Couldn't initialize application";
@@ -117,7 +117,7 @@ void big_payload_test_service::on_state(vsomeip::state_type_e _state) {
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
             is_registered_ = true;
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();
@@ -131,7 +131,7 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
     VSOMEIP_INFO << "Received a message with Client/Session [" << std::hex << std::setfill('0') << std::setw(4) << _request->get_client()
                  << "/" << std::setw(4) << _request->get_session() << "] size: " << std::dec << _request->get_payload()->get_length();
     {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         incoming_requests_.push(_request);
         condition_.notify_one();
     }

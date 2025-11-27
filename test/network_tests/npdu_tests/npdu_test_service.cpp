@@ -38,7 +38,7 @@ npdu_test_service::npdu_test_service(vsomeip::service_t _service_id, vsomeip::in
 }
 
 void npdu_test_service::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     app_->init();
 
@@ -110,7 +110,7 @@ void npdu_test_service::on_state(vsomeip::state_type_e _state) {
 
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             is_registered_ = true;
             blocked_ = true;
             // "start" the run method thread
@@ -123,7 +123,7 @@ void npdu_test_service::on_state(vsomeip::state_type_e _state) {
 
 template<int method_idx>
 void npdu_test_service::check_times() {
-    std::lock_guard<std::mutex> its_lock(timepoint_mutexes_[method_idx]);
+    std::scoped_lock its_lock(timepoint_mutexes_[method_idx]);
     // what time is it?
     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     // how long is it since we received the last message?
@@ -174,7 +174,7 @@ void npdu_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::messa
     VSOMEIP_DEBUG << "Number of received messages: " << number_of_received_messages_;
     VSOMEIP_INFO << "Shutdown method was called, going down now.";
 
-    std::lock_guard<std::mutex> its_lock(shutdown_mutex_);
+    std::scoped_lock its_lock(shutdown_mutex_);
     allowed_to_shutdown_ = true;
     shutdown_condition_.notify_one();
 }

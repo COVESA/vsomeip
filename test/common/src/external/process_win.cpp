@@ -132,7 +132,7 @@ Process::id_type Process::open(const string_type& command, const string_type& pa
     security_attributes.bInheritHandle = TRUE;
     security_attributes.lpSecurityDescriptor = nullptr;
 
-    std::lock_guard<std::mutex> lock(create_process_mutex);
+    std::scoped_lock lock(create_process_mutex);
     if (stdin_fd) {
         if (!CreatePipe(&stdin_rd_p, &stdin_wr_p, &security_attributes, 0) || !SetHandleInformation(stdin_wr_p, HANDLE_FLAG_INHERIT, 0))
             return 0;
@@ -277,7 +277,7 @@ int Process::get_exit_status() noexcept {
         data.exit_status = static_cast<int>(exit_status); // Store exit status for future calls
 
     {
-        std::lock_guard<std::mutex> lock(close_mutex);
+        std::scoped_lock lock(close_mutex);
         CloseHandle(data.handle);
         data.handle = nullptr;
         closed = true;
@@ -310,7 +310,7 @@ bool Process::try_get_exit_status(int& exit_status) noexcept {
     data.exit_status = exit_status; // Store exit status for future calls
 
     {
-        std::lock_guard<std::mutex> lock(close_mutex);
+        std::scoped_lock lock(close_mutex);
         CloseHandle(data.handle);
         data.handle = nullptr;
         closed = true;
@@ -345,7 +345,7 @@ bool Process::write(const char* bytes, size_t n) {
         throw std::invalid_argument("Can't write to an unopened stdin pipe. Please set "
                                     "open_stdin=true when constructing the process.");
 
-    std::lock_guard<std::mutex> lock(stdin_mutex);
+    std::scoped_lock lock(stdin_mutex);
     if (stdin_fd) {
         DWORD written;
         BOOL bSuccess = WriteFile(*stdin_fd, bytes, static_cast<DWORD>(n), &written, nullptr);
@@ -359,7 +359,7 @@ bool Process::write(const char* bytes, size_t n) {
 }
 
 void Process::close_stdin() noexcept {
-    std::lock_guard<std::mutex> lock(stdin_mutex);
+    std::scoped_lock lock(stdin_mutex);
     if (stdin_fd) {
         if (*stdin_fd != nullptr)
             CloseHandle(*stdin_fd);
@@ -369,7 +369,7 @@ void Process::close_stdin() noexcept {
 
 // Based on http://stackoverflow.com/a/1173396
 void Process::kill(bool /*force*/) noexcept {
-    std::lock_guard<std::mutex> lock(close_mutex);
+    std::scoped_lock lock(close_mutex);
     if (data.id > 0 && !closed) {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (snapshot) {

@@ -47,7 +47,7 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_
              | (static_cast<std::uint64_t>(its_client) << 16) | (static_cast<std::uint64_t>(its_interface_version) << 8)
              | (static_cast<std::uint64_t>(its_msg_type)));
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     ret.first = false;
     const auto found_ip = tp_messages_.find(_address);
     if (found_ip != tp_messages_.end()) {
@@ -100,7 +100,7 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_
 }
 
 bool tp_reassembler::cleanup_unfinished_messages() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     for (auto ip_iter = tp_messages_.begin(); ip_iter != tp_messages_.end();) {
         for (auto port_iter = ip_iter->second.begin(); port_iter != ip_iter->second.end();) {
@@ -139,12 +139,12 @@ bool tp_reassembler::cleanup_unfinished_messages() {
 }
 
 void tp_reassembler::stop() {
-    std::lock_guard<std::mutex> its_lock(cleanup_timer_mutex_);
+    std::scoped_lock its_lock(cleanup_timer_mutex_);
     cleanup_timer_.cancel();
 }
 
 void tp_reassembler::cleanup_timer_start(bool _force) {
-    std::lock_guard<std::mutex> its_lock(cleanup_timer_mutex_);
+    std::scoped_lock its_lock(cleanup_timer_mutex_);
     cleanup_timer_start_unlocked(_force);
 }
 
@@ -158,7 +158,7 @@ void tp_reassembler::cleanup_timer_start_unlocked(bool _force) {
 
 void tp_reassembler::cleanup_timer_cbk(const boost::system::error_code _error) {
     if (!_error) {
-        std::lock_guard<std::mutex> its_lock(cleanup_timer_mutex_);
+        std::scoped_lock its_lock(cleanup_timer_mutex_);
         if (cleanup_unfinished_messages()) {
             cleanup_timer_start_unlocked(true);
         } else {

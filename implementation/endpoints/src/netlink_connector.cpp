@@ -26,7 +26,7 @@ void netlink_connector::unregister_net_if_changes_handler() {
 }
 
 void netlink_connector::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_.shutdown(socket_.shutdown_both, its_error);
     socket_.close(its_error);
@@ -265,7 +265,7 @@ void netlink_connector::receive_cbk(boost::system::error_code const& _error, std
         set_state(state_e::RESET);
     }
 
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock(socket_mutex_);
     if (socket_.is_open()) {
         socket_.async_receive(boost::asio::buffer(&recv_buffer_[0], recv_buffer_.size()),
                               std::bind(&netlink_connector::receive_cbk, shared_from_this(), std::placeholders::_1, std::placeholders::_2));

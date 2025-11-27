@@ -76,7 +76,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -92,7 +92,7 @@ public:
         // TODO: FIXME! REMOVE THIS!
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_method_called_ = false;
         condition_.notify_one();
     }

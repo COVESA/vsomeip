@@ -45,7 +45,7 @@ void subscription::set_selective(const bool _is_selective) {
 }
 
 subscription_state_e subscription::get_state(const client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    std::scoped_lock its_lock(clients_mutex_);
     auto found_client = clients_.find(_client);
     if (found_client != clients_.end())
         return found_client->second;
@@ -53,7 +53,7 @@ subscription_state_e subscription::get_state(const client_t _client) const {
 }
 
 void subscription::set_state(const client_t _client, const subscription_state_e _state) {
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    std::scoped_lock its_lock(clients_mutex_);
     auto found_client = clients_.find(_client);
     if (found_client != clients_.end())
         found_client->second = _state;
@@ -74,7 +74,7 @@ void subscription::set_udp_connection_established(bool _is_established) {
 }
 
 bool subscription::add_client(const client_t _client) {
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    std::scoped_lock its_lock(clients_mutex_);
     auto find_client = clients_.find(_client);
     if (find_client != clients_.end())
         return false;
@@ -84,7 +84,7 @@ bool subscription::add_client(const client_t _client) {
 }
 
 bool subscription::remove_client(const client_t _client) {
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    std::scoped_lock its_lock(clients_mutex_);
     auto its_size = clients_.size();
     clients_.erase(_client);
     return its_size > clients_.size();
@@ -93,7 +93,7 @@ bool subscription::remove_client(const client_t _client) {
 std::set<client_t> subscription::get_clients() const {
     std::set<client_t> its_clients;
     {
-        std::lock_guard<std::mutex> its_lock(clients_mutex_);
+        std::scoped_lock its_lock(clients_mutex_);
         for (const auto its_item : clients_)
             its_clients.insert(its_item.first);
     }
@@ -101,12 +101,12 @@ std::set<client_t> subscription::get_clients() const {
 }
 
 bool subscription::has_client() const {
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    std::scoped_lock its_lock(clients_mutex_);
     return (clients_.size() > 0);
 }
 
 bool subscription::has_client(const client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(clients_mutex_);
+    std::scoped_lock its_lock(clients_mutex_);
     return clients_.find(_client) != clients_.end();
 }
 

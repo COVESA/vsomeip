@@ -12,7 +12,7 @@ service::~service() {
 }
 
 bool service::init() {
-    std::lock_guard<std::mutex> its_lock(service_mutex);
+    std::scoped_lock its_lock(service_mutex);
     if (!vsomeip_app->init()) {
         VSOMEIP_ERROR << "Couldn't initialize application";
         return false;

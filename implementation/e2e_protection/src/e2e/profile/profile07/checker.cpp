@@ -18,7 +18,7 @@ namespace profile07 {
 void profile_07_checker::check(const e2e_buffer& _buffer, instance_t _instance,
                                e2e::profile_interface::check_status_t& _generic_check_status) {
 
-    std::lock_guard<std::mutex> lock(check_mutex_);
+    std::scoped_lock lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
     /** @req [SWS_E2E_00496] */

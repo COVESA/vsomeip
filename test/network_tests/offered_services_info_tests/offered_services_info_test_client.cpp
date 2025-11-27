@@ -98,7 +98,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -107,7 +107,7 @@ public:
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available" : "not available") << ".";
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (_is_available) {
             services_available++;
             if (services_available == offer_test::num_all_offered_services) {
@@ -154,7 +154,7 @@ public:
         }
 
         {
-            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
             VSOMEIP_INFO << "going down. Sent shutdown command to service";
             stop_condition_.notify_one();

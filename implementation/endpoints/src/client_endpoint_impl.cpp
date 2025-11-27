@@ -82,7 +82,7 @@ void client_endpoint_impl<Protocol>::set_established(bool _established) {
 
     if (_established) {
         if (state_ != cei_state_e::CONNECTING) {
-            std::lock_guard<std::mutex> its_lock(socket_mutex_);
+            std::scoped_lock its_lock(socket_mutex_);
             if (socket_->is_open()) {
                 state_ = cei_state_e::ESTABLISHED;
             } else {
@@ -98,7 +98,7 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
 
     if (_connected) {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
         if (socket_->is_open()) {
             state_ = cei_state_e::CONNECTED;
         } else {
@@ -126,7 +126,7 @@ void client_endpoint_impl<Protocol>::stop(bool _due_to_error) {
         queue_size_ = 0;
     }
     {
-        std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+        std::scoped_lock its_lock(connect_timer_mutex_);
         connect_timer_.cancel();
     }
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
@@ -456,7 +456,7 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(boost::system::error
     {
         /* Need this for TCP endpoints for now because we have no
          direct control about the point in time the connect has finished */
-        std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+        std::scoped_lock its_lock(connecting_timer_mutex_);
         connecting_timer_state_ = connecting_timer_state_e::FINISH_ERROR;
         operations_cancelled = connecting_timer_.cancel();
         if (!_error) {
@@ -764,7 +764,7 @@ std::uint16_t client_endpoint_impl<Protocol>::get_local_port() const {
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::start_connect_timer() {
 
-    std::lock_guard<std::mutex> its_lock(connect_timer_mutex_);
+    std::scoped_lock its_lock(connect_timer_mutex_);
     connect_timer_.expires_after(std::chrono::milliseconds(connect_timeout_));
     connect_timer_.async_wait(
             std::bind(&client_endpoint_impl<Protocol>::wait_connect_cbk, this->shared_from_this(), std::placeholders::_1));
@@ -773,7 +773,7 @@ void client_endpoint_impl<Protocol>::start_connect_timer() {
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::start_connecting_timer() {
 
-    std::lock_guard<std::mutex> its_lock(connecting_timer_mutex_);
+    std::scoped_lock its_lock(connecting_timer_mutex_);
     connecting_timer_.expires_after(std::chrono::milliseconds(connecting_timeout_));
     connecting_timer_.async_wait(
             std::bind(&client_endpoint_impl<Protocol>::wait_connecting_cbk, this->shared_from_this(), std::placeholders::_1));

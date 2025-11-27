@@ -13,7 +13,7 @@ routing_restart_test_service::routing_restart_test_service() :
     offer_thread_(std::bind(&routing_restart_test_service::run, this)) { }
 
 bool routing_restart_test_service::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     if (!app_->init()) {
         ADD_FAILURE() << "Couldn't initialize application";
@@ -63,7 +63,7 @@ void routing_restart_test_service::on_state(vsomeip::state_type_e _state) {
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
             is_registered_ = true;
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();
@@ -86,7 +86,7 @@ void routing_restart_test_service::on_message(const std::shared_ptr<vsomeip::mes
     app_->send(its_response);
 
     {
-        std::lock_guard<std::mutex> its_guard(number_of_received_messages_mutex_);
+        std::scoped_lock its_guard(number_of_received_messages_mutex_);
         number_of_received_messages_++;
         if (number_of_received_messages_ == vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
             VSOMEIP_INFO << "Received all messages!";
@@ -97,14 +97,14 @@ void routing_restart_test_service::on_message(const std::shared_ptr<vsomeip::mes
 void routing_restart_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request) {
     VSOMEIP_INFO << "Shutdown Service requested by 0x" << std::setw(4) << std::setfill('0') << std::hex << _request->get_client();
     {
-        std::lock_guard<std::mutex> its_guard_counter(counter_mutex_);
+        std::scoped_lock its_guard_counter(counter_mutex_);
         shutdown_counter_++;
         if (shutdown_counter_ == 1) {
-            std::lock_guard<std::mutex> its_guard(shutdown_mutex_);
+            std::scoped_lock its_guard(shutdown_mutex_);
             init_shutdown_ = true;
             init_shutdown_condition_.notify_one();
         } else if (shutdown_counter_ == vsomeip_test::NUMBER_OF_CLIENTS_TO_REQUEST_SHUTDOWN) {
-            std::lock_guard<std::mutex> its_guard(shutdown_mutex_);
+            std::scoped_lock its_guard(shutdown_mutex_);
             all_received_ = true;
             execute_shutdown_condition_.notify_one();
         }

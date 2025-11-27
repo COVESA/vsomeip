@@ -18,7 +18,7 @@ namespace profile04 {
 void profile_04_checker::check(const e2e_buffer& _buffer, instance_t _instance,
                                e2e::profile_interface::check_status_t& _generic_check_status) {
 
-    std::lock_guard<std::mutex> lock(check_mutex_);
+    std::scoped_lock lock(check_mutex_);
     _generic_check_status = e2e::profile_interface::generic_check_status::E2E_ERROR;
 
     if (_instance > VSOMEIP_E2E_PROFILE04_MAX_INSTANCE) {

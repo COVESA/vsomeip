@@ -205,7 +205,7 @@ filter_id_t channel_impl::add_filter(const match_t& _from, const match_t& _to, b
 }
 
 void channel_impl::remove_filter(filter_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     positive_.erase(_id);
     negative_.erase(_id);
 }
@@ -213,7 +213,7 @@ void channel_impl::remove_filter(filter_id_t _id) {
 filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, filter_type_e _type) {
     filter_id_t its_id = current_filter_id_.fetch_add(1);
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     switch (_type) {
     case filter_type_e::NEGATIVE:
         negative_[its_id] = _func;
@@ -229,7 +229,7 @@ filter_id_t channel_impl::add_filter_intern(const filter_func_t& _func, filter_t
 }
 
 std::pair<bool, bool> channel_impl::matches(service_t _service, instance_t _instance, method_t _method) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     // If a negative filter matches --> drop!
     for (auto& its_filter : negative_) {

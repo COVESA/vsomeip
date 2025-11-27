@@ -23,7 +23,7 @@ public:
         blocked_(false), running_(true), offer_thread_(std::bind(&service_sample::run, this)) { }
 
     bool init() {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
 
         if (!app_->init()) {
             std::cerr << "Couldn't initialize application" << std::endl;

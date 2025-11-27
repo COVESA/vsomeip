@@ -75,7 +75,7 @@ void eventgroupinfo::set_ttl(const ttl_t _ttl) {
 }
 
 bool eventgroupinfo::is_multicast() const {
-    std::lock_guard<std::mutex> its_lock(address_mutex_);
+    std::scoped_lock its_lock(address_mutex_);
     return address_.is_multicast();
 }
 
@@ -84,7 +84,7 @@ bool eventgroupinfo::is_sending_multicast() const {
 }
 
 bool eventgroupinfo::get_multicast(boost::asio::ip::address& _address, uint16_t& _port) const {
-    std::lock_guard<std::mutex> its_lock(address_mutex_);
+    std::scoped_lock its_lock(address_mutex_);
     if (address_.is_multicast()) {
         _address = address_;
         _port = port_;
@@ -94,13 +94,13 @@ bool eventgroupinfo::get_multicast(boost::asio::ip::address& _address, uint16_t&
 }
 
 void eventgroupinfo::set_multicast(const boost::asio::ip::address& _address, uint16_t _port) {
-    std::lock_guard<std::mutex> its_lock(address_mutex_);
+    std::scoped_lock its_lock(address_mutex_);
     address_ = _address;
     port_ = _port;
 }
 
 std::set<std::shared_ptr<event>> eventgroupinfo::get_events() const {
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     return events_;
 }
 
@@ -111,7 +111,7 @@ void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
         return;
     }
 
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     events_.insert(_event);
 
     if (!reliability_auto_mode_ && _event->get_reliability() == reliability_type_e::RT_UNKNOWN) {
@@ -148,7 +148,7 @@ void eventgroupinfo::remove_event(const std::shared_ptr<event>& _event) {
         return;
     }
 
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     events_.erase(_event);
 }
 
@@ -167,7 +167,7 @@ bool eventgroupinfo::is_reliability_auto_mode() const {
 uint32_t eventgroupinfo::get_unreliable_target_count() const {
     uint32_t its_count(0);
 
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
     for (const auto& s : subscriptions_) {
         auto its_subscription = s.second;
         if (!its_subscription->get_parent() && its_subscription->get_unreliable()) {
@@ -189,7 +189,7 @@ void eventgroupinfo::set_threshold(uint8_t _threshold) {
 std::set<std::shared_ptr<remote_subscription>> eventgroupinfo::get_remote_subscriptions() const {
     std::set<std::shared_ptr<remote_subscription>> its_subscriptions;
 
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
     for (const auto& i : subscriptions_)
         its_subscriptions.insert(i.second);
 
@@ -211,7 +211,7 @@ bool eventgroupinfo::update_remote_subscription(const std::shared_ptr<remote_sub
     std::set<std::shared_ptr<event>> its_events;
 
     {
-        std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+        std::scoped_lock its_lock(subscriptions_mutex_);
 
         for (const auto& its_item : subscriptions_) {
             if (its_item.second->equals(_subscription)) {
@@ -267,7 +267,7 @@ bool eventgroupinfo::update_remote_subscription(const std::shared_ptr<remote_sub
         {
             // Build set of events first to avoid having to
             // hold the "events_mutex_" in parallel to the internal event mutexes.
-            std::lock_guard<std::mutex> its_lock(events_mutex_);
+            std::scoped_lock its_lock(events_mutex_);
             for (const auto& its_event : events_)
                 its_events.insert(its_event);
         }
@@ -312,7 +312,7 @@ remote_subscription_id_t eventgroupinfo::add_remote_subscription(const std::shar
         VSOMEIP_ERROR << __func__ << ": Received ptr is null";
         return id_;
     }
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
 
     update_id();
 
@@ -327,7 +327,7 @@ remote_subscription_id_t eventgroupinfo::add_remote_subscription(const std::shar
 }
 
 std::shared_ptr<remote_subscription> eventgroupinfo::get_remote_subscription(const remote_subscription_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
 
     auto find_subscription = subscriptions_.find(_id);
     if (find_subscription != subscriptions_.end())
@@ -337,7 +337,7 @@ std::shared_ptr<remote_subscription> eventgroupinfo::get_remote_subscription(con
 }
 
 void eventgroupinfo::remove_remote_subscription(const remote_subscription_id_t _id) {
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
 
     auto find_subscription = subscriptions_.find(_id);
     if (find_subscription != subscriptions_.end()) {
@@ -356,7 +356,7 @@ void eventgroupinfo::remove_remote_subscription(const remote_subscription_id_t _
 }
 
 void eventgroupinfo::clear_remote_subscriptions() {
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
     subscriptions_.clear();
     remote_subscribers_count_.clear();
 }
@@ -364,7 +364,7 @@ void eventgroupinfo::clear_remote_subscriptions() {
 std::set<std::shared_ptr<endpoint_definition>> eventgroupinfo::get_unicast_targets() const {
     std::set<std::shared_ptr<endpoint_definition>> its_targets;
 
-    std::lock_guard<std::mutex> its_lock(subscriptions_mutex_);
+    std::scoped_lock its_lock(subscriptions_mutex_);
     for (const auto& s : subscriptions_) {
         const auto its_reliable = s.second->get_reliable();
         if (its_reliable)
@@ -384,7 +384,7 @@ std::set<std::shared_ptr<endpoint_definition>> eventgroupinfo::get_multicast_tar
 
 bool eventgroupinfo::is_selective() const {
     // Selective eventgroups always contain a single event
-    std::lock_guard<std::mutex> its_lock(events_mutex_);
+    std::scoped_lock its_lock(events_mutex_);
     if (events_.size() != 1)
         return false;
 
@@ -404,7 +404,7 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
     // Build sets of reliable/unreliable events first to avoid having to
     // hold the "events_mutex_" in parallel to the internal event mutexes.
     {
-        std::lock_guard<std::mutex> its_lock(events_mutex_);
+        std::scoped_lock its_lock(events_mutex_);
         for (const auto& its_event : events_) {
             if (its_event && its_event->get_type() == event_type_e::ET_FIELD) {
                 auto its_reliability = its_event->get_reliability();

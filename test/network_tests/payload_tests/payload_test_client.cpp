@@ -83,7 +83,7 @@ void payload_test_client::on_availability(vsomeip::service_t _service, vsomeip::
             is_available_ = false;
         } else if (_is_available && !is_available_) {
             is_available_ = true;
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             condition_.notify_one();
         }
@@ -99,19 +99,19 @@ void payload_test_client::on_message(const std::shared_ptr<vsomeip::message>& _r
     if (call_service_sync_) {
         // We notify the sender thread every time a message was acknowledged
         {
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
+            std::scoped_lock lk(all_msg_acknowledged_mutex_);
             all_msg_acknowledged_ = true;
         }
         all_msg_acknowledged_cv_.notify_one();
     } else {
         // We notify the sender thread only if all sent messages have been acknowledged
         if (number_of_acknowledged_messages_ == number_of_messages_to_send_) {
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
+            std::scoped_lock lk(all_msg_acknowledged_mutex_);
             number_of_acknowledged_messages_ = 0;
             all_msg_acknowledged_ = true;
             all_msg_acknowledged_cv_.notify_one();
         } else if (number_of_acknowledged_messages_ % sliding_window_size_ == 0) {
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutex_);
+            std::scoped_lock lk(all_msg_acknowledged_mutex_);
             all_msg_acknowledged_ = true;
             all_msg_acknowledged_cv_.notify_one();
         }

@@ -25,7 +25,7 @@ public:
     }
 
     bool init() {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
 
         if (!app_->init()) {
             std::cerr << "Couldn't initialize application" << std::endl;
@@ -44,7 +44,7 @@ public:
         app_->offer_event(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID, SAMPLE_EVENT_ID, its_groups, vsomeip::event_type_e::ET_FIELD,
                           std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNKNOWN);
         {
-            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            std::scoped_lock its_lock(payload_mutex_);
             payload_ = vsomeip::runtime::get()->create_payload();
         }
 
@@ -80,7 +80,7 @@ public:
     }
 
     void offer() {
-        std::lock_guard<std::mutex> its_lock(notify_mutex_);
+        std::scoped_lock its_lock(notify_mutex_);
         app_->offer_service(SAMPLE_SERVICE_ID, SAMPLE_INSTANCE_ID);
         is_offered_ = true;
         notify_condition_.notify_one();
@@ -107,7 +107,7 @@ public:
     void on_get(const std::shared_ptr<vsomeip::message>& _message) {
         std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_message);
         {
-            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            std::scoped_lock its_lock(payload_mutex_);
             its_response->set_payload(payload_);
         }
         app_->send(its_response);
@@ -116,7 +116,7 @@ public:
     void on_set(const std::shared_ptr<vsomeip::message>& _message) {
         std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_message);
         {
-            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            std::scoped_lock its_lock(payload_mutex_);
             payload_ = _message->get_payload();
             its_response->set_payload(payload_);
         }
@@ -160,7 +160,7 @@ public:
                     its_data[i] = static_cast<uint8_t>(i);
 
                 {
-                    std::lock_guard<std::mutex> its_lock(payload_mutex_);
+                    std::scoped_lock its_lock(payload_mutex_);
                     payload_->set_data(its_data, its_size);
 
                     std::cout << "Setting event (Length=" << std::dec << its_size << ")." << std::endl;

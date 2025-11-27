@@ -51,7 +51,7 @@ endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm, bo
 endpoint_manager_impl::~endpoint_manager_impl() {
 
     {
-        std::lock_guard<std::mutex> its_guard(options_mutex_);
+        std::scoped_lock its_guard(options_mutex_);
         is_processing_options_ = false;
         options_condition_.notify_one();
     }
@@ -934,14 +934,14 @@ void endpoint_manager_impl::get_used_client_ports(const boost::asio::ip::address
 void endpoint_manager_impl::request_used_client_port(const boost::asio::ip::address& _remote_address, port_t _remote_port, bool _reliable,
                                                      port_t _local_port) {
 
-    std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
+    std::scoped_lock its_lock(used_client_ports_mutex_);
     used_client_ports_[_remote_address][_remote_port][_reliable].insert(_local_port);
 }
 
 void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::address& _remote_address, port_t _remote_port, bool _reliable,
                                                      port_t _local_port) {
 
-    std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
+    std::scoped_lock its_lock(used_client_ports_mutex_);
     auto find_address = used_client_ports_.find(_remote_address);
     if (find_address != used_client_ports_.end()) {
         auto find_port = find_address->second.find(_remote_port);
@@ -1040,7 +1040,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(service_t 
         // and remote port is in range, determine unused client port
         std::map<bool, std::set<port_t>> its_used_client_ports;
         {
-            std::lock_guard<std::mutex> its_lock(used_client_ports_mutex_);
+            std::scoped_lock its_lock(used_client_ports_mutex_);
             get_used_client_ports(its_remote_address, its_remote_port, its_used_client_ports);
         }
         if (configuration_->get_client_port(_service, _instance, its_remote_port, _reliable, its_used_client_ports, its_local_port)) {
@@ -1173,7 +1173,7 @@ void endpoint_manager_impl::log_server_states() const {
 
 void endpoint_manager_impl::add_multicast_option(const multicast_option_t& _option) {
 
-    std::lock_guard<std::mutex> its_guard(options_mutex_);
+    std::scoped_lock its_guard(options_mutex_);
     options_queue_.push(_option);
     options_condition_.notify_one();
 }

@@ -106,7 +106,7 @@ public:
 
     void send() {
         if (!be_quiet_) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             condition_.notify_one();
         }

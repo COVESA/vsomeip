@@ -111,7 +111,7 @@ void remote_subscription::set_counter(uint8_t _counter) {
 }
 
 std::set<client_t> remote_subscription::get_clients() const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     std::set<client_t> its_clients;
     for (const auto& its_item : clients_)
         its_clients.insert(its_item.first);
@@ -119,22 +119,22 @@ std::set<client_t> remote_subscription::get_clients() const {
 }
 
 bool remote_subscription::has_client() const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     return (clients_.size() > 0);
 }
 
 bool remote_subscription::has_client(const client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     return (clients_.find(_client) != clients_.end());
 }
 
 void remote_subscription::remove_client(const client_t _client) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     clients_.erase(_client);
 }
 
 remote_subscription_state_e remote_subscription::get_client_state(const client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     auto found_client = clients_.find(_client);
     if (found_client != clients_.end()) {
         return found_client->second.first;
@@ -143,7 +143,7 @@ remote_subscription_state_e remote_subscription::get_client_state(const client_t
 }
 
 void remote_subscription::set_client_state(const client_t _client, remote_subscription_state_e _state) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     auto found_item = clients_.find(_client);
     if (found_item != clients_.end()) {
         found_item->second.first = _state;
@@ -155,7 +155,7 @@ void remote_subscription::set_client_state(const client_t _client, remote_subscr
 }
 
 void remote_subscription::set_all_client_states(remote_subscription_state_e _state) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     for (auto& its_item : clients_)
         its_item.second.first = _state;
 }
@@ -185,7 +185,7 @@ void remote_subscription::set_unreliable(const std::shared_ptr<endpoint_definiti
 }
 
 bool remote_subscription::is_pending() const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     for (auto its_client : clients_) {
         if (its_client.second.first == remote_subscription_state_e::SUBSCRIPTION_PENDING) {
             return true;
@@ -195,7 +195,7 @@ bool remote_subscription::is_pending() const {
 }
 
 bool remote_subscription::is_acknowledged() const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     for (auto its_client : clients_) {
         if (its_client.second.first != remote_subscription_state_e::SUBSCRIPTION_ACKED) {
             return false;
@@ -205,7 +205,7 @@ bool remote_subscription::is_acknowledged() const {
 }
 
 std::chrono::steady_clock::time_point remote_subscription::get_expiration(const client_t _client) const {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     auto found_client = clients_.find(_client);
     if (found_client != clients_.end()) {
         return found_client->second.second;
@@ -217,7 +217,7 @@ std::set<client_t> remote_subscription::update(const std::set<client_t>& _client
                                                const bool _is_subscribe) {
     std::set<client_t> its_changed;
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     for (const auto& its_client : _clients) {
         auto found_client = clients_.find(its_client);
         if (_is_subscribe) {

@@ -12,7 +12,7 @@
 #include <map>
 #include <algorithm>
 #include <atomic>
-
+#include <mutex>
 #include <gtest/gtest.h>
 
 #if defined(__linux__)
@@ -73,14 +73,14 @@ public:
                 if (events_to_subscribe_ == 1) {
                     app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR);
 
-                    std::lock_guard<std::mutex> its_lock(received_notifications_mutex_);
+                    std::scoped_lock its_lock(received_notifications_mutex_);
                     other_services_received_notification_[std::make_pair(i.service_id, i.event_id)] = 0;
                 } else if (events_to_subscribe_ > 1) {
                     if (!subscribe_only_one_) {
                         for (std::uint32_t j = 0; j < events_to_subscribe_; j++) {
                             app_->subscribe(i.service_id, i.instance_id, i.eventgroup_id, vsomeip::DEFAULT_MAJOR,
                                             static_cast<vsomeip::event_t>(i.event_id + j));
-                            std::lock_guard<std::mutex> its_lock(received_notifications_mutex_);
+                            std::scoped_lock its_lock(received_notifications_mutex_);
                             other_services_received_notification_[std::make_pair(i.service_id, i.event_id + j)] = 0;
                         }
                     } else {
@@ -166,7 +166,7 @@ public:
         if (_message->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
 
             {
-                std::lock_guard<std::mutex> its_lock(received_notifications_mutex_);
+                std::scoped_lock its_lock(received_notifications_mutex_);
                 other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())]++;
                 VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
                               << "Received a notification with Client/Session [" << std::setw(4) << _message->get_client() << "/"
@@ -214,7 +214,7 @@ public:
                     is_first = false;
                 } else {
                     bool received_initial_event_twice(false);
-                    std::lock_guard<std::mutex> its_lock(received_notifications_mutex_);
+                    std::scoped_lock its_lock(received_notifications_mutex_);
                     received_initial_event_twice = all_notifications_received_twice();
                     if (received_initial_event_twice) {
                         notify = true;
@@ -222,7 +222,7 @@ public:
                 }
             } else {
                 if (!service_offered_tcp_and_udp_) {
-                    std::lock_guard<std::mutex> its_lock(received_notifications_mutex_);
+                    std::scoped_lock its_lock(received_notifications_mutex_);
                     if (all_notifications_received()) {
                         notify = true;
                     }
@@ -234,7 +234,7 @@ public:
             }
 
             if (notify && !dont_exit_) {
-                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                std::scoped_lock its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();
             }
@@ -307,7 +307,7 @@ public:
     }
 
     bool all_notifications_received_tcp_and_udp() {
-        std::lock_guard<std::mutex> its_lock(received_notifications_mutex_);
+        std::scoped_lock its_lock(received_notifications_mutex_);
         std::uint32_t received_twice(0);
         std::uint32_t received_normal(0);
         for (const auto& v : other_services_received_notification_) {
@@ -368,7 +368,7 @@ public:
         ::sigaction(SIGABRT, &sa_new, &sa_old);
 
         {
-            std::lock_guard<std::mutex> its_lock(signal_mutex_);
+            std::scoped_lock its_lock(signal_mutex_);
             wait_for_signal_handler_registration_ = false;
             signal_condition_.notify_one();
         }
@@ -379,7 +379,7 @@ public:
 
     void handle_signal(int _signum) {
         (void)_signum;
-        std::lock_guard<std::mutex> its_lock(stop_mutex_);
+        std::scoped_lock its_lock(stop_mutex_);
         wait_for_stop_ = false;
         stop_condition_.notify_one();
     }

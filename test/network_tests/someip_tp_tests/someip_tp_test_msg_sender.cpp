@@ -413,7 +413,7 @@ TEST_P(someip_tp, send_in_mode) {
                                 std::memcpy(&its_sub_ack[10], &its_session, sizeof(its_session));
                                 boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
                                 {
-                                    std::lock_guard<std::mutex> its_lock(udp_sd_socket_mutex);
+                                    std::scoped_lock its_lock(udp_sd_socket_mutex);
                                     udp_sd_socket.send_to(boost::asio::buffer(its_sub_ack), target_sd);
                                 }
                                 std::cout << __LINE__ << ": master subscribed" << std::endl;
@@ -458,7 +458,7 @@ TEST_P(someip_tp, send_in_mode) {
             }
 
             {
-                std::lock_guard<std::mutex> its_lock(udp_sd_socket_mutex);
+                std::scoped_lock its_lock(udp_sd_socket_mutex);
                 subscribe_at_master(&udp_sd_socket);
             }
 
@@ -512,7 +512,7 @@ TEST_P(someip_tp, send_in_mode) {
 
                                 fragments_response_of_master_.push_back(its_buffer);
                                 if (fragments_response_of_master_.size() == someip_tp_test::number_of_fragments) {
-                                    std::lock_guard<std::mutex> its_lock(all_fragments_received_mutex_);
+                                    std::scoped_lock its_lock(all_fragments_received_mutex_);
                                     wait_for_all_response_fragments_received_ = false;
                                     std::cout << __LINE__ << ": received all response fragments as client" << std::endl;
                                     all_fragments_received_cond_.notify_one();
@@ -531,7 +531,7 @@ TEST_P(someip_tp, send_in_mode) {
                                                                                               &receive_buffer[its_pos] + its_message_size);
                                 fragments_event_from_master_.push_back(its_buffer);
                                 if (fragments_event_from_master_.size() == someip_tp_test::number_of_fragments) {
-                                    std::lock_guard<std::mutex> its_lock(all_fragments_received_mutex_);
+                                    std::scoped_lock its_lock(all_fragments_received_mutex_);
                                     wait_for_all_event_fragments_received_ = false;
                                     std::cout << __LINE__
                                               << ": received all event fragments as client --> "
@@ -1232,7 +1232,7 @@ TEST_P(someip_tp, send_in_mode) {
 
     std::thread udp_server_receive_thread([&]() {
         {
-            std::lock_guard<std::mutex> its_lock(udp_sd_socket_mutex);
+            std::scoped_lock its_lock(udp_sd_socket_mutex);
             offer_service(&udp_sd_socket);
         }
 
@@ -1271,7 +1271,7 @@ TEST_P(someip_tp, send_in_mode) {
 
                         fragments_received_as_server_.push_back(its_buffer);
                         if (fragments_received_as_server_.size() == someip_tp_test::number_of_fragments) {
-                            std::lock_guard<std::mutex> its_lock(all_fragments_received_as_server_mutex_);
+                            std::scoped_lock its_lock(all_fragments_received_as_server_mutex_);
                             wait_for_all_fragments_received_as_server_ = false;
                             std::cout << __LINE__ << ": received all fragments as server" << std::endl;
                             all_fragments_received_as_server_cond_.notify_one();

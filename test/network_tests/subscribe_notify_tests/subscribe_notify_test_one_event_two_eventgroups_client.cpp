@@ -93,7 +93,7 @@ public:
         VSOMEIP_DEBUG << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                       << (_is_available ? "available." : "NOT available.");
         if (_service == info_.service_id && _instance == info_.instance_id && _is_available) {
-            std::lock_guard<std::mutex> its_lock(availability_mutex_);
+            std::scoped_lock its_lock(availability_mutex_);
             wait_availability_ = false;
             availability_condition_.notify_one();
         }
@@ -112,17 +112,17 @@ public:
         VSOMEIP_DEBUG << its_message.str();
         ASSERT_EQ(info_.service_id, _response->get_service());
 
-        std::lock_guard<std::mutex> events_lock_(events_mutex_);
+        std::scoped_lock events_lock_(events_mutex_);
 
         if (_response->get_method() == info_.method_id || _response->get_method() == subscribe_notify_test::shutdown_method_id) {
             ASSERT_EQ(vsomeip::message_type_e::MT_RESPONSE, _response->get_message_type());
             ASSERT_EQ(vsomeip::return_code_e::E_OK, _response->get_return_code());
-            std::lock_guard<std::mutex> its_lock(shutdown_response_mutex_);
+            std::scoped_lock its_lock(shutdown_response_mutex_);
             wait_shutdown_response_ = false;
             shutdown_response_condition_.notify_one();
         } else if (_response->get_method() == subscribe_notify_test::set_method_id) {
             received_events_.clear();
-            std::lock_guard<std::mutex> its_lock(set_value_mutex_);
+            std::scoped_lock its_lock(set_value_mutex_);
             wait_set_value_ = false;
             set_value_condition_.notify_one();
         } else if (_response->get_method() >= info_.event_id

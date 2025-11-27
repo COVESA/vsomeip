@@ -65,7 +65,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -76,7 +76,7 @@ public:
         VSOMEIP_WARNING << "************************************************************";
         VSOMEIP_WARNING << "Shutdown method called -> going down!";
         VSOMEIP_WARNING << "************************************************************";
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_method_called_ = false;
         condition_.notify_one();
     }
@@ -89,7 +89,7 @@ public:
         ASSERT_EQ(2u, its_payload->get_length());
         test_mode_ = static_cast<event_test::test_mode_e>(its_payload->get_data()[0]);
         notifications_to_send_ = static_cast<std::uint32_t>(its_payload->get_data()[1]);
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_notify_method_called_ = false;
         condition_.notify_one();
     }
