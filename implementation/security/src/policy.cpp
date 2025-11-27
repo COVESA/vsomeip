@@ -63,7 +63,7 @@ bool policy::deserialize(const byte_t*& _data, uint32_t& _size) {
     uid_t its_uid;
     gid_t its_gid;
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     its_result = deserialize_uid_gid(_data, _size, its_uid, its_gid);
     if (its_result == false)
@@ -281,7 +281,7 @@ bool policy::serialize(std::vector<byte_t>& _data) const {
 
     bool its_result;
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     its_result = serialize_uid_gid(_data);
     if (!its_result)

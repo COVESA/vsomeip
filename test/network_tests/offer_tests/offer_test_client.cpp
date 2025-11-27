@@ -80,7 +80,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -89,7 +89,7 @@ public:
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available" : "not available") << ".";
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (_is_available) {
             wait_until_service_available_ = false;
             condition_.notify_one();
@@ -128,7 +128,7 @@ public:
         ++number_received_notifications;
 
         if (number_received_notifications >= 250) {
-            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
             VSOMEIP_INFO << "going down";
             stop_condition_.notify_one();
@@ -166,7 +166,7 @@ public:
         for (int var = 0; var < offer_test::number_of_messages_to_send; ++var) {
             bool send(false);
             {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 send = !wait_until_service_available_;
             }
             if (send) {
@@ -179,7 +179,7 @@ public:
             }
         }
         {
-            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
             VSOMEIP_INFO << "going down. Sent " << offer_test::number_of_messages_to_send << " requests and received "
                          << number_received_responses_ << " responses";

@@ -106,7 +106,7 @@ public:
                       << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -126,7 +126,7 @@ public:
             if (std::all_of(
                         other_services_available_.cbegin(), other_services_available_.cend(),
                         [](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; })) {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_other_services_available_ = false;
                 condition_.notify_one();
             }
@@ -151,7 +151,7 @@ public:
     bool on_subscription(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        std::lock_guard<std::mutex> its_subscribers_lock(subscribers_mutex_);
+        std::scoped_lock its_subscribers_lock(subscribers_mutex_);
 
         // check if all other services have subscribed:
         // -1 for placeholder in array and -1 for the service itself
@@ -171,7 +171,7 @@ public:
 
         if (subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2) {
             // notify the notify thread to start sending out notifications
-            std::lock_guard<std::mutex> its_lock(notify_mutex_);
+            std::scoped_lock its_lock(notify_mutex_);
             wait_for_notify_ = false;
             notify_condition_.notify_one();
         }
@@ -199,7 +199,7 @@ public:
                           << other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())] << ")";
 
             if (all_notifications_received()) {
-                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                std::scoped_lock its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();
             }
@@ -319,7 +319,7 @@ public:
 
         // let offer thread exit
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_notified_from_other_services_ = false;
             condition_.notify_one();
         }

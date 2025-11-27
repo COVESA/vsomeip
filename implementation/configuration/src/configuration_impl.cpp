@@ -199,7 +199,7 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
 configuration_impl::~configuration_impl() { }
 
 bool configuration_impl::load(const std::string& _name) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     if (is_loaded_)
         return true;
 
@@ -394,7 +394,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
         its_service->protocol_ = "someip";
 
         {
-            std::lock_guard<std::mutex> its_lock(services_mutex_);
+            std::scoped_lock its_lock(services_mutex_);
             bool updated(false);
             const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
             if (search != services_.end()) {
@@ -432,7 +432,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t
                       << " shall only be called after normal"
                          "configuration has been parsed";
     } else {
-        std::lock_guard<std::mutex> its_lock(services_mutex_);
+        std::scoped_lock its_lock(services_mutex_);
         const auto search = services_.find(service_instance_t{_service, _instance});
         if (search != services_.end()) {
             VSOMEIP_INFO << "Removing remote configuration for service [" << std::hex << std::setfill('0') << std::setw(4) << _service
@@ -624,7 +624,7 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
                                      + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
-                    std::lock_guard<std::mutex> lock(mutex_loglevel_);
+                    std::scoped_lock lock(mutex_loglevel_);
                     loglevel_ =
                             (its_value == "trace"
                                      ? vsomeip_v3::logger::level_e::LL_VERBOSE
@@ -1904,7 +1904,7 @@ void configuration_impl::load_npdu_default_timings(const configuration_element& 
 }
 
 void configuration_impl::load_services(const configuration_element& _element) {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("services");
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
@@ -2703,7 +2703,7 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
         }
 
         if (!its_partition_members.empty()) {
-            std::lock_guard<std::mutex> its_lock(partitions_mutex_);
+            std::scoped_lock its_lock(partitions_mutex_);
             its_partition_id++;
 
             std::stringstream its_log;
@@ -2832,7 +2832,7 @@ std::string configuration_impl::get_unicast_address(service_t _service, instance
 }
 
 uint16_t configuration_impl::get_reliable_port(service_t _service, instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     uint16_t its_reliable(ILLEGAL_PORT);
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service)
@@ -2842,7 +2842,7 @@ uint16_t configuration_impl::get_reliable_port(service_t _service, instance_t _i
 }
 
 uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     uint16_t its_unreliable = ILLEGAL_PORT;
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service)
@@ -3098,7 +3098,7 @@ bool configuration_impl::has_session_handling(const std::string& _name) const {
 }
 
 std::set<std::pair<service_t, instance_t>> configuration_impl::get_remote_services() const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     std::set<std::pair<service_t, instance_t>> its_remote_services;
 
     for (const auto& [key, service] : services_) {
@@ -3310,7 +3310,7 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
 }
 
 reliability_type_e configuration_impl::get_event_reliability(service_t _service, instance_t _instance, event_t _event) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service) {
@@ -3323,7 +3323,7 @@ reliability_type_e configuration_impl::get_event_reliability(service_t _service,
 }
 
 reliability_type_e configuration_impl::get_service_reliability(service_t _service, instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
     auto its_service = find_service_unlocked(_service, _instance);
     if (its_service) {
@@ -3341,7 +3341,7 @@ reliability_type_e configuration_impl::get_service_reliability(service_t _servic
 }
 
 std::shared_ptr<service> configuration_impl::find_service(service_t _service, instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(services_mutex_);
+    std::scoped_lock its_lock(services_mutex_);
     return find_service_unlocked(_service, _instance);
 }
 
@@ -3994,7 +3994,7 @@ void configuration_impl::load_acceptances(const configuration_element& _element)
 void configuration_impl::load_acceptance_data(const boost::property_tree::ptree& _tree) {
     std::stringstream its_converter;
     try {
-        std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+        std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
 
         boost::asio::ip::address its_address;
         std::set<std::string> its_paths;
@@ -4316,7 +4316,7 @@ void configuration_impl::load_udp_receive_buffer_size(const configuration_elemen
 }
 
 void configuration_impl::load_secure_services(const configuration_element& _element) {
-    std::lock_guard<std::mutex> its_lock(secure_services_mutex_);
+    std::scoped_lock its_lock(secure_services_mutex_);
     try {
         auto its_services = _element.tree_.get_child("secure-services");
         for (auto i = its_services.begin(); i != its_services.end(); ++i)
@@ -4507,7 +4507,7 @@ std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
 }
 
 bool configuration_impl::is_protected_device(const boost::asio::ip::address& _address) const {
-    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
     return (sd_acceptance_rules_active_.find(_address) != sd_acceptance_rules_active_.end());
 }
 
@@ -4519,7 +4519,7 @@ bool configuration_impl::is_protected_port(const boost::asio::ip::address& _addr
         return false;
     }
 
-    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
     const auto found_address = sd_acceptance_rules_.find(_address);
     if (found_address != sd_acceptance_rules_.end()) {
         const auto found_reliability = found_address->second.second.find(_reliable);
@@ -4541,7 +4541,7 @@ bool configuration_impl::is_secure_port(const boost::asio::ip::address& _address
 
     bool is_secure(false);
 
-    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
     const auto found_address = sd_acceptance_rules_.find(_address);
     if (found_address != sd_acceptance_rules_.end()) {
         const auto found_reliability = found_address->second.second.find(_reliable);
@@ -4560,7 +4560,7 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
     (void)_port_range;
     (void)_type;
 
-    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
 
     const auto its_optional_client = boost::icl::interval<std::uint16_t>::closed(30491, 30499);
     const auto its_optional_client_spare = boost::icl::interval<std::uint16_t>::closed(30898, 30998);
@@ -4670,12 +4670,12 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
 }
 
 configuration::sd_acceptance_rules_t configuration_impl::get_sd_acceptance_rules() {
-    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
     return sd_acceptance_rules_;
 }
 
 void configuration_impl::set_sd_acceptance_rules_active(const boost::asio::ip::address& _address, bool _enable) {
-    std::lock_guard<std::mutex> its_lock(sd_acceptance_required_ips_mutex_);
+    std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
     if (_enable) {
         sd_acceptance_rules_active_.insert(_address);
     } else {
@@ -4684,7 +4684,7 @@ void configuration_impl::set_sd_acceptance_rules_active(const boost::asio::ip::a
 }
 
 bool configuration_impl::is_secure_service(service_t _service, instance_t _instance) const {
-    std::lock_guard<std::mutex> its_lock(secure_services_mutex_);
+    std::scoped_lock its_lock(secure_services_mutex_);
     const auto its_service = secure_services_.find(_service);
     if (its_service != secure_services_.end())
         return (its_service->second.find(_instance) != its_service->second.end());
@@ -4787,7 +4787,7 @@ partition_id_t configuration_impl::get_partition_id(service_t _service, instance
 
     partition_id_t its_id(VSOMEIP_DEFAULT_PARTITION_ID);
 
-    std::lock_guard<std::mutex> its_lock(partitions_mutex_);
+    std::scoped_lock its_lock(partitions_mutex_);
     const auto search = partitions_.find(service_instance_t{_service, _instance});
     if (search != partitions_.end()) {
         its_id = search->second;

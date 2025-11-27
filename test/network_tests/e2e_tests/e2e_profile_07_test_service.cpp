@@ -22,7 +22,7 @@ e2e_profile_07_test_service::e2e_profile_07_test_service() :
 
 bool e2e_profile_07_test_service::init() {
 
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     if (!app_->init()) {
         ADD_FAILURE() << __func__ << ": Cannot initialize application.";
@@ -95,7 +95,7 @@ void e2e_profile_07_test_service::on_state(vsomeip::state_type_e _state) {
         if (!is_registered_) {
             is_registered_ = true;
 
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
 
             // "start" the run method thread

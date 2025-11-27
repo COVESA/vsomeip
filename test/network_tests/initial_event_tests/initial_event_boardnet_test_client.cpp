@@ -64,7 +64,7 @@ public:
                      << "] to Client/Session [" << std::setw(4) << _response->get_client() << "/" << std::setw(4)
                      << _response->get_session() << "] = ";
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::scoped_lock lock(mutex_);
             ++initial_event_counter;
         }
         condition_.notify_one();

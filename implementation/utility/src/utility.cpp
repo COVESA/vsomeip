@@ -71,7 +71,7 @@ uint32_t utility::get_payload_size(const byte_t* _data, uint32_t _size) {
 bool utility::is_routing_manager(const std::string& _network) {
     // Only the first caller can become routing manager.
     // Therefore, subsequent calls can be immediately answered...
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock(mutex__);
     if (data__.find(_network) != data__.end())
         return false;
 
@@ -177,7 +177,7 @@ bool utility::is_routing_manager(const std::string& _network) {
 }
 
 void utility::remove_lockfile(const std::string& _network) {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock(mutex__);
 
     auto r = data__.find(_network);
     if (r == data__.end()) // No need to do anything as automatic
@@ -244,7 +244,7 @@ std::string utility::get_base_path(const std::string& _network) {
 }
 
 client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, const std::string& _name, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock(mutex__);
     static const std::uint16_t its_max_num_clients = get_max_client_number(_config);
 
     static const std::uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
@@ -329,14 +329,14 @@ std::string utility::get_client_name(const std::shared_ptr<configuration>& _conf
 }
 
 void utility::release_client_id(const std::string& _network, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock(mutex__);
     auto r = data__.find(_network);
     if (r != data__.end())
         r->second.used_clients_.erase(_client);
 }
 
 std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock(mutex__);
     std::set<client_t> its_used_clients;
     auto r = data__.find(_network);
     if (r != data__.end()) {
@@ -347,7 +347,7 @@ std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
 }
 
 void utility::reset_client_ids(const std::string& _network) {
-    std::lock_guard<std::mutex> its_lock(mutex__);
+    std::scoped_lock its_lock(mutex__);
     auto r = data__.find(_network);
     if (r != data__.end()) {
         r->second.used_clients_.clear();

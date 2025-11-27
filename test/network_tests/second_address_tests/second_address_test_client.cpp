@@ -94,7 +94,7 @@ public:
                       << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered" : "deregistered") << " on client.";
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -106,7 +106,7 @@ public:
                       << (_is_available ? "available" : "not available") << " on client.";
 
         if (_is_available) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_service_available_ = false;
             condition_.notify_one();
         }
@@ -117,7 +117,7 @@ public:
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.request_method_id, _message->get_method());
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         auto its_payload = _message->get_payload();
         std::uint32_t data = static_cast<std::uint32_t>(its_payload->get_data()[0]);
 
@@ -140,7 +140,7 @@ public:
             EXPECT_EQ(service_info_.selective_event_id, _message->get_method());
 
             if (++number_selective_events_received_ == second_address_test::number_of_events_to_send) {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_selective_events_received_ = false;
                 condition_.notify_one();
             }
@@ -148,7 +148,7 @@ public:
             EXPECT_EQ(service_info_.event_id, _message->get_method());
 
             if (++number_events_received_ == second_address_test::number_of_events_to_send) {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_events_received_ = false;
                 condition_.notify_one();
             }
@@ -170,7 +170,7 @@ public:
             EXPECT_EQ(service_info_.selective_event_id, _event);
 
             if (error_code == 0x0u) { // accepted
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_selective_subscription_accepted_ = false;
                 condition_.notify_one();
             }
@@ -180,7 +180,7 @@ public:
             EXPECT_EQ(service_info_.event_id, _event);
 
             if (error_code == 0x0u) { // accepted
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_subscription_accepted_ = false;
                 condition_.notify_one();
             }
@@ -192,7 +192,7 @@ public:
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
         EXPECT_EQ(service_info_.shutdown_method_id, _message->get_method());
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_reply_received_ = false;
         condition_.notify_one();
     }

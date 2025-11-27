@@ -161,7 +161,7 @@ void big_payload_test_client::on_message(const std::shared_ptr<vsomeip::message>
 }
 
 void big_payload_test_client::send() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     blocked_ = true;
     condition_.notify_one();
 }

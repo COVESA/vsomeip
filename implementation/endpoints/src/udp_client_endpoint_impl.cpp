@@ -184,7 +184,7 @@ void udp_client_endpoint_impl::restart(bool _force) {
     }
     std::string local;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
         local = get_address_port_local();
     }
     was_not_connected_ = true;
@@ -208,8 +208,8 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
     VSOMEIP_INFO << msg.str();
 #endif
     {
-        std::lock_guard<std::mutex> its_last_sent_lock(last_sent_mutex_);
-        std::lock_guard<std::mutex> its_socket_lock(socket_mutex_);
+        std::scoped_lock its_last_sent_lock(last_sent_mutex_);
+        std::scoped_lock its_socket_lock(socket_mutex_);
 
         // Check whether we need to wait (SOME/IP-TP separation time)
         if (_entry.second > 0) {
@@ -238,7 +238,7 @@ void udp_client_endpoint_impl::get_configured_times_from_endpoint(service_t _ser
 }
 
 void udp_client_endpoint_impl::receive() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock(socket_mutex_);
     if (!socket_->is_open()) {
         return;
     }
@@ -392,7 +392,7 @@ void udp_client_endpoint_impl::print_status() {
     }
     std::string local;
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
         local = get_address_port_local();
     }
 

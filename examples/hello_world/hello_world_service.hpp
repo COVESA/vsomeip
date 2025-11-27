@@ -82,7 +82,7 @@ public:
     }
 
     void terminate() {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         stop_ = true;
         condition_.notify_one();
     }

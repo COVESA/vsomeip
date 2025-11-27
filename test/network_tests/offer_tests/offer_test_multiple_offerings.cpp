@@ -45,7 +45,7 @@ void common::on_availability(service_t _service_id, instance_t _instance_id, boo
         if (_is_available) {
             // NOTE: Using the most strict memory ordering operation.
             // Refer to https://en.cppreference.com/w/cpp/atomic/memory_order for possible options
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::scoped_lock lock(mutex_);
             availability_.store(true);
             condition_availability_.notify_one();
         } else {
@@ -83,7 +83,7 @@ public:
     }
 
     std::vector<uint8_t> getReceivedPayload() {
-        std::lock_guard<std::mutex> its_lock(payload_mutex_);
+        std::scoped_lock its_lock(payload_mutex_);
         return received_payload_;
     }
 
@@ -123,7 +123,7 @@ private:
 
         std::stringstream msg;
         {
-            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            std::scoped_lock its_lock(payload_mutex_);
             received_payload_.clear();
             for (uint32_t i = 0; i < len; ++i) {
                 received_payload_.push_back(*(its_payload->get_data() + i));
@@ -134,12 +134,12 @@ private:
         VSOMEIP_INFO << "[TEST] Got message from " << std::hex << std::setfill('0') << std::setw(4) << _message->get_service() << "."
                      << std::setw(4) << _message->get_instance() << " length " << std::dec << len << " and payload " << msg.str();
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             msg_sent_.store(true);
             condition_message_sent_.notify_one();
         }
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (_message->get_service() == service_id_ && _message->get_instance() == instance_id_) {
             message_received_.store(true);
             condition_message_received_.notify_one();

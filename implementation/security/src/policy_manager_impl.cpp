@@ -86,7 +86,7 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
     boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
 
-        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        std::scoped_lock its_policy_lock(p->mutex_);
 
         bool has_uid, has_gid(false);
 
@@ -140,7 +140,7 @@ bool policy_manager_impl::check_routing_credentials(const vsomeip_sec_client_t* 
     gid_t its_gid(0);
     bool is_known_uid_gid(false);
 
-    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
+    std::scoped_lock its_lock(routing_credentials_mutex_);
     if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         its_uid = _sec_client->user;
         its_gid = _sec_client->group;
@@ -232,7 +232,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
     // Check policies
     boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
-        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        std::scoped_lock its_policy_lock(p->mutex_);
         bool has_uid, has_gid(false);
         bool is_matching(false);
 
@@ -327,7 +327,7 @@ bool policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t* _sec_clie
 
     boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
-        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        std::scoped_lock its_policy_lock(p->mutex_);
         bool has_uid, has_gid(false), has_offer(false);
 
         const auto found_uid = p->credentials_.find(its_uid);
@@ -388,7 +388,7 @@ bool policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
         while (p_it != any_client_policies_.end()) {
             bool is_matching(false);
             {
-                std::lock_guard<std::mutex> its_policy_lock((*p_it)->mutex_);
+                std::scoped_lock its_policy_lock((*p_it)->mutex_);
                 bool has_uid(false), has_gid(false);
                 const auto found_uid = (*p_it)->credentials_.find(_uid);
                 has_uid = (found_uid != (*p_it)->credentials_.end());
@@ -422,7 +422,7 @@ void policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid, const s
     boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
     std::shared_ptr<policy> its_matching_policy;
     for (auto p : any_client_policies_) {
-        std::lock_guard<std::mutex> its_guard(p->mutex_);
+        std::scoped_lock its_guard(p->mutex_);
         if (p->credentials_.size() == 1) {
             const auto its_uids = *(p->credentials_.begin());
             if (its_uids.first.lower() == _uid && its_uids.first.upper() == _uid) {
@@ -440,7 +440,7 @@ void policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid, const s
     }
 
     if (its_matching_policy) {
-        std::lock_guard<std::mutex> its_guard{its_matching_policy->mutex_};
+        std::scoped_lock its_guard{its_matching_policy->mutex_};
         for (const auto& r : _policy->requests_) {
             service_t its_lower, its_upper;
             get_bounds(r.first, its_lower, its_upper);
@@ -472,7 +472,7 @@ void policy_manager_impl::add_security_credentials(uid_t _uid, gid_t _gid, const
     for (const auto& p : any_client_policies_) {
         bool has_uid(false), has_gid(false);
 
-        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        std::scoped_lock its_policy_lock(p->mutex_);
         const auto found_uid = p->credentials_.find(_uid);
         has_uid = (found_uid != p->credentials_.end());
         if (has_uid) {
@@ -499,14 +499,14 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
 
     bool is_uid_allowed(false);
     {
-        std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
+        std::scoped_lock its_lock(uid_whitelist_mutex_);
         const auto found_uid = uid_whitelist_.find(_uid);
         is_uid_allowed = (found_uid != uid_whitelist_.end());
     }
 
     if (is_uid_allowed && _policy) {
-        std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
-        std::lock_guard<std::mutex> its_policy_lock(_policy->mutex_);
+        std::scoped_lock its_lock(service_interface_whitelist_mutex_);
+        std::scoped_lock its_policy_lock(_policy->mutex_);
         for (const auto& its_request : _policy->requests_) {
             bool has_service(false);
 
@@ -545,7 +545,7 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
 }
 
 bool policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
-    std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
+    std::scoped_lock its_lock(uid_whitelist_mutex_);
     for (auto its_uid_range : uid_whitelist_) {
         if (its_uid_range.lower() <= _uid && _uid <= its_uid_range.upper()) {
             return true;
@@ -575,7 +575,7 @@ bool policy_manager_impl::parse_policy(const byte_t*& _buffer, uint32_t& _buffer
 ///////////////////////////////////////////////////////////////////////////////
 bool policy_manager_impl::exist_in_any_client_policies_unlocked(std::shared_ptr<policy>& _policy) {
     for (const auto& p : any_client_policies_) {
-        std::lock_guard<std::mutex> its_policy_lock(p->mutex_);
+        std::scoped_lock its_policy_lock(p->mutex_);
         if (p->credentials_ == _policy->credentials_ && p->requests_ == _policy->requests_ && p->offers_ == _policy->offers_
             && p->allow_what_ == _policy->allow_what_ && p->allow_who_ == _policy->allow_who_) {
             return true;
@@ -846,12 +846,12 @@ bool policy_manager_impl::load_routing_credentials(const configuration_element& 
                 if (its_key == "uid") {
                     uid_t its_uid(0);
                     read_data(its_value, its_uid);
-                    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
+                    std::scoped_lock its_lock(routing_credentials_mutex_);
                     std::get<0>(routing_credentials_) = its_uid;
                 } else if (its_key == "gid") {
                     gid_t its_gid(0);
                     read_data(its_value, its_gid);
-                    std::lock_guard<std::mutex> its_lock(routing_credentials_mutex_);
+                    std::scoped_lock its_lock(routing_credentials_mutex_);
                     std::get<1>(routing_credentials_) = its_gid;
                 }
             }
@@ -875,12 +875,12 @@ void policy_manager_impl::load_security_update_whitelist(const configuration_ele
 
             if (its_whitelist->first == "uids") {
                 {
-                    std::lock_guard<std::mutex> its_lock(uid_whitelist_mutex_);
+                    std::scoped_lock its_lock(uid_whitelist_mutex_);
                     load_interval_set(its_whitelist->second, uid_whitelist_);
                 }
             } else if (its_whitelist->first == "services") {
                 {
-                    std::lock_guard<std::mutex> its_lock(service_interface_whitelist_mutex_);
+                    std::scoped_lock its_lock(service_interface_whitelist_mutex_);
                     load_interval_set(its_whitelist->second, service_interface_whitelist_);
                 }
             } else if (its_whitelist->first == "check-whitelist") {
@@ -1016,13 +1016,13 @@ void policy_manager_impl::load_interval_set(const boost::property_tree::ptree& _
 void policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _policy,
                                                  std::set<std::shared_ptr<policy>>& _requesters) const {
 
-    std::scoped_lock its_lock{any_client_policies_mutex_, _policy->mutex_};
+    std::scoped_lock lock_outer{any_client_policies_mutex_, _policy->mutex_};
     for (const auto& o : _policy->offers_) {
         for (const auto& p : any_client_policies_) {
             if (p == _policy)
                 continue;
 
-            std::lock_guard<std::mutex> its_lock(p->mutex_);
+            std::scoped_lock lock_inner(p->mutex_);
 
             auto its_policy = std::make_shared<policy>();
             its_policy->credentials_ = p->credentials_;
@@ -1079,7 +1079,7 @@ void policy_manager_impl::get_requester_policies(const std::shared_ptr<policy> _
 
 void policy_manager_impl::get_clients(uid_t _uid, gid_t _gid, std::unordered_set<client_t>& _clients) const {
 
-    std::lock_guard<std::mutex> its_lock(ids_mutex_);
+    std::scoped_lock its_lock(ids_mutex_);
     for (const auto& i : ids_) {
         if (i.second.port == VSOMEIP_SEC_PORT_UNUSED && i.second.user == _uid && i.second.group == _gid)
             _clients.insert(i.first);
@@ -1096,7 +1096,7 @@ bool policy_manager_impl::is_policy_extension(const std::string& _path) const {
 
 void policy_manager_impl::set_policy_extension_base_path(const std::string& _path) {
     auto its_pos = _path.find("vsomeip_policy_extensions.json");
-    std::lock_guard<std::mutex> its_lock(policy_base_path_mutex_);
+    std::scoped_lock its_lock(policy_base_path_mutex_);
     policy_base_path_ = _path.substr(0, its_pos);
 }
 
@@ -1190,7 +1190,7 @@ bool policy_manager_impl::store_client_to_sec_client_mapping(client_t _client, c
 
     if (_sec_client != nullptr && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // store the client -> sec_client mapping
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        std::scoped_lock its_lock(ids_mutex_);
         auto found_client = ids_.find(_client);
         if (found_client != ids_.end()) {
             if (!utility::compare(found_client->second, *_sec_client)) {
@@ -1218,7 +1218,7 @@ bool policy_manager_impl::store_client_to_sec_client_mapping(client_t _client, c
 bool policy_manager_impl::get_client_to_sec_client_mapping(client_t _client, vsomeip_sec_client_t& _sec_client) {
     {
         // get the UID / GID of the client
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        std::scoped_lock its_lock(ids_mutex_);
         if (ids_.find(_client) != ids_.end()) {
             _sec_client = ids_[_client];
             return true;
@@ -1233,7 +1233,7 @@ bool policy_manager_impl::remove_client_to_sec_client_mapping(client_t _client) 
     bool is_client_removed(false);
     bool is_sec_client_removed(false);
     {
-        std::lock_guard<std::mutex> its_lock(ids_mutex_);
+        std::scoped_lock its_lock(ids_mutex_);
         auto found_client = ids_.find(_client);
         if (found_client != ids_.end()) {
             its_sec_client = found_client->second;
@@ -1242,7 +1242,7 @@ bool policy_manager_impl::remove_client_to_sec_client_mapping(client_t _client) 
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
+        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
         if (is_client_removed) {
             auto found_sec_client = sec_client_to_clients_.find(its_sec_client);
             if (found_sec_client != sec_client_to_clients_.end()) {
@@ -1277,7 +1277,7 @@ void policy_manager_impl::store_sec_client_to_client_mapping(const vsomeip_sec_c
 
     if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // store the uid gid to clients mapping
-        std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
+        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
         auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
         if (found_sec_client != sec_client_to_clients_.end()) {
             found_sec_client->second.insert(_client);
@@ -1293,7 +1293,7 @@ bool policy_manager_impl::get_sec_client_to_clients_mapping(const vsomeip_sec_cl
 
     if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {
         // get the clients corresponding to uid, gid
-        std::lock_guard<std::mutex> its_lock(sec_client_to_clients_mutex_);
+        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
         auto found_sec_client = sec_client_to_clients_.find(*_sec_client);
         if (found_sec_client != sec_client_to_clients_.end()) {
             _clients = found_sec_client->second;

@@ -101,7 +101,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -121,7 +121,7 @@ public:
             if (std::all_of(
                         other_services_available_.cbegin(), other_services_available_.cend(),
                         [](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; })) {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_other_services_available_ = false;
                 condition_.notify_one();
             }
@@ -132,7 +132,7 @@ public:
                                       const vsomeip::eventgroup_t _eventgroup, const vsomeip::event_t _event, const uint16_t _error) {
         (void)_event;
 
-        std::lock_guard<std::mutex> its_lock(subscription_state_handler_called_mutex_);
+        std::scoped_lock its_lock(subscription_state_handler_called_mutex_);
         if (!_error) {
             subscription_state_handler_called_.insert(std::make_tuple(_service, _instance, _eventgroup));
         } else {
@@ -145,7 +145,7 @@ public:
     bool on_subscription(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        std::lock_guard<std::mutex> its_lock(subscribers_mutex_);
+        std::scoped_lock its_lock(subscribers_mutex_);
         static bool notified(false);
         if (_subscribed) {
             subscribers_.insert(_client);
@@ -162,7 +162,7 @@ public:
         // no matter how many clients subscribed to this eventgroup on the remote node
         if (!notified && subscribers_.size() == (service_infos_.size() - 1) / 2) {
             // notify the notify thread to start sending out notifications
-            std::lock_guard<std::mutex> its_lock(notify_mutex_);
+            std::scoped_lock its_lock(notify_mutex_);
             wait_for_notify_ = false;
             notify_condition_.notify_one();
             notified = true;
@@ -192,7 +192,7 @@ public:
                           << other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())] << ")";
 
             if (all_notifications_received()) {
-                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                std::scoped_lock its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();
             }
@@ -261,7 +261,7 @@ public:
         // is processed in the server - due to resubscribing the error handler
         // count may differ from expected value, but its not a real but as
         // the subscription takes places anyways and all events will be received.
-        std::lock_guard<std::mutex> its_subscription_lock(subscription_state_handler_called_mutex_);
+        std::scoped_lock its_subscription_lock(subscription_state_handler_called_mutex_);
         if (!subscription_error_occured_) {
             ASSERT_EQ(subscribe_count, subscription_state_handler_called_.size());
         } else {
@@ -309,7 +309,7 @@ public:
 
         // let offer thread exit
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_notified_from_other_services_ = false;
             condition_.notify_one();
         }

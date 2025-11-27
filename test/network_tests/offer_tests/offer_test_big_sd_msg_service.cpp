@@ -70,7 +70,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -84,7 +84,7 @@ public:
             subscriptions_[_service] = 1;
             if (std::all_of(subscriptions_.begin(), subscriptions_.end(),
                             [&](const subscriptions_t::value_type& v) { return v.second == 1; })) {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 wait_until_client_subscribed_to_all_services_ = false;
                 VSOMEIP_WARNING << "************************************************************";
                 VSOMEIP_WARNING << "Client subscribed to all services!";

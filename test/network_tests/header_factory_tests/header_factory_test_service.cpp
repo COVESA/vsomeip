@@ -13,7 +13,7 @@ header_factory_test_service::header_factory_test_service(bool _use_static_routin
     number_of_received_messages_(0), offer_thread_(std::bind(&header_factory_test_service::run, this)) { }
 
 bool header_factory_test_service::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     if (!app_->init()) {
         ADD_FAILURE() << "Couldn't initialize application";
@@ -53,7 +53,7 @@ void header_factory_test_service::on_state(vsomeip::state_type_e _state) {
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
             is_registered_ = true;
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();
@@ -88,7 +88,7 @@ void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::mess
     app_->send(its_response);
 
     if (number_of_received_messages_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         blocked_ = true;
         condition_.notify_one();
     }

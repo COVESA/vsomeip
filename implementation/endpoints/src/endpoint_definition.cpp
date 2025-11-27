@@ -17,7 +17,7 @@ std::mutex endpoint_definition::definitions_mutex_;
 std::shared_ptr<endpoint_definition> endpoint_definition::get(const boost::asio::ip::address& _address, uint16_t _port, bool _is_reliable,
                                                               service_t _service, instance_t _instance) {
     auto key = std::make_tuple(_service, _instance, _address, _port, _is_reliable);
-    std::lock_guard<std::mutex> its_lock(definitions_mutex_);
+    std::scoped_lock its_lock(definitions_mutex_);
     std::shared_ptr<endpoint_definition> its_result;
 
     auto found_endpoint = definitions_.find(key);

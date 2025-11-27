@@ -12,7 +12,7 @@ lazy_load_test_service::lazy_load_test_service() :
     offer_thread_(std::bind(&lazy_load_test_service::run, this)) { }
 
 bool lazy_load_test_service::init() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
 
     if (!app_->init()) {
         ADD_FAILURE() << "Couldn't initialize application";
@@ -116,7 +116,7 @@ void lazy_load_test_service::on_state(vsomeip::state_type_e _state) {
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
             is_registered_ = true;
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             // "start" the run method thread
             condition_.notify_one();

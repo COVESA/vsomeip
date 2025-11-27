@@ -82,7 +82,7 @@ public:
      */
     void stop() {
         {
-            std::lock_guard<std::mutex> its_lock(shutdown_mutex_);
+            std::scoped_lock its_lock(shutdown_mutex_);
             wait_for_shutdown_ = false;
             shutdown_condition_.notify_one();
         }
@@ -112,7 +112,7 @@ public:
         its_response->set_payload(payload_);
         app_->send(its_response);
         {
-            std::lock_guard<std::mutex> its_lock(shutdown_mutex_);
+            std::scoped_lock its_lock(shutdown_mutex_);
             wait_for_shutdown_ = false;
             shutdown_condition_.notify_one();
         }

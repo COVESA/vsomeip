@@ -24,7 +24,7 @@ public:
         service_info_(_service_info) { }
 
     bool init() {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
 
         if (!app_->init()) {
             std::cerr << "Couldn't initialize application" << std::endl;
@@ -44,7 +44,7 @@ public:
                           vsomeip::event_type_e::ET_FIELD, std::chrono::milliseconds::zero(), false, true, nullptr,
                           vsomeip::reliability_type_e::RT_UNKNOWN);
         {
-            std::lock_guard<std::mutex> its_lock(payload_mutex_);
+            std::scoped_lock its_lock(payload_mutex_);
             payload_ = vsomeip::runtime::get()->create_payload();
         }
 
@@ -57,7 +57,7 @@ public:
 
     void stop() {
         {
-            std::lock_guard<std::mutex> its_lock_notify(notify_mutex_);
+            std::scoped_lock its_lock_notify(notify_mutex_);
             running_ = false;
             notify_condition_.notify_one();
         }
@@ -80,14 +80,14 @@ public:
     }
 
     void offer() {
-        std::lock_guard<std::mutex> its_lock(notify_mutex_);
+        std::scoped_lock its_lock(notify_mutex_);
         app_->offer_service(service_info_.service_id, service_info_.instance_id);
         is_offered_ = true;
         notify_condition_.notify_one();
     }
 
     void stop_offer() {
-        std::lock_guard<std::mutex> its_lock(notify_mutex_);
+        std::scoped_lock its_lock(notify_mutex_);
         app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
         is_offered_ = false;
         notify_condition_.notify_one();
@@ -103,7 +103,7 @@ public:
         (void)_message;
         stop_offer();
         std::this_thread::sleep_for(climate_test::OFFER_CYCLE_INTERVAL);
-        std::lock_guard<std::mutex> its_lock(message_mutex_);
+        std::scoped_lock its_lock(message_mutex_);
         is_second_ = true;
         notify_condition_.notify_one();
     }
@@ -146,7 +146,7 @@ public:
             notify_condition_.wait(its_lock, [this] { return is_offered_ || !running_; });
             while (is_offered_ && running_) {
                 {
-                    std::lock_guard<std::mutex> its_lock(payload_mutex_);
+                    std::scoped_lock its_lock(payload_mutex_);
                     payload_->set_data(its_data, its_size);
 
                     VSOMEIP_INFO << "\nSERVICE SIDE -> " << "Setting event (Length=" << std::dec << its_size << ")." << std::endl;

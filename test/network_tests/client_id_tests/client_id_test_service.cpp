@@ -75,7 +75,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             condition_.notify_one();
         }
@@ -94,7 +94,7 @@ public:
             if (std::all_of(
                         other_services_available_.cbegin(), other_services_available_.cend(),
                         [](const std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool>::value_type& v) { return v.second; })) {
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 blocked_ = true;
                 condition_.notify_one();
             }
@@ -111,7 +111,7 @@ public:
 
             other_services_received_request_[_message->get_client()]++;
             if (all_responses_and_requests_received()) {
-                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                std::scoped_lock its_lock(stop_mutex_);
                 stopped_ = true;
                 stop_condition_.notify_one();
             }
@@ -127,7 +127,7 @@ public:
             other_services_received_response_[std::make_pair(_message->get_service(), _message->get_method())]++;
 
             if (all_responses_and_requests_received()) {
-                std::lock_guard<std::mutex> its_lock(stop_mutex_);
+                std::scoped_lock its_lock(stop_mutex_);
                 stopped_ = true;
                 stop_condition_.notify_one();
             }
@@ -189,7 +189,7 @@ public:
 
         // let offer thread exit
         {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             condition_.notify_one();
         }

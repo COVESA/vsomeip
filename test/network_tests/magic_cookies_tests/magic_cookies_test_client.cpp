@@ -72,7 +72,7 @@ public:
                 is_available = false;
             else if (_is_available && !is_available) {
                 is_available = true;
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 is_blocked_ = true;
                 condition_.notify_one();
             }
@@ -92,7 +92,7 @@ public:
             received_errors_++;
         }
         if (received_errors_ == sent_messages_bad_ && received_responses_ == sent_messages_good_) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_for_replies_ = false;
             condition_.notify_one();
         }

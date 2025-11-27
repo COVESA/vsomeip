@@ -37,7 +37,7 @@ void process_manager_t::spawn() {
 void process_manager_t::wait_finish() {
     std::unique_ptr<TinyProcessLib::Process> local_proc;
     {
-        std::lock_guard<std::mutex> lock{process_mutex_};
+        std::scoped_lock lock{process_mutex_};
         if (process_) {
             local_proc = std::move(process_);
         }
@@ -49,7 +49,7 @@ void process_manager_t::wait_finish() {
 }
 
 void process_manager_t::terminate() {
-    std::lock_guard<std::mutex> lock{process_mutex_};
+    std::scoped_lock lock{process_mutex_};
     if (process_) {
 #ifdef __linux__
         process_->signal(SIGTERM);

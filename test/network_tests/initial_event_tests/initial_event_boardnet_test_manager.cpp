@@ -54,7 +54,7 @@ public:
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::scoped_lock lock(mutex_);
             registration_status_ = vsomeip::state_type_e::ST_REGISTERED;
         }
         condition_.notify_all();
@@ -65,7 +65,7 @@ public:
         VSOMEIP_INFO << "Client " << std::hex << std::setfill('0') << std::setw(4) << _client << " is "
                      << ((_accepted) ? " subscribing " : "unsubscribing");
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::scoped_lock lock(mutex_);
             client_subscribed_ = _accepted;
         }
         condition_.notify_all();
@@ -76,7 +76,7 @@ public:
     void on_message(const std::shared_ptr<vsomeip::message>& _request) {
         VSOMEIP_INFO << "Received message from client " << std::hex << std::setfill('0') << std::setw(4) << _request->get_client();
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::scoped_lock lock(mutex_);
             message_received_ = true;
         }
         condition_.notify_all();
@@ -116,7 +116,7 @@ public:
     }
 
     void reset() {
-        std::lock_guard<std::mutex> lock{mutex_};
+        std::scoped_lock lock{mutex_};
         message_received_ = false;
         client_subscribed_ = false;
         registration_status_ = vsomeip::state_type_e::ST_DEREGISTERED;

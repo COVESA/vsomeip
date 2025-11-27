@@ -108,7 +108,7 @@ void tcp_server_endpoint_impl::init(const endpoint_type& _local, boost::system::
 void tcp_server_endpoint_impl::start() {
     VSOMEIP_INFO << instance_name_ << __func__;
 
-    std::lock_guard<std::mutex> its_lock(acceptor_mutex_);
+    std::scoped_lock its_lock(acceptor_mutex_);
     if (acceptor_.is_open()) {
         connection::ptr new_connection =
                 connection::create(std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), max_message_size_,
@@ -149,13 +149,13 @@ void tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
 }
 
 bool tcp_server_endpoint_impl::send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     endpoint_type its_target(_target->get_address(), _target->get_port());
     return send_intern(its_target, _data, _size);
 }
 
 bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     const endpoint_type its_target(_target->get_address(), _target->get_port());
     const auto its_target_iterator(find_or_create_target_unlocked(its_target));
     auto& its_data = its_target_iterator->second;
@@ -178,7 +178,7 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
     bool must_erase(false);
     connection::ptr its_connection;
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::scoped_lock its_lock(connections_mutex_);
         auto connection_iterator = connections_.find(_it->first);
         if (connection_iterator != connections_.end()) {
             its_connection = connection_iterator->second;
@@ -236,7 +236,7 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
     bool is_connected = false;
     endpoint_type its_endpoint(_endpoint->get_address(), _endpoint->get_port());
     {
-        std::lock_guard<std::mutex> its_lock(connections_mutex_);
+        std::scoped_lock its_lock(connections_mutex_);
         auto connection_iterator = connections_.find(its_endpoint);
         if (connection_iterator != connections_.end()) {
             is_connected = true;
@@ -337,7 +337,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::sy
         }
         if (!its_error) {
             {
-                std::lock_guard<std::mutex> its_lock(connections_mutex_);
+                std::scoped_lock its_lock(connections_mutex_);
                 connections_[remote] = _connection;
             }
             _connection->start();
@@ -475,7 +475,7 @@ void tcp_server_endpoint_impl::connection::receive() {
 }
 
 void tcp_server_endpoint_impl::connection::stop() {
-    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    std::scoped_lock its_lock(socket_mutex_);
 
     if (socket_.is_open()) {
         boost::system::error_code its_error;
@@ -522,7 +522,7 @@ void tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
     }
 
     {
-        std::lock_guard<std::mutex> its_lock(socket_mutex_);
+        std::scoped_lock its_lock(socket_mutex_);
         _it->second.is_sending_ = true;
 
         boost::asio::async_write(
@@ -912,7 +912,7 @@ void tcp_server_endpoint_impl::connection::stop_and_remove_connection() {
         return;
     }
     {
-        std::lock_guard<std::mutex> its_lock(its_server->connections_mutex_);
+        std::scoped_lock its_lock(its_server->connections_mutex_);
         stop();
     }
     its_server->remove_connection(remote_, this);
@@ -924,10 +924,10 @@ void tcp_server_endpoint_impl::receive() {
 }
 
 void tcp_server_endpoint_impl::print_status() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     connections_t its_connections;
     {
-        std::lock_guard<std::mutex> its_lock_inner(connections_mutex_);
+        std::scoped_lock its_lock_inner(connections_mutex_);
         its_connections = connections_;
     }
 
@@ -964,7 +964,7 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::
     if (!its_server)
         return;
 
-    std::lock_guard<std::mutex> its_lock(its_server->mutex_);
+    std::scoped_lock its_lock(its_server->mutex_);
 
     auto it = its_server->targets_.find(remote_);
     if (it != its_server->targets_.end()) {
@@ -983,7 +983,7 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::
         }
     }
     {
-        std::lock_guard<std::mutex> its_lock_inner(its_server->connections_mutex_);
+        std::scoped_lock its_lock_inner(its_server->connections_mutex_);
         stop();
     }
     its_server->remove_connection(remote_, this);

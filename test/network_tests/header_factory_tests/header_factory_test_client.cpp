@@ -75,14 +75,14 @@ void header_factory_test_client::on_message(const std::shared_ptr<vsomeip::messa
     ASSERT_EQ(_response->get_instance(), vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     ASSERT_EQ(_response->get_session(), static_cast<vsomeip::session_t>(number_of_acknowledged_messages_));
     if (number_of_acknowledged_messages_ == number_of_messages_to_send_) {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         blocked_ = true;
         condition_.notify_one();
     }
 }
 
 void header_factory_test_client::send() {
-    std::lock_guard<std::mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     blocked_ = true;
     condition_.notify_one();
 }

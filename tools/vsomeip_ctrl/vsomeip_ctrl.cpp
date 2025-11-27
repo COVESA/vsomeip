@@ -80,7 +80,7 @@ public:
         if (_is_available) {
             VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance
                          << "] is available.";
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_service_available_ = false;
             condition_.notify_one();
         }
@@ -126,7 +126,7 @@ public:
         VSOMEIP_INFO << "########## end message";
         VSOMEIP_INFO << "Payload as byte stream: " << str;
         str.clear();
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_for_answer_ = false;
         condition_.notify_one();
     }

@@ -66,7 +66,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -76,7 +76,7 @@ public:
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available" : "not available") << ".";
         if (_is_available) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_service_available_ = false;
             condition_.notify_one();
         }
@@ -102,7 +102,7 @@ public:
             length_last_received_msg = _message->get_payload()->get_length();
         }
         if (++number_events_received_ == number_events_to_send_) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_events_received_ = false;
             condition_.notify_one();
         }
@@ -116,7 +116,7 @@ public:
         EXPECT_EQ(service_info_.service_id, _message->get_service());
         EXPECT_EQ(service_info_.shutdown_method_id, _message->get_method());
         EXPECT_EQ(service_info_.instance_id, _message->get_instance());
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         wait_until_shutdown_reply_received_ = false;
         condition_.notify_one();
     }
@@ -129,7 +129,7 @@ public:
         EXPECT_EQ(service_info_.event_id, _event);
         EXPECT_TRUE((error_code == 0x0u || error_code == 0x7u));
         if (error_code == 0x0u) { // accepted
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_subscription_accepted_ = false;
             condition_.notify_one();
         }

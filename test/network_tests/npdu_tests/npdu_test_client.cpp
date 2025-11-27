@@ -160,23 +160,23 @@ void npdu_test_client::on_message(const std::shared_ptr<vsomeip::message>& _resp
 
     if (call_service_sync_) {
         // We notify the sender thread every time a message was acknowledged
-        std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
+        std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
         all_msg_acknowledged_[service_idx][method_idx] = true;
         all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
     } else {
 
-        std::lock_guard<std::mutex> its_lock(number_of_acknowledged_messages_mutexes_[service_idx][method_idx]);
+        std::scoped_lock its_lock(number_of_acknowledged_messages_mutexes_[service_idx][method_idx]);
         number_of_acknowledged_messages_[service_idx][method_idx]++;
 
         // We notify the sender thread only if all sent messages have been acknowledged
         if (number_of_acknowledged_messages_[service_idx][method_idx] == number_of_messages_to_send_) {
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
+            std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
             // reset
             number_of_acknowledged_messages_[service_idx][method_idx] = 0;
             all_msg_acknowledged_[service_idx][method_idx] = true;
             all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
         } else if (number_of_acknowledged_messages_[service_idx][method_idx] % sliding_window_size_ == 0) {
-            std::lock_guard<std::mutex> lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
+            std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
             all_msg_acknowledged_[service_idx][method_idx] = true;
             all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
         }
@@ -185,7 +185,7 @@ void npdu_test_client::on_message(const std::shared_ptr<vsomeip::message>& _resp
 
 template<int service_idx>
 void npdu_test_client::send() {
-    std::lock_guard<std::mutex> its_lock(mutexes_[service_idx]);
+    std::scoped_lock its_lock(mutexes_[service_idx]);
     blocked_[service_idx] = true;
     conditions_[service_idx].notify_one();
 }
@@ -233,7 +233,7 @@ void npdu_test_client::run() {
     blocked_[service_idx] = false;
 
     {
-        std::lock_guard<std::mutex> its_lock(finished_mutex_);
+        std::scoped_lock its_lock(finished_mutex_);
         finished_[service_idx] = true;
     }
 }
@@ -372,7 +372,7 @@ void npdu_test_client::wait_for_all_senders() {
     bool all_finished(false);
     while (!all_finished) {
         {
-            std::lock_guard<std::mutex> its_lock(finished_mutex_);
+            std::scoped_lock its_lock(finished_mutex_);
             if (std::all_of(finished_.begin(), finished_.end(), [](bool i) { return i; })) {
                 all_finished = true;
             }

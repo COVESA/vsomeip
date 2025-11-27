@@ -91,14 +91,14 @@ void debounce_test_client::on_availability(vsomeip::service_t _service, vsomeip:
         if (_is_available) {
             VSOMEIP_ERROR << __func__ << ": Debounce service becomes available.";
             {
-                std::lock_guard<std::mutex> its_lock(run_mutex_);
+                std::scoped_lock its_lock(run_mutex_);
                 is_available_ = true;
             }
             run_condition_.notify_one();
         } else {
             VSOMEIP_ERROR << __func__ << ": Debounce service becomes unavailable.";
 
-            std::lock_guard<std::mutex> its_lock(run_mutex_);
+            std::scoped_lock its_lock(run_mutex_);
             is_available_ = false;
         }
     }

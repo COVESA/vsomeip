@@ -26,7 +26,7 @@ public:
 
     ~magic_cookies_test_service() { offer_thread_.join(); }
     void init() {
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
 
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -54,7 +54,7 @@ public:
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             if (!is_registered_) {
                 is_registered_ = true;
-                std::lock_guard<std::mutex> its_lock(mutex_);
+                std::scoped_lock its_lock(mutex_);
                 blocked_ = true;
                 condition_.notify_one();
             }
@@ -78,7 +78,7 @@ public:
 
         app_->send(its_response);
         if (_request->get_session() == 0x0F) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             blocked_ = true;
             condition_.notify_one();
         }

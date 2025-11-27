@@ -15,7 +15,7 @@ namespace profile07 {
 
 /** @req [SWS_E2E_00486] */
 void protector::protect(e2e_buffer& _buffer, instance_t _instance) {
-    std::lock_guard<std::mutex> lock(protect_mutex_);
+    std::scoped_lock lock(protect_mutex_);
 
     /** @req: [SWS_E2E_00487] */
     if (verify_inputs(_buffer)) {

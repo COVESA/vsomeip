@@ -89,7 +89,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             wait_until_registered_ = false;
             condition_.notify_one();
         }
@@ -113,7 +113,7 @@ public:
             }
         }
         if (notify) {
-            std::lock_guard<std::mutex> its_lock(availability_mutex_);
+            std::scoped_lock its_lock(availability_mutex_);
             wait_until_stop_service_other_node_available_ = false;
             availability_condition_.notify_one();
         }
@@ -124,7 +124,7 @@ public:
             VSOMEIP_DEBUG << "Received a request with Client/Session [" << std::hex << std::setfill('0') << std::setw(4)
                           << _message->get_client() << "/" << std::setw(4) << _message->get_session() << "] shutdown method called";
 
-            std::lock_guard<std::mutex> its_lock(stop_mutex_);
+            std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
             stop_condition_.notify_one();
         }

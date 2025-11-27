@@ -79,7 +79,7 @@ private:
             VSOMEIP_DEBUG << "[TEST] Wait runner: " << std::boolalpha << wait_runner_.load();
 
             {
-                std::lock_guard<std::mutex> its_lock(sr_mutex_);
+                std::scoped_lock its_lock(sr_mutex_);
                 sr_cv_.notify_one();
             }
 
@@ -236,13 +236,13 @@ private:
                 switch (its_control_byte) {
                 case TEST_SUSPEND: {
                     VSOMEIP_INFO << "[TEST] STR simulation: trigger";
-                    std::lock_guard<std::mutex> its_lock(sr_mutex_);
+                    std::scoped_lock its_lock(sr_mutex_);
                     is_suspend_requested_ = true;
                     sr_cv_.notify_one();
                 } break;
                 case TEST_STOP: {
                     VSOMEIP_INFO << "[TEST] Request: stop";
-                    std::lock_guard<std::mutex> its_lock(mutex_);
+                    std::scoped_lock its_lock(mutex_);
                     cv_.notify_one();
                 } break;
                 default:;
