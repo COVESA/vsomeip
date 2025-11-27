@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <vector>
 #include <ostream>
+#include <utility> // asio misses std::exchange
 
 #include <boost/asio.hpp>
 

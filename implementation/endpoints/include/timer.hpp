@@ -8,7 +8,10 @@
 
 #include "abstract_timer.hpp"
 
+#include <utility> // asio misses std::exchange
+
 #include <boost/asio.hpp>
+
 #include <functional>
 #include <memory>
 #include <mutex>

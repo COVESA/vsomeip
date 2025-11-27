@@ -738,7 +738,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                         std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
 #endif
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                        std::shared_ptr<vsomeip::message> its_message(its_deserializer.deserialize_message());
+                        std::shared_ptr<vsomeip::message> its_message = its_deserializer.deserialize_message();
                         EXPECT_EQ(0x3345, its_message->get_service());
                         EXPECT_EQ(0x1, its_message->get_method());
                         EXPECT_EQ(0xCCCC, its_message->get_client());
@@ -788,7 +788,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                             tcp_socket5.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                        std::shared_ptr<vsomeip::message> its_message(its_deserializer.deserialize_message());
+                        std::shared_ptr<vsomeip::message> its_message = its_deserializer.deserialize_message();
                         EXPECT_EQ(0x3345, its_message->get_service());
                         EXPECT_EQ(0x1, its_message->get_method());
                         EXPECT_EQ(0xCCCC, its_message->get_client());
@@ -1543,7 +1543,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
                 auto receive_cbk = [&](const boost::system::error_code& _error, std::size_t bytes_transferred) {
                     if (!_error) {
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
-                        std::shared_ptr<vsomeip::message> its_message(its_deserializer.deserialize_message());
+                        std::shared_ptr<vsomeip::message> its_message = its_deserializer.deserialize_message();
                         EXPECT_EQ(0x3345, its_message->get_service());
                         EXPECT_EQ(0x1, its_message->get_method());
                         EXPECT_EQ(0xCCCC, its_message->get_client());

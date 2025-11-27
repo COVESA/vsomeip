@@ -287,7 +287,6 @@ TEST_F(test_timer_with_asio, a_timer_stopped_during_execution_from_another_threa
         ++execution_count;
         ++step;
         cv.notify_one();
-        lock.unlock();
         cv.wait_for(lock, 5s, [&] { return step == 2; });
         return true;
     });

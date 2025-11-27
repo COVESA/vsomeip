@@ -149,17 +149,19 @@ bool deserializer::look_ahead(std::size_t _index, uint32_t& _value) const {
     return true;
 }
 
-message_impl* deserializer::deserialize_message() try {
-    std::unique_ptr<message_impl> deserialized_message = std::make_unique<message_impl>();
-    if (false == deserialized_message->deserialize(this)) {
-        VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
-        deserialized_message = nullptr;
-    }
+std::shared_ptr<message_impl> deserializer::deserialize_message() {
+    try {
+        auto deserialized_message = std::make_shared<message_impl>();
+        if (false == deserialized_message->deserialize(this)) {
+            VSOMEIP_ERROR << "SOME/IP message deserialization failed!";
+            deserialized_message = nullptr;
+        }
 
-    return deserialized_message.release();
-} catch (const std::exception& e) {
-    VSOMEIP_ERROR << "SOME/IP message deserialization failed with exception: " << e.what();
-    return nullptr;
+        return deserialized_message;
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR << "SOME/IP message deserialization failed with exception: " << e.what();
+        return nullptr;
+    }
 }
 
 void deserializer::set_data(const byte_t* _data, std::size_t _length) {

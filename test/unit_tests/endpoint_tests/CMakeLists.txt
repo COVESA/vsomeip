@@ -38,6 +38,10 @@ set(
     ../../../implementation/configuration/src/configuration_impl.cpp
 )
 
+# see https://github.com/google/googletest/issues/3514
+# otherwise test_local_endpoint.cpp fails to compile in clang
+add_compile_options(-Wno-uninitialized)
+
 add_executable(
     ${PROJECT_NAME}
     ${TEST_SRCS}

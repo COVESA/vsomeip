@@ -1,0 +1,22 @@
+diff a/CMakePresets.json b/CMakePresets.json	(rejected hunks)
+@@ -80,7 +80,7 @@
+             "displayName": "Network tests (CI)",
+             "description": "Preset for network tests on CI",
+             "configurePreset": "ci-network-tests",
+-            "targets": "build_network_tests"
++            "targets": "build_tests"
+         }
+     ],
+     "testPresets": [
+@@ -103,11 +103,6 @@
+             },
+             "execution": {
+                 "timeout": 150
+-            },
+-            "filter": {
+-                "exclude": {
+-                    "name": "^unit_"
+-                }
+             }
+         }
+     ]
