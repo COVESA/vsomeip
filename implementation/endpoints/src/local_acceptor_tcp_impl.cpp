@@ -102,6 +102,8 @@ void local_acceptor_tcp_impl::accept_cbk(boost::system::error_code const& _ec, c
     if (ec) {
         VSOMEIP_WARNING << "lati::" << __func__ << ": could not read remote endpoint, "
                         << "error: " << ec.message();
+        // invoke handler only without the lock (avoids the need of a recursive mutex)
+        lock.unlock();
         _handler(ec, nullptr);
         return;
     }

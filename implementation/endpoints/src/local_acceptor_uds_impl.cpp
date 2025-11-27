@@ -121,6 +121,8 @@ void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, c
     if (ec) {
         VSOMEIP_WARNING << "laui::" << __func__ << ": could not read remote endpoint, "
                         << "error: " << ec.message() << ", mem: " << this;
+        // invoke handler only without the lock (avoids the need of a recursive mutex)
+        lock.unlock();
         _handler(ec, nullptr);
         return;
     }
