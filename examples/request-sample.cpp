@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <mutex>
 
 #include <vsomeip/vsomeip.hpp>
 

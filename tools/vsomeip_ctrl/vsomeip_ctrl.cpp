@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <mutex>
 
 namespace vsomeip_ctrl {
 
