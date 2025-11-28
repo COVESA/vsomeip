@@ -111,7 +111,7 @@ bool local_socket_uds_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused
     std::scoped_lock const lock{socket_mtx_};
     int handle = socket_->native_handle();
     ucred out;
-    if (unsigned int len = sizeof(ucred); -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &out, &len)) {
+    if (socklen_t len = sizeof(ucred); -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &out, &len)) {
         VSOMEIP_WARNING << "lsui::" << __func__ << ": could not getsockopt(SO_PEERCRED), errno " << errno << ", " << name_;
         return false;
     }
