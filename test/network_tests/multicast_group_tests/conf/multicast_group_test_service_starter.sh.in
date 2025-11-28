@@ -40,7 +40,7 @@ wait "$SERVICE_PID" || ((FAIL=1))
 kill "$DAEMON_PID"
 
 # Wait for the routing manager to exit.
-wait "$DAEMON_PID"
+wait "$DAEMON_PID" || ((FAIL+=1))
 
 # Return the result of the test.
 exit "$FAIL"

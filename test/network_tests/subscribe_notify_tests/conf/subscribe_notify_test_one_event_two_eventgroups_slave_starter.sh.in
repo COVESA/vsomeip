@@ -39,8 +39,6 @@ wait $PID_SERVICE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
-echo ""
-
 # Check if both exited successfully
 if [ $FAIL -eq 0 ]; then
     exit 0

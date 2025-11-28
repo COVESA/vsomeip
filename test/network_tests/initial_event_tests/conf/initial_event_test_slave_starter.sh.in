@@ -94,7 +94,10 @@ wait $FIRST_PID || FAIL=$(($FAIL+1))
 
 # shutdown the services
 kill $PID_SERVICE_SIX
+wait $PID_SERVICE_SIX || FAIL=$(($FAIL+1))
 kill $PID_SERVICE_FIVE
+wait $PID_SERVICE_FIVE || FAIL=$(($FAIL+1))
 kill $PID_SERVICE_FOUR
+wait $PID_SERVICE_FOUR || FAIL=$(($FAIL+1))
 
 exit $FAIL

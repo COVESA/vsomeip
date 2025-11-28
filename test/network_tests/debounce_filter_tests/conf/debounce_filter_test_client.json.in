@@ -24,6 +24,7 @@
           ]
       }
   ],
+  "routing": "routingmanagerd",
   "service-discovery" :
    {
       "enable" : "true",

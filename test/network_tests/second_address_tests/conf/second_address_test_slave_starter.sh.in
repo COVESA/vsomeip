@@ -44,7 +44,7 @@ export VSOMEIP_APPLICATION_NAME=$SLAVE_APPLICATION
 
 # kill the services
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 # Delete second IP address
 ip addr del @TEST_IP_SLAVE_SECOND@/32 dev eth0

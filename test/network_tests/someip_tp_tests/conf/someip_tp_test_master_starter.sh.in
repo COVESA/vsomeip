@@ -59,7 +59,7 @@ done
 
 # kill the services
 kill $PID_VSOMEIPD
-sleep 1
+wait $PID_VSOMEIPD
 
 # Check if everything went well
 exit $FAIL

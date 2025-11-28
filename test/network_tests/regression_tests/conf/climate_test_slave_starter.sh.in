@@ -26,7 +26,7 @@ TEST_CLIENT_PID=$!
 wait $TEST_CLIENT_PID || FAIL=$(($FAIL+1))
 
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 # Check if both exited successfully
 if [ $FAIL -eq 0 ]

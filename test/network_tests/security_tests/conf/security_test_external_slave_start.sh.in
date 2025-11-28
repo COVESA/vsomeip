@@ -33,6 +33,6 @@ export VSOMEIP_APPLICATION_NAME=service-sample
 ./security_test_service --remote $2 || ((FAIL+=1))
 
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 exit $FAIL

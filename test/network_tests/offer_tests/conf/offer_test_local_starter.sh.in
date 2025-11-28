@@ -105,7 +105,7 @@ wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 cat <<End-of-message
 *******************************************************************************
@@ -165,7 +165,7 @@ wait $CLIENT_PID_TWO || FAIL=$(($FAIL+1))
 kill -USR1 $PID_SERVICE_THREE
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 cat <<End-of-message
 *******************************************************************************
@@ -228,7 +228,7 @@ kill -USR1 $PID_SERVICE_THREE
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 cat <<End-of-message
 *******************************************************************************
@@ -300,6 +300,6 @@ wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_THREE || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_FOUR || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 exit $FAIL
