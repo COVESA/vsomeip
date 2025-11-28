@@ -16,6 +16,7 @@
       "unreliable" : "30503"
     }
   ],
+  "routing": "routingmanagerd",
   "service-discovery" :
    {
       "enable" : "true",

@@ -61,6 +61,7 @@ wait $SERVICE_PID || ((FAIL+=1))
 wait $CLIENT_PID || ((FAIL+=1))
 
 kill $PID_VSOMEIPD
+wait $PID_VSOMEIPD || ((FAIL+=1))
 
 # Check if client and server both exited successfully and the service didnt't
 # have any open

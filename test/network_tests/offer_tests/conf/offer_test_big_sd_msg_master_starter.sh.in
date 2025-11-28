@@ -51,6 +51,6 @@ wait $SERVICE_PID || FAIL=$(($FAIL+1))
 
 # kill the services
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 exit $FAIL

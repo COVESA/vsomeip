@@ -66,7 +66,7 @@ wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 # Rejecting remote offer for which there is already a local offer
 # * start application which offers service
@@ -112,11 +112,12 @@ fi
 # Fail gets incremented if a client exits with a non-zero exit code
 wait $CLIENT_PID_ONE || FAIL=$(($FAIL+1))
 kill $SLAVE_PID
+wait $SLAVE_PID
 kill -USR1 $PID_SERVICE_TWO
 wait $PID_SERVICE_TWO || FAIL=$(($FAIL+1))
 
 # kill the services
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 exit $FAIL

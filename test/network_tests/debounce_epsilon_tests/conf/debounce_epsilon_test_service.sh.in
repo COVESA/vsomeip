@@ -41,6 +41,7 @@ function main() {
 
     # Stop the routing host.
     kill "$host_pid"
+    wait "$host_pid"
 
     echo -e "$SCRIPT: Done."
 

@@ -52,7 +52,7 @@ wait "$SERVICE_PID" || FAIL=$((FAIL+1))
 
 # Send a termination signal to the routing manager and wait for it to exit.
 kill "$DAEMON_PID"
-wait "$DAEMON_PID"
+wait "$DAEMON_PID" || FAIL=$((FAIL+1))
 
 # Return the result of the test.
 exit "$FAIL"

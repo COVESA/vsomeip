@@ -64,7 +64,7 @@ wait $PID_SERVICE || FAIL=$(($FAIL+1))
 
 # kill the routingmanagerd
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 # Check if everything went well
 exit $FAIL

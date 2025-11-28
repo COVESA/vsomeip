@@ -77,6 +77,7 @@ int routingmanagerd_process(bool _is_quiet) {
     // Create the application object, and initialize it before sighandler thread starts
     its_application = its_runtime->create_application("routingmanagerd");
     if (!its_application->init()) {
+        its_application.reset();
         return -1;
     }
 
@@ -124,6 +125,8 @@ int routingmanagerd_process(bool _is_quiet) {
             sighandler_thread.detach();
         }
 #endif
+
+        its_application.reset();
         return 0;
     }
     VSOMEIP_ERROR << "routingmanagerd has not been configured as routing - abort";
@@ -142,6 +145,7 @@ int routingmanagerd_process(bool _is_quiet) {
         sighandler_thread.detach();
     }
 #endif
+    its_application.reset();
     return -1;
 }
 

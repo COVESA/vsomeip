@@ -29,7 +29,7 @@ wait "$FIRST_CLIENT_PID" || ((FAIL=1))
 kill "$HOST_PID"
 
 # Wait for the routing manager to exit.
-wait "$HOST_PID"
+wait "$HOST_PID" || ((FAIL+=1))
 
 # Return the result of the test.
 exit "$FAIL"

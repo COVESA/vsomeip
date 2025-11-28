@@ -30,7 +30,7 @@ export VSOMEIP_APPLICATION_NAME="service-sample"
 
 # kill the services
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 # Check if everything went well
 exit $FAIL

@@ -42,6 +42,6 @@ wait $PID_MASTER || FAIL=$(($FAIL+1))
 wait $PID_SLAVE || FAIL=$(($FAIL+1))
 
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 exit $FAIL
