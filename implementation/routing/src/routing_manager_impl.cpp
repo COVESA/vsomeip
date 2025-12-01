@@ -598,7 +598,7 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
                     for (const auto& e : its_events) {
                         if (e->is_set()) {
                             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0')
-                                         << std::setw(4) << _service << "." << _instance << "." << e->get_event();
+                                         << std::setw(4) << _service << "." << _instance << "." << e->get_event() << "]";
                         }
                         e->unset_payload(true);
                     }
@@ -2281,7 +2281,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
     for (const auto& e : its_events) {
         if (e->is_set()) {
             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event();
+                         << "." << _instance << "." << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -2901,7 +2901,7 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
                             if (!has_remote_subscriber && its_event->is_shadow()) {
                                 if (its_event->is_set()) {
                                     VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0')
-                                                 << std::setw(4) << its_service << "." << its_instance << "." << its_event->get_event();
+                                                 << std::setw(4) << its_service << "." << its_instance << "." << its_event->get_event() << "]";
                                 }
                                 its_event->unset_payload();
                             }
@@ -3781,7 +3781,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(servic
     for (const auto& e : its_events) {
         if (e->is_set()) {
             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event();
+                         << "." << _instance << "." << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -4003,7 +4003,7 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
                     if (!has_remote_subscriber && its_event->is_shadow()) {
                         if (its_event->is_set()) {
                             VSOMEIP_INFO << "rmi::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0')
-                                         << std::setw(4) << _service << "." << _instance << "." << its_event->get_event();
+                                         << std::setw(4) << _service << "." << _instance << "." << its_event->get_event() << "]";
                         }
                         its_event->unset_payload();
                     }

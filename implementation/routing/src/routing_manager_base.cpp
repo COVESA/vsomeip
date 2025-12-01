@@ -263,7 +263,7 @@ void routing_manager_base::stop_offer_service(client_t _client, service_t _servi
     for (auto& e : events) {
         if (e.second->is_set()) {
             VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e.first;
+                         << "." << _instance << "." << e.first << "]";
         }
         e.second->unset_payload();
         e.second->clear_subscribers();
@@ -360,7 +360,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                 // don't cache payload for non-fields
                 if (its_event->is_set()) {
                     VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4)
-                                 << _service << "." << _instance << "." << its_event;
+                                 << _service << "." << _instance << "." << its_event << "]";
                 }
                 its_event->unset_payload(true);
             }
@@ -879,7 +879,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
     for (const auto& e : its_events) {
         if (e->is_set()) {
             VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event();
+                         << "." << _instance << "." << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -904,7 +904,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
     for (const auto& e : its_events) {
         if (e->is_set()) {
             VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event();
+                         << "." << _instance << "." << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
