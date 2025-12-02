@@ -142,8 +142,8 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
         }
     }
 }
-void local_server::add_connection(client_t _client, std::shared_ptr<local_socket> _socket, local_receive_buffer _buffer, uint32_t _lc_count,
-                                  std::string _environment) {
+void local_server::add_connection(client_t _client, std::shared_ptr<local_socket> _socket, std::shared_ptr<local_receive_buffer> _buffer,
+                                  uint32_t _lc_count, std::string _environment) {
 
     std::unique_lock lock{mtx_};
     if (_lc_count == lc_count_) {
@@ -237,14 +237,16 @@ void local_server::start_unlock(uint32_t _lc_count) {
 local_server::tmp_connection::tmp_connection(std::shared_ptr<local_socket> _socket, bool _is_router, uint32_t _lc_count,
                                              std::weak_ptr<local_server> _parent, std::shared_ptr<configuration> _configuration) :
     is_router_(_is_router), lc_count_{_lc_count}, socket_(std::move(_socket)),
-    receive_buffer_(_configuration->get_max_message_size_local(), _configuration->get_buffer_shrink_threshold()),
+    receive_buffer_(std::make_shared<local_receive_buffer>(_configuration->get_max_message_size_local(),
+                                                           _configuration->get_buffer_shrink_threshold())),
     parent_(std::move(_parent)), configuration_(std::move(_configuration)) { }
 
 local_server::tmp_connection::~tmp_connection() = default;
 
 void local_server::tmp_connection::async_receive() {
-    socket_->async_receive(receive_buffer_.buffer(),
-                           [self = shared_from_this()](auto const& _ec, size_t _bytes) { self->receive_cbk(_ec, _bytes); });
+    socket_->async_receive(
+            receive_buffer_->buffer(),
+            [self = shared_from_this(), buffer_cp = receive_buffer_](auto const& _ec, size_t _bytes) { self->receive_cbk(_ec, _bytes); });
 }
 
 void local_server::tmp_connection::receive_cbk(boost::system::error_code const& _ec, size_t _bytes) {
@@ -255,14 +257,14 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
         return;
     }
     next_message_result result;
-    if (!receive_buffer_.bump_end(_bytes)) {
+    if (!receive_buffer_->bump_end(_bytes)) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": inconsistent buffer handling, trying add the read of: " << _bytes
-                      << " bytes to the buffer: " << receive_buffer_ << ", dropping connection: " << socket_->to_string();
+                      << " bytes to the buffer: " << *receive_buffer_ << ", dropping connection: " << socket_->to_string();
         socket_->stop(true);
         return;
     }
-    if (receive_buffer_.next_message(result)) {
-        if (receive_buffer_[protocol::COMMAND_POSITION_ID] == protocol::id_e::ASSIGN_CLIENT_ID && is_router_) {
+    if (receive_buffer_->next_message(result)) {
+        if ((*receive_buffer_)[protocol::COMMAND_POSITION_ID] == protocol::id_e::ASSIGN_CLIENT_ID && is_router_) {
             auto client_id = assign_client(result.message_size_);
 
             std::stringstream ss;
@@ -277,10 +279,10 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
             VSOMEIP_INFO << ss.str();
 
             send_client_id(client_id);
-        } else if (receive_buffer_[protocol::COMMAND_POSITION_ID] == protocol::id_e::CONFIG_ID && !is_router_) {
+        } else if ((*receive_buffer_)[protocol::COMMAND_POSITION_ID] == protocol::id_e::CONFIG_ID && !is_router_) {
             confirm_connection(result.message_size_);
         } else {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: " << receive_buffer_[protocol::COMMAND_POSITION_ID]
+            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: " << (*receive_buffer_)[protocol::COMMAND_POSITION_ID]
                           << " received. Breaking connection > " << socket_->to_string();
             socket_->stop(true);
         }
@@ -296,7 +298,7 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
 
 client_t local_server::tmp_connection::assign_client(size_t _message_size) const {
 
-    std::vector<byte_t> its_data(&receive_buffer_[0], (&receive_buffer_[0]) + _message_size);
+    std::vector<byte_t> its_data(&(*receive_buffer_)[0], (&(*receive_buffer_)[0]) + _message_size);
     protocol::assign_client_command command;
     protocol::error_e ec;
 
@@ -311,7 +313,7 @@ client_t local_server::tmp_connection::assign_client(size_t _message_size) const
 }
 
 void local_server::tmp_connection::confirm_connection(size_t _message_size) {
-    std::vector<byte_t> its_data(&receive_buffer_[0], (&receive_buffer_[0]) + _message_size);
+    std::vector<byte_t> its_data(&(*receive_buffer_)[0], (&(*receive_buffer_)[0]) + _message_size);
     protocol::config_command command;
     protocol::error_e ec;
 
@@ -354,7 +356,7 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
 
 void local_server::tmp_connection::hand_over(client_t _client, std::string _environment) {
     if (auto p = parent_.lock(); p) {
-        p->add_connection(_client, std::move(socket_), std::move(receive_buffer_), lc_count_, std::move(_environment));
+        p->add_connection(_client, std::move(socket_), receive_buffer_, lc_count_, std::move(_environment));
     }
 }
 }

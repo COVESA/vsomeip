@@ -122,8 +122,8 @@ private:
      * Rejects connection if lifecycle counter doesn't match (stale connection).
      * Notifies routing_host and creates local_endpoint for ongoing communication.
      */
-    void add_connection(client_t _client, std::shared_ptr<local_socket> _socket, local_receive_buffer _buffer, uint32_t _lc_count,
-                        std::string _environment);
+    void add_connection(client_t _client, std::shared_ptr<local_socket> _socket, std::shared_ptr<local_receive_buffer> _buffer,
+                        uint32_t _lc_count, std::string _environment);
 
     /**
      * @brief Removes a connection when endpoint reports failure.
@@ -169,7 +169,7 @@ private:
         uint32_t const lc_count_{0};
         std::shared_ptr<local_socket> socket_; // not const as it will be moved out after the handshake
 
-        local_receive_buffer receive_buffer_;
+        std::shared_ptr<local_receive_buffer> const receive_buffer_;
 
         std::weak_ptr<local_server> const parent_;
         std::shared_ptr<configuration> const configuration_;

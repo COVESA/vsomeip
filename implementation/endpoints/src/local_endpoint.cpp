@@ -42,7 +42,8 @@ std::ostream& operator<<(std::ostream& _out, local_endpoint::state_e _state) {
 }
 
 std::shared_ptr<local_endpoint> local_endpoint::create_server_ep(local_endpoint_context const& _context, local_endpoint_params _params,
-                                                                 local_receive_buffer _receive_buffer, bool _is_routing_endpoint) {
+                                                                 std::shared_ptr<local_receive_buffer> _receive_buffer,
+                                                                 bool _is_routing_endpoint) {
     auto p = std::make_shared<local_endpoint>(hidden{}, _context, std::move(_params), std::move(_receive_buffer), _is_routing_endpoint,
                                               state_e::CONNECTED);
     if (!p->is_allowed()) {
@@ -53,14 +54,14 @@ std::shared_ptr<local_endpoint> local_endpoint::create_server_ep(local_endpoint_
 }
 
 std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_context const& _context, local_endpoint_params _params) {
-    auto buffer = local_receive_buffer(_context.configuration_->get_max_message_size_local(),
-                                       _context.configuration_->get_buffer_shrink_threshold());
+    auto buffer = std::make_shared<local_receive_buffer>(_context.configuration_->get_max_message_size_local(),
+                                                         _context.configuration_->get_buffer_shrink_threshold());
     auto p = std::make_shared<local_endpoint>(hidden{}, _context, std::move(_params), std::move(buffer), false, state_e::INIT);
     return p;
 }
 
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
-                               local_receive_buffer _receive_buffer, bool _is_routing_endpoint, state_e _initial_state) :
+                               std::shared_ptr<local_receive_buffer> _receive_buffer, bool _is_routing_endpoint, state_e _initial_state) :
     is_routing_endpoint_(_is_routing_endpoint), state_(_initial_state), peer_(_params.peer_),
     max_connection_attempts_(MAX_RECONNECTS_LOCAL), max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
@@ -219,18 +220,14 @@ void local_endpoint::set_state_unlocked(state_e _state) {
 }
 
 void local_endpoint::receive_unlock() {
-    // Note: capturing the buffer as a pointer to memory, while not capturing a shared_ptr
-    // should be fine:
-    // 1. async_receive is dispatched (-> object is not in the "stopped")
-    // 2. object is supposed to be destroyed
-    // 3. object d'tor ensures ::close is called on the socket -> the buffer usage should be forbidden from now on.
-    // 4. now the buffer is cleaned up in the d'tor
-    // By not capturing shared_from_this it is ensures that there is no circular ownership
-    socket_->async_receive(receive_buffer_.buffer(), [weak_self = weak_from_this()](auto const& _ec, size_t _bytes) {
-        if (auto self = weak_self.lock(); self) {
-            self->receive_cbk(_ec, _bytes);
-        }
-    });
+    socket_->async_receive(
+            receive_buffer_->buffer(),
+            [weak_self = weak_from_this(),
+             buffer_cp = receive_buffer_ /*ensure memory remains alive until the cbk is invoked*/](auto const& _ec, size_t _bytes) {
+                if (auto self = weak_self.lock(); self) {
+                    self->receive_cbk(_ec, _bytes);
+                }
+            });
 }
 void local_endpoint::send_unlock() {
     if (state_ == state_e::CONNECTED && !is_sending_) {
@@ -321,7 +318,7 @@ std::string local_endpoint::status() const {
 std::string local_endpoint::status_unlock() const {
     std::stringstream s;
     s << "client: " << std::hex << std::setfill('0') << std::setw(4) << peer_ << ", connection : " << socket_->to_string()
-      << ", send_queue: " << send_queue_.size() << ", receive_buffer: " << receive_buffer_
+      << ", send_queue: " << send_queue_.size() << ", receive_buffer: " << *receive_buffer_
       << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
     return s.str();
 }
@@ -349,7 +346,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
 
 [[nodiscard]] bool local_endpoint::process(size_t _new_bytes) {
     std::unique_lock lock{mutex_};
-    if (_new_bytes > 0 && !receive_buffer_.bump_end(_new_bytes)) {
+    if (_new_bytes > 0 && !receive_buffer_->bump_end(_new_bytes)) {
         VSOMEIP_ERROR << "le::" << __func__ << ": inconsistent buffer handling, trying add the read of: " << _new_bytes
                       << " bytes, escalating on " << status_unlock();
         return false;
@@ -360,7 +357,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         return false;
     }
     auto const endpoint = socket_->peer_endpoint();
-    while (receive_buffer_.next_message(result)) {
+    while (receive_buffer_->next_message(result)) {
         lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
         routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
                             endpoint.port());
@@ -370,7 +367,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         VSOMEIP_ERROR << "le::" << __func__ << ": received parsing error, socket > " << status_unlock();
         return false;
     }
-    receive_buffer_.shift_front();
+    receive_buffer_->shift_front();
     receive_unlock();
     return true;
 }

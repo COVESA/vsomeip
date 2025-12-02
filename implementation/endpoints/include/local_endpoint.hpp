@@ -110,7 +110,8 @@ public:
      * @return Endpoint in CONNECTED state, or nullptr if security check fails.
      */
     static std::shared_ptr<local_endpoint> create_server_ep(local_endpoint_context const& _context, local_endpoint_params _params,
-                                                            local_receive_buffer _receive_buffer, bool _is_routing_endpoint);
+                                                            std::shared_ptr<local_receive_buffer> _receive_buffer,
+                                                            bool _is_routing_endpoint);
 
     /**
      * @brief Creates a sender endpoint for initiating connections.
@@ -123,8 +124,8 @@ public:
     /**
      * @brief Internal constructor - use factory methods instead.
      */
-    local_endpoint(hidden, local_endpoint_context const& _context, local_endpoint_params _params, local_receive_buffer _receive_buffer,
-                   bool _is_routing_endpoint_, state_e _initial_state);
+    local_endpoint(hidden, local_endpoint_context const& _context, local_endpoint_params _params,
+                   std::shared_ptr<local_receive_buffer> _receive_buffer, bool _is_routing_endpoint_, state_e _initial_state);
 
     virtual ~local_endpoint() override;
 
@@ -237,7 +238,7 @@ private:
     size_t const max_message_size_{0};
     size_t const queue_limit_{0};
 
-    local_receive_buffer receive_buffer_;
+    std::shared_ptr<local_receive_buffer> const receive_buffer_;
     std::vector<uint8_t> send_queue_;
     error_handler_t error_handler_;
 
