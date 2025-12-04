@@ -102,6 +102,10 @@ void local_endpoint::stop(bool _due_to_error) {
 
 void local_endpoint::escalate() {
     std::unique_lock lock{mutex_};
+    escalate_internal(lock);
+}
+
+void local_endpoint::escalate_internal(std::unique_lock<std::mutex>& _lock) {
     if (is_value(state_).any_of(state_e::FAILED, state_e::STOPPED)) {
         return;
     }
@@ -120,9 +124,10 @@ void local_endpoint::escalate() {
     // here. This would greatly ease reasoning about locking the class mutex, across
     // functions.
     error_handler_t h = error_handler_;
-    lock.unlock();
     if (h) {
+        _lock.unlock();
         h();
+        _lock.lock();
     }
 }
 
@@ -262,8 +267,7 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
     }
     if (!_ec) {
         if (!is_allowed()) {
-            lock.unlock();
-            escalate();
+            escalate_internal(lock);
             return;
         }
         set_state_unlocked(state_e::CONNECTED);
@@ -306,8 +310,7 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
         connect_debounce_->start();
     } else {
         VSOMEIP_WARNING << "le::" << __func__ << ": escalating the error: " << _ec.message() << ", " << status_unlock();
-        lock.unlock();
-        escalate();
+        escalate_internal(lock);
     }
 }
 
