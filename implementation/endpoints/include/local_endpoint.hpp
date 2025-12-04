@@ -203,6 +203,12 @@ private:
     void escalate();
 
     /**
+     * @brief Internal part of escalate() with lock held
+     * @note `_lock` must be held, will be unlocked to invoke error handler, then locked again
+     */
+    void escalate_internal(std::unique_lock<std::mutex>& _lock);
+
+    /**
      * @brief Validates peer credentials against security policy.
      * @return true if peer is allowed to connect, false otherwise.
      * @note Called during connection establishment.
