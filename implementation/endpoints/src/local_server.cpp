@@ -149,17 +149,20 @@ void local_server::add_connection(client_t _client, std::shared_ptr<local_socket
     if (_lc_count == lc_count_) {
         if (auto rh = routing_host_.lock(); rh) {
             auto const peer_endpoint = _socket->peer_endpoint();
+            // Carful: Order matters. First call add_known_client (lazy load of config for this client), before trying to create
+            // the endpoint (as the creation method is trying to reason whether the connection is allowed based on the loaded config).
+            // Carful: These calls should happen under the lock to guarantee consistency, and before the endpoint might be removed
+            // again from the map
+            rh->add_known_client(_client, _environment);
             auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_, endpoint_host_},
                                                        local_endpoint_params{_client, std::move(_socket)}, std::move(_buffer), is_router_);
             if (!ep) {
                 VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << std::hex << std::setfill('0')
                               << std::setw(4) << _client << ", self: " << this;
                 // socket is closed already in the create_server_ep on failure
+                rh->remove_known_client(_client);
                 return;
             }
-            // Carful: These calls should happen under the lock to guarantee consistency, and before the endpoint might be removed
-            // again from the map
-            rh->add_known_client(_client, _environment);
             if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
                 rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
             }

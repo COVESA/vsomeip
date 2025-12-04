@@ -98,6 +98,7 @@ public:
                                                    instance_t _instance, eventgroup_t _eventgroup) = 0;
 
     virtual void add_known_client(client_t _client, const std::string& _client_host) = 0;
+    virtual void remove_known_client(client_t _client) = 0;
 
     virtual std::string get_env(client_t _client) const = 0;
 

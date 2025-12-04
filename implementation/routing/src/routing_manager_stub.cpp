@@ -683,6 +683,9 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
 void routing_manager_stub::add_known_client(client_t _client, const std::string& _client_host) {
     host_->add_known_client(_client, _client_host);
 }
+void routing_manager_stub::remove_known_client(client_t _client) {
+    host_->remove_known_client(_client);
+}
 
 client_t routing_manager_stub::get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const {
     return host_->get_guest_by_address(_address, _port);

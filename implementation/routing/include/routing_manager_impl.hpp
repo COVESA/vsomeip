@@ -214,6 +214,7 @@ public:
 #endif
 
     void add_known_client(client_t _client, const std::string& _client_host);
+    void remove_known_client(client_t _client);
 
     void register_message_acceptance_handler(const message_acceptance_handler_t& _handler);
 
