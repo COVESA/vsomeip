@@ -34,6 +34,7 @@ public:
 
     virtual client_t get_client() const = 0;
     virtual void add_known_client(client_t _client, const std::string& _client_host) = 0;
+    virtual void remove_known_client(client_t _client) = 0;
     /// @brief Get guest client-id by address/port
     ///
     /// @return client-id of found guest, or VSOMEIP_CLIENT_UNSET

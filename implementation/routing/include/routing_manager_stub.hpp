@@ -104,6 +104,7 @@ public:
 #endif // !VSOMEIP_DISABLE_SECURITY
 
     void add_known_client(client_t _client, const std::string& _client_host) override;
+    void remove_known_client(client_t _client) override;
     client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const override;
     void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
 

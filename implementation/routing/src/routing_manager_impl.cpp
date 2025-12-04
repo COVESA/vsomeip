@@ -137,6 +137,9 @@ bool routing_manager_impl::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
 void routing_manager_impl::add_known_client(client_t _client, const std::string& _client_host) {
     routing_manager_base::add_known_client(_client, _client_host);
 }
+void routing_manager_impl::remove_known_client(client_t _client) {
+    routing_manager_base::remove_known_client(_client);
+}
 
 bool routing_manager_impl::is_routing_manager() const {
     return true;
