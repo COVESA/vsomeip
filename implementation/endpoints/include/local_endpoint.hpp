@@ -236,7 +236,7 @@ private:
     bool is_sending_{false};
     state_e state_{state_e::STOPPED};
     client_t const peer_;
-    vsomeip_sec_client_t sec_client_;
+    vsomeip_sec_client_t sec_client_{};
 
     uint32_t const max_connection_attempts_{0};
     uint32_t reconnect_counter_{0};
