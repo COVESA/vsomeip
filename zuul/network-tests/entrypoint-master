@@ -1,4 +1,4 @@
-#!/bin/bash -eu
+#!/bin/bash -xeu
 
 source "${BASH_SOURCE[0]%/*}"/shlib/common.shlib
 source "${BASH_SOURCE[0]%/*}"/shlib/results.shlib
