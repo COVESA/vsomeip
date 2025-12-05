@@ -1790,20 +1790,6 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     VSOMEIP_INFO << "rmc::" << __func__ << ": Application/Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                  << ": Reconnecting to routing manager.";
 
-#if defined(__linux__) || defined(__QNX__)
-    auto const sec_client = get_sec_client();
-    if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
-        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                      << " :  routing_manager_client::reconnect: isn't allowed"
-                      << " to use the server endpoint due to credential check failed!";
-        std::scoped_lock its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->stop(true);
-        }
-        return;
-    }
-#endif
-
     {
         std::scoped_lock lock(receiver_mutex_);
         if (!configuration_->is_local_routing()) {

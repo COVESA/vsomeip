@@ -36,7 +36,7 @@ public:
     std::shared_ptr<local_endpoint> create_local(client_t _client);
     void remove_local(client_t _client, bool _remove_due_to_error);
 
-    std::shared_ptr<local_endpoint> find_or_create_local(client_t _client);
+    std::shared_ptr<local_endpoint> find_or_create_local(client_t _client, bool _is_router = false);
     std::shared_ptr<local_endpoint> find_local(client_t _client);
     std::shared_ptr<local_endpoint> find_local(service_t _service, instance_t _instance);
 
@@ -69,7 +69,7 @@ protected:
     void print_status() const;
 
 private:
-    std::shared_ptr<local_endpoint> create_local_unlocked(client_t _client);
+    std::shared_ptr<local_endpoint> create_local_unlocked(client_t _client, bool _is_router);
     std::shared_ptr<local_endpoint> find_local_unlocked(client_t _client);
 
     bool get_local_server_port(port_t& _port, const std::set<port_t>& _used_ports) const;

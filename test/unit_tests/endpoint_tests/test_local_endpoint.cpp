@@ -62,7 +62,7 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
     auto create_client_ep() {
         return local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, client_routing_host_, client_endpoint_host_},
-                local_endpoint_params{server_,
+                local_endpoint_params{false, server_,
                                       std::make_unique<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint{},
                                                                               server_endpoint_, socket_role_e::SENDER)});
     }

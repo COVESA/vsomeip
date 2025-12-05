@@ -82,23 +82,25 @@ void local_acceptor_tcp_impl::cancel(boost::system::error_code& _ec) {
 
 void local_acceptor_tcp_impl::async_accept(connection_handler _handler) {
     std::scoped_lock const lock{mtx_};
-    socket_ = abstract_socket_factory::get()->create_tcp_socket(io_);
-    acceptor_->async_accept(*socket_, [weak_self = weak_from_this(), h = std::move(_handler)](auto const& _ec) {
+    // tmp_socket is a `shared_ptr` due to the `std::function`  below which requires everything to be copyable
+    std::shared_ptr<tcp_socket> tmp_socket = abstract_socket_factory::get()->create_tcp_socket(io_);
+    acceptor_->async_accept(*tmp_socket, [weak_self = weak_from_this(), h = std::move(_handler), tmp_socket](auto const& _ec) {
         if (auto self = weak_self.lock(); self) {
-            self->accept_cbk(_ec, std::move(h));
+            self->accept_cbk(_ec, std::move(h), tmp_socket);
         }
     });
 }
 
 // NOSONAR(cpp:S5213) - Handler is already std::function from async_accept, making this a template provides no benefit
-void local_acceptor_tcp_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler) {
+void local_acceptor_tcp_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler,
+                                         std::shared_ptr<tcp_socket> _socket) {
     if (_ec) {
         _handler(_ec, nullptr);
         return;
     }
     std::unique_lock lock{mtx_};
     boost::system::error_code ec;
-    auto remote = socket_->remote_endpoint(ec);
+    auto remote = _socket->remote_endpoint(ec);
     if (ec) {
         VSOMEIP_WARNING << "lati::" << __func__ << ": could not read remote endpoint, "
                         << "error: " << ec.message();
@@ -109,7 +111,7 @@ void local_acceptor_tcp_impl::accept_cbk(boost::system::error_code const& _ec, c
     }
 
     // transfer ownership of the socket member, subsequent async_accept calls will re-instantiate it
-    auto socket = std::make_shared<local_socket_tcp_impl>(io_, std::move(socket_), local_ep_, std::move(remote), socket_role_e::RECEIVER);
+    auto socket = std::make_shared<local_socket_tcp_impl>(io_, std::move(_socket), local_ep_, std::move(remote), socket_role_e::RECEIVER);
     socket->set_socket_options(*configuration_);
     lock.unlock();
     // invoke handler only without the lock (avoids the need of a recursive mutex)

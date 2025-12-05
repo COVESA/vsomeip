@@ -32,7 +32,7 @@ endpoint_manager_base::endpoint_manager_base(routing_manager_base* const _rm, bo
 
 std::shared_ptr<local_endpoint> endpoint_manager_base::create_local(client_t _client) {
     std::scoped_lock its_lock(local_endpoint_mutex_);
-    return create_local_unlocked(_client);
+    return create_local_unlocked(_client, false);
 }
 
 void endpoint_manager_base::remove_local(const client_t _client, bool _remove_due_to_error) {
@@ -49,7 +49,7 @@ void endpoint_manager_base::remove_local(const client_t _client, bool _remove_du
     }
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(client_t _client) {
+std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(client_t _client, bool _is_router) {
     std::shared_ptr<local_endpoint> its_endpoint{nullptr};
     {
         std::scoped_lock its_lock{local_endpoint_mutex_};
@@ -57,7 +57,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(clie
         if (!its_endpoint) {
             VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
                          << ", client " << _client;
-            its_endpoint = create_local_unlocked(_client);
+            its_endpoint = create_local_unlocked(_client, _is_router);
 
             if (its_endpoint) {
                 its_endpoint->start();
@@ -263,7 +263,7 @@ void endpoint_manager_base::log_client_states() const {
         VSOMEIP_WARNING << "ICQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(client_t _client) {
+std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(client_t _client, bool _is_router) {
 
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
@@ -273,7 +273,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
     if (is_local_routing_) {
         its_endpoint = local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, rm_->weak_from_this(), weak_from_this()},
-                local_endpoint_params{_client,
+                local_endpoint_params{_is_router, _client,
                                       std::make_shared<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(""),
                                                                               boost::asio::local::stream_protocol::endpoint(its_path.str()),
                                                                               socket_role_e::SENDER)});
@@ -294,7 +294,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
                 its_endpoint = local_endpoint::create_client_ep(
                         local_endpoint_context{io_, configuration_, rm_->weak_from_this(), weak_from_this()},
                         local_endpoint_params{
-                                _client,
+                                _is_router, _client,
                                 std::make_shared<local_socket_tcp_impl>(io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
                                                                         boost::asio::ip::tcp::endpoint(its_remote_address, its_remote_port),
                                                                         socket_role_e::SENDER)});

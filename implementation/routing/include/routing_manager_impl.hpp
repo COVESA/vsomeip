@@ -112,7 +112,7 @@ public:
 
     // interface to stub
     inline std::shared_ptr<local_endpoint> find_local(client_t _client) { return ep_mgr_->find_local(_client); }
-    inline std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) { return ep_mgr_->find_or_create_local(_client); }
+    inline std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) { return ep_mgr_->find_or_create_local(_client, true); }
 
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 

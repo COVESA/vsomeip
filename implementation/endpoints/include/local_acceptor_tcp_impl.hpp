@@ -70,11 +70,10 @@ public:
     virtual port_t get_local_port() override;
 
 private:
-    void accept_cbk(boost::system::error_code const& _ec, connection_handler _handler);
+    void accept_cbk(boost::system::error_code const& _ec, connection_handler _handler, std::shared_ptr<tcp_socket> _socket);
 
     boost::asio::io_context& io_;
     std::mutex mtx_;
-    std::unique_ptr<tcp_socket> socket_;
     boost::asio::ip::tcp::endpoint local_ep_;
     std::unique_ptr<tcp_acceptor> const acceptor_;
     std::shared_ptr<configuration> const configuration_;

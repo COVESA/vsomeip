@@ -16,6 +16,7 @@
 #include "../../protocol/include/assign_client_ack_command.hpp"
 
 #include "../../utility/include/utility.hpp"
+#include "../../utility/include/is_value.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 
@@ -37,11 +38,22 @@ local_server::~local_server() = default;
 
 void local_server::start() {
     std::scoped_lock const lock{mtx_};
+    if (state_ == state_e::STARTED) {
+        VSOMEIP_WARNING << "ls::" << __func__ << ": Rejecting the attempt to start the server when it is already started";
+        return;
+    }
+    state_ = state_e::STARTED;
+    ++lc_count_;
     start_unlock(lc_count_);
 }
 
 void local_server::stop() {
     std::scoped_lock const lock{mtx_};
+    if (state_ == state_e::STOPPED) {
+        VSOMEIP_WARNING << "ls::" << __func__ << ": Rejecting the attempt to stop the server when it is already stopped";
+        return;
+    }
+    state_ = state_e::STOPPED;
     ++lc_count_;
     boost::system::error_code ec;
     acceptor_->close(ec);
@@ -56,6 +68,11 @@ void local_server::stop() {
 
 void local_server::halt() {
     std::scoped_lock const lock{mtx_};
+    if (is_value(state_).any_of(state_e::HALTED, state_e::STOPPED)) {
+        VSOMEIP_WARNING << "ls::" << __func__ << ": Rejecting the attempt to stop the server when it is already stopped";
+        return;
+    }
+    state_ = state_e::HALTED;
     ++lc_count_;
     boost::system::error_code ec;
     acceptor_->cancel(ec);
@@ -155,7 +172,7 @@ void local_server::add_connection(client_t _client, std::shared_ptr<local_socket
             // again from the map
             rh->add_known_client(_client, _environment);
             auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_, endpoint_host_},
-                                                       local_endpoint_params{_client, std::move(_socket)}, std::move(_buffer), is_router_);
+                                                       local_endpoint_params{is_router_, _client, std::move(_socket)}, std::move(_buffer));
             if (!ep) {
                 VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << std::hex << std::setfill('0')
                               << std::setw(4) << _client << ", self: " << this;

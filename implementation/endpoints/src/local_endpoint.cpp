@@ -42,10 +42,8 @@ std::ostream& operator<<(std::ostream& _out, local_endpoint::state_e _state) {
 }
 
 std::shared_ptr<local_endpoint> local_endpoint::create_server_ep(local_endpoint_context const& _context, local_endpoint_params _params,
-                                                                 std::shared_ptr<local_receive_buffer> _receive_buffer,
-                                                                 bool _is_routing_endpoint) {
-    auto p = std::make_shared<local_endpoint>(hidden{}, _context, std::move(_params), std::move(_receive_buffer), _is_routing_endpoint,
-                                              state_e::CONNECTED);
+                                                                 std::shared_ptr<local_receive_buffer> _receive_buffer) {
+    auto p = std::make_shared<local_endpoint>(hidden{}, _context, std::move(_params), std::move(_receive_buffer), state_e::CONNECTED);
     if (!p->is_allowed()) {
         p->stop(false);
         return nullptr;
@@ -56,14 +54,14 @@ std::shared_ptr<local_endpoint> local_endpoint::create_server_ep(local_endpoint_
 std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_context const& _context, local_endpoint_params _params) {
     auto buffer = std::make_shared<local_receive_buffer>(_context.configuration_->get_max_message_size_local(),
                                                          _context.configuration_->get_buffer_shrink_threshold());
-    auto p = std::make_shared<local_endpoint>(hidden{}, _context, std::move(_params), std::move(buffer), false, state_e::INIT);
+    auto p = std::make_shared<local_endpoint>(hidden{}, _context, std::move(_params), std::move(buffer), state_e::INIT);
     return p;
 }
 
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
-                               std::shared_ptr<local_receive_buffer> _receive_buffer, bool _is_routing_endpoint, state_e _initial_state) :
-    is_routing_endpoint_(_is_routing_endpoint), state_(_initial_state), peer_(_params.peer_),
-    max_connection_attempts_(MAX_RECONNECTS_LOCAL), max_message_size_(_context.configuration_->get_max_message_size_local()),
+                               std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state) :
+    is_routing_endpoint_(_params.is_router_), state_(_initial_state), peer_(_params.peer_), max_connection_attempts_(MAX_RECONNECTS_LOCAL),
+    max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
     socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_),
     endpoint_host_(_context.endpoint_host_) { }
