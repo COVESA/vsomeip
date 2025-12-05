@@ -30,7 +30,7 @@ std::string to_string(boost::asio::ip::tcp::endpoint _own, boost::asio::ip::tcp:
 } // namespace
 namespace vsomeip_v3 {
 
-local_socket_tcp_impl::local_socket_tcp_impl(boost::asio::io_context& _io, std::unique_ptr<tcp_socket> _socket,
+local_socket_tcp_impl::local_socket_tcp_impl(boost::asio::io_context& _io, std::shared_ptr<tcp_socket> _socket,
                                              boost::asio::ip::tcp::endpoint _own, boost::asio::ip::tcp::endpoint _peer,
                                              socket_role_e _role) :
     socket_(std::move(_socket)), role_(_role), io_context_(_io), peer_endpoint_(std::move(_peer)), own_endpoint_(std::move(_own)),

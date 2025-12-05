@@ -41,7 +41,7 @@ public:
      * @param _peer Peer application's TCP endpoint (address:port).
      * @param _role Socket role (SENDER or RECEIVER).
      */
-    local_socket_tcp_impl(boost::asio::io_context& _io, std::unique_ptr<tcp_socket> _socket, boost::asio::ip::tcp::endpoint _own,
+    local_socket_tcp_impl(boost::asio::io_context& _io, std::shared_ptr<tcp_socket> _socket, boost::asio::ip::tcp::endpoint _own,
                           boost::asio::ip::tcp::endpoint _remote, socket_role_e _role);
 
     /**
@@ -82,7 +82,10 @@ public:
     void set_socket_options(configuration const& _configuration);
 
 private:
-    std::unique_ptr<tcp_socket> const socket_;
+    // This should have been a unique_ptr, but because of API limitations,
+    // it needs to be a shared_ptr, see local_acceptor_tcp_impl::async_accept
+    // for a reason.
+    std::shared_ptr<tcp_socket> const socket_;
     std::mutex socket_mtx_;
 
     socket_role_e const role_;

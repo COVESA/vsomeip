@@ -96,12 +96,14 @@ void local_acceptor_uds_impl::cancel(boost::system::error_code& _ec) {
 
 void local_acceptor_uds_impl::async_accept(connection_handler _handler) {
     std::scoped_lock const lock{mtx_};
-    socket_ = abstract_socket_factory::get()->create_uds_socket(io_);
-    acceptor_->async_accept(*socket_, [weak_self = weak_from_this(), h = std::move(_handler)](auto const& _ec) {
-        if (auto self = weak_self.lock(); self) {
-            self->accept_cbk(_ec, std::move(h));
-        }
-    });
+    auto tmp_socket = abstract_socket_factory::get()->create_uds_socket(io_);
+    socket& socket_ref = *tmp_socket;
+    acceptor_->async_accept(socket_ref,
+                            [weak_self = weak_from_this(), h = std::move(_handler), s = std::move(tmp_socket)](auto const& _ec) mutable {
+                                if (auto self = weak_self.lock(); self) {
+                                    self->accept_cbk(_ec, std::move(h), std::move(s));
+                                }
+                            });
 }
 
 port_t local_acceptor_uds_impl::get_local_port() {
@@ -109,7 +111,8 @@ port_t local_acceptor_uds_impl::get_local_port() {
 }
 
 // NOSONAR(cpp:S5213) - Handler is already std::function from async_accept, making this a template provides no benefit
-void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler) {
+void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler,
+                                         std::unique_ptr<socket> _socket) {
     if (_ec) {
         _handler(_ec, nullptr);
         return;
@@ -117,7 +120,7 @@ void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, c
 
     std::unique_lock lock{mtx_};
     boost::system::error_code ec;
-    auto remote = socket_->remote_endpoint(ec);
+    auto remote = _socket->remote_endpoint(ec);
     if (ec) {
         VSOMEIP_WARNING << "laui::" << __func__ << ": could not read remote endpoint, "
                         << "error: " << ec.message() << ", mem: " << this;
@@ -127,12 +130,10 @@ void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, c
         return;
     }
     // transfer ownership of the socket member, subsequent async_accept calls will re-instantiate it
-    auto socket = std::move(socket_);
     lock.unlock();
     // invoke handler only without the lock (avoids the need of a recursive mutex)
     _handler(_ec,
-             std::make_shared<local_socket_uds_impl>(io_, std::move(socket), own_endpoint_, std::move(remote), socket_role_e::RECEIVER));
+             std::make_shared<local_socket_uds_impl>(io_, std::move(_socket), own_endpoint_, std::move(remote), socket_role_e::RECEIVER));
 }
-
 }
 #endif

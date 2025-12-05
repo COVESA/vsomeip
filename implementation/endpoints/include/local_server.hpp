@@ -175,7 +175,10 @@ private:
         std::shared_ptr<configuration> const configuration_;
     };
 
+    enum class state_e { STOPPED, HALTED, STARTED };
+
     bool const is_router_{false};
+    state_e state_{state_e::STOPPED};
     uint32_t lc_count_{0};
     boost::asio::io_context& io_;
     std::shared_ptr<local_acceptor> const acceptor_;

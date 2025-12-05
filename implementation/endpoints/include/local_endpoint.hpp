@@ -45,6 +45,7 @@ struct local_endpoint_context {
  * Contains the peer-specific information and socket for this endpoint.
  */
 struct local_endpoint_params {
+    bool is_router_{false};
     client_t peer_{0};
     std::shared_ptr<local_socket> socket_;
 };
@@ -110,8 +111,7 @@ public:
      * @return Endpoint in CONNECTED state, or nullptr if security check fails.
      */
     static std::shared_ptr<local_endpoint> create_server_ep(local_endpoint_context const& _context, local_endpoint_params _params,
-                                                            std::shared_ptr<local_receive_buffer> _receive_buffer,
-                                                            bool _is_routing_endpoint);
+                                                            std::shared_ptr<local_receive_buffer> _receive_buffer);
 
     /**
      * @brief Creates a sender endpoint for initiating connections.
@@ -125,7 +125,7 @@ public:
      * @brief Internal constructor - use factory methods instead.
      */
     local_endpoint(hidden, local_endpoint_context const& _context, local_endpoint_params _params,
-                   std::shared_ptr<local_receive_buffer> _receive_buffer, bool _is_routing_endpoint_, state_e _initial_state);
+                   std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state);
 
     virtual ~local_endpoint() override;
 

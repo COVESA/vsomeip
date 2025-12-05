@@ -633,7 +633,7 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
         host_->on_subscription(
                 _service, _instance, _eventgroup, _client, _sec_client, get_env(_client), true,
                 [this, self, _client, _service, _instance, _eventgroup, _major, _event, _filter](const bool _subscription_accepted) {
-                    (void)ep_mgr_->find_or_create_local(_client);
+                    (void)ep_mgr_->find_or_create_local(_client, true);
                     if (!_subscription_accepted) {
                         if (stub_)
                             stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
