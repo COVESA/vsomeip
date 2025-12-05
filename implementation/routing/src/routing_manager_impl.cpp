@@ -1544,12 +1544,13 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                     if (!ready_to_stop->done_) {
                         ready_to_stop->done_ = true;
                         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
-                        if (stub_)
-                            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
                         // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process
                         // has completed before starting the next one, otherwise, we may have the availability being reported in the wrong
                         // order
                         on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+                        if (stub_) {
+                            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+                        }
                         erase_offer_command(_service, _instance);
                     } else {
                         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
@@ -1566,11 +1567,12 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         }
 
         if (!its_reliable_endpoint && !its_unreliable_endpoint) {
-            if (stub_)
-                stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
             // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has
             // completed before starting the next one, otherwise, we may have the availability being reported in the wrong order
             on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+            if (stub_) {
+                stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+            }
             erase_offer_command(_service, _instance);
         }
 
@@ -1590,11 +1592,12 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
             e->clear_remote_subscriptions();
         }
     } else {
-        if (stub_)
-            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
         // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed
         // before starting the next one, otherwise, we may have the availability being reported in the wrong order
         on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+        if (stub_) {
+            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+        }
         erase_offer_command(_service, _instance);
     }
 }
@@ -2198,8 +2201,9 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
 
     if (_trigger_availability) {
         on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, its_info->get_major(), its_info->get_minor());
-        if (stub_)
+        if (stub_) {
             stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
+        }
     }
 
     // Implicit unsubscribe
@@ -4086,8 +4090,9 @@ void routing_manager_impl::print_stub_status() const {
 
 void routing_manager_impl::service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major,
                                                       minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
-    if (stub_)
+    if (stub_) {
         stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
+    }
     on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
 
     auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
@@ -4103,8 +4108,10 @@ void routing_manager_impl::service_endpoint_disconnected(service_t _service, ins
                                                          minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
     (void)_endpoint;
     on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
-    if (stub_)
+    if (stub_) {
         stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
+    }
+
     VSOMEIP_WARNING << "rmi::" << __func__ << ": lost connection to remote service: [" << std::hex << std::setfill('0') << std::setw(4)
                     << _service << "." << std::setw(4) << _instance << "]";
 }
