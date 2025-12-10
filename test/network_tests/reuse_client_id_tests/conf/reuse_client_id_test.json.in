@@ -1,0 +1,25 @@
+{
+  "unicast" : "@TEST_IP_MASTER@",
+  "diagnosis" : "0x63",
+  "diagnosis_mask" : "0xFFFC",
+  "logging": {
+    "level": "trace",
+    "console": "true"
+  },
+  "tracing" :
+  {
+    "enable" : "true"
+  },
+  "routing" : {
+      "host" :
+      {
+         "name" : "routingmanagerd",
+         "unicast" : "@TEST_IP_MASTER@",
+         "port" : "31490"
+      },
+      "guests" :
+      {
+         "unicast" : "@TEST_IP_MASTER@"
+      }
+   }
+}
