@@ -17,13 +17,29 @@ FAIL=0
 # Parameter 2: number of TCP/UDP sockets the process should have open
 check_tcp_udp_sockets_are_open ()
 {
+    local MAX_ATTEMPTS=12  # 12 attempts * 250ms = 3000ms = 3 seconds
+    local ATTEMPT=0
+    local SOCKETS_OPEN=false
+
     # Check that the passed pid/process does listen on at least one TCP/UDP socket
     # awk is used to avoid the case when a inode number is the same as a PID. The awk
     # program filters the netstat output down to the protocol (1st field) and
     # the PID/Program name (last field) fields.
-    SERVICE_SOCKETS_LISTENING=$(netstat -tulpen 2> /dev/null | awk '{print $1 "\t"  $NF}' | grep $1 | wc -l)
-    if [ $SERVICE_SOCKETS_LISTENING -lt $2 ]
-    then
+
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        SERVICE_SOCKETS_LISTENING=$(cat /proc/$1/net/udp /proc/$1/net/tcp 2>/dev/null | awk 'NR>1 && $4 == "0A"' | wc -l)
+
+        if [ $SERVICE_SOCKETS_LISTENING -ge $2 ]; then
+            SOCKETS_OPEN=true
+            break
+        fi
+
+        ((ATTEMPT+=1))
+        sleep 0.25
+    done
+
+    if [ "$SOCKETS_OPEN" = false ]; then
+        echo "ERROR: Sockets not open after 2 seconds for PID $1 (expected: $2, found: $SERVICE_SOCKETS_LISTENING)"
         ((FAIL+=1))
     fi
 }
@@ -55,9 +71,6 @@ export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 ./payload_test_service &
 SERVICE_PID=$!
 
-# To ensure that sockets are open
-sleep 3
-
 # The service should listen on a TCP and UDP socket now
 check_tcp_udp_sockets_are_open $SERVICE_PID 2
 
@@ -66,8 +79,6 @@ export VSOMEIP_APPLICATION_NAME=external_local_payload_test_client_local
 export VSOMEIP_CONFIGURATION=external_local_payload_test_client_local.json
 ./payload_test_client --dont-shutdown-service &
 CLIENT_PID=$!
-
-sleep 1
 
 check_tcp_udp_sockets_are_open $SERVICE_PID 2
 check_tcp_udp_sockets_are_closed $CLIENT_PID
@@ -103,7 +114,6 @@ End-of-message
 fi
 
 # The service should still listen on a TCP and UDP socket
-sleep 1
 check_tcp_udp_sockets_are_open $SERVICE_PID 2
 
 # Wait until service is finished
@@ -122,7 +132,6 @@ export VSOMEIP_CONFIGURATION=external_local_payload_test_service.json
 SERVICE_PID=$!
 
 # The service should listen on a TCP and UDP socket now
-sleep 2
 check_tcp_udp_sockets_are_open $SERVICE_PID 2
 
 # Wait until service is finished
