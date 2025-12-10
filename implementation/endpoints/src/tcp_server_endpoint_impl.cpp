@@ -479,13 +479,6 @@ void tcp_server_endpoint_impl::connection::stop() {
 
     if (socket_.is_open()) {
         boost::system::error_code its_error;
-
-        socket_.shutdown(socket_.shutdown_both, its_error);
-        if (its_error) {
-            VSOMEIP_WARNING << instance_name_ << __func__ << ": " << get_address_port_remote() << ">:shutting down socket failed ("
-                            << its_error.message() << ")";
-        }
-
         socket_.close(its_error);
         if (its_error) {
             VSOMEIP_WARNING << instance_name_ << __func__ << ": " << get_address_port_remote() << " closing socket failed ("
@@ -857,7 +850,6 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const st
     recv_buffer_.clear();
     if (socket_.is_open()) {
         boost::system::error_code its_error;
-        socket_.shutdown(socket_.shutdown_both, its_error);
         socket_.close(its_error);
     }
     std::shared_ptr<tcp_server_endpoint_impl> its_server = server_.lock();

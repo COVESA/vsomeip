@@ -51,34 +51,7 @@ void fake_tcp_socket_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm) {
 }
 
 void fake_tcp_socket_handle::cancel() {
-    shutdown();
-}
-
-[[nodiscard]] bool fake_tcp_socket_handle::is_open() {
-    auto const lock = std::scoped_lock(mtx_);
-    return static_cast<bool>(protocol_type_);
-}
-
-void fake_tcp_socket_handle::open(boost::asio::ip::tcp::endpoint::protocol_type _type) {
-    auto const lock = std::scoped_lock(mtx_);
-    protocol_type_ = _type;
-}
-
-void fake_tcp_socket_handle::close() {
-    TEST_LOG << "[fake-socket] calling close on: " << socket_id_;
-    auto block_time = [&] {
-        auto const lock = std::scoped_lock(mtx_);
-        return block_on_close_time_;
-    }();
-    if (block_time) {
-        TEST_LOG << "[fake-socket] delaying close processing for: " << socket_id_ << " by: " << block_time->count() << "ms";
-        std::this_thread::sleep_for(*block_time);
-        TEST_LOG << "[fake-socket] continuing close processing for: " << socket_id_;
-    }
-}
-
-void fake_tcp_socket_handle::shutdown() {
-    TEST_LOG << "[fake-socket] calling shutdown on: " << socket_id_;
+    TEST_LOG << "[fake-socket] calling cancel on: " << socket_id_;
     auto remote = [&]() -> std::shared_ptr<fake_tcp_socket_handle> {
         auto const lock = std::scoped_lock(mtx_);
         auto remote = connected_socket_.lock();
@@ -93,6 +66,30 @@ void fake_tcp_socket_handle::shutdown() {
     }();
     if (remote) {
         remote->inner_close();
+    }
+}
+
+[[nodiscard]] bool fake_tcp_socket_handle::is_open() {
+    auto const lock = std::scoped_lock(mtx_);
+    return static_cast<bool>(protocol_type_);
+}
+
+void fake_tcp_socket_handle::open(boost::asio::ip::tcp::endpoint::protocol_type _type) {
+    auto const lock = std::scoped_lock(mtx_);
+    protocol_type_ = _type;
+}
+
+void fake_tcp_socket_handle::close() {
+    cancel();
+    TEST_LOG << "[fake-socket] calling close on: " << socket_id_;
+    auto block_time = [&] {
+        auto const lock = std::scoped_lock(mtx_);
+        return block_on_close_time_;
+    }();
+    if (block_time) {
+        TEST_LOG << "[fake-socket] delaying close processing for: " << socket_id_ << " by: " << block_time->count() << "ms";
+        std::this_thread::sleep_for(*block_time);
+        TEST_LOG << "[fake-socket] continuing close processing for: " << socket_id_;
     }
 }
 
@@ -191,7 +188,7 @@ void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, 
 }
 
 void fake_tcp_socket_handle::clear_handler() {
-    rw_handler callback{}; // This is needed to avoid lock order inversion with the shutdown_and_close on dtor
+    rw_handler callback{}; // This is needed to avoid lock order inversion with the close on dtor
     {
         auto const lock = std::scoped_lock(mtx_);
         TEST_LOG << "[fake-socket] Clearing the handler for: " << socket_id_;

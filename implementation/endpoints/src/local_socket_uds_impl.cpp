@@ -40,10 +40,6 @@ void local_socket_uds_impl::stop([[maybe_unused]] bool _force) {
     std::scoped_lock const lock{socket_mtx_};
     if (socket_->is_open()) {
         boost::system::error_code ec;
-        socket_->shutdown(tcp_socket::shutdown_both, ec);
-        if (ec) {
-            VSOMEIP_WARNING << "lsui::shutdown: " << ec.message() << ", " << name_;
-        }
         socket_->close(ec);
         if (ec) {
             VSOMEIP_ERROR << "lsui::close: " << ec.message() << ", " << name_;

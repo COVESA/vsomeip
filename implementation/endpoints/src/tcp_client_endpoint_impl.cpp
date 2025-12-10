@@ -44,7 +44,7 @@ tcp_client_endpoint_impl::~tcp_client_endpoint_impl() {
     // ensure socket close() before boost destructor
     // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
     VSOMEIP_INFO << "tcei::~tcei: endpoint > " << this << " state_ > " << to_string(state_.load());
-    shutdown_and_close_socket(false, true);
+    close_socket(false, true);
 
     std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
     if (its_host) {
@@ -79,7 +79,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
         {
             std::scoped_lock its_lock{self->socket_mutex_};
             address_port_local = self->get_address_port_local();
-            self->shutdown_and_close_socket_unlocked(true);
+            self->close_socket_unlocked(true);
             self->recv_buffer_ = std::make_shared<message_buffer_t>(self->recv_buffer_size_initial_, 0);
         }
         self->state_ = cei_state_e::CONNECTING;
@@ -738,11 +738,6 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(const std::exception
     }
     if (socket_->is_open()) {
         boost::system::error_code its_error;
-        socket_->shutdown(socket_type::shutdown_both, its_error);
-        if (its_error) {
-            VSOMEIP_WARNING << "tce::" << __func__ << ": socket shutdown error "
-                            << "(" << its_error.value() << "): " << its_error.message();
-        }
         socket_->close(its_error);
         if (its_error) {
             VSOMEIP_WARNING << "tce::" << __func__ << ": socket close error "
@@ -805,7 +800,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
 
         if (_error == boost::asio::error::operation_aborted) {
             // endpoint was stopped
-            shutdown_and_close_socket(false, false);
+            close_socket(false, false);
         } else {
             if (state_ == cei_state_e::CONNECTING) {
                 VSOMEIP_WARNING << "tce::send_cbk endpoint is already restarting:" << get_remote_information();

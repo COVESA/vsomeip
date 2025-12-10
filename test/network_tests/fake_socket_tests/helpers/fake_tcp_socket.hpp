@@ -64,11 +64,6 @@ private:
         state_->cancel();
     }
 
-    virtual void shutdown(boost::asio::ip::tcp::socket::shutdown_type, boost::system::error_code& _ec) override {
-        _ec = boost::system::error_code();
-        state_->shutdown();
-    }
-
     virtual boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code& _ec) const override {
         _ec = boost::system::error_code();
         return state_->local_endpoint();
