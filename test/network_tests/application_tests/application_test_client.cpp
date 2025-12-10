@@ -94,11 +94,11 @@ public:
     }
 
     void send() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
-        condition_.wait(its_lock, [this] { return !wait_until_registered_ || stop_called_; });
-        condition_.wait(its_lock, [this] { return !wait_until_service_available_ || stop_called_; });
-        its_lock.unlock();
-        its_lock.release();
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            condition_.wait(its_lock, [this] { return !wait_until_registered_ || stop_called_; });
+            condition_.wait(its_lock, [this] { return !wait_until_service_available_ || stop_called_; });
+        }
 
         for (;;) {
             {

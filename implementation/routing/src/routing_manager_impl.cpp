@@ -687,7 +687,10 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                                               _event, _filter, PENDING_SUBSCRIPTION_ID);
                     }
                 }
+            } else {
+                its_critical.unlock();
             }
+
             if (subscriber_is_rm_host) {
                 subscription_data_t subscription = {_service, _instance, _eventgroup, _major, _event, _filter, *_sec_client};
                 std::scoped_lock ist_lock(pending_subscription_mutex_);
@@ -2484,6 +2487,7 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
         if (!_subscription->is_pending()) { // resubscription without change
             its_update_lock.unlock();
             _callback(_subscription);
+            its_update_lock.lock();
         } else if (!its_added.empty()) { // new clients for a selective subscription
             const client_t its_offering_client = find_local_client(its_service, its_instance);
             send_subscription(its_offering_client, its_service, its_instance, its_eventgroup, its_major, its_added,
@@ -2508,6 +2512,7 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
 
             its_update_lock.unlock();
             _callback(_subscription);
+            its_update_lock.lock();
         }
     } else { // new subscription
         if (its_eventgroupinfo->is_remote_subscription_limit_reached(_subscription)) {
@@ -2515,6 +2520,7 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
 
             its_update_lock.unlock();
             _callback(_subscription);
+            its_update_lock.lock();
             _subscription->clear_destiny();
             return;
         }
