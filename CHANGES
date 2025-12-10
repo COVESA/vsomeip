@@ -1,11 +1,70 @@
 Changes
 =======
 
+v3.6.2
+- global
+  - Adapt wireshark plugin for newer wireshark versions
+  - Improve logs for registration process
+  - Trigger SIGABRT on EBADF
+  - Trigger SIGABRT on unexpected IO exit
+  - Bump minimum version of Boost to 1.74
+  - Check for EINVAL and react supporting errno
+  - Fix policy check
+  - Remove initial/end tag check on wireshark dissector
+  - Add missing include for unordered_map
+  - Replaces std::lock_guard with std::scoped_lock
+  - Fix missing headers for build
+  - Change type for getsockopt variable
+
+- application
+  - Fix missing executor guard
+
+- routing
+  - Enable caching of unknown events by default
+  - Rework "Routing Ready" message
+  - Fix lazy loading of security policies
+  - Minor rework in client id assignment
+  - Do not send STOP OFFER when registering application
+  - Unified log messages
+  - Ensure stop_offer/offer completes before next command
+  - Enable boardnet OFFER/STOP OFFER log
+  - Ensure lazy load of client before using security
+  - Fix order of on_*offer_service/on_available
+
+- endpoints
+  - Restructure local endpoints
+  - Reset sending flag for UDP server endpoints
+  - Fix max-connection-attempts
+  - Fix deadlock
+  - Fix byte order
+  - Remove the server_endpoint interface
+  - Workaround to race condition with restart list
+  - Fix acceptor deadlock
+  - Ensure buffer is not cleaned up while asio might use it
+  - Fix escalate race condition
+  - Fix uninitialized sec_client
+  - Avoid security failures on the daemon side
+
+- tests
+  - Fix offer_test_external
+  - Fix pending_subscription_tests
+  - Fix suspend_resume_test_initial
+  - Fix local_routing
+  - Optimize offer_test_external
+  - Optimize external_local_payload_test_client_external
+  - Fix tests timing
+  - Fix E2E return codes
+  - Improve initial event tests logging
+  - Include unit-tests in network-tests
+  - Wait after killing apps
+  - Add bash -x
+
 v3.6.1
 - global
   - support compilation with gcc15
   - enable CMAKE_EXPORT_COMPILE_COMMANDS
   - introduce a thread-safe timer utility
+  - Documentation updates
 
 - application
   - fail early, fail fast for unknown messages
