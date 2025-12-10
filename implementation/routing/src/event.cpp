@@ -193,7 +193,7 @@ bool event::set_payload_notify_pending(const std::shared_ptr<payload>& _payload)
     if (is_provided_ && !is_set_) {
 
         update_->set_payload(_payload);
-        is_set_ = true;
+        set_payload_filled(true);
 
         // Send pending initial events.
         for (const auto& its_target : pending_) {
@@ -213,12 +213,12 @@ bool event::set_payload_notify_pending(const std::shared_ptr<payload>& _payload)
 void event::unset_payload(bool _force) {
     std::scoped_lock its_lock(mutex_);
     if (_force) {
-        is_set_ = false;
+        set_payload_filled(false);
         stop_cycle();
         current_->set_payload(std::make_shared<payload_impl>());
     } else {
         if (is_provided_) {
-            is_set_ = false;
+            set_payload_filled(false);
             stop_cycle();
             current_->set_payload(std::make_shared<payload_impl>());
         }
@@ -379,7 +379,7 @@ bool event::prepare_update_payload_unlocked(const std::shared_ptr<payload>& _pay
 
     if (!is_set_) {
         start_cycle();
-        is_set_ = true;
+        set_payload_filled(true);
     }
 
     return true;
@@ -761,6 +761,22 @@ void event::remove_pending(const std::shared_ptr<endpoint_definition>& _target) 
 void event::set_session() {
 
     update_->set_session(routing_->get_session(false));
+}
+
+void event::set_payload_filled(const bool value) {
+    // Update the flag.
+    auto old = is_set_.exchange(value);
+
+    // Log only if the flag was changed, we offer the event and the event is a field.
+    // The goal is to prevent spamming the traces with this log.
+    const bool has_changed = old != value;
+    const bool is_internal_provider = is_provided_ != is_shadow_;
+    const bool is_field = type_ == event_type_e::ET_FIELD;
+    if (has_changed && is_internal_provider && is_field) {
+        VSOMEIP_INFO << std::hex << std::setfill('0') << "event{id=" << std::setw(4) << current_->get_service() << "." << std::setw(4)
+                     << current_->get_instance() << "." << std::setw(4) << current_->get_method() << "}::" << __func__
+                     << ": value=" << std::boolalpha << value;
+    }
 }
 
 } // namespace vsomeip_v3

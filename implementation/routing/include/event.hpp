@@ -135,6 +135,11 @@ private:
 
     void get_pending_updates(const std::set<client_t>& _clients);
 
+    /// Updates the `is_set` flag to the given `value`.
+    ///
+    /// This is used to track changes to the flag.
+    void set_payload_filled(const bool value);
+
 private:
     routing_manager* routing_;
     mutable std::mutex mutex_;
