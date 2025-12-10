@@ -859,8 +859,6 @@ bool routing_manager_client::send_to(const std::shared_ptr<endpoint_definition>&
 
 void routing_manager_client::on_connect(const std::shared_ptr<endpoint>& _endpoint) {
 
-    _endpoint->set_connected(true);
-    _endpoint->set_established(true);
     {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (_endpoint != sender_) {
