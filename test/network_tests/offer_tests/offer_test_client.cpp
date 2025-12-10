@@ -157,11 +157,12 @@ public:
         if (operation_mode_ != operation_mode_e::METHODCALL) {
             return;
         }
-        std::unique_lock<std::mutex> its_lock(mutex_);
-        condition_.wait(its_lock, [this] { return !wait_until_registered_; });
-        condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
-        its_lock.unlock();
-        its_lock.release();
+
+        {
+            std::unique_lock<std::mutex> its_lock(mutex_);
+            condition_.wait(its_lock, [this] { return !wait_until_registered_; });
+            condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
+        }
 
         for (int var = 0; var < offer_test::number_of_messages_to_send; ++var) {
             bool send(false);

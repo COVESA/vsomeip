@@ -1789,13 +1789,6 @@ void application_impl::main_dispatch() {
 
                 reschedule_availability_handler(its_handler);
                 remove_elapsed_dispatchers();
-
-#ifdef _WIN32
-                if (!is_dispatching_) {
-                    its_lock.unlock();
-                    break;
-                }
-#endif
             }
         }
     }
