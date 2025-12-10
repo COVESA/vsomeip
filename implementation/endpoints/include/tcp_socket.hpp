@@ -51,7 +51,6 @@ public:
     virtual ~tcp_socket() = default;
 
     virtual void cancel(boost::system::error_code&) = 0;
-    virtual void shutdown(boost::asio::ip::tcp::socket::shutdown_type, boost::system::error_code&) = 0;
 
     virtual boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code&) const = 0;
     virtual boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code&) const = 0;

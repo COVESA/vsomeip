@@ -94,10 +94,6 @@ void local_socket_tcp_impl::stop(bool _force) {
     std::scoped_lock const lock{socket_mtx_};
     if (socket_->is_open()) {
         boost::system::error_code ec;
-        socket_->shutdown(tcp_socket::shutdown_both, ec);
-        if (ec) {
-            VSOMEIP_WARNING << "lsti::shutdown: " << ec.message() << ", " << name_;
-        }
         socket_->close(ec);
         if (ec) {
             VSOMEIP_ERROR << "lsti::close: " << ec.message() << ", " << name_;

@@ -88,12 +88,6 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
     void close();
 
     /**
-     * Delets the handler stored by a prior async_receive call.
-     * Used by the fake_tcp_socket.
-     **/
-    void shutdown();
-
-    /**
      * sets the local_endpoint
      * Used by the fake_tcp_socket.
      **/

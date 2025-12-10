@@ -95,8 +95,8 @@ protected:
     virtual void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) = 0;
     virtual void get_configured_times_from_endpoint(service_t _service, method_t _method, std::chrono::nanoseconds* _debouncing,
                                                     std::chrono::nanoseconds* _maximum_retention) const = 0;
-    void shutdown_and_close_socket(bool _recreate_socket, bool _due_to_error);
-    void shutdown_and_close_socket_unlocked(bool _recreate_socket);
+    void close_socket(bool _recreate_socket, bool _due_to_error);
+    void close_socket_unlocked(bool _recreate_socket);
     void start_connect_timer();
     void start_connecting_timer();
     bool check_message_size(uint32_t _size) const;

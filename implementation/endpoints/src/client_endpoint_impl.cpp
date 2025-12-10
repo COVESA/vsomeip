@@ -132,8 +132,7 @@ void client_endpoint_impl<Protocol>::stop(bool _due_to_error) {
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
 
     // bind to strand as stop() might be called from different thread
-    boost::asio::dispatch(strand_,
-                          std::bind(&client_endpoint_impl::shutdown_and_close_socket, this->shared_from_this(), false, _due_to_error));
+    boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::close_socket, this->shared_from_this(), false, _due_to_error));
 }
 
 template<typename Protocol>
@@ -392,7 +391,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
     if (_error == boost::asio::error::operation_aborted || endpoint_impl<Protocol>::sending_blocked_) {
         VSOMEIP_WARNING << "cei::" << __func__ << ": endpoint stopped, remote: " << get_remote_information() << ", endpoint > " << this
                         << " socket state > " << to_string(state_.load());
-        shutdown_and_close_socket(false, false);
+        close_socket(false, false);
         return;
     }
     std::shared_ptr<endpoint_host> its_host = this->endpoint_host_.lock();
@@ -402,7 +401,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
                             << " remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
                             << to_string(state_.load());
 
-            shutdown_and_close_socket(true, true);
+            close_socket(true, true);
 
             its_host->on_disconnect(this->shared_from_this());
 
@@ -576,7 +575,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             print_status();
         }
         was_not_connected_ = true;
-        shutdown_and_close_socket(true, true);
+        close_socket(true, true);
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission || _error == boost::asio::error::not_socket) {
@@ -594,7 +593,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             queue_size_ = 0;
         }
         was_not_connected_ = true;
-        shutdown_and_close_socket(true, true);
+        close_socket(true, true);
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
 
@@ -607,7 +606,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         }
         // endpoint was stopped
         endpoint_impl<Protocol>::sending_blocked_ = true;
-        shutdown_and_close_socket(false, false);
+        close_socket(false, false);
     } else {
         service_t its_service(0);
         method_t its_method(0);
@@ -641,7 +640,7 @@ void client_endpoint_impl<Protocol>::flush_cbk(boost::system::error_code const& 
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket, bool _due_to_error) {
+void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _due_to_error) {
 
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
@@ -666,7 +665,7 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_so
 
             const auto send_buffer_size = send_buffer_size_cmd.get();
             if (send_buffer_size > 0) {
-                // shutdown_and_close_socket was called on error, do not wait to send remaining data
+                // close_socket was called on error, do not wait to send remaining data
                 if (_due_to_error) {
                     VSOMEIP_WARNING << "cei::" << __func__
                                     << ": error on socket, not waiting to send remaining data, remote: " << get_remote_information()
@@ -691,34 +690,30 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_so
 #endif
 
     std::scoped_lock its_lock(socket_mutex_);
-    shutdown_and_close_socket_unlocked(_recreate_socket);
+    close_socket_unlocked(_recreate_socket);
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::shutdown_and_close_socket_unlocked(bool _recreate_socket) {
+void client_endpoint_impl<Protocol>::close_socket_unlocked(bool _recreate_socket) {
 
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(__QNX__)
         if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
             if (!socket_->can_read_fd_flags()) {
-                VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
+                VSOMEIP_ERROR << "cei::close_socket_unlocked: socket/handle closed already '"
                               << ", errno " << errno << ", " << get_remote_information() << " endpoint > " << this;
             }
         } else {
             if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
-                VSOMEIP_ERROR << "cei::shutdown_and_close_socket_unlocked: socket/handle closed already '"
+                VSOMEIP_ERROR << "cei::close_socket_unlocked: socket/handle closed already '"
                               << ", errno " << errno << ", " << get_remote_information() << " endpoint > " << this;
             }
         }
 #endif
 
+        // NOTE: no `shutdown`, as it will cause a TCP FIN if the underlying protocol is TCP, whereas we want
+        // only TCP RSTs (and therefore configure SO_LINGER accordingly)
         boost::system::error_code its_error;
-        socket_->shutdown(Protocol::socket::shutdown_both, its_error);
-        if (its_error) {
-            VSOMEIP_WARNING << "cei::" << __func__ << ": socket shutdown error "
-                            << "(" << its_error.value() << "): " << its_error.message() << ", remote: " << get_remote_information() << ","
-                            << " endpoint > " << this << " socket state > " << to_string(state_.load());
-        }
         socket_->close(its_error);
         if (its_error) {
             VSOMEIP_WARNING << "cei::" << __func__ << ": socket close error, "
