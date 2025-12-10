@@ -100,7 +100,7 @@ LOCAL_CFLAGS :=  \
     -std=c++17 \
     -frtti \
     -fexceptions \
-    -DWITHOUT_SYSTEMD \
+    -DDISABLE_SYSTEMD \
     -DVSOMEIP_VERSION=\"3.6.2\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
@@ -160,7 +160,7 @@ LOCAL_CFLAGS := \
     -std=c++17 \
     -frtti \
     -fexceptions \
-    -DWITHOUT_SYSTEMD \
+    -DDISABLE_SYSTEMD \
     -DVSOMEIP_VERSION=\"3.6.2\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \

@@ -99,9 +99,9 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
     set(OS_CXX_FLAGS "-pthread")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
-############################################My lib link flags####################################
+############################################Lib link flags#########################################
 # Options
-################################################################################
+###################################################################################################
 # DLT
 if (DISABLE_DLT)
 set (VSOMEIP_ENABLE_DLT 0)
@@ -225,13 +225,17 @@ if(DLT_FOUND)
 endif(DLT_FOUND)
 endif()
 
-# SystemD
-pkg_check_modules(SystemD "libsystemd")
+# SystemD: socket activation
+if (DISABLE_SYSTEMD)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
+else ()
+    pkg_check_modules(SystemD "libsystemd")
 
-if(NOT SystemD_FOUND)
-MESSAGE( STATUS "Systemd was not found, watchdog disabled!")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
-endif(NOT SystemD_FOUND)
+    if(NOT SystemD_FOUND)
+        MESSAGE(STATUS "Systemd was not found, socket activation disabled")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_SYSTEMD")
+    endif(NOT SystemD_FOUND)
+endif ()
 
 # Multiple routing managers
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)

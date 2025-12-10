@@ -27,8 +27,8 @@
 
 #ifndef WITHOUT_SYSTEMD
 #include <systemd/sd-daemon.h>
+#define SYSTEMD_SOCKET_ACTIVATION 1
 #endif
-#define SD_LISTEN_FDS_START 3
 
 namespace vsomeip_v3 {
 
@@ -618,17 +618,18 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
     }
 
     if (configuration_->is_local_routing()) {
+#ifdef SYSTEMD_SOCKET_ACTIVATION
         int its_socket{0};
-        int32_t num_fd{0};
-#ifndef WITHOUT_SYSTEMD
-        num_fd = sd_listen_fds(0);
+        // systemd socket activation feature: `sd_listen_fds` returns optional file descriptors passed by the system manager
+        int32_t num_fd = sd_listen_fds(0);
 #endif
 
 #if defined(__linux__) || defined(__QNX__)
+#ifdef SYSTEMD_SOCKET_ACTIVATION
         if (num_fd > 1) {
             VSOMEIP_ERROR << "Too many file descriptors received by systemd socket activation! num_fd: " << num_fd;
         } else if (num_fd == 1) {
-            its_socket = SD_LISTEN_FDS_START + 0;
+            its_socket = SD_LISTEN_FDS_START;
             VSOMEIP_INFO << "Using native socket created by systemd socket activation! fd: " << its_socket;
             if (is_local_routing_) {
                 try {
@@ -652,7 +653,9 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                 }
             }
             _is_socket_activated = true;
-        } else {
+        } else
+#endif /* SYSTEMD_SOCKET_ACTIVATION */
+        {
             if (is_local_routing_) {
                 try {
                     VSOMEIP_INFO << __func__ << ": Routing root @ " << its_endpoint_path;
@@ -702,7 +705,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
         }
 
         _is_socket_activated = false;
-#endif // __linux__
+#endif // __linux__ || __QNX__
     } else {
         try {
             auto its_address = configuration_->get_routing_host_address();
