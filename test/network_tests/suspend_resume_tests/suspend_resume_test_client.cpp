@@ -18,10 +18,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class suspend_resume_test_client : public vsomeip_utilities::base_logger {
+class suspend_resume_test_client {
 public:
     suspend_resume_test_client() :
-        vsomeip_utilities::base_logger("SRTC", "SUSPEND RESUME TEST CLIENT"), name_("suspend_resume_test_client"),
+
         app_(vsomeip::runtime::get()->create_application(name_)), started_{false}, has_received_(false),
         runner_(std::bind(&suspend_resume_test_client::run, this)) { }
 

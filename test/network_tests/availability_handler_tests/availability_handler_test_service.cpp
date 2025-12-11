@@ -28,9 +28,9 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class availability_handler_test_service : public vsomeip_utilities::base_logger {
+class availability_handler_test_service {
 public:
-    availability_handler_test_service() : vsomeip_utilities::base_logger("AHTS", "AVAILABILITY HANDLER TEST SERVICE") {
+    availability_handler_test_service() {
         app_ = vsomeip::runtime::get()->create_application("availability_handler_test_service");
         SERVICE_ID = availability_handler::Service_ID;
         INSTANCE_ID = availability_handler::Instance_ID;

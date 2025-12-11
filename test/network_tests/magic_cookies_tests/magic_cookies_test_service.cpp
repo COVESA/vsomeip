@@ -17,12 +17,11 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class magic_cookies_test_service : public vsomeip_utilities::base_logger {
+class magic_cookies_test_service {
 public:
     magic_cookies_test_service(bool _use_static_routing) :
-        vsomeip_utilities::base_logger("MGTS", "MAGIC COOKIES TEST SERVICE"), app_(vsomeip::runtime::get()->create_application()),
-        is_registered_(false), use_static_routing_(_use_static_routing), blocked_(false),
-        offer_thread_(std::bind(&magic_cookies_test_service::run, this)) { }
+        app_(vsomeip::runtime::get()->create_application()), is_registered_(false), use_static_routing_(_use_static_routing),
+        blocked_(false), offer_thread_(std::bind(&magic_cookies_test_service::run, this)) { }
 
     ~magic_cookies_test_service() { offer_thread_.join(); }
     void init() {

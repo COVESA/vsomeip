@@ -22,10 +22,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class subscribe_notify_test_one_event_two_eventgroups_service : public vsomeip_utilities::base_logger {
+class subscribe_notify_test_one_event_two_eventgroups_service {
 public:
     subscribe_notify_test_one_event_two_eventgroups_service(subscribe_notify_test::service_info _info, bool _use_tcp) :
-        vsomeip_utilities::base_logger("SNS1", "SUBSCRIBE NOTIFY TEST ONE EVENT TWO EVENTGROUPS SERVICE"),
+
         app_(vsomeip::runtime::get()->create_application()), wait_for_shutdown_(true), info_(_info),
         notify_thread_(std::bind(&subscribe_notify_test_one_event_two_eventgroups_service::wait_for_shutdown, this)), use_tcp_(_use_tcp) { }
 

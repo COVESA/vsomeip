@@ -40,7 +40,7 @@ void test_client::on_message(const std::shared_ptr<vsomeip::message>& _message) 
     }
 }
 
-test_client::test_client(const char* app_name_, const char* app_id_) : vsomeip_utilities::base_vsip_app(app_name_, app_id_) {
+test_client::test_client(const char* app_name_) : vsomeip_utilities::base_vsip_app(app_name_) {
     _app->register_availability_handler(
             DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE,
             std::bind(&test_client::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
@@ -101,7 +101,7 @@ test_client::~test_client() {
 }
 
 TEST(debounce_frequency_test, client) {
-    test_client debounce_client("debounce_frequency_test_client", "DFTC");
+    test_client debounce_client("debounce_frequency_test_client");
     // Request the server to send the test messages
     debounce_client.send_request();
 

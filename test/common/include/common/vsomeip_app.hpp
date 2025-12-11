@@ -16,10 +16,6 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip.hpp>
 
-#ifdef USE_DLT
-#include <dlt/dlt.h>
-#endif // ifded USE_DLT
-
 namespace common {
 
 std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::service_t _service, vsomeip::instance_t _instance,
@@ -149,7 +145,7 @@ public:
  * @invariant Not copyable. Callbacks must be set before start().
  * @note Use set_request/offer/provide, set callbacks, then start/stop/send commands.
  */
-class base_vsip_app : public base_logger {
+class base_vsip_app {
 public:
     using state_callback_fn = std::function<void(vsomeip::state_type_e)>;
     using availability_callback_fn = std::function<void(vsomeip::service_t, vsomeip::instance_t, bool)>;
@@ -158,7 +154,7 @@ public:
      * @param app_name_ Application name.
      * @param app_id_ Application id.
      */
-    base_vsip_app(const char* app_name_, const char* app_id_);
+    base_vsip_app(const char* app_name_);
     /**
      * @brief Destructor.
      */

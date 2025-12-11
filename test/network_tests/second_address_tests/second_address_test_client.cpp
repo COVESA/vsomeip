@@ -22,11 +22,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class second_address_test_client : public vsomeip_utilities::base_logger {
+class second_address_test_client {
 public:
     second_address_test_client(struct second_address_test::service_info _service_info, bool _use_tcp) :
-        vsomeip_utilities::base_logger("SATC", "SECOND ADDRESS TEST CLIENT"), service_info_(_service_info), use_tcp_(_use_tcp),
-        app_(vsomeip::runtime::get()->create_application("second_address_test_client")),
+        service_info_(_service_info), use_tcp_(_use_tcp), app_(vsomeip::runtime::get()->create_application("second_address_test_client")),
         send_thread_(std::bind(&second_address_test_client::send, this)) {
 
         if (!app_->init()) {

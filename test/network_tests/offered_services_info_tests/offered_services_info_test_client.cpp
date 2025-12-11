@@ -35,12 +35,11 @@ std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> all_offered_services
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> local_offered_services;
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> remote_offered_services;
 
-class offered_services_info_test_client : public vsomeip_utilities::base_logger {
+class offered_services_info_test_client {
 public:
     offered_services_info_test_client(struct offer_test::service_info _service_info, offer_test::service_info _remote_service_info,
                                       operation_mode_e _mode) :
-        vsomeip_utilities::base_logger("OFIC", "OFFERED SERVICES INFO TEST CLIENT"), service_info_(_service_info),
-        remote_service_info_(_remote_service_info), operation_mode_(_mode),
+        service_info_(_service_info), remote_service_info_(_remote_service_info), operation_mode_(_mode),
         app_(vsomeip::runtime::get()->create_application("offered_services_info_test_client")), wait_until_registered_(true),
         wait_until_service_available_(true), services_available(0), wait_for_stop_(true),
         last_received_response_(std::chrono::steady_clock::now()),

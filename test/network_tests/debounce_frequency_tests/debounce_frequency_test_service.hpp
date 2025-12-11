@@ -31,7 +31,7 @@ private:
     void on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/);
 
 public:
-    test_service(const char* app_name_, const char* app_id_);
+    test_service(const char* app_name_);
 
     void send_messages();
     bool was_event_1_sent();

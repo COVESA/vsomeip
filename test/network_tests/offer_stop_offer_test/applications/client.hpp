@@ -20,7 +20,7 @@
 #include <common/vsomeip_app_utilities.hpp>
 
 /// @brief Wrapper for a vsomeip application that requests 2 services with a GET method
-class client_t : public vsomeip_utilities::base_logger {
+class client_t {
 public:
     /// @brief Initializes vsomeip application and availability table
     client_t();

@@ -23,14 +23,14 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class subscribe_notify_one_test_service : public vsomeip_utilities::base_logger {
+class subscribe_notify_one_test_service {
 public:
     subscribe_notify_one_test_service(struct subscribe_notify_one_test::service_info _service_info,
                                       vsomeip::reliability_type_e _reliability_type) :
-        vsomeip_utilities::base_logger("SNOS", "SUBSCRIBE NOTIFY ONE TEST SERVICE"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true), wait_until_other_services_available_(true),
-        wait_until_notified_from_other_services_(true), offer_thread_(std::bind(&subscribe_notify_one_test_service::run, this)),
-        wait_for_stop_(true), stop_thread_(std::bind(&subscribe_notify_one_test_service::wait_for_stop, this)), wait_for_notify_(true),
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
+        wait_until_other_services_available_(true), wait_until_notified_from_other_services_(true),
+        offer_thread_(std::bind(&subscribe_notify_one_test_service::run, this)), wait_for_stop_(true),
+        stop_thread_(std::bind(&subscribe_notify_one_test_service::wait_for_stop, this)), wait_for_notify_(true),
         notify_thread_(std::bind(&subscribe_notify_one_test_service::notify_one, this)), subscription_state_handler_called_(0),
         subscription_error_occured_(false), reliability_type_(_reliability_type) {
         if (!app_->init()) {

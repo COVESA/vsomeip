@@ -22,14 +22,13 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class subscribe_notify_test_service : public vsomeip_utilities::base_logger {
+class subscribe_notify_test_service {
 public:
     subscribe_notify_test_service(struct subscribe_notify_test::service_info _service_info,
                                   std::array<subscribe_notify_test::service_info, 7> _service_infos,
                                   vsomeip::reliability_type_e _reliability_type) :
-        vsomeip_utilities::base_logger("SNTS", "SUBSCRIBE NOTIFY TEST SERVICE"), service_info_(_service_info),
-        service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
-        wait_until_other_services_available_(true), wait_until_notified_from_other_services_(true),
+        service_info_(_service_info), service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()),
+        wait_until_registered_(true), wait_until_other_services_available_(true), wait_until_notified_from_other_services_(true),
         offer_thread_(std::bind(&subscribe_notify_test_service::run, this)), wait_for_stop_(true),
         stop_thread_(std::bind(&subscribe_notify_test_service::wait_for_stop, this)), wait_for_notify_(true),
         notify_thread_(std::bind(&subscribe_notify_test_service::notify, this)), subscription_error_occured_(false),

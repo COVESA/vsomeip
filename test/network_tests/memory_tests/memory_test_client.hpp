@@ -19,7 +19,7 @@
 
 class memory_test_client : public vsomeip_utilities::base_vsip_app {
 public:
-    memory_test_client(const char* app_name_, const char* app_id_, std::map<vsomeip::event_t, int> map_events_);
+    memory_test_client(const char* app_name_, std::map<vsomeip::event_t, int> map_events_);
     void send_request(std::atomic<bool>& stop_checking_);
 
     ~memory_test_client();

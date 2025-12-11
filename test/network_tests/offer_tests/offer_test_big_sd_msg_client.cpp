@@ -22,12 +22,11 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class offer_test_big_sd_msg_client : public vsomeip_utilities::base_logger {
+class offer_test_big_sd_msg_client {
 public:
     offer_test_big_sd_msg_client(struct offer_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("OTBC", "OFFER TEST BIG SD MSG CLIENT"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application("offer_test_big_sd_msg_client")), wait_until_registered_(true),
-        wait_until_service_available_(true), wait_until_subscribed_(true), wait_for_stop_(true),
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application("offer_test_big_sd_msg_client")),
+        wait_until_registered_(true), wait_until_service_available_(true), wait_until_subscribed_(true), wait_for_stop_(true),
         stop_thread_(std::bind(&offer_test_big_sd_msg_client::wait_for_stop, this)),
         send_thread_(std::bind(&offer_test_big_sd_msg_client::send, this)) {
         if (!app_->init()) {

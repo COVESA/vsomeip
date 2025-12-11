@@ -22,12 +22,11 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class initial_event_test_stop_service : public vsomeip_utilities::base_logger {
+class initial_event_test_stop_service {
 public:
     initial_event_test_stop_service(struct initial_event_test::service_info _service_info, bool _is_master) :
-        vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST STOP SERVICE"), service_info_(_service_info), is_master_(_is_master),
-        app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
-        wait_until_stop_service_other_node_available_(true), wait_for_stop_(true), called_other_node_(false) {
+        service_info_(_service_info), is_master_(_is_master), app_(vsomeip::runtime::get()->create_application()),
+        wait_until_registered_(true), wait_until_stop_service_other_node_available_(true), wait_for_stop_(true), called_other_node_(false) {
 
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";

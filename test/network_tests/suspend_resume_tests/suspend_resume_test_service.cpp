@@ -23,11 +23,9 @@
 
 pid_t daemon_pid__;
 
-class suspend_resume_test_service : public vsomeip_utilities::base_logger {
+class suspend_resume_test_service {
 public:
-    suspend_resume_test_service() :
-        vsomeip_utilities::base_logger("ATCA", "APPLICATION TEST CLIENT AVAILABILITY"), name_("suspend_resume_test_service"),
-        app_(vsomeip::runtime::get()->create_application(name_)) {
+    suspend_resume_test_service() : app_(vsomeip::runtime::get()->create_application(name_)) {
         VSOMEIP_INFO << "[TEST] Create test object";
         sr_runner_ = std::thread(std::bind(&suspend_resume_test_service::sr_run, this));
     }

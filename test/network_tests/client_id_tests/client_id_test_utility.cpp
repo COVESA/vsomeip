@@ -100,11 +100,9 @@ protected:
     std::thread rm_impl_thread_;
 };
 
-class app_wrapper : public vsomeip_utilities::base_logger {
+class app_wrapper {
 public:
-    app_wrapper(const std::string& _name) :
-        vsomeip_utilities::base_logger("APPW", "APP WRAPPER"), app_(vsomeip::runtime::get()->create_application(_name)),
-        client_(VSOMEIP_CLIENT_UNSET) {
+    app_wrapper(const std::string& _name) : app_(vsomeip::runtime::get()->create_application(_name)), client_(VSOMEIP_CLIENT_UNSET) {
         EXPECT_TRUE(app_->init());
         app_->register_state_handler(std::bind(&app_wrapper::on_state, this, std::placeholders::_1));
         app_thread_ = std::thread([&]() { app_->start(); });

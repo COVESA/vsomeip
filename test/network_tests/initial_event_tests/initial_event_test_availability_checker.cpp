@@ -21,12 +21,12 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class initial_event_test_availability_checker : public vsomeip_utilities::base_logger {
+class initial_event_test_availability_checker {
 public:
     initial_event_test_availability_checker(int _client_number, std::array<initial_event_test::service_info, 7> _service_infos) :
-        vsomeip_utilities::base_logger("IETC", "INITIAL EVENT TEST AVAILABILITY CHECKER"), client_number_(_client_number),
-        service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
-        wait_for_stop_(true), stop_thread_(std::bind(&initial_event_test_availability_checker::wait_for_stop, this)) {
+        client_number_(_client_number), service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()),
+        wait_until_registered_(true), wait_for_stop_(true),
+        stop_thread_(std::bind(&initial_event_test_availability_checker::wait_for_stop, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;

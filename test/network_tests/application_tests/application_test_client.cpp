@@ -23,12 +23,11 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class application_test_client : public vsomeip_utilities::base_logger {
+class application_test_client {
 public:
     application_test_client(struct application_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("APTC", "APPLICATION TEST CLIENT"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application("client")), wait_until_registered_(true), wait_until_service_available_(true),
-        wait_for_stop_(true), received_responses_(0), sent_requests_(0), stop_called_(false),
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application("client")), wait_until_registered_(true),
+        wait_until_service_available_(true), wait_for_stop_(true), received_responses_(0), sent_requests_(0), stop_called_(false),
         stop_thread_(std::bind(&application_test_client::wait_for_stop, this)),
         send_thread_(std::bind(&application_test_client::send, this)) {
         if (!app_->init()) {
