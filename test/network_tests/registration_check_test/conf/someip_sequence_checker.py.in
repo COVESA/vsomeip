@@ -13,14 +13,29 @@ from netfilterqueue import NetfilterQueue
 from scapy.all import IP, TCP
 from time import sleep
 import os
+import sys
+
+# Protocol constants from protocol.hpp
+ASSIGN_CLIENT_ID = 0x00
+ASSIGN_CLIENT_ACK_ID = 0x01
+REGISTER_APPLICATION_ID = 0x02
+CONFIG_ID = 0x31
+
+VALID_COMMANDS = {
+    ASSIGN_CLIENT_ID,
+    ASSIGN_CLIENT_ACK_ID,
+    REGISTER_APPLICATION_ID,
+    CONFIG_ID
+}
+
+# State machine constants
+STATE_INITIAL = 0
+STATE_AFTER_REGISTER_APPLICATION_ACK = 4
+STATE_COMPLETE = 9
 
 # Substitute these with the test IP at runtime
 SRC = '@TEST_IP_MASTER@'
 DST = '@TEST_IP_MASTER@'
-
-# Constants for tags
-SOMEIP_START_TAG = b'\x67\x37\x6d\x07'
-SOMEIP_END_TAG = b'\x07\x6d\x37\x67'
 
 # State machine variables for sequence detection
 sequence_state = 0
@@ -29,8 +44,8 @@ my_counter = 0
 def add_iptables_rule():
     """Add iptables rule to redirect outgoing packets to NFQUEUE 0."""
     iptablesr = "iptables -A OUTPUT -j NFQUEUE --queue-num 0"
-    print("Adding iptable rules:")
-    print(iptablesr)
+    print("Adding iptable rules:", flush=True)
+    print(iptablesr, flush=True)
     os.system(iptablesr)
     return iptablesr
 
@@ -44,15 +59,14 @@ def get_tcp_handshake_type(tcp_pkt):
     return None
 
 def parse_someip_payload(payload):
-    # Ensure payload is long enough for tags and command
-    if len(payload) >= 9 and payload.startswith(SOMEIP_START_TAG) and payload[-4:] == SOMEIP_END_TAG:
-        command = payload[4]
-        return {
-            'command': command,
-            'start_tag': payload[:4],
-            'end_tag': payload[-4:],
-            'payload': payload
-        }
+    # Check if payload contains a vsomeip command
+    if len(payload) >= 1:
+        command = payload[0]
+        if command in VALID_COMMANDS:
+            return {
+                'command': command,
+                'payload': payload
+            }
     return None
 
 def process_packet(packet):
@@ -67,50 +81,56 @@ def process_packet(packet):
         payload_bytes = bytes(tcp_pkt.payload)
         someip = parse_someip_payload(payload_bytes)
 
-        print(f"\nPacket {my_counter}: State {sequence_state}, Flags: {tcp_pkt.flags}")
+        # Print every packet first
+        print(f"\nPacket {my_counter}: State {sequence_state}, Flags: {tcp_pkt.flags}", flush=True)
+
         # State machine for expected registration sequence
-        if sequence_state == 0 and handshake == 'SYN':
-            print("SYN detected")
+        if sequence_state == STATE_INITIAL and handshake == 'SYN':
+            print("SYN detected", flush=True)
             sequence_state += 1
         elif sequence_state == 1 and handshake == 'SYN/ACK':
-            print("SYN/ACK detected")
+            print("SYN/ACK detected", flush=True)
             sequence_state += 1
         elif sequence_state == 2 and handshake == 'ACK':
-            print("ACK detected")
+            print("ACK detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 3 and someip and someip['command'] == 0x00:
-            print("VSOMEIP_ASSIGN_CLIENT detected")
+        elif sequence_state == 3 and someip and someip['command'] == ASSIGN_CLIENT_ID:
+            print("VSOMEIP_ASSIGN_CLIENT detected", flush=True)
             sequence_state += 1        
         elif sequence_state == 4 and handshake == 'ACK':
-            print("ACK for VSOMEIP_ASSIGN_CLIENT detected")
+            print("ACK for VSOMEIP_ASSIGN_CLIENT detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 5 and someip and someip['command'] == 0x01:
-            print("VSOMEIP_ASSIGN_CLIENT_ACK detected")
+        elif sequence_state == 5 and someip and someip['command'] == ASSIGN_CLIENT_ACK_ID:
+            print("VSOMEIP_ASSIGN_CLIENT_ACK detected", flush=True)
             sequence_state += 1
         elif sequence_state == 6 and handshake == 'ACK':
-            print("ACK for VSOMEIP_ASSIGN_CLIENT_ACK detected")
+            print("ACK for VSOMEIP_ASSIGN_CLIENT_ACK detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 7 and someip and someip['command'] == 0x02:
-            print("VSOMEIP_REGISTER_APPLICATION detected")
+        elif sequence_state == 7 and someip and someip['command'] == REGISTER_APPLICATION_ID:
+            print("VSOMEIP_REGISTER_APPLICATION detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 8 and someip:
+        elif sequence_state == 8 and someip and someip['command'] == CONFIG_ID:
+            print("VSOMEIP_CONFIG detected", flush=True)
             sequence_state += 1
+        elif handshake == 'ACK' and sequence_state >= STATE_AFTER_REGISTER_APPLICATION_ACK:
+            # Allow additional ACKs after state 3 without resetting - just ignore them
+            print(f"Additional ACK ignored at state {sequence_state}", flush=True)
         else:
-            if sequence_state > 0:
-                print(f"Sequence broken at state {sequence_state}, resetting.")
-            sequence_state = 0
+            if sequence_state > STATE_INITIAL and payload_bytes:
+                print(f"Sequence broken at state {sequence_state}, resetting.", flush=True)
+                sequence_state = STATE_INITIAL
 
         my_counter += 1
-        if my_counter == 9 and sequence_state == 9:
-            print("Sequence complete! Sleeping for 1 second.")
+        if sequence_state == STATE_COMPLETE:
+            print("Sequence complete! Sleeping for 1 second.", flush=True)
             sleep(1)
-            sequence_state = 0
+            sequence_state = STATE_INITIAL
             my_counter = 0
         
         # Print SOMEIP payload if present
         if payload_bytes:
-            print(' '.join(format(byte, '02x') for byte in payload_bytes))
-    
+            print(f"  Payload ({len(payload_bytes)} bytes): {' '.join(format(byte, '02x') for byte in payload_bytes)}", flush=True)
+
     # Always accept the packet to avoid blocking traffic
     packet.accept()
 
@@ -121,15 +141,17 @@ def main():
     nfqueue.bind(0, process_packet)
 
     try:
-        print("Starting NFQueue")
+        print("Starting NFQueue", flush=True)
         nfqueue.run()
     except KeyboardInterrupt:
-        print("Stopping NFQueue")
+        print("Stopping NFQueue", flush=True)
     finally:
         nfqueue.unbind()
-        print("Flushing iptables.")
+        print("Flushing iptables.", flush=True)
         # Remove the iptables rule on exit
         os.system(iptablesr.replace("-A", "-D"))
+        sys.stdout.flush()
+        sys.stderr.flush()
 
 if __name__ == "__main__":
     main()
