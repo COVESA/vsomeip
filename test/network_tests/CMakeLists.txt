@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-set (VSOMEIP_NAME vsomeip3)
+set(VSOMEIP_NAME vsomeip3)
 
 # Add the gtest header files to the include files
 include_directories(
@@ -12,7 +12,7 @@ include_directories(
 )
 
 set(TEST_LINK_LIBRARIES gtest)
-if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_LINK_LIBRARIES ${TEST_LINK_LIBRARIES} socket)
 endif()
 set(NETWORK_TEST_BIN_DIR ${PROJECT_BINARY_DIR}/test/network_tests)
@@ -28,8 +28,8 @@ set(HOSTNAME "$ENV{HOSTNAME}")
 # # Example
 #
 # set(configuration_files
-#     my_test_config.json
-#     my_test_starter.sh
+#   my_test_config.json
+#   my_test_starter.sh
 # )
 # configure_files("${configuration_files}")
 function(configure_files files)
@@ -50,8 +50,8 @@ endfunction()
 # # Example
 #
 # set(executables
-#     my_test_service
-#     my_test_client
+#   my_test_service
+#   my_test_client
 # )
 # targets_link_default_libraries("${executables}")
 function(targets_link_default_libraries targets)
@@ -64,9 +64,9 @@ function(targets_link_default_libraries targets)
             ${DLT_LIBRARIES}
             vsomeip_utilities
         )
-        if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             target_link_libraries(${target} stdc++)
-            if (UNIX)
+            if(UNIX)
                 target_link_libraries(${target} m)
             endif()
         endif()
@@ -81,8 +81,8 @@ endfunction()
 # # Example
 #
 # set(executables
-#     my_test_service
-#     my_test_client
+#   my_test_service
+#   my_test_client
 # )
 # targets_add_default_dependencies("${executables}")
 function(targets_add_default_dependencies targets)
@@ -101,10 +101,10 @@ endfunction()
 # # Example
 #
 # add_custom_test(
-#     NAME my_test_name
-#     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/my_test_starter.sh ARG1 ARG2...
-#     TIMEOUT 60 # Optional. Defaults to 120s.
-#     ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
+# NAME my_test_name
+# COMMAND ${CMAKE_CURRENT_BINARY_DIR}/my_test_starter.sh ARG1 ARG2...
+# TIMEOUT 60 # Optional. Defaults to 120s.
+# ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
 # )
 function(add_custom_test)
     set(options "")
@@ -115,9 +115,9 @@ function(add_custom_test)
     )
 
     # Skip valgrind
-    if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
+    if(DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
         set(TEST_ENTRYPOINT
-            ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq,/usr/bin/sleep,/usr/bin/netstat,/usr/bin/awk,/usr/bin/mawk,/usr/bin/grep,/usr/bin/wc,/usr/bin/pgrep
+            ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq,/usr/bin/sleep,/usr/bin/netstat,/usr/bin/awk,/usr/bin/mawk,/usr/bin/grep,/usr/bin/wc,/usr/bin/pgrep,/usr/bin/python3,*/python3,/usr/sbin/iptables,*/xtables-nft-multi
         )
     endif()
 
@@ -200,6 +200,6 @@ add_subdirectory(registration_check_test)
 add_subdirectory(routing_tests)
 
 # some tests require the routingmanagerd
-if (NOT MSVC)
+if(NOT MSVC)
     add_dependencies(build_network_tests routingmanagerd)
-endif ()
+endif()
