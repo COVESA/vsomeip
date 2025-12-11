@@ -213,6 +213,16 @@ TEST_F(usei_fixture, basic_multicast) {
 }
 
 TEST_F(usei_fixture, no_overwrite_during_restart) {
+    
+    // Before the fix, this test was able to reproduce the following race condition:
+    // when the server was restarted, if there were still messages to be unstacked
+    // from the Linux buffers, the old asynchronous task unstacking these messages
+    // continued to run and, since it shared the same buffer with the new task, this
+    // corrupted the data. The problem is that this condition occurs at restart (so
+    // messages are lost) and that Linux can too discard UDP messages. This makes it
+    // difficult to detect the problem. However, it has been verified that this
+    // value of two-thirds of messages lost is symptomatic of the problem.
+
     constexpr size_t MESSAGE_SENT_COUNT = 10000;
     using namespace std::chrono_literals;
     std::atomic<bool> finished{false};
