@@ -41,13 +41,13 @@ static void wait_for_signal() {
     }
 }
 
-class initial_event_test_service : public vsomeip_utilities::base_logger {
+class initial_event_test_service {
 public:
     initial_event_test_service(struct initial_event_test::service_info _service_info, std::uint16_t _events_to_offer,
                                vsomeip::reliability_type_e _reliability_type) :
-        vsomeip_utilities::base_logger("IETS", "INITIAL EVENT TEST SERVICE"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true), events_to_offer_(_events_to_offer),
-        offer_thread_(std::bind(&initial_event_test_service::run, this)), reliability_type_(_reliability_type) {
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application()), wait_until_registered_(true),
+        events_to_offer_(_events_to_offer), offer_thread_(std::bind(&initial_event_test_service::run, this)),
+        reliability_type_(_reliability_type) {
         if (!app_->init()) {
             offer_thread_.detach();
             ADD_FAILURE() << "Couldn't initialize application";

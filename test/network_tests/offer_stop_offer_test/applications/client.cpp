@@ -9,7 +9,7 @@
 #include "service_ids.hpp"
 
 client_t::client_t() :
-    vsomeip_utilities::base_logger("CLI", "VSOMEIP SERVICE CONSUMER"),
+
     vsomeip_app(vsomeip::runtime::get()->create_application("client-sample")) {
 
     availability_table[SERVICE_ID] = false;

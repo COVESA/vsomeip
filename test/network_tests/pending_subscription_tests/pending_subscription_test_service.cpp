@@ -23,11 +23,11 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class pending_subscription_test_service : public vsomeip_utilities::base_logger {
+class pending_subscription_test_service {
 public:
     pending_subscription_test_service(struct pending_subscription_test::service_info _service_info,
                                       pending_subscription_test::test_mode_e _testmode) :
-        vsomeip_utilities::base_logger("PSTS", "PENDING SUBSCRIPTION TEST SERVICE"), service_info_(_service_info), testmode_(_testmode),
+        service_info_(_service_info), testmode_(_testmode),
         app_(vsomeip::runtime::get()->create_application("pending_subscription_test_service")), wait_until_registered_(true),
         wait_until_shutdown_method_called_(true), subscription_accepted_asynchronous_(false), subscription_accepted_synchronous_(false),
         offer_thread_(std::bind(&pending_subscription_test_service::run, this)) {

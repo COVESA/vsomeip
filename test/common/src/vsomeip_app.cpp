@@ -28,19 +28,6 @@ std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::servi
     return its_message;
 }
 
-base_logger::base_logger(const char* dlt_application_id_, const char* dlt_application_name_) :
-    dlt_application_id_(dlt_application_id_), dlt_application_name_(dlt_application_name_) {
-#ifdef USE_DLT
-    DLT_REGISTER_APP(dlt_application_id_, dlt_application_name_);
-#endif
-}
-
-base_logger::~base_logger() {
-#ifdef USE_DLT
-    DLT_UNREGISTER_APP();
-#endif
-}
-
 std::set<vsomeip_v3::eventgroup_t> service_info_t::get_eventgroups_for_event(const service_info_t& service_info,
                                                                              vsomeip_v3::event_t event_id) {
     std::set<vsomeip_v3::eventgroup_t> result;
@@ -56,7 +43,7 @@ std::set<vsomeip_v3::eventgroup_t> service_info_t::get_eventgroups_for_event(con
 // Base VSIP App
 // ----------------------------------------------------------------------
 
-base_vsip_app::base_vsip_app(const char* app_name_, const char* app_id_) : base_logger(app_name_, app_id_) {
+base_vsip_app::base_vsip_app(const char* app_name_) {
     greenlight_ready_ = false;
     _app = vsomeip::runtime::get()->create_application(app_name_);
     _run_thread = std::thread(std::bind(&base_vsip_app::run, this));
@@ -239,7 +226,7 @@ base_vsip_app_builder& base_vsip_app_builder::with_availability_callback(const b
 }
 
 std::unique_ptr<base_vsip_app> base_vsip_app_builder::build() {
-    auto app = std::make_unique<base_vsip_app>(app_name.c_str(), app_id.c_str());
+    auto app = std::make_unique<base_vsip_app>(app_name.c_str());
 
     if (!requests.empty()) {
         app->set_request(requests);

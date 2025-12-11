@@ -21,12 +21,12 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class client_id_test_service : public vsomeip_utilities::base_logger {
+class client_id_test_service {
 public:
     client_id_test_service(struct client_id_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("CITS", "CLIENT ID TEST SERVICE"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application()), blocked_(false), offer_thread_(std::bind(&client_id_test_service::run, this)),
-        stopped_(false), stop_thread_(std::bind(&client_id_test_service::wait_for_stop, this)) {
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application()), blocked_(false),
+        offer_thread_(std::bind(&client_id_test_service::run, this)), stopped_(false),
+        stop_thread_(std::bind(&client_id_test_service::wait_for_stop, this)) {
         if (!app_->init()) {
             offer_thread_.detach();
             stop_thread_.detach();

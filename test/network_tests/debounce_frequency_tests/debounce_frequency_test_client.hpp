@@ -34,7 +34,7 @@ private:
     void unsubscribe_all();
 
 public:
-    test_client(const char* app_name_, const char* app_id_);
+    test_client(const char* app_name_);
 
     int was_event1_recv();
     int was_event2_recv();

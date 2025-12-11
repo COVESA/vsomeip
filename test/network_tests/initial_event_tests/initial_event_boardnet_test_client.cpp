@@ -17,11 +17,11 @@
 #include "initial_event_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class boardnet_client : public vsomeip_utilities::base_logger {
+class boardnet_client {
 public:
     boardnet_client(struct initial_event_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("IEBTC", "INITIAL EVENT BOARDNET TEST CLIENT"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application("initial_event_test_client")), initial_event_counter{0} {
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application("initial_event_test_client")),
+        initial_event_counter{0} {
 
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";

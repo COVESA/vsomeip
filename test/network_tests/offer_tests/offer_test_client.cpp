@@ -30,12 +30,11 @@
 
 enum operation_mode_e { SUBSCRIBE, METHODCALL };
 
-class offer_test_client : public vsomeip_utilities::base_logger {
+class offer_test_client {
 public:
     offer_test_client(struct offer_test::service_info _service_info, operation_mode_e _mode) :
-        vsomeip_utilities::base_logger("OTC1", "OFFER TEST CLIENT"), service_info_(_service_info), operation_mode_(_mode),
-        app_(vsomeip::runtime::get()->create_application("offer_test_client")), wait_until_registered_(true),
-        wait_until_service_available_(true), wait_for_stop_(true), last_received_counter_(0),
+        service_info_(_service_info), operation_mode_(_mode), app_(vsomeip::runtime::get()->create_application("offer_test_client")),
+        wait_until_registered_(true), wait_until_service_available_(true), wait_for_stop_(true), last_received_counter_(0),
         last_received_response_(std::chrono::steady_clock::now()), number_received_responses_(0),
         stop_thread_(std::bind(&offer_test_client::wait_for_stop, this)), send_thread_(std::bind(&offer_test_client::send, this)) {
         if (!app_->init()) {

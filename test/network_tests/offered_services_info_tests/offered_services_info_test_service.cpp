@@ -34,13 +34,12 @@ std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> all_offered_services
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> local_offered_services;
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> remote_offered_services;
 
-class offer_test_service : public vsomeip_utilities::base_logger {
+class offer_test_service {
 public:
     offer_test_service(struct offer_test::service_info _service_info, struct offer_test::service_info _remote_service_info) :
-        vsomeip_utilities::base_logger("OTS1", "OFFER TEST SERVICE"), service_info_(_service_info),
-        remote_service_info_(_remote_service_info), app_(vsomeip::runtime::get()->create_application("service-sample")),
-        wait_until_registered_(true), wait_until_start_(true), wait_until_done_(true),
-        offer_thread_(std::bind(&offer_test_service::run, this)) {
+        service_info_(_service_info), remote_service_info_(_remote_service_info),
+        app_(vsomeip::runtime::get()->create_application("service-sample")), wait_until_registered_(true), wait_until_start_(true),
+        wait_until_done_(true), offer_thread_(std::bind(&offer_test_service::run, this)) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;

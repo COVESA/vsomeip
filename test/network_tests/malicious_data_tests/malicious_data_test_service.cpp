@@ -23,10 +23,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class malicious_data_test_service : public vsomeip_utilities::base_logger {
+class malicious_data_test_service {
 public:
     malicious_data_test_service(struct malicious_data_test::service_info _service_info, malicious_data_test::test_mode_e _testmode) :
-        vsomeip_utilities::base_logger("MDTS", "MALICIOUS DATA TEST SERVICE"), service_info_(_service_info), testmode_(_testmode),
+        service_info_(_service_info), testmode_(_testmode),
         app_(vsomeip::runtime::get()->create_application("malicious_data_test_service")), wait_until_registered_(true),
         wait_until_shutdown_method_called_(true), received_events_(0), received_methodcalls_(0),
         offer_thread_(std::bind(&malicious_data_test_service::run, this)) {

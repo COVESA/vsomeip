@@ -23,20 +23,7 @@ std::shared_ptr<vsomeip_v3::message> create_standard_vsip_request(vsomeip::servi
     return its_message;
 }
 
-base_logger::base_logger(const char* _dlt_application_id, const char* _dlt_application_name) :
-    dlt_application_id_(_dlt_application_id), dlt_application_name_(_dlt_application_name) {
-#ifdef USE_DLT
-    DLT_REGISTER_APP(_dlt_application_id, _dlt_application_name);
-#endif
-}
-
-base_logger::~base_logger() {
-#ifdef USE_DLT
-    DLT_UNREGISTER_APP();
-#endif
-}
-
-base_vsip_app::base_vsip_app(const char* app_name_, const char* app_id_) : base_logger(app_name_, app_id_) {
+base_vsip_app::base_vsip_app(const char* app_name_) {
     _app = vsomeip::runtime::get()->create_application(app_name_);
     _app->init();
     _run_thread = std::thread(std::bind(&base_vsip_app::run, this));

@@ -19,11 +19,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class second_address_test_service : public vsomeip_utilities::base_logger {
+class second_address_test_service {
 public:
     second_address_test_service(struct second_address_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("SATS", "SECOND ADDRESS TEST SERVICE"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application("second_address_test_service")),
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application("second_address_test_service")),
         offer_thread_(std::bind(&second_address_test_service::run, this)) {
 
         if (!app_->init()) {

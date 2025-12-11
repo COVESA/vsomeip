@@ -38,8 +38,7 @@ void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& s
         VSOMEIP_INFO << "logged service: " << its_rsssize * its_pagesize;
     }
 }
-memory_test_service::memory_test_service(const char* app_name_, const char* app_id_) :
-    vsomeip_utilities::base_vsip_app(app_name_, app_id_) {
+memory_test_service::memory_test_service(const char* app_name_) : vsomeip_utilities::base_vsip_app(app_name_) {
     for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
         _app->offer_event(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, {MEMORY_EVENTGROUP}, vsomeip::event_type_e::ET_FIELD,
                           std::chrono::milliseconds::zero(), false, true, nullptr, vsomeip::reliability_type_e::RT_UNRELIABLE);
@@ -120,7 +119,7 @@ TEST(memory_test, send_messages) {
     //
     // At the end evaluate if the threshold of 5% increase in memory load was not surpassed
 
-    memory_test_service its_service("memory_test_service", "MTS");
+    memory_test_service its_service("memory_test_service");
     std::atomic<bool> stop_checking{false};
 
     std::thread memory_checker_thread;

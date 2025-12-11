@@ -12,7 +12,7 @@
 constexpr std::size_t PAYLOAD_SIZE = 1000UL;
 
 service_t::service_t() :
-    vsomeip_utilities::base_logger("SRV", "VSOMEIP SERVICE PROVIDER"),
+
     vsomeip_app(vsomeip::runtime::get()->create_application("service-sample")), payload(std::vector<uint8_t>(PAYLOAD_SIZE, 0)),
     app_registration_state(vsomeip::state_type_e::ST_DEREGISTERED) {
 

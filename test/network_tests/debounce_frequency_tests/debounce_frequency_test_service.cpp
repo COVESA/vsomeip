@@ -21,7 +21,7 @@ void test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/
     VSOMEIP_INFO << "service: " << __func__ << ": Received a STOP command.";
 }
 
-test_service::test_service(const char* app_name_, const char* app_id_) : vsomeip_utilities::base_vsip_app(app_name_, app_id_) {
+test_service::test_service(const char* app_name_) : vsomeip_utilities::base_vsip_app(app_name_) {
     _app->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_START_METHOD,
                                    std::bind(&test_service::on_start, this, std::placeholders::_1));
     _app->register_message_handler(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_STOP_METHOD,
@@ -72,7 +72,7 @@ bool test_service::was_event_2_sent() {
 }
 
 TEST(debounce_frequency_test, server) {
-    test_service debounce_server("debounce_frequency_test_service", "DFTS");
+    test_service debounce_server("debounce_frequency_test_service");
     debounce_server.send_messages();
 
     EXPECT_TRUE(debounce_server.was_event_1_sent()) << "Event 1 was not sent by the service";

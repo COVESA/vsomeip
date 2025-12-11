@@ -23,10 +23,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class application_test_service : public vsomeip_utilities::base_logger {
+class application_test_service {
 public:
     application_test_service(struct application_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("APTS", "APPLICATION TEST SERVICE"), service_info_(_service_info),
+        service_info_(_service_info),
         // service with number 1 uses "routingmanagerd" as application name
         // this way the same json file can be reused for all local tests
         // including the ones with routingmanagerd

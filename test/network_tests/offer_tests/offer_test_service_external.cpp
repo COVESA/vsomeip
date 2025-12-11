@@ -23,10 +23,10 @@
 
 static std::string service_number;
 
-class offer_test_service : public vsomeip_utilities::base_logger {
+class offer_test_service {
 public:
     offer_test_service(struct offer_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("OTSE", "OFFER TEST SERVICE EXTERNAL"), service_info_(_service_info),
+        service_info_(_service_info),
         // service with number 1 uses "routingmanagerd" as application name
         // this way the same json file can be reused for all local tests
         // including the ones with routingmanagerd

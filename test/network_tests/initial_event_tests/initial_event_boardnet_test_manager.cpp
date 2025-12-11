@@ -19,11 +19,10 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include <common/process_manager.hpp>
 
-class boardnet_service_provider : public vsomeip_utilities::base_logger {
+class boardnet_service_provider {
 public:
     boardnet_service_provider(struct initial_event_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("IEBTS", "INITIAL EVENT TEST SERVICE"), service_info_(_service_info),
-        app_(vsomeip::runtime::get()->create_application("initial_event_test_service")),
+        service_info_(_service_info), app_(vsomeip::runtime::get()->create_application("initial_event_test_service")),
         registration_status_{vsomeip::state_type_e::ST_DEREGISTERED}, client_subscribed_{false}, message_received_{false} {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";

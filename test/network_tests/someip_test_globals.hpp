@@ -9,10 +9,6 @@
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-#ifdef USE_DLT
-#include <dlt/dlt.h>
-#endif
-
 namespace vsomeip_test {
 
 // Service

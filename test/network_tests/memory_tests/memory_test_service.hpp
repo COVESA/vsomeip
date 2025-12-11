@@ -20,7 +20,7 @@
 
 class memory_test_service : public vsomeip_utilities::base_vsip_app {
 public:
-    memory_test_service(const char* app_name_, const char* app_id_);
+    memory_test_service(const char* app_name_);
     void setup_app(const std::function<void(void)> executionHandler_);
     void message_sender(std::atomic<bool>& stop_checking_);
 

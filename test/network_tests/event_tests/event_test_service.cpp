@@ -21,13 +21,13 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class event_test_service : public vsomeip_utilities::base_logger {
+class event_test_service {
 public:
     event_test_service(struct event_test::service_info _service_info, bool _use_tcp) :
-        vsomeip_utilities::base_logger("EVTS", "EVENT TEST SERVICE"), service_info_(_service_info),
-        test_mode_(event_test::test_mode_e::UNKNOWN), app_(vsomeip::runtime::get()->create_application("event_test_service")),
-        wait_until_registered_(true), wait_until_notify_method_called_(true), wait_until_shutdown_method_called_(true),
-        client_subscribed_(false), notifications_to_send_(0), offer_thread_(std::bind(&event_test_service::run, this)), use_tcp_(_use_tcp) {
+        service_info_(_service_info), test_mode_(event_test::test_mode_e::UNKNOWN),
+        app_(vsomeip::runtime::get()->create_application("event_test_service")), wait_until_registered_(true),
+        wait_until_notify_method_called_(true), wait_until_shutdown_method_called_(true), client_subscribed_(false),
+        notifications_to_send_(0), offer_thread_(std::bind(&event_test_service::run, this)), use_tcp_(_use_tcp) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;

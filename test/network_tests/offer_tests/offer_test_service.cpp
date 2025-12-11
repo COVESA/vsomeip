@@ -27,10 +27,10 @@
 static std::string service_number;
 static std::atomic<bool> sigusr1_raised{false};
 
-class offer_test_service : public vsomeip_utilities::base_logger {
+class offer_test_service {
 public:
     offer_test_service(struct offer_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("OTS1", "OFFER TEST SERVICE"), service_info_(_service_info),
+        service_info_(_service_info),
         // service with number 1 uses "routingmanagerd" as application name
         // this way the same json file can be reused for all local tests
         // including the ones with routingmanagerd

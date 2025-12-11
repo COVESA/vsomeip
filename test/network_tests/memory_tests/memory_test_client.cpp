@@ -68,8 +68,8 @@ void memory_test_client::on_message(const std::shared_ptr<vsomeip::message>& mes
     }
 }
 
-memory_test_client::memory_test_client(const char* app_name_, const char* app_id_, std::map<vsomeip::event_t, int> map_events_) :
-    vsomeip_utilities::base_vsip_app(app_name_, app_id_), map_events(map_events_) {
+memory_test_client::memory_test_client(const char* app_name_, std::map<vsomeip::event_t, int> map_events_) :
+    vsomeip_utilities::base_vsip_app(app_name_), map_events(map_events_) {
     sec = std::chrono::system_clock::now();
     _app->register_availability_handler(
             MEMORY_SERVICE, MEMORY_INSTANCE,
@@ -146,7 +146,7 @@ TEST(memory_tests, receive_messages) {
         events_to_subscribe[MEMORY_EVENT + i] = 0;
     }
 
-    memory_test_client memory_test_client("memory_tests_client", "MTC", events_to_subscribe);
+    memory_test_client memory_test_client("memory_tests_client", events_to_subscribe);
 
     std::atomic<bool> stop_checking{false};
 

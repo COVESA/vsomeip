@@ -22,10 +22,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class event_test_client : public vsomeip_utilities::base_logger {
+class event_test_client {
 public:
     event_test_client(struct event_test::service_info _service_info, event_test::test_mode_e _mode, bool _use_tcp) :
-        vsomeip_utilities::base_logger("EVTC", "EVENT TEST CLIENT"), service_info_(_service_info), test_mode_(_mode), use_tcp_(_use_tcp),
+        service_info_(_service_info), test_mode_(_mode), use_tcp_(_use_tcp),
         app_(vsomeip::runtime::get()->create_application("event_test_client")), wait_until_registered_(true),
         wait_until_service_available_(true), wait_until_subscription_accepted_(true), wait_until_events_received_(true),
         wait_until_shutdown_reply_received_(true), number_events_to_send_(50), number_events_received_(0),

@@ -12,10 +12,9 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class application_test_daemon : public vsomeip_utilities::base_logger {
+class application_test_daemon {
 public:
-    application_test_daemon() :
-        vsomeip_utilities::base_logger("APTD", "APPLICATION TEST DAEMON"), app_(vsomeip::runtime::get()->create_application("daemon")) {
+    application_test_daemon() : app_(vsomeip::runtime::get()->create_application("daemon")) {
         if (!app_->init()) {
             ADD_FAILURE() << "[Daemon] Couldn't initialize application";
             return;

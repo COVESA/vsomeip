@@ -25,14 +25,14 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class someip_tp_test_service : public vsomeip_utilities::base_logger {
+class someip_tp_test_service {
 public:
     someip_tp_test_service(struct someip_tp_test::service_info _service_info, someip_tp_test::test_mode_e _testmode) :
-        vsomeip_utilities::base_logger("STTS", "SOMEIP TP TEST SERVICE"), service_info_(_service_info), testmode_(_testmode),
-        app_(vsomeip::runtime::get()->create_application("someip_tp_test_service")), wait_until_registered_(true),
-        wait_until_shutdown_method_called_(true), wait_for_slave_subscription_(true), number_notifications_of_slave_(0x0),
-        wait_for_slave_service_available_(true), wait_for_two_responses_of_slave_(true), number_responses_of_slave_(0),
-        wait_for_two_requests_of_slave_(true), number_requests_from_slave_(0), wait_for_two_notifications_of_slave_(true) { }
+        service_info_(_service_info), testmode_(_testmode), app_(vsomeip::runtime::get()->create_application("someip_tp_test_service")),
+        wait_until_registered_(true), wait_until_shutdown_method_called_(true), wait_for_slave_subscription_(true),
+        number_notifications_of_slave_(0x0), wait_for_slave_service_available_(true), wait_for_two_responses_of_slave_(true),
+        number_responses_of_slave_(0), wait_for_two_requests_of_slave_(true), number_requests_from_slave_(0),
+        wait_for_two_notifications_of_slave_(true) { }
 
     void start() {
         if (!app_->init()) {

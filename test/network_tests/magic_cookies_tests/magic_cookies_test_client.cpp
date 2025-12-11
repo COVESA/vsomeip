@@ -18,12 +18,11 @@
 #include "../implementation/runtime/include/application_impl.hpp"
 #include "../implementation/routing/include/routing_manager.hpp"
 
-class magic_cookies_test_client : public vsomeip_utilities::base_logger {
+class magic_cookies_test_client {
 public:
     magic_cookies_test_client() :
-        vsomeip_utilities::base_logger("MCTC", "MAGIC COOKIES TEST CLIENT"), app_(new vsomeip::application_impl("", "")),
-        is_blocked_(false), sent_messages_good_(8), sent_messages_bad_(7), received_responses_(0), received_errors_(0),
-        wait_for_replies_(true), runner_(std::bind(&magic_cookies_test_client::run, this)) { }
+        app_(new vsomeip::application_impl("", "")), is_blocked_(false), sent_messages_good_(8), sent_messages_bad_(7),
+        received_responses_(0), received_errors_(0), wait_for_replies_(true), runner_(std::bind(&magic_cookies_test_client::run, this)) { }
 
     void init() {
         VSOMEIP_INFO << "Initializing...";

@@ -23,10 +23,10 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
-class offer_test_big_sd_msg_service : public vsomeip_utilities::base_logger {
+class offer_test_big_sd_msg_service {
 public:
     offer_test_big_sd_msg_service(struct offer_test::service_info _service_info) :
-        vsomeip_utilities::base_logger("OTBS", "OFFER TEST BIG SD MSG SERVICE"), service_info_(_service_info),
+        service_info_(_service_info),
         // service with number 1 uses "routingmanagerd" as application name
         // this way the same json file can be reused for all local tests
         // including the ones with routingmanagerd
