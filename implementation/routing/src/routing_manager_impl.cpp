@@ -304,7 +304,7 @@ void routing_manager_impl::stop() {
 
     for (const auto client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(client, true, false);
+            remove_local(client, false);
         }
     }
 }
@@ -2007,7 +2007,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
     }
 }
 
-void routing_manager_impl::remove_local(client_t _client, bool _remove_uid, bool _remove_due_to_error) {
+void routing_manager_impl::remove_local(client_t _client, bool _remove_due_to_error) {
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> its_clients_subscriptions;
     its_clients_subscriptions = get_subscriptions(_client);
@@ -2023,7 +2023,7 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_uid, bool
         }
         unsubscribe(_client, &its_sec_client, service, instance, eventgroup, ANY_EVENT);
     }
-    routing_manager_base::remove_local(_client, its_clients_subscriptions, _remove_uid, _remove_due_to_error);
+    routing_manager_base::remove_local(_client, _remove_due_to_error, its_clients_subscriptions, nullptr);
 
     for (const auto& s : get_requested_services(_client)) {
         release_service(_client, s.service_, s.instance_);

@@ -183,7 +183,7 @@ void routing_manager_client::stop() {
 
     for (const auto client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(client, true, false);
+            remove_local(client, false);
         }
     }
 }
@@ -1710,7 +1710,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                                  << its_address.to_string() + ":" << its_port;
 
                     // also removes guest
-                    remove_local(old_client, true, true);
+                    remove_local(old_client, true);
                 }
 
                 add_guest(its_client, its_address, its_port);
@@ -1804,7 +1804,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     // Remove all local connections/endpoints
     for (const auto& c : _clients) {
         if (c.first != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(c.first, true, true);
+            remove_local(c.first, true);
         }
     }
 
@@ -2473,24 +2473,11 @@ void routing_manager_client::handle_client_error(client_t _client) {
         VSOMEIP_INFO << "rmc::" << __func__ << ": Client 0x" << std::hex << std::setw(4) << std::setfill('0') << get_client()
                      << " handles a client error 0x" << std::hex << std::setw(4) << _client << " not reconnecting";
 
-        // Save the services that were requested to this client, before cleaning up.
-        std::set<protocol::service> services_to_request{};
-        if (state_ == inner_state_type_e::ST_REGISTERED) {
-            std::scoped_lock lk{local_services_mutex_};
-            for (const auto& [service, instances] : local_services_) {
-                for (const auto& [instance, info] : instances) {
-                    const auto [major, minor, client] = info;
-                    if (client == _client) {
-                        services_to_request.emplace(service, instance, major, minor);
-                    }
-                }
-            }
-        }
-
         // First ensure that the connection is dropped, before enforcing a
         // reconnect from the client. Otherwise a client subscribe might
         // be handled by a partially cleaned-up connection
-        remove_local(_client, true, true);
+        std::set<protocol::service> requested_services;
+        remove_local(_client, true, get_subscriptions(_client), &requested_services);
         // Remove the client from the local connections.
         {
             std::scoped_lock lock{receiver_mutex_};
@@ -2501,7 +2488,7 @@ void routing_manager_client::handle_client_error(client_t _client) {
 
         // Request the host these services again.
         if (state_ == inner_state_type_e::ST_REGISTERED) {
-            send_request_services(services_to_request);
+            send_request_services(requested_services);
         }
 
     } else {

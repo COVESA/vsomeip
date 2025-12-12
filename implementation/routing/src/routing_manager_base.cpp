@@ -987,20 +987,21 @@ client_t routing_manager_base::find_local_client_unlocked(service_t _service, in
     return its_client;
 }
 
-void routing_manager_base::remove_local(client_t _client, bool _remove_uid, bool _remove_due_to_error) {
-    remove_local(_client, get_subscriptions(_client), _remove_uid, _remove_due_to_error);
+void routing_manager_base::remove_local(client_t _client, bool _remove_due_to_error) {
+    remove_local(_client, _remove_due_to_error, get_subscriptions(_client), nullptr);
 }
 
-void routing_manager_base::remove_local(client_t _client,
+void routing_manager_base::remove_local(client_t _client, bool _remove_due_to_error,
                                         const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                                        bool _remove_sec_client, bool _remove_due_to_error) {
+                                        std::set<protocol::service>* _requested_services) {
 
     vsomeip_sec_client_t its_sec_client;
     configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
-
-    if (_remove_sec_client) {
+    // routing only removes mapping when incoming connection breaks, see `ls::remove_connection`
+    if (!is_routing_manager()) {
         configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     }
+
     for (auto its_subscription : _subscribed_eventgroups) {
         auto [its_service, its_instance, its_eventgroup] = its_subscription;
         host_->on_subscription(its_service, its_instance, its_eventgroup, _client, &its_sec_client, get_env(_client), false,
@@ -1024,6 +1025,11 @@ void routing_manager_base::remove_local(client_t _client,
                     instance_t its_instance = i.first;
                     auto [its_major, its_minor, unused] = i.second;
                     its_services.insert({its_service, its_instance});
+                    // NOTE: requested by us, offered by client
+                    if (_requested_services) {
+                        _requested_services->emplace(its_service, its_instance, its_major, its_minor);
+                    }
+
                     host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
                     VSOMEIP_INFO << "ON_UNAVAILABLE(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ["
                                  << std::setw(4) << its_service << "." << std::setw(4) << its_instance << ":" << std::dec

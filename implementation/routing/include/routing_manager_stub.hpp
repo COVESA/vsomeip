@@ -108,7 +108,7 @@ public:
     client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const override;
     void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
 
-    void remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error) override;
+    void remove_local(client_t _client, bool _remove_due_to_error) override;
 
     std::string get_env(client_t _client) const override;
 

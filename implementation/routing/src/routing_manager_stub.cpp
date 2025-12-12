@@ -695,8 +695,8 @@ void routing_manager_stub::add_guest(client_t _client, const boost::asio::ip::ad
     host_->add_guest(_client, _address, _port);
 }
 
-void routing_manager_stub::remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error) {
-    host_->remove_local(_client, _remove_sec_client, _remove_due_to_error);
+void routing_manager_stub::remove_local(client_t _client, bool _remove_due_to_error) {
+    host_->remove_local(_client, _remove_due_to_error);
 }
 
 void routing_manager_stub::on_register_application(client_t _client, bool& continue_registration) {
@@ -918,7 +918,7 @@ void routing_manager_stub::remove_client_connections(client_t client_id, bool _r
         }
         service_requests_.erase(client_id);
     }
-    host_->remove_local(client_id, false, _remove_due_to_error);
+    host_->remove_local(client_id, _remove_due_to_error);
     // notice that the effective shared_ptr copy is ensuring that the object
     // does not go out of scope during execution
     if (root_) {
