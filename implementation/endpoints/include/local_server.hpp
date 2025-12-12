@@ -8,6 +8,7 @@
 
 #include "local_receive_buffer.hpp"
 #include "timer.hpp"
+#include <cstdint>
 #include <vsomeip/primitive_types.hpp>
 
 #include <boost/system/error_code.hpp>
@@ -160,13 +161,14 @@ private:
 
         void async_receive();
         void receive_cbk(boost::system::error_code const& _ec, size_t _bytes);
-        client_t assign_client(size_t _message_size) const;
-        void confirm_connection(size_t _message_size);
+        client_t assign_client(uint8_t const* _data, uint32_t _message_size) const;
+        client_t read_config_command(uint8_t const* _data, uint32_t _message_size);
         void send_client_id(client_t _client);
-        void hand_over(client_t _client, std::string _environment);
+        void hand_over(client_t _client);
 
         bool const is_router_{false};
         uint32_t const lc_count_{0};
+        std::string client_host_;
         std::shared_ptr<local_socket> socket_; // not const as it will be moved out after the handshake
 
         std::shared_ptr<local_receive_buffer> const receive_buffer_;

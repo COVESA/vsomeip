@@ -45,7 +45,6 @@ struct local_endpoint_context {
  * Contains the peer-specific information and socket for this endpoint.
  */
 struct local_endpoint_params {
-    bool is_router_{false};
     client_t peer_{0};
     std::shared_ptr<local_socket> socket_;
 };
@@ -107,7 +106,6 @@ public:
      * @brief Creates a receiver endpoint from an accepted connection.
      * @param _context Shared infrastructure context.
      * @param _params Endpoint-specific parameters.
-     * @param _is_routing_endpoint whether this is the routing server
      * @return Endpoint in CONNECTED state, or nullptr if security check fails.
      */
     static std::shared_ptr<local_endpoint> create_server_ep(local_endpoint_context const& _context, local_endpoint_params _params,
@@ -232,7 +230,6 @@ private:
     std::string status_unlock() const;
 
 private:
-    bool const is_routing_endpoint_{false};
     bool is_sending_{false};
     state_e state_{state_e::STOPPED};
     client_t const peer_;

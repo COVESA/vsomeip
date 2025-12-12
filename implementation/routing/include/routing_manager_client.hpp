@@ -24,6 +24,7 @@ namespace vsomeip_v3 {
 
 class configuration;
 class event;
+class timer;
 class local_server;
 class routing_manager_host;
 
@@ -183,7 +184,8 @@ private:
      */
     void clear_remote_subscriptions();
 
-    void restart_sender();
+    void restart_sender(std::unique_lock<std::recursive_mutex> const& _sender_mutex);
+    void debounce_restart_sender_done();
 
 private:
     enum class inner_state_type_e : std::uint8_t {
@@ -206,6 +208,9 @@ private:
     std::mutex keepalive_mutex_;
 
     mutable std::recursive_mutex sender_mutex_;
+    bool sender_required_{true};
+    bool sender_debounce_active_{false};
+    bool start_sender_after_debounce_{false};
     std::shared_ptr<local_endpoint> sender_; // --> stub
 
     mutable std::mutex receiver_mutex_;
@@ -256,6 +261,8 @@ private:
     const std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
 
     std::mutex stop_mutex_;
+
+    std::shared_ptr<timer> sender_debounce_;
 };
 
 } // namespace vsomeip_v3

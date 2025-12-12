@@ -99,6 +99,12 @@ routing_manager_client::~routing_manager_client() { }
 
 void routing_manager_client::init() {
     routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
+    sender_debounce_ = timer::create(io_, std::chrono::milliseconds(100), [this, weak_self = weak_from_this()] {
+        if (auto self = weak_self.lock(); self) {
+            debounce_restart_sender_done();
+        }
+        return false;
+    });
 }
 
 void routing_manager_client::start() {
@@ -111,7 +117,9 @@ void routing_manager_client::start() {
             receiver_ = ep_mgr_->create_local_server(shared_from_this());
         }
     }
-    restart_sender();
+    std::unique_lock lock{sender_mutex_};
+    sender_required_ = true;
+    restart_sender(lock);
 }
 
 void routing_manager_client::stop() {
@@ -136,6 +144,7 @@ void routing_manager_client::stop() {
             // the subsequent deregister_application might lead to a "end of file"
             // error in the sender, which could initiate a reconnection attempt
             std::scoped_lock its_sender_lock{sender_mutex_};
+            sender_required_ = false;
             if (sender_) {
                 sender_->register_error_handler(nullptr);
             }
@@ -256,6 +265,8 @@ void routing_manager_client::ping_host() {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     } else {
         VSOMEIP_ERROR << "rmc::" << __func__ << ": ping command serialization failed (" << static_cast<int>(its_error) << ")";
@@ -355,6 +366,8 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
                 std::scoped_lock its_sender_lock{sender_mutex_};
                 if (sender_) {
                     sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+                } else {
+                    VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
                 }
             } else {
                 VSOMEIP_ERROR << "rmc::" << __func__ << ": stop offer serialization failed (" << static_cast<int>(its_error) << ")";
@@ -517,6 +530,8 @@ void routing_manager_client::unregister_event(client_t _client, service_t _servi
                 std::scoped_lock its_sender_lock{sender_mutex_};
                 if (sender_) {
                     sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+                } else {
+                    VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
                 }
             }
         }
@@ -609,6 +624,8 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
             std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            } else {
+                VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
             }
         }
     } else {
@@ -643,6 +660,8 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber, service_t
             std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            } else {
+                VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
             }
         }
     } else {
@@ -677,6 +696,8 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber, service_t 
             std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            } else {
+                VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
             }
         }
     } else {
@@ -718,6 +739,8 @@ void routing_manager_client::unsubscribe(client_t _client, const vsomeip_sec_cli
                     std::scoped_lock its_sender_lock{sender_mutex_};
                     if (sender_) {
                         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+                    } else {
+                        VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
                     }
                 }
             } else {
@@ -1814,7 +1837,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
         }
     }
 
-    restart_sender();
+    restart_sender(std::unique_lock{sender_mutex_});
 }
 
 void routing_manager_client::assign_client() {
@@ -1926,6 +1949,8 @@ void routing_manager_client::register_application() {
                 } else {
                     VSOMEIP_ERROR << "rmc::" << __func__ << ": config command serialization failed(" << static_cast<int>(its_error) << ")";
                 }
+            } else {
+                VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
             }
         }
     } else {
@@ -1948,6 +1973,8 @@ void routing_manager_client::deregister_application() {
             std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            } else {
+                VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
             }
         }
     } else
@@ -1969,6 +1996,8 @@ void routing_manager_client::send_pong() const {
             std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            } else {
+                VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
             }
         }
     } else
@@ -2016,6 +2045,8 @@ void routing_manager_client::send_release_service(client_t _client, service_t _s
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     }
 }
@@ -2084,6 +2115,8 @@ void routing_manager_client::send_register_event(client_t _client, service_t _se
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
 
         if (_is_provided) {
@@ -2244,6 +2277,8 @@ void routing_manager_client::notify_remote_initially(service_t _service, instanc
                         if (sender_) {
                             send_local(sender_, VSOMEIP_ROUTING_CLIENT, its_serializer->get_data(), its_serializer->get_size(), _instance,
                                        false, protocol::id_e::NOTIFY_ID, 0);
+                        } else {
+                            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
                         }
                     }
                     its_serializer->reset();
@@ -2319,7 +2354,7 @@ void routing_manager_client::assign_client_timeout_cbk(boost::system::error_code
             VSOMEIP_ERROR << "rmc::" << __func__ << ": Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                           << " ASSIGN_CLIENT_ACK timeout, no response from host! Will reconnect";
 
-            restart_sender();
+            restart_sender(std::unique_lock{sender_mutex_});
         }
     } else if (_error != boost::asio::error::operation_aborted) { // ignore error when timer is
                                                                   // deliberately cancelled
@@ -2344,7 +2379,7 @@ void routing_manager_client::register_application_timeout_cbk(boost::system::err
         VSOMEIP_ERROR << "rmc::" << __func__ << ": Client 0x" << std::hex << std::setfill('0') << std::setw(4) << get_client()
                       << " REGISTER_APPLICATION timeout, no response from host! Will reconnect";
 
-        restart_sender();
+        restart_sender(std::unique_lock{sender_mutex_});
     }
 }
 
@@ -2498,6 +2533,8 @@ void routing_manager_client::send_get_offered_services_info(client_t _client, of
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     } else
         VSOMEIP_ERROR << "rmc::" << __func__ << ": offered service request command serialization failed (" << static_cast<int>(its_error)
@@ -2522,6 +2559,8 @@ void routing_manager_client::send_unsubscribe_ack(service_t _service, instance_t
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     } else
         VSOMEIP_ERROR << "rmc::" << __func__ << ": unsubscribe ack command serialization failed (" << static_cast<int>(its_error) << ")";
@@ -2551,6 +2590,8 @@ void routing_manager_client::send_resend_provided_event_response(pending_remote_
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     } else
         VSOMEIP_ERROR << "rmc::" << __func__ << ": resend provided event command serialization failed (" << static_cast<int>(its_error)
@@ -2572,6 +2613,8 @@ void routing_manager_client::send_update_security_policy_response(pending_securi
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     } else
         VSOMEIP_ERROR << "rmc::" << __func__ << ": update security policy response command serialization failed ("
@@ -2592,6 +2635,8 @@ void routing_manager_client::send_remove_security_policy_response(pending_securi
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
         }
     } else
         VSOMEIP_ERROR << "rmc::" << __func__ << ": update security policy response command serialization failed ("
@@ -2658,7 +2703,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
 
                     host_->set_client(VSOMEIP_CLIENT_UNSET);
 
-                    restart_sender();
+                    restart_sender(std::unique_lock{sender_mutex_});
                 }
             } else {
                 VSOMEIP_WARNING << "rmc::" << __func__ << ": (" << host_->get_name() << ":" << std::hex << std::setfill('0') << std::setw(4)
@@ -2695,15 +2740,36 @@ void routing_manager_client::clear_remote_subscriptions() {
     remote_subscriber_count_.clear();
 }
 
-void routing_manager_client::restart_sender() {
-    std::scoped_lock its_sender_lock(sender_mutex_);
+void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<std::recursive_mutex> const& _sender_mutex) {
     if (sender_) {
         sender_->stop(false);
         sender_ = nullptr;
     }
+    if (!sender_required_) {
+        VSOMEIP_INFO << "rmc::" << __func__ << ": The restart of the sender is interrupted";
+        return;
+    }
+    if (sender_debounce_active_) {
+        start_sender_after_debounce_ = true;
+        VSOMEIP_INFO << "rmc::" << __func__ << ": The restart of the sender is debounced";
+        return;
+    }
+    start_sender_after_debounce_ = false;
     sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
     if (sender_) {
         sender_->start();
+        sender_debounce_active_ = true;
+        sender_debounce_->start();
+    } else {
+        VSOMEIP_ERROR << "rmc::" << __func__ << ": failed due to a missing sender";
+    }
+}
+
+void routing_manager_client::debounce_restart_sender_done() {
+    std::unique_lock its_sender_lock(sender_mutex_);
+    sender_debounce_active_ = false;
+    if (start_sender_after_debounce_) {
+        restart_sender(its_sender_lock);
     }
 }
 

@@ -31,7 +31,7 @@ VALID_COMMANDS = {
 # State machine constants
 STATE_INITIAL = 0
 STATE_AFTER_REGISTER_APPLICATION_ACK = 4
-STATE_COMPLETE = 9
+STATE_COMPLETE = 10
 
 # Substitute these with the test IP at runtime
 SRC = '@TEST_IP_MASTER@'
@@ -94,23 +94,26 @@ def process_packet(packet):
         elif sequence_state == 2 and handshake == 'ACK':
             print("ACK detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 3 and someip and someip['command'] == ASSIGN_CLIENT_ID:
+        elif sequence_state == 3 and someip and someip['command'] == CONFIG_ID:
+            print("VSOMEIP_CONFIG 1 detected", flush=True)
+            sequence_state += 1
+        elif sequence_state == 4 and someip and someip['command'] == ASSIGN_CLIENT_ID:
             print("VSOMEIP_ASSIGN_CLIENT detected", flush=True)
             sequence_state += 1        
-        elif sequence_state == 4 and handshake == 'ACK':
+        elif sequence_state == 5 and handshake == 'ACK':
             print("ACK for VSOMEIP_ASSIGN_CLIENT detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 5 and someip and someip['command'] == ASSIGN_CLIENT_ACK_ID:
+        elif sequence_state == 6 and someip and someip['command'] == ASSIGN_CLIENT_ACK_ID:
             print("VSOMEIP_ASSIGN_CLIENT_ACK detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 6 and handshake == 'ACK':
+        elif sequence_state == 7 and handshake == 'ACK':
             print("ACK for VSOMEIP_ASSIGN_CLIENT_ACK detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 7 and someip and someip['command'] == REGISTER_APPLICATION_ID:
+        elif sequence_state == 8 and someip and someip['command'] == REGISTER_APPLICATION_ID:
             print("VSOMEIP_REGISTER_APPLICATION detected", flush=True)
             sequence_state += 1
-        elif sequence_state == 8 and someip and someip['command'] == CONFIG_ID:
-            print("VSOMEIP_CONFIG detected", flush=True)
+        elif sequence_state == 9 and someip and someip['command'] == CONFIG_ID:
+            print("VSOMEIP_CONFIG 2 detected", flush=True)
             sequence_state += 1
         elif handshake == 'ACK' and sequence_state >= STATE_AFTER_REGISTER_APPLICATION_ACK:
             # Allow additional ACKs after state 3 without resetting - just ignore them
