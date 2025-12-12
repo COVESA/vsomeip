@@ -26,7 +26,7 @@ public:
     MOCK_METHOD(void, remove_known_client, (client_t), (override));
     MOCK_METHOD(client_t, get_guest_by_address, (const boost::asio::ip::address&, port_t), (const, override));
     MOCK_METHOD(void, add_guest, (client_t, const boost::asio::ip::address&, port_t), (override));
-    MOCK_METHOD(void, remove_local, (client_t, bool, bool), (override));
+    MOCK_METHOD(void, remove_local, (client_t, bool), (override));
     MOCK_METHOD(std::string, get_env, (client_t), (const, override));
     MOCK_METHOD(void, remove_subscriptions, (port_t, const boost::asio::ip::address&, port_t), (override));
 };

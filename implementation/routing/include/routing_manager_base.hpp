@@ -148,9 +148,18 @@ protected:
     services_t get_services_remote() const;
     virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
-    void remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error);
-    void remove_local(client_t _client, const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                      bool _remove_sec_client, bool _remove_due_to_error);
+    void remove_local(client_t _client, bool _remove_due_to_error);
+    /// @brief Remove local client
+    ///
+    /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
+    ///
+    /// @param _client what client
+    /// @param _remove_due_to_error whether we are removing due to an error - do not bother with graceful endpoint closure
+    /// @param _subscribed_eventgroups what eventgroups to unsubscribe to
+    /// @param _requested_services what services were requested by us and offered by client; will be filled if not nullptr
+    void remove_local(client_t _client, bool _remove_due_to_error,
+                      const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
+                      std::set<protocol::service>* _requested_services);
 
     std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
 
