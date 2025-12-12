@@ -172,11 +172,14 @@ void local_server::add_connection(client_t _client, std::shared_ptr<local_socket
             // again from the map
             rh->add_known_client(_client, _environment);
             auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_, endpoint_host_},
-                                                       local_endpoint_params{is_router_, _client, std::move(_socket)}, std::move(_buffer));
+                                                       local_endpoint_params{_client, std::move(_socket)}, std::move(_buffer));
             if (!ep) {
                 VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << std::hex << std::setfill('0')
                               << std::setw(4) << _client << ", self: " << this;
                 // socket is closed already in the create_server_ep on failure
+                // clean-up id
+                utility::release_client_id(configuration_->get_network(), _client);
+                // clean-up environment
                 rh->remove_known_client(_client);
                 return;
             }
@@ -283,42 +286,52 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
         socket_->stop(true);
         return;
     }
-    if (receive_buffer_->next_message(result)) {
-        if ((*receive_buffer_)[protocol::COMMAND_POSITION_ID] == protocol::id_e::ASSIGN_CLIENT_ID && is_router_) {
-            auto client_id = assign_client(result.message_size_);
+    while (receive_buffer_->next_message(result)) {
+        if (result.message_data_[protocol::COMMAND_POSITION_ID] == protocol::id_e::ASSIGN_CLIENT_ID && is_router_) {
+            auto client_id = assign_client(result.message_data_, result.message_size_);
 
             std::stringstream ss;
             ss << "ls::" << __func__ << ": Assigned client ID " << std::hex << std::setw(4) << client_id << " to \""
-               << utility::get_client_name(configuration_, client_id) << "\"";
+               << utility::get_client_name(configuration_, client_id) << "\" (\"" << client_host_ << "\")";
 
             // check if is uds socket
             if (socket_->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
                 ss << " @ " << socket_->peer_endpoint().address() << ":" << std::dec << socket_->peer_endpoint().port();
+            } else {
+                vsomeip_sec_client_t sec_client{};
+                socket_->update(sec_client, *configuration_);
+                ss << " @ " << sec_client.user << "/" << sec_client.group;
             }
 
             VSOMEIP_INFO << ss.str();
 
             send_client_id(client_id);
-        } else if ((*receive_buffer_)[protocol::COMMAND_POSITION_ID] == protocol::id_e::CONFIG_ID && !is_router_) {
-            confirm_connection(result.message_size_);
+            return;
+        } else if (result.message_data_[protocol::COMMAND_POSITION_ID] == protocol::id_e::CONFIG_ID) {
+            auto const client = read_config_command(result.message_data_, result.message_size_);
+            if (!is_router_) {
+                hand_over(client);
+                return;
+            }
         } else {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: " << (*receive_buffer_)[protocol::COMMAND_POSITION_ID]
+            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: " << result.message_data_[protocol::COMMAND_POSITION_ID]
                           << " received. Breaking connection > " << socket_->to_string();
             socket_->stop(true);
+            return;
         }
-        return;
     }
     if (result.error_) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": Unable to handle message length. Breaking connection > " << socket_->to_string();
         socket_->stop(true);
         return;
     }
+    receive_buffer_->shift_front();
     async_receive();
 }
 
-client_t local_server::tmp_connection::assign_client(size_t _message_size) const {
+client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint32_t _message_size) const {
 
-    std::vector<byte_t> its_data(&(*receive_buffer_)[0], (&(*receive_buffer_)[0]) + _message_size);
+    std::vector<byte_t> its_data(_data, _data + _message_size);
     protocol::assign_client_command command;
     protocol::error_e ec;
 
@@ -332,21 +345,22 @@ client_t local_server::tmp_connection::assign_client(size_t _message_size) const
     return utility::request_client_id(configuration_, command.get_name(), command.get_client());
 }
 
-void local_server::tmp_connection::confirm_connection(size_t _message_size) {
-    std::vector<byte_t> its_data(&(*receive_buffer_)[0], (&(*receive_buffer_)[0]) + _message_size);
+client_t local_server::tmp_connection::read_config_command(uint8_t const* _data, uint32_t _message_size) {
+    std::vector<byte_t> its_data(_data, _data + _message_size);
     protocol::config_command command;
     protocol::error_e ec;
 
     command.deserialize(its_data, ec);
     if (ec != protocol::error_e::ERROR_OK) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": config command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
-        return;
+        return VSOMEIP_CLIENT_UNSET;
     }
     if (!command.contains("hostname")) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": config command did not contain hostname";
-        return;
+        return VSOMEIP_CLIENT_UNSET;
     }
-    hand_over(command.get_client(), command.at("hostname"));
+    client_host_ = command.at("hostname");
+    return command.get_client();
 }
 
 void local_server::tmp_connection::send_client_id(client_t _client) {
@@ -366,7 +380,7 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
     VSOMEIP_DEBUG << "ls::send_client_id: dispatching client id: " << std::hex << std::setfill('0') << std::setw(4) << _client;
     socket_->async_send(std::move(buffer), [self = shared_from_this(), this, _client](auto const& _ec, size_t, auto) {
         if (!_ec) {
-            hand_over(_client, "");
+            hand_over(_client);
             return;
         }
         VSOMEIP_WARNING << "ls::send_client_id: Received error: " << _ec.message();
@@ -374,9 +388,9 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
     });
 }
 
-void local_server::tmp_connection::hand_over(client_t _client, std::string _environment) {
+void local_server::tmp_connection::hand_over(client_t _client) {
     if (auto p = parent_.lock(); p) {
-        p->add_connection(_client, std::move(socket_), receive_buffer_, lc_count_, std::move(_environment));
+        p->add_connection(_client, std::move(socket_), receive_buffer_, lc_count_, std::move(client_host_));
     }
 }
 }

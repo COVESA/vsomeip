@@ -32,7 +32,7 @@ endpoint_manager_base::endpoint_manager_base(routing_manager_base* const _rm, bo
 
 std::shared_ptr<local_endpoint> endpoint_manager_base::create_local(client_t _client) {
     std::scoped_lock its_lock(local_endpoint_mutex_);
-    return create_local_unlocked(_client, false);
+    return create_local_unlocked(_client);
 }
 
 void endpoint_manager_base::remove_local(const client_t _client, bool _remove_due_to_error) {
@@ -49,7 +49,7 @@ void endpoint_manager_base::remove_local(const client_t _client, bool _remove_du
     }
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(client_t _client, bool _is_router) {
+std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(client_t _client) {
     std::shared_ptr<local_endpoint> its_endpoint{nullptr};
     {
         std::scoped_lock its_lock{local_endpoint_mutex_};
@@ -57,28 +57,11 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(clie
         if (!its_endpoint) {
             VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client()
                          << ", client " << _client;
-            its_endpoint = create_local_unlocked(_client, _is_router);
+            its_endpoint = create_local_unlocked(_client);
 
             if (its_endpoint) {
                 its_endpoint->start();
 
-                // need to send some initial info, and it must be done before the _caller_ code sends something else
-                protocol::config_command its_command;
-                // bloody hell of a work around. Router as a client only works with tcp, because the client is not known and it defaults to
-                // the router, but uds + internal security needs to know the client
-                its_command.set_client((rm_->is_routing_manager() && !is_local_routing_) ? VSOMEIP_ROUTING_CLIENT : get_client());
-                its_command.insert("hostname", get_client_host());
-
-                std::vector<byte_t> its_buffer;
-                protocol::error_e its_error;
-                its_command.serialize(its_buffer, its_error);
-
-                if (its_error == protocol::error_e::ERROR_OK) {
-                    its_endpoint->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
-                } else {
-                    VSOMEIP_ERROR << "emb::" << __func__ << ": could not serialize config command, self " << std::hex << std::setfill('0')
-                                  << std::setw(4) << rm_->get_client() << ", client " << _client << ", err " << static_cast<int>(its_error);
-                }
             } else {
                 VSOMEIP_ERROR << "emb::" << __func__ << ": couldn't find or create endpoint, self " << std::hex << std::setfill('0')
                               << std::setw(4) << rm_->get_client() << ", client " << std::hex << _client;
@@ -263,7 +246,7 @@ void endpoint_manager_base::log_client_states() const {
         VSOMEIP_WARNING << "ICQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(client_t _client, bool _is_router) {
+std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(client_t _client) {
 
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
@@ -273,7 +256,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
     if (is_local_routing_) {
         its_endpoint = local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, rm_->weak_from_this(), weak_from_this()},
-                local_endpoint_params{_is_router, _client,
+                local_endpoint_params{_client,
                                       std::make_shared<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(""),
                                                                               boost::asio::local::stream_protocol::endpoint(its_path.str()),
                                                                               socket_role_e::SENDER)});
@@ -294,7 +277,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
                 its_endpoint = local_endpoint::create_client_ep(
                         local_endpoint_context{io_, configuration_, rm_->weak_from_this(), weak_from_this()},
                         local_endpoint_params{
-                                _is_router, _client,
+                                _client,
                                 std::make_shared<local_socket_tcp_impl>(io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
                                                                         boost::asio::ip::tcp::endpoint(its_remote_address, its_remote_port),
                                                                         socket_role_e::SENDER)});
@@ -312,6 +295,29 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
     }
 
     if (its_endpoint) {
+
+        // need to send some initial info, and it must be done before the _caller_ code sends something else
+        protocol::config_command its_command;
+        // bloody hell of a work around. Router as a client only works with tcp, because the client is not known and it defaults to
+        // the router, but uds + internal security needs to know the client in case we are talking to something else then the router
+        // in case this is the "sender" towards the router, the client_id is rubbish, but that's fine at this moment
+        its_command.set_client(_client == VSOMEIP_ROUTING_CLIENT                           ? VSOMEIP_CLIENT_UNSET
+                                       : (rm_->is_routing_manager() && !is_local_routing_) ? VSOMEIP_ROUTING_CLIENT
+                                                                                           : get_client());
+        its_command.insert("hostname", get_client_host());
+
+        std::vector<byte_t> its_buffer;
+        protocol::error_e its_error;
+        its_command.serialize(its_buffer, its_error);
+
+        if (its_error == protocol::error_e::ERROR_OK) {
+            its_endpoint->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR << "emb::" << __func__ << ": could not serialize config command, self " << std::hex << std::setfill('0')
+                          << std::setw(4) << rm_->get_client() << ", client " << _client << ", err " << static_cast<int>(its_error);
+            return nullptr;
+        }
+
         // Messages sent to the VSOMEIP_ROUTING_CLIENT are meant to be routed to
         // external devices. Therefore, its local endpoint must not be found by
         // a call to find_local. Thus it must not be inserted to the list of local
