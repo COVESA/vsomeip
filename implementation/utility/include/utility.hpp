@@ -133,8 +133,8 @@ private:
 private:
     static std::uint16_t get_max_client_number(const std::shared_ptr<configuration>& _config);
 
-    static std::mutex mutex__;
-    static std::map<std::string, data_t> data__; // network --> data
+    static std::mutex& get_utility_mutex();
+    static std::map<std::string, data_t>& get_utility_data();
 };
 
 } // namespace vsomeip_v3

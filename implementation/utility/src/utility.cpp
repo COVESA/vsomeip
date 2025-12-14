@@ -32,8 +32,15 @@
 
 namespace vsomeip_v3 {
 
-std::mutex utility::mutex__;
-std::map<std::string, utility::data_t> utility::data__;
+std::mutex& utility::get_utility_mutex() {
+    static std::mutex* mutex_ptr = new std::mutex();
+    return *mutex_ptr;
+}
+
+std::map<std::string, utility::data_t>& utility::get_utility_data() {
+    static std::map<std::string, utility::data_t>* data_ptr = new std::map<std::string, utility::data_t>();
+    return *data_ptr;
+}
 
 utility::data_t::data_t() :
     next_client_(VSOMEIP_CLIENT_UNSET),
@@ -71,11 +78,13 @@ uint32_t utility::get_payload_size(const byte_t* _data, uint32_t _size) {
 bool utility::is_routing_manager(const std::string& _network) {
     // Only the first caller can become routing manager.
     // Therefore, subsequent calls can be immediately answered...
-    std::scoped_lock its_lock(mutex__);
-    if (data__.find(_network) != data__.end())
+
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
+    if (data.find(_network) != data.end())
         return false;
 
-    auto r = data__.insert(std::make_pair(_network, data_t()));
+    auto r = data.insert(std::make_pair(_network, data_t()));
     if (!r.second)
         return false;
 
@@ -177,10 +186,11 @@ bool utility::is_routing_manager(const std::string& _network) {
 }
 
 void utility::remove_lockfile(const std::string& _network) {
-    std::scoped_lock its_lock(mutex__);
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
 
-    auto r = data__.find(_network);
-    if (r == data__.end()) // No need to do anything as automatic
+    auto r = data.find(_network);
+    if (r == data.end()) // No need to do anything as automatic
         return;
 
 #ifdef _WIN32
@@ -213,7 +223,7 @@ void utility::remove_lockfile(const std::string& _network) {
         VSOMEIP_ERROR << __func__ << ": Could not remove " << its_lockfile << ": errno " << errno;
     }
 #endif
-    data__.erase(_network);
+    data.erase(_network);
 }
 
 bool utility::exists(const std::string& _path) {
@@ -244,7 +254,8 @@ std::string utility::get_base_path(const std::string& _network) {
 }
 
 client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, const std::string& _name, client_t _client) {
-    std::scoped_lock its_lock(mutex__);
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
     static const std::uint16_t its_max_num_clients = get_max_client_number(_config);
 
     static const std::uint16_t its_diagnosis_mask = _config->get_diagnosis_mask();
@@ -254,8 +265,8 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
     static const client_t its_biggest_client = its_masked_diagnosis_address | its_client_mask;
     static const client_t its_smallest_client = its_masked_diagnosis_address;
 
-    auto r = data__.find(_config->get_network());
-    if (r == data__.end())
+    auto r = data.find(_config->get_network());
+    if (r == data.end())
         return VSOMEIP_CLIENT_UNSET;
 
     if (r->second.next_client_ == VSOMEIP_CLIENT_UNSET) {
@@ -315,9 +326,10 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
 }
 
 std::string utility::get_client_name(const std::shared_ptr<configuration>& _config, client_t _client) {
-    std::scoped_lock its_lock(mutex__);
-    auto r = data__.find(_config->get_network());
-    if (r == data__.end()) {
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
+    auto r = data.find(_config->get_network());
+    if (r == data.end()) {
         return "";
     }
     auto name = r->second.used_clients_.find(_client);
@@ -329,17 +341,19 @@ std::string utility::get_client_name(const std::shared_ptr<configuration>& _conf
 }
 
 void utility::release_client_id(const std::string& _network, client_t _client) {
-    std::scoped_lock its_lock(mutex__);
-    auto r = data__.find(_network);
-    if (r != data__.end())
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
+    auto r = data.find(_network);
+    if (r != data.end())
         r->second.used_clients_.erase(_client);
 }
 
 std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
-    std::scoped_lock its_lock(mutex__);
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
     std::set<client_t> its_used_clients;
-    auto r = data__.find(_network);
-    if (r != data__.end()) {
+    auto r = data.find(_network);
+    if (r != data.end()) {
         for (const auto& c : r->second.used_clients_)
             its_used_clients.insert(c.first);
     }
@@ -347,9 +361,10 @@ std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
 }
 
 void utility::reset_client_ids(const std::string& _network) {
-    std::scoped_lock its_lock(mutex__);
-    auto r = data__.find(_network);
-    if (r != data__.end()) {
+    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    auto& data = get_utility_data();
+    auto r = data.find(_network);
+    if (r != data.end()) {
         r->second.used_clients_.clear();
         r->second.next_client_ = VSOMEIP_CLIENT_UNSET;
     }
