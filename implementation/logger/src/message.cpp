@@ -67,6 +67,7 @@
 #include <vsomeip/runtime.hpp>
 
 #include "../include/logger_impl.hpp"
+#include "../../utility/include/global_state.hpp"
 
 namespace vsomeip_v3 {
 namespace logger {
@@ -130,36 +131,36 @@ message::~message() try {
         std::cout.flush();
 
 #elif !defined(ANDROID_CI_BUILD)
-        static std::string app = runtime::get_property("LogApplication");
+        // Get Android strings from global state to ensure proper destruction order.
+        auto& state = global_state::get();
 
         // Note: Adding this prefix is not really optimal in terms of memory allocation/copying.
         // Could we set the prefix as separate arg instead? This would change the current
         // message structure through, so leave it for now.
-        const static std::string prefix = "VSIP: ";
         const std::string_view view = buffer_as_view();
         std::string output;
-        output.reserve(prefix.size() + view.size());
-        output += prefix;
+        output.reserve(state.android_prefix.size() + view.size());
+        output += state.android_prefix;
         output += view;
 
         switch (level_) {
         case level_e::LL_FATAL:
-            ALOGE(app.c_str(), output.c_str());
+            ALOGE(state.android_app.c_str(), output.c_str());
             break;
         case level_e::LL_ERROR:
-            ALOGE(app.c_str(), output.c_str());
+            ALOGE(state.android_app.c_str(), output.c_str());
             break;
         case level_e::LL_WARNING:
-            ALOGW(app.c_str(), output.c_str());
+            ALOGW(state.android_app.c_str(), output.c_str());
             break;
         case level_e::LL_INFO:
-            ALOGI(app.c_str(), output.c_str());
+            ALOGI(state.android_app.c_str(), output.c_str());
             break;
         case level_e::LL_DEBUG:
-            ALOGD(app.c_str(), output.c_str());
+            ALOGD(state.android_app.c_str(), output.c_str());
             break;
         case level_e::LL_VERBOSE:
-            ALOGV(app.c_str(), output.c_str());
+            ALOGV(state.android_app.c_str(), output.c_str());
             break;
         default:
             ALOGI(app.c_str(), output.c_str());
@@ -230,13 +231,10 @@ std::string_view message::timestamp() const {
 }
 
 std::string_view message::app_name() const {
-    static std::string its_name = [] {
-        // Only read the env var once, on first use. This is also threadsafe.
-        // NOLINTNEXTLINE(concurrency-mt-unsafe): False positve since C++11
-        const char* name = std::getenv(VSOMEIP_ENV_APPLICATION_NAME);
-        return name ? std::string{" "} + name : "";
-    }();
-    return its_name;
+    // Get app name from global state to ensure proper destruction order.
+    // The string is initialized once in global_state constructor and
+    // outlives all logging attempts.
+    return global_state::get().app_name_;
 }
 
 std::string_view message::level_as_view() const {

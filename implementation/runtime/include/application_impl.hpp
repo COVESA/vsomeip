@@ -10,7 +10,6 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
-#include <future>
 #include <map>
 #include <mutex>
 #include <set>
@@ -271,10 +270,6 @@ private:
 
     void invoke_availability_handler(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
-    void increment_active_threads();
-    void decrement_active_threads();
-    std::uint16_t get_active_threads() const;
-
     using availability_state_t =
             std::map<service_t, std::map<instance_t, std::map<major_version_t, std::map<minor_version_t, availability_state_e>>>>;
 
@@ -286,7 +281,8 @@ private:
     //
     // Attributes
     //
-    std::shared_ptr<runtime> runtime_;
+    std::weak_ptr<runtime> runtime_; // Weak to avoid circular dependency with static applications
+    std::shared_ptr<configuration> configuration_;
     std::atomic<client_t> client_; // unique application identifier
     session_t session_;
     std::mutex session_mutex_;
@@ -297,7 +293,6 @@ private:
     std::string name_;
 
     const std::string path_;
-    std::shared_ptr<configuration> configuration_;
 
 #if defined(__linux__) || defined(__QNX__)
     pthread_t start_thread_;
@@ -365,27 +360,16 @@ private:
     // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
     mutable std::mutex dispatcher_mutex_;
 
-    // Map of promises/futures to check status of dispatcher threads
-    std::map<std::thread::id, std::future<void>> dispatchers_control_;
-
     // Condition to wakeup the dispatcher thread
     bool elapse_unactive_dispatchers_;
     mutable std::condition_variable dispatcher_condition_;
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
 
-    // Counter for dispatcher threads
-    std::atomic<uint16_t> dispatcher_counter_;
-    std::size_t max_detached_thread_wait_time;
-
     std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;
-    std::atomic_bool stopped_;
+    std::atomic_bool stopping_;
     std::thread stop_thread_;
-
-    std::condition_variable block_stop_cv_;
-    std::mutex block_stop_mutex_;
-    bool block_stop_condition_;
 
     bool is_routing_manager_host_;
 
@@ -395,8 +379,6 @@ private:
 
     std::thread::id stop_caller_id_;
     std::thread::id start_caller_id_;
-
-    bool stopped_called_;
 
     std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool>>>>>
             subscription_status_handlers_;

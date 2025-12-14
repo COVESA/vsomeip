@@ -46,7 +46,6 @@ namespace vsomeip = vsomeip_v3;
 // Application
 #define EXPECTED_APPLICATION_MAX_DISPATCHERS 25
 #define EXPECTED_APPLICATION_MAX_DISPATCH_TIME 1234
-#define EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME 3
 #define EXPECTED_APPLICATION_THREADS 12
 #define EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME 5000
 
@@ -145,20 +144,20 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
                 bool _expected_has_file, bool _expected_has_dlt, bool _expected_version_logging_enabled,
                 uint32_t _expected_version_logging_interval, std::size_t _expected_global_request_debounce_time,
                 uint32_t _expected_application_max_dispatcher, uint32_t _expected_application_max_dispatch_time,
-                uint32_t _expected_application_max_detached_thread_wait_time, uint32_t _expected_application_threads,
-                uint32_t _expected_application_request_debounce_time, const std::string& _expected_logfile,
-                const std::string& _expected_loglevel, const std::string& _expected_unicast_address_1234_0022,
-                uint16_t _expected_reliable_port_1234_0022, uint16_t _expected_unreliable_port_1234_0022,
-                const std::string& _expected_unicast_address_1234_0023, uint16_t _expected_reliable_port_1234_0023,
-                uint16_t _expected_unreliable_port_1234_0023, const std::string& _expected_unicast_address_2277_0022,
-                uint16_t _expected_reliable_port_2277_0022, uint16_t _expected_unreliable_port_2277_0022,
-                const std::string& _expected_unicast_address_2266_0022, uint16_t _expected_reliable_port_2266_0022,
-                uint16_t _expected_unreliable_port_2266_0022, const std::string& _expected_unicast_address_4466_0321,
-                uint16_t _expected_reliable_port_4466_0321, uint16_t _expected_unreliable_port_4466_0321, bool _expected_enabled,
-                const std::string& _expected_protocol, const std::string& _expected_multicast, uint16_t _expected_port,
-                uint32_t _expected_initial_delay_min, uint32_t _expected_initial_delay_max, int32_t _expected_repetitions_base_delay,
-                uint8_t _expected_repetitions_max, vsomeip::ttl_t _expected_ttl, vsomeip::ttl_t _expected_cyclic_offer_delay,
-                vsomeip::ttl_t _expected_request_response_delay, bool _expected_wait_route_netlink_notification) {
+                uint32_t _expected_application_threads, uint32_t _expected_application_request_debounce_time,
+                const std::string& _expected_logfile, const std::string& _expected_loglevel,
+                const std::string& _expected_unicast_address_1234_0022, uint16_t _expected_reliable_port_1234_0022,
+                uint16_t _expected_unreliable_port_1234_0022, const std::string& _expected_unicast_address_1234_0023,
+                uint16_t _expected_reliable_port_1234_0023, uint16_t _expected_unreliable_port_1234_0023,
+                const std::string& _expected_unicast_address_2277_0022, uint16_t _expected_reliable_port_2277_0022,
+                uint16_t _expected_unreliable_port_2277_0022, const std::string& _expected_unicast_address_2266_0022,
+                uint16_t _expected_reliable_port_2266_0022, uint16_t _expected_unreliable_port_2266_0022,
+                const std::string& _expected_unicast_address_4466_0321, uint16_t _expected_reliable_port_4466_0321,
+                uint16_t _expected_unreliable_port_4466_0321, bool _expected_enabled, const std::string& _expected_protocol,
+                const std::string& _expected_multicast, uint16_t _expected_port, uint32_t _expected_initial_delay_min,
+                uint32_t _expected_initial_delay_max, int32_t _expected_repetitions_base_delay, uint8_t _expected_repetitions_max,
+                vsomeip::ttl_t _expected_ttl, vsomeip::ttl_t _expected_cyclic_offer_delay, vsomeip::ttl_t _expected_request_response_delay,
+                bool _expected_wait_route_netlink_notification) {
 
     // 0. Set environment variable to config file and load it
 #if defined(__linux__) || defined(__QNX__)
@@ -320,14 +319,11 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     // Applications
     std::size_t max_dispatchers = its_configuration->get_max_dispatchers(EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t max_dispatch_time = its_configuration->get_max_dispatch_time(EXPECTED_ROUTING_MANAGER_HOST);
-    std::size_t max_detached_thread_wait_time = its_configuration->get_max_detached_thread_wait_time(EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t io_threads = its_configuration->get_io_thread_count(EXPECTED_ROUTING_MANAGER_HOST);
     std::size_t request_time = its_configuration->get_request_debounce_time(EXPECTED_ROUTING_MANAGER_HOST);
 
     EXPECT_TRUE(check<std::size_t>(max_dispatchers, _expected_application_max_dispatcher, "MAX DISPATCHERS"));
     EXPECT_TRUE(check<std::size_t>(max_dispatch_time, _expected_application_max_dispatch_time, "MAX DISPATCH TIME"));
-    EXPECT_TRUE(check<std::size_t>(max_detached_thread_wait_time, _expected_application_max_detached_thread_wait_time,
-                                   "MAX DETACHED THREADS WAIT TIME"));
     EXPECT_TRUE(check<std::size_t>(io_threads, _expected_application_threads, "IO THREADS"));
     EXPECT_TRUE(check<std::size_t>(request_time, _expected_application_request_debounce_time, "REQUEST DEBOUNCE TIME"));
 
@@ -687,16 +683,16 @@ TEST(configuration_test, check_config_file) {
     // Check current configuration file format
     check_file(CONFIGURATION_FILE, EXPECTED_UNICAST_ADDRESS, EXPECTED_HAS_CONSOLE, EXPECTED_HAS_FILE, EXPECTED_HAS_DLT,
                EXPECTED_VERSION_LOGGING_ENABLED, EXPECTED_VERSION_LOGGING_INTERVAL, EXPECTED_GLOBAL_REQUEST_DEBOUNCE_TIME,
-               EXPECTED_APPLICATION_MAX_DISPATCHERS, EXPECTED_APPLICATION_MAX_DISPATCH_TIME,
-               EXPECTED_APPLICATION_MAX_DETACHED_THREAD_WAIT_TIME, EXPECTED_APPLICATION_THREADS, EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME,
-               EXPECTED_LOGFILE, EXPECTED_LOGLEVEL, EXPECTED_UNICAST_ADDRESS_1234_0022, EXPECTED_RELIABLE_PORT_1234_0022,
-               EXPECTED_UNRELIABLE_PORT_1234_0022, EXPECTED_UNICAST_ADDRESS_1234_0023, EXPECTED_RELIABLE_PORT_1234_0023,
-               EXPECTED_UNRELIABLE_PORT_1234_0023, EXPECTED_UNICAST_ADDRESS_2277_0022, EXPECTED_RELIABLE_PORT_2277_0022,
-               EXPECTED_UNRELIABLE_PORT_2277_0022, EXPECTED_UNICAST_ADDRESS_2266_0022, EXPECTED_RELIABLE_PORT_2266_0022,
-               EXPECTED_UNRELIABLE_PORT_2266_0022, EXPECTED_UNICAST_ADDRESS_4466_0321, EXPECTED_RELIABLE_PORT_4466_0321,
-               EXPECTED_UNRELIABLE_PORT_4466_0321, EXPECTED_SD_ENABLED, EXPECTED_SD_PROTOCOL, EXPECTED_SD_MULTICAST, EXPECTED_SD_PORT,
-               EXPECTED_INITIAL_DELAY_MIN, EXPECTED_INITIAL_DELAY_MAX, EXPECTED_REPETITIONS_BASE_DELAY, EXPECTED_REPETITIONS_MAX,
-               EXPECTED_TTL, EXPECTED_CYCLIC_OFFER_DELAY, EXPECTED_REQUEST_RESPONSE_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
+               EXPECTED_APPLICATION_MAX_DISPATCHERS, EXPECTED_APPLICATION_MAX_DISPATCH_TIME, EXPECTED_APPLICATION_THREADS,
+               EXPECTED_APPLICATION_REQUEST_DEBOUNCE_TIME, EXPECTED_LOGFILE, EXPECTED_LOGLEVEL, EXPECTED_UNICAST_ADDRESS_1234_0022,
+               EXPECTED_RELIABLE_PORT_1234_0022, EXPECTED_UNRELIABLE_PORT_1234_0022, EXPECTED_UNICAST_ADDRESS_1234_0023,
+               EXPECTED_RELIABLE_PORT_1234_0023, EXPECTED_UNRELIABLE_PORT_1234_0023, EXPECTED_UNICAST_ADDRESS_2277_0022,
+               EXPECTED_RELIABLE_PORT_2277_0022, EXPECTED_UNRELIABLE_PORT_2277_0022, EXPECTED_UNICAST_ADDRESS_2266_0022,
+               EXPECTED_RELIABLE_PORT_2266_0022, EXPECTED_UNRELIABLE_PORT_2266_0022, EXPECTED_UNICAST_ADDRESS_4466_0321,
+               EXPECTED_RELIABLE_PORT_4466_0321, EXPECTED_UNRELIABLE_PORT_4466_0321, EXPECTED_SD_ENABLED, EXPECTED_SD_PROTOCOL,
+               EXPECTED_SD_MULTICAST, EXPECTED_SD_PORT, EXPECTED_INITIAL_DELAY_MIN, EXPECTED_INITIAL_DELAY_MAX,
+               EXPECTED_REPETITIONS_BASE_DELAY, EXPECTED_REPETITIONS_MAX, EXPECTED_TTL, EXPECTED_CYCLIC_OFFER_DELAY,
+               EXPECTED_REQUEST_RESPONSE_DELAY, EXPECTED_WAIT_ROUTE_NETLINK_NOTFICATION);
 }
 
 TEST(configuration_test, default_values) {

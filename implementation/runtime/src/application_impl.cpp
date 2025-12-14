@@ -31,8 +31,6 @@
 #include "../../configuration/include/configuration.hpp"
 #include "../../configuration/include/configuration_plugin.hpp"
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-#include "../../endpoints/include/endpoint.hpp"
-#include "../../message/include/serializer.hpp"
 #include "../../plugin/include/plugin_manager_impl.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_client.hpp"
@@ -47,7 +45,7 @@ configuration::~configuration() { }
 #endif
 
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
-    runtime_{runtime::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
+    client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
 #if defined(__linux__) || defined(__QNX__)
     start_thread_{0},
 #endif
@@ -56,13 +54,13 @@ application_impl::application_impl(const std::string& _name, const std::string& 
     signals_{io_, SIGINT, SIGTERM},
 #endif
     is_dispatching_{false}, max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS}, max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME},
-    dispatcher_counter_{0}, max_detached_thread_wait_time{VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS}, stopped_{false},
-    block_stop_condition_{false}, is_routing_manager_host_{false}, stopped_called_{false}, watchdog_timer_{io_},
-    client_side_logging_{false}, has_session_handling_{true} {
+    stopping_{false}, is_routing_manager_host_{false}, watchdog_timer_{io_}, client_side_logging_{false}, has_session_handling_{true} {
 }
 
 application_impl::~application_impl() {
-    runtime_->remove_application(name_);
+    if (auto rt = runtime::get()) {
+        rt->remove_application(name_);
+    }
 
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
     if (configuration_) {
@@ -78,39 +76,9 @@ application_impl::~application_impl() {
         }
     }
 #endif
-    try {
-        if (stop_thread_.joinable()) {
-            stop_thread_.detach();
-        }
-    } catch (const std::exception& e) {
-        std::cerr << __func__ << " catched exception (shutdown): " << e.what() << std::endl;
-    }
-
-    try {
-        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
-        for (const auto& t : io_threads_) {
-            if (t->joinable()) {
-                // NOTE: detach does not block, hence why mutex is not released/re-acquired
-                t->detach();
-            }
-        }
-        io_threads_.clear();
-    } catch (const std::exception& e) {
-        std::cerr << __func__ << " catched exception (io threads): " << e.what() << std::endl;
-    }
-
-    try {
-        std::scoped_lock its_lock{dispatcher_mutex_};
-        for (const auto& its_dispatcher : dispatchers_) {
-            if (its_dispatcher.second->joinable()) {
-                // NOTE: detach does not block, hence why mutex is not released/re-acquired
-                its_dispatcher.second->detach();
-            }
-        }
-        dispatchers_.clear();
-    } catch (const std::exception& e) {
-        std::cerr << __func__ << " catched exception (dispatchers): " << e.what() << std::endl;
-    }
+    // It may be the case that destructors of sub-objects will attempt to use global
+    // static data -- in particular when a detached dispatcher thread is calling ~application_impl.
+    // See global_state.{hpp,cpp} and usages of global_state::get() to how use-after-free are avoided.
 }
 
 bool application_impl::init() {
@@ -250,7 +218,6 @@ bool application_impl::init() {
         // the main dispatcher
         max_dispatchers_ = its_configuration->get_max_dispatchers(name_) + 1;
         max_dispatch_time_ = its_configuration->get_max_dispatch_time(name_);
-        max_detached_thread_wait_time = its_configuration->get_max_detached_thread_wait_time(name_);
 
         has_session_handling_ = its_configuration->has_session_handling(name_);
         if (!has_session_handling_)
@@ -343,6 +310,9 @@ bool application_impl::init() {
         std::exit(EXIT_FAILURE);
     }
 
+    VSOMEIP_INFO << "application_impl::" << __func__ << " end of init, application \"" << name_ << "\" (" << std::hex << std::setfill('0')
+                 << std::setw(4) << client_ << ")";
+
     return is_initialized_;
 }
 
@@ -369,25 +339,21 @@ void application_impl::start() {
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
     {
         std::scoped_lock its_lock{start_stop_mutex_};
-        if (io_.stopped()) {
-            io_.restart();
-        } else if (stop_thread_.joinable()) {
-            VSOMEIP_ERROR << "Trying to start already started application \"" << name_ << "\" (" << std::hex << std::setfill('0')
+        if (stopping_) {
+            VSOMEIP_ERROR << "Trying to start while stopping the application \"" << name_ << "\" (" << std::hex << std::setfill('0')
                           << std::setw(4) << client_ << ")";
             return;
         }
-        if (stopped_) {
-            {
-                std::scoped_lock its_lock_start_stop{block_stop_mutex_};
-                block_stop_condition_ = true;
-                block_stop_cv_.notify_all();
-            }
 
-            stopped_ = false;
+        if (stop_thread_.joinable()) {
+            VSOMEIP_ERROR << "Trying to start an already started application.";
             return;
         }
-        stopped_ = false;
-        stopped_called_ = false;
+
+        if (io_.stopped()) {
+            io_.restart();
+        }
+
         VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << std::hex << std::setfill('0') << std::setw(4) << client_
                      << ") using " << std::dec << io_thread_count << " threads"
 #if defined(__linux__) || defined(__QNX__)
@@ -401,18 +367,11 @@ void application_impl::start() {
             is_dispatching_ = true;
             elapse_unactive_dispatchers_ = false;
             std::packaged_task<void()> dispatcher_task_(std::bind(&application_impl::main_dispatch, shared_from_this()));
-            std::future<void> dispatcher_future_ = dispatcher_task_.get_future();
             auto its_main_dispatcher = std::make_shared<std::thread>(std::move(dispatcher_task_));
 
-            dispatchers_control_[its_main_dispatcher->get_id()] = std::move(dispatcher_future_);
-
             dispatchers_[its_main_dispatcher->get_id()] = its_main_dispatcher;
-            increment_active_threads();
         }
 
-        if (stop_thread_.joinable()) {
-            stop_thread_.join();
-        }
         stop_thread_ = std::thread(&application_impl::shutdown, shared_from_this());
 
         if (routing_)
@@ -440,7 +399,7 @@ void application_impl::start() {
                     try {
                         io_.run();
 
-                        if (!stopped_) {
+                        if (!stopping_) {
                             VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0')
                                           << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1 << ", application '" << name_
                                           << "', id " << std::hex << std::this_thread::get_id()
@@ -496,7 +455,7 @@ void application_impl::start() {
     while (true) {
         try {
             io_.run();
-            if (!stopped_) {
+            if (!stopping_) {
                 VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0') << std::setw(4)
                               << client_ << "_io00"
                               << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
@@ -517,16 +476,63 @@ void application_impl::start() {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }
     }
-    {
-        std::scoped_lock its_lock_start_stop{block_stop_mutex_};
-        block_stop_condition_ = true;
-        block_stop_cv_.notify_all();
+
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": io_.run() end for app(" << name_ << ", " << std::hex << std::setfill('0')
+                 << std::setw(4) << client_ << ")" << "; Join Dispatcher threads for app(" << name_ << ", " << std::hex << std::setfill('0')
+                 << std::setw(4) << client_ << ")";
+
+    try {
+        std::unique_lock its_lock_start_stop{dispatcher_mutex_};
+        auto its_dispatchers = dispatchers_;
+        availability_handlers_.clear();
+        running_dispatchers_.clear();
+        elapsed_dispatchers_.clear();
+        dispatchers_.clear();
+
+        its_lock_start_stop.unlock();
+        for (const auto& [its_id, its_dispatcher] : its_dispatchers) {
+            if (its_dispatcher->get_id() == stop_caller_id_) {
+                // A dispatcher thread has called stop.
+                // In case the thread dispatcher (D) will join the thread (T0) that calls start,
+                // we detach it to avoid a deadlock where:
+                // - T0 calls start, and thus blocks;
+                // - D calls stop, then attempts to join T0;
+                // - T0 attempts to join D.
+                //
+                // Furthermore, on these cases, it is usually true that the dispatch thread
+                // will call the destructor (seen empirically).
+                //
+                // This pattern is common specially to CommonAPI, where proxies (which under the hood hold
+                // a reference to a vsomeip::application) are passed as parameters to event/method callbacks.
+                // Many apps use the reference to stop the connection, which under the hood hit the aforementioned case.
+                its_dispatcher->detach();
+            } else if (its_dispatcher->joinable()) {
+                its_dispatcher->join();
+            }
+        }
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping dispatchers, "
+                      << " catched exception: " << e.what();
     }
 
-    {
-        std::scoped_lock its_lock{start_stop_mutex_};
-        stopped_ = false;
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": Join IO threads for app(" << name_ << ", " << std::hex << std::setfill('0')
+                 << std::setw(4) << client_ << ")";
+    try {
+        std::unique_lock its_lock_start_stop{start_stop_mutex_};
+        auto its_threads = io_threads_;
+        io_threads_.clear();
+        its_lock_start_stop.unlock();
+        for (auto& t : its_threads) {
+            if (t->joinable()) {
+                t->join();
+            }
+        }
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR << "application_impl::" << __func__ << ": joining threads, "
+                      << " catched exception: " << e.what();
     }
+
+    stopping_ = false;
 
     VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io00"
                  << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
@@ -537,53 +543,20 @@ void application_impl::start() {
 }
 
 void application_impl::stop() {
+    std::scoped_lock its_lock_start_stop{start_stop_mutex_};
 
-    VSOMEIP_INFO << "Stopping vsomeip application \"" << name_ << "\" (" << std::hex << std::setfill('0') << std::setw(4) << client_
-                 << ").";
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": Stopping vsomeip application \"" << name_ << "\" (" << std::hex
+                 << std::setfill('0') << std::setw(4) << client_ << ").";
 
-    bool block = true;
-    {
-        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
-        if (stopped_called_) {
-            return;
-        }
-        stop_caller_id_ = std::this_thread::get_id();
-        stopped_ = true;
-        stopped_called_ = true;
-        for (const auto& thread : io_threads_) {
-            if (thread->get_id() == std::this_thread::get_id()) {
-                block = false;
-            }
-        }
-        if (start_caller_id_ == stop_caller_id_) {
-            block = false;
-        }
+    if (stopping_) {
+        VSOMEIP_WARNING << "application_impl::" << __func__
+                        << ": Trying to stop an application that is already stopped, stopping_ = " << stopping_;
+        return;
     }
 
-    if (configuration_) {
-        auto its_plugins = configuration_->get_plugins(name_);
-        auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
-        if (its_app_plugin_info != its_plugins.end()) {
-            for (const auto& its_library : its_app_plugin_info->second) {
-                auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
-                if (its_application_plugin) {
-                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
-                            ->on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
-                }
-            }
-        }
-    }
-
-    {
-        std::scoped_lock its_lock_start_stop{start_stop_mutex_};
-        stop_cv_.notify_one();
-    }
-
-    if (block) {
-        std::unique_lock<std::mutex> block_stop_lock(block_stop_mutex_);
-        block_stop_cv_.wait_for(block_stop_lock, std::chrono::milliseconds(1000), [this] { return block_stop_condition_; });
-        block_stop_condition_ = false;
-    }
+    stopping_ = true;
+    stop_caller_id_ = std::this_thread::get_id(); // right now this is unused, but we can keep it for debugging
+    stop_cv_.notify_one();
 }
 
 void application_impl::process(int _number) {
@@ -1945,10 +1918,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
                                 std::future<void> dispatcher_future_ = dispatcher_task_.get_future();
                                 auto its_dispatcher = std::make_shared<std::thread>(std::move(dispatcher_task_));
 
-                                dispatchers_control_[its_dispatcher->get_id()] = std::move(dispatcher_future_);
-
                                 dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
-                                increment_active_threads();
                             } else {
                                 VSOMEIP_INFO << "Won't start new dispatcher "
                                                 "thread as Client="
@@ -2049,9 +2019,7 @@ void application_impl::remove_elapsed_dispatchers() {
         std::scoped_lock its_lock{dispatcher_mutex_};
         for (auto id : elapsed_dispatchers_) {
             if (auto its_dispatcher = dispatchers_.find(id); its_dispatcher->second->joinable()) {
-                dispatchers_control_.erase(id);
                 its_dispatcher->second->join();
-                decrement_active_threads();
             }
 
             dispatchers_.erase(id);
@@ -2106,45 +2074,31 @@ void application_impl::shutdown() {
 
     {
         std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
-        stop_cv_.wait(its_lock, [this] { return stopped_called_; });
+        stop_cv_.wait(its_lock, [this] { return stopping_.load(); });
     }
+
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": Shutting down app(" << name_ << ", " << std::hex << std::setfill('0')
+                 << std::setw(4) << client_ << ")";
+
+    // Notify the Plugins
+    if (configuration_) {
+        auto its_plugins = configuration_->get_plugins(name_);
+        auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+        if (its_app_plugin_info != its_plugins.end()) {
+            for (const auto& its_library : its_app_plugin_info->second) {
+                auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
+                if (its_application_plugin) {
+                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
+                            ->on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+                }
+            }
+        }
+    }
+
     {
         std::scoped_lock its_handler_lock{handlers_mutex_};
         is_dispatching_ = false;
         dispatcher_condition_.notify_all();
-    }
-
-    try {
-        std::scoped_lock its_lock{dispatcher_mutex_};
-        for (const auto& its_dispatcher : dispatchers_) {
-            if (its_dispatcher.second->get_id() != stop_caller_id_) {
-                if (its_dispatcher.second->joinable()) {
-                    dispatchers_control_.erase(its_dispatcher.second->get_id());
-                    its_dispatcher.second->join();
-                    decrement_active_threads();
-                }
-            } else {
-                // If the caller of stop() is one of our dispatchers
-                // it can happen the shutdown mechanism will block
-                // as that thread probably can't be joined. The reason
-                // is the caller of stop() probably wants to join the
-                // thread once call start (which got to the IO-Thread)
-                // and which is expected to return after stop() has been
-                // called.
-                // Therefore detach this thread instead of joining because
-                // after it will return to "main_dispatch" it will be
-                // properly shutdown anyways because "is_dispatching_"
-                // was set to "false" here.
-                its_dispatcher.second->detach();
-            }
-        }
-        availability_handlers_.clear();
-        running_dispatchers_.clear();
-        elapsed_dispatchers_.clear();
-        dispatchers_.clear();
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping dispatchers, "
-                      << " catched exception: " << e.what();
     }
 
     try {
@@ -2156,51 +2110,14 @@ void application_impl::shutdown() {
     }
 
     try {
-        while (get_active_threads() > 0) {
-            auto its_dispatcher_control_ = dispatchers_control_.begin();
-
-            if (its_dispatcher_control_ != dispatchers_control_.end()) {
-                if (its_dispatcher_control_->second.wait_for(std::chrono::seconds(max_detached_thread_wait_time))
-                    == std::future_status::timeout) {
-
-                    decrement_active_threads();
-                    VSOMEIP_WARNING << "Detached thread with id: " << std::hex << its_dispatcher_control_->first << " still running; "
-                                    << "Ignoring it and proceeding with application shutdown; "
-                                    << "Number of threads still active : " << get_active_threads();
-                    dispatchers_control_.erase(its_dispatcher_control_);
-
-                } else {
-                    decrement_active_threads();
-                    VSOMEIP_INFO << "Detached thread with id: " << std::hex << its_dispatcher_control_->first << " exited successfully"
-                                 << "; Number of threads still active : " << get_active_threads();
-                    dispatchers_control_.erase(its_dispatcher_control_);
-                }
-            }
+        if (io_.stopped()) {
+            VSOMEIP_ERROR << "application_impl::" << __func__ << ": Trying to stop an application that was not started!";
         }
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": waiting for detached threads to finish execution, "
-                      << " catched exception: " << e.what();
-    }
 
-    try {
+        work_.reset();
         io_.stop();
     } catch (const std::exception& e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping io, "
-                      << " catched exception: " << e.what();
-    }
-
-    try {
-        std::unique_lock its_lock_start_stop{start_stop_mutex_};
-        std::vector<std::shared_ptr<std::thread>> its_threads = io_threads_;
-        io_threads_.clear();
-        its_lock_start_stop.unlock();
-        for (auto& t : its_threads) {
-            if (t->joinable()) {
-                t->join();
-            }
-        }
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": joining threads, "
                       << " catched exception: " << e.what();
     }
 
@@ -2219,7 +2136,12 @@ bool application_impl::is_routing() const {
 void application_impl::send_back_cached_event(service_t _service, instance_t _instance, event_t _event) {
     std::shared_ptr<event> its_event = routing_->find_event(_service, _instance, _event);
     if (its_event && its_event->is_field() && its_event->is_set()) {
-        std::shared_ptr<message> its_message = runtime_->create_notification();
+        auto rt = runtime::get();
+        if (!rt) {
+            VSOMEIP_ERROR << "Cannot send cached event - runtime already destroyed";
+            return;
+        }
+        std::shared_ptr<message> its_message = rt->create_notification();
         its_message->set_service(_service);
         its_message->set_method(_event);
         its_message->set_instance(_instance);
@@ -2232,10 +2154,16 @@ void application_impl::send_back_cached_event(service_t _service, instance_t _in
 }
 
 void application_impl::send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
+    auto rt = runtime::get();
+    if (!rt) {
+        VSOMEIP_ERROR << "Cannot send cached eventgroup - runtime already destroyed";
+        return;
+    }
+
     std::set<std::shared_ptr<event>> its_events = routing_->find_events(_service, _instance, _eventgroup);
     for (const auto& its_event : its_events) {
         if (its_event && its_event->is_field() && its_event->is_set()) {
-            std::shared_ptr<message> its_message = runtime_->create_notification();
+            std::shared_ptr<message> its_message = rt->create_notification();
             const event_t its_event_id(its_event->get_event());
             its_message->set_service(_service);
             its_message->set_method(its_event_id);
@@ -2895,20 +2823,6 @@ void application_impl::register_message_handler_ext(service_t _service, instance
         break;
     default:;
     }
-}
-
-void application_impl::increment_active_threads() {
-    dispatcher_counter_++;
-    VSOMEIP_DEBUG << "Thread created. Number of active threads for " << name_ << " : " << get_active_threads();
-}
-
-void application_impl::decrement_active_threads() {
-    dispatcher_counter_--;
-    VSOMEIP_DEBUG << "Thread destroyed. Number of active threads for " << name_ << " : " << get_active_threads();
-}
-
-std::uint16_t application_impl::get_active_threads() const {
-    return dispatcher_counter_;
 }
 
 } // namespace vsomeip_v3

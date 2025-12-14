@@ -290,6 +290,9 @@ private:
     void check_stopped_services_on_suspend(const boost::system::error_code& error);
 
 private:
+    // Runtime
+    std::weak_ptr<runtime> runtime_;
+
     boost::asio::io_context& io_;
     service_discovery_host* host_;
     std::shared_ptr<configuration> configuration_;
@@ -314,9 +317,6 @@ private:
     std::map<boost::asio::ip::address, std::pair<session_t, bool>> sessions_sent_;
     std::map<boost::asio::ip::address, std::tuple<session_t, session_t, bool, bool>> sessions_received_;
     std::mutex sessions_received_mutex_;
-
-    // Runtime
-    std::weak_ptr<runtime> runtime_;
 
     // TTL handling for services offered by other hosts
     std::mutex ttl_timer_mutex_;

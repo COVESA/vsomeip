@@ -6,6 +6,8 @@
 #ifndef VSOMEIP_V3_RUNTIME_IMPL_HPP_
 #define VSOMEIP_V3_RUNTIME_IMPL_HPP_
 
+#include <memory>
+#include <vector>
 #include <vsomeip/runtime.hpp>
 #include <map>
 #include <mutex>
@@ -17,9 +19,9 @@ public:
     static std::string get_property(const std::string& _name);
     static void set_property(const std::string& _name, const std::string& _value);
 
-    static std::shared_ptr<runtime> get();
-
     virtual ~runtime_impl() = default;
+
+    static std::shared_ptr<runtime> get();
 
     std::shared_ptr<application> create_application(const std::string& _name);
     std::shared_ptr<application> create_application(const std::string& _name, const std::string& _path);
@@ -38,8 +40,6 @@ public:
     void remove_application(const std::string& _name);
 
 private:
-    static std::map<std::string, std::string> properties_;
-
     std::map<std::string, std::weak_ptr<application>> applications_;
 
     mutable std::mutex applications_mutex_;
