@@ -171,6 +171,8 @@ inline constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std
 
 inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 
+inline constexpr std::uint32_t VSOMEIP_UDP_BUFFER_SIZE = 1536;
+
 #define VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO         2 * 1000 * 1000
 #define VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO  5 * 1000 * 1000
 

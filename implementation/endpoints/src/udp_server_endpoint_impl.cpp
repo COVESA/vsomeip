@@ -280,7 +280,7 @@ void udp_server_endpoint_impl::receive_unicast_unlocked(std::shared_ptr<message_
     // The caller must hold the lock
 
     if (!_unicast_recv_buffer) {
-        _unicast_recv_buffer = std::make_shared<message_buffer_t>(max_message_size_, 0);
+        _unicast_recv_buffer = std::make_shared<message_buffer_t>(VSOMEIP_UDP_BUFFER_SIZE, 0);
     }
 
     if (unicast_socket_ && unicast_socket_->is_open()) {
@@ -320,7 +320,7 @@ void udp_server_endpoint_impl::receive_multicast_unlocked(std::shared_ptr<messag
     // The caller must hold the lock
 
     if (!_multicast_recv_buffer) {
-        _multicast_recv_buffer = std::make_shared<message_buffer_t>(max_message_size_, 0);
+        _multicast_recv_buffer = std::make_shared<message_buffer_t>(VSOMEIP_UDP_BUFFER_SIZE, 0);
     }
 
     if (multicast_socket_ && multicast_socket_->is_open()) {
@@ -617,6 +617,16 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                                                             const endpoint_type& _remote, const message_buffer_t& _buffer) {
     // The caller shall not hold the lock
 
+    // reject UDP packets larger than 1416 (16 bytes full header + 1400 payload); see Section 4.1.2.9 "Payload" in AUTOSAR FO R22-11
+    // "With UDP the SOME/IP payload shall be between 0 and 1400 Bytes. The limitation to 1400
+    // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
+    // IPv6 or adding security means)"
+    if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
+        VSOMEIP_ERROR << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
+                      << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
+                      << get_local_port() << " from " << _remote.address() << ":" << _remote.port() << ". Message will be dropped";
+        return;
+    }
 #if 0
     std::stringstream msg;
     msg << instance_name_ << "rcb(" << _remote.address() << ":" << _remote.port() << "): ";
@@ -725,7 +735,7 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                                                  its_remote_address, its_remote_port);
                         } else {
                             // ignore messages for service discovery with shorter SomeIP length
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": unreliable vSomeIP SD message with too short length field"
+                            VSOMEIP_ERROR << instance_name_ << __func__ << ": unreliable SomeIP SD message with too short length field"
                                           << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
                                           << std::dec << its_remote_port;
                         }
@@ -733,13 +743,13 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                     i += current_message_size;
                 } else {
                     VSOMEIP_ERROR << instance_name_ << __func__
-                                  << ": unreliable vSomeIP message with bad length field local: " << get_address_port_local_unlocked()
+                                  << ": unreliable SomeIP message with bad length field local: " << get_address_port_local_unlocked()
                                   << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                     if (remaining_bytes > VSOMEIP_SERVICE_POS_MAX) {
                         service_t its_service = bithelper::read_uint16_be(&_buffer[VSOMEIP_SERVICE_POS_MIN]);
                         if (its_service != VSOMEIP_SD_SERVICE) {
                             if (read_message_size == 0) {
-                                VSOMEIP_ERROR << instance_name_ << __func__ << ": unreliable vSomeIP message with SomeIP message length 0!";
+                                VSOMEIP_ERROR << instance_name_ << __func__ << ": unreliable SomeIP message with SomeIP message length 0!";
 
                             } else {
                                 auto its_endpoint_host = endpoint_host_.lock();

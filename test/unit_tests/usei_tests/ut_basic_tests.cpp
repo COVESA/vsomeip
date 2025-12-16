@@ -151,7 +151,7 @@ TEST_F(usei_fixture, corrupted_data) {
     bool received{false};
     std::condition_variable event;
 
-    EXPECT_CALL(*endpoint_, on_error).Times(AtLeast(MESSAGE_SENT_COUNT / 20));
+    EXPECT_CALL(*endpoint_, on_error).Times(AtLeast(MESSAGE_SENT_COUNT / 40));
     EXPECT_CALL(*routing_, on_message)
             .WillRepeatedly([&](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, vsomeip_v3::endpoint*, bool, vsomeip_v3::client_t,
                                 const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
