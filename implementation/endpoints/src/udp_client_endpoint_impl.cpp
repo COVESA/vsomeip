@@ -242,7 +242,7 @@ void udp_client_endpoint_impl::receive() {
     if (!socket_->is_open()) {
         return;
     }
-    message_buffer_ptr_t its_buffer = std::make_shared<message_buffer_t>(VSOMEIP_MAX_UDP_MESSAGE_SIZE);
+    auto its_buffer = std::make_shared<message_buffer_t>(VSOMEIP_UDP_BUFFER_SIZE, 0);
     socket_->async_receive_from(boost::asio::buffer(*its_buffer), const_cast<endpoint_type&>(remote_),
                                 strand_.wrap(std::bind(&udp_client_endpoint_impl::receive_cbk,
                                                        std::dynamic_pointer_cast<udp_client_endpoint_impl>(shared_from_this()),
@@ -269,6 +269,17 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                            const message_buffer_ptr_t& _recv_buffer) {
     if (_error == boost::asio::error::operation_aborted) {
         // endpoint was stopped
+        return;
+    }
+
+    // reject UDP packets larger than 1416 (16 bytes full header + 1400 payload); see Section 4.1.2.9 "Payload" in AUTOSAR FO R22-11
+    // "With UDP the SOME/IP payload shall be between 0 and 1400 Bytes. The limitation to 1400
+    // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
+    // IPv6 or adding security means)"
+    if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
+        VSOMEIP_ERROR << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
+                      << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
+                      << get_local_port() << " from " << remote_.address() << ":" << remote_.port() << ". Message will be dropped";
         return;
     }
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
@@ -331,7 +342,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                 }
                 remaining_bytes -= current_message_size;
             } else {
-                VSOMEIP_ERROR << "Received a unreliable vSomeIP message with bad "
+                VSOMEIP_ERROR << "Received a unreliable SomeIP message with bad "
                                  "length field. Message size: "
                               << current_message_size << " Bytes. From: " << remote_.address() << ":" << remote_.port()
                               << ". Dropping message.";

@@ -418,7 +418,7 @@ TEST(someip_npdu_test, send_different_payloads) {
     // used to store the debounce times
     std::array<std::array<std::chrono::milliseconds, 4>, 4> applicative_debounce;
 
-    // query the debouncetimes from the configuration. We want to know the
+    // query the debounce times from the configuration. We want to know the
     // debounce times which the _clients_ of this service have to comply with
     // when they send requests to this service.
     // This is necessary as we must ensure a applicative debouncing greater than
