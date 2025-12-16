@@ -386,7 +386,9 @@ bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
         its_data.queue_size_ += _size;
 
         if (!its_data.is_sending_ && unicast_socket_) { // no writing in progress
-            std::ignore = send_queued_unlocked(its_target_iterator);
+            can_be_send = send_queued_unlocked(its_target_iterator);
+        } else {
+            can_be_send = false;
         }
     }
 
@@ -410,6 +412,7 @@ bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_t
     // The caller hold two locks: `mutex_` and `sync_` in that order
 
     const auto its_entry = _it->second.queue_.front();
+    const auto separation_time = its_entry.second;
 
 #if 0
     std::stringstream msg;
@@ -422,11 +425,11 @@ bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_t
 #endif
 
     // Check whether we need to wait (SOME/IP-TP separation time)
-    if (its_entry.second > 0) {
+    if (separation_time > 0) {
         if (last_sent_ != std::chrono::steady_clock::time_point()) {
             const auto its_elapsed =
                     std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_sent_).count();
-            if (its_entry.second > its_elapsed) {
+            if (separation_time > its_elapsed) {
                 std::this_thread::sleep_for(std::chrono::microseconds(its_entry.second - its_elapsed));
             }
         }
@@ -436,18 +439,22 @@ bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_t
     }
 
     if (auto its_me{std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this())}) {
-        _it->second.is_sending_ = true;
-        unicast_socket_->async_send_to(boost::asio::buffer(*its_entry.first), _it->first,
-                                       [its_me, _it, its_entry](const boost::system::error_code& _error, std::size_t _bytes) {
-                                           if (!_error && its_me->on_unicast_sent_ && !_it->first.address().is_multicast()) {
-                                               its_me->on_unicast_sent_(&(its_entry.first)->at(0), static_cast<uint32_t>(_bytes),
-                                                                        _it->first.address());
-                                           }
-                                           its_me->send_cbk(_it->first, _error, _bytes);
-                                       });
-    }
+        auto its_buffer = its_entry.first;
+        auto its_target = _it->first;
 
-    return false;
+        _it->second.is_sending_ = true;
+        unicast_socket_->async_send_to(boost::asio::buffer(its_buffer->data(), its_buffer->size()), its_target,
+                                       [its_me, its_buffer, its_target](const boost::system::error_code& _error, std::size_t _bytes) {
+                                           if (!_error && its_me->on_unicast_sent_ && !its_target.address().is_multicast()) {
+                                               its_me->on_unicast_sent_(its_buffer->data(), static_cast<uint32_t>(_bytes),
+                                                                        its_target.address());
+                                           }
+                                           its_me->send_cbk(its_target, _error, _bytes);
+                                       });
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void udp_server_endpoint_impl::get_configured_times_from_endpoint(service_t _service, method_t _method,
