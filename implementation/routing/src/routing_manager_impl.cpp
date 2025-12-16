@@ -370,8 +370,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         if (!insert_offer_command(_service, _instance, uint8_t(protocol::id_e::OFFER_SERVICE_ID), _client, _major, _minor)) {
             VSOMEIP_INFO << "rmi::" << __func__ << std::hex << std::setfill('0') << " (" << std::setw(4) << _client << "): ["
                          << std::setw(4) << _service << "." << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor
-                         << "]"
-                         << " (" << std::boolalpha << _must_queue << ")"
+                         << "]" << " (" << std::boolalpha << _must_queue << ")"
                          << " not offering service, because insert_offer_command returned false!";
             return false;
         }
@@ -393,9 +392,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     if (!handle_local_offer_service(_client, _service, _instance, _major, _minor)) {
         erase_offer_command(_service, _instance);
         VSOMEIP_INFO << "rmi::" << __func__ << std::hex << std::setfill('0') << " (" << std::setw(4) << _client << "): [" << std::setw(4)
-                     << _service << "." << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]"
-                     << " (" << std::boolalpha << _must_queue << ")"
-                     << " not offering, returned from handle_local_offer_service!";
+                     << _service << "." << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]" << " ("
+                     << std::boolalpha << _must_queue << ")" << " not offering, returned from handle_local_offer_service!";
         return false;
     }
 
@@ -447,8 +445,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     erase_offer_command(_service, _instance);
 
     VSOMEIP_INFO << "OFFER(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service << "."
-                 << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]"
-                 << " (" << std::boolalpha << _must_queue << ")";
+                 << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]" << " (" << std::boolalpha
+                 << _must_queue << ")";
     return true;
 }
 
@@ -461,16 +459,14 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
                                               minor_version_t _minor, bool _must_queue) {
 
     VSOMEIP_INFO << "STOP OFFER(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service << "."
-                 << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]"
-                 << " (" << std::boolalpha << _must_queue << ")";
+                 << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]" << " (" << std::boolalpha
+                 << _must_queue << ")";
 
     if (_must_queue) {
         if (!insert_offer_command(_service, _instance, uint8_t(protocol::id_e::STOP_OFFER_SERVICE_ID), _client, _major, _minor)) {
             VSOMEIP_INFO << "rmi::" << __func__ << " (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): ["
                          << std::setw(4) << _service << "." << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor
-                         << "]"
-                         << " (" << std::boolalpha << _must_queue << ")"
-                         << " STOP-OFFER NOT INSERTED!";
+                         << "]" << " (" << std::boolalpha << _must_queue << ")" << " STOP-OFFER NOT INSERTED!";
             return;
         }
     }
@@ -499,8 +495,7 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
     } else {
         VSOMEIP_WARNING << __func__ << " received STOP_OFFER(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): ["
                         << std::setw(4) << _service << "." << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor
-                        << "] "
-                        << "for remote service --> ignore";
+                        << "] " << "for remote service --> ignore";
         erase_offer_command(_service, _instance);
     }
 }
@@ -1343,14 +1338,13 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
         if (configuration_->is_security_enabled()) {
             if (utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
                 if (!configuration_->is_offered_remote(its_service, its_instance)) {
-                    VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
-                                    << "for service/instance " << its_service << "/" << its_instance
-                                    << " which isn't offered remote ~> Skip message!";
+                    VSOMEIP_WARNING << std::hex << "Security: Received a remote request " << "for service/instance " << its_service << "/"
+                                    << its_instance << " which isn't offered remote ~> Skip message!";
                     return;
                 }
                 if (find_local(its_client)) {
-                    VSOMEIP_WARNING << std::hex << "Security: Received a remote request "
-                                    << "from client identifier 0x" << its_client << " which is already used locally ~> Skip message!";
+                    VSOMEIP_WARNING << std::hex << "Security: Received a remote request " << "from client identifier 0x" << its_client
+                                    << " which is already used locally ~> Skip message!";
                     return;
                 }
                 if (!configuration_->is_remote_access_allowed()) {
@@ -1630,10 +1624,9 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
                 if (configuration_->is_security_enabled() && configuration_->is_local_routing()
                     && its_message->get_client() != _bound_client) {
                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                                    << " : routing_manager_impl::deliver_message:"
-                                    << " received a request from client 0x" << std::setw(4) << std::setfill('0')
-                                    << its_message->get_client() << " to service/instance/method " << its_message->get_service() << "/"
-                                    << its_message->get_instance() << "/" << its_message->get_method()
+                                    << " : routing_manager_impl::deliver_message:" << " received a request from client 0x" << std::setw(4)
+                                    << std::setfill('0') << its_message->get_client() << " to service/instance/method "
+                                    << its_message->get_service() << "/" << its_message->get_instance() << "/" << its_message->get_method()
                                     << " which doesn't match the bound client 0x" << std::setw(4) << _bound_client << " ~> Skip message!";
                     return false;
                 }
@@ -1712,8 +1705,7 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
                                     << " isn't allowed to receive a notification from "
                                        "service/instance/event "
                                     << its_message->get_service() << "/" << its_message->get_instance() << "/" << its_message->get_method()
-                                    << " respectively from remote client"
-                                    << " ~> Skip message!";
+                                    << " respectively from remote client" << " ~> Skip message!";
                     return false;
                 }
             }
@@ -1722,8 +1714,7 @@ bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, 
         host_->on_message(std::move(its_message));
         is_delivered = true;
     } else {
-        VSOMEIP_ERROR << "Routing manager: deliver_message: "
-                      << "SomeIP-Header deserialization failed!";
+        VSOMEIP_ERROR << "Routing manager: deliver_message: " << "SomeIP-Header deserialization failed!";
     }
     return is_delivered;
 }
@@ -1971,8 +1962,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
     std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
     if (!its_info) {
         VSOMEIP_ERROR << "rmi::" << __func__ << ": couldn't find serviceinfo for service: [" << std::hex << std::setfill('0')
-                      << std::setw(4) << _service << "." << std::setw(4) << _instance << "]"
-                      << " is_local_service=" << _is_local_service;
+                      << std::setw(4) << _service << "." << std::setw(4) << _instance << "]" << " is_local_service=" << _is_local_service;
         return;
     }
     if (configuration_) {
@@ -2496,8 +2486,7 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
             std::stringstream its_warning;
             its_warning << "rmi::" << __func__ << ": A remote subscription is already pending [" << std::hex << std::setfill('0')
                         << std::setw(4) << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup
-                        << "]"
-                        << " from ";
+                        << "]" << " from ";
             if (its_reliable && its_unreliable)
                 its_warning << "[";
             if (its_reliable)
@@ -2597,8 +2586,8 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
                 discovery_->update_remote_subscription(its_subscription);
 
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
-                             << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]"
-                             << " from " << its_subscription->get_subscriber()->get_address() << ":" << std::dec
+                             << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]" << " from "
+                             << its_subscription->get_subscriber()->get_address() << ":" << std::dec
                              << its_subscription->get_subscriber()->get_port()
                              << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable")
                              << " was accepted. id=" << std::setw(4) << _id;
@@ -2668,8 +2657,8 @@ void routing_manager_impl::on_subscribe_nack(client_t _client, service_t _servic
             if (discovery_) {
                 discovery_->update_remote_subscription(its_subscription);
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
-                             << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]"
-                             << " from " << its_subscription->get_subscriber()->get_address() << ":" << std::dec
+                             << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]" << " from "
+                             << its_subscription->get_subscriber()->get_address() << ":" << std::dec
                              << its_subscription->get_subscriber()->get_port()
                              << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable")
                              << " was not accepted. id=" << std::setw(4) << _id;
@@ -3073,8 +3062,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     } else {
                         VSOMEIP_INFO << __func__ << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
                                      << _service << "." << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << std::dec
-                                     << _minor << "]"
-                                     << " client already pinged!";
+                                     << _minor << "]" << " client already pinged!";
                         return false;
                     }
                 } else {
@@ -3796,8 +3784,7 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _ser
         } else {
             VSOMEIP_WARNING << "rmi::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): ["
                             << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "."
-                            << std::setw(4) << _event << "]"
-                            << " received subscription for unknown service instance.";
+                            << std::setw(4) << _event << "]" << " received subscription for unknown service instance.";
         }
     }
 
@@ -3914,12 +3901,9 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cputs);
     clock_gettime(CLOCK_MONOTONIC, &monots);
 
-    VSOMEIP_INFO << "memory usage: "
-                 << "VmSize " << std::dec << its_size * its_pagesize << " kB, "
-                 << "VmRSS " << std::dec << its_rsssize * its_pagesize << " kB, "
-                 << "shared pages " << std::dec << its_sharedpages * its_pagesize << " kB, "
-                 << "text " << std::dec << its_text * its_pagesize << " kB, "
-                 << "data " << std::dec << its_data * its_pagesize << " kB "
+    VSOMEIP_INFO << "memory usage: " << "VmSize " << std::dec << its_size * its_pagesize << " kB, " << "VmRSS " << std::dec
+                 << its_rsssize * its_pagesize << " kB, " << "shared pages " << std::dec << its_sharedpages * its_pagesize << " kB, "
+                 << "text " << std::dec << its_text * its_pagesize << " kB, " << "data " << std::dec << its_data * its_pagesize << " kB "
                  << "| monotonic time: " << std::dec << monots.tv_sec << "." << std::dec << monots.tv_nsec << " cpu time: " << std::dec
                  << cputs.tv_sec << "." << std::dec << cputs.tv_nsec;
 #endif

@@ -1,0 +1,29 @@
+@startuml overlap_front_back
+
+    title SomeIP TP Test - Overlap Front Back
+
+    box msg_sender
+        participant "service" as service
+        participant "client" as client
+    end box
+    box vsomeip app
+        participant "Routing Manager" as rm
+        participant "Application" as app
+    end box
+        loop 1x in ascending order & 1x in descending order
+            client -> client : Break event into 6 fragments
+            client -> client : Increase the beginning and the end\nof the third fragment
+            client -> rm : Send fragments
+            rm -> rm : Reasembles the event
+            rm -> app : Forward completed event
+            app -> client : Response divided into 6 fragments
+            client -> client : Reasembles and compares\nthe received event\nagainst the original
+            service -> service : Break event into 6 fragments
+            service -> service : Increase the beginning and the end\nof the third fragment
+            service -> rm : Send fragments
+            rm -> rm : Reasembles the event
+            rm -> app : Forward completed event
+            app -> service : Response divided into 6 fragments
+            service -> service : Reasembles and compares\nthe received event\nagainst the original
+        end
+@enduml

@@ -1,0 +1,25 @@
+@startuml mixed
+
+    title SomeIP TP Test - Mixed
+
+    box msg_sender
+        participant "service" as service
+        participant "client" as client
+    end box
+    box vsomeip app
+        participant "Routing Manager" as rm
+        participant "Application" as app
+    end box
+        loop 1x in ascending order & 1x in descending order
+            client -> rm : Event divided into 6 fragments\n(fragments sent in random order)
+            rm -> rm : Reasembles the event\nby offset
+            rm -> app : Forward completed event
+            app -> client : Response divided into 6 fragments\n(ordered)
+            client -> client : Reasembles and compares\nthe received event\nagainst the original
+            service -> rm : Event divided into 6 fragments\n(fragments sent in random order)
+            rm -> rm : Reasembles the event\nby offset
+            rm -> app : Forward completed event
+            app -> service : Response divided into 6 fragments
+            service -> service : Reasembles and compares\nthe received event\nagainst the original
+        end
+@enduml
