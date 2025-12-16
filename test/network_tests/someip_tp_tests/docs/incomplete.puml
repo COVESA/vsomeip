@@ -1,0 +1,29 @@
+@startuml incomplete
+
+    title SomeIP TP Test - Incomplete
+
+    box msg_sender
+        participant "service" as service
+        participant "client" as client
+    end box
+    box vsomeip app
+        participant "Routing Manager" as rm
+        participant "Application" as app
+    end box
+        loop 1x in ascending order & 1x in descending order
+            client -> rm : Event fragment with different session ID
+            note right : Save fragment until all fragments\nare received or it expires
+            client -> rm : Event fragment with different service ID
+            client -> rm : Event divided into 6 fragments
+            rm -> rm : Reasembles the event
+            rm -> app : Forward completed event
+            app -> client : Response divided into 6 fragments
+            client -> client : Reasembles and compares\nthe received event\nagainst the original
+            service -> rm : Event divided into 6 fragments
+            rm -> rm : Reasembles the event
+            rm -> app : Forward completed event
+            app -> service : Response divided into 6 fragments
+            service -> service : Reasembles and compares\nthe received event\nagainst the original
+            rm -> rm : Delete incomplete fragments\nafter they expire
+        end
+@enduml

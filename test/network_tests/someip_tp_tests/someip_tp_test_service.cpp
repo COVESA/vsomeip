@@ -80,7 +80,7 @@ public:
                                        someip_tp_test::service_slave.method_id,
                                        std::bind(&someip_tp_test_service::on_response_from_slave, this, std::placeholders::_1));
 
-        start_thread_ = std::make_shared<std::thread>([this]() { app_->start(); });
+        start_thread_ = std::thread([this]() { app_->start(); });
     }
 
     ~someip_tp_test_service() { }
@@ -88,16 +88,10 @@ public:
     void offer() { app_->offer_service(service_info_.service_id, 0x1); }
 
     void stop() {
-
-        // magic sleep to give time for the last message to be sent
-        // TODO: FIXME! REMOVE THIS!
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
-        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
         app_->clear_all_handler();
         app_->stop();
 
-        start_thread_->join();
+        start_thread_.join();
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -318,7 +312,7 @@ private:
     std::uint32_t number_requests_from_slave_;
     bool wait_for_two_notifications_of_slave_;
     std::shared_ptr<vsomeip::message> request_send_to_slave_;
-    std::shared_ptr<std::thread> start_thread_;
+    std::thread start_thread_;
 };
 
 someip_tp_test::test_mode_e its_testmode(someip_tp_test::test_mode_e::IN_SEQUENCE);

@@ -354,12 +354,17 @@ TEST_P(someip_tp, send_in_mode) {
         std::vector<vsomeip::event_t> its_received_events;
         std::atomic<bool> service_offered(false);
         std::atomic<bool> client_subscribed(false);
+        std::size_t bytes_transferred;
 
         // join the sd multicast group 224.0.77.1
         udp_sd_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.77.1").to_v4()));
         while (keep_receiving) {
             boost::system::error_code error;
-            std::size_t bytes_transferred = udp_sd_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+            {
+                std::scoped_lock its_lock(udp_sd_socket_mutex);
+                bytes_transferred = udp_sd_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
+                offer_service(&udp_sd_socket);
+            }
             if (error) {
                 keep_receiving = false;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
@@ -408,12 +413,12 @@ TEST_P(someip_tp, send_in_mode) {
                                 std::memcpy(&its_sub_ack[4], &its_length, sizeof(its_length));
                                 // set number of options to zero
                                 its_sub_ack[27] = 0x0;
-                                // update session
-                                std::uint16_t its_session = htons(++sd_session_);
-                                std::memcpy(&its_sub_ack[10], &its_session, sizeof(its_session));
-                                boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
                                 {
                                     std::scoped_lock its_lock(udp_sd_socket_mutex);
+                                    // update session
+                                    std::uint16_t its_session = htons(++sd_session_);
+                                    std::memcpy(&its_sub_ack[10], &its_session, sizeof(its_session));
+                                    boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
                                     udp_sd_socket.send_to(boost::asio::buffer(its_sub_ack), target_sd);
                                 }
                                 std::cout << __LINE__ << ": master subscribed" << std::endl;
@@ -832,12 +837,13 @@ TEST_P(someip_tp, send_in_mode) {
     });
 
     std::mutex all_fragments_received_as_server_mutex_;
-    std::unique_lock<std::mutex> all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
+    std::mutex fragments_received_as_server_mutex_;
     std::condition_variable all_fragments_received_as_server_cond_;
     std::atomic<bool> wait_for_all_fragments_received_as_server_(true);
     std::atomic<std::uint16_t> remote_client_request_port(0);
 
     std::thread udp_server_send_thread([&]() {
+        std::unique_lock<std::mutex> all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
         // wait until client subscribed
         if (std::future_status::timeout == remote_client_subscribed.get_future().wait_for(std::chrono::seconds(10))) {
             ADD_FAILURE() << "Client didn't subscribe within time";
@@ -1031,9 +1037,13 @@ TEST_P(someip_tp, send_in_mode) {
                     ADD_FAILURE() << "Didn't receive request from client within time: " << std::uint32_t(mode);
                     return;
                 } else {
-                    EXPECT_EQ(someip_tp_test::number_of_fragments, fragments_received_as_server_.size());
-                    // create complete message from request of client
-                    vsomeip::message_buffer_t its_request = create_full_message(fragments_received_as_server_);
+                    vsomeip::message_buffer_t its_request;
+                    {
+                        std::scoped_lock fragments_received_as_server_lock(fragments_received_as_server_mutex_);
+                        EXPECT_EQ(someip_tp_test::number_of_fragments, fragments_received_as_server_.size());
+                        // create complete message from request of client
+                        its_request = create_full_message(fragments_received_as_server_);
+                    }
                     if (test_mode_ == someip_tp_test::test_mode_e::OVERLAP
                         || test_mode_ == someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK) {
                         EXPECT_EQ(VSOMEIP_FULL_HEADER_SIZE + someip_tp_test::number_of_fragments * (someip_tp_test::max_segment_size - 160),
@@ -1064,7 +1074,10 @@ TEST_P(someip_tp, send_in_mode) {
                     EXPECT_EQ(0,
                               std::memcmp(static_cast<void*>(&its_response[0]), static_cast<void*>(&its_request[0]), its_response.size()));
                     // send back response
-                    fragments_received_as_server_.clear();
+                    {
+                        std::scoped_lock fragments_received_as_server_lock(fragments_received_as_server_mutex_);
+                        fragments_received_as_server_.clear();
+                    }
                     EXPECT_GT(remote_client_request_port, 0);
                     boost::asio::ip::udp::socket::endpoint_type master_client(address_remote_, remote_client_request_port);
                     if (mode == order_e::ASCENDING) {
@@ -1269,7 +1282,10 @@ TEST_P(someip_tp, send_in_mode) {
                         auto its_buffer = std::make_shared<vsomeip::message_buffer_t>(&receive_buffer[its_pos],
                                                                                       &receive_buffer[its_pos] + its_message_size);
 
-                        fragments_received_as_server_.push_back(its_buffer);
+                        {
+                            std::scoped_lock fragments_received_as_server_lock(fragments_received_as_server_mutex_);
+                            fragments_received_as_server_.push_back(its_buffer);
+                        }
                         if (fragments_received_as_server_.size() == someip_tp_test::number_of_fragments) {
                             std::scoped_lock its_lock(all_fragments_received_as_server_mutex_);
                             wait_for_all_fragments_received_as_server_ = false;
