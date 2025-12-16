@@ -671,9 +671,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
             check_if_all_msgs_for_stopped_service_are_sent();
         }
 
-        if (!its_data.queue_.empty()) {
-            (void)send_queued(it);
-        } else {
+        if (its_data.queue_.empty() || !send_queued(it)) {
             if (!prepare_stop_handlers_.empty() && endpoint_impl<Protocol>::sending_blocked_) {
                 // endpoint is shutting down completely
                 cancel_dispatch_timer(it);

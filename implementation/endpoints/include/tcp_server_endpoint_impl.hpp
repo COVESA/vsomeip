@@ -74,7 +74,7 @@ private:
         void stop();
         void receive();
 
-        void send_queued(const target_data_iterator_type _it);
+        bool send_queued(const target_data_iterator_type _it);
 
         void set_remote_info(const endpoint_type& _remote);
         std::string get_address_port_remote() const;

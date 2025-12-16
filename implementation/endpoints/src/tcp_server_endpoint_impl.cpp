@@ -165,9 +165,8 @@ bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
         its_data.queue_size_ += _size;
 
         if (!its_data.is_sending_) { // no writing in progress
-            (void)send_queued(its_target_iterator);
+            return send_queued(its_target_iterator);
         }
-        return true;
     }
 
     return false;
@@ -183,7 +182,7 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
         if (connection_iterator != connections_.end()) {
             its_connection = connection_iterator->second;
             if (its_connection) {
-                its_connection->send_queued(_it);
+                must_erase = its_connection->send_queued(_it);
             }
         } else {
             VSOMEIP_INFO << instance_name_ << __func__ << ": didn't find connection: " << _it->first.address().to_string() << ":"
@@ -222,7 +221,7 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
         }
     }
 
-    return (must_erase);
+    return must_erase;
 }
 
 void tcp_server_endpoint_impl::get_configured_times_from_endpoint(service_t _service, method_t _method,
@@ -492,12 +491,12 @@ void tcp_server_endpoint_impl::connection::stop() {
     }
 }
 
-void tcp_server_endpoint_impl::connection::send_queued(const target_data_iterator_type _it) {
+bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterator_type _it) {
 
     std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
     if (!its_server) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": couldn't lock server_";
-        return;
+        return false;
     }
     message_buffer_ptr_t its_buffer = _it->second.queue_.front().first;
     const service_t its_service = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SERVICE_POS_MIN]);
@@ -525,6 +524,8 @@ void tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
                           std::chrono::steady_clock::now()),
                 std::bind(&tcp_server_endpoint_base_impl::send_cbk, its_server, _it->first, std::placeholders::_1, std::placeholders::_2));
     }
+
+    return true;
 }
 
 bool tcp_server_endpoint_impl::connection::send_magic_cookie(message_buffer_ptr_t& _buffer) {
