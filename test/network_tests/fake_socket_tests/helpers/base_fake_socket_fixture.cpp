@@ -132,4 +132,17 @@ void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail)
 void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     socket_manager_->set_ignore_broken_pipe(_app_name, _set);
 }
+bool base_fake_socket_fixture::wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                                             std::chrono::milliseconds _timeout) {
+    return socket_manager_->wait_once_for_dropped_command(_from, _to, _id, _timeout);
+}
+
+void base_fake_socket_fixture::set_custom_command_handler(std::string const& _from, std::string const& _to,
+                                                          vsomeip_command_handler const& _handler) {
+    socket_manager_->set_custom_command_handler(_from, _to, _handler);
+}
+
+void base_fake_socket_fixture::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
+    socket_manager_->inject_command(_from, _to, _payload);
+}
 }

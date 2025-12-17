@@ -197,6 +197,24 @@ public:
      **/
     void awaiting();
 
+    /**
+     * Stops once the delivery of a specific vsomeip command @param _id from @param _from towards @param _to.
+     * Returns when the command is stopped or when @param _timeout expires.
+     */
+    bool wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                       std::chrono::milliseconds _timeout);
+
+    /**
+     * Forces the delivery of a vsomeip message @param _payload from @param _from to @param _to.
+     */
+    void inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload);
+
+    /**
+     * Allows setting a custom vsomeip command controller @param _handler to be invoked every time a message
+     * is parsed, enables the test to decide what can be delivered or to assert based on the payload.
+     */
+    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler);
+
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
 

@@ -4,12 +4,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "fake_tcp_socket_handle.hpp"
-#include "command_message.hpp"
 #include "socket_manager.hpp"
 #include "fake_tcp_socket.hpp"
 #include "test_logging.hpp"
 
-#include <span>
 #include <thread>
 #include <numeric>
 
@@ -276,10 +274,10 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
     update_reception();
 }
 
-size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer) {
+size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception) {
     size_t const incoming_size =
             std::accumulate(_buffer.begin(), _buffer.end(), size_t{0}, [](size_t last, auto const& bf) { return last + bf.size(); });
-    auto const lock = std::scoped_lock(mtx_);
+    std::unique_lock<std::mutex> lock(mtx_);
     std::vector<unsigned char> input;
     input.reserve(incoming_size);
     for (auto const& buffer : _buffer) {
@@ -290,17 +288,37 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
         }
     }
 
-    if (std::vector<command_message> m; parse(input, m)) {
-        for (auto const& cm : m) {
-            TEST_LOG << "[fake-socket] " << socket_id_ << " received command_message: " << cm;
-            received_command_record_.record(cm.id_);
+    size_t current_size{0};
+    std::vector<unsigned char> raw_message;
+    while (input.size() > 0) {
+        command_message message;
+        if (auto parsed_bytes = parse(input, message)) {
+            TEST_LOG << "[fake-socket] " << socket_id_ << " received command_message: " << message;
+            bool block_message{false};
+            if (!force_reception && command_handler_) {
+                auto copy_handler = command_handler_;
+                lock.unlock();
+                block_message = copy_handler(message);
+                lock.lock();
+            }
+            if (block_message) {
+                TEST_LOG << "[fake-socket] " << socket_id_ << " dropping message " << message;
+            } else {
+                received_command_record_.record(message.id_);
+                current_size += parsed_bytes;
+                raw_message.reserve(current_size);
+                std::copy(input.begin(), input.begin() + parsed_bytes, std::back_inserter(raw_message));
+            }
+            input.erase(input.begin(), input.begin() + parsed_bytes);
+            input.shrink_to_fit();
+        } else {
+            TEST_LOG << "[fake-socket] Error: unable to parse input. Size of the input: " << input.size();
+            break;
         }
-    } else {
-        TEST_LOG << "[fake-socket] Error: unable to parse input. Size of the input: " << input.size();
     }
 
-    input_data_.reserve(input_data_.size() + incoming_size);
-    std::copy(input.begin(), input.end(), std::back_inserter(input_data_));
+    input_data_.reserve(input_data_.size() + current_size);
+    std::copy(raw_message.begin(), raw_message.end(), std::back_inserter(input_data_));
     update_reception();
     return incoming_size;
 }
@@ -352,6 +370,15 @@ void fake_tcp_socket_handle::ignore_inner_close() {
 fd_t fake_tcp_socket_handle::fd() {
     auto const lock = std::scoped_lock(mtx_);
     return socket_id_.fd_;
+}
+
+void fake_tcp_socket_handle::set_vsomeip_command_handler(vsomeip_command_handler const& _handler) {
+    auto const lock = std::scoped_lock(mtx_);
+    command_handler_ = _handler;
+}
+
+void fake_tcp_socket_handle::delayed_consume(std::vector<boost::asio::const_buffer> const& _buffer) {
+    boost::asio::post(io_, [this, _buffer] { consume(_buffer, true); });
 }
 
 fake_tcp_acceptor_handle::fake_tcp_acceptor_handle(boost::asio::io_context& _io) : io_(_io) { }

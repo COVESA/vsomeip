@@ -642,6 +642,28 @@ TEST_F(test_client_helper, connection_break_vs_routing) {
     }
 }
 
+/**
+ * Ensures a service provider responds with a NACK when a subscription is sent by an already connected client
+ * to a service it does not offer.
+ */
+TEST_F(test_client_helper, test_subscription_for_ghost_service) {
+    start_apps();
+    ASSERT_TRUE(subscribe_to_event());
+    auto subscription_payload = construct_basic_raw_command(protocol::id_e::SUBSCRIBE_ID, // command
+                                                            static_cast<uint16_t>(0), // version
+                                                            static_cast<client_t>(0x3490), // client id
+                                                            static_cast<uint32_t>(11), // size
+                                                            static_cast<service_t>(0xAAAA), // service
+                                                            static_cast<instance_t>(0x00), // instance
+                                                            static_cast<eventgroup_t>(0x00), // event group
+                                                            static_cast<major_version_t>(0x00), // major
+                                                            static_cast<event_t>(0x00), // event
+                                                            static_cast<uint16_t>(0) // pending id
+    );
+    inject_command(client_name_, server_name_, subscription_payload);
+    ASSERT_TRUE(wait_for_command(server_name_, client_name_, protocol::id_e::SUBSCRIBE_NACK_ID));
+}
+
 struct test_restart_clients : test_client_helper {
 
     bool subscribe(app* client) {
@@ -733,6 +755,19 @@ TEST_F(test_restart_clients, test_restart_service_availability) {
         TEST_LOG << "[step] stopping the app";
         stop_client(client_one_);
     }
+}
+
+/**
+ * Test blocking vsomeip messages.
+ */
+TEST_F(test_restart_clients, block_registration_process) {
+    start_router();
+    create_app(client_one_);
+    auto* one = start_client(client_one_);
+    ASSERT_TRUE(await_connection(client_one_, routingmanager_name_, std::chrono::seconds(2)));
+    ASSERT_TRUE(wait_once_for_dropped_command(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID,
+                                              std::chrono::milliseconds(500)));
+    ASSERT_FALSE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(1)));
 }
 
 struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
