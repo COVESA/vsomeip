@@ -56,10 +56,44 @@ struct command_message {
     // the hard coded version is of little interest
 };
 
-[[nodiscard]] bool parse(std::vector<unsigned char> const& _message, std::vector<command_message>& _out);
+[[nodiscard]] size_t parse(std::vector<unsigned char> const& _message, command_message& _out_message);
 
 std::ostream& operator<<(std::ostream& _out, command_message const& _m);
 
+/** Default type, not a vector. */
+template<typename Type>
+struct is_std_vector : std::false_type { };
+
+/** vector type.*/
+template<typename Type, typename Alloc>
+struct is_std_vector<std::vector<Type, Alloc>> : std::true_type { };
+
+/**
+ * @brief Constructs basic vsomeip commands, example:
+ * construct_basic_raw_command(protocol::id_e::ASSIGN_CLIENT_ID, static_cast<uint16_t>(0), client_one_id,
+                                                   static_cast<uint32_t>(size of client name), "client_name");
+ *
+ * @param payload All fields needed to construct the command.
+ * @return std::vector<unsigned char> Constructed raw message.
+ */
+template<typename... Ts>
+std::vector<unsigned char> construct_basic_raw_command(Ts&&... payload) {
+    std::vector<unsigned char> message;
+    (..., ([&] {
+         using U = std::decay_t<decltype(payload)>;
+         if constexpr (std::is_same_v<U, std::string> || is_std_vector<U>::value) {
+             message.insert(message.end(), payload.begin(), payload.end());
+         } else if constexpr (std::is_convertible_v<U, const char*>) {
+             std::string s(payload);
+             message.insert(message.end(), s.begin(), s.end());
+         } else {
+             message.insert(message.end(), reinterpret_cast<unsigned char*>(&payload),
+                            reinterpret_cast<unsigned char*>(&payload) + sizeof(payload));
+         }
+     }()));
+
+    return message;
+}
 }
 
 #endif

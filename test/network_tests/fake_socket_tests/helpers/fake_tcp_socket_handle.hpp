@@ -30,6 +30,8 @@ struct socket_id {
 class socket_manager;
 using connect_handler = std::function<void(boost::system::error_code const&)>;
 
+using vsomeip_command_handler = std::function<bool(command_message const&)>;
+
 /**
  * This class is not expected to be used in isolation but expected to be instantiated
  * by the fake_socket_factory using the socket_manager.
@@ -176,13 +178,21 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      **/
     void ignore_inner_close();
 
+    size_t consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception = false);
+
+    /**
+     * Forces the delivery of a vsomeip command @param _buffer to be added to io executor work queue.
+     */
+    void delayed_consume(std::vector<boost::asio::const_buffer> const& _buffer);
+
     fd_t fd();
+
+    void set_vsomeip_command_handler(vsomeip_command_handler const& _handler);
 
     attribute_recorder<protocol::id_e> received_command_record_;
 
 private:
     void update_reception();
-    size_t consume(std::vector<boost::asio::const_buffer> const& _buffer);
     void inner_close();
     struct Receptor {
         boost::asio::mutable_buffer buffer_;
@@ -203,6 +213,7 @@ private:
     boost::asio::ip::tcp::endpoint remote_ep_;
     std::optional<std::chrono::milliseconds> block_on_close_time_;
     mutable std::mutex mtx_;
+    vsomeip_command_handler command_handler_;
 };
 
 /**

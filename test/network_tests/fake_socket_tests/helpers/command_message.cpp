@@ -16,13 +16,13 @@
 
 namespace vsomeip_v3::testing {
 
-[[nodiscard]] bool parse(std::vector<unsigned char> const& _message, std::vector<command_message>& _out) {
+[[nodiscard]] size_t parse(const std::vector<unsigned char>& _message, command_message& _out_message) {
     if (_message.size() < protocol::COMMAND_POSITION_PAYLOAD) {
         TEST_LOG << "wire bytes were not long enough to contain the header";
-        return false;
+        return 0;
     }
 
-    auto handle_message = [&_out](uint8_t const* _begin, size_t _size) {
+    auto handle_message = [&_out_message](uint8_t const* _begin, size_t _size) {
         command_message out;
         if (_size < protocol::COMMAND_POSITION_PAYLOAD) {
             TEST_LOG << "wire bytes were not long enough to contain the header";
@@ -47,9 +47,9 @@ namespace vsomeip_v3::testing {
         std::memcpy(&out.id_, &_begin[protocol::COMMAND_POSITION_ID], 1);
 
         if (out.id_ == protocol::id_e::ROUTING_INFO_ID && deal_with_important_command(protocol::routing_info_command{})) {
-            _out.push_back(std::move(out));
+            _out_message = std::move(out);
         } else if (out.id_ == protocol::id_e::CONFIG_ID && deal_with_important_command(protocol::config_command{})) {
-            _out.push_back(std::move(out));
+            _out_message = std::move(out);
         } else {
             // the data is not important enough to parse the command payload. Lets parse the client
             // and copy the payload as is.
@@ -60,35 +60,33 @@ namespace vsomeip_v3::testing {
             payload.reserve(length);
             std::copy(_begin + protocol::COMMAND_POSITION_PAYLOAD, _begin + _size, std::back_inserter(payload));
             out.payload_ = command_payload(std::move(payload));
-            _out.push_back(std::move(out));
+            _out_message = std::move(out);
         }
         return true;
     };
+
     uint32_t length = 0;
-    size_t consumed_bytes = 0;
-    size_t remaining_bytes = _message.size();
-    while (remaining_bytes >= protocol::COMMAND_POSITION_SIZE + sizeof(length)) {
-        memcpy(&length, &_message[consumed_bytes + protocol::COMMAND_POSITION_SIZE], sizeof(length));
-        if (std::numeric_limits<uint32_t>::max() - protocol::COMMAND_HEADER_SIZE < length) {
-            TEST_LOG << "ERROR message length: " << length << " exceeded allowed message size";
-            return false;
-        }
-        auto const size = length + protocol::COMMAND_HEADER_SIZE;
-        if (size > remaining_bytes) {
-            TEST_LOG << "ERROR remaining_bytes are insufficient";
-            return false;
-        }
-        if (size <= std::numeric_limits<uint32_t>::max()) {
-            if (!handle_message(&_message[consumed_bytes], static_cast<uint32_t>(size))) {
-                TEST_LOG << "ERROR message could not be parsed";
-                return false;
-            }
-        }
-        // guaranteed to work by above checks
-        consumed_bytes += size;
-        remaining_bytes -= size;
+    memcpy(&length, &_message[protocol::COMMAND_POSITION_SIZE], sizeof(length));
+    if (std::numeric_limits<uint32_t>::max() - protocol::COMMAND_HEADER_SIZE < length) {
+        TEST_LOG << "ERROR message length: " << length << " exceeded allowed message size";
+        return 0;
     }
-    return true;
+    auto const size = length + protocol::COMMAND_HEADER_SIZE;
+    if (size > _message.size()) {
+        TEST_LOG << "ERROR remaining_bytes are insufficient";
+        return 0;
+    }
+    if (size <= std::numeric_limits<uint32_t>::max()) {
+        if (!handle_message(&_message[0], static_cast<uint32_t>(size))) {
+            TEST_LOG << "ERROR message could not be parsed";
+            return 0;
+        }
+    } else {
+        TEST_LOG << "ERROR message length surpasses 4B unsigned integer limit";
+        return 0;
+    }
+
+    return size;
 }
 
 std::ostream& operator<<(std::ostream& _out, command_message const& _m) {

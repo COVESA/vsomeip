@@ -461,4 +461,39 @@ socket_manager::get_connection(std::string const& _from, std::string const& _to)
     }
     return it_connection->second;
 }
+
+bool socket_manager::wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                                   [[maybe_unused]] std::chrono::milliseconds _timeout) {
+    std::shared_ptr<std::promise<protocol::id_e>> blocked_promise{std::make_shared<std::promise<protocol::id_e>>()};
+    auto blocked_future = blocked_promise->get_future();
+    set_custom_command_handler(_from, _to, [blocked_promise, _id](command_message const& _cmd) {
+        if (_cmd.id_ == _id) {
+            blocked_promise->set_value(_id);
+            return true;
+        }
+        return false;
+    });
+
+    auto expired = blocked_future.wait_for(_timeout);
+    // Destroy previous registered handler and consequently dangling captures.
+    set_custom_command_handler(_from, _to, nullptr);
+
+    return expired == std::future_status::ready;
+}
+
+void socket_manager::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
+    auto [weak_from, weak_to] = get_connection(_from, _to);
+    if (auto to = weak_to.lock(); to) {
+        std::vector<boost::asio::const_buffer> buffer;
+        buffer.push_back(boost::asio::buffer(_payload));
+        to->consume(buffer, true);
+    }
+}
+
+void socket_manager::set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler) {
+    auto [weak_from, weak_to] = get_connection(_from, _to);
+    if (auto to = weak_to.lock(); to) {
+        to->set_vsomeip_command_handler(_handler);
+    }
+}
 }

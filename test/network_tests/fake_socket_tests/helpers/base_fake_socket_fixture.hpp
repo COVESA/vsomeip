@@ -177,6 +177,22 @@ struct base_fake_socket_fixture : ::testing::Test {
      */
     void set_ignore_broken_pipe(std::string const& _app_name, bool _set);
 
+    /**
+     * @see socket_manager::wait_once_for_dropped_command
+     */
+    bool wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+                                       std::chrono::milliseconds _timeout);
+
+    /**
+     * @see socket_manager::inject_command
+     */
+    void inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload);
+
+    /**
+     * @see socket_manager::set_custom_command_handler
+     */
+    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler);
+
 private:
     static std::shared_ptr<fake_socket_factory> factory_;
     std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
