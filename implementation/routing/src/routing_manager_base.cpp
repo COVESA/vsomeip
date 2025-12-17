@@ -213,9 +213,9 @@ bool routing_manager_base::offer_service(client_t _client, service_t _service, i
         } else if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
             its_info->set_ttl(DEFAULT_TTL);
         } else {
-            VSOMEIP_ERROR << "rm_base::offer_service service property mismatch (" << std::hex << std::setfill('0') << std::setw(4)
+            VSOMEIP_ERROR << "rmb::" << __func__ << ": Service property mismatch (" << std::hex << std::setfill('0') << std::setw(4)
                           << _client << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << ":" << std::dec
-                          << static_cast<std::uint32_t>(its_info->get_major()) << ":" << its_info->get_minor()
+                          << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
                           << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
             return false;
         }
@@ -254,8 +254,8 @@ void routing_manager_base::stop_offer_service(client_t _client, service_t _servi
     }
     for (auto& e : events) {
         if (e.second->is_set()) {
-            VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e.first << "]";
+            VSOMEIP_INFO << "rmb::" << __func__ << ": Unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                         << "." << std::setw(4) << _instance << "." << std::setw(4) << e.first << "]";
         }
         e.second->unset_payload();
         e.second->clear_subscribers();
@@ -270,9 +270,9 @@ void routing_manager_base::request_service(client_t _client, service_t _service,
             && (_minor <= its_info->get_minor() || DEFAULT_MINOR == its_info->get_minor() || _minor == ANY_MINOR)) {
             its_info->add_client(_client);
         } else {
-            VSOMEIP_ERROR << "rm_base::request_service service property mismatch (" << std::hex << std::setfill('0') << std::setw(4)
+            VSOMEIP_ERROR << "rmb::" << __func__ << ": Service property mismatch (" << std::hex << std::setfill('0') << std::setw(4)
                           << _client << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << ":" << std::dec
-                          << static_cast<std::uint32_t>(its_info->get_major()) << ":" << its_info->get_minor()
+                          << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
                           << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
         }
     }
@@ -339,7 +339,8 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                 }
                 transfer_subscriptions_from_any_event = true;
             } else {
-                VSOMEIP_ERROR << "Event registration update failed. "
+                VSOMEIP_ERROR << "rmb::" << __func__
+                              << ": Event registration update failed. "
                                  "Specified arguments do not match existing registration.";
             }
         } else {
@@ -348,8 +349,8 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
             if (_type != event_type_e::ET_FIELD) {
                 // don't cache payload for non-fields
                 if (its_event->is_set()) {
-                    VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4)
-                                 << _service << "." << _instance << "." << its_event << "]";
+                    VSOMEIP_INFO << "rmb::" << __func__ << ": Unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4)
+                                 << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << its_event << "]";
                 }
                 its_event->unset_payload(true);
             }
@@ -717,8 +718,8 @@ void routing_manager_base::notify(service_t _service, instance_t _instance, even
     if (its_event) {
         its_event->set_payload(_payload, _force);
     } else {
-        VSOMEIP_WARNING << "Attempt to update the undefined event/field [" << std::hex << _service << "." << _instance << "." << _event
-                        << "]";
+        VSOMEIP_WARNING << "rmb::" << __func__ << ": Attempt to update the undefined event/field [" << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _event << "]";
     }
 }
 
@@ -751,8 +752,8 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance, 
             }
         }
     } else {
-        VSOMEIP_WARNING << "Attempt to update the undefined event/field [" << std::hex << _service << "." << _instance << "." << _event
-                        << "]";
+        VSOMEIP_WARNING << "rmb::" << __func__ << ": Attempt to update the undefined event/field [" << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _event << "]";
     }
 }
 
@@ -773,8 +774,8 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 
     for (const auto& e : its_events) {
         if (e->is_set()) {
-            VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event() << "]";
+            VSOMEIP_INFO << "rmb::" << __func__ << ": Unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                         << "." << std::setw(4) << _instance << "." << std::setw(4) << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -798,8 +799,8 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 
     for (const auto& e : its_events) {
         if (e->is_set()) {
-            VSOMEIP_INFO << "rmb::" << __func__ << " unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "." << e->get_event() << "]";
+            VSOMEIP_INFO << "rmb::" << __func__ << ": unsetting payload for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                         << "." << std::setw(4) << _instance << "." << std::setw(4) << e->get_event() << "]";
         }
         e->unset_payload(true);
     }
@@ -849,7 +850,7 @@ bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _mess
         its_serializer->reset();
         put_serializer(its_serializer);
     } else {
-        VSOMEIP_ERROR << "Failed to serialize message. Check message size!";
+        VSOMEIP_ERROR << "rmb::" << __func__ << ": Failed to serialize message. Check message size!";
     }
     return is_sent;
 }
@@ -1117,8 +1118,8 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(service_t 
                     try {
                         its_info->set_multicast(boost::asio::ip::make_address(its_multicast_address), its_multicast_port);
                     } catch (...) {
-                        VSOMEIP_ERROR << "Eventgroup [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance
-                                      << "." << _eventgroup
+                        VSOMEIP_ERROR << "rmb::" << __func__ << ": Eventgroup [" << std::hex << std::setfill('0') << std::setw(4)
+                                      << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
                                       << "] is configured as multicast, but no valid "
                                          "multicast address is configured!";
                     }
@@ -1217,9 +1218,9 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
         if (its_event) {
             is_inserted = its_event->add_subscriber(_eventgroup, _filter, _client, host_->is_routing());
         } else {
-            VSOMEIP_WARNING << "routing_manager_base::insert_subscription(" << std::hex << std::setfill('0') << std::setw(4) << _client
-                            << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
-                            << "." << std::setw(4) << _event << "]"
+            VSOMEIP_WARNING << "rmb::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): ["
+                            << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "."
+                            << std::setw(4) << _event << "]"
                             << " received subscription for unknown (unrequested / "
                             << "unoffered) event. Creating placeholder event holding "
                             << "subscription until event is requested/offered.";
@@ -1247,9 +1248,9 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
             create_place_holder = true;
         }
         if (create_place_holder) {
-            VSOMEIP_WARNING << "routing_manager_base::insert_subscription(" << std::hex << std::setfill('0') << std::setw(4) << _client
-                            << "): [" << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
-                            << "." << std::setw(4) << _event << "]"
+            VSOMEIP_WARNING << "rmb::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): ["
+                            << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "."
+                            << std::setw(4) << _event << "]"
                             << " received subscription for unknown (unrequested / "
                             << "unoffered) eventgroup. Creating placeholder event holding "
                             << "subscription until event is requested/offered.";
@@ -1263,10 +1264,10 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
     std::unique_lock<std::mutex> its_lock(serializer_mutex_);
     while (serializers_.empty()) {
-        VSOMEIP_INFO << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+        VSOMEIP_INFO << "rmb::" << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                      << " has no available serializer. Waiting...";
         serializer_condition_.wait(its_lock, [this] { return !serializers_.empty(); });
-        VSOMEIP_INFO << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
+        VSOMEIP_INFO << "rmb::" << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << get_client()
                      << " now checking for available serializer.";
     }
 
@@ -1287,9 +1288,9 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 
     std::unique_lock<std::mutex> its_lock(deserializer_mutex_);
     while (deserializers_.empty()) {
-        VSOMEIP_INFO << std::hex << "client " << get_client() << "routing_manager_base::get_deserializer ~> all in use!";
+        VSOMEIP_INFO << "rmb::" << __func__ << std::hex << ": Client 0x" << get_client() << "~> all in use!";
         deserializer_condition_.wait(its_lock, [this] { return !deserializers_.empty(); });
-        VSOMEIP_INFO << std::hex << "client " << get_client() << "routing_manager_base::get_deserializer ~> wait finished!";
+        VSOMEIP_INFO << "rmb::" << __func__ << std::hex << ": Client 0x" << get_client() << "~> wait finished!";
     }
 
     auto its_deserializer = deserializers_.front();
