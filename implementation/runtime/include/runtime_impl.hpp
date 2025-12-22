@@ -41,7 +41,6 @@ public:
 
 private:
     std::map<std::string, std::weak_ptr<application>> applications_;
-
     mutable std::mutex applications_mutex_;
 };
 

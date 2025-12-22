@@ -37,6 +37,7 @@ struct global_state {
 
     // Runtime properties - must be initialized before application_impl
     std::map<std::string, std::string> properties_;
+    std::mutex properties_mutex_;
     // Logger implementation - destroyed AFTER runtime (declared before runtime_)
     logger::logger_impl logger_;
     // Runtime implementation - destroyed FIRST (applications safely handle null via weak_ptr)
