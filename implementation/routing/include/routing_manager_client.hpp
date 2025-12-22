@@ -163,7 +163,8 @@ private:
 
     void resend_provided_event_registrations();
     void send_resend_provided_event_response(pending_remote_offer_id_t _id);
-
+    void status_log_timer_cbk(boost::system::error_code const& _error);
+    void version_log_timer_cbk(boost::system::error_code const& _error);
 #ifndef VSOMEIP_DISABLE_SECURITY
     void send_update_security_policy_response(pending_security_update_id_t _update_id);
     void send_remove_security_policy_response(pending_security_update_id_t _update_id);
@@ -203,6 +204,9 @@ private:
     std::atomic<inner_state_type_e> state_;
 
     boost::asio::steady_timer keepalive_timer_;
+    std::mutex log_timer_mutex_;
+    boost::asio::steady_timer status_log_timer_;
+    boost::asio::steady_timer version_log_timer_;
     bool keepalive_active_;
     bool keepalive_is_alive_;
     std::mutex keepalive_mutex_;

@@ -98,6 +98,7 @@
             "max_dispatch_time" : "1234",
             "threads" : "12",
             "request_debounce_time" : "5000",
+            "version_log_interval": 15,
             "plugins" :
             [
                 {

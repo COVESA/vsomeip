@@ -7,7 +7,6 @@
 #include <iomanip>
 #include <memory>
 #include <sstream>
-#include <fstream>
 #include <forward_list>
 #include <thread>
 
@@ -225,11 +224,6 @@ void routing_manager_impl::start() {
         stub_->start();
     host_->on_state(state_type_e::ST_REGISTERED);
 
-    if (configuration_->log_version()) {
-        std::scoped_lock its_lock{version_log_timer_mutex_};
-        version_log_timer_.expires_after(std::chrono::seconds(0));
-        version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk, this, std::placeholders::_1, 0));
-    }
 #if defined(__linux__) || defined(__QNX__)
     if (configuration_->log_memory()) {
         std::scoped_lock its_lock{memory_log_timer_mutex_};
@@ -237,16 +231,22 @@ void routing_manager_impl::start() {
         memory_log_timer_.async_wait(std::bind(&routing_manager_impl::memory_log_timer_cbk, this, std::placeholders::_1));
     }
 #endif
-    if (configuration_->log_status()) {
-        std::scoped_lock its_lock{status_log_timer_mutex_};
-        status_log_timer_.expires_after(std::chrono::seconds(0));
-        status_log_timer_.async_wait(std::bind(&routing_manager_impl::status_log_timer_cbk, this, std::placeholders::_1));
-    }
+    {
+        std::scoped_lock its_lock{log_timer_mutex_};
+        if (configuration_->get_version_log_interval(host_->get_name()) > 0) {
+            version_log_timer_.expires_after(std::chrono::seconds(0));
+            version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec, 0); });
+        }
 
-    if (configuration_->log_statistics()) {
-        std::scoped_lock its_lock{statistics_log_timer_mutex_};
-        statistics_log_timer_.expires_after(std::chrono::seconds(0));
-        statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::statistics_log_timer_cbk, this, std::placeholders::_1));
+        if (configuration_->get_status_log_interval(host_->get_name()) > 0) {
+            status_log_timer_.expires_after(std::chrono::seconds(0));
+            status_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->status_log_timer_cbk(ec); });
+        }
+
+        if (configuration_->log_statistics()) {
+            statistics_log_timer_.expires_after(std::chrono::seconds(0));
+            statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::statistics_log_timer_cbk, this, std::placeholders::_1));
+        }
     }
 
     VSOMEIP_INFO << VSOMEIP_INTERNAL_ROUTING_READY_MESSAGE;
@@ -271,10 +271,6 @@ void routing_manager_impl::stop() {
         }
     }
 
-    {
-        std::scoped_lock its_lock{version_log_timer_mutex_};
-        version_log_timer_.cancel();
-    }
 #if defined(__linux__)
     {
         std::scoped_lock its_lock{memory_log_timer_mutex_};
@@ -284,14 +280,10 @@ void routing_manager_impl::stop() {
         netlink_connector_->stop();
     }
 #endif
-
     {
-        std::scoped_lock its_lock{status_log_timer_mutex_};
+        std::scoped_lock its_lock{log_timer_mutex_};
+        version_log_timer_.cancel();
         status_log_timer_.cancel();
-    }
-
-    {
-        std::scoped_lock its_lock{statistics_log_timer_mutex_};
         statistics_log_timer_.cancel();
     }
 
@@ -2873,9 +2865,9 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
     return its_next_expiration;
 }
 
-void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const& _error, size_t _count) {
+void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const& _error, size_t _count) {
     if (!_error) {
-        const uint32_t its_interval = configuration_->get_log_version_interval();
+        const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name());
 
         bool is_diag_mode(false);
 
@@ -2891,7 +2883,6 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
                                 << "s";
             }
         }
-
         VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " | (" << ((is_diag_mode == true) ? "diagnosis)" : "default)")
                      << its_last_resume.str();
 
@@ -2910,86 +2901,12 @@ void routing_manager_impl::log_version_timer_cbk(boost::system::error_code const
         }
 
         {
-            std::scoped_lock its_lock(version_log_timer_mutex_);
-            version_log_timer_.expires_after(std::chrono::seconds(its_interval));
-            version_log_timer_.async_wait(std::bind(&routing_manager_impl::log_version_timer_cbk, this, std::placeholders::_1, _count + 1));
+            std::scoped_lock its_lock(log_timer_mutex_);
+            version_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
+            version_log_timer_.async_wait(
+                    [this, count = _count + 1](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec, count); });
         }
     }
-}
-
-void routing_manager_impl::log_network_state(bool _tcp, bool _only_external) const {
-#ifndef __linux__
-    (void)_tcp;
-    (void)_only_external;
-#else
-    const std::string filename = _tcp ? "/proc/net/tcp" : "/proc/net/udp";
-
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        VSOMEIP_ERROR << "rmi::" << __func__ << ": could not open " << filename << " for reading";
-        return;
-    }
-
-    std::string line;
-    // skip header line
-    if (!std::getline(file, line)) {
-        VSOMEIP_ERROR << "rmi::" << __func__ << ": failed to read header from " << filename;
-        return;
-    }
-
-    // compute external address in hex, same format as /proc/net/tcp
-    // e.g., 127.0.0.1 => 0100007F
-    auto external_addr = configuration_->get_unicast_address();
-    std::ostringstream external_addr_stream;
-    external_addr_stream << std::uppercase << std::hex << std::setfill('0') << std::setw(8)
-                         << (external_addr.is_v4() ? htonl(external_addr.to_v4().to_uint()) : 0);
-    std::string external_addr_hex = external_addr_stream.str();
-
-    VSOMEIP_INFO << "rmi::" << __func__ << ": " << (_tcp ? "TCP" : "UDP") << " connections";
-    VSOMEIP_INFO << "idx, local_addr, remote_addr, state, tx_queue, rx_queue, timer_active, tm_when, retrnsmt, uid, unanswered";
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string idx, local_addr, remote_addr, state, tx_queue, rx_queue, timer_active, tm_when, retrnsmt, uid, unanswered;
-
-        // see https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt
-        // NOTE: there are more fields (especially in /proc/net/udp), but we do not care about these
-        if (!(iss >> idx >> local_addr >> remote_addr >> state >> tx_queue >> rx_queue >> timer_active >> tm_when >> retrnsmt >> uid
-              >> unanswered)) {
-            VSOMEIP_ERROR << "rmi::" << __func__ << ": failed to parse line: " << line;
-            continue;
-        }
-
-        if (_only_external && local_addr.substr(0, external_addr_hex.length()) != external_addr_hex) {
-            continue;
-        }
-
-        // parse local_addr/remote_addr, e.g., 0100007F:7424 to 127.0.0.1:29732
-        try {
-            std::string local_ip = local_addr.substr(0, 8);
-            std::string local_port = local_addr.substr(9, 4);
-            std::string remote_ip = remote_addr.substr(0, 8);
-            std::string remote_port = remote_addr.substr(9, 4);
-
-            // convert hex to decimal
-            unsigned int local_ip_int = htonl(static_cast<unsigned int>(std::stoul(local_ip, nullptr, 16)));
-            unsigned int remote_ip_int = htonl(static_cast<unsigned int>(std::stoul(remote_ip, nullptr, 16)));
-            auto local_port_int = static_cast<unsigned int>(std::stoul(local_port, nullptr, 16));
-            auto remote_port_int = static_cast<unsigned int>(std::stoul(remote_port, nullptr, 16));
-
-            // convert to dotted-decimal notation
-            local_addr = boost::asio::ip::address_v4(local_ip_int).to_string() + ":" + std::to_string(local_port_int);
-            remote_addr = boost::asio::ip::address_v4(remote_ip_int).to_string() + ":" + std::to_string(remote_port_int);
-        } catch (...) {
-            // leave the old local_addr/remote_addr
-        }
-
-        // use the same format as /proc/net/tcp
-        // especially with local TCP communication, there will be *MANY* connections, and the hex encoding does make the logs smaller
-        VSOMEIP_INFO << idx << " " << local_addr << " " << remote_addr << " " << state << " " << tx_queue << " " << rx_queue << " "
-                     << timer_active << " " << tm_when << " " << retrnsmt << " " << uid << " " << unanswered;
-    }
-
-#endif
 }
 
 bool routing_manager_impl::handle_local_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
@@ -3919,12 +3836,15 @@ void routing_manager_impl::status_log_timer_cbk(boost::system::error_code const&
     if (_error) {
         return;
     }
+    const uint32_t its_interval = configuration_->get_status_log_interval(host_->get_name());
+    VSOMEIP_INFO << "rmi::status_log_timer_cbk";
 
     ep_mgr_impl_->print_status();
+    ep_mgr_->print_status();
     {
-        std::scoped_lock its_lock{status_log_timer_mutex_};
-        status_log_timer_.expires_after(std::chrono::seconds(configuration_->get_log_status_interval()));
-        status_log_timer_.async_wait(std::bind(&routing_manager_impl::status_log_timer_cbk, this, std::placeholders::_1));
+        std::scoped_lock its_lock{log_timer_mutex_};
+        status_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
+        status_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->status_log_timer_cbk(ec); });
     }
 }
 
@@ -4272,7 +4192,7 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
         }
 
         {
-            std::scoped_lock its_lock{statistics_log_timer_mutex_};
+            std::scoped_lock its_lock{log_timer_mutex_};
             statistics_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
             statistics_log_timer_.async_wait(std::bind(&routing_manager_impl::statistics_log_timer_cbk, this, std::placeholders::_1));
         }

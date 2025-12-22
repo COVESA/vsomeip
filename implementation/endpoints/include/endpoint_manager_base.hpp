@@ -58,15 +58,13 @@ public:
 
     // Statistics
     void log_client_states() const;
+    void print_status() const;
 
     // Multicast options
     void add_multicast_option(const multicast_option_t& _option);
 
     virtual void suspend();
     virtual void resume();
-
-protected:
-    void print_status() const;
 
 private:
     std::shared_ptr<local_endpoint> create_local_unlocked(client_t _client);

@@ -23,6 +23,8 @@ struct application_configuration {
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
     std::size_t thread_count_;
+    uint32_t log_status_interval_;
+    uint32_t log_version_interval_;
     std::size_t request_debounce_time_;
     std::map<plugin_type_e, std::set<std::string>> plugins_;
     int nice_level_;
