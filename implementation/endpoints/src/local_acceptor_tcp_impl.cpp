@@ -55,7 +55,7 @@ void local_acceptor_tcp_impl::init(boost::asio::ip::tcp::endpoint _local_ep, boo
 
     acceptor_->listen(boost::asio::socket_base::max_listen_connections, _ec);
     if (_ec) {
-        VSOMEIP_ERROR << "lati::" << __func__ << ": could not listen, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
+        VSOMEIP_INFO << "lati::" << __func__ << ": could not listen, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
         // if listen fails, we better also "revert" bind
         boost::system::error_code ec;
         acceptor_->close(ec);
