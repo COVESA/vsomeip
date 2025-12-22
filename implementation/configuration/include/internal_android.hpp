@@ -67,7 +67,9 @@
 
 #define VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT        5000
 
-#define VSOMEIP_DEFAULT_LOG_INTERVAL            10
+#define VSOMEIP_DEFAULT_LOG_NETWORK             0 // milliseconds
+#define VSOMEIP_DEFAULT_LOG_NETWORK_HOST        10000 // milliseconds
+#define VSOMEIP_DEFAULT_LOG_STATUS              0 // milliseconds
 #define VSOMEIP_DEFAULT_QUEUE_WARN_SIZE         32768
 
 #define VSOMEIP_MAX_TCP_CONNECT_TIME            5000

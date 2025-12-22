@@ -189,8 +189,7 @@ public:
     virtual std::uint32_t get_permissions_uds() const = 0;
 
     virtual bool log_version() const = 0;
-    virtual uint32_t get_log_version_interval() const = 0;
-
+    virtual uint32_t get_version_log_interval(const std::string& _name) const = 0;
     // Plugins
     virtual std::map<plugin_type_e, std::set<std::string>> get_plugins(const std::string& _name) const = 0;
 
@@ -206,8 +205,7 @@ public:
     virtual bool log_memory() const = 0;
     virtual uint32_t get_log_memory_interval() const = 0;
 
-    virtual bool log_status() const = 0;
-    virtual uint32_t get_log_status_interval() const = 0;
+    virtual uint32_t get_status_log_interval(const std::string& _name) const = 0;
 
     // TTL factor
     typedef std::uint32_t ttl_factor_t;

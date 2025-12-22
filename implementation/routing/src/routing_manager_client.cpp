@@ -85,9 +85,10 @@ namespace vsomeip_v3 {
 routing_manager_client::routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
                                                const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter) :
     routing_manager_base(_host), is_connected_(false), is_started_(false), state_(inner_state_type_e::ST_DEREGISTERED),
-    keepalive_timer_(io_), keepalive_active_(false), keepalive_is_alive_(false), sender_(nullptr), receiver_(nullptr),
-    register_application_timer_(io_), request_debounce_timer_(io_), request_debounce_timer_running_(false),
-    client_side_logging_(_client_side_logging), client_side_logging_filter_(_client_side_logging_filter) {
+    keepalive_timer_(io_), status_log_timer_(io_), version_log_timer_(_host->get_io()), keepalive_active_(false),
+    keepalive_is_alive_(false), sender_(nullptr), receiver_(nullptr), register_application_timer_(io_), request_debounce_timer_(io_),
+    request_debounce_timer_running_(false), client_side_logging_(_client_side_logging),
+    client_side_logging_filter_(_client_side_logging_filter) {
 
     char its_hostname[1024];
     if (gethostname(its_hostname, sizeof(its_hostname)) == 0) {
@@ -120,6 +121,47 @@ void routing_manager_client::start() {
     std::unique_lock lock{sender_mutex_};
     sender_required_ = true;
     restart_sender(lock);
+    {
+        std::scoped_lock its_lock{log_timer_mutex_};
+        if (configuration_->get_version_log_interval(host_->get_name()) > 0) {
+            version_log_timer_.expires_after(std::chrono::seconds(0));
+            version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec); });
+        }
+        if (configuration_->get_status_log_interval(host_->get_name()) > 0) {
+            status_log_timer_.expires_after(std::chrono::seconds(0));
+            status_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->status_log_timer_cbk(ec); });
+        }
+    }
+}
+
+void routing_manager_client::status_log_timer_cbk(boost::system::error_code const& _error) {
+    if (!_error) {
+        const uint32_t its_interval = configuration_->get_status_log_interval(host_->get_name());
+        VSOMEIP_INFO << "rmc::status_log_timer_cbk";
+        ep_mgr_->print_status();
+
+        {
+            std::scoped_lock its_lock(log_timer_mutex_);
+            status_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
+            status_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->status_log_timer_cbk(ec); });
+        }
+    }
+}
+
+void routing_manager_client::version_log_timer_cbk(boost::system::error_code const& _error) {
+    if (!_error) {
+        const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name());
+
+        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " | ";
+
+        log_network_state(true, false);
+
+        {
+            std::scoped_lock its_lock(log_timer_mutex_);
+            version_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
+            version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec); });
+        }
+    }
 }
 
 void routing_manager_client::stop() {
@@ -172,6 +214,11 @@ void routing_manager_client::stop() {
         receiver_ = nullptr;
     }
 
+    {
+        std::scoped_lock its_lock{log_timer_mutex_};
+        version_log_timer_.cancel();
+        status_log_timer_.cancel();
+    }
     {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {

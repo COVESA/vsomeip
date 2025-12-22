@@ -260,17 +260,7 @@ private:
 
     bool supports_selective(service_t _service, instance_t _instance);
 
-    void log_version_timer_cbk(boost::system::error_code const& _error, size_t _count);
-
-    /**
-     * \brief Log network state
-     *
-     * Uses /proc/net/tcp + /proc/net/udp to log network connections. This is, of course, only for IPv4
-     *
-     * \param _tcp if true, logs TCP connections, otherwise UDP connections
-     * \param _only_external if true, logs *only* external connections (e.g., service-discovery), otherwise everything
-     */
-    void log_network_state(bool _tcp, bool _only_external) const;
+    void version_log_timer_cbk(boost::system::error_code const& _error, size_t _count);
 
     bool handle_local_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                     minor_version_t _minor);
@@ -300,6 +290,7 @@ private:
     void handle_subscription_state(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void memory_log_timer_cbk(boost::system::error_code const& _error);
+
     void status_log_timer_cbk(boost::system::error_code const& _error);
 
     void send_subscription(const client_t _offering_client, const service_t _service, const instance_t _instance,
@@ -351,7 +342,7 @@ private:
 
     std::shared_ptr<serviceinfo> sd_info_;
 
-    std::mutex version_log_timer_mutex_;
+    std::mutex log_timer_mutex_;
     boost::asio::steady_timer version_log_timer_;
 
     std::atomic_bool if_state_running_;
@@ -376,7 +367,6 @@ private:
 
     std::shared_ptr<e2e::e2e_provider> e2e_provider_;
 
-    std::mutex status_log_timer_mutex_;
     boost::asio::steady_timer status_log_timer_;
 
     std::mutex memory_log_timer_mutex_;
@@ -402,7 +392,6 @@ private:
     std::mutex callback_counts_mutex_;
     std::map<uint32_t, uint16_t> callback_counts_;
 
-    std::mutex statistics_log_timer_mutex_;
     boost::asio::steady_timer statistics_log_timer_;
 
     std::mutex message_statistics_mutex_;

@@ -140,6 +140,16 @@ public:
     virtual void on_disconnect(const std::shared_ptr<endpoint>& _endpoint) = 0;
 
 protected:
+    /**
+     * \brief Log network state
+     *
+     * Uses /proc/net/tcp + /proc/net/udp to log network connections. This is, of course, only for IPv4
+     *
+     * \param _tcp if true, logs TCP connections, otherwise UDP connections
+     * \param _only_external if true, logs *only* external connections (e.g., service-discovery), otherwise everything
+     */
+    void log_network_state(bool _tcp, bool _only_external) const;
+
     std::shared_ptr<serviceinfo> create_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                                      minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
 

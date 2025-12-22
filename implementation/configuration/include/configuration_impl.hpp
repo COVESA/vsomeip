@@ -154,7 +154,11 @@ public:
     VSOMEIP_EXPORT bool is_offered_remote(service_t _service, instance_t _instance) const;
 
     VSOMEIP_EXPORT bool log_version() const;
-    VSOMEIP_EXPORT uint32_t get_log_version_interval() const;
+    /**
+     * @brief Get the version log interval in milliseconds
+     *
+     */
+    VSOMEIP_EXPORT uint32_t get_version_log_interval(const std::string& _name) const;
 
     VSOMEIP_EXPORT bool is_local_service(service_t _service, instance_t _instance) const;
 
@@ -206,9 +210,11 @@ public:
 
     VSOMEIP_EXPORT bool log_memory() const;
     VSOMEIP_EXPORT uint32_t get_log_memory_interval() const;
-
-    VSOMEIP_EXPORT bool log_status() const;
-    VSOMEIP_EXPORT uint32_t get_log_status_interval() const;
+    /**
+     * @brief Get the status log interval in milliseconds
+     *
+     */
+    VSOMEIP_EXPORT uint32_t get_status_log_interval(const std::string& _name) const;
 
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;
@@ -578,7 +584,6 @@ protected:
     bool log_memory_;
     uint32_t log_memory_interval_;
 
-    bool log_status_;
     uint32_t log_status_interval_;
 
     ttl_map_t ttl_factors_offers_;
