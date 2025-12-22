@@ -38,6 +38,7 @@ __attribute__((constructor)) void pin_library() {
 #endif
 
 std::string runtime_impl::get_property(const std::string& _name) {
+    std::scoped_lock its_lock{global_state::get().properties_mutex_};
     auto& properties = global_state::get().properties_;
     auto found_property = properties.find(_name);
     if (found_property != properties.end())
@@ -46,6 +47,7 @@ std::string runtime_impl::get_property(const std::string& _name) {
 }
 
 void runtime_impl::set_property(const std::string& _name, const std::string& _value) {
+    std::scoped_lock its_lock{global_state::get().properties_mutex_};
     global_state::get().properties_[_name] = _value;
 }
 
