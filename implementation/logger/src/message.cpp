@@ -117,13 +117,13 @@ message::~message() try {
         // Unfortunately, building the string is a bit awkward - freely concatenating
         // string_views and strings is a C++26 feature.
         const std::string_view ts = timestamp();
-        const std::string_view app = app_name();
+        const std::string_view its_app = app_name(); // To avoid collision w/ std::ios::app on some environments
         const std::string_view lvl = level_as_view();
         const std::string_view msg = buffer_as_view();
         std::string output;
-        output.reserve(ts.size() + app.size() + lvl.size() + msg.size() + 1);
+        output.reserve(ts.size() + its_app.size() + lvl.size() + msg.size() + 1);
         output += ts;
-        output += app;
+        output += its_app;
         output += lvl;
         output += msg;
         output += '\n';
@@ -139,31 +139,31 @@ message::~message() try {
         // message structure through, so leave it for now.
         const std::string_view view = buffer_as_view();
         std::string output;
-        output.reserve(state.android_prefix.size() + view.size());
-        output += state.android_prefix;
+        output.reserve(state.android_prefix_.size() + view.size());
+        output += state.android_prefix_;
         output += view;
 
         switch (level_) {
         case level_e::LL_FATAL:
-            ALOGE(state.android_app.c_str(), output.c_str());
+            ALOGE(state.android_app_.c_str(), output.c_str());
             break;
         case level_e::LL_ERROR:
-            ALOGE(state.android_app.c_str(), output.c_str());
+            ALOGE(state.android_app_.c_str(), output.c_str());
             break;
         case level_e::LL_WARNING:
-            ALOGW(state.android_app.c_str(), output.c_str());
+            ALOGW(state.android_app_.c_str(), output.c_str());
             break;
         case level_e::LL_INFO:
-            ALOGI(state.android_app.c_str(), output.c_str());
+            ALOGI(state.android_app_.c_str(), output.c_str());
             break;
         case level_e::LL_DEBUG:
-            ALOGD(state.android_app.c_str(), output.c_str());
+            ALOGD(state.android_app_.c_str(), output.c_str());
             break;
         case level_e::LL_VERBOSE:
-            ALOGV(state.android_app.c_str(), output.c_str());
+            ALOGV(state.android_app_.c_str(), output.c_str());
             break;
         default:
-            ALOGI(app.c_str(), output.c_str());
+            ALOGI(its_app.c_str(), output.c_str());
         };
 #endif // !ANDROID
     }
