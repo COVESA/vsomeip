@@ -10,7 +10,7 @@
         "enable" : "true"
     },
     "diagnosis":"0x60",
-    "diagnosis_mask":"0xF000",
+    "diagnosis_mask":"0xF300",
     "applications":
     [
         {
