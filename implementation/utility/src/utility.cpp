@@ -262,7 +262,6 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
     static const std::uint16_t its_client_mask = static_cast<std::uint16_t>(~its_diagnosis_mask);
     static const client_t its_masked_diagnosis_address =
             static_cast<client_t>((_config->get_diagnosis_address() << 8) & its_diagnosis_mask);
-    static const client_t its_biggest_client = its_masked_diagnosis_address | its_client_mask;
     static const client_t its_smallest_client = its_masked_diagnosis_address;
 
     auto r = data.find(_config->get_network());
@@ -299,10 +298,9 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
         }
     }
 
-    if (r->second.next_client_ == its_biggest_client) {
-        // start at beginning of client range again when the biggest client was reached
-        r->second.next_client_ = its_smallest_client;
-    }
+    // restart at beginning of client range
+    r->second.next_client_ = its_smallest_client;
+
     std::uint16_t increase_count = 0;
     do {
         r->second.next_client_ = (r->second.next_client_ & static_cast<std::uint16_t>(~its_client_mask)) // save diagnosis address bits

@@ -164,9 +164,9 @@ TEST_F(client_id_utility_test, ensure_sequential_ascending_client_id_allocation)
 
     auto app3 = std::make_shared<app_wrapper>(APPLICATION_NAME_NOT_PREDEFINED);
     client_t app3_client = app3->get_client();
-    EXPECT_EQ(client_id_base_ | 0x3, app3_client);
+    EXPECT_EQ(client_id_base_ | 0x2, app3_client);
 
-    EXPECT_GT(app3_client, app2_client);
+    EXPECT_EQ(app3_client, app2_client);
 }
 
 TEST_F(client_id_utility_test, ensure_preconfigured_client_ids_not_used_for_autoconfig) {
@@ -266,25 +266,24 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_sequential) {
     const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(its_max_clients - 2u);
 
     // acquire maximum amount of client IDs
-    for (int var = 0; var < 2; ++var) {
-        for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
-            const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
-                    configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
-            if (its_client != VSOMEIP_CLIENT_UNSET) {
-                if (i > 0) {
-                    EXPECT_LT(its_clients.back(), its_client);
-                }
-                its_clients.push_back(its_client);
-            } else {
-                ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
+        const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
+                configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
+        if (its_client != VSOMEIP_CLIENT_UNSET) {
+            if (i > 0) {
+                EXPECT_LT(its_clients.back(), its_client);
             }
+            its_clients.push_back(its_client);
+        } else {
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
         }
-        // check limit is reached
-        EXPECT_EQ(VSOMEIP_CLIENT_UNSET,
-                  vsomeip::utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max", VSOMEIP_CLIENT_UNSET));
-        for (const auto c : its_clients) {
-            utility::release_client_id(configuration_->get_network(), c);
-        }
+    }
+    // check limit is reached
+    EXPECT_EQ(VSOMEIP_CLIENT_UNSET,
+              vsomeip::utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max", VSOMEIP_CLIENT_UNSET));
+
+    for (const auto c : its_clients) {
+        utility::release_client_id(configuration_->get_network(), c);
     }
 }
 
@@ -299,70 +298,65 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented) {
     }
     const std::uint16_t max_allowed_clients = static_cast<std::uint16_t>(its_max_clients - 2u);
 
-    for (int var = 0; var < 2; ++var) {
-        // acquire maximum amount of client IDs
-        for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
-            const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
-                    configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
-            if (its_client != VSOMEIP_CLIENT_UNSET) {
-                if ((var == 0 && i > 0) || (var == 1 && i > 1) // special case as in the 1st run the last assigned
-                                                               // client ID was 63fe due to the releases. In the 2nd run
-                                                               // the first client ID therefore will be 63ff
-                ) {
-                    EXPECT_LT(its_clients.back(), its_client);
-                }
-                its_clients.push_back(its_client);
-            } else {
-                ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+    // acquire maximum amount of client IDs
+    for (std::uint16_t i = 0; i < max_allowed_clients; i++) {
+        const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
+                configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
+        if (its_client != VSOMEIP_CLIENT_UNSET) {
+            if (i > 0) {
+                EXPECT_LT(its_clients.back(), its_client);
             }
+            its_clients.push_back(its_client);
+        } else {
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
         }
-
-        // check limit is reached
-        EXPECT_EQ(VSOMEIP_CLIENT_UNSET,
-                  vsomeip::utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max", VSOMEIP_CLIENT_UNSET));
-
-        // release every second requested client ID
-        std::vector<client_t> its_released_client_ids;
-        for (size_t i = 0; i < its_clients.size(); i++) {
-            if (i % 2) {
-                its_released_client_ids.push_back(its_clients[i]);
-                utility::release_client_id(configuration_->get_network(), its_clients[i]);
-            }
-        }
-        for (const client_t c : its_released_client_ids) {
-            for (auto it = its_clients.begin(); it != its_clients.end();) {
-                if (*it == c) {
-                    it = its_clients.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
-
-        // acquire client IDs up to the maximum allowed amount again
-        for (std::uint16_t i = 0; i < its_released_client_ids.size(); i++) {
-            const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
-                    configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
-            if (its_client != VSOMEIP_CLIENT_UNSET) {
-                if (i > 0) {
-                    EXPECT_LT(its_clients.back(), its_client);
-                }
-                its_clients.push_back(its_client);
-            } else {
-                ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
-            }
-        }
-
-        // check limit is reached
-        EXPECT_EQ(VSOMEIP_CLIENT_UNSET,
-                  vsomeip::utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max2", VSOMEIP_CLIENT_UNSET));
-
-        // release all
-        for (const auto c : its_clients) {
-            utility::release_client_id(configuration_->get_network(), c);
-        }
-        its_clients.clear();
     }
+
+    // check limit is reached
+    EXPECT_EQ(VSOMEIP_CLIENT_UNSET,
+              vsomeip::utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max", VSOMEIP_CLIENT_UNSET));
+
+    // release every second requested client ID
+    std::vector<client_t> its_released_client_ids;
+    for (size_t i = 0; i < its_clients.size(); i++) {
+        if (i % 2) {
+            its_released_client_ids.push_back(its_clients[i]);
+            utility::release_client_id(configuration_->get_network(), its_clients[i]);
+        }
+    }
+    for (const client_t c : its_released_client_ids) {
+        for (auto it = its_clients.begin(); it != its_clients.end();) {
+            if (*it == c) {
+                it = its_clients.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    // acquire client IDs up to the maximum allowed amount again
+    for (std::uint16_t i = 0; i < its_released_client_ids.size(); i++) {
+        const vsomeip::client_t its_client = vsomeip::utility::request_client_id(
+                configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i), VSOMEIP_CLIENT_UNSET);
+        if (its_client != VSOMEIP_CLIENT_UNSET) {
+            if (i > 0) {
+                EXPECT_LT(its_clients.back(), its_client);
+            }
+            its_clients.push_back(its_client);
+        } else {
+            ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
+        }
+    }
+
+    // check limit is reached
+    EXPECT_EQ(VSOMEIP_CLIENT_UNSET,
+              vsomeip::utility::request_client_id(configuration_, APPLICATION_NAME_NOT_PREDEFINED + "max2", VSOMEIP_CLIENT_UNSET));
+
+    // release all
+    for (const auto c : its_clients) {
+        utility::release_client_id(configuration_->get_network(), c);
+    }
+    its_clients.clear();
 }
 
 /*
@@ -406,18 +400,22 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
     // release the first intermediate_release client IDs again
     std::vector<client_t> its_intermediate_released_client_ids;
     for (size_t i = 0; i < intermediate_release; i++) {
-        its_intermediate_released_client_ids.push_back(its_client_ids[i]);
-        utility::release_client_id(configuration_->get_network(), its_client_ids[i]);
-        its_client_ids.erase(its_client_ids.begin() + static_cast<std::vector<client_t>::difference_type>(i));
+        its_intermediate_released_client_ids.push_back(its_client_ids[0]);
+        utility::release_client_id(configuration_->get_network(), its_client_ids[0]);
+        its_client_ids.erase(its_client_ids.begin());
     }
 
-    // acquire some more client IDs, these should be bigger than the already acquired
+    // acquire some more client IDs, these should be smaller than the already acquired
     for (std::uint16_t i = 0; i < intermediate_release; i++) {
         client_t its_client_id = utility::request_client_id(
                 configuration_, APPLICATION_NAME_NOT_PREDEFINED + std::to_string(i) + "intermediate", VSOMEIP_CLIENT_UNSET);
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
         if (its_client_id != VSOMEIP_CLIENT_UNSET) {
-            EXPECT_LT(its_client_ids.back(), its_client_id);
+            if (i == 0) {
+                EXPECT_GT(its_client_ids.back(), its_client_id);
+            } else {
+                EXPECT_LT(its_client_ids.back(), its_client_id);
+            }
             its_client_ids.push_back(its_client_id);
         } else {
             ADD_FAILURE() << "Received VSOMEIP_CLIENT_UNSET " << static_cast<std::uint32_t>(i);
@@ -431,7 +429,7 @@ TEST_F(client_id_utility_test, exhaust_client_id_range_fragmented_extended) {
         EXPECT_NE(VSOMEIP_CLIENT_UNSET, its_client_id);
         if (its_client_id != VSOMEIP_CLIENT_UNSET) {
             if (i == 0) {
-                EXPECT_GT(its_client_ids.back(), its_client_id);
+                EXPECT_LT(its_client_ids.back(), its_client_id);
             } else {
                 EXPECT_LT(its_client_ids.back(), its_client_id);
             }
