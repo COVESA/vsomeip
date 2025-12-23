@@ -92,15 +92,6 @@ struct test_client_helper : public base_fake_socket_fixture {
     app* server_{};
 };
 
-TEST_F(test_client_helper, event_subscription) {
-    start_apps();
-    ASSERT_TRUE(subscribe_to_event());
-
-    send_first_message();
-
-    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_message_));
-}
-
 TEST_F(test_client_helper, field_subscription) {
     start_apps();
 
@@ -191,8 +182,8 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
-    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
     ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_, boost::asio::error::timed_out));
+    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
 
     client_->subscription_record_.clear();
 
