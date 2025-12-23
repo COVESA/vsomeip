@@ -73,7 +73,6 @@ void timer::stop() {
 }
 
 void timer::stop_unlocked() {
-    VSOMEIP_DEBUG << "timer::" << __func__ << ": stopped: " << this;
     if (is_value(state_).any_of(state_e::IN_TASK_STARTED, state_e::IN_TASK)) {
         state_ = state_e::IN_TASK_STOPPED;
         return;
@@ -83,7 +82,6 @@ void timer::stop_unlocked() {
 }
 
 void timer::start_unlocked() {
-    VSOMEIP_DEBUG << "timer::" << __func__ << ": started: " << this;
     state_ = state_e::STARTED;
     try {
         timer_->expires_after(interval_);
@@ -108,9 +106,7 @@ void timer::handle(boost::system::error_code const& _ec) {
     }
     state_ = state_e::IN_TASK;
     lock.unlock();
-    VSOMEIP_DEBUG << "timer::" << __func__ << ": start task: " << this;
     bool const restart = task_();
-    VSOMEIP_DEBUG << "timer::" << __func__ << ": end task: " << this;
     lock.lock();
     if (state_ == state_e::IN_TASK_STARTED || (restart && state_ == state_e::IN_TASK)) {
         start_unlocked();
