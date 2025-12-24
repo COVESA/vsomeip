@@ -109,7 +109,8 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
     auto client4 = std::make_unique<process_manager>("./reuse_client_id_test_client 6304 0",
                                                      custom_env("reuse_client_id_test.json", "client4", "3"));
     client4->run();
-    EXPECT_FALSE(wait_for_registration(shm_data, CLIENT_4_IDX, REGISTRATION_TIMEOUT_MS));
+    // since this app is expected to not register, do not wait as long, unecessary
+    EXPECT_FALSE(wait_for_registration(shm_data, CLIENT_4_IDX, 3));
 
     // stop client4
     {
@@ -140,9 +141,17 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         shm_data.sync_ptr->stop_clients_[CLIENT_2_IDX] = true;
     }
     reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    client2->join();
+
+    // restart client1
+    {
+        bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
+        shm_data.sync_ptr->restart_clients_[CLIENT_1_IDX] = false;
+    }
+    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // allow client1 to get clientID (6302)
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     // stop remaining clients
     {
@@ -153,8 +162,6 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
     }
     reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
-    // client 2 was stopped first
-    client2->join();
     client1->join();
     client3->join();
     client5->join();
