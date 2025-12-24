@@ -74,7 +74,11 @@ void reuse_client_id_test_client::run() {
         if (restarted && !stopping) {
             app_->stop();
             // wait for other client to register
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            {
+                bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
+                reuse_client_id::reuse_client_id_test_interprocess_utils::wait_and_check_unlocked(
+                        ip_sync->client_cv_, its_lock, 10, ip_sync->restart_clients_[app_id_], false);
+            }
             restarted = true;
             app_->start();
         }
@@ -114,9 +118,9 @@ void reuse_client_id_test_client::run() {
     }
 }
 
-TEST(temp_test, start_app) {
+TEST(reuse_client_id_test, start_app) {
     reuse_client_id_test_client reuse_client_id_test_client(
-            "temp_test_client", static_cast<std::uint32_t>(std::stoul(getenv("VSOMEIP_APPLICATION_ID"), NULL, 10)));
+            "reuse_client_id_test_client", static_cast<std::uint32_t>(std::stoul(getenv("VSOMEIP_APPLICATION_ID"), NULL, 10)));
     reuse_client_id_test_client.run();
 }
 
