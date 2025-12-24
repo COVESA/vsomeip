@@ -95,9 +95,8 @@ public:
 
 protected:
     void TearDown() {
-        work_.reset();
-        io_thread_.join();
         io_.stop();
+        io_thread_.join();
     }
 
     void io_run() { io_.run(); }
