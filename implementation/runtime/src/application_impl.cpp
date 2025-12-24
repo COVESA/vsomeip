@@ -2114,7 +2114,6 @@ void application_impl::shutdown() {
             VSOMEIP_ERROR << "application_impl::" << __func__ << ": Trying to stop an application that was not started!";
         }
 
-        work_.reset();
         io_.stop();
     } catch (const std::exception& e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping io, "
