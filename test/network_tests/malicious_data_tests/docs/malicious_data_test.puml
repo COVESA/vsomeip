@@ -1,0 +1,65 @@
+@startuml malicious_data_test
+
+    title Malicious Data Tests
+
+    box msg_sender
+        participant "service" as service
+        participant "client" as client
+    end box
+    box vsomeip app
+        participant "Routing Manager" as rm
+        participant "Application" as app
+    end box
+    == Establishing Connection ==
+        app -> rm : Request service 0x3344.0x0001
+        loop while (!client_connected)
+            service -> rm : OFFER_SERVICE 0x3344.0x0001
+            alt Client is ready
+                app -> service : SUBSCRIBE_EVENTGROUP
+                service -> service : client_connected = true
+            else Client is not ready
+                service -> service: sleep_for(100)
+            end
+        end
+    == Event ==
+        service -> rm : Event
+        rm -> service : E_MALFORMED_MESSAGE
+        client -> rm : Event
+        rm -> client : E_MALFORMED_MESSAGE
+    == Invalid Protocol Version ==
+        service -> rm : Event
+        rm -> service : E_WRONG_PROTOCOL_VERSION
+        client -> rm : Event
+        rm -> client : E_WRONG_PROTOCOL_VERSION
+    == Invalid Message Type ==
+        service -> rm : Event
+        rm -> service : Terminates connection
+        rm -> service : Reestablish connection
+        client -> rm : Event
+        rm -> client : Terminates connection
+    == Invalid Return Code ==
+        service -> rm : Event
+        rm -> service : Terminates connection
+        rm -> service : Reestablish connection
+        client -> rm : Event
+        rm -> client : Terminates connection
+    == Header Fields UDP ==
+        alt Corrupted Event
+            service -> rm : Event
+            rm -> service : E_MALFORMED_MESSAGE
+            client -> rm : Event
+            rm -> client : E_MALFORMED_MESSAGE
+        else Invalid Protocol
+            service -> rm : Event
+            rm -> service : E_WRONG_PROTOCOL_VERSION
+            client -> rm : Event
+            rm -> client : E_WRONG_PROTOCOL_VERSION
+        else Invalid Message
+            service -> rm : Event
+            client -> rm : Event
+        else Invalid Return
+            service -> rm : Event
+            client -> rm : Event
+        end
+
+@enduml

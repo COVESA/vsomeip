@@ -1,4 +1,4 @@
-# Copyright (C) 2023-2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2023-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -62,33 +62,33 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME malicious_data_test_events
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh MALICIOUS_EVENTS
-    TIMEOUT 180
+    TIMEOUT 10
 )
 
 # Add custom test command.
 add_custom_test(
     NAME malicious_data_test_protocol_version
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh PROTOCOL_VERSION
-    TIMEOUT 180
+    TIMEOUT 10
 )
 
 # Add custom test command.
 add_custom_test(
     NAME malicious_data_test_message_type
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh MESSAGE_TYPE
-    TIMEOUT 180
+    TIMEOUT 10
 )
 
 # Add custom test command.
 add_custom_test(
     NAME malicious_data_test_return_code
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh RETURN_CODE
-    TIMEOUT 180
+    TIMEOUT 10
 )
 
 # Add custom test command.
 add_custom_test(
     NAME malicious_data_test_wrong_header_fields_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh WRONG_HEADER_FIELDS_UDP
-    TIMEOUT 180
+    TIMEOUT 10
 )
