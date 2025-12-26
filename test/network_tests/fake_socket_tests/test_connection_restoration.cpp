@@ -55,13 +55,17 @@ struct test_client_helper : public base_fake_socket_fixture {
         start_client_app();
     }
 
+    void request_service() { client_->request_service(service_instance_); }
+    [[nodiscard]] bool await_service(std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        return client_->availability_record_.wait_for(service_availability::available(service_instance_), timeout);
+    }
     [[nodiscard]] bool subscribe_to_event(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
-        client_->request_service(service_instance_);
+        request_service();
         client_->subscribe_event(offered_event_);
         return client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_event_), timeout);
     }
     [[nodiscard]] bool subscribe_to_field(std::chrono::milliseconds timeout = std::chrono::seconds(6)) {
-        client_->request_service(service_instance_);
+        request_service();
         client_->subscribe_field(offered_field_);
         return client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_), timeout);
     }
@@ -71,6 +75,8 @@ struct test_client_helper : public base_fake_socket_fixture {
         server_->answer_request(request_, [payload = _payload] { return payload; });
         expected_reply_.payload_ = _payload;
     }
+
+    void stop_offer() { server_->stop_offer(service_instance_); }
 
     service_instance service_instance_{0x3344, 0x1};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
@@ -91,6 +97,26 @@ struct test_client_helper : public base_fake_socket_fixture {
     app* client_{};
     app* server_{};
 };
+
+TEST_F(test_client_helper, ensure_unavail_after_stop_offer) {
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    client_->availability_record_.clear();
+
+    stop_offer();
+    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::unavailable(service_instance_)));
+}
+
+TEST_F(test_client_helper, ensure_unavail_after_stop_app) {
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    client_->availability_record_.clear();
+    stop_client(server_name_);
+
+    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::unavailable(service_instance_)));
+}
 
 TEST_F(test_client_helper, field_subscription) {
     start_apps();
@@ -631,6 +657,44 @@ TEST_F(test_client_helper, connection_break_vs_routing) {
         stop_client(client_name_);
         stop_client(server_name_);
     }
+}
+
+TEST_F(test_client_helper, service_is_unavailable_after_clean_up_race) {
+    /**
+     * Regression test for the following scenario:
+     * 0. router, server and client are started, client is only interested in the availability of the service
+     * 1. the server is terminated
+     * 2. the client handles the connection breakdown first
+     *    2.a the client receives unavailable due to server's broken connection
+     *    2.b the client sent a request for the service to the router
+     * 3. the router receives the request of the client (2.b)
+     * 4. the client receives the former routing info
+     * 5. the client receives on_available
+     * 6. the client can not connect to the server
+     * 5. the router works on the deregistration of the server
+     * 6. the server is restarted
+     * 7. the router distributes the new routing_info
+     * 8. the client receives on_available
+     *
+     * The problem is that the 8. "on_available" never reaches the application.
+     * While this does not matter as subscriptions etc. are managed, it does
+     * matter for requests.
+     * Because at the moment the only signal a client application would receive,
+     * would be an remote_error when the common api layer decides that the
+     * request took too long.
+     **/
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+
+    TEST_LOG << "[step] Stop Server";
+    stop_client(server_name_);
+    client_->availability_record_.clear();
+
+    TEST_LOG << "[step] Restarting the Server";
+    create_app(server_name_);
+    start_server();
+    EXPECT_TRUE(await_service());
 }
 
 /**
