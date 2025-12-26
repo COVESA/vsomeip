@@ -731,24 +731,26 @@ void routing_manager_stub::on_register_application(client_t _client, bool& conti
 
 void routing_manager_stub::on_deregister_application(client_t _client) {
     std::vector<std::tuple<service_t, instance_t, major_version_t, minor_version_t>> services_to_report;
-    {
-        std::scoped_lock its_lock{routing_info_mutex_};
-        auto its_info = routing_info_.find(_client);
-        if (its_info != routing_info_.end()) {
-            for (const auto& its_service : its_info->second.second) {
-                for (const auto& its_instance : its_service.second) {
-                    const auto its_version = its_instance.second;
-                    services_to_report.push_back(
-                            std::make_tuple(its_service.first, its_instance.first, its_version.first, its_version.second));
-                }
+
+    std::unique_lock its_lock{routing_info_mutex_};
+    auto its_info = routing_info_.find(_client);
+    if (its_info != routing_info_.end()) {
+        for (const auto& its_service : its_info->second.second) {
+            for (const auto& its_instance : its_service.second) {
+                const auto its_version = its_instance.second;
+                services_to_report.push_back(std::make_tuple(its_service.first, its_instance.first, its_version.first, its_version.second));
             }
-            routing_info_.erase(_client);
         }
     }
+
+    its_lock.unlock();
+
     for (const auto& s : services_to_report) {
-        host_->on_availability(std::get<0>(s), std::get<1>(s), availability_state_e::AS_UNAVAILABLE, std::get<2>(s), std::get<3>(s));
         host_->on_stop_offer_service(_client, std::get<0>(s), std::get<1>(s), std::get<2>(s), std::get<3>(s));
     }
+
+    its_lock.lock();
+    routing_info_.erase(_client);
 }
 
 void routing_manager_stub::on_register_application_ack(client_t _client) {
