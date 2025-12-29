@@ -152,7 +152,10 @@ TEST_F(client_id_utility_test, request_client_id_twice) {
     EXPECT_EQ(client_id_base_ | 0x2, app2.get_client());
 }
 
-TEST_F(client_id_utility_test, ensure_sequential_ascending_client_id_allocation) {
+TEST_F(client_id_utility_test, ensure_client_id_reuse) {
+    /// check whether a client-id is immediately reused
+
+
     app_wrapper app(APPLICATION_NAME_NOT_PREDEFINED);
     EXPECT_EQ(client_id_base_ | 0x1, app.get_client());
 
@@ -162,10 +165,16 @@ TEST_F(client_id_utility_test, ensure_sequential_ascending_client_id_allocation)
 
     app2.reset();
 
+    // routingd will take a while to process the deregistration for app2
+    // unfortunately it is asynchronous, need to "wait a while" for it to complete
+    // TODO: FIXME, this is terrible
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
     auto app3 = std::make_shared<app_wrapper>(APPLICATION_NAME_NOT_PREDEFINED);
     client_t app3_client = app3->get_client();
     EXPECT_EQ(client_id_base_ | 0x2, app3_client);
 
+    // then we expect the same client-id to have been immediately reused
     EXPECT_EQ(app3_client, app2_client);
 }
 
