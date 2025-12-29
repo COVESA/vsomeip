@@ -27,9 +27,9 @@ global_state::global_state() :
     const char* name = std::getenv(VSOMEIP_ENV_APPLICATION_NAME);
     app_name_ = name ? std::string{" "} + name : "";
 
-#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
-    auto found = properties.find("LogApplication");
-    if (found != properties.end()) {
+#if defined(ANDROID)
+    auto found = properties_.find("LogApplication");
+    if (found != properties_.end()) {
         android_app_ = found->second;
     }
     android_prefix_ = "VSIP: ";

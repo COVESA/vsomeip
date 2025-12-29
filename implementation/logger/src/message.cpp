@@ -13,14 +13,18 @@
 
 #include "../../configuration/include/configuration.hpp"
 
-#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
+#ifdef ANDROID
+#ifdef ANDROID_CI_BUILD
+#include <android/log.h>
+#else
 #include <utils/Log.h>
+#endif
 
 #ifdef ALOGE
 #undef ALOGE
 #endif
 
-#define ALOGE(LOG_TAG, ...) ((void)ALOG(LOG_ERROR, LOG_TAG, __VA_ARGS__))
+#define ALOGE(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
 #ifndef LOGE
 #define LOGE ALOGE
 #endif
@@ -29,7 +33,7 @@
 #undef ALOGW
 #endif
 
-#define ALOGW(LOG_TAG, ...) ((void)ALOG(LOG_WARN, LOG_TAG, __VA_ARGS__))
+#define ALOGW(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__))
 #ifndef LOGW
 #define LOGW ALOGW
 #endif
@@ -38,7 +42,7 @@
 #undef ALOGI
 #endif
 
-#define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
+#define ALOGI(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
 #ifndef LOGI
 #define LOGI ALOGI
 #endif
@@ -47,7 +51,7 @@
 #undef ALOGD
 #endif
 
-#define ALOGD(LOG_TAG, ...) ((void)ALOG(LOG_DEBUG, LOG_TAG, __VA_ARGS__))
+#define ALOGD(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
 #ifndef LOGD
 #define LOGD ALOGD
 #endif
@@ -56,7 +60,7 @@
 #undef ALOGV
 #endif
 
-#define ALOGV(LOG_TAG, ...) ((void)ALOG(LOG_VERBOSE, LOG_TAG, __VA_ARGS__))
+#define ALOGV(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__))
 #ifndef LOGV
 #define LOGV ALOGV
 #endif
@@ -130,7 +134,7 @@ message::~message() try {
         std::cout << output;
         std::cout.flush();
 
-#elif !defined(ANDROID_CI_BUILD)
+#else
         // Get Android strings from global state to ensure proper destruction order.
         auto& state = global_state::get();
 
@@ -163,7 +167,7 @@ message::~message() try {
             ALOGV(state.android_app_.c_str(), output.c_str());
             break;
         default:
-            ALOGI(its_app.c_str(), output.c_str());
+            ALOGI(state.android_app_.c_str(), output.c_str());
         };
 #endif // !ANDROID
     }
