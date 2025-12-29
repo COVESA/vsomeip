@@ -20,14 +20,10 @@
 
 /// Blocks the current thread until a SIGINT or SIGTERM is received.
 static void wait_for_signal() {
-    // Create a set of signals to block.
     sigset_t set;
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGTERM);
-
-    // Block the signals.
-    pthread_sigmask(SIG_BLOCK, &set, nullptr);
 
     // Wait until a new signal is received.
     for (;;) {
@@ -35,6 +31,7 @@ static void wait_for_signal() {
         auto result = sigwait(&set, &signal);
         if (result == 0) {
             if (signal == SIGINT || signal == SIGTERM) {
+                VSOMEIP_INFO << "Received signal " << signal;
                 return;
             }
         }
@@ -149,6 +146,14 @@ TEST(someip_initial_event_test, set_field_once) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    // block signals as soon as possible; `sigwait` is used later
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+
+    pthread_sigmask(SIG_BLOCK, &set, nullptr);
+
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a service number and subscription type, like: " << argv[0] << " 2 SAME_SERVICE_ID" << std::endl;

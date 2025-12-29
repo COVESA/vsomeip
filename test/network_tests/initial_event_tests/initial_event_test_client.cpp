@@ -24,10 +24,6 @@
 
 #include "initial_event_test_globals.hpp"
 
-class initial_event_test_client;
-static initial_event_test_client* the_client;
-extern "C" void signal_handler(int _signum);
-
 class initial_event_test_client {
 public:
     initial_event_test_client(int _client_number, bool _service_offered_tcp_and_udp,
@@ -38,8 +34,7 @@ public:
         app_(vsomeip::runtime::get()->create_application()), wait_for_stop_(true), is_first(true),
         subscribe_on_available_(_subscribe_on_available), events_to_subscribe_(_events_to_subscribe),
         initial_event_strict_checking_(_initial_event_strict_checking), dont_exit_(_dont_exit), subscribe_only_one_(_subscribe_only_one),
-        wait_for_signal_handler_registration_(true), reliability_type_(_reliability_type),
-        client_subscribes_twice_(_client_subscribes_twice) {
+        reliability_type_(_reliability_type), client_subscribes_twice_(_client_subscribes_twice) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -98,18 +93,8 @@ public:
 
         stop_thread_ = std::thread(&initial_event_test_client::wait_for_stop, this);
 
-        // Block all signals
-        sigset_t mask;
-        sigfillset(&mask);
-        pthread_sigmask(SIG_BLOCK, &mask, NULL);
         // start thread which handles all of the signals
         signal_thread_ = std::thread(&initial_event_test_client::wait_for_signal, this);
-        {
-            std::unique_lock<std::mutex> its_lock(signal_mutex_);
-            EXPECT_TRUE(signal_condition_.wait_for(its_lock, std::chrono::seconds(10),
-                                                   [this] { return !wait_for_signal_handler_registration_; }));
-            wait_for_signal_handler_registration_ = true;
-        }
 
         app_->start();
     }
@@ -118,7 +103,11 @@ public:
         if (stop_thread_.joinable()) {
             stop_thread_.join();
         }
+
         if (signal_thread_.joinable()) {
+            // in case `signal_thread_` did not receive a signal yet
+            VSOMEIP_INFO << "Waiting for signal thread";
+            pthread_kill(signal_thread_.native_handle(), SIGTERM);
             signal_thread_.join();
         }
     }
@@ -347,38 +336,24 @@ public:
     }
 
     void wait_for_signal() {
-        // register signal handler
-        the_client = this;
+        sigset_t set;
+        sigemptyset(&set);
+        sigaddset(&set, SIGUSR1);
+        sigaddset(&set, SIGTERM);
+        sigaddset(&set, SIGINT);
 
-        sigset_t handler_mask;
-        sigemptyset(&handler_mask);
-        sigaddset(&handler_mask, SIGUSR1);
-        sigaddset(&handler_mask, SIGTERM);
-        sigaddset(&handler_mask, SIGINT);
-        sigaddset(&handler_mask, SIGABRT);
-        pthread_sigmask(SIG_UNBLOCK, &handler_mask, NULL);
-
-        struct sigaction sa_new, sa_old;
-        sa_new.sa_handler = signal_handler;
-        sa_new.sa_flags = 0;
-        sigemptyset(&sa_new.sa_mask);
-        ::sigaction(SIGUSR1, &sa_new, &sa_old);
-        ::sigaction(SIGINT, &sa_new, &sa_old);
-        ::sigaction(SIGTERM, &sa_new, &sa_old);
-        ::sigaction(SIGABRT, &sa_new, &sa_old);
-
-        {
-            std::scoped_lock its_lock(signal_mutex_);
-            wait_for_signal_handler_registration_ = false;
-            signal_condition_.notify_one();
+        // Wait until a new signal is received.
+        for (;;) {
+            auto signal = 0;
+            auto result = sigwait(&set, &signal);
+            if (result == 0) {
+                if (signal == SIGUSR1 || signal == SIGINT || signal == SIGTERM) {
+                    VSOMEIP_INFO << "Received signal " << signal;
+                    break;
+                }
+            }
         }
-        while (wait_for_stop_) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
 
-    void handle_signal(int _signum) {
-        (void)_signum;
         std::scoped_lock its_lock(stop_mutex_);
         wait_for_stop_ = false;
         stop_condition_.notify_one();
@@ -427,8 +402,6 @@ private:
     std::mutex stop_mutex_;
     std::condition_variable stop_condition_;
     std::thread stop_thread_;
-    bool wait_for_signal_handler_registration_;
-    std::mutex signal_mutex_;
     std::condition_variable signal_condition_;
     std::thread signal_thread_;
     vsomeip::reliability_type_e reliability_type_;
@@ -447,12 +420,6 @@ static bool client_subscribes_twice;
 
 vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_UNKNOWN;
 
-extern "C" void signal_handler(int signum) {
-    if (the_client != nullptr) {
-        the_client->handle_signal(signum);
-    }
-}
-
 TEST(someip_initial_event_test, wait_for_initial_events_of_all_services) {
     if (use_same_service_id) {
         initial_event_test_client its_sample(client_number, service_offered_tcp_and_udp, initial_event_test::service_infos_same_service_id,
@@ -467,10 +434,14 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    // Block all signals
-    sigset_t mask;
-    sigfillset(&mask);
-    pthread_sigmask(SIG_BLOCK, &mask, NULL);
+    // block signals as soon as possible; `sigwait` is used later
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1);
+    sigaddset(&set, SIGTERM);
+    sigaddset(&set, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
     ::testing::InitGoogleTest(&argc, argv);
 
     if (argc < 2) {
