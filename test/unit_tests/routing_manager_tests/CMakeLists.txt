@@ -5,7 +5,7 @@
 
 project("unit_tests_routing_manager_tests" LANGUAGES CXX)
 
-file(GLOB SRCS ../main.cpp *.cpp mocks/*.cpp)
+file(GLOB SRCS ../main.cpp routing_manager_ut_setup.cpp ut_set_routing_state.cpp mocks/*.cpp)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
@@ -28,3 +28,40 @@ target_link_libraries(
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 
 add_dependencies(build_unit_tests ${PROJECT_NAME})
+
+set(TEST_SRCS
+    ../main.cpp
+    ut_routing_client_state_machine.cpp
+)
+
+# We need to set the source files directly because vsomeip doesn't export the
+# timer for linking.
+set(
+    VSIP_SRCS
+    ../../../implementation/endpoints/src/timer.cpp
+    ../../../implementation/endpoints/src/abstract_socket_factory.cpp
+    ../../../implementation/endpoints/src/asio_socket_factory.cpp
+    ../../../implementation/endpoints/src/netlink_connector.cpp
+    ../../../implementation/routing/src/routing_client_state_machine.cpp
+)
+
+add_executable(
+    unit_tests_routing_client_state_machine
+    ${TEST_SRCS}
+    ${VSIP_SRCS}
+)
+
+target_link_libraries(
+    unit_tests_routing_client_state_machine
+    gtest
+    gmock
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+)
+
+add_dependencies(build_unit_tests unit_tests_routing_client_state_machine)
+
+add_test(
+    NAME unit_tests_routing_client_state_machine
+    COMMAND unit_tests_routing_client_state_machine
+)

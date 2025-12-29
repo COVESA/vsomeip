@@ -27,6 +27,7 @@ class event;
 class timer;
 class local_server;
 class routing_manager_host;
+class routing_client_state_machine;
 
 namespace protocol {
 class offered_services_response_command;
@@ -136,17 +137,13 @@ private:
 
     [[nodiscard]] bool send_pending_commands();
 
-    void init_receiver();
+    void init_receiver(std::unique_lock<std::mutex> const& _receive_lock);
 
     void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                  const std::set<event_t>& _events_to_exclude);
 
     uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _increment);
     void clear_remote_subscriber_count(service_t _service, instance_t _instance);
-
-    void assign_client_timeout_cbk(boost::system::error_code const& _error);
-
-    void register_application_timeout_cbk(boost::system::error_code const& _error);
 
     bool send_registered_ack();
 
@@ -189,20 +186,6 @@ private:
     void debounce_restart_sender_done();
 
 private:
-    enum class inner_state_type_e : std::uint8_t {
-        ST_REGISTERED = 0x0,
-        ST_DEREGISTERED = 0x1,
-        ST_REGISTERING = 0x2,
-        ST_ASSIGNING = 0x3,
-        ST_ASSIGNED = 0x4
-    };
-
-    static const char* to_string(inner_state_type_e state);
-
-    std::atomic_bool is_connected_;
-    std::atomic_bool is_started_;
-    std::atomic<inner_state_type_e> state_;
-
     boost::asio::steady_timer keepalive_timer_;
     std::mutex log_timer_mutex_;
     boost::asio::steady_timer status_log_timer_;
@@ -212,7 +195,6 @@ private:
     std::mutex keepalive_mutex_;
 
     mutable std::recursive_mutex sender_mutex_;
-    bool sender_required_{true};
     bool sender_debounce_active_{false};
     bool start_sender_after_debounce_{false};
     std::shared_ptr<local_endpoint> sender_; // --> stub
@@ -226,9 +208,6 @@ private:
     std::set<protocol::service> requests_;
     std::mutex requests_to_debounce_mutex_;
     std::set<protocol::service> requests_to_debounce_;
-
-    // protects registration_state_ and ensures the register state
-    std::mutex registration_state_mutex_;
 
     struct event_data_t {
         service_t service_;
@@ -249,20 +228,16 @@ private:
     std::mutex pending_event_registrations_mutex_;
     std::set<event_data_t> pending_event_registrations_;
 
-    std::mutex state_condition_mutex_;
-    std::condition_variable state_condition_;
-
     std::mutex remote_subscriber_count_mutex_;
     std::map<service_t, std::map<instance_t, std::map<eventgroup_t, uint32_t>>> remote_subscriber_count_;
-
-    std::mutex register_application_timer_mutex_;
-    boost::asio::steady_timer register_application_timer_;
 
     boost::asio::steady_timer request_debounce_timer_;
     std::atomic<bool> request_debounce_timer_running_;
 
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
+
+    std::shared_ptr<routing_client_state_machine> state_machine_;
 
     std::mutex stop_mutex_;
 
