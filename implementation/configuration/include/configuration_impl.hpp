@@ -158,7 +158,7 @@ public:
      * @brief Get the version log interval in milliseconds
      *
      */
-    VSOMEIP_EXPORT uint32_t get_version_log_interval(const std::string& _name) const;
+    VSOMEIP_EXPORT uint32_t get_version_log_interval(const std::string& _name, bool _is_host) const;
 
     VSOMEIP_EXPORT bool is_local_service(service_t _service, instance_t _instance) const;
 
@@ -214,7 +214,7 @@ public:
      * @brief Get the status log interval in milliseconds
      *
      */
-    VSOMEIP_EXPORT uint32_t get_status_log_interval(const std::string& _name) const;
+    VSOMEIP_EXPORT uint32_t get_status_log_interval(const std::string& _name, bool _is_host) const;
 
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_offers() const;
     VSOMEIP_EXPORT ttl_map_t get_ttl_factor_subscribes() const;

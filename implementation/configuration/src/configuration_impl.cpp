@@ -918,14 +918,13 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
     std::size_t its_max_dispatchers(VSOMEIP_DEFAULT_MAX_DISPATCHERS);
     std::size_t its_max_dispatch_time(VSOMEIP_DEFAULT_MAX_DISPATCH_TIME);
     std::size_t its_io_thread_count(VSOMEIP_DEFAULT_IO_THREAD_COUNT);
-    uint32_t its_log_status_interval(log_status_interval_);
-    uint32_t its_log_version_interval(log_version_interval_);
+    uint32_t its_log_status_interval(VSOMEIP_DEFAULT_LOG_STATUS);
+    uint32_t its_log_version_interval(VSOMEIP_DEFAULT_LOG_NETWORK);
     std::size_t its_request_debounce_time(VSOMEIP_REQUEST_DEBOUNCE_TIME);
     std::map<plugin_type_e, std::set<std::string>> plugins;
     int its_io_thread_nice_level(VSOMEIP_DEFAULT_IO_THREAD_NICE_LEVEL);
     debounce_configuration_t its_debounces;
     bool has_session_handling(true);
-    bool has_log_version(false);
     for (auto i = _tree.begin(); i != _tree.end(); ++i) {
         std::string its_key(i->first);
         std::string its_value(i->second.data());
@@ -961,7 +960,6 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
         } else if (its_key == "version_log_interval") {
             its_converter << std::dec << its_value;
             its_converter >> its_log_version_interval;
-            has_log_version = true;
         } else if (its_key == "io_thread_nice") {
             its_converter << std::dec << its_value;
             its_converter >> its_io_thread_nice_level;
@@ -998,9 +996,7 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
                     its_id = VSOMEIP_CLIENT_UNSET;
                 }
             }
-            if (its_name != get_routing_host_name() && !has_log_version) {
-                its_log_version_interval = VSOMEIP_DEFAULT_LOG_NETWORK;
-            }
+
             applications_[its_name] = {its_id,
                                        its_max_dispatchers,
                                        its_max_dispatch_time,
@@ -3038,24 +3034,32 @@ bool configuration_impl::is_configured_client_id(client_t _id) const {
     return (client_identifiers_.find(_id) != client_identifiers_.end());
 }
 
-uint32_t configuration_impl::get_version_log_interval(const std::string& _name) const {
-    uint32_t its_log_version_interval_ = log_version_interval_;
-
+uint32_t configuration_impl::get_version_log_interval(const std::string& _name, bool _is_host) const {
     if (auto found_application = applications_.find(_name); found_application != applications_.end()) {
-        its_log_version_interval_ = found_application->second.log_version_interval_;
+        if (found_application->second.log_version_interval_ > 0) {
+            return found_application->second.log_version_interval_;
+        }
     }
 
-    return its_log_version_interval_;
+    if (_is_host) {
+        return log_version_interval_;
+    } else {
+        return VSOMEIP_DEFAULT_LOG_NETWORK;
+    }
 }
 
-uint32_t configuration_impl::get_status_log_interval(const std::string& _name) const {
-    uint32_t its_log_status_interval_ = log_status_interval_;
-
+uint32_t configuration_impl::get_status_log_interval(const std::string& _name, bool _is_host) const {
     if (auto found_application = applications_.find(_name); found_application != applications_.end()) {
-        its_log_status_interval_ = found_application->second.log_status_interval_;
+        if (found_application->second.log_status_interval_ > 0) {
+            return found_application->second.log_status_interval_;
+        }
     }
 
-    return its_log_status_interval_;
+    if (_is_host) {
+        return log_status_interval_;
+    } else {
+        return VSOMEIP_DEFAULT_LOG_STATUS;
+    }
 }
 
 std::size_t configuration_impl::get_request_debounce_time(const std::string& _name) const {

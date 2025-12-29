@@ -233,12 +233,12 @@ void routing_manager_impl::start() {
 #endif
     {
         std::scoped_lock its_lock{log_timer_mutex_};
-        if (configuration_->get_version_log_interval(host_->get_name()) > 0) {
+        if (configuration_->get_version_log_interval(host_->get_name(), true) > 0) {
             version_log_timer_.expires_after(std::chrono::seconds(0));
             version_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->version_log_timer_cbk(ec, 0); });
         }
 
-        if (configuration_->get_status_log_interval(host_->get_name()) > 0) {
+        if (configuration_->get_status_log_interval(host_->get_name(), true) > 0) {
             status_log_timer_.expires_after(std::chrono::seconds(0));
             status_log_timer_.async_wait([this](boost::system::error_code const& ec) { this->status_log_timer_cbk(ec); });
         }
@@ -2867,7 +2867,7 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
 
 void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const& _error, size_t _count) {
     if (!_error) {
-        const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name());
+        const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name(), true);
 
         bool is_diag_mode(false);
 
@@ -3836,7 +3836,7 @@ void routing_manager_impl::status_log_timer_cbk(boost::system::error_code const&
     if (_error) {
         return;
     }
-    const uint32_t its_interval = configuration_->get_status_log_interval(host_->get_name());
+    const uint32_t its_interval = configuration_->get_status_log_interval(host_->get_name(), true);
     VSOMEIP_INFO << "rmi::status_log_timer_cbk";
 
     ep_mgr_impl_->print_status();

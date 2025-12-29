@@ -221,7 +221,7 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     bool has_dlt = its_configuration->has_dlt_log();
     std::string logfile = its_configuration->get_logfile();
     vsomeip::logger::level_e loglevel = its_configuration->get_loglevel();
-    std::uint32_t version_logging_interval = its_configuration->get_version_log_interval(EXPECTED_ROUTING_MANAGER_HOST);
+    std::uint32_t version_logging_interval = its_configuration->get_version_log_interval(EXPECTED_ROUTING_MANAGER_HOST, true);
 
     EXPECT_TRUE(check<bool>(has_console, _expected_has_console, "HAS CONSOLE"));
     EXPECT_TRUE(check<bool>(has_file, _expected_has_file, "HAS FILE"));
@@ -769,6 +769,57 @@ TEST(configuration_test, network_options) {
     EXPECT_EQ(conf->get_external_tcp_keepidle(), 6);
     EXPECT_EQ(conf->get_external_tcp_keepintvl(), 7);
     EXPECT_EQ(conf->get_external_tcp_keepcnt(), 8);
+}
+
+TEST(configuration_test, version_and_status) {
+    /// check behavior of "version_log_interval" and "status_log_interval"
+    /// these are somewhat special:
+    /// 1) there is an older, "general" config that only affects router, in seconds
+    /// 2) and a per-application config that will override the former, in milliseconds
+
+    write_config("version_and_status.json", R"(
+{
+    "logging":
+    {
+        "status_log_interval": "10"
+    },
+    "applications":
+    [
+        {
+            "name": "router",
+            "version_log_interval": 15000
+        },
+        {
+            "name": "app1",
+            "status_log_interval": 20000,
+            "version_log_interval": 25000
+        },
+        {
+            "name": "app2"
+        }
+    ]
+}
+    )");
+
+    std::shared_ptr<vsomeip::configuration> conf = load_config("version_and_status", "version_and_status.json");
+    ASSERT_TRUE(conf);
+
+    // default for router
+    EXPECT_EQ(conf->get_status_log_interval("", true), 10'000);
+    EXPECT_EQ(conf->get_version_log_interval("", true), VSOMEIP_DEFAULT_LOG_NETWORK_HOST);
+    // default for an application
+    EXPECT_EQ(conf->get_status_log_interval("", false), VSOMEIP_DEFAULT_LOG_STATUS);
+    EXPECT_EQ(conf->get_version_log_interval("", false), VSOMEIP_DEFAULT_LOG_NETWORK);
+
+    // configured host
+    EXPECT_EQ(conf->get_status_log_interval("router", true), 10'000);
+    EXPECT_EQ(conf->get_version_log_interval("router", true), 15'000);
+    // configured application
+    EXPECT_EQ(conf->get_status_log_interval("app1", false), 20'000);
+    EXPECT_EQ(conf->get_version_log_interval("app1", false), 25'000);
+    // configured application with default values
+    EXPECT_EQ(conf->get_status_log_interval("app2", false), VSOMEIP_DEFAULT_LOG_STATUS);
+    EXPECT_EQ(conf->get_version_log_interval("app2", false), VSOMEIP_DEFAULT_LOG_NETWORK);
 }
 
 int main(int argc, char** argv) {
