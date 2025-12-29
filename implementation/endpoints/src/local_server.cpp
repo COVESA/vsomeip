@@ -145,7 +145,7 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
                     return false;
                 });
             }
-            VSOMEIP_ERROR << "ls::" << __func__ << ": Will try to accept again in 1000ms, self: " << this;
+            VSOMEIP_WARNING << "ls::" << __func__ << ": Will try to accept again in 1000ms, self: " << this;
             debounce_->start();
             return;
         }
@@ -274,8 +274,8 @@ void local_server::tmp_connection::async_receive() {
 
 void local_server::tmp_connection::receive_cbk(boost::system::error_code const& _ec, size_t _bytes) {
     if (_ec) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": Error encountered: " << _ec.message()
-                      << ", dropping connection: " << socket_->to_string();
+        VSOMEIP_WARNING << "ls::" << __func__ << ": Error encountered: " << _ec.message()
+                        << ", dropping connection: " << socket_->to_string();
         socket_->stop(true);
         return;
     }
