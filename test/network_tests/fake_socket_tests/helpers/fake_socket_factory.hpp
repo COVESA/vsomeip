@@ -34,7 +34,7 @@ private:
         return std::make_shared<fake_netlink_connector>(_io);
     }
 
-    virtual std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override {
+    std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override {
         if (auto sm = socket_manager_.lock()) {
             auto state = std::make_shared<fake_tcp_socket_handle>(_io);
             sm->add_socket(state, &_io);
@@ -42,7 +42,7 @@ private:
         }
         return nullptr;
     }
-    virtual std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override {
+    std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override {
         if (auto sm = socket_manager_.lock()) {
             auto state = std::make_shared<fake_tcp_acceptor_handle>(_io);
             sm->add_acceptor(state, &_io);
@@ -50,10 +50,14 @@ private:
         }
         return nullptr;
     }
-    virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
+    std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
         // do not tinker with timeouts in network tests for now
         return std::make_unique<asio_timer>(_io);
     }
+#if defined(__linux__) || defined(__QNX__)
+    std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context&) override { return nullptr; }
+    std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context&) override { return nullptr; }
+#endif
 
     std::weak_ptr<socket_manager> socket_manager_;
 };

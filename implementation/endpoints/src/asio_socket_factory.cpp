@@ -4,7 +4,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "../include/asio_socket_factory.hpp"
+
 #include "../include/asio_tcp_socket.hpp"
+#if defined(__linux__) || defined(__QNX__)
+#include "../include/asio_uds_socket.hpp"
+#include "../include/asio_uds_acceptor.hpp"
+#endif
 #include "../include/asio_timer.hpp"
 #include "../include/netlink_connector.hpp"
 
@@ -29,4 +34,13 @@ std::unique_ptr<tcp_acceptor> asio_socket_factory::create_tcp_acceptor(boost::as
 std::unique_ptr<abstract_timer> asio_socket_factory::create_timer(boost::asio::io_context& _io) {
     return std::make_unique<asio_timer>(_io);
 }
+
+#if defined(__linux__) || defined(__QNX__)
+std::unique_ptr<uds_socket> asio_socket_factory::create_uds_socket(boost::asio::io_context& _io) {
+    return std::make_unique<asio_uds_socket>(_io);
+}
+std::unique_ptr<uds_acceptor> asio_socket_factory::create_uds_acceptor(boost::asio::io_context& _io) {
+    return std::make_unique<asio_uds_acceptor>(_io);
+}
+#endif
 }

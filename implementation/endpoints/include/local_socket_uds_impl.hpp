@@ -8,6 +8,7 @@
 #define VSOMEIP_V3_LOCAL_SOCKET_UDS_IMPL_HPP_
 
 #include "local_socket.hpp"
+#include "uds_socket.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -35,7 +36,7 @@ namespace vsomeip_v3 {
  */
 class local_socket_uds_impl : public local_socket {
 public:
-    using socket_type = boost::asio::local::stream_protocol::socket;
+    using socket_type = uds_socket;
     using endpoint = boost::asio::local::stream_protocol::endpoint;
 
     /**
@@ -46,7 +47,7 @@ public:
      * @param _peer_endpoint Peer application's UDS endpoint (socket path).
      * @param _role Socket role (SENDER or RECEIVER).
      */
-    local_socket_uds_impl(boost::asio::io_context& _io, std::unique_ptr<socket_type> _socket, endpoint _own_endpoint,
+    local_socket_uds_impl(boost::asio::io_context& _io, std::shared_ptr<socket_type> _socket, endpoint _own_endpoint,
                           endpoint _peer_endpoint, socket_role_e _role);
 
     /**
@@ -73,7 +74,7 @@ public:
     boost::asio::ip::tcp::endpoint peer_endpoint() const override;
 
 private:
-    std::unique_ptr<socket_type> const socket_;
+    std::shared_ptr<socket_type> const socket_;
     std::mutex socket_mtx_;
 
     boost::asio::io_context& io_context_;

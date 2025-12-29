@@ -25,7 +25,7 @@ std::string to_string(vsomeip_v3::local_socket_uds_impl::endpoint _own_endpoint,
 
 namespace vsomeip_v3 {
 
-local_socket_uds_impl::local_socket_uds_impl(boost::asio::io_context& _io, std::unique_ptr<socket_type> _socket, endpoint _own_endpoint,
+local_socket_uds_impl::local_socket_uds_impl(boost::asio::io_context& _io, std::shared_ptr<socket_type> _socket, endpoint _own_endpoint,
                                              endpoint _peer_endpoint, socket_role_e _role) :
     socket_(std::move(_socket)), io_context_(_io), peer_endpoint_(std::move(_peer_endpoint)),
     name_(::to_string(_own_endpoint, peer_endpoint_, this, _role)) { }
@@ -62,7 +62,7 @@ void local_socket_uds_impl::prepare_connect([[maybe_unused]] configuration const
     }
 
     boost::system::error_code ec;
-    socket_->set_option(boost::asio::socket_base::reuse_address(true), ec);
+    socket_->set_reuse_address(ec);
     if (ec) {
         VSOMEIP_WARNING << "lsui::" << __func__ << ": could not setsockopt(SO_REUSEADDR), " << ec.message() << ", " << name_;
     }
@@ -91,7 +91,7 @@ void local_socket_uds_impl::async_send(std::vector<uint8_t> _data, write_handler
     if (socket_->is_open()) {
         // ensure the memory is kept alive as long as the callback hasn't been invoked
         auto buffer = boost::asio::buffer(_data);
-        boost::asio::async_write(*socket_, buffer, [d = std::move(_data), handler = std::move(_w_handle)](auto const& _ec, size_t _bytes) {
+        socket_->async_write(buffer, [d = std::move(_data), handler = std::move(_w_handle)](auto const& _ec, size_t _bytes) {
             handler(_ec, _bytes, std::move(d));
         });
     } else {
@@ -105,15 +105,10 @@ std::string const& local_socket_uds_impl::to_string() const {
 
 bool local_socket_uds_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused]] configuration const& _configuration) {
     std::scoped_lock const lock{socket_mtx_};
-    int handle = socket_->native_handle();
-    ucred out;
-    if (socklen_t len = sizeof(ucred); -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &out, &len)) {
-        VSOMEIP_WARNING << "lsui::" << __func__ << ": could not getsockopt(SO_PEERCRED), errno " << errno << ", " << name_;
+    if (!socket_->get_peer_credentials(_client)) {
+        VSOMEIP_ERROR << "lsui::" << __func__ << ": could not getsockopt(SO_PEERCRED), errno " << errno;
         return false;
     }
-    _client.user = out.uid;
-    _client.group = out.gid;
-    _client.port = VSOMEIP_SEC_PORT_UNUSED;
     return true;
 }
 

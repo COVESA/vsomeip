@@ -54,9 +54,13 @@ public:
         return nullptr;
     }
 
-    virtual std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context&) override { return nullptr; }
-    virtual std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context&) override { return nullptr; }
-    virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context&) override { return std::move(timer_); }
+    std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context&) override { return nullptr; }
+    std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context&) override { return nullptr; }
+#if defined(__linux__) || defined(__QNX__)
+    std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context&) override { return nullptr; }
+    std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context&) override { return nullptr; }
+#endif
+    std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context&) override { return std::move(timer_); }
 
     // assumed to be filled by the fixtures.
     std::unique_ptr<abstract_timer> timer_;

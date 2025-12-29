@@ -8,6 +8,9 @@
 #define VSOMEIP_V3_LOCAL_ACCEPTOR_UDS_IMPL_HPP_
 
 #include "local_acceptor.hpp"
+#include "uds_socket.hpp"
+#include "uds_acceptor.hpp"
+
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/system/error_code.hpp>
 #include <mutex>
@@ -38,8 +41,8 @@ class configuration;
 class local_acceptor_uds_impl : public local_acceptor, public std::enable_shared_from_this<local_acceptor_uds_impl> {
 public:
     using endpoint = boost::asio::local::stream_protocol::endpoint;
-    using socket = boost::asio::local::stream_protocol::socket;
-    using acceptor = boost::asio::local::stream_protocol::acceptor;
+    using socket = uds_socket;
+    using acceptor = uds_acceptor;
 
     /**
      * @brief Constructs a UDS acceptor.
@@ -70,7 +73,7 @@ public:
     virtual port_t get_local_port() override;
 
 private:
-    void accept_cbk(boost::system::error_code const& _ec, connection_handler _handler, std::unique_ptr<socket> _socket);
+    void accept_cbk(boost::system::error_code const& _ec, connection_handler _handler, std::shared_ptr<socket> _socket);
 
     boost::asio::io_context& io_;
     std::mutex mtx_;
