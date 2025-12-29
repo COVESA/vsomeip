@@ -45,12 +45,22 @@ public:
         return cv_.wait_for(lock, timeout, [&] { return p(record_); });
     }
 
-    [[nodiscard]] bool wait_for(Value const& _value, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+    /**
+     * @brief Wait for *any* record to equal `_value`
+     */
+    [[nodiscard]] bool wait_for_any(Value const& _value, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
         return wait_for(
-                [&](auto const& record) {
+                [&_value](auto const& record) {
                     return std::any_of(record.begin(), record.end(), [&](auto const& rec) { return rec == _value; });
                 },
                 timeout);
+    }
+
+    /**
+     * @brief Wait for last record to equal `_value`
+     */
+    [[nodiscard]] bool wait_for_last(Value const& _value, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        return wait_for([&_value](auto const& record) { return !record.empty() && record.back() == _value; }, timeout);
     }
 
     [[nodiscard]] std::optional<Value> last() {

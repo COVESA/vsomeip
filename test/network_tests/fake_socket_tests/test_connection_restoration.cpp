@@ -37,7 +37,7 @@ struct test_client_helper : public base_fake_socket_fixture {
     void start_server() {
         server_ = start_client(server_name_);
         ASSERT_NE(server_, nullptr);
-        ASSERT_TRUE(server_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         server_->offer(service_instance_);
         server_->offer_event(offered_event_);
         server_->offer_field(offered_field_);
@@ -46,7 +46,7 @@ struct test_client_helper : public base_fake_socket_fixture {
     void start_client_app() {
         client_ = start_client(client_name_);
         ASSERT_NE(client_, nullptr);
-        ASSERT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     }
 
     void start_apps() {
@@ -57,17 +57,17 @@ struct test_client_helper : public base_fake_socket_fixture {
 
     void request_service() { client_->request_service(service_instance_); }
     [[nodiscard]] bool await_service() {
-        return client_->availability_record_.wait_for(service_availability::available(service_instance_));
+        return client_->availability_record_.wait_for_last(service_availability::available(service_instance_));
     }
     [[nodiscard]] bool subscribe_to_event() {
         request_service();
         client_->subscribe_event(offered_event_);
-        return client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_event_));
+        return client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_));
     }
     [[nodiscard]] bool subscribe_to_field() {
         request_service();
         client_->subscribe_field(offered_field_);
-        return client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_));
+        return client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_));
     }
     void send_first_message() { server_->send_event(offered_event_, {}); }
     void send_field_message() { server_->send_event(offered_field_, field_payload_); }
@@ -105,7 +105,7 @@ TEST_F(test_client_helper, ensure_unavail_after_stop_offer) {
     client_->availability_record_.clear();
 
     stop_offer();
-    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::unavailable(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
 }
 
 TEST_F(test_client_helper, ensure_unavail_after_stop_app) {
@@ -115,7 +115,7 @@ TEST_F(test_client_helper, ensure_unavail_after_stop_app) {
     client_->availability_record_.clear();
     stop_client(server_name_);
 
-    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::unavailable(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
 }
 
 TEST_F(test_client_helper, field_subscription) {
@@ -124,7 +124,7 @@ TEST_F(test_client_helper, field_subscription) {
     send_field_message();
     ASSERT_TRUE(subscribe_to_field());
 
-    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 }
 
 TEST_F(test_client_helper, request_reply_no_sub) {
@@ -135,11 +135,11 @@ TEST_F(test_client_helper, request_reply_no_sub) {
 
     // wait for availability, before sending the request
     // otherwise no guarantee that it is sent out
-    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::available(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
     client_->send_request(request_);
 
-    ASSERT_TRUE(server_->message_record_.wait_for(expected_request_));
-    EXPECT_TRUE(client_->message_record_.wait_for(expected_reply_));
+    ASSERT_TRUE(server_->message_record_.wait_for_last(expected_request_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
 }
 
 TEST_F(test_client_helper, request_reply_with_sub) {
@@ -151,8 +151,8 @@ TEST_F(test_client_helper, request_reply_with_sub) {
     answer_requests_with({0x2, 0x3});
     client_->send_request(request_);
 
-    ASSERT_TRUE(server_->message_record_.wait_for(expected_request_));
-    EXPECT_TRUE(client_->message_record_.wait_for(expected_reply_));
+    ASSERT_TRUE(server_->message_record_.wait_for_last(expected_request_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
 }
 
 TEST_F(test_client_helper, request_reply_routingd) {
@@ -171,11 +171,11 @@ TEST_F(test_client_helper, request_reply_routingd) {
 
     client_->request_service(service_instance_);
 
-    EXPECT_TRUE(client_->availability_record_.wait_for(service_availability::available(service_instance_)));
+    EXPECT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
     client_->send_request(request_);
 
-    ASSERT_TRUE(routingmanagerd_->message_record_.wait_for(expected_request_));
-    EXPECT_TRUE(client_->message_record_.wait_for(expected_reply_));
+    ASSERT_TRUE(routingmanagerd_->message_record_.wait_for_last(expected_request_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
 }
 
 TEST_F(test_client_helper, the_server_sends_subscribe_ack_when_the_routing_info_is_late) {
@@ -193,9 +193,9 @@ TEST_F(test_client_helper, the_server_sends_subscribe_ack_when_the_routing_info_
     ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, false));
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false));
 
-    ASSERT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
-    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 }
 
 TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_router_and_client) {
@@ -203,7 +203,7 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
     ASSERT_TRUE(subscribe_to_event());
 
     send_first_message();
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
@@ -231,13 +231,13 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
     ASSERT_TRUE(await_connection(client_name_, server_name_));
 
     // client needs to re-subscribe, wait for it
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_event_)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 
     server_->send_event(offered_event_, {0x2, 0x3});
     auto next_expected_message = first_expected_message_;
     next_expected_message.client_session_.session_ = 2;
     next_expected_message.payload_ = {0x2, 0x3};
-    EXPECT_TRUE(client_->message_record_.wait_for(next_expected_message)) << client_->message_record_;
+    EXPECT_TRUE(client_->message_record_.wait_for_last(next_expected_message)) << client_->message_record_;
 
     // Expect two connection that where established from the client towards,
     // the routing manager:
@@ -252,7 +252,7 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
     send_first_message();
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
@@ -272,13 +272,13 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
     ASSERT_TRUE(await_connection(client_name_, server_name_));
 
     // client needs to re-subscribe, wait for it
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_event_)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 
     server_->send_event(offered_event_, {0x5, 0x3});
     auto next_expected_message = first_expected_message_;
     next_expected_message.client_session_.session_ = 2;
     next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(client_->message_record_.wait_for(next_expected_message));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(next_expected_message));
 }
 
 TEST_F(test_client_helper, server_suback_after_sub_insert) {
@@ -296,7 +296,7 @@ TEST_F(test_client_helper, server_suback_after_sub_insert) {
     send_first_message();
 
     // ... check that client has received it
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 }
 
 TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_with_events) {
@@ -304,7 +304,7 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
     ASSERT_TRUE(subscribe_to_event());
 
     send_first_message();
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 
     // simulating a suspend of a server:
     set_ignore_connections(server_name_, true);
@@ -324,20 +324,20 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
     ASSERT_TRUE(await_connection(client_name_, server_name_));
 
     // client needs to re-subscribe, wait for it
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_event_)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 
     server_->send_event(offered_event_, {0x5, 0x3});
     auto next_expected_message = first_expected_message_;
     next_expected_message.client_session_.session_ = 2;
     next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(client_->message_record_.wait_for(next_expected_message));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(next_expected_message));
 }
 
 TEST_F(test_client_helper, field_updates_are_resend_when_a_broken_routing_connection_enforces_a_resubscription) {
     start_apps();
     send_field_message();
     ASSERT_TRUE(subscribe_to_field());
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
@@ -357,7 +357,7 @@ TEST_F(test_client_helper, field_updates_are_resend_when_a_broken_routing_connec
     // because the client will re-subscribe it should receive another event after the subscription
     auto new_message = first_expected_field_message_;
     new_message.client_session_.session_ += 1;
-    EXPECT_TRUE(client_->message_record_.wait_for(new_message));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(new_message));
 }
 
 TEST_F(test_client_helper, server_times_out_on_first_connect_attemp_with_client) {
@@ -394,8 +394,8 @@ TEST_F(test_client_helper, client_ignores_server_connections_for_a_while) {
     client_->subscribe_field(offered_field_);
 
     // unfortunate, but we need to wait for magics amount of time - there will be background attempts to connect+write failures
-    EXPECT_FALSE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_),
-                                                        std::chrono::seconds(1)));
+    EXPECT_FALSE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_),
+                                                             std::chrono::seconds(1)));
 
     // accept connections again
     // (and no need to worry about the broken pipe)
@@ -404,15 +404,15 @@ TEST_F(test_client_helper, client_ignores_server_connections_for_a_while) {
     // CONFIG_ID should be sent when the connection is established
     EXPECT_TRUE(await_connection(server_name_, client_name_));
     EXPECT_TRUE(wait_for_command(server_name_, client_name_, protocol::id_e::CONFIG_ID));
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
-    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 }
 
 TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection_is_re_established_then_the_subscription_confirmed) {
     start_apps();
     send_field_message();
     ASSERT_TRUE(subscribe_to_field());
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
     client_->subscription_record_.clear();
 
     // give the client a head start when cleaning the "sibling" connection, by holding back the
@@ -424,7 +424,7 @@ TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection
     // condition.
     ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
 
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 }
 
 TEST_F(test_client_helper, break_client_with_eof_before_finishing_registration) {
@@ -444,7 +444,7 @@ TEST_F(test_client_helper, break_client_with_eof_before_finishing_registration) 
 
     ASSERT_TRUE(await_connection(client_name_, routingmanager_name_));
     ASSERT_TRUE(await_connection(routingmanager_name_, client_name_));
-    EXPECT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+    EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 }
 
 TEST_F(test_client_helper, break_host_side_only_with_broken_pipe) {
@@ -461,7 +461,7 @@ TEST_F(test_client_helper, handle_early_routing_info_within_server_after_reconne
     start_apps();
     send_field_message();
     ASSERT_TRUE(subscribe_to_field());
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
     client_->subscription_record_.clear();
 
     // regression test for the following nightmare sequence:
@@ -491,7 +491,7 @@ TEST_F(test_client_helper, handle_early_routing_info_within_server_after_reconne
     // 7.
     ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, false));
 
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 }
 
 TEST_F(test_client_helper, missing_initial_events) {
@@ -534,16 +534,16 @@ TEST_F(test_client_helper, missing_initial_events) {
     // 5.
     client_ = start_client(client_name_);
     ASSERT_NE(client_, nullptr);
-    ASSERT_TRUE(client_->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+    ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     // 6. + 7.
     client_->request_service(service_instance_);
     client_->subscribe_field(offered_field_);
     std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     // 8.
     fail_on_bind(server_name_, false);
-    ASSERT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
-    EXPECT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 }
 
 
@@ -551,7 +551,7 @@ TEST_F(test_client_helper, handle_late_clean_up_within_server_after_reconnect) {
     start_apps();
     send_field_message();
     ASSERT_TRUE(subscribe_to_field());
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
     client_->subscription_record_.clear();
     // ensure we can await the routing info
     clear_command_record(routingmanager_name_, server_name_);
@@ -582,7 +582,7 @@ TEST_F(test_client_helper, handle_late_clean_up_within_server_after_reconnect) {
     // 5. this requires from the server to remove the info
     std::ignore = disconnect(server_name_, boost::asio::error::connection_reset, client_name_, std::nullopt);
 
-    EXPECT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 }
 
 TEST_F(test_client_helper, connection_break_vs_routing) {
@@ -611,7 +611,7 @@ TEST_F(test_client_helper, connection_break_vs_routing) {
 
         // client requests and uses..
         ASSERT_TRUE(subscribe_to_field());
-        ASSERT_TRUE(client_->message_record_.wait_for(first_expected_field_message_));
+        ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 
         client_->message_record_.clear();
         client_->subscription_record_.clear();
@@ -620,7 +620,7 @@ TEST_F(test_client_helper, connection_break_vs_routing) {
         // server stops offering..
         server_->stop_offer(service_instance_);
 
-        ASSERT_TRUE(client_->availability_record_.wait_for(service_availability::unavailable(service_instance_)));
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
 
         // client -> server connection breaks..
         // NOTE: only client is informed, but irrelevant, if anything it adds to the "raciness"!
@@ -630,23 +630,12 @@ TEST_F(test_client_helper, connection_break_vs_routing) {
         send_field_message();
 
         // we *MUST* see available/subscribed/connection
-        ASSERT_TRUE(client_->availability_record_.wait_for(service_availability::available(service_instance_)));
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
         ASSERT_TRUE(await_connection(client_name_, server_name_));
-        ASSERT_TRUE(client_->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+        ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
         // *EXTRA* paranoia - check that client saw ON_AVAILABLE as last notification
-        for (size_t i = 0; i < 3000; ++i) {
-            // extra annoying to check though - the `ON_AVAILABLE` we saw earlier might have been from server offer
-            // before connection break
-            if (client_->availability_record_.last() == service_availability::available(service_instance_)) {
-                break;
-            } else if (i == 3000 - 1) {
-                ASSERT_TRUE(client_->availability_record_.last() == service_availability::available(service_instance_))
-                        << client_->availability_record_;
-            } else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-        }
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
         stop_client(client_name_);
         stop_client(server_name_);
@@ -718,7 +707,7 @@ struct test_restart_clients : test_client_helper {
     bool subscribe(app* client) {
         client->request_service(service_instance_);
         client->subscribe_field(offered_field_);
-        return client->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_));
+        return client->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_));
     }
 
     std::string const client_one_{"client-one"};
@@ -733,10 +722,10 @@ TEST_F(test_restart_clients, test_restart_client_one_and_two_in_reverse_order) {
         create_app(client_two_);
 
         auto* one = start_client(client_one_);
-        ASSERT_TRUE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         ASSERT_TRUE(subscribe(one));
         auto* two = start_client(client_two_);
-        ASSERT_TRUE(two->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
     }
 
     // Hold back the routing info update from client_one for the server (including the remove_client
@@ -751,9 +740,9 @@ TEST_F(test_restart_clients, test_restart_client_one_and_two_in_reverse_order) {
         create_app(client_two_);
 
         auto* two = start_client(client_two_);
-        ASSERT_TRUE(two->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         auto* one = start_client(client_one_);
-        ASSERT_TRUE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
         one->request_service(service_instance_);
         one->subscribe_field(offered_field_);
         ASSERT_TRUE(await_connection(client_one_, server_name_));
@@ -763,7 +752,7 @@ TEST_F(test_restart_clients, test_restart_client_one_and_two_in_reverse_order) {
         // ensure server receives updated routing info
         ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, false));
         // now the new event should be send
-        EXPECT_TRUE(one->subscription_record_.wait_for(event_subscription::successfully_subscribed_to(offered_field_)));
+        EXPECT_TRUE(one->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     }
 }
 
@@ -778,7 +767,7 @@ TEST_F(test_restart_clients, test_restart_client_in_loop) {
     for (size_t i = 0; i < 5; ++i) {
         create_app(client_one_);
         auto* one = start_client(client_one_);
-        ASSERT_TRUE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
         TEST_LOG << "[step] stopping the app";
         stop_client(client_one_);
@@ -798,7 +787,7 @@ TEST_F(test_restart_clients, test_restart_service_availability) {
         auto* one = start_client(client_one_);
         one->request_service(service_instance_);
 
-        ASSERT_TRUE(one->availability_record_.wait_for(service_availability::available(service_instance_)));
+        ASSERT_TRUE(one->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
         TEST_LOG << "[step] stopping the app";
         stop_client(client_one_);
@@ -815,7 +804,7 @@ TEST_F(test_restart_clients, block_registration_process) {
     ASSERT_TRUE(await_connection(client_one_, routingmanager_name_, std::chrono::seconds(2)));
     ASSERT_TRUE(wait_once_for_dropped_command(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID,
                                               std::chrono::milliseconds(500)));
-    ASSERT_FALSE(one->app_state_record_.wait_for(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(1)));
+    ASSERT_FALSE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(1)));
 }
 
 struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
@@ -828,8 +817,8 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
 
     answer_requests_with({0x2, 0x3});
     client_->send_request(request_);
-    ASSERT_TRUE(server_->message_record_.wait_for(expected_request_));
-    ASSERT_TRUE(client_->message_record_.wait_for(expected_reply_));
+    ASSERT_TRUE(server_->message_record_.wait_for_last(expected_request_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
 
     // break one direction
     ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to, boost::asio::error::connection_reset));
@@ -841,7 +830,7 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
     auto next_reply = expected_reply_;
     // It seems some messages are dropped, but the session bumped anyhow.
     next_reply.client_session_.session_ += 8;
-    EXPECT_TRUE(client_->message_record_.wait_for(next_reply)) << next_reply;
+    EXPECT_TRUE(client_->message_record_.wait_for_any(next_reply)) << next_reply;
 }
 
 TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is_restored_with_events) {
@@ -850,7 +839,7 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
     start_apps();
     ASSERT_TRUE(subscribe_to_event());
     send_first_message();
-    ASSERT_TRUE(client_->message_record_.wait_for(first_expected_message_));
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 
     // break single connection
     ASSERT_TRUE(disconnect(from, boost::asio::error::timed_out, to, boost::asio::error::connection_reset));
@@ -862,7 +851,7 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
     auto some_expected_message = first_expected_message_;
     // It seems some messages are dropped, but the session bumped anyhow.
     some_expected_message.client_session_.session_ += 8;
-    EXPECT_TRUE(client_->message_record_.wait_for(some_expected_message)) << some_expected_message;
+    EXPECT_TRUE(client_->message_record_.wait_for_any(some_expected_message)) << some_expected_message;
 }
 
 INSTANTIATE_TEST_SUITE_P(test_all_permutations, test_single_connection_breakdown,
