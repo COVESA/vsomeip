@@ -424,7 +424,7 @@ void socket_manager::clear_command_record(std::string const& _from, std::string 
                                                     std::chrono::milliseconds _timeout) {
     auto [weak_from, weak_to] = get_connection(_from, _to);
     if (auto to = weak_to.lock(); to) {
-        return to->received_command_record_.wait_for(_id, _timeout);
+        return to->received_command_record_.wait_for_any(_id, _timeout);
     }
     return false;
 }
