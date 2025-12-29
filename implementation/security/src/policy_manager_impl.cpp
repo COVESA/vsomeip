@@ -83,7 +83,7 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
 
     bool has_id(false);
 
-    boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::shared_lock its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
 
         std::scoped_lock its_policy_lock(p->mutex_);
@@ -220,7 +220,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
     auto its_credentials = std::make_pair(its_uid, its_gid);
     auto its_key = std::make_tuple(_service, _instance, _method);
     {
-        boost::shared_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
+        std::shared_lock its_cache_lock(is_client_allowed_cache_mutex_);
         const auto its_iter = is_client_allowed_cache_.find(its_credentials);
         if (its_iter != is_client_allowed_cache_.end()) {
             if (its_iter->second.find(its_key) != its_iter->second.end()) {
@@ -230,7 +230,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
     }
 
     // Check policies
-    boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::shared_lock its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
         std::scoped_lock its_policy_lock(p->mutex_);
         bool has_uid, has_gid(false);
@@ -261,7 +261,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
             if (p->allow_what_) {
                 // allow policy
                 if (is_matching) {
-                    boost::unique_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
+                    std::unique_lock its_cache_lock(is_client_allowed_cache_mutex_);
                     is_client_allowed_cache_[its_credentials].insert(its_key);
                     return true;
                 }
@@ -272,7 +272,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
                     // allow client if the service / instance / ANY_METHOD was not found
                     // and it is a "deny nothing" policy
                     || (!is_matching && (_method == ANY_METHOD) && p->requests_.empty())) {
-                    boost::unique_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
+                    std::unique_lock its_cache_lock(is_client_allowed_cache_mutex_);
                     is_client_allowed_cache_[its_credentials].insert(its_key);
                     return true;
                 }
@@ -325,7 +325,7 @@ bool policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t* _sec_clie
         return !check_credentials_;
     }
 
-    boost::shared_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::shared_lock its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
         std::scoped_lock its_policy_lock(p->mutex_);
         bool has_uid, has_gid(false), has_offer(false);
@@ -381,7 +381,7 @@ void policy_manager_impl::load(const configuration_element& _element, const bool
 }
 
 bool policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
-    boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::unique_lock its_lock(any_client_policies_mutex_);
     bool was_removed(false);
     if (!any_client_policies_.empty()) {
         std::vector<std::shared_ptr<policy>>::iterator p_it = any_client_policies_.begin();
@@ -410,7 +410,7 @@ bool policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
                 ++p_it;
             }
 
-            boost::unique_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
+            std::unique_lock its_cache_lock(is_client_allowed_cache_mutex_);
             is_client_allowed_cache_.erase(std::make_pair(_uid, _gid));
         }
     }
@@ -419,7 +419,7 @@ bool policy_manager_impl::remove_security_policy(uid_t _uid, gid_t _gid) {
 
 void policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid, const std::shared_ptr<policy>& _policy) {
 
-    boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::unique_lock its_lock(any_client_policies_mutex_);
     std::shared_ptr<policy> its_matching_policy;
     for (auto p : any_client_policies_) {
         std::scoped_lock its_guard(p->mutex_);
@@ -461,14 +461,14 @@ void policy_manager_impl::update_security_policy(uid_t _uid, gid_t _gid, const s
         any_client_policies_.push_back(_policy);
     }
 
-    boost::unique_lock<boost::shared_mutex> its_cache_lock(is_client_allowed_cache_mutex_);
+    std::unique_lock its_cache_lock(is_client_allowed_cache_mutex_);
     is_client_allowed_cache_.erase(std::make_pair(_uid, _gid));
 }
 
 void policy_manager_impl::add_security_credentials(uid_t _uid, gid_t _gid, const std::shared_ptr<policy>& _policy, client_t _client) {
 
     bool was_found(false);
-    boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::unique_lock its_lock(any_client_policies_mutex_);
     for (const auto& p : any_client_policies_) {
         bool has_uid(false), has_gid(false);
 
@@ -701,7 +701,7 @@ void policy_manager_impl::load_policy(const boost::property_tree::ptree& _tree) 
             load_policy_body(policy, i);
         }
     }
-    boost::unique_lock<boost::shared_mutex> its_lock(any_client_policies_mutex_);
+    std::unique_lock its_lock(any_client_policies_mutex_);
     if (!exist_in_any_client_policies_unlocked(policy))
         any_client_policies_.push_back(policy);
 }
@@ -903,7 +903,7 @@ void policy_manager_impl::load_security_policy_extensions(const configuration_el
         auto found_policy_extensions = _element.tree_.get_child("container_policy_extensions");
         boost::filesystem::path its_base_path;
         {
-            boost::unique_lock<boost::shared_mutex> its_lock(policy_extension_paths_mutex_);
+            std::unique_lock its_lock(policy_extension_paths_mutex_);
             its_base_path = boost::filesystem::path(policy_base_path_);
         }
 
@@ -1101,7 +1101,7 @@ void policy_manager_impl::set_policy_extension_base_path(const std::string& _pat
 }
 
 std::string policy_manager_impl::get_policy_extension_path(const std::string& _client_host) const {
-    boost::shared_lock<boost::shared_mutex> lock(policy_extension_paths_mutex_);
+    std::shared_lock lock(policy_extension_paths_mutex_);
     return get_policy_extension_path_unlocked(_client_host);
 }
 // only be called after loading of the mutex
@@ -1117,7 +1117,7 @@ std::string policy_manager_impl::get_policy_extension_path_unlocked(const std::s
 }
 
 policy_manager_impl::policy_loaded_e policy_manager_impl::is_policy_extension_loaded(const std::string& _client_host) const {
-    boost::shared_lock<boost::shared_mutex> lock(policy_extension_paths_mutex_);
+    std::shared_lock lock(policy_extension_paths_mutex_);
 
     auto found_host = policy_extension_paths_.find(_client_host);
     if (found_host != policy_extension_paths_.end()) {
@@ -1137,7 +1137,7 @@ policy_manager_impl::policy_loaded_e policy_manager_impl::is_policy_extension_lo
 }
 
 void policy_manager_impl::set_is_policy_extension_loaded(const std::string& _client_host, const bool _loaded) {
-    boost::unique_lock<boost::shared_mutex> lock(policy_extension_paths_mutex_);
+    std::unique_lock lock(policy_extension_paths_mutex_);
     auto found_host = policy_extension_paths_.find(_client_host);
 
     if (found_host != policy_extension_paths_.end()) {
