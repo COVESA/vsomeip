@@ -9,7 +9,12 @@
 #include "abstract_netlink_connector.hpp"
 #include "abstract_timer.hpp"
 #include "tcp_socket.hpp"
+#if defined(__linux__) || defined(__QNX__)
+#include "uds_acceptor.hpp"
+#include "uds_socket.hpp"
+#endif
 
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
 #if defined(__linux__) || defined(__QNX__)
 #include <boost/asio/local/stream_protocol.hpp>
@@ -32,19 +37,17 @@ public:
                                                                                  bool _is_requiring_link = true) = 0;
 #endif
 
-    // only tcp sockets are fakable atm.
     virtual std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) = 0;
     virtual std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) = 0;
+
+#if defined(__linux__) || defined(__QNX__)
+    virtual std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) = 0;
+    virtual std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context& _io) = 0;
+#endif
 
     std::unique_ptr<boost::asio::ip::udp::socket> create_udp_socket(boost::asio::io_context& _io) {
         return std::make_unique<boost::asio::ip::udp::socket>(_io);
     }
-
-#if defined(__linux__) || defined(__QNX__)
-    std::unique_ptr<boost::asio::local::stream_protocol::socket> create_uds_socket(boost::asio::io_context& _io) {
-        return std::make_unique<boost::asio::local::stream_protocol::socket>(_io);
-    }
-#endif
 
     virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) = 0;
 };

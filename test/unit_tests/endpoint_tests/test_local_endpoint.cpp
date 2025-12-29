@@ -9,6 +9,8 @@
 
 #include "../../../implementation/endpoints/include/asio_timer.hpp"
 #include "../../../implementation/endpoints/include/asio_tcp_socket.hpp"
+#include "../../../implementation/endpoints/include/asio_uds_acceptor.hpp"
+#include "../../../implementation/endpoints/include/asio_uds_socket.hpp"
 #include "../../../implementation/endpoints/include/local_endpoint.hpp"
 #include "../../../implementation/endpoints/include/local_server.hpp"
 #include "../../../implementation/endpoints/include/local_acceptor_uds_impl.hpp"
@@ -38,6 +40,12 @@ public:
     virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
         return std::make_unique<asio_timer>(_io);
     }
+#if defined(__linux__) || defined(__QNX__)
+    std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) override { return std::make_unique<asio_uds_socket>(_io); }
+    std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context& _io) override {
+        return std::make_unique<asio_uds_acceptor>(_io);
+    }
+#endif
 };
 
 struct test_uds_local_endpoint : base_endpoint_fixture {

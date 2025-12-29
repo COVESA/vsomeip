@@ -13,7 +13,6 @@
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
-#include <boost/asio/local/stream_protocol.hpp>
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -52,11 +51,6 @@ void client_endpoint_impl<Protocol>::recreate_socket() {
     } else if constexpr (std::is_same_v<Protocol, boost::asio::ip::udp>) {
         socket_ = socket_factory->create_udp_socket(io);
     }
-#if defined(__linux__) || defined(__QNX__)
-    else if constexpr (std::is_same_v<Protocol, boost::asio::local::stream_protocol>) {
-        socket_ = socket_factory->create_uds_socket(io);
-    }
-#endif
 }
 
 template<typename Protocol>
@@ -931,10 +925,6 @@ const char* client_endpoint_impl<Protocol>::to_string(cei_state_e state) {
     }
 }
 
-// Instantiate template
-#if defined(__linux__) || defined(__QNX__)
-template class client_endpoint_impl<boost::asio::local::stream_protocol>;
-#endif
 template class client_endpoint_impl<boost::asio::ip::tcp>;
 template class client_endpoint_impl<boost::asio::ip::udp>;
 

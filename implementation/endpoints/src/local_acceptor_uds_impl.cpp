@@ -17,7 +17,8 @@
 namespace vsomeip_v3 {
 local_acceptor_uds_impl::local_acceptor_uds_impl(boost::asio::io_context& _io, endpoint _own_endpoint,
                                                  std::shared_ptr<configuration> _configuration) :
-    io_(_io), acceptor_(std::make_unique<acceptor>(io_)), own_endpoint_(_own_endpoint), configuration_(std::move(_configuration)) { }
+    io_(_io), acceptor_(abstract_socket_factory::get()->create_uds_acceptor(io_)), own_endpoint_(_own_endpoint),
+    configuration_(std::move(_configuration)) { }
 
 local_acceptor_uds_impl::~local_acceptor_uds_impl() = default;
 
@@ -48,14 +49,13 @@ void local_acceptor_uds_impl::init(boost::system::error_code& _ec, std::optional
             VSOMEIP_ERROR << "laui::init::close: Could not close socket for " << own_endpoint_.path() << ", mem: " << this;
         }
     };
-    acceptor_->set_option(boost::asio::socket_base::reuse_address(true), _ec);
+    acceptor_->set_reuse_address(_ec);
     if (_ec) {
         close("set_option(reuse_address)", _ec);
         return;
     }
 
-    // cleanup leftover before bind()
-    if (-1 == ::unlink(own_endpoint_.path().c_str()) && errno != ENOENT) {
+    if (!acceptor_->unlink(own_endpoint_.path().c_str())) {
         VSOMEIP_ERROR << "laui::" << __func__ << ": unlink(" << own_endpoint_.path() << ") failed due to errno " << errno
                       << ", mem: " << this;
     }
@@ -96,14 +96,14 @@ void local_acceptor_uds_impl::cancel(boost::system::error_code& _ec) {
 
 void local_acceptor_uds_impl::async_accept(connection_handler _handler) {
     std::scoped_lock const lock{mtx_};
-    auto tmp_socket = abstract_socket_factory::get()->create_uds_socket(io_);
+    // tmp_socket is a `shared_ptr` due to the `std::function`  below which requires everything to be copyable
+    std::shared_ptr<uds_socket> tmp_socket = abstract_socket_factory::get()->create_uds_socket(io_);
     socket& socket_ref = *tmp_socket;
-    acceptor_->async_accept(socket_ref,
-                            [weak_self = weak_from_this(), h = std::move(_handler), s = std::move(tmp_socket)](auto const& _ec) mutable {
-                                if (auto self = weak_self.lock(); self) {
-                                    self->accept_cbk(_ec, std::move(h), std::move(s));
-                                }
-                            });
+    acceptor_->async_accept(socket_ref, [weak_self = weak_from_this(), h = std::move(_handler), tmp_socket](auto const& _ec) {
+        if (auto self = weak_self.lock(); self) {
+            self->accept_cbk(_ec, std::move(h), tmp_socket);
+        }
+    });
 }
 
 port_t local_acceptor_uds_impl::get_local_port() {
@@ -112,7 +112,7 @@ port_t local_acceptor_uds_impl::get_local_port() {
 
 // NOSONAR(cpp:S5213) - Handler is already std::function from async_accept, making this a template provides no benefit
 void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler,
-                                         std::unique_ptr<socket> _socket) {
+                                         std::shared_ptr<socket> _socket) {
     if (_ec) {
         _handler(_ec, nullptr);
         return;

@@ -23,6 +23,12 @@ public:
 
     std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override;
     std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override;
+
+#if defined(__linux__) || defined(__QNX__)
+    std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) override;
+    std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context& _io) override;
+#endif
+
     std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override;
 };
 
