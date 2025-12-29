@@ -8,12 +8,12 @@
 
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_set>
 #include <vector>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/thread.hpp>
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/internal/policy_manager.hpp>
@@ -111,10 +111,10 @@ private:
 #pragma warning(disable : 4251)
 #endif
 #ifndef VSOMEIP_DISABLE_SECURITY
-    mutable boost::shared_mutex any_client_policies_mutex_;
+    mutable std::shared_mutex any_client_policies_mutex_;
     std::vector<std::shared_ptr<policy>> any_client_policies_;
 
-    mutable boost::shared_mutex is_client_allowed_cache_mutex_;
+    mutable std::shared_mutex is_client_allowed_cache_mutex_;
     mutable std::map<std::pair<uid_t, gid_t>, std::set<std::tuple<service_t, instance_t, method_t>>> is_client_allowed_cache_;
 
     bool policy_enabled_;
@@ -131,7 +131,7 @@ private:
     mutable std::mutex policy_base_path_mutex_;
     std::string policy_base_path_;
 
-    mutable boost::shared_mutex policy_extension_paths_mutex_;
+    mutable std::shared_mutex policy_extension_paths_mutex_;
     // map[hostname, pair[path,  map[complete path with UID/GID, control loading]]
     std::map<std::string, std::pair<std::string, std::map<std::string, bool>>> policy_extension_paths_;
 
