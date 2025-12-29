@@ -12,12 +12,7 @@ cc_library(
 
 cc_binary(
     name = "hello_world_service",
-    srcs = [
-        "hello_world_service_main.cpp",
-    ],
-    linkopts = [
-        "-Wl,-rpath=\\$$ORIGIN/../..,--disable-new-dtags",
-    ],
+    srcs = ["hello_world_service_main.cpp"],
     deps = [
         ":vsomeip_hello_world_service",
         "//:vsomeip3",
@@ -26,12 +21,7 @@ cc_binary(
 
 cc_binary(
     name = "hello_world_client",
-    srcs = [
-        "hello_world_client_main.cpp",
-    ],
-    linkopts = [
-        "-Wl,-rpath=\\$$ORIGIN/../..,--disable-new-dtags",
-    ],
+    srcs = ["hello_world_client_main.cpp"],
     deps = [
         ":vsomeip_hello_world_client",
         "//:vsomeip3",
