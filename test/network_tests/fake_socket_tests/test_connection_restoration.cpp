@@ -827,6 +827,10 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
         client_->send_request(request_);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    // Ensure connection is restored
+    ASSERT_TRUE(await_connection(from, to));
+
     auto next_reply = expected_reply_;
     // It seems some messages are dropped, but the session bumped anyhow.
     next_reply.client_session_.session_ += 8;
@@ -848,6 +852,10 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
         send_first_message();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    // Ensure connection is restored
+    ASSERT_TRUE(await_connection(from, to));
+
     auto some_expected_message = first_expected_message_;
     // It seems some messages are dropped, but the session bumped anyhow.
     some_expected_message.client_session_.session_ += 8;
