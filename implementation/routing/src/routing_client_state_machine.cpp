@@ -180,6 +180,7 @@ void routing_client_state_machine::assignment_timed_out() {
         VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
         return;
     }
+    VSOMEIP_ERROR << "rcsm::" << __func__ << ": Assignment timed out after " << configuration_.assignment_timeout_.count() << "ms";
     deregister_unlocked(std::move(lock));
 }
 void routing_client_state_machine::registration_timed_out() {
@@ -188,6 +189,7 @@ void routing_client_state_machine::registration_timed_out() {
         VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
         return;
     }
+    VSOMEIP_ERROR << "rcsm::" << __func__ << ": Registration timed out after " << configuration_.register_timeout_.count() << "ms";
     deregister_unlocked(std::move(lock));
 }
 
