@@ -247,8 +247,6 @@ private:
     bool is_active_dispatcher(const std::thread::id& _id) const;
     void remove_elapsed_dispatchers();
 
-    void shutdown();
-
     void send_back_cached_event(service_t _service, instance_t _instance, event_t _event);
     void send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
     void check_send_back_cached_event(service_t _service, instance_t _instance, event_t _event, eventgroup_t _eventgroup,
@@ -366,7 +364,6 @@ private:
     std::size_t max_dispatchers_;
     std::size_t max_dispatch_time_;
 
-    std::condition_variable stop_cv_;
     std::mutex start_stop_mutex_;
     std::atomic_bool stopping_;
     std::thread stop_thread_;
@@ -378,7 +375,6 @@ private:
     std::map<service_t, std::map<instance_t, std::map<event_t, std::map<eventgroup_t, bool>>>> subscriptions_;
 
     std::thread::id stop_caller_id_;
-    std::thread::id start_caller_id_;
 
     std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool>>>>>
             subscription_status_handlers_;
