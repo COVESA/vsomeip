@@ -214,6 +214,10 @@ void routing_manager_base::log_network_state(bool _tcp, bool _only_external) con
         return;
     }
 
+    if (file.peek() == std::ifstream::traits_type::eof()) {
+        return;
+    }
+
     // compute external address in hex, same format as /proc/net/tcp
     // e.g., 127.0.0.1 => 0100007F
     auto external_addr = configuration_->get_unicast_address();
