@@ -15,14 +15,21 @@
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+
+#define private public
+#define protected public
 #include "../implementation/runtime/include/application_impl.hpp"
+#include "../implementation/routing/include/routing_manager_impl.hpp"
+#include "../implementation/endpoints/include/tcp_client_endpoint_impl.hpp"
 #include "../implementation/routing/include/routing_manager.hpp"
+
+using namespace std::chrono_literals;
 
 class magic_cookies_test_client {
 public:
     magic_cookies_test_client() :
-        app_(new vsomeip::application_impl("", "")), is_blocked_(false), sent_messages_good_(8), sent_messages_bad_(7),
-        received_responses_(0), received_errors_(0), wait_for_replies_(true), runner_(std::bind(&magic_cookies_test_client::run, this)) { }
+        app_(new vsomeip::application_impl("", "")), is_blocked_(false), received_responses_(0), received_errors_(0),
+        runner_(std::bind(&magic_cookies_test_client::run, this)) { }
 
     void init() {
         VSOMEIP_INFO << "Initializing...";
@@ -66,11 +73,7 @@ public:
                      << (_is_available ? "available." : "NOT available.");
 
         if (vsomeip_test::TEST_SERVICE_SERVICE_ID == _service && vsomeip_test::TEST_SERVICE_INSTANCE_ID == _instance) {
-            static bool is_available = false;
-            if (is_available && !_is_available)
-                is_available = false;
-            else if (_is_available && !is_available) {
-                is_available = true;
+            if (_is_available) {
                 std::scoped_lock its_lock(mutex_);
                 is_blocked_ = true;
                 condition_.notify_one();
@@ -79,6 +82,7 @@ public:
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _response) {
+        std::scoped_lock its_lock(mutex_);
         if (_response->get_return_code() == vsomeip::return_code_e::E_OK) {
             VSOMEIP_INFO << "Received a response from Service [" << std::hex << std::setfill('0') << std::setw(4)
                          << _response->get_service() << '.' << std::setw(4) << _response->get_instance() << "] to Client/Session ["
@@ -90,11 +94,8 @@ public:
                          << std::setw(4) << _response->get_client() << '/' << std::setw(4) << _response->get_session() << ']';
             received_errors_++;
         }
-        if (received_errors_ == sent_messages_bad_ && received_responses_ == sent_messages_good_) {
-            std::scoped_lock its_lock(mutex_);
-            wait_for_replies_ = false;
-            condition_.notify_one();
-        }
+
+        condition_.notify_one();
     }
 
     void join() { runner_.join(); }
@@ -108,65 +109,99 @@ public:
         VSOMEIP_INFO << "Running...";
 
         vsomeip::routing_manager* its_routing = app_->get_routing_manager();
+        ASSERT_TRUE(its_routing);
 
+        // NOTE: these payloads *NEED* a magic cookie in front to be complete/parseable by the other side
+        // which is how the test verifies anything at all
         vsomeip::byte_t its_good_payload_data[] = {0x12, 0x34, 0x84, 0x21, 0x00, 0x00, 0x00, 0x11, 0x13, 0x43, 0x00, 0x00, 0x01,
                                                    0x00, 0x00, 0x00, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
 
         vsomeip::byte_t its_bad_payload_data[] = {0x12, 0x34, 0x84, 0x21, 0x00, 0x00, 0x01, 0x23, 0x13, 0x43, 0x00, 0x00, 0x01,
                                                   0x00, 0x00, 0x00, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
 
+        // magic cookies are only sent every 10s
+        // to get around it, we hack deep, deep into the endpoint machinery to reset the timer after each message
+        // TODO: FIXME, somehow, because disgusting does not begin to describe how terrible this is
+        auto wait_and_reset_timer = [its_routing]() {
+            auto routing = dynamic_cast<vsomeip::routing_manager_impl*>(its_routing);
+            for (size_t i = 0; i < 2000; ++i) {
+                // NOTE: scope is intentional, need some care not to hold these internal locks for any amount of time
+                {
+                    std::scoped_lock its_lock{routing->get_endpoint_manager()->endpoint_mutex_};
+                    for (const auto& its_address : routing->get_endpoint_manager()->client_endpoints_) {
+                        for (const auto& its_port : its_address.second) {
+                            for (const auto& its_reliability : its_port.second) {
+                                for (const auto& its_partition : its_reliability.second) {
+                                    if (auto endpoint = dynamic_cast<vsomeip::tcp_client_endpoint_impl*>(its_partition.second.get())) {
+                                        std::scoped_lock its_inner_lock{endpoint->socket_mutex_};
+                                        // was a message just sent? reset the timer!
+                                        if (endpoint->last_cookie_sent_ > std::chrono::steady_clock::now() - 5s) {
+                                            endpoint->last_cookie_sent_ = std::chrono::steady_clock::now() - 11s;
+                                            VSOMEIP_INFO << "Reset cookie timer";
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                std::this_thread::sleep_for(1ms);
+            }
+
+            GTEST_FATAL_FAILURE_("Could not reset cookie timer");
+        };
+
         // Test sequence
         its_good_payload_data[11] = 0x01;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x02;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x03;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x04;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x05;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x06;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x07;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x08;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x09;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x0A;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x0B;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x0C;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x0D;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_bad_payload_data[11] = 0x0E;
         its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
-        std::this_thread::sleep_for(std::chrono::seconds(11));
+        wait_and_reset_timer();
         its_good_payload_data[11] = 0x0F;
         its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        wait_and_reset_timer();
 
-        if (!condition_.wait_for(its_lock, std::chrono::milliseconds(5000), [this] { return !wait_for_replies_; })) {
-            GTEST_NONFATAL_FAILURE_("Didn't receive all replies/errors in time");
-        }
+        ASSERT_TRUE(condition_.wait_for(its_lock, 5s, [this] { return received_responses_ == 8 && received_errors_ == 7; }));
 
-        EXPECT_EQ(sent_messages_good_, received_responses_);
-        EXPECT_EQ(sent_messages_bad_, received_errors_);
         stop();
     }
 
@@ -175,11 +210,8 @@ private:
     std::mutex mutex_;
     std::condition_variable condition_;
     bool is_blocked_;
-    const std::uint32_t sent_messages_good_;
-    const std::uint32_t sent_messages_bad_;
     std::atomic<std::uint32_t> received_responses_;
     std::atomic<std::uint32_t> received_errors_;
-    bool wait_for_replies_;
     std::thread runner_;
 };
 
