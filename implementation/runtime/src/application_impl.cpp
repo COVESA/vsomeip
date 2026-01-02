@@ -339,15 +339,13 @@ void application_impl::start() {
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
     {
         std::scoped_lock its_lock{start_stop_mutex_};
-        if (stopping_) {
-            VSOMEIP_ERROR << "Trying to start while stopping the application \"" << name_ << "\" (" << std::hex << std::setfill('0')
-                          << std::setw(4) << client_ << ")";
-            return;
-        }
 
-        if (stop_thread_.joinable()) {
-            VSOMEIP_ERROR << "Trying to start an already started application.";
-            return;
+        {
+            std::scoped_lock its_lock_inner{dispatcher_mutex_};
+            if (!dispatchers_.empty() || !io_threads_.empty()) {
+                VSOMEIP_ERROR << "Trying to start an already started application";
+                return;
+            }
         }
 
         if (io_.stopped()) {
@@ -361,7 +359,6 @@ void application_impl::start() {
 #endif
                 ;
 
-        start_caller_id_ = std::this_thread::get_id();
         {
             std::scoped_lock its_lock_inner{dispatcher_mutex_};
             is_dispatching_ = true;
@@ -371,8 +368,6 @@ void application_impl::start() {
 
             dispatchers_[its_main_dispatcher->get_id()] = its_main_dispatcher;
         }
-
-        stop_thread_ = std::thread(&application_impl::shutdown, shared_from_this());
 
         if (routing_)
             routing_->start();
@@ -468,9 +463,7 @@ void application_impl::start() {
                 // therefore SIGABRT
                 VSOMEIP_TERMINATE("io_context exited unexpectedly");
             }
-            if (stop_thread_.joinable()) {
-                stop_thread_.join();
-            }
+
             break;
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
@@ -555,8 +548,38 @@ void application_impl::stop() {
     }
 
     stopping_ = true;
-    stop_caller_id_ = std::this_thread::get_id(); // right now this is unused, but we can keep it for debugging
-    stop_cv_.notify_one();
+    stop_caller_id_ = std::this_thread::get_id();
+
+    // no need to pass a `shared_ptr`, because by definition the app must be alive if an io thread is still executing!
+    boost::asio::post(io_, [this]() {
+        // NOTE: quite a few assumptions baked here:
+        // 1) if the application did not yet start, it will, and it will start, then stop due to this handler
+        // 2) handler executes necessarily after `io.run()`, therefore after routing and dispatching starts
+
+        auto its_plugins = configuration_->get_plugins(name_);
+        auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
+        if (its_app_plugin_info != its_plugins.end()) {
+            for (const auto& its_library : its_app_plugin_info->second) {
+                auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
+                if (its_application_plugin) {
+                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
+                            ->on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
+                }
+            }
+        }
+
+        {
+            std::scoped_lock its_handler_lock{handlers_mutex_};
+            is_dispatching_ = false;
+            dispatcher_condition_.notify_all();
+        }
+
+        if (routing_) {
+            routing_->stop();
+        }
+
+        io_.stop();
+    });
 }
 
 void application_impl::process(int _number) {
@@ -2053,79 +2076,6 @@ void application_impl::clear_all_handler() {
         std::scoped_lock its_lock{handlers_mutex_};
         handlers_.clear();
     }
-}
-
-void application_impl::shutdown() {
-#if defined(__linux__) || defined(__QNX__)
-    boost::asio::detail::posix_signal_blocker blocker;
-    {
-        std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown";
-        pthread_setname_np(pthread_self(), s.str().c_str());
-    }
-#endif
-
-    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown"
-                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-            ;
-
-    {
-        std::unique_lock<std::mutex> its_lock(start_stop_mutex_);
-        stop_cv_.wait(its_lock, [this] { return stopping_.load(); });
-    }
-
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": Shutting down app(" << name_ << ", " << std::hex << std::setfill('0')
-                 << std::setw(4) << client_ << ")";
-
-    // Notify the Plugins
-    if (configuration_) {
-        auto its_plugins = configuration_->get_plugins(name_);
-        auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
-        if (its_app_plugin_info != its_plugins.end()) {
-            for (const auto& its_library : its_app_plugin_info->second) {
-                auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
-                if (its_application_plugin) {
-                    std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
-                            ->on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
-                }
-            }
-        }
-    }
-
-    {
-        std::scoped_lock its_handler_lock{handlers_mutex_};
-        is_dispatching_ = false;
-        dispatcher_condition_.notify_all();
-    }
-
-    try {
-        if (routing_)
-            routing_->stop();
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping routing, "
-                      << " catched exception: " << e.what();
-    }
-
-    try {
-        if (io_.stopped()) {
-            VSOMEIP_ERROR << "application_impl::" << __func__ << ": Trying to stop an application that was not started!";
-        }
-
-        io_.stop();
-    } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping io, "
-                      << " catched exception: " << e.what();
-    }
-
-    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown"
-                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                 << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-            ;
 }
 
 bool application_impl::is_routing() const {
