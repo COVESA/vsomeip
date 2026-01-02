@@ -468,7 +468,7 @@ protected:
 
     routing_t routing_;
 
-    bool is_sd_enabled_;
+    bool is_sd_enabled_; // Always false on non-linux systems
     std::string sd_protocol_;
     std::string sd_multicast_;
     uint16_t sd_port_;
