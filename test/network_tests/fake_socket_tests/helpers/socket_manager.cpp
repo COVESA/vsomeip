@@ -180,37 +180,40 @@ void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _e
 }
 
 void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
-    auto acceptor = [&]() -> std::shared_ptr<fake_tcp_acceptor_handle> {
+    // while the acceptor is only assigned when we find the "right" acceptor, scoped_acc will be set
+    // as soon as a weak_ptr is promoted to guarantee that the d'tor is only called without locking the mutex
+    std::shared_ptr<fake_tcp_acceptor_handle> acceptor, scoped_ac;
+    [&]() {
         auto const lock = std::scoped_lock(mtx_);
         auto const it = ep_to_acceptor_states_.find(_ep);
         if (it == ep_to_acceptor_states_.end()) {
             _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
-            return nullptr;
+            return;
         }
-        auto acc = it->second.lock();
-        if (!acc) {
+        scoped_ac = it->second.lock();
+        if (!scoped_ac) {
             _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
-            return nullptr;
+            return;
         }
-        auto acc_name = acc->get_app_name();
+        auto acc_name = scoped_ac->get_app_name();
         if (auto const it = app_to_next_connection_errors_.find(acc_name); it != app_to_next_connection_errors_.end()) {
             if (auto& err = it->second; !err.empty()) {
                 _handler(*err.begin());
                 err.erase(err.begin());
-                return nullptr;
+                return;
             }
         }
         if (auto const it = app_name_to_ignore_connections_count_.find(acc_name); it != app_name_to_ignore_connections_count_.end()) {
             if (it->second != 0) {
                 --(it->second);
                 // ignore the handler
-                return nullptr;
+                return;
             }
         }
         if (connections_to_ignore_.count(acc_name) > 0) {
-            return nullptr;
+            return;
         }
-        return acc;
+        acceptor = scoped_ac;
     }();
     if (!acceptor) {
         return;
@@ -301,10 +304,13 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
 }
 
 [[nodiscard]] bool socket_manager::await_connectable(std::string const& _app, std::chrono::milliseconds _timeout) {
+    // fake_tcp_acceptor_handle need to outlive mtx_ so declare it before
+    std::vector<std::shared_ptr<fake_tcp_acceptor_handle>> handles_to_hold;
     auto lock = std::unique_lock(mtx_);
     return connectable_cv_.wait_for(lock, _timeout, [&, this] {
         for (auto const& ep_ac : ep_to_acceptor_states_) {
-            if (auto const acceptor = ep_ac.second.lock(); acceptor) {
+            if (auto const acceptor = ep_ac.second.lock()) {
+                handles_to_hold.push_back(acceptor);
                 if (acceptor->get_app_name() == _app) {
                     return acceptor->is_awaiting_connection();
                 }
@@ -315,6 +321,8 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
 }
 
 [[nodiscard]] bool socket_manager::await_connection(std::string const& _from, std::string const& _to, std::chrono::milliseconds _timeout) {
+    // fake_tcp_socket_handle need to outlive mtx_ so declare it before
+    std::vector<std::shared_ptr<fake_tcp_socket_handle>> handles_to_hold;
     auto lock = std::unique_lock(mtx_);
     auto const cn = connection_name(_from, _to);
     return connection_cv_.wait_for(lock, _timeout, [&, this] {
@@ -322,11 +330,11 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
         if (it == app_names_to_connection.end()) {
             return false;
         }
-        auto const from = it->second.first.lock();
-        if (!from) {
-            return false;
+        if (auto from = it->second.first.lock()) {
+            handles_to_hold.push_back(from);
+            return from->is_connected(it->second.second);
         }
-        return from->is_connected(it->second.second);
+        return false;
     });
 }
 
@@ -393,6 +401,8 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
 
 [[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
                                                       std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
+    // fake_tcp_socket_handles need to outlive mtx_ so declare them before
+    std::shared_ptr<vsomeip_v3::testing::fake_tcp_socket_handle> from, to;
     auto const lock = std::scoped_lock(mtx_);
     auto const cn = connection_name(_from, _to);
     auto const it_connection = app_names_to_connection.find(cn);
@@ -400,12 +410,12 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
         return false;
     }
     bool ret = true;
-    if (auto from = it_connection->second.first.lock(); from) {
+    if (from = it_connection->second.first.lock(); from) {
         from->block_on_close_for(_from_block_time);
     } else {
         ret = false;
     }
-    if (auto to = it_connection->second.second.lock(); to) {
+    if (to = it_connection->second.second.lock(); to) {
         to->block_on_close_for(_to_block_time);
     } else {
         ret = false;
