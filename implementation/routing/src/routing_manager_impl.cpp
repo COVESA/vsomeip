@@ -3513,7 +3513,11 @@ void routing_manager_impl::init_pending_services() {
 }
 
 bool routing_manager_impl::is_external_routing_ready() const {
+    #ifdef __linux__
     return if_state_running_ && (!configuration_->is_sd_enabled() || (configuration_->is_sd_enabled() && sd_route_set_));
+    #else
+    return if_state_running_ && configuration_->is_sd_enabled();
+    #endif
 }
 
 bool routing_manager_impl::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
