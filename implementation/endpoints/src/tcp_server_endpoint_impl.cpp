@@ -503,6 +503,8 @@ bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
     const method_t its_method = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_METHOD_POS_MIN]);
     const client_t its_client = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_CLIENT_POS_MIN]);
     const session_t its_session = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SESSION_POS_MIN]);
+
+    std::scoped_lock its_lock(socket_mutex_);
     if (use_magic_cookies_) {
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_cookie_sent_) > std::chrono::milliseconds(10000)) {
@@ -513,17 +515,14 @@ bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
         }
     }
 
-    {
-        std::scoped_lock its_lock(socket_mutex_);
-        _it->second.is_sending_ = true;
+    _it->second.is_sending_ = true;
 
-        boost::asio::async_write(
-                socket_, boost::asio::buffer(*its_buffer),
-                std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition, shared_from_this(), std::placeholders::_1,
-                          std::placeholders::_2, its_buffer->size(), its_service, its_method, its_client, its_session,
-                          std::chrono::steady_clock::now()),
-                std::bind(&tcp_server_endpoint_base_impl::send_cbk, its_server, _it->first, std::placeholders::_1, std::placeholders::_2));
-    }
+    boost::asio::async_write(
+            socket_, boost::asio::buffer(*its_buffer),
+            std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition, shared_from_this(), std::placeholders::_1,
+                      std::placeholders::_2, its_buffer->size(), its_service, its_method, its_client, its_session,
+                      std::chrono::steady_clock::now()),
+            std::bind(&tcp_server_endpoint_base_impl::send_cbk, its_server, _it->first, std::placeholders::_1, std::placeholders::_2));
 
     return true;
 }
