@@ -1,5 +1,7 @@
 load("@vsomeip//bazel:cmake_like_configure_file.bzl", "cmake_like_configure_file")
 
+VSOMEIP_GEN_VERSION = "3.99.99-untagged"  # This version is replaced by the git tag during the release action
+
 cmake_like_configure_file(
     name = "config",
     src = "configuration/include/internal.hpp.in",
@@ -10,16 +12,13 @@ cmake_like_configure_file(
         "VSOMEIP_UNICAST_ADDRESS": "127.0.0.1",
         "VSOMEIP_DIAGNOSIS_ADDRESS": "0x01",
         "VSOMEIP_ROUTING_READY_MESSAGE": "SOME/IP routing ready.",
-        "VSOMEIP_HOTFIX_VERSION": "0",
-        "VSOMEIP_MAJOR_VERSION": "3",
-        "VSOMEIP_MINOR_VERSION": "5",
-        "VSOMEIP_PATCH_VERSION": "9",
         "VSOMEIP_LOCAL_TCP_PORT_WAIT_TIME": "100",
         "VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME": "10000",
     } | select({
         "//conditions:default": {"VSOMEIP_BASE_PATH": "/tmp"},
         "@platforms//os:qnx": {"VSOMEIP_BASE_PATH": "/var"},
     }),
+    version = VSOMEIP_GEN_VERSION,
 )
 
 cc_library(
