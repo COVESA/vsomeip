@@ -58,11 +58,13 @@ public:
     VSOMEIP_EXPORT std::set<std::string, std::less<>> get_remote_ip_accepting_sub();
 
 private:
-    service_t service_;
-    instance_t instance_;
+    const service_t service_;
+    const instance_t instance_;
 
-    major_version_t major_;
-    minor_version_t minor_;
+    const major_version_t major_;
+    const minor_version_t minor_;
+
+    const bool is_local_;
 
     mutable std::mutex ttl_mutex_;
     std::chrono::milliseconds ttl_;
@@ -74,7 +76,6 @@ private:
     std::mutex requesters_mutex_;
     std::set<client_t> requesters_;
 
-    std::atomic_bool is_local_;
     std::atomic_bool is_in_mainphase_;
 
     // Added flag, to ensure the lib only process subscriptions request
