@@ -96,7 +96,7 @@ If you encounter build issues on Ubuntu 24.04, consider using Ubuntu 22.04 as a 
 
 ###### Dependencies
 
-- vSomeIP uses Boost >= 1.74. The boost libraries (filesystem) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
+- vSomeIP uses Boost >= 1.74. The boost libraries (system and filesystem) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
 
 ###### Compilation
 

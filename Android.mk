@@ -92,6 +92,7 @@ LOCAL_C_INCLUDES := \
 LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
+    libboost_system \
     libboost_filesystem \
 
 LOCAL_CFLAGS :=  \
@@ -149,6 +150,7 @@ LOCAL_C_INCLUDES := \
 LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
+    libboost_system \
     libboost_filesystem \
     libvsomeip3_dlt \
 
