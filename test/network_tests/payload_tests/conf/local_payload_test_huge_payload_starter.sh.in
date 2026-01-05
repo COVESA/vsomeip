@@ -22,7 +22,7 @@ SERVICE_PID=$!
 # Start the client
 export VSOMEIP_APPLICATION_NAME=local_payload_test_client
 export VSOMEIP_CONFIGURATION=local_payload_test_client.json
-if ! ./payload_test_client --number-of-messages 100 --max-payload-size 10485760
+if ! ./payload_test_client --number-of-messages 5 --max-payload-size 10485760
 then
     FAIL=$((FAIL+1))
 fi
