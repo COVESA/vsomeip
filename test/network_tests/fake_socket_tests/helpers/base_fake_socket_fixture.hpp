@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "attribute_recorder.hpp"
+#include "fake_tcp_socket_handle.hpp"
 #include "service_state.hpp"
 #include "fake_socket_factory.hpp"
 #include "app.hpp"
@@ -191,7 +192,8 @@ struct base_fake_socket_fixture : ::testing::Test {
     /**
      * @see socket_manager::set_custom_command_handler
      */
-    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler);
+    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
+                                    socket_role _sender = socket_role::unspecified);
 
 private:
     static std::shared_ptr<fake_socket_factory> factory_;

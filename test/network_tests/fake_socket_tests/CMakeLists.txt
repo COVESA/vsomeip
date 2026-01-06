@@ -14,8 +14,10 @@ configure_files("${configuration_files}")
 # Add test executable.
 add_executable(${PROJECT_NAME}
     helpers/app.cpp
+    helpers/app_connection.cpp
     helpers/base_fake_socket_fixture.cpp
     helpers/command_message.cpp
+    helpers/command_record.cpp
     helpers/fake_tcp_socket_handle.cpp
     helpers/service_state.cpp
     helpers/socket_manager.cpp
