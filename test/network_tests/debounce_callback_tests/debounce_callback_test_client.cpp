@@ -9,6 +9,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "debounce_callback_test_client.hpp"
+#include "common/timeout_detector.hpp"
 
 static std::vector<std::shared_ptr<vsomeip::payload>> payloads__;
 
@@ -188,7 +189,7 @@ TEST(debounce_timeout_test, callback) {
     EXPECT_EQ(its_client.getIndex(), payloads__.size());
 }
 int main(int argc, char** argv) {
-
+    timeout_detector td;
     std::shared_ptr<vsomeip::payload> its_payload;
 
     its_payload = vsomeip::runtime::get()->create_payload();

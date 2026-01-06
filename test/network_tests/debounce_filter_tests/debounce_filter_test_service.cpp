@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 #include "debounce_filter_test_service.hpp"
 
@@ -100,6 +101,7 @@ TEST(debounce_test, disable) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

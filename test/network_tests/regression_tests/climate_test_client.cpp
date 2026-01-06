@@ -11,6 +11,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 #include <gtest/gtest.h>
 
@@ -156,6 +157,7 @@ TEST(someip_subscribe_notify_test_example, stop_without_unregister) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

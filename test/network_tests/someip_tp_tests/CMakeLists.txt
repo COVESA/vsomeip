@@ -68,40 +68,34 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME someip_tp_test_in_sequence
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh IN_SEQUENCE
-    TIMEOUT 15
 )
 
 # Add custom test command.
 add_custom_test(
     NAME someip_tp_test_mixed
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh MIXED
-    TIMEOUT 15
 )
 
 # Add custom test command.
 add_custom_test(
     NAME someip_tp_test_incomplete
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh INCOMPLETE
-    TIMEOUT 30
 )
 
 # Add custom test command.
 add_custom_test(
     NAME someip_tp_test_duplicate
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh DUPLICATE
-    TIMEOUT 15
 )
 
 # Add custom test command.
 add_custom_test(
     NAME someip_tp_test_overlap
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh OVERLAP
-    TIMEOUT 15
 )
 
 # Add custom test command.
 add_custom_test(
     NAME someip_tp_test_overlap_front_back
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh OVERLAP_FRONT_BACK
-    TIMEOUT 15
 )

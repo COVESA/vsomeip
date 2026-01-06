@@ -28,6 +28,7 @@
 #include "offered_services_info_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 static std::string service_number;
 std::map<vsomeip::service_t, std::set<vsomeip::instance_t>> all_offered_services;
@@ -258,6 +259,7 @@ TEST(someip_offered_services_info_test, check_offered_services_as_rm_impl) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;

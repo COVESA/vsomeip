@@ -5,6 +5,8 @@
 
 #include <iomanip>
 
+#include "common/timeout_detector.hpp"
+
 #include "payload_test_service.hpp"
 
 // this variables are changed via cmdline parameters
@@ -129,6 +131,7 @@ TEST(someip_payload_test, send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td(1800);
     std::string help("--help");
     std::string check("--do-not-check-payload");
 

@@ -34,5 +34,4 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME offered_services_info_test_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offered_services_info_test_local_starter.sh
-    TIMEOUT 60
 )

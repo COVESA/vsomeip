@@ -11,6 +11,7 @@
 #include <vsomeip/vsomeip.hpp>
 #include "common/interprocess.hpp"
 #include "common/process.hpp"
+#include "common/timeout_detector.hpp"
 #include "start_stop_start_test_globals.hpp"
 
 namespace start_stop_start {
@@ -126,6 +127,7 @@ TEST(start_stop_start_test_manager, start_stop_start_with_two_application) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::GTEST_FLAG(throw_on_failure) = true;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
+#include "common/timeout_detector.hpp"
 
 /// @brief This test validates that no data race occurs when calling vsomeip::application_impl::init
 ///        on multiple applications, within the same process.
@@ -65,6 +66,7 @@ TEST(someip_application_init_test, multithread_init) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

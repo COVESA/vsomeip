@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <vector>
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -279,6 +280,7 @@ TEST(offer_test, multiple_offerings_same_service) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -21,6 +21,7 @@
 #include "event_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class event_test_client {
 public:
@@ -203,6 +204,7 @@ TEST(someip_event_test, subscribe_or_call_method_at_service) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {
         std::cerr << "Please specify a operation mode, like: " << argv[0] << "PAYLOAD_FIXED TCP" << std::endl;

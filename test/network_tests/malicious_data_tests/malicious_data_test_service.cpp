@@ -22,6 +22,7 @@
 #include "malicious_data_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class malicious_data_test_service {
 public:
@@ -147,6 +148,7 @@ TEST(someip_malicious_data_test, block_subscription_handler) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     std::string its_passed_testmode = argv[1];
     if (its_passed_testmode == std::string("MALICIOUS_EVENTS")) {

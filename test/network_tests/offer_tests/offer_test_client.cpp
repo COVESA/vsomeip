@@ -27,6 +27,7 @@
 #include "offer_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 enum operation_mode_e { SUBSCRIBE, METHODCALL };
 
@@ -224,6 +225,7 @@ TEST(someip_offer_test, subscribe_or_call_method_at_service) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a operation mode, like: " << argv[0] << " SUBSCRIBE" << std::endl;

@@ -37,26 +37,22 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME event_test_payload_fixed_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_FIXED UDP
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME event_test_payload_fixed_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_FIXED TCP
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME event_test_payload_dynamic_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_DYNAMIC UDP
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME event_test_payload_dynamic_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_DYNAMIC TCP
-    TIMEOUT 180
 )

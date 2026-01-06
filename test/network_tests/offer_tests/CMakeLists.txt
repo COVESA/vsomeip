@@ -98,26 +98,22 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME offer_test_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_local_starter.sh
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME offer_test_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_external_master_starter.sh
-    TIMEOUT 60
 )
 
 # Add custom test command.
 add_custom_test(
     NAME offer_test_big_sd_msg
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_big_sd_msg_master_starter.sh
-    TIMEOUT 60
 )
 
 # Add custom test command.
 add_custom_test(
     NAME offer_test_multiple_offerings
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_multiple_offerings
-    TIMEOUT 60
 )

@@ -34,5 +34,4 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME cached_event_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cached_event_test_client.sh
-    TIMEOUT 20
 )

@@ -20,6 +20,7 @@
 #include "event_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class event_test_service {
 public:
@@ -161,6 +162,7 @@ TEST(someip_event_test, send_events) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
 
     if (std::string("TCP") == std::string(argv[1])) {

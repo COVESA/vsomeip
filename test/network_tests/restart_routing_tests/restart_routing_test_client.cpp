@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include "common/timeout_detector.hpp"
 
 #include "restart_routing_test_client.hpp"
 #include <boost/interprocess/managed_shared_memory.hpp>
@@ -175,6 +176,7 @@ TEST(someip_restart_routing_test, request_response_over_restart) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td(600);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

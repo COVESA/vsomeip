@@ -34,5 +34,4 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME debounce_epsilon_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/debounce_epsilon_test_client.sh
-    TIMEOUT 10
 )

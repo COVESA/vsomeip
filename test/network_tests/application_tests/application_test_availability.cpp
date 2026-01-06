@@ -7,6 +7,7 @@
 #include "application_test_client_availability.cpp"
 #include "application_test_service.cpp"
 #include "application_test_daemon.cpp"
+#include "common/timeout_detector.hpp"
 
 TEST(someip_application_test_availability, register_availability_handlers) {
     // start application acting as daemon
@@ -33,6 +34,7 @@ TEST(someip_application_test_availability, register_availability_handlers) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

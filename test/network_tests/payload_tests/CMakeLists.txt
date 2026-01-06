@@ -55,7 +55,6 @@ add_custom_test(
 add_custom_test(
     NAME local_payload_test_huge_payload
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_payload_test_huge_payload_starter.sh
-    TIMEOUT 1800
 )
 
 # Add custom test command.
@@ -68,12 +67,10 @@ add_custom_test(
 add_custom_test(
     NAME external_local_payload_test_client_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_external_starter.sh
-    TIMEOUT 480
 )
 
 # Add custom test command.
 add_custom_test(
     NAME external_local_payload_test_client_local_and_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_local_and_external_starter.sh
-    TIMEOUT 480
 )

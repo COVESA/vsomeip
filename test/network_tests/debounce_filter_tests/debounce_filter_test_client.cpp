@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 #include "debounce_filter_test_client.hpp"
 
@@ -200,6 +201,7 @@ TEST(debounce_test, disable) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

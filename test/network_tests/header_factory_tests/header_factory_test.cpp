@@ -9,6 +9,7 @@
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class someip_header_factory_test : public ::testing::Test {
 protected:
@@ -107,6 +108,7 @@ TEST_F(someip_header_factory_test, create_notification_test) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

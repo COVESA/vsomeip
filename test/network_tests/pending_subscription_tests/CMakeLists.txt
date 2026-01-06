@@ -65,54 +65,46 @@ endif()
 add_custom_test(
     NAME pending_subscription_test_subscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_alternating_subscribe_unsubscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_UNSUBSCRIBE
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_unsubscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh UNSUBSCRIBE
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_alternating_subscribe_unsubscribe_nack
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_UNSUBSCRIBE_NACK
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_alternating_subscribe_unsubscribe_same_port
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_UNSUBSCRIBE_SAME_PORT
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_subscribe_resubscribe_mixed
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_RESUBSCRIBE_MIXED
-    TIMEOUT 300
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_subscribe_stopsubscribe_subscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_send_request_to_sd_port
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh REQUEST_TO_SD
-    TIMEOUT 180
 )

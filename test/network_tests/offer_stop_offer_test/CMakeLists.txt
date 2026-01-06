@@ -37,6 +37,5 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME offer_stop_offer_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_stop_offer_test_client_starter.sh
-    TIMEOUT 30
 )
 endif()

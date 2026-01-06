@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 #include "debounce_test_client.hpp"
 
@@ -227,7 +228,7 @@ TEST(debounce_test, mask) {
 }
 
 int main(int argc, char** argv) {
-
+    timeout_detector td;
     std::shared_ptr<vsomeip::payload> its_payload;
 
     // Flat test

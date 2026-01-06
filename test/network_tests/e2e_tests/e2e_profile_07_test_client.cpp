@@ -9,6 +9,7 @@
 #include "e2e_profile_07_test_client.hpp"
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 std::vector<std::vector<vsomeip::byte_t>> responses_;
 std::vector<std::vector<vsomeip::byte_t>> events_;
@@ -198,6 +199,7 @@ TEST(someip_e2e_profile_07_test, test_crc_calculation) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
 
     // The first 8 bytes are the CRC calculated over all the data (except the CRC itself) and the
     // previous 8 bytes from the vSomeIP header The next 4 bytes are the length of the data The next

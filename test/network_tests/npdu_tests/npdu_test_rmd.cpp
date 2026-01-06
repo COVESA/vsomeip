@@ -8,6 +8,7 @@
 #include "../npdu_tests/npdu_test_rmd.hpp"
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 #include "npdu_test_globals.hpp"
 
 #include "../npdu_tests/npdu_test_globals.hpp"
@@ -139,6 +140,7 @@ TEST(someip_npdu_test, offer_routing_manager_functionality) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

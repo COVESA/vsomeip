@@ -42,5 +42,4 @@ endforeach()
 add_custom_test(
     NAME magic_cookies_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/magic_cookies_test_starter.sh
-    TIMEOUT 250
 )

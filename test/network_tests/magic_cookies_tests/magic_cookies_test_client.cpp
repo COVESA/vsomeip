@@ -15,9 +15,11 @@
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 #define private public
 #define protected public
+
 #include "../implementation/runtime/include/application_impl.hpp"
 #include "../implementation/routing/include/routing_manager_impl.hpp"
 #include "../implementation/endpoints/include/tcp_client_endpoint_impl.hpp"
@@ -223,6 +225,7 @@ TEST(someip_magic_cookies_test, send_good_and_bad_messages) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td(300);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

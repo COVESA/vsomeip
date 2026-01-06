@@ -30,5 +30,4 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME registration_check_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/registration_check_start.sh
-    TIMEOUT 30
 )

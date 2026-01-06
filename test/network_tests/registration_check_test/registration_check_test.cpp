@@ -2,6 +2,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v.2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http: // mozilla.org/MPL/2.0/.
+#include "common/timeout_detector.hpp"
 #include "registration_check_service.hpp"
 
 TEST(registration_check_test, test) {
@@ -25,6 +26,7 @@ TEST(registration_check_test, test) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

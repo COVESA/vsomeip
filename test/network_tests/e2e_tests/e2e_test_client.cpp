@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include "common/timeout_detector.hpp"
 
 #include "e2e_test_client.hpp"
 
@@ -233,7 +234,7 @@ TEST(someip_e2e_test, basic_subscribe_request_response) {
 }
 
 int main(int argc, char** argv) {
-
+    timeout_detector td;
     /*
      e2e profile01 CRC8 protected fixed sample payloads sent by service
      which must be received in client using the following config on client side:

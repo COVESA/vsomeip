@@ -6,6 +6,8 @@
 #include <iomanip>
 #include <limits>
 
+#include "common/timeout_detector.hpp"
+
 #include "multicast_group_test_globals.hpp"
 
 using namespace multicast_group_test;
@@ -149,6 +151,7 @@ TEST(MulticastGroupTest, SecondClientSubscribesToService) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -16,6 +16,7 @@
 #include "../../implementation/plugin/include/plugin_manager_impl.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 using namespace vsomeip;
 
@@ -554,6 +555,7 @@ TEST_F(client_id_utility_test, request_released_client_id_after_maximum_client_i
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

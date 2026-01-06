@@ -10,6 +10,7 @@
 #include "reuse_client_id_test_client.hpp"
 
 #include <boost/interprocess/managed_shared_memory.hpp>
+#include "common/timeout_detector.hpp"
 
 namespace bpi = boost::interprocess;
 
@@ -125,6 +126,8 @@ TEST(reuse_client_id_test, start_app) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
+
     if (argc < 3) {
         std::cout << "Not enough arguments provided" << std::endl;
         return 0;

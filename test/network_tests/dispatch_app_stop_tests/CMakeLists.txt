@@ -20,5 +20,4 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME dispatch_app_stop_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/dispatch_app_stop_test
-    TIMEOUT 10
 )

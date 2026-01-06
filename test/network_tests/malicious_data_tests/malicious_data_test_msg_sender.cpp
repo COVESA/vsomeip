@@ -16,6 +16,8 @@
 
 #include <vsomeip/vsomeip.hpp>
 
+#include "common/timeout_detector.hpp"
+
 #include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
 #include "../../implementation/service_discovery/include/service_discovery.hpp"
@@ -1708,6 +1710,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {
         std::cerr << "Please pass an target, local IP address and test mode to this binary like: " << argv[0]

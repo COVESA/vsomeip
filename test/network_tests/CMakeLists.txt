@@ -103,7 +103,6 @@ endfunction()
 # add_custom_test(
 # NAME my_test_name
 # COMMAND ${CMAKE_CURRENT_BINARY_DIR}/my_test_starter.sh ARG1 ARG2...
-# TIMEOUT 60 # Optional. Defaults to 120s.
 # ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
 # )
 function(add_custom_test)
@@ -132,14 +131,9 @@ function(add_custom_test)
         COMMAND ${custom_test_entrypoint} ${MY_TEST_COMMAND}
     )
 
-    if(NOT MY_TEST_TIMEOUT)
-        # Set the default timeout to 120 seconds.
-        set(MY_TEST_TIMEOUT 120)
-    endif()
-
     # Set a timeout for the test.
     set_tests_properties(${MY_TEST_NAME}
-        PROPERTIES TIMEOUT ${MY_TEST_TIMEOUT}
+        PROPERTIES TIMEOUT 700
     )
 
     if(MY_TEST_ENVIRONMENT)

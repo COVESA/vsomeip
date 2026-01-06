@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 #include "memory_test_client.hpp"
 
 void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
@@ -181,6 +182,7 @@ TEST(memory_tests, receive_messages) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td(300);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

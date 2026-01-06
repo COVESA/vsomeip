@@ -32,5 +32,4 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME reuse_client_id_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/reuse_client_id_test_manager
-    TIMEOUT 30
 )
