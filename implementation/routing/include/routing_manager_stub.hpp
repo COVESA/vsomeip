@@ -199,10 +199,6 @@ private:
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
 
-    boost::asio::steady_timer client_id_timer_;
-    std::set<client_t> used_client_ids_;
-    std::mutex used_client_ids_mutex_;
-
     std::shared_ptr<local_server> root_; // Routing manager endpoint
 
     std::shared_ptr<local_server> local_receiver_;
