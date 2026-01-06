@@ -97,8 +97,11 @@ cc_library_shared {
         "interface"
     ],
 
+    header_libs: [
+        "libboost_headers"
+    ],
+
     shared_libs: [
-        "libboost_system",
         "libboost_filesystem",
         "liblog",
         "libutils"
@@ -118,9 +121,12 @@ cc_library_shared {
 
     rtti: true,
 
+    header_libs: [
+        "libboost_headers"
+    ],
+
     shared_libs: [
         "libvsomeip3",
-        "libboost_system",
         "libboost_filesystem"
     ]
 }
@@ -156,9 +162,12 @@ cc_library_shared {
 
     rtti: true,
 
+    header_libs: [
+        "libboost_headers"
+    ],
+
     shared_libs: [
-        "libvsomeip3",
-        "libboost_system"
+        "libvsomeip3"
     ]
 }
 
