@@ -36,5 +36,4 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME climate_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/climate_test_master_starter.sh
-    TIMEOUT 25
 )

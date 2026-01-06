@@ -22,6 +22,7 @@
 #include "pending_subscription_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class pending_subscription_test_service {
 public:
@@ -333,6 +334,7 @@ TEST(someip_pending_subscription_test, block_subscription_handler) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td(300);
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please pass a test mode to this binary like: " << argv[0] << " SUBSCRIBE" << std::endl;

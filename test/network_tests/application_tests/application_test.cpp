@@ -14,6 +14,7 @@
 #include <vsomeip/vsomeip.hpp>
 
 #include "someip_test_globals.hpp"
+#include "common/timeout_detector.hpp"
 
 using namespace vsomeip;
 
@@ -405,6 +406,7 @@ TEST_F(someip_application_exception_test, catch_exception_in_invoked_handler) { 
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

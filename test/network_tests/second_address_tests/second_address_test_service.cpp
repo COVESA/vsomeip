@@ -18,6 +18,7 @@
 #include "second_address_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class second_address_test_service {
 public:
@@ -225,6 +226,7 @@ TEST(someip_second_address_test, test_communication_with_client) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

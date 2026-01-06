@@ -43,5 +43,4 @@ endif()
 add_custom_test(
     NAME cpu_load_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cpu_load_test_master_starter.sh
-    TIMEOUT 3000
 )

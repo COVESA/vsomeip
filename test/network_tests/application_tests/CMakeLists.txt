@@ -43,14 +43,12 @@ endif()
 add_custom_test(
     NAME application_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_starter.sh
-    TIMEOUT 180
 )
 
 # Add custom test command.
 add_custom_test(
     NAME application_test_multiple_init
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init.sh
-    TIMEOUT 180
 )
 
 if (NOT ${TESTS_BAT})
@@ -91,14 +89,12 @@ if (NOT ${TESTS_BAT})
     add_custom_test(
         NAME application_test_single_process
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process_starter.sh
-        TIMEOUT 80
     )
 
     # Add custom test command.
     add_custom_test(
         NAME application_test_availability
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_availability_starter.sh
-        TIMEOUT 80
     )
 
 endif()

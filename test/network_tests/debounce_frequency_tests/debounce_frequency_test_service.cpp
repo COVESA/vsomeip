@@ -5,6 +5,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 #include "debounce_frequency_test_service.hpp"
+#include "common/timeout_detector.hpp"
 
 uint64_t elapsedMilliseconds(const std::chrono::time_point<std::chrono::system_clock>& _start_time) {
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - _start_time).count();
@@ -80,6 +81,7 @@ TEST(debounce_frequency_test, server) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

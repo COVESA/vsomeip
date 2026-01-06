@@ -36,5 +36,4 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME debounce_frequency_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/debounce_frequency_test_master_starter.sh
-    TIMEOUT 60
 )

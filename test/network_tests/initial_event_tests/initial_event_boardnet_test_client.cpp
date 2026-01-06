@@ -16,6 +16,7 @@
 
 #include "initial_event_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class boardnet_client {
 public:
@@ -119,6 +120,7 @@ TEST(someip_initial_event_test, boardnet_client) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

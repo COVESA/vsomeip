@@ -15,6 +15,7 @@
 #include <boost/interprocess/mapped_region.hpp>
 
 #include <common/process_manager.hpp>
+#include "common/timeout_detector.hpp"
 #include "restart_routing_test_globals.hpp"
 
 namespace bpi = boost::interprocess;
@@ -296,6 +297,7 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td(600);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -20,6 +20,7 @@
 #include "suspend_resume_test.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 pid_t daemon_pid__;
 
@@ -291,7 +292,7 @@ TEST(suspend_resume_test, fast) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
 
     daemon_pid__ = atoi(argv[1]);

@@ -10,6 +10,7 @@
 #include <memory>
 #include <thread>
 #include <vsomeip/vsomeip.hpp>
+#include "common/timeout_detector.hpp"
 
 #include "someip_test_globals.hpp"
 #include "vsomeip/internal/logger.hpp"
@@ -82,6 +83,7 @@ TEST(debounce_filter_tests, server_sends_notifications) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

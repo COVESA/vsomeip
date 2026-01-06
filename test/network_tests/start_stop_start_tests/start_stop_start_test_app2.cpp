@@ -1,4 +1,5 @@
 #include <common/vsomeip_app.hpp>
+#include "common/timeout_detector.hpp"
 #include "start_stop_start_test_globals.hpp"
 
 #include <future>
@@ -59,6 +60,7 @@ TEST(start_stop_start_test_app2, start_stop_application) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

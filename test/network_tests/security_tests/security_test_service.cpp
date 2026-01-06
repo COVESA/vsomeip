@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include "common/timeout_detector.hpp"
 
 #include "security_test_service.hpp"
 
@@ -160,6 +161,7 @@ TEST(someip_security_test, basic_subscribe_request_response) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
 
     std::string test_remote("--remote");
     std::string test_local("--local");

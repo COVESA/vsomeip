@@ -6,6 +6,7 @@
 
 #include "big_payload_test_client.hpp"
 #include "big_payload_test_globals.hpp"
+#include "common/timeout_detector.hpp"
 
 // Test steps:
 // on_message:
@@ -251,6 +252,7 @@ TEST(someip_big_payload_test, send_ten_messages_to_service) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     if (argc > 1) {
         if (std::string("RANDOM") == std::string(argv[1])) {

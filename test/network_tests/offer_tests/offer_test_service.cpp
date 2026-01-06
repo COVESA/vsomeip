@@ -23,6 +23,7 @@
 #include "offer_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 static std::string service_number;
 static std::atomic<bool> sigusr1_raised{false};
@@ -147,6 +148,7 @@ static void sigusr1_handler(int /*signum*/) {
 }
 
 int main(int argc, char** argv) {
+    timeout_detector td;
     signal(SIGUSR1, sigusr1_handler);
 
     ::testing::InitGoogleTest(&argc, argv);

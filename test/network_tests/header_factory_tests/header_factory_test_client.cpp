@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
+#include "common/timeout_detector.hpp"
 
 #include "header_factory_test_client.hpp"
 
@@ -118,6 +119,7 @@ TEST(someip_header_factory_test, send_message_ten_times_test) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

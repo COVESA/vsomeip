@@ -16,6 +16,8 @@
 #include <cmath> // for isfinite
 #include <atomic>
 
+#include "common/timeout_detector.hpp"
+
 #include "cpu_load_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
 #include "cpu_load_measurer.hpp"
@@ -270,6 +272,7 @@ TEST(someip_load_test, DISABLED_send_messages_and_measure_cpu_load) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td(3000);
     int i = 0;
     while (i < argc) {
         if (std::string("--protocol") == std::string(argv[i]) || std::string("-p") == std::string(argv[i])) {

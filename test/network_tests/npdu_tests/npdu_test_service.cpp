@@ -9,6 +9,7 @@
 #include "../npdu_tests/npdu_test_globals.hpp"
 
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 #include "../../implementation/configuration/include/configuration.hpp"
 #include "../../implementation/configuration/include/configuration_impl.hpp"
 #include "../../implementation/configuration/include/configuration_plugin.hpp"
@@ -237,6 +238,7 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     int i = 1;
     while (i < argc) {
         if (std::string("--help") == argv[i]) {

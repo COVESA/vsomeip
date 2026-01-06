@@ -5,6 +5,8 @@
 
 #include <iomanip>
 
+#include "common/timeout_detector.hpp"
+
 #include "payload_test_client.hpp"
 
 enum class payloadsize : std::uint8_t { UDS, TCP, UDP, USER_SPECIFIED };
@@ -246,6 +248,7 @@ TEST(someip_payload_test, send_different_payloads) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td(1800);
     std::string tcp_enable("--tcp");
     std::string udp_enable("--udp");
     std::string sync_enable("--sync");

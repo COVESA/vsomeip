@@ -8,6 +8,8 @@
 #include "e2e_profile_04_test_common.hpp"
 #include "e2e_profile_04_test_service.hpp"
 
+#include "common/timeout_detector.hpp"
+
 static bool is_remote_test = false;
 static bool remote_client_allowed = true;
 
@@ -163,6 +165,7 @@ TEST(someip_e2e_profile_04_test, basic_subscribe_request_response) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
 
     counters_[PROFILE_04_METHOD] = 0;
     counters_[PROFILE_04_EVENT] = 0;

@@ -100,9 +100,6 @@
                 "maxFailedTestOutputSize": 1e9,
                 "maxPassedTestOutputSize": 1e9,
                 "outputOnFailure": true
-            },
-            "execution": {
-                "timeout": 150
             }
         }
     ]

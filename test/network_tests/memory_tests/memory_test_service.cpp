@@ -5,6 +5,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 #include <cstring>
+#include "common/timeout_detector.hpp"
 
 #include "memory_test_service.hpp"
 
@@ -154,6 +155,7 @@ TEST(memory_test, send_messages) {
     }
 }
 int main(int argc, char** argv) {
+    timeout_detector td(300);
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

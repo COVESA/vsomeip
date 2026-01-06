@@ -21,6 +21,7 @@
 #include "initial_event_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
+#include "common/timeout_detector.hpp"
 
 class initial_event_test_stop_service {
 public:
@@ -224,6 +225,7 @@ TEST(someip_initial_event_test, wait_for_stop_method_to_be_called) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a valid type, like: " << argv[0] << " MASTER" << std::endl;

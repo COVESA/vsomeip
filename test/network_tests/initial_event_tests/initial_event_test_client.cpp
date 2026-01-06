@@ -21,6 +21,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
+#include "common/timeout_detector.hpp"
 
 #include "initial_event_test_globals.hpp"
 
@@ -434,6 +435,7 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     // block signals as soon as possible; `sigwait` is used later
     sigset_t set;
     sigemptyset(&set);

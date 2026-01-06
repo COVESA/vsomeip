@@ -6,6 +6,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "debounce_callback_test_service.hpp"
+#include "common/timeout_detector.hpp"
 
 debounce_test_service::debounce_test_service() :
     runner_(std::bind(&debounce_test_service::run, this)),
@@ -156,7 +157,7 @@ TEST(debounce_timeout_test, callback) {
 }
 
 int main(int argc, char** argv) {
-
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

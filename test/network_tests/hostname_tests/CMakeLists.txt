@@ -33,5 +33,4 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME hostname_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/hostname_test_starter.sh
-    TIMEOUT 15
 )

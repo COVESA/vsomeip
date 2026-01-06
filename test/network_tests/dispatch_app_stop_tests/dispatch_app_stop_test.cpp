@@ -8,6 +8,7 @@
 #include "vsomeip/runtime.hpp"
 #include <gtest/gtest.h>
 #include <unistd.h>
+#include "common/timeout_detector.hpp"
 
 using namespace std::chrono_literals;
 
@@ -67,7 +68,7 @@ TEST(dispatch_app_stop, deadlock) {
 }
 
 int main(int argc, char** argv) {
-
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

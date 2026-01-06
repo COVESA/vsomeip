@@ -16,6 +16,8 @@
 
 #include <vsomeip/vsomeip.hpp>
 
+#include "common/timeout_detector.hpp"
+
 #include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
 #include "../../implementation/service_discovery/include/service_discovery.hpp"
@@ -1656,6 +1658,7 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td(300);
     ::testing::InitGoogleTest(&argc, argv);
     if (argc < 4) {
         std::cerr << "Please pass an target and local IP address and test mode to this binary like: " << argv[0]

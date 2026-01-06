@@ -9,6 +9,7 @@
 #include "start_stop_start_test_globals.hpp"
 #include "vsomeip/enumeration_types.hpp"
 #include <common/vsomeip_app.hpp>
+#include "common/timeout_detector.hpp"
 
 namespace start_stop_start {
 namespace app1 {
@@ -83,6 +84,7 @@ TEST(start_stop_start_test_app1, start_stop_start_application) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
