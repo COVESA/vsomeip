@@ -299,6 +299,8 @@ void routing_manager_impl::stop() {
             remove_local(client, false);
         }
     }
+
+    utility::reset_client_ids(configuration_->get_network());
 }
 
 bool routing_manager_impl::insert_offer_command(service_t _service, instance_t _instance, uint8_t _command, client_t _client,

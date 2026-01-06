@@ -64,8 +64,8 @@
 namespace vsomeip_v3 {
 
 routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
-    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), client_id_timer_(_host->get_io()), root_(nullptr),
-    local_receiver_(nullptr), configuration_(_configuration), is_socket_activated_(false), client_registration_running_(false),
+    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), root_(nullptr), local_receiver_(nullptr),
+    configuration_(_configuration), is_socket_activated_(false), client_registration_running_(false),
     max_local_message_size_(configuration_->get_max_message_size_local()),
     configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
@@ -83,17 +83,6 @@ void routing_manager_stub::init() {
 }
 
 void routing_manager_stub::start() {
-    {
-        std::scoped_lock its_lock{used_client_ids_mutex_};
-        used_client_ids_ = utility::get_used_client_ids(configuration_->get_network());
-        // Wait VSOMEIP_MAX_CONNECT_TIMEOUT * 2 and expect after that time
-        // that all client_ids are used have to be connected to the routing.
-        // Otherwise they can be marked as "erroneous client".
-        client_id_timer_.expires_after(std::chrono::milliseconds(VSOMEIP_MAX_CONNECT_TIMEOUT * 2));
-        client_id_timer_.async_wait(std::bind(&routing_manager_stub::on_client_id_timer_expired,
-                                              std::dynamic_pointer_cast<routing_manager_stub>(shared_from_this()), std::placeholders::_1));
-    }
-
     if (!root_) {
         // application has been stopped and started again
         init_routing_endpoint();
@@ -149,11 +138,6 @@ void routing_manager_stub::stop() {
     {
         std::scoped_lock its_lock{watchdog_timer_mutex_};
         watchdog_timer_.cancel();
-    }
-
-    {
-        std::scoped_lock its_lock{used_client_ids_mutex_};
-        client_id_timer_.cancel();
     }
 
     if (root_ && !is_socket_activated_) {
@@ -1646,11 +1630,6 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
         pending_client_registrations_queue_.emplace_back(_client, std::vector<registration_type_e>{_type});
     }
     client_registration_condition_.notify_one();
-
-    if (_type != registration_type_e::REGISTER) {
-        std::scoped_lock its_lock_inner{used_client_ids_mutex_};
-        used_client_ids_.erase(_client);
-    }
 }
 
 client_t routing_manager_stub::get_client() const {
@@ -1799,33 +1778,6 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
 
     if (!its_entries.empty())
         send_client_routing_info(_client, std::move(its_entries));
-}
-
-void routing_manager_stub::on_client_id_timer_expired(boost::system::error_code const& _error) {
-    std::set<client_t> used_client_ids;
-    {
-        std::scoped_lock its_lock{used_client_ids_mutex_};
-        used_client_ids = used_client_ids_;
-        used_client_ids_.clear();
-    }
-
-    std::set<client_t> erroneous_clients;
-    if (!_error) {
-        std::scoped_lock its_lock{routing_info_mutex_};
-        for (auto client : used_client_ids) {
-            if (client != VSOMEIP_ROUTING_CLIENT && client != get_client()) {
-                if (routing_info_.find(client) == routing_info_.end()) {
-                    erroneous_clients.insert(client);
-                }
-            }
-        }
-    }
-    for (auto client : erroneous_clients) {
-        VSOMEIP_WARNING << "Releasing client identifier " << std::hex << std::setfill('0') << std::setw(4) << client << ". "
-                        << "Its corresponding application went offline while no "
-                        << "routing manager was running.";
-        host_->handle_client_error(client);
-    }
 }
 
 void routing_manager_stub::print_endpoint_status() const {
