@@ -50,6 +50,9 @@ private:
         }
         return nullptr;
     }
+
+    std::unique_ptr<udp_socket> create_udp_socket(boost::asio::io_context&) override { return nullptr; }
+
     std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
         // do not tinker with timeouts in network tests for now
         return std::make_unique<asio_timer>(_io);

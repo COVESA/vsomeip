@@ -34,6 +34,7 @@ namespace vsomeip_v3 {
 class endpoint;
 class endpoint_host;
 class tcp_socket;
+class udp_socket;
 
 template<typename Protocol>
 class client_endpoint_impl : public endpoint_impl<Protocol>,
@@ -41,7 +42,7 @@ class client_endpoint_impl : public endpoint_impl<Protocol>,
                              public std::enable_shared_from_this<client_endpoint_impl<Protocol>> {
 public:
     typedef typename Protocol::endpoint endpoint_type;
-    using socket_type = std::conditional_t<std::is_same_v<Protocol, boost::asio::ip::tcp>, tcp_socket, typename Protocol::socket>;
+    using socket_type = std::conditional_t<std::is_same_v<Protocol, boost::asio::ip::tcp>, tcp_socket, udp_socket>;
 
     client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
                          const endpoint_type& _local, const endpoint_type& _remote, boost::asio::io_context& _io,

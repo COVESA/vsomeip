@@ -19,6 +19,7 @@
 #include "../include/tp.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../include/udp_server_endpoint_impl_receive_op.hpp"
+#include "../include/abstract_socket_factory.hpp"
 #include "../../configuration/include/configuration.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../service_discovery/include/defines.hpp"
@@ -78,7 +79,8 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         endpoint_type.is_sending_ = false;
     }
 
-    unicast_socket_ = std::make_shared<socket_type>(io_, _local.protocol());
+    auto socket_factory = abstract_socket_factory::get();
+    unicast_socket_ = socket_factory->create_udp_socket(io_);
     if (!unicast_socket_) {
         _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
         VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to create socket";
@@ -86,7 +88,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 
     if (!unicast_socket_->is_open()) {
-        std::ignore = unicast_socket_->open(_local.protocol(), _error);
+        unicast_socket_->open(_local.protocol(), _error);
         if (_error) {
             VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to open socket, " << _error.message();
             unicast_socket_.reset();
@@ -95,7 +97,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 
     boost::asio::socket_base::reuse_address opt_reuse_address(true);
-    std::ignore = unicast_socket_->set_option(opt_reuse_address, _error);
+    unicast_socket_->set_option(opt_reuse_address, _error);
     if (_error) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to reuse address, " << _error.message();
         unicast_socket_.reset();
@@ -116,7 +118,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 #endif
 
-    std::ignore = unicast_socket_->bind(_local, _error);
+    unicast_socket_->bind(_local, _error);
     if (_error) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind, " << _error.message();
         unicast_socket_.reset();
@@ -126,7 +128,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     if (_local.address().is_v4()) {
         is_v4_ = true;
         boost::asio::ip::multicast::outbound_interface option(_local.address().to_v4());
-        std::ignore = unicast_socket_->set_option(option, _error);
+        unicast_socket_->set_option(option, _error);
         if (_error) {
             VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure IPv4 outbound interface, " << _error.message();
             unicast_socket_.reset();
@@ -136,7 +138,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         is_v4_ = false;
         // TODO(): an interface index is expected not a scope_id
         boost::asio::ip::multicast::outbound_interface option(static_cast<unsigned int>(_local.address().to_v6().scope_id()));
-        std::ignore = unicast_socket_->set_option(option, _error);
+        unicast_socket_->set_option(option, _error);
         if (_error) {
             VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure IPv6 outbound interface, " << _error.message();
             unicast_socket_.reset();
@@ -145,7 +147,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 
     boost::asio::socket_base::broadcast option(true);
-    std::ignore = unicast_socket_->set_option(option, _error);
+    unicast_socket_->set_option(option, _error);
     if (_error) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure broadcast option, " << _error.message();
         unicast_socket_.reset();
@@ -153,8 +155,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 
     const int its_udp_recv_buffer_size = configuration_->get_udp_receive_buffer_size();
-    std::ignore =
-            unicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(static_cast<int>(its_udp_recv_buffer_size)), _error);
+    unicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(static_cast<int>(its_udp_recv_buffer_size)), _error);
 
     if (_error) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure receive buffer size, " << _error.message();
@@ -163,7 +164,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     }
 
     boost::asio::socket_base::receive_buffer_size its_option;
-    std::ignore = unicast_socket_->get_option(its_option, _error);
+    unicast_socket_->get_option(its_option, _error);
 
 #ifdef __linux__
     // If regular setting of the buffer size did not work, try to force
@@ -821,7 +822,7 @@ bool udp_server_endpoint_impl::is_reliable() const {
 std::string udp_server_endpoint_impl::get_address_port_local_unlocked() const {
     // The caller shall not hold the lock
 
-    std::shared_ptr<socket_type> unicast_socket;
+    std::shared_ptr<udp_socket> unicast_socket;
 
     {
         std::scoped_lock its_lock(sync_);
@@ -880,7 +881,8 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             // because we will recreate the socket.
             join_status_.clear();
 
-            multicast_socket_ = std::make_unique<socket_type>(io_, local_.protocol());
+            auto socket_factory = abstract_socket_factory::get();
+            multicast_socket_ = socket_factory->create_udp_socket(io_);
             if (!multicast_socket_) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to create socket";
                 _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
@@ -888,7 +890,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             }
 
             if (!multicast_socket_->is_open()) {
-                std::ignore = multicast_socket_->open(local_.protocol(), _error);
+                multicast_socket_->open(local_.protocol(), _error);
                 if (_error) {
                     VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to open socket, " << _error.message();
                     multicast_socket_.reset();
@@ -896,7 +898,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                 }
             }
 
-            std::ignore = multicast_socket_->set_option(ip::udp::socket::reuse_address(true), _error);
+            multicast_socket_->set_option(ip::udp::socket::reuse_address(true), _error);
             if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure reuse address, " << _error.message();
                 multicast_socket_.reset();
@@ -921,7 +923,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                 }
             }
 
-            std::ignore = multicast_socket_->bind(*multicast_local_, _error);
+            multicast_socket_->bind(*multicast_local_, _error);
             if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind, " << _error.message();
                 multicast_socket_.reset();
@@ -932,7 +934,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             //         In addition, it prevents Linux from doing some optimizations.
             const int its_udp_recv_buffer_size = configuration_->get_udp_receive_buffer_size();
 
-            std::ignore = multicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(its_udp_recv_buffer_size), _error);
+            multicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(its_udp_recv_buffer_size), _error);
             if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure received buffer size, " << _error.message();
                 // Non-fatal error
@@ -957,7 +959,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             }
 #endif
             boost::asio::socket_base::receive_buffer_size its_option;
-            std::ignore = multicast_socket_->get_option(its_option, _error);
+            multicast_socket_->get_option(its_option, _error);
             if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to get received buffer size, " << _error.message();
                 multicast_socket_.reset();
@@ -995,7 +997,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         // "Both ADD_MEMBERSHIP and DROP_MEMBERSHIP are nonblocking operations. They
         // should return immediately indicating either success or failure."
         // https://tldp.org/HOWTO/Multicast-HOWTO-6.html
-        std::ignore = multicast_socket_->set_option(its_join_option, _error);
+        multicast_socket_->set_option(its_join_option, _error);
 
         if (!_error) {
             joined_[_address.to_string()] = true;
@@ -1014,7 +1016,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
         if (multicast_socket_ && multicast_socket_->is_open()) {
             boost::asio::ip::multicast::leave_group its_leave_option(_address);
-            std::ignore = multicast_socket_->set_option(its_leave_option, _error);
+            multicast_socket_->set_option(its_leave_option, _error);
 
             if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": leave failure, " << _error.message();

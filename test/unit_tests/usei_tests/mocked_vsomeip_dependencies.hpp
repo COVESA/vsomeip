@@ -19,7 +19,9 @@
 #define private public
 #define protected public
 #include "../../../implementation/endpoints/include/udp_server_endpoint_impl.hpp"
+#include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
 #include "../../../implementation/endpoints/include/endpoint_host.hpp"
+#include "../../../implementation/endpoints/include/asio_udp_socket.hpp"
 #include "../../../implementation/routing/include/routing_host.hpp"
 
 template<typename Protocol>
@@ -194,6 +196,34 @@ void vsomeip_v3::server_endpoint_impl<Protocol>::cancel_dispatch_timer(target_da
 
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::update_last_departure(endpoint_data_type& /*_data*/) { }
+
+struct mocked_socket_factory : public vsomeip_v3::abstract_socket_factory {
+#if defined(__linux__)
+    std::shared_ptr<vsomeip_v3::abstract_netlink_connector>
+    create_netlink_connector(boost::asio::io_context&, const boost::asio::ip::address&, const boost::asio::ip::address&, bool) override {
+        return nullptr;
+    };
+#endif
+
+    std::unique_ptr<vsomeip_v3::tcp_socket> create_tcp_socket(boost::asio::io_context&) override { return nullptr; };
+    std::unique_ptr<vsomeip_v3::tcp_acceptor> create_tcp_acceptor(boost::asio::io_context&) override { return nullptr; }
+
+    std::unique_ptr<vsomeip_v3::udp_socket> create_udp_socket(boost::asio::io_context& _io) override {
+        return std::make_unique<vsomeip_v3::asio_udp_socket>(_io);
+    }
+
+#if defined(__linux__) || defined(__QNX__)
+    std::unique_ptr<vsomeip_v3::uds_socket> create_uds_socket(boost::asio::io_context&) { return nullptr; }
+    std::unique_ptr<vsomeip_v3::uds_acceptor> create_uds_acceptor(boost::asio::io_context&) override { return nullptr; }
+#endif
+
+    std::unique_ptr<vsomeip_v3::abstract_timer> create_timer(boost::asio::io_context&) { return nullptr; }
+};
+
+vsomeip_v3::abstract_socket_factory* vsomeip_v3::abstract_socket_factory::get() {
+    static std::shared_ptr<vsomeip_v3::abstract_socket_factory> const factory = std::make_shared<mocked_socket_factory>();
+    return factory.get();
+}
 
 template class vsomeip_v3::endpoint_impl<boost::asio::ip::udp>;
 template class vsomeip_v3::server_endpoint_impl<boost::asio::ip::udp>;

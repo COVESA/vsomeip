@@ -26,7 +26,7 @@
 namespace vsomeip_v3 {
 namespace udp_endpoint_receive_op {
 
-using socket_type_t = boost::asio::ip::udp::socket;
+using socket_type_t = udp_socket;
 using endpoint_type_t = boost::asio::ip::udp::endpoint;
 using receive_handler_t = std::function<void(boost::system::error_code const&, size_t, const boost::asio::ip::udp::endpoint&,
                                              const boost::asio::ip::address&, message_buffer_t const&)>;
@@ -57,7 +57,7 @@ struct storage : public std::enable_shared_from_this<storage> {
             }
 
             if (!multicast_socket->native_non_blocking()) {
-                std::ignore = multicast_socket->native_non_blocking(true, _error_code);
+                multicast_socket->native_non_blocking(true, _error_code);
             }
 
             for (;;) {
@@ -65,7 +65,7 @@ struct storage : public std::enable_shared_from_this<storage> {
                 GUID WSARecvMsg_GUID = WSAID_WSARECVMSG;
                 LPFN_WSARECVMSG WSARecvMsg;
                 DWORD its_bytes;
-                SOCKET its_socket{multicast_socket->native_handle()};
+                SOCKET its_socket{static_cast<SOCKET>(multicast_socket->native_handle())};
 
                 WSAIoctl(its_socket, SIO_GET_EXTENSION_FUNCTION_POINTER, &WSARecvMsg_GUID, sizeof WSARecvMsg_GUID, &WSARecvMsg,
                          sizeof WSARecvMsg, &its_bytes, nullptr, nullptr);
