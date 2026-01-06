@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "to_string.hpp"
+#include "command_message.hpp"
 
 #include "../../../../implementation/protocol/src/routing_info_command.cpp"
 #include "../../../../implementation/protocol/src/config_command.cpp"
@@ -133,8 +134,13 @@ std::string to_string(vsomeip_v3::protocol::routing_info_command const& c) {
     s << "routing_info: " << to_string(c.get_entries());
     return s.str();
 }
-std::string to_string(std::pair<std::string, std::string> const& pair) {
-    return "{" + pair.first + " : " + pair.second + "}";
+std::string to_string(command_message const& c) {
+    std::stringstream s;
+    s << c;
+    return s.str();
+}
+std::string to_string(std::string const& _str) {
+    return "\"" + _str + "\"";
 }
 std::string to_string(vsomeip_v3::protocol::config_command const& c) {
     std::vector<std::pair<std::string, std::string>> v;

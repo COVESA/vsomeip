@@ -4,6 +4,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "socket_manager.hpp"
+
+#include "app_connection.hpp"
 #include "test_logging.hpp"
 
 std::string connection_name(std::string const& _from, std::string const& _to) {
@@ -13,6 +15,7 @@ std::string connection_name(std::string const& _from, std::string const& _to) {
 #define LOCAL_LOG TEST_LOG << "[socket-manager] "
 
 namespace vsomeip_v3::testing {
+socket_manager::~socket_manager() = default;
 
 void socket_manager::add(std::string const& app) {
     auto const lock = std::scoped_lock(mtx_);
@@ -158,6 +161,17 @@ void socket_manager::try_add(boost::asio::io_context* _io, fd_t _fd, char const*
     }
 }
 
+std::shared_ptr<app_connection> socket_manager::get_or_create_connection(std::string const& _from, std::string const& _to) {
+
+    auto const name = connection_name(_from, _to);
+    auto const lock = std::scoped_lock(mtx_);
+    if (auto it = connections_.find(name); it != connections_.end()) {
+        return it->second;
+    }
+    auto [it, _] = connections_.emplace(name, std::make_shared<app_connection>(name));
+    return it->second;
+}
+
 void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _ep) {
     auto const lock = std::scoped_lock(mtx_);
     fd_to_acceptor_states_.erase(_fd);
@@ -228,10 +242,10 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
     auto s_name = accepting->get_app_name();
     if (!c_name.empty() && !s_name.empty()) {
         auto cn = connection_name(c_name, s_name);
+        auto connection = get_or_create_connection(c_name, s_name);
+        connection->set_sockets(_connecting.weak_from_this(), accepting);
+
         auto const lock = std::scoped_lock(mtx_);
-        app_names_to_connection[cn] = std::pair(_connecting.weak_from_this(), accepting);
-        ++connection_name_to_connection_count_[cn];
-        connection_cv_.notify_all();
         LOCAL_LOG << "added: " << cn << " to the known connections";
     } else {
         LOCAL_LOG << "Error: socket encountered without set app name! "
@@ -242,48 +256,8 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
 [[nodiscard]] bool socket_manager::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
                                               std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
                                               socket_role _side_to_disconnect) {
-    auto connection = get_connection(_from_name, _to_name);
-    auto weak_from = connection.first;
-    auto weak_to = connection.second;
-
-    auto disconnect_from = [&]() -> bool {
-        bool result = true;
-        if (auto from = weak_from.lock(); from) {
-            from->disconnect(_from_error);
-        } else if (_from_error) {
-            LOCAL_LOG << "The error code: \"" << _from_error->message() << "\" could not be injected into \"" << _from_name << "\"";
-            // if the error could not be injected -> error
-            result = false;
-        }
-        return result;
-    };
-    auto disconnect_to = [&]() -> bool {
-        bool result = true;
-        if (auto to = weak_to.lock(); to) {
-            to->disconnect(_to_error);
-        } else if (_to_error) {
-            LOCAL_LOG << "The error code: \"" << _to_error->message() << "\" could not be injected into \"" << _to_name << "\"";
-            result = false;
-        }
-        return result;
-    };
-
-    bool result = true;
-
-    switch (_side_to_disconnect) {
-    case socket_role::receiver:
-        result = disconnect_to();
-        break;
-    case socket_role::sender:
-        result = disconnect_from();
-        break;
-    case socket_role::unspecified:
-    default:
-        result = disconnect_from() && disconnect_to();
-        break;
-    }
-
-    return result;
+    auto connection = get_or_create_connection(_from_name, _to_name);
+    return connection->disconnect(_from_error, _to_error, _side_to_disconnect);
 }
 
 [[nodiscard]] bool socket_manager::await_assignment(std::string const& _app, std::chrono::milliseconds _timeout) {
@@ -321,21 +295,8 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
 }
 
 [[nodiscard]] bool socket_manager::await_connection(std::string const& _from, std::string const& _to, std::chrono::milliseconds _timeout) {
-    // fake_tcp_socket_handle need to outlive mtx_ so declare it before
-    std::vector<std::shared_ptr<fake_tcp_socket_handle>> handles_to_hold;
-    auto lock = std::unique_lock(mtx_);
-    auto const cn = connection_name(_from, _to);
-    return connection_cv_.wait_for(lock, _timeout, [&, this] {
-        auto const it = app_names_to_connection.find(cn);
-        if (it == app_names_to_connection.end()) {
-            return false;
-        }
-        if (auto from = it->second.first.lock()) {
-            handles_to_hold.push_back(from);
-            return from->is_connected(it->second.second);
-        }
-        return false;
-    });
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->wait_for_connection(_timeout);
 }
 
 void socket_manager::awaiting() {
@@ -343,9 +304,7 @@ void socket_manager::awaiting() {
 }
 
 size_t socket_manager::count_established_connections(std::string const& _from, std::string const& _to) {
-    auto const lock = std::scoped_lock(mtx_);
-    auto const it = connection_name_to_connection_count_.find(connection_name(_from, _to));
-    return it == connection_name_to_connection_count_.end() ? 0 : it->second;
+    return get_or_create_connection(_from, _to)->count();
 }
 
 void socket_manager::report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors) {
@@ -369,74 +328,31 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
     }
 }
 [[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay) {
-    auto [weak_from, weak_to] = get_connection(_from, _to);
-    if (auto to = weak_to.lock(); to) {
-        to->delay_processing(_delay);
-        return true;
-    }
-    return false;
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->delay_message_processing(_delay);
 }
 
 [[nodiscard]] bool socket_manager::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,
                                                           bool _ignore_in_to) {
-    auto [weak_from, weak_to] = get_connection(_from, _to);
-
-    bool ret = true;
-    if (_ignore_in_from) {
-        if (auto from = weak_from.lock(); from) {
-            from->ignore_inner_close();
-        } else {
-            ret = false;
-        }
-    }
-    if (_ignore_in_to) {
-        if (auto to = weak_to.lock(); to) {
-            to->ignore_inner_close();
-        } else {
-            ret = false;
-        }
-    }
-    return ret;
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->set_ignore_inner_close(_ignore_in_from, _ignore_in_to);
 }
 
 [[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
                                                       std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
-    // fake_tcp_socket_handles need to outlive mtx_ so declare them before
-    std::shared_ptr<vsomeip_v3::testing::fake_tcp_socket_handle> from, to;
-    auto const lock = std::scoped_lock(mtx_);
-    auto const cn = connection_name(_from, _to);
-    auto const it_connection = app_names_to_connection.find(cn);
-    if (it_connection == app_names_to_connection.end()) {
-        return false;
-    }
-    bool ret = true;
-    if (from = it_connection->second.first.lock(); from) {
-        from->block_on_close_for(_from_block_time);
-    } else {
-        ret = false;
-    }
-    if (to = it_connection->second.second.lock(); to) {
-        to->block_on_close_for(_to_block_time);
-    } else {
-        ret = false;
-    }
-    return ret;
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->block_on_close_for(_from_block_time, _to_block_time);
 }
 
 void socket_manager::clear_command_record(std::string const& _from, std::string const& _to) {
-    auto [weak_from, weak_to] = get_connection(_from, _to);
-    if (auto to = weak_to.lock(); to) {
-        to->received_command_record_.clear();
-    }
+    auto connection = get_or_create_connection(_from, _to);
+    connection->clear_command_record();
 }
 
 [[nodiscard]] bool socket_manager::wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
                                                     std::chrono::milliseconds _timeout) {
-    auto [weak_from, weak_to] = get_connection(_from, _to);
-    if (auto to = weak_to.lock(); to) {
-        return to->received_command_record_.wait_for_any(_id, _timeout);
-    }
-    return false;
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->wait_for_command(_id, _timeout);
 }
 
 void socket_manager::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
@@ -460,18 +376,6 @@ bool socket_manager::ignore_broken_pipe(fake_tcp_socket_handle const& _handle) {
     return true;
 }
 
-std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>>
-socket_manager::get_connection(std::string const& _from, std::string const& _to) {
-
-    auto const cn = connection_name(_from, _to);
-    auto const lock = std::scoped_lock(mtx_);
-    auto const it_connection = app_names_to_connection.find(cn);
-    if (it_connection == app_names_to_connection.end()) {
-        return {};
-    }
-    return it_connection->second;
-}
-
 bool socket_manager::wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
                                                    [[maybe_unused]] std::chrono::milliseconds _timeout) {
     std::shared_ptr<std::promise<protocol::id_e>> blocked_promise{std::make_shared<std::promise<protocol::id_e>>()};
@@ -491,19 +395,14 @@ bool socket_manager::wait_once_for_dropped_command(std::string const& _from, std
     return expired == std::future_status::ready;
 }
 
-void socket_manager::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
-    auto [weak_from, weak_to] = get_connection(_from, _to);
-    if (auto to = weak_to.lock(); to) {
-        std::vector<boost::asio::const_buffer> buffer;
-        buffer.push_back(boost::asio::buffer(_payload));
-        to->consume(buffer, true);
-    }
+bool socket_manager::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->inject_command(_payload);
 }
 
-void socket_manager::set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler) {
-    auto [weak_from, weak_to] = get_connection(_from, _to);
-    if (auto to = weak_to.lock(); to) {
-        to->set_vsomeip_command_handler(_handler);
-    }
+void socket_manager::set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
+                                                socket_role _sender) {
+    auto connection = get_or_create_connection(_from, _to);
+    connection->set_custom_command_handler(_handler, _sender);
 }
 }

@@ -15,6 +15,8 @@
 
 namespace vsomeip_v3::testing {
 
+class app_connection;
+
 using fd_t = unsigned short;
 
 /**
@@ -25,6 +27,7 @@ using fd_t = unsigned short;
  **/
 class socket_manager : public std::enable_shared_from_this<socket_manager> {
 public:
+    ~socket_manager();
     /**
      * this function will assume that the next unknown
      * io_context memory address is belongig to the passed in name.
@@ -207,24 +210,26 @@ public:
     /**
      * Forces the delivery of a vsomeip message @param _payload from @param _from to @param _to.
      */
-    void inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload);
+    bool inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload);
 
     /**
      * Allows setting a custom vsomeip command controller @param _handler to be invoked every time a message
      * is parsed, enables the test to decide what can be delivered or to assert based on the payload.
+     * The _sender argument specifies which messages to parse.
+     * if _sender == sender -> only parses messages from the sender to the receiver
+     * if _sender == receiver -> reverse
+     * if _sender == unspecified -> both
      */
-    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler);
+    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
+                                    socket_role _sender = socket_role::unspecified);
 
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
-
-    std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>> get_connection(std::string const& _from,
-                                                                                                           std::string const& _to);
+    std::shared_ptr<app_connection> get_or_create_connection(std::string const& _from, std::string const& _to);
 
     std::mutex mtx_;
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
-    std::condition_variable connection_cv_;
     std::atomic<fd_t> next_fd_{1};
     std::map<fd_t, std::weak_ptr<fake_tcp_socket_handle>> fd_to_handle_;
     std::map<fd_t, std::weak_ptr<fake_tcp_acceptor_handle>> fd_to_acceptor_states_;
@@ -232,8 +237,8 @@ private:
     std::map<std::string, boost::asio::io_context*> name_to_context_;
     std::map<boost::asio::io_context*, std::string> context_to_name_;
     std::map<boost::asio::io_context*, std::vector<fd_t>> context_to_fd_;
-    std::map<std::string, std::pair<std::weak_ptr<fake_tcp_socket_handle>, std::weak_ptr<fake_tcp_socket_handle>>> app_names_to_connection;
     std::map<std::string, size_t> connection_name_to_connection_count_;
+    std::map<std::string, std::shared_ptr<app_connection>> connections_;
     // these timers are not supposed to ever expire.
     // Instead the callback lifetime of these timers ensures that
     // the socket_manager will be notified once the io_context is destroyed,

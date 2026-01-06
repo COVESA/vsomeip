@@ -6,6 +6,7 @@
 #include "helpers/attribute_recorder.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
 #include "helpers/app.hpp"
+#include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/fake_tcp_socket_handle.hpp"
 #include "helpers/service_state.hpp"
@@ -97,6 +98,119 @@ struct test_client_helper : public base_fake_socket_fixture {
     app* client_{};
     app* server_{};
 };
+
+struct test_protocol_messages : test_client_helper {
+
+    std::shared_ptr<command_record> record_{command_record::create()};
+
+    void track_client_server() {
+        set_custom_command_handler(server_name_, client_name_, record_->create_collector(server_to_client_), socket_role::sender);
+        set_custom_command_handler(server_name_, client_name_, record_->create_collector(client_to_server_), socket_role::receiver);
+        set_custom_command_handler(client_name_, server_name_, record_->create_collector(server_to_client_), socket_role::receiver);
+        set_custom_command_handler(client_name_, server_name_, record_->create_collector(client_to_server_), socket_role::sender);
+    }
+    void track_client_router() {
+        set_custom_command_handler(routingmanager_name_, client_name_, record_->create_collector(router_to_client_), socket_role::sender);
+        set_custom_command_handler(routingmanager_name_, client_name_, record_->create_collector(client_to_router_), socket_role::receiver);
+        set_custom_command_handler(client_name_, routingmanager_name_, record_->create_collector(router_to_client_), socket_role::receiver);
+        set_custom_command_handler(client_name_, routingmanager_name_, record_->create_collector(client_to_router_), socket_role::sender);
+    }
+    void track_server_router() {
+        set_custom_command_handler(routingmanager_name_, server_name_, record_->create_collector(router_to_server_), socket_role::sender);
+        set_custom_command_handler(routingmanager_name_, server_name_, record_->create_collector(server_to_router_), socket_role::receiver);
+        set_custom_command_handler(server_name_, routingmanager_name_, record_->create_collector(router_to_server_), socket_role::receiver);
+        set_custom_command_handler(server_name_, routingmanager_name_, record_->create_collector(server_to_router_), socket_role::sender);
+    }
+
+    std::string const router_to_client_{routingmanager_name_ + "-to-" + client_name_};
+    std::string const router_to_server_{routingmanager_name_ + "-to-" + server_name_};
+    std::string const server_to_client_{server_name_ + "-to-" + client_name_};
+    std::string const server_to_router_{server_name_ + "-to-" + routingmanager_name_};
+    std::string const client_to_server_{client_name_ + "-to-" + server_name_};
+    std::string const client_to_router_{client_name_ + "-to-" + routingmanager_name_};
+};
+
+TEST_F(test_protocol_messages, ensure_sequence_of_registration_message) {
+    track_client_router();
+
+    start_router();
+    start_client_app();
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_router_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
+            {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds receiver
+            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}, // only message currently received over the sender
+            {client_to_router_, id_e::REGISTER_APPLICATION_ID}, // 2. registration step -> ask router to connect back
+            {router_to_client_, id_e::CONFIG_ID}, // lazy load security for other apps from the router environment
+            {router_to_client_, id_e::ROUTING_INFO_ID}, // received by client: application knows that the router is connected
+            {client_to_router_, id_e::REGISTERED_ACK_ID}}; // router knows that it can successfully send message -> registration succeeded.
+    EXPECT_EQ(expected_sequence, *record_);
+}
+TEST_F(test_protocol_messages, ensure_sequence_of_event_registration) {
+    // collect all message over both connection between a client and the router
+    track_client_server();
+
+    start_apps();
+    ASSERT_TRUE(subscribe_to_event());
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy
+            {client_to_server_, id_e::SUBSCRIBE_ID},
+            {server_to_client_, id_e::CONFIG_ID}, // Ensure environment is known (should be redundant)
+            {server_to_client_, id_e::SUBSCRIBE_ACK_ID}};
+    EXPECT_EQ(expected_sequence, *record_);
+}
+TEST_F(test_protocol_messages, ensure_sequence_of_field_registration) {
+    // collect all message over both connection between a client and the router
+    track_client_server();
+
+    start_apps();
+    send_field_message();
+    ASSERT_TRUE(subscribe_to_field());
+
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
+            {client_to_server_, id_e::SUBSCRIBE_ID},
+            {server_to_client_, id_e::CONFIG_ID}, // Ensure environment is known (should be redundant)
+            {server_to_client_, id_e::SUBSCRIBE_ACK_ID},
+            {server_to_client_, id_e::SEND_ID} // initial event
+    };
+    EXPECT_EQ(expected_sequence, *record_);
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {
+    // first start all the applications registration sequence is covered elsewhere
+    start_apps();
+
+    client_->request_service(service_instance_);
+    answer_requests_with({0x2, 0x3});
+
+    // wait for availability, before sending the request
+    // or tracking the path of the request, otherwise no guarantee that it is sent out
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    track_client_server();
+    track_client_router();
+    track_server_router();
+
+    client_->send_request(request_);
+    ASSERT_TRUE(server_->message_record_.wait_for_last(expected_request_));
+    EXPECT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // lazy load security policy
+            {client_to_server_, id_e::SEND_ID}, // request
+            {server_to_client_, id_e::CONFIG_ID}, // lazy load security policy
+            {server_to_client_, id_e::SEND_ID} // reply
+    };
+    EXPECT_EQ(expected_sequence, *record_);
+}
 
 TEST_F(test_client_helper, ensure_unavail_after_stop_offer) {
     start_apps();

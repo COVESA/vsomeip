@@ -9,6 +9,7 @@
 #include "../../../implementation/endpoints/include/tcp_socket.hpp"
 #include "attribute_recorder.hpp"
 #include "command_message.hpp"
+#include "vsomeip_command_handler.hpp"
 #include <boost/asio.hpp>
 #include <optional>
 #include <memory>
@@ -29,8 +30,6 @@ struct socket_id {
 
 class socket_manager;
 using connect_handler = std::function<void(boost::system::error_code const&)>;
-
-using vsomeip_command_handler = std::function<bool(command_message const&)>;
 
 /**
  * This class is not expected to be used in isolation but expected to be instantiated

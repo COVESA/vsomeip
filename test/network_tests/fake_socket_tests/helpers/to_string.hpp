@@ -16,14 +16,22 @@
 #include <iomanip>
 
 namespace vsomeip_v3::testing {
+
+struct command_message;
 char const* to_string(vsomeip_v3::protocol::id_e _id);
 char const* to_string(vsomeip_v3::protocol::routing_info_entry_type_e e);
 std::string to_string(vsomeip_v3::protocol::service const& s);
 std::string to_string(vsomeip_v3::protocol::routing_info_entry const& e);
 std::string to_string(vsomeip_v3::protocol::routing_info_command const& c);
 std::string to_string(vsomeip_v3::protocol::config_command const& c);
-std::string to_string(std::pair<std::string, std::string> const&);
+std::string to_string(command_message const& c);
+// allows to be used below
+std::string to_string(std::string const&);
 
+template<typename T, typename U>
+std::string to_string(std::pair<T, U> const& _p) {
+    return "{" + to_string(_p.first) + " : " + to_string(_p.second) + "}";
+}
 template<typename T>
 std::string to_string(std::vector<T> const& _container) {
     std::stringstream s;

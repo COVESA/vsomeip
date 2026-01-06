@@ -138,8 +138,8 @@ bool base_fake_socket_fixture::wait_once_for_dropped_command(std::string const& 
 }
 
 void base_fake_socket_fixture::set_custom_command_handler(std::string const& _from, std::string const& _to,
-                                                          vsomeip_command_handler const& _handler) {
-    socket_manager_->set_custom_command_handler(_from, _to, _handler);
+                                                          vsomeip_command_handler const& _handler, socket_role _sender) {
+    socket_manager_->set_custom_command_handler(_from, _to, _handler, _sender);
 }
 
 void base_fake_socket_fixture::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
