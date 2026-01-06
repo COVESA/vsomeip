@@ -9,6 +9,7 @@
 
 #include "../../../implementation/endpoints/include/asio_timer.hpp"
 #include "../../../implementation/endpoints/include/asio_tcp_socket.hpp"
+#include "../../../implementation/endpoints/include/asio_udp_socket.hpp"
 #include "../../../implementation/endpoints/include/asio_uds_acceptor.hpp"
 #include "../../../implementation/endpoints/include/asio_uds_socket.hpp"
 #include "../../../implementation/endpoints/include/local_endpoint.hpp"
@@ -36,6 +37,9 @@ public:
     }
     virtual std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override {
         return std::make_unique<asio_tcp_acceptor>(_io);
+    }
+    virtual std::unique_ptr<udp_socket> create_udp_socket(boost::asio::io_context& _io) override {
+        return std::make_unique<asio_udp_socket>(_io);
     }
     virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
         return std::make_unique<asio_timer>(_io);

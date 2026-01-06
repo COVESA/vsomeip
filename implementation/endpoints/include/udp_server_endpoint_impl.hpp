@@ -11,6 +11,7 @@
 
 #include "server_endpoint_impl.hpp"
 #include "tp_reassembler.hpp"
+#include "udp_socket.hpp"
 
 namespace vsomeip_v3 {
 using udp_server_endpoint_base_impl = server_endpoint_impl<boost::asio::ip::udp>;
@@ -103,10 +104,10 @@ private:
 private:
     mutable std::mutex sync_;
 
-    std::shared_ptr<socket_type> unicast_socket_;
+    std::shared_ptr<udp_socket> unicast_socket_;
     endpoint_type unicast_remote_;
 
-    std::shared_ptr<socket_type> multicast_socket_;
+    std::shared_ptr<udp_socket> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
     std::atomic<unsigned> lifecycle_idx_;
     std::map<std::string, bool, std::less<>> joined_;

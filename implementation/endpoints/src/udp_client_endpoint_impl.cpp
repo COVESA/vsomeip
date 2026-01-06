@@ -16,6 +16,7 @@
 #include "../include/tp.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
+#include "../include/udp_socket.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
 

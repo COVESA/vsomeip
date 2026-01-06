@@ -6,6 +6,7 @@
 #include "../include/asio_socket_factory.hpp"
 
 #include "../include/asio_tcp_socket.hpp"
+#include "../include/asio_udp_socket.hpp"
 #if defined(__linux__) || defined(__QNX__)
 #include "../include/asio_uds_socket.hpp"
 #include "../include/asio_uds_acceptor.hpp"
@@ -29,6 +30,10 @@ std::unique_ptr<tcp_socket> asio_socket_factory::create_tcp_socket(boost::asio::
 
 std::unique_ptr<tcp_acceptor> asio_socket_factory::create_tcp_acceptor(boost::asio::io_context& _io) {
     return std::make_unique<asio_tcp_acceptor>(_io);
+}
+
+std::unique_ptr<udp_socket> asio_socket_factory::create_udp_socket(boost::asio::io_context& _io) {
+    return std::make_unique<asio_udp_socket>(_io);
 }
 
 std::unique_ptr<abstract_timer> asio_socket_factory::create_timer(boost::asio::io_context& _io) {

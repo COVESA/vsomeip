@@ -56,6 +56,7 @@ public:
 
     std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context&) override { return nullptr; }
     std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context&) override { return nullptr; }
+    std::unique_ptr<udp_socket> create_udp_socket(boost::asio::io_context&) override { return nullptr; }
 #if defined(__linux__) || defined(__QNX__)
     std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context&) override { return nullptr; }
     std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context&) override { return nullptr; }
