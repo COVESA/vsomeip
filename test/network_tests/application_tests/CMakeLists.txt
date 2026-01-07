@@ -55,8 +55,6 @@ if (NOT ${TESTS_BAT})
 
     # Configure necessary files and copy them to the build folder.
     set(configuration_files
-        application_test_single_process.json
-        application_test_single_process_starter.sh
         application_test_availability_starter.sh
     )
     configure_files("${configuration_files}")
@@ -88,7 +86,8 @@ if (NOT ${TESTS_BAT})
     # Add custom test command.
     add_custom_test(
         NAME application_test_single_process
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process_starter.sh
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process
+        ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process.json"
     )
 
     # Add custom test command.

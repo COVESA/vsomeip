@@ -28,10 +28,4 @@ wait $TEST_CLIENT_PID || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

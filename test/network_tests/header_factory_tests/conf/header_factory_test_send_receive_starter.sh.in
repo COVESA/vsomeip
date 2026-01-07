@@ -16,20 +16,17 @@ FAIL=0
 export VSOMEIP_APPLICATION_NAME=header_factory_test_service
 export VSOMEIP_CONFIGURATION=header_factory_test_service.json
 ./header_factory_test_service &
-sleep 1
+SERVICE_PID=$!
 
 # Start the client
 export VSOMEIP_APPLICATION_NAME=header_factory_test_client
 export VSOMEIP_CONFIGURATION=header_factory_test_client.json
-if ! ./header_factory_test_client
-then
-    FAIL=$((FAIL+1))
-fi
+./header_factory_test_client || FAIL=$((FAIL+1))
 
 # Wait until service is finished
 # Fail gets incremented if service exit
 # with a non-zero exit code
-wait $! || FAIL=$((FAIL+1))
+wait $SERVICE_PID || FAIL=$((FAIL+1))
 
 # Check if client and server both exited sucessfully
 exit $FAIL

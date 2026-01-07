@@ -40,7 +40,6 @@ PID_VSOMEIPD=$!
 export VSOMEIP_APPLICATION_NAME=client-application
 ./subscribe_notify_test_one_event_two_eventgroups_client $1 &
 PID_CLIENT=$!
-sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $SLAVE_JSON_FILE"
@@ -76,9 +75,4 @@ wait $PID_CLIENT || FAIL=$(($FAIL+1))
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]; then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

@@ -78,26 +78,20 @@ export VSOMEIP_CONFIGURATION=local_routing_test_client.json
 CLIENT_PID=$!
 
 check_tcp_udp_sockets_are_open $SERIVCE_PID
-sleep 4
+# NOTE: it is a paranoia check, because $CLIENT_PID is not doing routing at all
 check_tcp_udp_sockets_are_closed $CLIENT_PID
 
 # wait that local client finishes
-sleep 2
+wait $CLIENT_PID || ((FAIL+=1))
 
-# Display a message to show the user that he must now call the external client
-# to finish the test successfully
-kill -0 $CLIENT_PID &> /dev/null
-CLIENT_STILL_THERE=$?
-if [ $CLIENT_STILL_THERE -ne 0 ]
-then
-    if [ ! -z "$USE_LXC_TEST" ]; then
-        echo "starting external_local_routing_test_starter.sh on slave LXC"
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/routing_tests; ./external_local_routing_test_client_external_start.sh\"" &
-        echo "remote ssh job id: $!"
-    elif [ ! -z "$USE_DOCKER" ]; then
-        docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_routing_test_client_external_start.sh" &
-    else
-        cat <<End-of-message
+if [ ! -z "$USE_LXC_TEST" ]; then
+    echo "starting external_local_routing_test_starter.sh on slave LXC"
+    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/routing_tests; ./external_local_routing_test_client_external_start.sh\"" &
+    echo "remote ssh job id: $!"
+elif [ ! -z "$USE_DOCKER" ]; then
+    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./external_local_routing_test_client_external_start.sh" &
+else
+    cat <<End-of-message
 *******************************************************************************
 *******************************************************************************
 ** Please now run:
@@ -110,11 +104,6 @@ then
 *******************************************************************************
 *******************************************************************************
 End-of-message
-    fi
-fi
-
-if [ ! -z "$USE_DOCKER" ]; then
-    FAIL=0
 fi
 
 # Wait until client and service are finished
@@ -127,9 +116,4 @@ done
 
 # Check if client and server both exited sucessfully and the service didnt't
 # have any open
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

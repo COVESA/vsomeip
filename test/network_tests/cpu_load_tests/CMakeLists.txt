@@ -8,9 +8,11 @@ set(configuration_files
     cpu_load_test_client_master.json
     cpu_load_test_client_slave.json
     cpu_load_test_master_starter.sh
+    cpu_load_test_swap_master_starter.sh
     cpu_load_test_service_master.json
     cpu_load_test_service_slave.json
     cpu_load_test_slave_starter.sh
+    cpu_load_test_swap_slave_starter.sh
 )
 configure_files("${configuration_files}")
 
@@ -39,8 +41,13 @@ if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
     set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh)
 endif()
 
-# Add custom test command.
 add_custom_test(
     NAME cpu_load_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cpu_load_test_master_starter.sh
+)
+
+add_custom_test(
+    NAME cpu_load_test_swap
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cpu_load_test_swap_master_starter.sh
+    TIMEOUT 3000
 )

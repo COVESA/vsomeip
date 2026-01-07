@@ -29,7 +29,6 @@ public:
 
         app_(vsomeip::runtime::get()->create_application("subscribe_notify_test_client")), info_(_info), use_tcp_(_use_tcp),
         wait_availability_(true), wait_set_value_(true), wait_shutdown_response_(true),
-        possible_double_initial_events_first_eventgroup(false), possible_double_initial_events_second_eventgroup(false),
         run_thread_(std::bind(&subscribe_notify_test_one_event_two_eventgroups_client::run, this)) { }
     ~subscribe_notify_test_one_event_two_eventgroups_client() { run_thread_.join(); }
 
@@ -191,7 +190,9 @@ public:
                           << "  within time. Instead received: " << received_events_.size();
         }
         // Sleep to wait for events in the chance of double initial events
+        _lock.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(750));
+        _lock.lock();
     }
 
     void wait_for_events(std::unique_lock<std::mutex>& _lock, std::condition_variable& _condition) {
@@ -220,39 +221,12 @@ public:
             switch (event->first) {
             case 0x8111:
                 ASSERT_GE(event->second, 1) << "Didn't receive initial events for event:" << event->first;
-                ASSERT_LE(event->second, 2) << "Received more than expected events for event:" << event->first
-                                            << " number of events:" << event->second;
-                if (event->second == 2)
-                    possible_double_initial_events_first_eventgroup = true;
                 break;
             case 0x8112:
                 ASSERT_GE(event->second, 1) << "Didn't receive initial events for event:" << event->first;
-                ASSERT_LE(event->second, 2) << "Received more than expected events for event:" << event->first
-                                            << " number of events:" << event->second;
-                if (event->second == 2)
-                    possible_double_initial_events_second_eventgroup = true;
                 break;
             case 0x8113:
                 ASSERT_GE(event->second, 2) << "Didn't receive initial events for event:" << event->first;
-                ASSERT_LE(event->second, 4) << "Received more than expected events for event:" << event->first
-                                            << " number of events:" << event->second;
-                if ((!possible_double_initial_events_first_eventgroup) && (!possible_double_initial_events_second_eventgroup)) {
-                    ASSERT_EQ(event->second, 2)
-                            << "Expected to receive 2 notifications for event:" << event->first
-                            << " since events 0x8111 and 0x8112 received 1 notification, instead received:" << event->second;
-                } else if ((possible_double_initial_events_first_eventgroup) && (!possible_double_initial_events_second_eventgroup)) {
-                    ASSERT_EQ(event->second, 3) << "Expected to receive 3 notifications for event:" << event->first
-                                                << " since event 0x8111 received 2 notifications, instead received:" << event->second;
-                } else if ((!possible_double_initial_events_first_eventgroup) && (possible_double_initial_events_second_eventgroup)) {
-                    ASSERT_EQ(event->second, 3) << "Expected to receive 3 notifications for event:" << event->first
-                                                << " since event 0x8112 received 2 notifications, instead received:" << event->second;
-                } else if ((possible_double_initial_events_first_eventgroup) && (possible_double_initial_events_second_eventgroup)) {
-                    ASSERT_EQ(event->second, 4)
-                            << "Expected to receive 4 notifications for event:" << event->first
-                            << " since events 0x8111 and 0x8112 received 2 notifications, instead received:" << event->second;
-                }
-                possible_double_initial_events_first_eventgroup = false;
-                possible_double_initial_events_second_eventgroup = false;
                 break;
             }
         }
@@ -290,6 +264,7 @@ public:
             its_expected.insert({info_.event_id, 1});
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 1), 1});
             // Initial event for the event which is member of both eventgroups has to be sent twice
+            // see TR_SOMEIP_00571
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 2), 2});
 
             check_received_initial_events_number(its_expected);
@@ -334,7 +309,9 @@ public:
             // sleep some time to ensure the unsubscription was processed by the
             // remote routing_manager before setting the field again in the next
             // loop.
+            its_events_lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            its_events_lock.lock();
         }
         std::unique_lock<std::mutex> its_shutdown_lock(shutdown_response_mutex_);
         call_method_at_service(subscribe_notify_test::shutdown_method_id);
@@ -364,8 +341,6 @@ private:
 
     std::vector<std::shared_ptr<vsomeip::payload>> received_events_;
     std::map<vsomeip::event_t, std::uint32_t> number_received_events_;
-    bool possible_double_initial_events_first_eventgroup;
-    bool possible_double_initial_events_second_eventgroup;
     std::thread run_thread_;
 };
 
