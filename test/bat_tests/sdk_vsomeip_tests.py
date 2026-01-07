@@ -1,4 +1,4 @@
-# Copyright (C) 2023. BMW Car IT GmbH. All rights reserved.
+# Copyright (C) 2014-2026. BMW Car IT GmbH. All rights reserved.
 
 # Test it with:
 #   run-mgu-tests -v --sdktarget xs-baytrail-hmgua1 --sysroot / /usr/share/vsomeip-sdktests/sdktests/sdk_vsomeip_tests.py
