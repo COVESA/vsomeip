@@ -19,20 +19,14 @@ export VSOMEIP_APPLICATION_NAME=routingmanagerd
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
-sleep 1
-
 export VSOMEIP_APPLICATION_NAME=service-sample
 ./lazy_load_test_service &
 PID_SERVICE=$!
-
-sleep 1
 
 export VSOMEIP_CONFIGURATION=lazy_load_test_service_config.json
 export VSOMEIP_APPLICATION_NAME=client-sample_normal
 ./lazy_load_test_client &
 PID_CLIENT=$!
-
-sleep 2
 
 export VSOMEIP_CONFIGURATION=/vsomeip/
 export VSOMEIP_APPLICATION_NAME=client-sample-lazy
@@ -41,8 +35,6 @@ setpriv --reuid=1 --regid=1 --clear-groups ./lazy_load_test_lazy_client
 PID_LAZY_CLIENT=$!
 
 wait $PID_LAZY_CLIENT || FAIL=$(($FAIL+1))
-
-sleep 1
 
 # Terminate the daemon
 kill $PID_VSOMEIPD
@@ -54,9 +46,4 @@ wait $PID_SERVICE || FAIL=$(($FAIL+1))
 # Check client exit status
 wait $PID_CLIENT || FAIL=$(($FAIL+1))
 
-# Return overall status
-if [ $FAIL -ne 0 ]; then
-    exit $FAIL
-else
-    exit 0
-fi
+exit $FAIL

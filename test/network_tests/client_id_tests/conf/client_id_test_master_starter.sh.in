@@ -26,19 +26,14 @@ FAIL=0
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_one
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 1 &
-CLIENT_ID_PIDS[1]=$!
 
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_two
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 2 &
-CLIENT_ID_PIDS[2]=$!
 
 export VSOMEIP_APPLICATION_NAME=client_id_test_service_three
 export VSOMEIP_CONFIGURATION=$1
 ./client_id_test_service 3 &
-CLIENT_ID_PIDS[3]=$!
-
-sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting client id test on slave LXC"
@@ -61,20 +56,10 @@ cat <<End-of-message
 End-of-message
 fi
 
-# Wait until client and service are finished
-for client_pid in "${CLIENT_ID_PIDS[@]}"
+# Wait until all applications are finished
+for job in $(jobs -p)
 do
-    if [ -n "$client_pid" ]; then
-        # Fail gets incremented if either client or service exit
-        # with a non-zero exit code
-        wait "$client_pid" || ((FAIL+=1))
-    fi
+    wait $job || ((FAIL+=1))
 done
 
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

@@ -14,8 +14,6 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=cpu_load_test_client_master.json
 ./cpu_load_test_client --protocol UDP --calls 1000 &
-TEST_CLIENT_PID=$!
-sleep 1
 
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting cpu load test on slave LXC"
@@ -31,45 +29,16 @@ cat <<End-of-message
 ** from an external host to successfully complete this test.
 **
 ** You probably will need to adapt the 'unicast' settings in
-** cpu_load_test_client_master.json,
-** cpu_load_test_service_master.json,
-** cpu_load_test_client_client.json and
+** cpu_load_test_client_master.json and
 ** cpu_load_test_service_client.json to your personal setup.
 *******************************************************************************
 *******************************************************************************
 End-of-message
 fi
 
-# Fail gets incremented if either client or service exit
-# with a non-zero exit code
-wait $TEST_CLIENT_PID || FAIL=$(($FAIL+1))
-
-
-sleep 4
-cat <<End-of-message
-*******************************************************************************
-*******************************************************************************
-** Now switching roles and running service on this host (master)
-*******************************************************************************
-*******************************************************************************
-End-of-message
-
-export VSOMEIP_CONFIGURATION=cpu_load_test_service_master.json
-./cpu_load_test_service &
-sleep 1
-
-# now we can wait to all jobs to finish
 for job in $(jobs -p)
 do
-    # Fail gets incremented if either client or service exit
-    # with a non-zero exit code
     wait $job || FAIL=$(($FAIL+1))
 done
 
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

@@ -28,20 +28,10 @@ PID_VSOMEIPD=$!
 
 # Start the services
 export VSOMEIP_APPLICATION_NAME=server-application
-./subscribe_notify_test_one_event_two_eventgroups_service $1 &
-PID_SERVICE=$!
-
-# wait until service exits successfully
-wait $PID_SERVICE || FAIL=$(($FAIL+1))
-
+./subscribe_notify_test_one_event_two_eventgroups_service $1 || FAIL=$(($FAIL+1))
 
 # kill daemon
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]; then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

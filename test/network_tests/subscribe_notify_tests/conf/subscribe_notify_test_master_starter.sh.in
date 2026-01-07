@@ -40,8 +40,6 @@ export VSOMEIP_APPLICATION_NAME=subscribe_notify_test_service_three
 export VSOMEIP_CONFIGURATION=$MASTER_JSON_FILE
 ./subscribe_notify_test_service 3 $RELIABILITY_TYPE $3 &
 
-sleep 3
-
 if [ ! -z "$USE_LXC_TEST" ]; then
     echo "starting subscribe_notify_test_slave_starter.sh on slave LXC with parameters $CLIENT_JSON_FILE $2"
     ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/subscribe_notify_tests; ./subscribe_notify_test_slave_starter.sh $RELIABILITY_TYPE $CLIENT_JSON_FILE $3\"" &
@@ -76,10 +74,4 @@ do
     wait $job || ((FAIL+=1))
 done
 
-# Check if both exited successfully
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL

@@ -206,29 +206,6 @@ public:
                            });
     }
 
-    bool all_notifications_received_tcp_and_udp() {
-        std::uint32_t received_twice(0);
-        std::uint32_t received_normal(0);
-        for (const auto& v : other_services_received_notification_) {
-            if (v.second == subscribe_notify_test::notifications_to_send * 2) {
-                received_twice++;
-            } else if (v.second == subscribe_notify_test::notifications_to_send) {
-                received_normal++;
-            }
-        }
-
-        if (received_twice == (service_infos_.size() - 1) / 2 && received_normal == (service_infos_.size() - 1) / 2 - 1) {
-            // routing manager stub receives the notification
-            // - twice from external nodes
-            // - and normal from all internal nodes
-            VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] "
-                          << "Received notifications:"
-                          << " Normal: " << received_normal << " Twice: " << received_twice;
-            return true;
-        }
-        return false;
-    }
-
     void run() {
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);

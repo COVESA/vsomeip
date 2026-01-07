@@ -8,7 +8,8 @@ project(payload_tests LANGUAGES CXX)
 # Configure necessary files into the build folder.
 set(configuration_files
     external_local_payload_test_client_external.json
-    external_local_payload_test_client_external_start.sh
+    external_local_payload_test_client_external_start_udp.sh
+    external_local_payload_test_client_external_start_tcp.sh
     external_local_payload_test_client_external_starter.sh
     external_local_payload_test_client_local.json
     external_local_payload_test_client_local_and_external_starter.sh

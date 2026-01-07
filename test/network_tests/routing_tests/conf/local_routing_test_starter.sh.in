@@ -65,9 +65,4 @@ wait $PID_VSOMEIPD || ((FAIL+=1))
 
 # Check if client and server both exited successfully and the service didnt't
 # have any open
-if [ $FAIL -eq 0 ]
-then
-    exit 0
-else
-    exit 1
-fi
+exit $FAIL
