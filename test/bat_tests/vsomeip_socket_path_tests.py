@@ -1,4 +1,4 @@
-# Copyright (C) 2023. BMW Car IT GmbH. All rights reserved.
+# Copyright (C) 2014-2026. BMW Car IT GmbH. All rights reserved.
 import os
 import nose
 

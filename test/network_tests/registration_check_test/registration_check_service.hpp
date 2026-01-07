@@ -1,7 +1,7 @@
-// Copyright(C) 2015 - 2025 Bayerische Motoren Werke Aktiengesellschaft(BMW AG)
+// Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
-// License, v.2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http: // mozilla.org/MPL/2.0/.
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #ifndef REGISTRATION_CHECK_TEST_SERVICE_HPP
 #define REGISTRATION_CHECK_TEST_SERVICE_HPP
 
