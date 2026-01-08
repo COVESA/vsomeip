@@ -20,6 +20,7 @@
 namespace vsomeip_v3::testing {
 static std::string const routingmanager_name_{"routingmanagerd"};
 static std::string const server_name_{"server"};
+static std::string const server_name_two_{"server_two"}; // without a fixed-id in config
 static std::string const client_name_{"client"};
 
 struct test_client_helper : public base_fake_socket_fixture {
@@ -80,6 +81,7 @@ struct test_client_helper : public base_fake_socket_fixture {
     void stop_offer() { server_->stop_offer(service_instance_); }
 
     service_instance service_instance_{0x3344, 0x1};
+    service_instance service_instance_two_{0x3345, 0x1};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
     message first_expected_message_{
             client_session{0, 1}, service_instance_, offered_event_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
@@ -814,6 +816,67 @@ TEST_F(test_client_helper, test_subscription_for_ghost_service) {
     );
     inject_command(client_name_, server_name_, subscription_payload);
     ASSERT_TRUE(wait_for_command(server_name_, client_name_, protocol::id_e::SUBSCRIBE_NACK_ID));
+}
+
+TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
+    /// simulate a situation where an (routing) application has multiple (client) client-ids to the same address/port
+    /// which for IPv4 is a problem - can not connect twice to the same address/port, so one of the clients must be dropped!
+
+
+    start_router();
+
+    // start server with fixed client-id (using `server_name_`) that offers first service
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer(service_instance_);
+
+    // start client with fixed client-id (using `client_name_`) that wants two services
+    client_ = start_client(client_name_);
+    ASSERT_NE(client_, nullptr);
+    ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    client_->request_service(service_instance_);
+    client_->request_service(service_instance_two_);
+
+    // ensure client only sees first service available
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    EXPECT_FALSE(client_->availability_record_.wait_for_any(service_availability::available(service_instance_two_),
+                                                            std::chrono::milliseconds(300)));
+    client_->availability_record_.clear();
+
+    // now it becomes tricky
+    // we need to stop server, but such that routingmanagerd does not see it deregistering
+    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, routingmanager_name_, true)); // avoid ltsei connection closing
+    ASSERT_TRUE(set_ignore_inner_close(routingmanager_name_, true, server_name_, true)); // avoid ltcei connection closing
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true)); // avoid DEREGISTER_APPLICATION_ID
+
+    // stimulate an error on server, so that it will not block on deregister
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::eof, routingmanager_name_, std::nullopt));
+    stop_client(server_name_); // stop server
+
+    // ensure client never sees first service becoming unavailable
+    // the "sleep" is DISGUSTING! but I have no better idea
+    EXPECT_FALSE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_),
+                                                             std::chrono::milliseconds(300)));
+
+    // start another server with same address/port (implicit!), but different client-id (using `server_name_two_`), and that offers
+    // a second service
+
+    // ensure client still did not see this other service
+    EXPECT_FALSE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_),
+                                                             std::chrono::milliseconds(300)));
+
+    create_app(server_name_two_);
+    auto* another_server = start_client(server_name_two_);
+    ASSERT_NE(another_server, nullptr);
+    ASSERT_TRUE(another_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    another_server->offer(service_instance_two_);
+
+    // finally, we expect:
+    // 1) client sees second service available
+    EXPECT_TRUE(client_->availability_record_.wait_for_any(service_availability::available(service_instance_two_)));
+    // 2) client sees first service unavailable - because routing understood it is gone!
+    EXPECT_TRUE(client_->availability_record_.wait_for_any(service_availability::unavailable(service_instance_)));
 }
 
 struct test_restart_clients : test_client_helper {

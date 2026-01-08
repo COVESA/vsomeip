@@ -1579,7 +1579,7 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
                 old_client != VSOMEIP_CLIENT_UNSET && old_client != _client) {
                 VSOMEIP_WARNING << "rms::" << __func__ << ": deregistering old client " << std::hex << std::setfill('0') << std::setw(4)
                                 << old_client << " due to new client " << std::hex << std::setfill('0') << std::setw(4) << _client << " @ "
-                                << _address.to_string() + ":" << _port;
+                                << std::dec << _address.to_string() + ":" << _port;
 
                 // we *definitely* need to do this in order - deregister old client, register new client
                 // therefore schedule another registration event
