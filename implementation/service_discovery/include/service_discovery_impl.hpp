@@ -83,6 +83,8 @@ public:
 
     void sent_messages(const byte_t* _data, length_t _size, const boost::asio::ip::address& _remote_address = boost::asio::ip::address());
 
+    void start_offer_watchdog();
+
     void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<endpoint>& _endpoint);
 
     void offer_service(const std::shared_ptr<serviceinfo>& _info);
@@ -288,6 +290,7 @@ private:
      * @param error boost steady timer error code.
      */
     void check_stopped_services_on_suspend(const boost::system::error_code& error);
+    void check_offer_services(const boost::system::error_code& error, uint32_t _faulty_value);
 
 private:
     // Runtime
@@ -417,6 +420,11 @@ private:
     std::mutex suspend_stop_offer_mutex_;
     service_instance_map<std::unordered_set<major_version_t>> suspend_stop_offer_services_;
     std::chrono::milliseconds stop_offer_watchdog_time_;
+
+    boost::asio::steady_timer offers_watchdog_;
+    std::chrono::milliseconds offers_watchdog_time_;
+    std::atomic<uint32_t> offers_received_after_last_resume_;
+    std::atomic<uint32_t> offers_received_;
 };
 
 } // namespace sd

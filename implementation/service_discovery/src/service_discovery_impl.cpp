@@ -58,7 +58,9 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(_host->get_io()), main_phase_timer_(_host->get_io()),
     is_suspended_(false), is_diagnosis_(false), last_msg_received_timer_(_host->get_io()),
     last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)),
-    suspend_stop_offer_watchdog_{_host->get_io()}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME} {
+    suspend_stop_offer_watchdog_{_host->get_io()}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME},
+    offers_watchdog_{_host->get_io()}, offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0},
+    offers_received_{0} {
 
     next_subscription_expiration_ = std::chrono::steady_clock::now() + std::chrono::hours(24);
 }
@@ -131,6 +133,10 @@ void service_discovery_impl::init() {
     if (stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
         VSOMEIP_INFO << "Service Discovery Stop Offer watchdog enabled.";
     }
+    offers_watchdog_time_ = std::chrono::milliseconds(configuration_->get_sd_offers_watchdog_time());
+    if (offers_watchdog_time_ != std::chrono::milliseconds::zero()) {
+        VSOMEIP_INFO << "Service Discovery Offer watchdog enabled.";
+    }
 }
 
 void service_discovery_impl::start() {
@@ -175,6 +181,10 @@ void service_discovery_impl::start() {
         std::scoped_lock lock{suspend_stop_offer_mutex_};
         suspend_stop_offer_watchdog_.cancel();
     }
+    if (offers_watchdog_time_ != std::chrono::milliseconds::zero()) {
+        offers_received_after_last_resume_ = offers_received_.load();
+        offers_watchdog_.cancel();
+    }
     start_main_phase_timer();
     start_offer_debounce_timer(true);
     start_find_debounce_timer(true);
@@ -185,11 +195,11 @@ void service_discovery_impl::start() {
 void service_discovery_impl::stop() {
     is_suspended_ = true;
     stop_last_msg_received_timer();
-
     stop_ttl_timer();
     stop_find_debounce_timer();
     stop_offer_debounce_timer();
     stop_main_phase_timer();
+    offers_watchdog_.cancel();
 }
 
 void service_discovery_impl::request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -1159,6 +1169,15 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     }
 }
 
+void service_discovery_impl::start_offer_watchdog() {
+    if (offers_watchdog_time_ != std::chrono::milliseconds::zero()) {
+        VSOMEIP_INFO << "sdi::" << __func__ << "start_offer_watchdog";
+        offers_watchdog_.expires_after(offers_watchdog_time_);
+        offers_watchdog_.async_wait([this, faulty_value = offers_received_after_last_resume_.load()](
+                                            const boost::system::error_code& error) { check_offer_services(error, faulty_value); });
+    }
+}
+
 void service_discovery_impl::sent_messages(const byte_t* _data, length_t _size, const boost::asio::ip::address& _remote_address) {
     std::shared_ptr<message_impl> its_message;
     deserialize_data(_data, _size, its_message);
@@ -1183,6 +1202,7 @@ void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _e
                 // Offer service.
                 std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(its_service, its_instance);
                 if (its_info) {
+                    offers_received_++;
                     if (_remote_address.is_unspecified()) {
                         // enable proccess remote subscription for the services
                         // SD has already sent the offers for this service to multicast ip
@@ -3414,7 +3434,7 @@ void service_discovery_impl::deserialize_data(const byte_t* _data, const length_
 
 void service_discovery_impl::check_stopped_services_on_suspend(const boost::system::error_code& error) {
     if (error && error.value() != boost::asio::error::operation_aborted) {
-        VSOMEIP_ERROR << "sdi::" << __func__ << " suspend stop offer watchdog error " << error.message();
+        VSOMEIP_ERROR << "sdi::" << __func__ << ": Suspend stop offer watchdog error " << error.message();
     } else {
         std::scoped_lock lock{suspend_stop_offer_mutex_};
         for (const auto& [its_si, majors] : suspend_stop_offer_services_) {
@@ -3424,6 +3444,16 @@ void service_discovery_impl::check_stopped_services_on_suspend(const boost::syst
             }
         }
         suspend_stop_offer_services_.clear();
+    }
+}
+
+void service_discovery_impl::check_offer_services(const boost::system::error_code& error, uint32_t _faulty_value) {
+    if (error && error.value() != boost::asio::error::operation_aborted) {
+        VSOMEIP_ERROR << "sdi::" << __func__ << ": Suspend offer watchdog error " << error.message();
+    } else if (!error) { // and there are offers being made
+        if (_faulty_value == offers_received_) {
+            VSOMEIP_TERMINATE("No offer was received after resume");
+        }
     }
 }
 
