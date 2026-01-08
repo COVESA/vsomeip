@@ -688,6 +688,9 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
                               << " client=0x" << std::setw(4) << _client << " service=0x" << std::setw(4) << _service << "." << std::setw(4)
                               << _instance << "." << std::setw(2) << static_cast<std::uint16_t>(_major) << " event=" << std::setw(4)
                               << _event;
+                // if we can not create a connection with this client -> there should be something wrong with the routing info,
+                // but we assume the service is offered -> this is an error and we should handle it
+                handle_client_error(its_target_client);
             }
         } else {
             std::scoped_lock its_sender_lock{sender_mutex_};
