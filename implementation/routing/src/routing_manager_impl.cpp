@@ -3254,6 +3254,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             VSOMEIP_INFO << "rmi::" << __func__ << ": Start service discovery.";
             discovery_->start();
 
+            // if there are any offered services, start offers watchdog
+            if (get_offered_services().size() > 0) {
+                discovery_->start_offer_watchdog();
+            }
             // Trigger initial offer phase for relevant services
             VSOMEIP_INFO << "rmi::" << __func__ << ": Offer services.";
             for (const auto& its_service : get_offered_services()) {

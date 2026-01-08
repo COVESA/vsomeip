@@ -49,6 +49,8 @@ public:
     virtual void sent_messages(const byte_t* _data, length_t _size,
                                const boost::asio::ip::address& _remote_address = boost::asio::ip::address()) = 0;
 
+    virtual void start_offer_watchdog() = 0;
+
     virtual void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<endpoint>& _endpoint) = 0;
 
     virtual void offer_service(const std::shared_ptr<serviceinfo>& _info) = 0;

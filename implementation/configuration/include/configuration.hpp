@@ -174,6 +174,13 @@ public:
      */
     virtual uint32_t get_sd_stop_offer_watchdog_time() const = 0;
 
+    /**
+     * @brief Get the timeout (in milliseconds) of the service discovery watchdog for offers.
+     *
+     * @return timeout value.
+     */
+    virtual uint32_t get_sd_offers_watchdog_time() const = 0;
+
     // Trace configuration
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;
 
