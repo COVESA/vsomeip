@@ -71,7 +71,7 @@
 #include <vsomeip/runtime.hpp>
 
 #include "../include/logger_impl.hpp"
-#include "../../utility/include/global_state.hpp"
+#include "../../runtime/include/runtime_impl.hpp"
 
 namespace vsomeip_v3 {
 namespace logger {
@@ -121,13 +121,13 @@ message::~message() try {
         // Unfortunately, building the string is a bit awkward - freely concatenating
         // string_views and strings is a C++26 feature.
         const std::string_view ts = timestamp();
-        const std::string_view its_app = app_name(); // To avoid collision w/ std::ios::app on some environments
+        const std::string_view app = app_name();
         const std::string_view lvl = level_as_view();
         const std::string_view msg = buffer_as_view();
         std::string output;
-        output.reserve(ts.size() + its_app.size() + lvl.size() + msg.size() + 1);
+        output.reserve(ts.size() + app.size() + lvl.size() + msg.size() + 1);
         output += ts;
-        output += its_app;
+        output += app;
         output += lvl;
         output += msg;
         output += '\n';
@@ -135,39 +135,39 @@ message::~message() try {
         std::cout.flush();
 
 #else
-        // Get Android strings from global state to ensure proper destruction order.
-        auto& state = global_state::get();
+        static std::string app = runtime::get_property("LogApplication");
 
         // Note: Adding this prefix is not really optimal in terms of memory allocation/copying.
         // Could we set the prefix as separate arg instead? This would change the current
         // message structure through, so leave it for now.
+        const static std::string prefix = "VSIP: ";
         const std::string_view view = buffer_as_view();
         std::string output;
-        output.reserve(state.android_prefix_.size() + view.size());
-        output += state.android_prefix_;
+        output.reserve(prefix.size() + view.size());
+        output += prefix;
         output += view;
 
         switch (level_) {
         case level_e::LL_FATAL:
-            ALOGE(state.android_app_.c_str(), output.c_str());
+            ALOGE(app.c_str(), output.c_str());
             break;
         case level_e::LL_ERROR:
-            ALOGE(state.android_app_.c_str(), output.c_str());
+            ALOGE(app.c_str(), output.c_str());
             break;
         case level_e::LL_WARNING:
-            ALOGW(state.android_app_.c_str(), output.c_str());
+            ALOGW(app.c_str(), output.c_str());
             break;
         case level_e::LL_INFO:
-            ALOGI(state.android_app_.c_str(), output.c_str());
+            ALOGI(app.c_str(), output.c_str());
             break;
         case level_e::LL_DEBUG:
-            ALOGD(state.android_app_.c_str(), output.c_str());
+            ALOGD(app.c_str(), output.c_str());
             break;
         case level_e::LL_VERBOSE:
-            ALOGV(state.android_app_.c_str(), output.c_str());
+            ALOGV(app.c_str(), output.c_str());
             break;
         default:
-            ALOGI(state.android_app_.c_str(), output.c_str());
+            ALOGI(app.c_str(), output.c_str());
         };
 #endif // !ANDROID
     }
@@ -235,10 +235,13 @@ std::string_view message::timestamp() const {
 }
 
 std::string_view message::app_name() const {
-    // Get app name from global state to ensure proper destruction order.
-    // The string is initialized once in global_state constructor and
-    // outlives all logging attempts.
-    return global_state::get().app_name_;
+    static std::string its_name = [] {
+        // Only read the env var once, on first use. This is also threadsafe.
+        // NOLINTNEXTLINE(concurrency-mt-unsafe): False positve since C++11
+        const char* name = std::getenv(VSOMEIP_ENV_APPLICATION_NAME);
+        return name ? std::string{" "} + name : "";
+    }();
+    return its_name;
 }
 
 std::string_view message::level_as_view() const {

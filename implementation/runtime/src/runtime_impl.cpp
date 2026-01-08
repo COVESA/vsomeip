@@ -3,10 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// In libvsomeip, e.g., in runtime_impl constructor or a static constructor
-#ifdef __linux__
-#include <dlfcn.h>
-#endif
 #include <memory>
 #include <mutex>
 #include <vsomeip/defines.hpp>
@@ -15,44 +11,29 @@
 #include "../include/runtime_impl.hpp"
 #include "../../message/include/message_impl.hpp"
 #include "../../message/include/payload_impl.hpp"
-#include "../../utility/include/global_state.hpp"
+#include "../../plugin/include/plugin_manager_impl.hpp"
+#include "vsomeip/internal/logger.hpp"
 
 namespace vsomeip_v3 {
-#ifdef __linux
-// From https://gcc.gnu.org/onlinedocs/gcc-4.4.7/gcc/Function-Attributes.html
-// The constructor attribute causes the function to be called automatically before execution enters main (). Similarly, the destructor
-// attribute causes the function to be called automatically after main () has completed or exit () has been called. Functions with these
-// attributes are useful for initializing data that will be used implicitly during the execution of the program.
-__attribute__((constructor)) void pin_library() {
-    Dl_info info;
-    // Get path to self using any symbol in this library
-    if (dladdr(reinterpret_cast<void*>(pin_library), &info)) {
-
-        dlopen(info.dli_fname, RTLD_NOW | RTLD_NODELETE | RTLD_NOLOAD);
-    }
-    // Force global_state initialization at library load time (before main()).
-    // This ensures global_state is destroyed AFTER any static application objects,
-    // since static destruction follows reverse initialization order.
-    (void)global_state::get();
-}
-#endif
 
 std::string runtime_impl::get_property(const std::string& _name) {
-    std::scoped_lock its_lock{global_state::get().properties_mutex_};
-    auto& properties = global_state::get().properties_;
-    auto found_property = properties.find(_name);
-    if (found_property != properties.end())
+    auto its_runtime = std::static_pointer_cast<runtime_impl>(get());
+    std::scoped_lock its_lock{its_runtime->properties_mutex_};
+    auto found_property = its_runtime->properties_.find(_name);
+    if (found_property != its_runtime->properties_.end())
         return found_property->second;
     return "";
 }
 
 void runtime_impl::set_property(const std::string& _name, const std::string& _value) {
-    std::scoped_lock its_lock{global_state::get().properties_mutex_};
-    global_state::get().properties_[_name] = _value;
+    auto its_runtime = std::static_pointer_cast<runtime_impl>(get());
+    std::scoped_lock its_lock{its_runtime->properties_mutex_};
+    its_runtime->properties_[_name] = _value;
 }
 
 std::shared_ptr<runtime> runtime_impl::get() {
-    return global_state::get().runtime_;
+    static std::shared_ptr<runtime> the_runtime_ = std::make_shared<runtime_impl>();
+    return the_runtime_;
 }
 
 std::shared_ptr<application> runtime_impl::create_application(const std::string& _name) {

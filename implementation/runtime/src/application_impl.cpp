@@ -25,6 +25,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/application_impl.hpp"
+#include "../include/runtime_impl.hpp"
 #ifdef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 #include "../../configuration/include/configuration_impl.hpp"
 #else
@@ -45,7 +46,7 @@ configuration::~configuration() { }
 #endif
 
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
-    client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
+    runtime_{runtime::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
 #if defined(__linux__) || defined(__QNX__)
     start_thread_{0},
 #endif
@@ -58,10 +59,7 @@ application_impl::application_impl(const std::string& _name, const std::string& 
 }
 
 application_impl::~application_impl() {
-    if (auto rt = runtime::get()) {
-        rt->remove_application(name_);
-    }
-
+    runtime_->remove_application(name_);
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
     if (configuration_) {
         auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
@@ -76,9 +74,6 @@ application_impl::~application_impl() {
         }
     }
 #endif
-    // It may be the case that destructors of sub-objects will attempt to use global
-    // static data -- in particular when a detached dispatcher thread is calling ~application_impl.
-    // See global_state.{hpp,cpp} and usages of global_state::get() to how use-after-free are avoided.
 }
 
 bool application_impl::init() {
@@ -492,13 +487,15 @@ void application_impl::start() {
                 // - D calls stop, then attempts to join T0;
                 // - T0 attempts to join D.
                 //
-                // Furthermore, on these cases, it is usually true that the dispatch thread
-                // will call the destructor (seen empirically).
-                //
                 // This pattern is common specially to CommonAPI, where proxies (which under the hood hold
                 // a reference to a vsomeip::application) are passed as parameters to event/method callbacks.
                 // Many apps use the reference to stop the connection, which under the hood hit the aforementioned case.
-                its_dispatcher->detach();
+                //
+                // To fix the issue, we detach the dispatcher thread so it can safely outlive the start thread
+                // without needing to be joined (which would deadlock in this scenario).
+                if (its_dispatcher->joinable()) {
+                    its_dispatcher->detach();
+                }
             } else if (its_dispatcher->joinable()) {
                 its_dispatcher->join();
             }
