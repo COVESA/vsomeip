@@ -1751,7 +1751,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     old_client != VSOMEIP_CLIENT_UNSET && old_client != its_client) {
                     VSOMEIP_INFO << "rmc::" << __func__ << ": old client 0x" << std::hex << std::setfill('0') << std::setw(4) << old_client
                                  << " removed due to new client 0x" << std::hex << std::setfill('0') << std::setw(4) << its_client << " @ "
-                                 << its_address.to_string() + ":" << its_port;
+                                 << std::dec << its_address.to_string() + ":" << its_port;
 
                     // also removes guest
                     remove_local(old_client, true);
