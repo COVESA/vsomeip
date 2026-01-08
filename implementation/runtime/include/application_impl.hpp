@@ -279,7 +279,10 @@ private:
     //
     // Attributes
     //
-    std::weak_ptr<runtime> runtime_; // Weak to avoid circular dependency with static applications
+    // Due to an edge case where stop is called in a dispatch thread, and joins on another user thread that calls application->start,
+    // we have to extend the lifetime of runtime. Otherwise, the dispatcher thread has a possibility to race with another thread calling
+    // terminate() during process exit. Therefore, we extend the runtime data to be valid for all applications in that process.
+    std::shared_ptr<runtime> runtime_;
     std::shared_ptr<configuration> configuration_;
     std::atomic<client_t> client_; // unique application identifier
     session_t session_;
