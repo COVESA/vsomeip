@@ -1493,28 +1493,36 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         // Create a ready_to_stop_t object to synchronize the stopping
         // of the service on reliable and unreliable endpoints.
         struct ready_to_stop_t {
-            ready_to_stop_t(bool _reliable, bool _unreliable) : reliable_(_reliable), unreliable_(_unreliable) { done_ = false; }
+            ready_to_stop_t(bool _reliable, bool _unreliable, major_version_t _major, minor_version_t _minor) :
+                reliable_ready_(_reliable), unreliable_ready_(_unreliable), major_(_major), minor_(_minor) { }
 
-            inline bool is_ready() const { return reliable_ && unreliable_; }
+            inline bool is_ready() const { return reliable_ready_ && unreliable_ready_; }
             std::mutex is_ready_mutex_;
-            bool done_;
-            std::atomic<bool> reliable_;
-            std::atomic<bool> unreliable_;
+            bool done_{false};
+            std::atomic<bool> reliable_ready_;
+            std::atomic<bool> unreliable_ready_;
+
+            major_version_t major_;
+            minor_version_t minor_;
         };
-        auto ready_to_stop = std::make_shared<ready_to_stop_t>(its_reliable_endpoint == nullptr, its_unreliable_endpoint == nullptr);
+        auto ready_to_stop = std::make_shared<ready_to_stop_t>(its_reliable_endpoint == nullptr, its_unreliable_endpoint == nullptr,
+                                                               its_info->get_major(), its_info->get_minor());
         auto ptr = shared_from_this();
 
-        auto callback = [this, ptr, its_info, its_reliable_endpoint, its_unreliable_endpoint, ready_to_stop, _client, _service, _instance,
-                         _major, _minor](std::shared_ptr<endpoint> _endpoint) {
-            if (its_reliable_endpoint && its_reliable_endpoint == _endpoint)
-                ready_to_stop->reliable_ = true;
-
-            if (its_unreliable_endpoint && its_unreliable_endpoint == _endpoint)
-                ready_to_stop->unreliable_ = true;
+        auto callback = [this, ptr, ready_to_stop, _client, _service, _instance, _major, _minor](std::shared_ptr<endpoint> _endpoint) {
+            bool reliable_endpoint = _endpoint->is_reliable();
+            if (reliable_endpoint) {
+                ready_to_stop->reliable_ready_ = true;
+            } else {
+                ready_to_stop->unreliable_ready_ = true;
+            }
 
             if (discovery_) {
-                if (its_info->get_major() == _major && its_info->get_minor() == _minor)
-                    discovery_->stop_offer_service(its_info, true);
+                if (ready_to_stop->major_ == _major && ready_to_stop->minor_ == _minor) {
+                    auto service_info = find_service(_service, _instance);
+                    if (service_info)
+                        discovery_->stop_offer_service(service_info, true);
+                }
             }
 
             if (ep_mgr_impl_->remove_instance(_service, _endpoint.get())) {
@@ -1534,7 +1542,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                     std::scoped_lock ready_lck{ready_to_stop->is_ready_mutex_};
                     if (!ready_to_stop->done_) {
                         ready_to_stop->done_ = true;
-                        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
+                        del_routing_info(_service, _instance, reliable_endpoint, !reliable_endpoint, false);
                         // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process
                         // has completed before starting the next one, otherwise, we may have the availability being reported in the wrong
                         // order
@@ -1544,11 +1552,11 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                         }
                         erase_offer_command(_service, _instance);
                     } else {
-                        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
+                        del_routing_info(_service, _instance, reliable_endpoint, !reliable_endpoint, false);
                     }
                 }
             } else {
-                del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
+                del_routing_info(_service, _instance, reliable_endpoint, !reliable_endpoint, false);
             }
         };
 
