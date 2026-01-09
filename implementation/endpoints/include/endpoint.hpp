@@ -43,8 +43,6 @@ public:
     virtual bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) = 0;
     virtual void receive() = 0;
 
-    virtual bool wait_connecting_timer() { return true; };
-
     virtual void add_default_target(service_t _service, const std::string& _address, uint16_t _port) = 0;
     virtual void remove_default_target(service_t _service) = 0;
     virtual void remove_stop_handler(service_t _service) = 0;
