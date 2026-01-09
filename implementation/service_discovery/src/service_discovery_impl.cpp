@@ -2336,7 +2336,7 @@ void service_discovery_impl::check_ttl(const boost::system::error_code& _error) 
                                // update_routing_info
     if (!_error) {
         {
-            std::unique_lock<std::mutex> its_lock(check_ttl_mutex_, std::try_to_lock);
+            std::unique_lock its_lock{check_ttl_mutex_, std::try_to_lock};
             if (its_lock.owns_lock()) {
                 its_counter = 0;
                 host_->update_routing_info(ttl_timer_runtime_);

@@ -818,7 +818,7 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
 }
 
 void routing_manager_stub::client_registration_func(void) {
-    std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
+    std::unique_lock its_lock{client_registration_mutex_};
     while (client_registration_running_) {
         client_registration_condition_.wait(
                 its_lock, [this] { return !pending_client_registrations_queue_.empty() || !client_registration_running_; });

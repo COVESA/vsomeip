@@ -553,7 +553,7 @@ TEST_P(someip_tp, send_in_mode) {
             // send SOMEI-TP message fragmented into 6 parts to service:
             boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_, 30001);
 
-            std::unique_lock<std::mutex> its_lock(all_fragments_received_mutex_);
+            std::unique_lock its_lock{all_fragments_received_mutex_};
             for (const order_e mode : {order_e::ASCENDING, order_e::DESCENDING}) {
                 create_fragments(someip_tp_test::number_of_fragments, someip_tp_test::service.service_id,
                                  someip_tp_test::service.instance_id, someip_tp_test::service.method_id,
@@ -832,7 +832,7 @@ TEST_P(someip_tp, send_in_mode) {
     });
 
     std::mutex all_fragments_received_as_server_mutex_;
-    std::unique_lock<std::mutex> all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
+    std::unique_lock all_fragments_received_as_server_lock{all_fragments_received_as_server_mutex_};
     std::condition_variable all_fragments_received_as_server_cond_;
     std::atomic<bool> wait_for_all_fragments_received_as_server_(true);
     std::atomic<std::uint16_t> remote_client_request_port(0);
