@@ -80,7 +80,6 @@ public:
     void wait_connecting_cbk(boost::system::error_code const& _error);
     virtual void send_cbk(boost::system::error_code const& _error, std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
     void flush_cbk(boost::system::error_code const& _error);
-    bool wait_connecting_timer();
 
 public:
     virtual void connect() = 0;

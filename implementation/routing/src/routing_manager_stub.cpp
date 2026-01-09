@@ -718,7 +718,7 @@ void routing_manager_stub::on_register_application(client_t _client, bool& conti
         }
     }
 #endif // !VSOMEIP_DISABLE_SECURITY
-    if (endpoint == nullptr || !endpoint->wait_connecting_timer()) {
+    if (endpoint == nullptr) {
         VSOMEIP_WARNING << "Application " << std::hex << _client << " endpoint " << endpoint << " failed to start. Removing it.";
         remove_client_connections(_client, true);
         continue_registration = false;

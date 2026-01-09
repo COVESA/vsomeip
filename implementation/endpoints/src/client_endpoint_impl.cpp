@@ -471,14 +471,6 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(boost::system::error
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::wait_connecting_timer() {
-    std::unique_lock its_lock(connecting_timer_mutex_);
-    connecting_timer_condition_.wait(its_lock, [this] { return connecting_timer_state_ != connecting_timer_state_e::IN_PROGRESS; });
-
-    return connecting_timer_state_ == connecting_timer_state_e::FINISH_SUCCESS;
-}
-
-template<typename Protocol>
 void client_endpoint_impl<Protocol>::wait_connect_cbk(boost::system::error_code const& _error) {
 
     if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
