@@ -368,8 +368,6 @@ void application_impl::start() {
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);
-    // Amount of time to run the IO context.
-    const size_t event_loop_periodicity = configuration_->get_event_loop_periodicity(name_);
     {
         std::scoped_lock its_lock{start_stop_mutex_};
         if (io_.stopped()) {
@@ -396,7 +394,7 @@ void application_impl::start() {
 #if defined(__linux__) || defined(__QNX__)
                      << " I/O nice " << io_thread_nice_level
 #endif
-                     << " boost event loop period " << event_loop_periodicity;
+                ;
 
         start_caller_id_ = std::this_thread::get_id();
         {
@@ -422,7 +420,7 @@ void application_impl::start() {
             routing_->start();
 
         for (size_t i = 0; i < io_thread_count - 1; i++) {
-            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level, event_loop_periodicity] {
+            auto its_thread = std::make_shared<std::thread>([this, i, io_thread_nice_level] {
 #if defined(__linux__)
                 {
                     std::stringstream s;
@@ -441,14 +439,18 @@ void application_impl::start() {
 
                 while (true) {
                     try {
-                        if (event_loop_periodicity) {
-                            io_.run_for(std::chrono::seconds(event_loop_periodicity));
-                        } else {
-                            io_.run();
+                        io_.run();
+
+                        if (!stopped_) {
+                            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0')
+                                          << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1 << ", application '" << name_
+                                          << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                                          << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                                          << ".";
                         }
-                        if (stopped_) {
-                            break;
-                        }
+                        break;
                     } catch (const std::exception& e) {
                         VSOMEIP_ERROR << "application_impl::start() "
                                          "caught exception: "
@@ -474,6 +476,7 @@ void application_impl::start() {
 #endif
             ;
 
+    // NOTE: must happen *AFTER* `routing_->start()`, as plugins may already do offer_service
     auto its_plugins = configuration_->get_plugins(name_);
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
@@ -489,17 +492,20 @@ void application_impl::start() {
     utility::set_thread_niceness(io_thread_nice_level);
     while (true) {
         try {
-            if (event_loop_periodicity) {
-                io_.run_for(std::chrono::seconds(event_loop_periodicity));
-            } else {
-                io_.run();
+            io_.run();
+            if (!stopped_) {
+                VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0') << std::setw(4)
+                              << client_ << "_io00"
+                              << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                              << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                        ;
             }
-            if (stopped_) {
-                if (stop_thread_.joinable()) {
-                    stop_thread_.join();
-                }
-                break;
+            if (stop_thread_.joinable()) {
+                stop_thread_.join();
             }
+            break;
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
         }
@@ -829,6 +835,16 @@ availability_state_e application_impl::are_available_unlocked(available_t& _avai
 }
 
 void application_impl::send(std::shared_ptr<message> _message) {
+
+    // likely that the user created a message (with `runtime::create_message`) and forgot to set the type
+    // fail here in an obvious way, instead of down-the-line in some client-lookup code
+    if (_message->get_message_type() == message_type_e::MT_UNKNOWN) {
+        VSOMEIP_ERROR << "application_impl::" << __func__ << ": message [" << std::hex << std::setfill('0') << std::setw(4)
+                      << _message->get_service() << "." << std::setw(4) << _message->get_instance() << "." << std::setw(4)
+                      << _message->get_method() << "] has unknown type, cannot send!";
+        return;
+    }
+
     bool is_request = utility::is_request(_message);
     if (client_side_logging_
         && (client_side_logging_filter_.empty()
@@ -2614,7 +2630,7 @@ void application_impl::set_sd_acceptance_required(const remote_info_t& _remote, 
         return;
     }
 
-    configuration::port_range_t its_range{_remote.first_, _remote.last_};
+    port_range_t its_range{_remote.first_, _remote.last_};
     configuration_->set_sd_acceptance_rule(its_address, its_range, port_type_e::PT_UNKNOWN, _path, _remote.is_reliable_, _enable, true);
 
     if (_enable && routing_) {

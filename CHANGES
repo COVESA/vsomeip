@@ -1,6 +1,38 @@
 Changes
 =======
 
+v3.6.1
+- global
+  - support compilation with gcc15
+  - enable CMAKE_EXPORT_COMPILE_COMMANDS
+  - introduce a thread-safe timer utility
+
+- application
+  - fail early, fail fast for unknown messages
+  - revert "IO threads exit mitigation"
+
+- routing
+  - create local receiver on start
+  - fix remote subscription expiration
+  - deliver service availability only after endpoint creation
+
+- tests
+  - add regression test - client ignores server connections for a while
+  - add another fake_socket test
+  - update subscribe notify tests documentation
+  - update shebang line to interpret as bash
+  - new network-test for start-stop-start application
+  - doc and fix second address tests
+  - doc and fix offer_test
+  - doc and fix routing tests
+  - fix payload tests return codes
+
+- endpoints
+  - fix race condition in connections_ map changes
+  - drop unused state
+  - no waiting when stopping due to error
+  - set tcp quick ack
+
 v3.6.0
 - global
   - drop vsomeip2 compatibility

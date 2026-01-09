@@ -185,7 +185,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
 
     if (must_report)
         static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_endpoint, false);
+                                                                            its_info->get_minor(), its_endpoint);
 }
 
 void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance,
@@ -212,9 +212,9 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
 
     if (must_report) {
         static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_unreliable, false);
+                                                                            its_info->get_minor(), its_unreliable);
         static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_reliable, false);
+                                                                            its_info->get_minor(), its_reliable);
     }
 }
 
@@ -252,15 +252,14 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
     std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     if (_start) {
         if (_reliable) {
-            auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(shared_from_this(), rm_->shared_from_this(), io_, configuration_)};
+            bool its_magic_cookies_enabled = configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
+                    || configuration_->has_enabled_magic_cookies("local", _port);
+            auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(shared_from_this(), rm_->shared_from_this(), io_, configuration_,
+                                                                    its_magic_cookies_enabled)};
             if (its_tmp) {
                 boost::asio::ip::tcp::endpoint its_reliable(its_unicast, _port);
                 its_tmp->init(its_reliable, its_error);
                 if (!its_error) {
-                    if (configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
-                        || configuration_->has_enabled_magic_cookies("local", _port)) {
-                        its_tmp->enable_magic_cookies();
-                    }
                     its_server_endpoint = its_tmp;
                 }
             }
@@ -454,7 +453,7 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
     if (!other_services_reachable_through_endpoint && its_endpoint) {
         release_used_client_port(its_remote_address, its_remote_port, _reliable, its_local_port);
 
-        its_endpoint->stop();
+        its_endpoint->stop(false);
     }
 }
 
@@ -540,7 +539,7 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
             its_udp_server_endpoint->leave(its_address);
 
         if (!is_used_endpoint(its_multicast_endpoint.get()))
-            its_multicast_endpoint->stop();
+            its_multicast_endpoint->stop(false);
     }
 }
 
@@ -824,7 +823,6 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
         major_version_t major_;
         minor_version_t minor_;
         std::shared_ptr<endpoint> endpoint_;
-        bool service_is_unreliable_only_;
     };
 
     // Set to state CONNECTED as connection is not yet fully established in remote side POV
@@ -852,9 +850,8 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
                         const auto its_other_endpoint = its_info->get_endpoint(!endpoint_is_reliable);
 
                         if (!its_other_endpoint || (its_other_endpoint && its_other_endpoint->is_established_or_connected())) {
-                            services_to_report_.push_front({its_service.first, its_instance.first, its_info->get_major(),
-                                                            its_info->get_minor(), _endpoint,
-                                                            (!endpoint_is_reliable && !its_other_endpoint)});
+                            services_to_report_.push_front(
+                                    {its_service.first, its_instance.first, its_info->get_major(), its_info->get_minor(), _endpoint});
                         }
                     }
                 }
@@ -862,8 +859,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
         }
     }
     for (const auto& s : services_to_report_) {
-        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_,
-                                                                            s.service_is_unreliable_only_);
+        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_);
     }
     if (services_to_report_.empty()) {
         _endpoint->set_established(true);
@@ -1094,13 +1090,10 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_client_endpoint(const bo
 
     try {
         if (_reliable) {
+            bool its_use_magic_cookies = configuration_->has_enabled_magic_cookies(_address.to_string(), _remote_port);
             its_endpoint = std::make_shared<tcp_client_endpoint_impl>(
                     shared_from_this(), rm_->shared_from_this(), boost::asio::ip::tcp::endpoint(its_unicast, _local_port),
-                    boost::asio::ip::tcp::endpoint(_address, _remote_port), io_, configuration_);
-
-            if (configuration_->has_enabled_magic_cookies(_address.to_string(), _remote_port)) {
-                its_endpoint->enable_magic_cookies();
-            }
+                    boost::asio::ip::tcp::endpoint(_address, _remote_port), io_, configuration_, its_use_magic_cookies);
         } else {
             its_endpoint = std::make_shared<udp_client_endpoint_impl>(
                     shared_from_this(), rm_->shared_from_this(), boost::asio::ip::udp::endpoint(its_unicast, _local_port),
@@ -1279,7 +1272,7 @@ void endpoint_manager_impl::suspend() {
 
     for (const auto& its_weak : weak_endpoints) {
         if (auto its_endpoint = its_weak.lock()) {
-            its_endpoint->stop();
+            its_endpoint->stop(false);
         }
     }
 }

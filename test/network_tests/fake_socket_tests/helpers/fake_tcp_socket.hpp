@@ -120,6 +120,7 @@ private:
         set_keep_alive_count_ = count;
         return true;
     }
+    [[nodiscard]] virtual bool set_quick_ack() { return true; }
 #endif
 
 #if defined(__linux__) || defined(__QNX__)

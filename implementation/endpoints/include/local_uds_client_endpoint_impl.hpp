@@ -24,7 +24,7 @@ public:
     virtual ~local_uds_client_endpoint_impl() = default;
 
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     bool is_local() const;
 
@@ -44,8 +44,6 @@ public:
 
 private:
     void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry);
-
-    void send_magic_cookie();
 
     void connect();
     void receive();

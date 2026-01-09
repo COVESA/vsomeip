@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2025 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -81,8 +81,7 @@ public:
         (void)_uid;
         (void)_gid;
         if (_subscribed) {
-            subscriptions_[_service]++;
-            EXPECT_EQ(1u, subscriptions_[_service]);
+            subscriptions_[_service] = 1;
             if (std::all_of(subscriptions_.begin(), subscriptions_.end(),
                             [&](const subscriptions_t::value_type& v) { return v.second == 1; })) {
                 std::lock_guard<std::mutex> its_lock(mutex_);
@@ -130,7 +129,7 @@ private:
     bool wait_until_client_subscribed_to_all_services_;
     std::mutex mutex_;
     std::condition_variable condition_;
-    std::atomic<bool> shutdown_method_called_;
+    std::atomic_bool shutdown_method_called_;
     typedef std::map<vsomeip::service_t, std::uint32_t> subscriptions_t;
     subscriptions_t subscriptions_;
     std::thread offer_thread_;

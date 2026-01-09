@@ -34,7 +34,7 @@ public:
     void deinit();
 
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     void receive();
 

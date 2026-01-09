@@ -44,7 +44,6 @@ local_tcp_server_endpoint_impl::local_tcp_server_endpoint_impl(const std::shared
     local_tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration),
     acceptor_(abstract_socket_factory::get()->create_tcp_acceptor(_io)),
     buffer_shrink_threshold_(_configuration->get_buffer_shrink_threshold()), is_routing_endpoint_(_is_routing_endpoint) {
-    is_supporting_magic_cookies_ = false;
 
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
@@ -112,9 +111,8 @@ void local_tcp_server_endpoint_impl::start() {
     }
 }
 
-void local_tcp_server_endpoint_impl::stop() {
+void local_tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
 
-    server_endpoint_impl::stop();
     {
         std::scoped_lock its_lock{acceptor_mutex_};
         if (acceptor_->is_open()) {
@@ -199,22 +197,49 @@ bool local_tcp_server_endpoint_impl::get_default_target(service_t, local_tcp_ser
 }
 
 void local_tcp_server_endpoint_impl::add_connection(const client_t& _client, const std::shared_ptr<connection>& _connection) {
-    std::scoped_lock its_lock{connections_mutex_};
-    auto find_connection = connections_.find(_client);
-    if (find_connection != connections_.end()) {
-        VSOMEIP_WARNING << "Replacing already existing connection to client " << std::hex << _client
-                        << ", previous connection: " << connections_[_client] << ", new connection " << _connection << ", endpoint > "
-                        << this;
+    connection::ptr its_old_connection;
+    {
+        std::scoped_lock its_lock{connections_mutex_};
+        if (auto its_itr = connections_.find(_client); its_itr != connections_.end()) {
+            // save it to call connection stop and destructor outside of connections_mutex_
+            its_old_connection = its_itr->second;
+            VSOMEIP_WARNING << "Replacing already existing connection to client " << std::hex << _client
+                            << ", previous connection: " << connections_[_client] << ", new connection " << _connection << ", endpoint > "
+                            << this;
+        }
+
+        // save new connection
+        connections_[_client] = _connection;
     }
 
-    connections_[_client] = _connection;
+    if (its_old_connection) {
+        its_old_connection->stop();
+        its_old_connection.reset();
+    }
 }
 
-void local_tcp_server_endpoint_impl::remove_connection(const client_t& _client) {
-    std::scoped_lock its_lock{connections_mutex_};
-    if (!connections_.erase(_client)) {
-        VSOMEIP_WARNING << "Client " << std::hex << _client << " has no registered connection to "
-                        << " remove, endpoint > " << this;
+void local_tcp_server_endpoint_impl::remove_connection(const client_t& _client, connection* _connection) {
+    connection::ptr its_old_connection;
+    {
+        std::scoped_lock its_lock{connections_mutex_};
+        if (auto its_itr = connections_.find(_client); its_itr != connections_.end() && its_itr->second.get() == _connection) {
+            // save it to call connection stop and destructor outside of connections_mutex_
+            its_old_connection = its_itr->second;
+            if (!connections_.erase(_client)) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": client " << std::hex << _client << " has no registered connection to "
+                                << " remove, endpoint > " << this;
+            }
+            // if client still has a connection but a different one
+        } else if (its_itr != connections_.end() && its_itr->second.get() != _connection) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": tried to remove old connection " << _connection << " for client " << std::hex
+                            << std::setw(4) << _client << " new connection: " << connections_[_client];
+            its_old_connection = _connection->shared_from_this();
+        }
+    }
+
+    if (its_old_connection) {
+        its_old_connection->stop();
+        its_old_connection.reset();
     }
 }
 
@@ -367,7 +392,7 @@ std::unique_lock<std::mutex> local_tcp_server_endpoint_impl::connection::get_soc
 }
 
 void local_tcp_server_endpoint_impl::connection::start() {
-    std::scoped_lock its_lock{socket_mutex_};
+    std::unique_lock its_lock{socket_mutex_};
     if (socket_->is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
@@ -400,6 +425,7 @@ void local_tcp_server_endpoint_impl::connection::start() {
                 shrink_count_ = 0;
             }
         } catch (const std::exception& e) {
+            its_lock.unlock();
             handle_recv_buffer_exception(e);
             // don't start receiving again
             return;
@@ -536,6 +562,16 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
     std::uint32_t its_command_size = 0;
 
     if (!_error && 0 < _bytes) {
+
+#if defined(__linux__)
+        // set TCP QUICKACK
+        // necessary, because local connections are TCP RST'd, and in order to guarantee no
+        // loss of data, there is (active!) waiting for TCP ACKs - which relies on speedy delivery of TCP ACKs
+        if (!socket_->set_quick_ack()) {
+            VSOMEIP_WARNING << "ltsei::receive_cbk: could not setsockopt(TCP_QUICKACK), errno " << errno;
+        }
+#endif
+
 #if 0
         std::stringstream msg;
         msg << "lse::c<" << this << ">rcb: ";
@@ -686,7 +722,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
                                              << old_client << " removed due to new client " << std::hex << std::setfill('0') << std::setw(4)
                                              << its_client << " @ " << its_address.to_string() + ":" << its_guest_port;
 
-                                its_host->remove_local(old_client, true);
+                                its_host->remove_local(old_client, true, true);
                             }
 
                             its_host->add_guest(its_client, its_address, its_guest_port);
@@ -746,7 +782,7 @@ void local_tcp_server_endpoint_impl::connection::receive_cbk(boost::system::erro
 
         shutdown_and_close(true);
         if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
-            its_server->remove_connection(bound_client_);
+            its_server->remove_connection(bound_client_, this);
             its_server->configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(bound_client_);
         }
     } else {
@@ -835,7 +871,7 @@ void local_tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(co
     if (bound_client_ != VSOMEIP_CLIENT_UNSET) {
         std::shared_ptr<local_tcp_server_endpoint_impl> its_server = server_.lock();
         if (its_server) {
-            its_server->remove_connection(bound_client_);
+            its_server->remove_connection(bound_client_, this);
         }
     }
 }
@@ -844,49 +880,47 @@ std::size_t local_tcp_server_endpoint_impl::connection::get_recv_buffer_capacity
     return recv_buffer_.capacity();
 }
 
-void local_tcp_server_endpoint_impl::connection::shutdown_and_close(bool _is_error) {
+void local_tcp_server_endpoint_impl::connection::shutdown_and_close(bool _due_to_error) {
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
     io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
 
     std::uint32_t retry_count(0);
-    if (!_is_error) {
-        while (true) {
-            {
-                std::scoped_lock its_lock(socket_mutex_); // Do not block this mutex while waiting, to let other operations finish
-                if (socket_ && socket_->is_open()) {
-                    socket_->io_control(send_buffer_size_cmd, its_error);
-                }
+    while (true) {
+        {
+            std::scoped_lock its_lock(socket_mutex_); // do not block this mutex while waiting, to let other operations finish
+            if (socket_ && socket_->is_open()) {
+                socket_->io_control(send_buffer_size_cmd, its_error);
             }
+        }
 
-            if (its_error) {
-                VSOMEIP_WARNING << "ltsei::" << __func__ << ": fail to read send_buffer_size  "
-                                << "(" << its_error.value() << "): " << its_error.message() << ", endpoint > " << this;
+        if (its_error) {
+            VSOMEIP_WARNING << "ltsei::" << __func__ << ": fail to read send_buffer_size  "
+                            << "(" << its_error.value() << "): " << its_error.message() << ", endpoint > " << this;
+            break;
+        }
+        const auto send_buffer_size = send_buffer_size_cmd.get();
+        if (send_buffer_size > 0) {
+            // shutdown_and_close_socket was called on error, do not wait to send remaining data
+            if (_due_to_error) {
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": dropping " << send_buffer_size << " bytes on error close, endpoint > "
+                                << this;
                 break;
-            }
-            const auto send_buffer_size = send_buffer_size_cmd.get();
-            if (send_buffer_size > 0) {
-                // shutdown_and_close_socket was called on error, do not wait to send remaining data
-                if (_is_error) {
-                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": dropping " << send_buffer_size << " bytes on error close, endpoint > "
-                                    << this;
-                    break;
-                } else {
-                    VSOMEIP_WARNING << "ltsei::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
-                                    << " bytes "
-                                    << ", endpoint > " << this;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
-                }
-
             } else {
-                break;
+                VSOMEIP_WARNING << "ltsei::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
+                                << " bytes "
+                                << ", endpoint > " << this;
+                std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
             }
-            ++retry_count;
-            if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
-                VSOMEIP_ERROR << "ltsei::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size
-                              << " bytes on close, endpoint > " << this;
-                break;
-            }
+
+        } else {
+            break;
+        }
+        ++retry_count;
+        if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
+            VSOMEIP_ERROR << "ltsei::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size
+                          << " bytes on close, endpoint > " << this;
+            break;
         }
     }
 #endif

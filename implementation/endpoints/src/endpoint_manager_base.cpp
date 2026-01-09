@@ -34,13 +34,13 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local(client_t _client) 
     return create_local_unlocked(_client);
 }
 
-void endpoint_manager_base::remove_local(const client_t _client) {
+void endpoint_manager_base::remove_local(const client_t _client, bool _remove_due_to_error) {
     VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << rm_->get_client() << ", client "
-                 << _client;
+                 << _client << ", error " << _remove_due_to_error;
     std::shared_ptr<endpoint> its_endpoint{find_local(_client)};
     if (its_endpoint) {
         its_endpoint->register_error_handler(nullptr);
-        its_endpoint->stop();
+        its_endpoint->stop(_remove_due_to_error);
         VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client() << "] is closing connection to [" << std::hex << _client << "]"
                      << " endpoint > " << its_endpoint;
         std::scoped_lock its_lock(local_endpoint_mutex_);

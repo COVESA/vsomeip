@@ -156,7 +156,7 @@ void routing_manager_client::stop() {
     {
         std::scoped_lock its_receiver_lock(receiver_mutex_);
         if (receiver_) {
-            receiver_->stop();
+            receiver_->stop(false);
         }
         receiver_ = nullptr;
     }
@@ -164,7 +164,7 @@ void routing_manager_client::stop() {
     {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
-            sender_->stop();
+            sender_->stop(false);
         }
         // delete the sender
         sender_ = nullptr;
@@ -172,7 +172,7 @@ void routing_manager_client::stop() {
 
     for (const auto client : ep_mgr_->get_connected_clients()) {
         if (client != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(client, true);
+            remove_local(client, true, false);
         }
     }
 }
@@ -1210,10 +1210,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                     }
                                     VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): ["
                                                  << std::setw(4) << its_service << "." << std::setw(4) << its_instance << "."
-                                                 << std::setw(4) << its_eventgroup << ":" << std::setw(4) << its_event << ":" << std::dec
-                                                 << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
-                                                 << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                                                 << (_subscription_accepted ? std::to_string(its_count) + " accepted" : "not accepted");
+                                                 << std::setw(4) << its_eventgroup << ":" << std::setw(4) << its_event << ":"
+                                                 << static_cast<uint16_t>(its_major) << "] "
+                                                 << (_subscription_accepted ? "accepted." : "not accepted.") << " id=" << std::setw(4)
+                                                 << its_pending_id << std::dec << " subscribers=" << its_count;
                                 });
                     } else {
                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event, its_pending_id);
@@ -1332,8 +1332,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                 }
                 VSOMEIP_INFO << "UNSUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4)
                              << its_service << "." << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup << "."
-                             << std::setw(4) << its_event << "] " << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " "
-                             << std::dec << its_remote_subscriber_count;
+                             << std::setw(4) << its_event << "] id=" << std::setw(4) << its_pending_id << " subscribers=" << std::dec
+                             << its_remote_subscriber_count;
             } else
                 VSOMEIP_ERROR << __func__ << ": unsubscribe command deserialization failed (" << std::dec << static_cast<int>(its_error)
                               << ")";
@@ -1686,7 +1686,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                                  << its_address.to_string() + ":" << its_port;
 
                     // also removes guest
-                    remove_local(old_client, true);
+                    remove_local(old_client, true, true);
                 }
 
                 add_guest(its_client, its_address, its_port);
@@ -1780,7 +1780,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     // Remove all local connections/endpoints
     for (const auto& c : _clients) {
         if (c.first != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(c.first, true);
+            remove_local(c.first, true, true);
         }
     }
 
@@ -1795,7 +1795,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
                       << " to use the server endpoint due to credential check failed!";
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
-            sender_->stop();
+            sender_->stop(true);
         }
         return;
     }
@@ -2457,7 +2457,7 @@ void routing_manager_client::handle_client_error(client_t _client) {
         // First ensure that the connection is dropped, before enforcing a
         // reconnect from the client. Otherwise a client subscribe might
         // be handled by a partially cleaned-up connection
-        remove_local(_client, true);
+        remove_local(_client, true, true);
         // Remove the client from the local connections.
         {
             std::scoped_lock lock{receiver_mutex_};

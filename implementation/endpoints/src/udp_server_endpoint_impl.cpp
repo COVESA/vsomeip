@@ -196,7 +196,7 @@ void udp_server_endpoint_impl::start() {
     VSOMEIP_INFO << instance_name_ << __func__ << ": done, lifecycle_idx=" << lifecycle_idx_.load();
 }
 
-void udp_server_endpoint_impl::stop() {
+void udp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
     VSOMEIP_INFO << instance_name_ << __func__ << ": lifecycle_idx=" << lifecycle_idx_.load();
     std::scoped_lock its_lock(sync_);
     stop_unlocked();
@@ -266,7 +266,6 @@ void udp_server_endpoint_impl::stop_unlocked() {
     lifecycle_idx_ += 1;
     is_stopped_ = true;
 
-    server_endpoint_impl::stop();
     unicast_socket_.reset();
     multicast_socket_.reset();
     tp_reassembler_->stop();

@@ -26,14 +26,8 @@ template<typename Protocol>
 vsomeip_v3::endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
-    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), is_supporting_magic_cookies_(false),
-    has_enabled_magic_cookies_(false), use_count_(0), sending_blocked_(false), configuration_(_configuration),
+    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), sending_blocked_(false), configuration_(_configuration),
     is_supporting_someip_tp_(false) { }
-
-template<typename Protocol>
-void vsomeip_v3::endpoint_impl<Protocol>::enable_magic_cookies() {
-    has_enabled_magic_cookies_ = is_supporting_magic_cookies_;
-}
 
 template<typename Protocol>
 uint32_t vsomeip_v3::endpoint_impl<Protocol>::find_magic_cookie(byte_t* /*_buffer*/, size_t /*_size*/) {
@@ -69,7 +63,7 @@ void vsomeip_v3::server_endpoint_impl<Protocol>::prepare_stop(const endpoint::pr
                                                               service_t /*_service*/) { }
 
 template<typename Protocol>
-void vsomeip_v3::server_endpoint_impl<Protocol>::stop() { }
+void vsomeip_v3::server_endpoint_impl<Protocol>::stop(bool /*_due_to_error*/) { }
 
 template<typename Protocol>
 bool vsomeip_v3::server_endpoint_impl<Protocol>::is_client() const {
@@ -79,7 +73,7 @@ bool vsomeip_v3::server_endpoint_impl<Protocol>::is_client() const {
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::restart(bool /*_force*/) {
     boost::system::error_code its_error;
-    this->stop();
+    this->stop(false);
     this->init(server_endpoint_impl<Protocol>::local_, its_error);
     this->start();
 }
@@ -229,7 +223,7 @@ struct mock_routing_host : public vsomeip_v3::routing_host {
     MOCK_METHOD3(add_guest, void(vsomeip_v3::client_t _client, const boost::asio::ip::address& _address, vsomeip_v3::port_t _port));
     MOCK_METHOD2(add_known_client, void(vsomeip_v3::client_t _client, const std::string& _client_host));
     MOCK_CONST_METHOD2(get_guest_by_address, vsomeip_v3::client_t(const boost::asio::ip::address& _address, vsomeip_v3::port_t _port));
-    MOCK_METHOD2(remove_local, void(vsomeip_v3::client_t _client, bool _remove_sec_client));
+    MOCK_METHOD3(remove_local, void(vsomeip_v3::client_t _client, bool _remove_sec_client, bool _remove_due_to_error));
     MOCK_CONST_METHOD1(get_env, std::string(vsomeip_v3::client_t _client));
     MOCK_METHOD3(remove_subscriptions,
                  void(vsomeip_v3::port_t _local_port, const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port));

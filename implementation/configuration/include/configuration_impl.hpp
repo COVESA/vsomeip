@@ -133,7 +133,6 @@ public:
     VSOMEIP_EXPORT int get_io_thread_nice_level(const std::string& _name) const;
     VSOMEIP_EXPORT std::size_t get_request_debounce_time(const std::string& _name) const;
     VSOMEIP_EXPORT bool has_session_handling(const std::string& _name) const;
-    VSOMEIP_EXPORT std::size_t get_event_loop_periodicity(const std::string& _name) const;
 
     VSOMEIP_EXPORT std::set<std::pair<service_t, instance_t>> get_remote_services() const;
 

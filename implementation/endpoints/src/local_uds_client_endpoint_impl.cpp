@@ -32,8 +32,6 @@ local_uds_client_endpoint_impl::local_uds_client_endpoint_impl(const std::shared
     // because we have no bind for local endpoints!
     recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
-    is_supporting_magic_cookies_ = false;
-
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
@@ -73,7 +71,7 @@ void local_uds_client_endpoint_impl::start() {
     }
 }
 
-void local_uds_client_endpoint_impl::stop() {
+void local_uds_client_endpoint_impl::stop(bool _due_to_error) {
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = true;
@@ -90,22 +88,31 @@ void local_uds_client_endpoint_impl::stop() {
         is_open = socket_->is_open();
     }
     if (is_open) {
-        bool send_queue_empty(false);
         std::uint32_t times_slept(0);
 
+        std::size_t queue_size(0);
         while (times_slept <= LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP) {
             mutex_.lock();
-            send_queue_empty = (queue_.size() == 0);
+            queue_size = queue_.size();
             mutex_.unlock();
-            if (send_queue_empty) {
+            if (queue_size == 0 || _due_to_error) {
                 break;
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 times_slept++;
             }
         }
+
+        if (queue_size != 0) {
+            if (_due_to_error) {
+                VSOMEIP_WARNING << "lucei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
+            } else {
+                VSOMEIP_ERROR << "lucei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
+            }
+        }
     }
-    shutdown_and_close_socket(false);
+
+    shutdown_and_close_socket(false, _due_to_error);
 }
 
 void local_uds_client_endpoint_impl::connect() {
@@ -243,8 +250,6 @@ void local_uds_client_endpoint_impl::get_configured_times_from_endpoint(service_
     (void)_maximum_retention;
     VSOMEIP_ERROR << "local_client_endpoint_impl::get_configured_times_from_endpoint called.";
 }
-
-void local_uds_client_endpoint_impl::send_magic_cookie() { }
 
 void local_uds_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
 

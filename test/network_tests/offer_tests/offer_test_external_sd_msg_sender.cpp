@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <boost/asio.hpp>
+#include <thread>
 
 static char* passed_address;
 
@@ -27,6 +28,7 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
         for (int var = 0; var < 15; ++var) {
             udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
             ++its_offer_service_message[11];
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
         // call shutdown method

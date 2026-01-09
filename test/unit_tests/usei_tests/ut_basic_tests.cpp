@@ -136,7 +136,7 @@ TEST_F(usei_fixture, basic) {
     std::unique_lock lock(sync);
     EXPECT_EQ(event.wait_for(lock, 5s, [&] { return received; }), true);
 
-    server_->stop();
+    server_->stop(false);
 }
 
 TEST_F(usei_fixture, corrupted_data) {
@@ -178,7 +178,7 @@ TEST_F(usei_fixture, corrupted_data) {
     std::unique_lock lock(sync);
     EXPECT_EQ(event.wait_for(lock, 5s, [&] { return received; }), true);
 
-    server_->stop();
+    server_->stop(false);
 }
 
 TEST_F(usei_fixture, basic_multicast) {
@@ -209,7 +209,7 @@ TEST_F(usei_fixture, basic_multicast) {
 
     server_->joined_.clear(); // We don't want to call `leave` method, so we do its job
     server_->set_multicast_option(multicast_parameters_.address(), false, error);
-    server_->stop();
+    server_->stop(false);
 }
 
 TEST_F(usei_fixture, no_overwrite_during_restart) {
@@ -241,7 +241,7 @@ TEST_F(usei_fixture, no_overwrite_during_restart) {
     }
 
     producer.join();
-    server_->stop();
+    server_->stop(false);
 }
 
 TEST_F(usei_fixture, no_overwrite_during_restart_with_multicast) {
@@ -281,5 +281,5 @@ TEST_F(usei_fixture, no_overwrite_during_restart_with_multicast) {
     server_->joined_.clear();
     server_->set_multicast_option(multicast_parameters_.address(), false, error);
     producer.join();
-    server_->stop();
+    server_->stop(false);
 }

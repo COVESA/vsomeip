@@ -6,14 +6,15 @@
 #ifndef VSOMEIP_V3_ABSTRACT_SOCKET_FACTORY_HPP_
 #define VSOMEIP_V3_ABSTRACT_SOCKET_FACTORY_HPP_
 
+#include "abstract_netlink_connector.hpp"
+#include "abstract_timer.hpp"
+#include "tcp_socket.hpp"
+
 #include <boost/asio/ip/udp.hpp>
 #if defined(__linux__) || defined(__QNX__)
 #include <boost/asio/local/stream_protocol.hpp>
 #endif
 #include <functional>
-
-#include "abstract_netlink_connector.hpp"
-#include "tcp_socket.hpp"
 
 namespace vsomeip_v3 {
 
@@ -44,6 +45,8 @@ public:
         return std::make_unique<boost::asio::local::stream_protocol::socket>(_io);
     }
 #endif
+
+    virtual std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) = 0;
 };
 
 // In order for this function to change the globally used abstract_socket_factory,

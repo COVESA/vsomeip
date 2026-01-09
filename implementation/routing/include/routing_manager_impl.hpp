@@ -115,7 +115,7 @@ public:
 
     std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
-    void remove_local(client_t _client, bool _remove_uid);
+    void remove_local(client_t _client, bool _remove_uid, bool _remove_due_to_error);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
@@ -161,10 +161,10 @@ public:
 
     void expire_subscriptions(const boost::asio::ip::address& _address);
     void expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
-    void expire_subscriptions(const boost::asio::ip::address& _address, const configuration::port_range_t& _range, bool _reliable);
+    void expire_subscriptions(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
     void expire_services(const boost::asio::ip::address& _address);
     void expire_services(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable);
-    void expire_services(const boost::asio::ip::address& _address, const configuration::port_range_t& _range, bool _reliable);
+    void expire_services(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
 
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);
 
@@ -190,7 +190,7 @@ public:
     void send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
                     endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                    const std::shared_ptr<endpoint>& _endpoint, bool _unreliable_only);
+                                    const std::shared_ptr<endpoint>& _endpoint);
     void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                        const std::shared_ptr<endpoint>& _endpoint);
 
@@ -198,7 +198,7 @@ public:
     void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) const;
     void register_routing_ready_handler(const routing_ready_handler_t& _handler);
     void register_routing_state_handler(const routing_state_handler_t& _handler);
-    void sd_acceptance_enabled(const boost::asio::ip::address& _address, const configuration::port_range_t& _range, bool _reliable);
+    void sd_acceptance_enabled(const boost::asio::ip::address& _address, const port_range_t& _range, bool _reliable);
 
     void on_resend_provided_events_response(pending_remote_offer_id_t _id);
     client_t find_local_client(service_t _service, instance_t _instance);

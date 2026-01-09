@@ -21,14 +21,8 @@ template<typename Protocol>
 endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                        const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                        const std::shared_ptr<configuration>& _configuration) :
-    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), is_supporting_magic_cookies_(false),
-    has_enabled_magic_cookies_(false), use_count_(0), sending_blocked_(false), configuration_(_configuration),
+    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), sending_blocked_(false), configuration_(_configuration),
     is_supporting_someip_tp_(false) { }
-
-template<typename Protocol>
-void endpoint_impl<Protocol>::enable_magic_cookies() {
-    has_enabled_magic_cookies_ = is_supporting_magic_cookies_;
-}
 
 template<typename Protocol>
 uint32_t endpoint_impl<Protocol>::find_magic_cookie(byte_t* _buffer, size_t _size) {

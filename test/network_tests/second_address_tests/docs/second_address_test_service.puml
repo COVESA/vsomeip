@@ -1,0 +1,51 @@
+@startuml
+
+Actor Service_Provider as SP
+
+participant Routing_Manager as RM
+
+participant Service_Consumer as SC
+
+SP -> RM : OFFER
+
+note across
+  Wait for messages for request_method are received from Service_Consumer
+endnote
+
+SC --> SP : SEND request method
+
+loop For messages received in background
+  SP -> SP : set payload
+
+  SP -> SC : send response
+
+  SP -> SP : messages_received_++
+end
+
+note across
+  Wait for message for notify method to be received from Service_Consumer
+endnote
+
+SC --> SP : SEND notify method
+
+loop For i < notifications_to_send_
+  SP -> SP : set payload
+
+  SP -> SC : send event
+
+  SP -> SC : send selective event
+end
+
+note across
+  Wait for message for shutdown method to be received from Service_Consumer
+endnote
+
+SC --> SP : SEND shutdown method
+
+SP -> SC : send response
+
+SP -> RM : STOP OFFER
+
+SP -> SP : stop
+
+@enduml

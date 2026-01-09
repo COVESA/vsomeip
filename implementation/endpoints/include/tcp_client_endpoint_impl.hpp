@@ -25,7 +25,7 @@ class tcp_client_endpoint_impl : public tcp_client_endpoint_base_impl {
 public:
     tcp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
                              const endpoint_type& _local, const endpoint_type& _remote, boost::asio::io_context& _io,
-                             const std::shared_ptr<configuration>& _configuration);
+                             const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies);
     virtual ~tcp_client_endpoint_impl();
 
     void init();
@@ -69,6 +69,10 @@ private:
 
     void wait_until_sent(const boost::system::error_code& _error);
 
+    // magic cookie state; both are modified under `socket_mutex_`
+    bool use_magic_cookies_ = false;
+    std::chrono::steady_clock::time_point last_cookie_sent_;
+
     const std::uint32_t recv_buffer_size_initial_;
     message_buffer_ptr_t recv_buffer_;
     std::uint32_t shrink_count_;
@@ -76,7 +80,6 @@ private:
 
     const boost::asio::ip::address remote_address_;
     const std::uint16_t remote_port_;
-    std::chrono::steady_clock::time_point last_cookie_sent_;
     const std::chrono::milliseconds send_timeout_;
     const std::chrono::milliseconds send_timeout_warning_;
 

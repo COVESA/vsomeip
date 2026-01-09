@@ -10,7 +10,7 @@ set (VSOMEIP_NAME vsomeip3)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 6)
-set (VSOMEIP_PATCH_VERSION 0)
+set (VSOMEIP_PATCH_VERSION 1)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -54,6 +54,9 @@ foreach (p LIB BIN INCLUDE CMAKE)
 endforeach ()
 
 ###################################################################################################
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
 if(NOT CMAKE_BUILD_TYPE)
@@ -149,11 +152,11 @@ if (NOT MSVC)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "massif")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.out)
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --massif-out-file=${VALGRIND_LOGS_DIR}/test_name.%p.out)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "memcheck")
-            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --leak-check=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --log-file=${VALGRIND_LOGS_DIR}/test_name.out)
+            set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --leak-check=yes --suppressions=${VALGRIND_SUPPRESS_FILE} --log-file=${VALGRIND_LOGS_DIR}/test_name.%p.out)
         endif ()
     endif ()
 endif (NOT MSVC)

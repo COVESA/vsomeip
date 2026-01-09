@@ -35,8 +35,6 @@ local_tcp_client_endpoint_impl::local_tcp_client_endpoint_impl(const std::shared
     local_tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
     recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
 
-    is_supporting_magic_cookies_ = false;
-
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
 }
@@ -45,7 +43,7 @@ local_tcp_client_endpoint_impl::~local_tcp_client_endpoint_impl() {
     // ensure socket close() before boost destructor
     // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
     VSOMEIP_INFO << "ltcei::~ltcei: endpoint > " << this << ", state_ > " << to_string(state_.load());
-    shutdown_and_close_socket(false);
+    shutdown_and_close_socket(false, true);
 }
 
 bool local_tcp_client_endpoint_impl::is_local() const {
@@ -88,7 +86,7 @@ void local_tcp_client_endpoint_impl::start() {
     }
 }
 
-void local_tcp_client_endpoint_impl::stop() {
+void local_tcp_client_endpoint_impl::stop(bool _due_to_error) {
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         sending_blocked_ = true;
@@ -112,7 +110,7 @@ void local_tcp_client_endpoint_impl::stop() {
         while (times_slept <= LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP) {
             std::unique_lock<std::recursive_mutex> its_lock(mutex_);
             queue_size = queue_.size();
-            if (queue_size == 0) {
+            if (queue_size == 0 || _due_to_error) {
                 break;
             } else {
                 queue_cv_.wait_for(its_lock, std::chrono::milliseconds(10), [this] { return queue_.size() == 0; });
@@ -121,10 +119,14 @@ void local_tcp_client_endpoint_impl::stop() {
         }
 
         if (queue_size != 0) {
-            VSOMEIP_ERROR << "ltcei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
+            if (_due_to_error) {
+                VSOMEIP_WARNING << "ltcei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
+            } else {
+                VSOMEIP_ERROR << "ltcei::" << __func__ << ": stopping with " << queue_size << " bytes in queue, endpoint > " << this;
+            }
         }
     }
-    shutdown_and_close_socket(false);
+    shutdown_and_close_socket(false, _due_to_error);
 }
 
 void local_tcp_client_endpoint_impl::connect() {
@@ -301,8 +303,6 @@ void local_tcp_client_endpoint_impl::get_configured_times_from_endpoint(service_
     (void)_maximum_retention;
     VSOMEIP_ERROR << "ltcei::get_configured_times_from_endpoint called." << " endpoint > " << this;
 }
-
-void local_tcp_client_endpoint_impl::send_magic_cookie() { }
 
 void local_tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _error, std::size_t _bytes) {
 

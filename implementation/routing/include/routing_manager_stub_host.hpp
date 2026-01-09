@@ -74,7 +74,8 @@ public:
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
     ///
     /// @param _remove_sec_client whether to also remove the security information
-    virtual void remove_local(client_t _client, bool _remove_sec_client) = 0;
+    /// @param _remove_due_to_error whether we are removing due to an error - do not bother with graceful endpoint closure
+    virtual void remove_local(client_t _client, bool _remove_sec_client, bool _remove_due_to_error) = 0;
 
     virtual boost::asio::io_context& get_io() = 0;
     virtual client_t get_client() const = 0;

@@ -32,7 +32,7 @@ public:
     virtual ~endpoint_manager_base() = default;
 
     std::shared_ptr<endpoint> create_local(client_t _client);
-    void remove_local(client_t _client);
+    void remove_local(client_t _client, bool _remove_due_to_error);
 
     std::shared_ptr<endpoint> find_or_create_local(client_t _client);
     std::shared_ptr<endpoint> find_local(client_t _client);

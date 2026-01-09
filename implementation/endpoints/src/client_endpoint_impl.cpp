@@ -117,7 +117,7 @@ void client_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_h
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::stop() {
+void client_endpoint_impl<Protocol>::stop(bool _due_to_error) {
     {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;
@@ -132,7 +132,8 @@ void client_endpoint_impl<Protocol>::stop() {
     connect_timeout_ = VSOMEIP_DEFAULT_CONNECT_TIMEOUT;
 
     // bind to strand as stop() might be called from different thread
-    boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::shutdown_and_close_socket, this->shared_from_this(), false, true));
+    boost::asio::dispatch(strand_,
+                          std::bind(&client_endpoint_impl::shutdown_and_close_socket, this->shared_from_this(), false, _due_to_error));
 }
 
 template<typename Protocol>
@@ -391,7 +392,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
     if (_error == boost::asio::error::operation_aborted || endpoint_impl<Protocol>::sending_blocked_) {
         VSOMEIP_WARNING << "cei::" << __func__ << ": endpoint stopped, remote: " << get_remote_information() << ", endpoint > " << this
                         << " socket state > " << to_string(state_.load());
-        shutdown_and_close_socket(false);
+        shutdown_and_close_socket(false, false);
         return;
     }
     std::shared_ptr<endpoint_host> its_host = this->endpoint_host_.lock();
@@ -606,7 +607,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         }
         // endpoint was stopped
         endpoint_impl<Protocol>::sending_blocked_ = true;
-        shutdown_and_close_socket(false);
+        shutdown_and_close_socket(false, false);
     } else {
         service_t its_service(0);
         method_t its_method(0);
@@ -640,7 +641,7 @@ void client_endpoint_impl<Protocol>::flush_cbk(boost::system::error_code const& 
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket, bool _is_error) {
+void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_socket, bool _due_to_error) {
 
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
@@ -666,7 +667,7 @@ void client_endpoint_impl<Protocol>::shutdown_and_close_socket(bool _recreate_so
             const auto send_buffer_size = send_buffer_size_cmd.get();
             if (send_buffer_size > 0) {
                 // shutdown_and_close_socket was called on error, do not wait to send remaining data
-                if (_is_error) {
+                if (_due_to_error) {
                     VSOMEIP_WARNING << "cei::" << __func__
                                     << ": error on socket, not waiting to send remaining data, remote: " << get_remote_information()
                                     << ", endpoint > " << this << " socket state > " << to_string(state_.load());

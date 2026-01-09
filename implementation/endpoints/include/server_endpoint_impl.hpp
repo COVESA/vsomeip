@@ -67,7 +67,7 @@ public:
     virtual ~server_endpoint_impl() = default;
 
     virtual void init(const endpoint_type& _local, boost::system::error_code& _error) = 0;
-    virtual void stop();
+    virtual void stop(bool _due_to_error);
 
     bool is_client() const;
     void restart(bool _force);

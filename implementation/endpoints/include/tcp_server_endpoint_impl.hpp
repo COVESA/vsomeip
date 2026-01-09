@@ -29,12 +29,12 @@ class tcp_server_endpoint_impl : public tcp_server_endpoint_base_impl {
 
 public:
     tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
-                             boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
+                             boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies);
     virtual ~tcp_server_endpoint_impl();
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);
     void start();
-    void stop();
+    void stop(bool _due_to_error);
 
     bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
     bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
@@ -67,7 +67,7 @@ private:
         typedef std::shared_ptr<connection> ptr;
 
         static ptr create(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
-                          std::uint32_t _buffer_shrink_threshold, bool _magic_cookies_enabled, boost::asio::io_context& _io,
+                          std::uint32_t _buffer_shrink_threshold, bool _use_magic_cookies, boost::asio::io_context& _io,
                           std::chrono::milliseconds _send_timeout);
 
         ~connection();
@@ -87,7 +87,7 @@ private:
 
     private:
         connection(const std::weak_ptr<tcp_server_endpoint_impl>& _server, std::uint32_t _max_message_size,
-                   std::uint32_t _recv_buffer_size_initial, std::uint32_t _buffer_shrink_threshold, bool _magic_cookies_enabled,
+                   std::uint32_t _recv_buffer_size_initial, std::uint32_t _buffer_shrink_threshold, bool _use_magic_cookies,
                    boost::asio::io_context& _io, std::chrono::milliseconds _send_timeout);
         bool send_magic_cookie(message_buffer_ptr_t& _buffer);
         bool is_magic_cookie(size_t _offset) const;
@@ -117,14 +117,18 @@ private:
         endpoint_type remote_;
         boost::asio::ip::address remote_address_;
         std::uint16_t remote_port_;
-        std::atomic<bool> magic_cookies_enabled_;
+
+        // magic cookie state; both are modified under `socket_mutex_`
+        bool use_magic_cookies_ = false;
         std::chrono::steady_clock::time_point last_cookie_sent_;
+
         const std::chrono::milliseconds send_timeout_;
         const std::chrono::milliseconds send_timeout_warning_;
 
         std::string instance_name_;
     };
 
+    const bool use_magic_cookies_ = false;
     std::mutex acceptor_mutex_;
     boost::asio::ip::tcp::acceptor acceptor_;
     std::mutex connections_mutex_;
@@ -136,7 +140,7 @@ private:
     std::string instance_name_;
 
 private:
-    void remove_connection(connection* _connection);
+    void remove_connection(endpoint_type _endpoint, connection* _connection);
     void accept_cbk(connection::ptr _connection, boost::system::error_code const& _error);
     std::string get_remote_information(const target_data_iterator_type _it) const;
     std::string get_remote_information(const endpoint_type& _remote) const;

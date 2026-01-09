@@ -191,7 +191,7 @@ void udp_client_endpoint_impl::restart(bool _force) {
     is_sending_ = false;
     reconnect_counter_ = 0;
     VSOMEIP_WARNING << "uce::restart: local: " << local << " remote: " << get_address_port_remote();
-    shutdown_and_close_socket(false);
+    shutdown_and_close_socket(false, false);
     state_ = cei_state_e::CONNECTING;
     start_connect_timer();
 }
@@ -454,7 +454,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             print_status();
         }
         was_not_connected_ = true;
-        shutdown_and_close_socket(true);
+        shutdown_and_close_socket(true, true);
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission) {
@@ -466,18 +466,18 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             queue_size_ = 0;
         }
         was_not_connected_ = true;
-        shutdown_and_close_socket(true);
+        shutdown_and_close_socket(true, true);
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
         VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message();
         // endpoint was stopped
         sending_blocked_ = true;
-        shutdown_and_close_socket(false);
+        shutdown_and_close_socket(false, false);
     } else {
         if (state_ == cei_state_e::CONNECTING) {
             VSOMEIP_WARNING << "uce::send_cbk endpoint is already restarting:" << get_remote_information();
         } else {
-            shutdown_and_close_socket(false);
+            shutdown_and_close_socket(false, true);
             std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
             if (its_host) {
                 its_host->on_disconnect(shared_from_this());

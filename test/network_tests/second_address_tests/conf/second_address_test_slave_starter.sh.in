@@ -35,25 +35,16 @@ elif [ "$OPERATIONMODE" = "SERVICE" ]; then
     fi
 fi
 
-rm -f /tmp/vsomeip*
-
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
 ../../../examples/routingmanagerd/routingmanagerd &
 PID_VSOMEIPD=$!
 
-./$SLAVE_APPLICATION $COMMUNICATIONMODE &
-PID_SLAVE=$!
-
-# Wait until all slaves are finished
-for job in $PID_SLAVE
-do
-    # Fail gets incremented if a client exits with a non-zero exit code
-    echo "waiting for $job"
-    wait $job || FAIL=$(($FAIL+1))
-done
+export VSOMEIP_APPLICATION_NAME=$SLAVE_APPLICATION
+./$SLAVE_APPLICATION $COMMUNICATIONMODE || FAIL=$(($FAIL+1))
 
 # kill the services
 kill $PID_VSOMEIPD
-sleep 1
+wait $PID_VSOMEIPD
 
 # Delete second IP address
 ip addr del @TEST_IP_SLAVE_SECOND@/32 dev eth0
