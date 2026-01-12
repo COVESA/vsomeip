@@ -19,24 +19,21 @@ start_services(){
     export VSOMEIP_APPLICATION_NAME=npdu_test_routing_manager_daemon_service_side
     ./npdu_test_rmd_service_side &
 
-    # sleep 1 second to let the RMD startup.
-    sleep 1
-
     # Start service 1
-    export VSOMEIP_APPLICATION_NAME=npdu_test_service_one
-    ./npdu_test_service_1 $* &
+    export VSOMEIP_APPLICATION_NAME=npdu_test_service_one SERVICE_NUMBER=0
+    ./npdu_test_service $* &
 
     # Start service 2
-    export VSOMEIP_APPLICATION_NAME=npdu_test_service_two
-    ./npdu_test_service_2 $* &
+    export VSOMEIP_APPLICATION_NAME=npdu_test_service_two SERVICE_NUMBER=1
+    ./npdu_test_service $* &
 
     # Start service 3
-    export VSOMEIP_APPLICATION_NAME=npdu_test_service_three
-    ./npdu_test_service_3 $* &
+    export VSOMEIP_APPLICATION_NAME=npdu_test_service_three SERVICE_NUMBER=2
+    ./npdu_test_service $* &
 
     # Start service 4
-    export VSOMEIP_APPLICATION_NAME=npdu_test_service_four
-    ./npdu_test_service_4 $* &
+    export VSOMEIP_APPLICATION_NAME=npdu_test_service_four SERVICE_NUMBER=3
+    ./npdu_test_service $* &
 }
 
 wait_for_bg_processes(){

@@ -229,7 +229,6 @@ void npdu_test_client::run() {
             current_payload_size_[service_idx] = max_allowed_payload - 16;
             lastrun = true;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     blocked_[service_idx] = false;
 
@@ -378,7 +377,7 @@ void npdu_test_client::wait_for_all_senders() {
                 all_finished = true;
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     join_sender_thread();
 
@@ -394,9 +393,8 @@ void npdu_test_client::wait_for_all_senders() {
             std::cout << ".";
             std::cout.flush();
         }
-    } else {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
+
     stop();
 }
 

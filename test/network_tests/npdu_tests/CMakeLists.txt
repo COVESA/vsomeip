@@ -50,67 +50,19 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     # Clients and Services.
 
     # Add test executable.
-    add_executable(npdu_test_service_1
+    add_executable(npdu_test_service
         npdu_test_service.cpp
     )
-    set_target_properties(npdu_test_service_1
-        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=0
-    )
 
     # Add test executable.
-    add_executable(npdu_test_service_2
-        npdu_test_service.cpp
-    )
-    set_target_properties(npdu_test_service_2
-        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=1
-    )
-
-    # Add test executable.
-    add_executable(npdu_test_service_3
-        npdu_test_service.cpp
-    )
-    set_target_properties(npdu_test_service_3
-        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=2
-    )
-
-    # Add test executable.
-    add_executable(npdu_test_service_4
-        npdu_test_service.cpp
-    )
-    set_target_properties(npdu_test_service_4
-        PROPERTIES COMPILE_FLAGS -DSERVICE_NUMBER=3
-    )
-
-    # Add test executable.
-    add_executable(npdu_test_client_1
-        npdu_test_client.cpp
-    )
-
-    # Add test executable.
-    add_executable(npdu_test_client_2
-        npdu_test_client.cpp
-    )
-
-    # Add test executable.
-    add_executable(npdu_test_client_3
-        npdu_test_client.cpp
-    )
-
-    # Add test executable.
-    add_executable(npdu_test_client_4
+    add_executable(npdu_test_client
         npdu_test_client.cpp
     )
 
     # Add build dependencies and link libraries to executables.
     set(executables
-        npdu_test_service_1
-        npdu_test_service_2
-        npdu_test_service_3
-        npdu_test_service_4
-        npdu_test_client_1
-        npdu_test_client_2
-        npdu_test_client_3
-        npdu_test_client_4
+        npdu_test_service
+        npdu_test_client
     )
     targets_add_default_dependencies("${executables}")
     targets_link_default_libraries("${executables}")
