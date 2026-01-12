@@ -78,7 +78,6 @@ void npdu_test_rmd::on_message_shutdown(const std::shared_ptr<vsomeip::message>&
     if (counter == npdu_test::client_ids_clients.size()) {
         VSOMEIP_INFO << "All clients are finished, notify routing manager daemon on service side.";
         // notify the RMD_SERVICE_SIDE that he can shutdown as well
-        std::this_thread::sleep_for(std::chrono::seconds(1));
         request->set_service(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE);
         request->set_instance(npdu_test::RMD_INSTANCE_ID);
         request->set_method(npdu_test::RMD_SHUTDOWN_METHOD_ID);
@@ -105,14 +104,14 @@ void npdu_test_rmd::on_message_shutdown(const std::shared_ptr<vsomeip::message>&
 
     VSOMEIP_INFO << "Wait a few seconds until all services are shutdown.";
     std::atomic<bool> finished(false);
-    for (int i = 0; !finished && i < 20; i++) {
+    for (int i = 0; !finished && i < 200; i++) {
         app_->get_offered_services_async(vsomeip::offer_type_e::OT_REMOTE,
-                                         [&](const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>>& _services) {
+                                         [&finished](const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>>& _services) {
                                              if (_services.empty()) {
                                                  finished = true;
                                              }
                                          });
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     stop();
 #endif

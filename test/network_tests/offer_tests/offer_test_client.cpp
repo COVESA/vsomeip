@@ -29,6 +29,11 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/timeout_detector.hpp"
 
+// number of notifications until `offer_test_client` exits in mode "SUBSCRIBE"
+constexpr size_t NUMBER_OF_NOTIFICATIONS = 10;
+// number of messages until `offer_test_client` exits in mode "METHODCALL"
+constexpr size_t NUMBER_OF_MESSAGES = 10;
+
 enum operation_mode_e { SUBSCRIBE, METHODCALL };
 
 class offer_test_client {
@@ -111,7 +116,7 @@ public:
         std::shared_ptr<vsomeip::payload> its_payload(_message->get_payload());
         EXPECT_EQ(4u, its_payload->get_length());
         vsomeip::byte_t* d = its_payload->get_data();
-        static std::uint32_t number_received_notifications(0);
+        static size_t number_received_notifications(0);
         std::uint32_t counter(0);
         counter |= static_cast<std::uint32_t>(d[0] << 24);
         counter |= static_cast<std::uint32_t>(d[0] << 16);
@@ -127,7 +132,7 @@ public:
         last_received_counter_ = counter;
         ++number_received_notifications;
 
-        if (number_received_notifications >= 250) {
+        if (number_received_notifications >= NUMBER_OF_NOTIFICATIONS) {
             std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
             VSOMEIP_INFO << "going down";
@@ -164,26 +169,29 @@ public:
             condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
         }
 
-        for (int var = 0; var < offer_test::number_of_messages_to_send; ++var) {
-            bool send(false);
+        for (size_t var = 0; var < NUMBER_OF_MESSAGES; ++var) {
             {
-                std::scoped_lock its_lock(mutex_);
-                send = !wait_until_service_available_;
+                std::unique_lock its_lock(mutex_);
+                if (number_received_responses_ < var || !wait_until_service_available_) {
+                    VSOMEIP_INFO << "Waiting, responses " << number_received_responses_ << "/" << var << ", availability "
+                                 << wait_until_registered_;
+                    its_lock.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                }
             }
-            if (send) {
-                std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
-                its_req->set_service(service_info_.service_id);
-                its_req->set_instance(service_info_.instance_id);
-                its_req->set_method(service_info_.method_id);
-                app_->send(its_req);
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+
+            std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
+            its_req->set_service(service_info_.service_id);
+            its_req->set_instance(service_info_.instance_id);
+            its_req->set_method(service_info_.method_id);
+            app_->send(its_req);
         }
         {
             std::scoped_lock its_lock(stop_mutex_);
             wait_for_stop_ = false;
-            VSOMEIP_INFO << "going down. Sent " << offer_test::number_of_messages_to_send << " requests and received "
-                         << number_received_responses_ << " responses";
+            VSOMEIP_INFO << "going down. Sent " << NUMBER_OF_MESSAGES << " requests and received " << number_received_responses_
+                         << " responses";
             stop_condition_.notify_one();
         }
     }

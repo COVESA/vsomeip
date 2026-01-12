@@ -48,20 +48,20 @@
             {
                 "requests" : {
                     "0x1001" : {
-                        "debounce-time" : "10",
-                        "maximum-retention-time" : "100"
+                        "debounce-time" : "1",
+                        "maximum-retention-time" : "2"
                     },
                     "0x1002" : {
-                        "debounce-time" : "20",
-                        "maximum-retention-time" : "200"
+                        "debounce-time" : "2",
+                        "maximum-retention-time" : "4"
                     },
                     "0x1003" : {
-                        "debounce-time" : "30",
-                        "maximum-retention-time" : "300"
+                        "debounce-time" : "3",
+                        "maximum-retention-time" : "6"
                     },
                     "0x1004" : {
-                        "debounce-time" : "40",
-                        "maximum-retention-time" : "400"
+                        "debounce-time" : "4",
+                        "maximum-retention-time" : "8"
                     }
                 }
             }
@@ -79,20 +79,20 @@
             "debounce-times" : {
                 "requests" : {
                     "0x2001" : {
-                        "debounce-time" : "10",
-                        "maximum-retention-time" : "100"
+                        "debounce-time" : "1",
+                        "maximum-retention-time" : "2"
                     },
                     "0x2002" : {
-                        "debounce-time" : "20",
-                        "maximum-retention-time" : "200"
+                        "debounce-time" : "2",
+                        "maximum-retention-time" : "4"
                     },
                     "0x2003" : {
-                        "debounce-time" : "30",
-                        "maximum-retention-time" : "300"
+                        "debounce-time" : "3",
+                        "maximum-retention-time" : "6"
                     },
                     "0x2004" : {
-                        "debounce-time" : "40",
-                        "maximum-retention-time" : "400"
+                        "debounce-time" : "4",
+                        "maximum-retention-time" : "8"
                     }
                 }
             }
@@ -110,20 +110,20 @@
             "debounce-times" : {
                 "requests" : {
                     "0x3001" : {
-                        "debounce-time" : "10",
-                        "maximum-retention-time" : "100"
+                        "debounce-time" : "1",
+                        "maximum-retention-time" : "2"
                     },
                     "0x3002" : {
-                        "debounce-time" : "20",
-                        "maximum-retention-time" : "200"
+                        "debounce-time" : "2",
+                        "maximum-retention-time" : "4"
                     },
                     "0x3003" : {
-                        "debounce-time" : "30",
-                        "maximum-retention-time" : "300"
+                        "debounce-time" : "3",
+                        "maximum-retention-time" : "6"
                     },
                     "0x3004" : {
-                        "debounce-time" : "40",
-                        "maximum-retention-time" : "400"
+                        "debounce-time" : "4",
+                        "maximum-retention-time" : "8"
                     }
                 }
             }
@@ -141,20 +141,20 @@
             "debounce-times": {
                 "requests" : {
                     "0x4001" : {
-                        "debounce-time" : "10",
-                        "maximum-retention-time" : "100"
+                        "debounce-time" : "1",
+                        "maximum-retention-time" : "2"
                     },
                     "0x4002" : {
-                        "debounce-time" : "20",
-                        "maximum-retention-time" : "200"
+                        "debounce-time" : "2",
+                        "maximum-retention-time" : "4"
                     },
                     "0x4003" : {
-                        "debounce-time" : "30",
-                        "maximum-retention-time" : "300"
+                        "debounce-time" : "3",
+                        "maximum-retention-time" : "6"
                     },
                     "0x4004" : {
-                        "debounce-time" : "40",
-                        "maximum-retention-time" : "400"
+                        "debounce-time" : "4",
+                        "maximum-retention-time" : "8"
                     }
                 }
             }

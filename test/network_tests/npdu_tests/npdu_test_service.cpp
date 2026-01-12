@@ -15,13 +15,19 @@
 #include "../../implementation/configuration/include/configuration_plugin.hpp"
 #include "../../implementation/plugin/include/plugin_manager_impl.hpp"
 
-// this variable is set during compile time to create 4 service binaries of
+// this environment variable is set to create 4 service binaries of
 // which each of them offers a service.
 // Based on this number the service id, instance id and method ids are
 // selected from the arrays defined in npdu_test_globals.hpp
-#ifndef SERVICE_NUMBER
-#define SERVICE_NUMBER 0
-#endif
+size_t get_service_number() {
+    const char* e = getenv("SERVICE_NUMBER");
+    if (e == nullptr) {
+        VSOMEIP_FATAL << "SERVICE_NUMBER missing, needs to be set";
+        abort();
+    }
+
+    return std::stoul(e, NULL, 10);
+}
 
 npdu_test_service::npdu_test_service(vsomeip::service_t _service_id, vsomeip::instance_t _instance_id,
                                      std::array<vsomeip::method_t, 4> _method_ids, std::array<std::chrono::nanoseconds, 4> _debounce_times,
@@ -148,7 +154,7 @@ void npdu_test_service::check_times() {
         VSOMEIP_ERROR << std::hex << std::setfill('0') 
                 << std::setw(4) << service_id_ << ":" 
                 << std::setw(4) << instance_id_ << ":" 
-                << std::setw(4) << npdu_test::method_ids[SERVICE_NUMBER][method_idx]
+                << std::setw(4) << npdu_test::method_ids[get_service_number()][method_idx]
                 << ": max_retention_time exceeded by: " 
                 << std::dec << std::chrono::duration_cast<std::chrono::milliseconds>(
                         time_since_last_message - max_retention_times_[method_idx]).count()
@@ -215,9 +221,10 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
     for (std::size_t i = 0; i < debounce_times.size(); ++i) {
         std::chrono::nanoseconds debounce(0), retention(0);
         its_configuration->get_configured_timing_requests(
-                npdu_test::service_ids[SERVICE_NUMBER], its_configuration->get_unicast_address().to_string(),
-                its_configuration->get_unreliable_port(npdu_test::service_ids[SERVICE_NUMBER], npdu_test::instance_ids[SERVICE_NUMBER]),
-                npdu_test::method_ids[SERVICE_NUMBER][i], &debounce_times[i], &max_retention_times[i]);
+                npdu_test::service_ids[get_service_number()], its_configuration->get_unicast_address().to_string(),
+                its_configuration->get_unreliable_port(npdu_test::service_ids[get_service_number()],
+                                                       npdu_test::instance_ids[get_service_number()]),
+                npdu_test::method_ids[get_service_number()][i], &debounce_times[i], &max_retention_times[i]);
         if (debounce == std::chrono::nanoseconds(VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO)
             && retention == std::chrono::nanoseconds(VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO)) {
             // no timings specified - checks in check_times() should never
@@ -229,8 +236,8 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
         }
     }
 
-    npdu_test_service test_service(npdu_test::service_ids[SERVICE_NUMBER], npdu_test::instance_ids[SERVICE_NUMBER],
-                                   npdu_test::method_ids[SERVICE_NUMBER], debounce_times, max_retention_times);
+    npdu_test_service test_service(npdu_test::service_ids[get_service_number()], npdu_test::instance_ids[get_service_number()],
+                                   npdu_test::method_ids[get_service_number()], debounce_times, max_retention_times);
     test_service.init();
     test_service.start();
     test_service.join_shutdown_thread();
