@@ -219,7 +219,7 @@ private:
     [[nodiscard]] bool process(size_t _new_bytes);
 
     void connect_unlock();
-    void stop_unlocked(bool _due_to_error);
+    void stop_internal(std::unique_lock<std::mutex>& lock, bool _due_to_error);
     void set_state_unlocked(state_e _state);
     void receive_unlock();
     void send_unlock();

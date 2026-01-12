@@ -78,13 +78,13 @@ void local_socket_tcp_impl::stop(bool _force) {
             } else {
                 VSOMEIP_WARNING << "lsti::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
                                 << " bytes, " << name_;
-                std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
+                std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
             }
         } else {
             break;
         }
         ++retry_count;
-        if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
+        if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
             VSOMEIP_ERROR << "lsti::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size << " bytes on close, "
                           << name_;
             break;

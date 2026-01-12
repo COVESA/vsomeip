@@ -94,8 +94,8 @@ void local_endpoint::start() {
 }
 
 void local_endpoint::stop(bool _due_to_error) {
-    std::scoped_lock const lock{mutex_};
-    stop_unlocked(_due_to_error);
+    std::unique_lock lock{mutex_};
+    stop_internal(lock, _due_to_error);
 }
 
 void local_endpoint::escalate() {
@@ -200,7 +200,7 @@ void local_endpoint::connect_unlock() {
     });
 }
 
-void local_endpoint::stop_unlocked(bool _due_to_error) {
+void local_endpoint::stop_internal(std::unique_lock<std::mutex>& lock, bool _due_to_error) {
     if (state_ == state_e::STOPPED) {
         return;
     }
@@ -210,6 +210,30 @@ void local_endpoint::stop_unlocked(bool _due_to_error) {
     if (connecting_timebox_) {
         connecting_timebox_->stop();
     }
+
+    uint32_t retry_count(0);
+    while (true) {
+        if (is_sending_) {
+            if (_due_to_error) {
+                VSOMEIP_WARNING << "le::" << __func__ << ": stop due to error, will lose data, " << status_unlock();
+                break;
+            } else {
+                VSOMEIP_WARNING << "le::" << __func__ << ": waiting[" << retry_count << "] to complete send, " << status_unlock();
+
+                lock.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
+                lock.lock();
+            }
+        } else {
+            break;
+        }
+        ++retry_count;
+        if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
+            VSOMEIP_ERROR << "le::" << __func__ << ": max retries reached to send! will lose data, " << status_unlock();
+            break;
+        }
+    }
+
     socket_->stop(state_ == state_e::FAILED || _due_to_error);
     set_state_unlocked(state_e::STOPPED);
 }
@@ -235,6 +259,9 @@ void local_endpoint::receive_unlock() {
 void local_endpoint::send_unlock() {
     if (state_ == state_e::CONNECTED && !is_sending_) {
         send_buffer_unlock();
+    } else if (state_ == state_e::STOPPED || state_ == state_e::FAILED) {
+        // any `send` in this state is "interesting", so log it
+        VSOMEIP_WARNING << "le::" << __func__ << ": cannot send, " << status_unlock();
     }
 }
 
@@ -325,12 +352,15 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         std::scoped_lock const lock{mutex_};
         if (state_ == state_e::CONNECTED) {
             send_buffer_unlock();
+        } else {
+            VSOMEIP_WARNING << "le::" << __func__ << ": unexpected state " << status_unlock();
         }
+
         return;
     }
     if (_send_buffer.size() > 0) {
-        VSOMEIP_WARNING << "le::" << __func__ << " error: " << _ec.message() << ", " << _send_buffer.size() << " bytes are dropped, "
-                        << status();
+        VSOMEIP_ERROR << "le::" << __func__ << " error: " << _ec.message() << ", " << _send_buffer.size() << " bytes are dropped, "
+                      << status();
     }
 
     if (_ec != boost::asio::error::operation_aborted) {
