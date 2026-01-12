@@ -105,21 +105,19 @@
 
 #define VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS  3
 
-#define VSOMEIP_MAX_WAIT_SENT                   5
-
-#define VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE  19
-
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
 #define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000 // us
 
 #define LOCAL_TCP_PORT_WAIT_TIME                100
 #define LOCAL_TCP_PORT_MAX_WAIT_TIME            10000
 
-#define LOCAL_TCP_WAIT_SEND_QUEUE_ON_STOP       5
-#define LOCAL_UDS_WAIT_SEND_QUEUE_ON_STOP       50
-
+// wait-on-close for boardnet TCP communication
 #define VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD  10 // ms
 #define VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES       (100 / VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD) // Retry for 100ms
+
+// wait-on-close for local communication
+#define VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD  10 // ms
+#define VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES       (100 / VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD) // Retry for 100ms
 
 // default TCP parameters, both local and external
 #define VSOMEIP_DEFAULT_TCP_USER_TIMEOUT        3000
