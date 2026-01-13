@@ -26,6 +26,8 @@ private:
     client_t assigned_;
 };
 
+client_t read_client_id(byte_t const* _data, uint32_t _size);
+
 } // namespace protocol
 } // namespace vsomeip_v3
 

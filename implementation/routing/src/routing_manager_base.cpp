@@ -770,6 +770,10 @@ void routing_manager_base::remove_known_client(client_t _client) {
     known_clients_.erase(_client);
 }
 
+std::string const& routing_manager_base::get_name() const {
+    return host_->get_name();
+}
+
 void routing_manager_base::unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                                        eventgroup_t _eventgroup, event_t _event) {
 

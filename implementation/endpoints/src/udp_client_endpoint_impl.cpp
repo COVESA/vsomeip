@@ -12,7 +12,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 
-#include "../include/endpoint_host.hpp"
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
@@ -22,12 +22,13 @@
 
 namespace vsomeip_v3 {
 
-udp_client_endpoint_impl::udp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+udp_client_endpoint_impl::udp_client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
                                                    const endpoint_type& _remote, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
-    udp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io, _configuration), remote_address_(_remote.address()),
-    remote_port_(_remote.port()), udp_receive_buffer_size_(_configuration->get_udp_receive_buffer_size()),
+    udp_client_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
+    remote_address_(_remote.address()), remote_port_(_remote.port()),
+    udp_receive_buffer_size_(_configuration->get_udp_receive_buffer_size()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)) {
     is_supporting_someip_tp_ = true;
 
@@ -36,10 +37,6 @@ udp_client_endpoint_impl::udp_client_endpoint_impl(const std::shared_ptr<endpoin
 }
 
 udp_client_endpoint_impl::~udp_client_endpoint_impl() {
-    std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
-    if (its_host) {
-        its_host->release_port(local_.port(), false);
-    }
     tp_reassembler_->stop();
 }
 
@@ -121,8 +118,7 @@ void udp_client_endpoint_impl::connect() {
 
                 its_lock.unlock();
 
-                std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
-                if (its_host) {
+                if (std::shared_ptr<boardnet_endpoint_host> its_host = endpoint_host_.lock(); its_host) {
                     uint16_t local_port = ILLEGAL_PORT;
                     // set new client port depending on service / instance / remote port
                     if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_, local_port)) {
@@ -358,7 +354,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         if (_error == boost::asio::error::connection_refused) {
             VSOMEIP_WARNING << "uce::receive_cbk: local: " << get_address_port_local() << " remote: " << get_address_port_remote()
                             << " error: " << _error.message();
-            std::shared_ptr<endpoint_host> its_ep_host = endpoint_host_.lock();
+            std::shared_ptr<boardnet_endpoint_host> its_ep_host = endpoint_host_.lock();
             its_ep_host->on_disconnect(shared_from_this());
             restart(false);
         } else {
@@ -490,8 +486,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             VSOMEIP_WARNING << "uce::send_cbk endpoint is already restarting:" << get_remote_information();
         } else {
             close_socket(false, true);
-            std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
-            if (its_host) {
+            if (std::shared_ptr<boardnet_endpoint_host> its_host = endpoint_host_.lock(); its_host) {
                 its_host->on_disconnect(shared_from_this());
             }
             state_ = cei_state_e::CONNECTING;

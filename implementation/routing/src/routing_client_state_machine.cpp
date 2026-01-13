@@ -20,8 +20,6 @@ static constexpr char const* to_string(routing_client_state_e _state) {
         return "ST_ASSIGNING";
     case routing_client_state_e::ST_ASSIGNED:
         return "ST_ASSIGNED";
-    case routing_client_state_e::ST_CONNECTING:
-        return "ST_CONNECTING";
     case routing_client_state_e::ST_DEREGISTERING:
         return "ST_DEREGISTERING";
     default:
@@ -57,32 +55,13 @@ void routing_client_state_machine::target_running() {
     shall_run_ = true;
 }
 
-[[nodiscard]] bool routing_client_state_machine::start_connecting() {
+[[nodiscard]] bool routing_client_state_machine::start_assignment() {
     std::scoped_lock lock{mtx_};
     if (!shall_run_ || state_ != routing_client_state_e::ST_DEREGISTERED) {
         VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
         return false;
     }
-    change_state_unlocked(routing_client_state_e::ST_CONNECTING);
-    return true;
-}
-
-[[nodiscard]] bool routing_client_state_machine::start_assignment() {
-    std::scoped_lock lock{mtx_};
-    if (!shall_run_ || state_ != routing_client_state_e::ST_CONNECTING) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
-        return false;
-    }
     change_state_unlocked(routing_client_state_e::ST_ASSIGNING);
-    if (!assignment_timebox_) {
-        assignment_timebox_ = timer::create(io_, configuration_.assignment_timeout_, [weak_self = weak_from_this()] {
-            if (auto self = weak_self.lock(); self) {
-                self->assignment_timed_out();
-            }
-            return false;
-        });
-    }
-    assignment_timebox_->start();
     return true;
 }
 
@@ -93,9 +72,6 @@ void routing_client_state_machine::target_running() {
         return false;
     }
     change_state_unlocked(routing_client_state_e::ST_ASSIGNED);
-    if (assignment_timebox_) {
-        assignment_timebox_->stop();
-    }
     return true;
 }
 [[nodiscard]] bool routing_client_state_machine::start_registration() {
@@ -174,15 +150,6 @@ void routing_client_state_machine::deregistered() {
     return result ? state_ == routing_client_state_e::ST_DEREGISTERED : false;
 }
 
-void routing_client_state_machine::assignment_timed_out() {
-    std::unique_lock lock{mtx_};
-    if (state_ != routing_client_state_e::ST_ASSIGNING) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
-        return;
-    }
-    VSOMEIP_ERROR << "rcsm::" << __func__ << ": Assignment timed out after " << configuration_.assignment_timeout_.count() << "ms";
-    deregister_unlocked(std::move(lock));
-}
 void routing_client_state_machine::registration_timed_out() {
     std::unique_lock lock{mtx_};
     if (state_ != routing_client_state_e::ST_REGISTERING) {
@@ -195,9 +162,6 @@ void routing_client_state_machine::registration_timed_out() {
 
 void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock) {
     change_state_unlocked(routing_client_state_e::ST_DEREGISTERED);
-    if (assignment_timebox_) {
-        assignment_timebox_->stop();
-    }
     if (registration_timebox_) {
         registration_timebox_->stop();
     }

@@ -59,8 +59,9 @@ public:
     typedef typename target_data_type::iterator target_data_iterator_type;
     using clients_key_t = uint64_t;
 
-    server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
-                         boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
+    server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
+                         const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
+                         const std::shared_ptr<configuration>& _configuration);
     virtual ~server_endpoint_impl() = default;
 
     virtual void init(const endpoint_type& _local, boost::system::error_code& _error) = 0;

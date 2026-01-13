@@ -28,8 +28,9 @@ typedef server_endpoint_impl<boost::asio::ip::tcp> tcp_server_endpoint_base_impl
 class tcp_server_endpoint_impl : public tcp_server_endpoint_base_impl {
 
 public:
-    tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
-                             boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies);
+    tcp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
+                             const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
+                             const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies);
     virtual ~tcp_server_endpoint_impl();
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);

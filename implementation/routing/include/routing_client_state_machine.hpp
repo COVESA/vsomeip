@@ -21,7 +21,7 @@ namespace vsomeip_v3 {
  * The state machine enforces the following valid state transitions:
  *
  * Normal registration flow:
- *   ST_DEREGISTERED -> ST_CONNECTING -> ST_ASSIGNING -> ST_ASSIGNED
+ *   ST_DEREGISTERED -> ST_ASSIGNING -> ST_ASSIGNED
  *   -> ST_REGISTERING -> ST_REGISTERED
  *
  * Graceful deregistration:
@@ -37,7 +37,6 @@ enum class routing_client_state_e : uint8_t {
     ST_ASSIGNING = 0x3, ///< Waiting for client ID assignment
     ST_ASSIGNED = 0x4, ///< Client ID assigned, ready to register
     ST_DEREGISTERING = 0x5, ///< Graceful deregistration in progress
-    ST_CONNECTING = 0x6 ///< Establishing connection to routing manager
 };
 
 std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
@@ -83,7 +82,6 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * **Usage Example:**
  * @code
  * routing_client_state_machine::configuration config;
- * config.assignment_timeout_ = std::chrono::seconds(5);
  * config.register_timeout_ = std::chrono::seconds(3);
  *
  * auto sm = routing_client_state_machine::create(io_context, config,
@@ -143,14 +141,10 @@ public:
      * @brief Configuration for state machine timeouts.
      */
     struct configuration {
-        /// Timeout for awaiting graceful deregistration completion
-        std::chrono::milliseconds shutdown_timeout_{std::chrono::seconds(3)};
-
-        /// Timeout for client ID assignment (ST_ASSIGNING phase)
-        std::chrono::milliseconds assignment_timeout_{std::chrono::seconds(3)};
-
         /// Timeout for application registration (ST_REGISTERING phase)
         std::chrono::milliseconds register_timeout_{std::chrono::seconds(3)};
+        /// Timeout for awaiting graceful deregistration completion
+        std::chrono::milliseconds shutdown_timeout_{std::chrono::seconds(3)};
     };
 
     /**
@@ -194,25 +188,13 @@ public:
     void target_running();
 
     /**
-     * @brief Start the connection establishment phase.
-     *
-     * Valid transition: ST_DEREGISTERED -> ST_CONNECTING
-     *
-     * @return true if transition succeeded, false if:
-     *         - State machine is shut down (shall_run_ == false)
-     *         - Current state is not ST_DEREGISTERED
-     */
-    [[nodiscard]] bool start_connecting();
-
-    /**
      * @brief Start the client ID assignment phase.
      *
-     * Valid transition: ST_CONNECTING -> ST_ASSIGNING
-     * Starts an assignment timeout timer.
+     * Valid transition: ST_DEREGISTERED -> ST_ASSIGNING
      *
      * @return true if transition succeeded, false if:
      *         - State machine is shut down
-     *         - Current state is not ST_CONNECTING
+     *         - Current state is not ST_DEREGISTERED
      */
     [[nodiscard]] bool start_assignment();
 
@@ -301,13 +283,6 @@ public:
 
 private:
     /**
-     * @brief Internal handler for assignment timeout.
-     *
-     * Validates state and calls deregister_unlocked().
-     */
-    void assignment_timed_out();
-
-    /**
      * @brief Internal handler for registration timeout.
      *
      * Validates state and calls deregister_unlocked().
@@ -363,9 +338,6 @@ private:
 
     /// Callback for autonomous deregistration
     error_handler error_handler_;
-
-    /// Timer for assignment phase timeout
-    std::shared_ptr<timer> assignment_timebox_;
 
     /// Timer for registration phase timeout
     std::shared_ptr<timer> registration_timebox_;

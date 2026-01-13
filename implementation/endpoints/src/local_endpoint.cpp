@@ -4,13 +4,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "../include/local_endpoint.hpp"
-#include "../include/endpoint_host.hpp"
 #include "../include/local_socket.hpp"
 
 #include "../../configuration/include/configuration.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../utility/include/is_value.hpp"
+#include "../../protocol/include/assign_client_ack_command.hpp"
 
 #include <boost/asio/error.hpp>
 #include <vsomeip/defines.hpp>
@@ -60,11 +60,10 @@ std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_
 
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
                                std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state) :
-    state_(_initial_state), peer_(_params.peer_), max_connection_attempts_(MAX_RECONNECTS_LOCAL),
+    state_(_initial_state), own_(_params.own_), peer_(_params.peer_), max_connection_attempts_(MAX_RECONNECTS_LOCAL),
     max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
-    socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_),
-    endpoint_host_(_context.endpoint_host_) { }
+    socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_) { }
 
 local_endpoint::~local_endpoint() {
     if (state_ != state_e::STOPPED) {
@@ -292,14 +291,20 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
     }
     if (!_ec) {
         set_state_unlocked(state_e::CONNECTED);
+        if (peer_ == VSOMEIP_ROUTING_CLIENT) {
+            if (!assignment_timebox_) {
+                assignment_timebox_ = timer::create(io_, std::chrono::seconds(3), [weak_self = weak_from_this()] {
+                    if (auto self = weak_self.lock(); self) {
+                        self->assignment_timeout();
+                    }
+                    return false;
+                });
+            }
+            assignment_timebox_->start();
+        }
+
         send_unlock();
         receive_unlock();
-        // ensure external code is not called under the lock (and be consistent with on_disconnect)
-        boost::asio::post(io_, [weak_eph = endpoint_host_, self = shared_from_this()] {
-            if (auto eph = weak_eph.lock(); eph) {
-                eph->on_connect(self);
-            }
-        });
         return;
     }
     if (_ec == boost::asio::error::operation_aborted) {
@@ -310,12 +315,6 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
     }
     VSOMEIP_WARNING << "le::" << __func__ << ": error: " << _ec.message() << ", " << status_unlock();
     socket_->stop(true);
-    // posting here avoids the need to unlock/lock the mutex when calling into the callback
-    boost::asio::post(io_, [weak_eph = endpoint_host_, self = shared_from_this()] {
-        if (auto eph = weak_eph.lock(); eph) {
-            eph->on_disconnect(self);
-        }
-    });
     if (max_connection_attempts_ == MAX_RECONNECTS_UNLIMITED || max_connection_attempts_ >= ++reconnect_counter_) {
         set_state_unlocked(state_e::INIT);
         if (!connect_debounce_) {
@@ -384,11 +383,28 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         return false;
     }
     auto const endpoint = socket_->peer_endpoint();
-    while (receive_buffer_->next_message(result)) {
-        lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
-        routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
-                            endpoint.port());
-        lock.lock(); // because next_message changes internal state -> lock
+
+    // avoid checking every incoming messages, if a client id was already received
+    if (own_ == VSOMEIP_CLIENT_UNSET) {
+        while (receive_buffer_->next_message(result)) {
+            if (auto const id = protocol::read_client_id(result.message_data_, result.message_size_); id != VSOMEIP_CLIENT_UNSET) {
+                own_ = id;
+                if (assignment_timebox_) {
+                    assignment_timebox_->stop();
+                }
+            }
+            lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
+            routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
+                                endpoint.port());
+            lock.lock(); // because next_message changes internal state -> lock
+        }
+    } else {
+        while (receive_buffer_->next_message(result)) {
+            lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
+            routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
+                                endpoint.port());
+            lock.lock(); // because next_message changes internal state -> lock
+        }
     }
     if (result.error_) {
         VSOMEIP_ERROR << "le::" << __func__ << ": received parsing error, socket > " << status_unlock();
@@ -397,6 +413,15 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
     receive_buffer_->shift_front();
     receive_unlock();
     return true;
+}
+
+void local_endpoint::assignment_timeout() {
+    std::unique_lock lock{mutex_};
+    if (own_ == VSOMEIP_CLIENT_UNSET) {
+        VSOMEIP_ERROR << "le::" << __func__;
+        escalate_internal(lock);
+        return;
+    }
 }
 
 void local_endpoint::receive_cbk(boost::system::error_code const& _ec, size_t _bytes) {
@@ -425,10 +450,6 @@ bool local_endpoint::is_allowed() {
         VSOMEIP_WARNING << "le::" << __func__ << ": escalating after a failed sec_client update, socket > " << status_unlock();
         return end();
     }
-    auto ep = endpoint_host_.lock();
-    if (!ep) {
-        return end();
-    }
     if (config->is_security_enabled()) {
         if (!config->check_routing_credentials(peer_, &sec_client_)) {
             VSOMEIP_WARNING << "le::" << __func__
@@ -442,7 +463,7 @@ bool local_endpoint::is_allowed() {
         }
 
         if (!config->get_policy_manager()->check_credentials(peer_, &sec_client_)) {
-            VSOMEIP_WARNING << "le::" << __func__ << ": vSomeIP Security: Client 0x" << std::hex << ep->get_client()
+            VSOMEIP_WARNING << "le::" << __func__ << ": vSomeIP Security: Client 0x" << std::hex << own_
                             << " received client credentials from client 0x" << peer_
                             << " which violates the security policy : uid/gid=" << std::dec << sec_client_.user << "/" << sec_client_.group;
             return end();

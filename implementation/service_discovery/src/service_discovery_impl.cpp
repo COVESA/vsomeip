@@ -992,7 +992,7 @@ bool service_discovery_impl::send(bool _is_announcing) {
     return false;
 }
 
-// Interface endpoint_host
+// Interface boardnet_endpoint_host
 void service_discovery_impl::on_message(const byte_t* _data, length_t _length, const boost::asio::ip::address& _sender,
                                         bool _is_multicast) {
 #if 0

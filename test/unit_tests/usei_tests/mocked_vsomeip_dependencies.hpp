@@ -20,12 +20,12 @@
 #define protected public
 #include "../../../implementation/endpoints/include/udp_server_endpoint_impl.hpp"
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
-#include "../../../implementation/endpoints/include/endpoint_host.hpp"
 #include "../../../implementation/endpoints/include/asio_udp_socket.hpp"
+#include "../../../implementation/endpoints/include/boardnet_endpoint_host.hpp"
 #include "../../../implementation/routing/include/routing_host.hpp"
 
 template<typename Protocol>
-vsomeip_v3::endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+vsomeip_v3::endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
     io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), sending_blocked_(false), configuration_(_configuration),
@@ -54,7 +54,7 @@ vsomeip_v3::instance_t vsomeip_v3::endpoint_impl<Protocol>::get_instance(service
 }
 
 template<typename Protocol>
-vsomeip_v3::server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+vsomeip_v3::server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _endpoint_host,
                                                                  const std::shared_ptr<routing_host>& _routing_host,
                                                                  boost::asio::io_context& _io,
                                                                  const std::shared_ptr<configuration>& _configuration) :
@@ -228,7 +228,7 @@ vsomeip_v3::abstract_socket_factory* vsomeip_v3::abstract_socket_factory::get() 
 template class vsomeip_v3::endpoint_impl<boost::asio::ip::udp>;
 template class vsomeip_v3::server_endpoint_impl<boost::asio::ip::udp>;
 
-struct mock_endpoint_host : public vsomeip_v3::endpoint_host {
+struct mock_endpoint_host : public vsomeip_v3::boardnet_endpoint_host {
     MOCK_METHOD1(on_connect, void(std::shared_ptr<vsomeip_v3::endpoint> _endpoint));
     MOCK_METHOD1(on_disconnect, void(std::shared_ptr<vsomeip_v3::endpoint> _endpoint));
     MOCK_METHOD4(on_bind_error,

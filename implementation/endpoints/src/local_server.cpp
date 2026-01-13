@@ -29,10 +29,9 @@
 namespace vsomeip_v3 {
 
 local_server::local_server(boost::asio::io_context& _io, std::shared_ptr<local_acceptor> _acceptor,
-                           std::shared_ptr<configuration> _configuration, std::weak_ptr<routing_host> _routing_host,
-                           std::weak_ptr<endpoint_host> _endpoint_host, bool _is_router) :
+                           std::shared_ptr<configuration> _configuration, std::weak_ptr<routing_host> _routing_host, bool _is_router) :
     is_router_(_is_router), io_(_io), acceptor_(std::move(_acceptor)), configuration_(std::move(_configuration)),
-    routing_host_(std::move(_routing_host)), endpoint_host_(_endpoint_host) { }
+    routing_host_(std::move(_routing_host)) { }
 
 local_server::~local_server() = default;
 
@@ -171,8 +170,9 @@ void local_server::add_connection(client_t _client, std::shared_ptr<local_socket
             // Carful: These calls should happen under the lock to guarantee consistency, and before the endpoint might be removed
             // again from the map
             rh->add_known_client(_client, _environment);
-            auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_, endpoint_host_},
-                                                       local_endpoint_params{_client, std::move(_socket)}, std::move(_buffer));
+            auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_},
+                                                       local_endpoint_params{_client, rh->get_client(), std::move(_socket)},
+                                                       std::move(_buffer));
             if (!ep) {
                 VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << std::hex << std::setfill('0')
                               << std::setw(4) << _client << ", self: " << this;
@@ -183,6 +183,7 @@ void local_server::add_connection(client_t _client, std::shared_ptr<local_socket
                 rh->remove_known_client(_client);
                 return;
             }
+
             if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
                 rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
             }
