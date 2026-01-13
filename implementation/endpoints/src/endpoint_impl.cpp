@@ -11,18 +11,18 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-#include "../include/endpoint_host.hpp"
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../include/endpoint_impl.hpp"
 
 namespace vsomeip_v3 {
 
 template<typename Protocol>
-endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                        const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                        const std::shared_ptr<configuration>& _configuration) :
-    io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), sending_blocked_(false), configuration_(_configuration),
-    is_supporting_someip_tp_(false) { }
+    io_(_io), endpoint_host_(_boardnet_endpoint_host), routing_host_(_routing_host), sending_blocked_(false),
+    configuration_(_configuration), is_supporting_someip_tp_(false) { }
 
 template<typename Protocol>
 uint32_t endpoint_impl<Protocol>::find_magic_cookie(byte_t* _buffer, size_t _size) {

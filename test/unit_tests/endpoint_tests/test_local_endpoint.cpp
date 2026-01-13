@@ -5,7 +5,6 @@
 
 #include "base_endpoint_fixture.hpp"
 #include "mock_routing_host.hpp"
-#include "mock_endpoint_host.hpp"
 
 #include "../../../implementation/endpoints/include/asio_timer.hpp"
 #include "../../../implementation/endpoints/include/asio_tcp_socket.hpp"
@@ -69,12 +68,12 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         if (ec) {
             throw std::logic_error("server could not be set-up");
         }
-        return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, server_routing_host_, server_endpoint_host_, false);
+        return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, server_routing_host_, false);
     }
     auto create_client_ep() {
         return local_endpoint::create_client_ep(
-                local_endpoint_context{io_, configuration_, client_routing_host_, client_endpoint_host_},
-                local_endpoint_params{server_,
+                local_endpoint_context{io_, configuration_, client_routing_host_},
+                local_endpoint_params{server_, client_,
                                       std::make_unique<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint{},
                                                                               server_endpoint_, socket_role_e::SENDER)});
     }
@@ -114,13 +113,10 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
     boost::asio::local::stream_protocol::endpoint server_endpoint_{"/tmp/vsomeip-3333"};
     std::shared_ptr<mock_routing_host> server_routing_host_{std::make_shared<mock_routing_host>()};
     std::shared_ptr<mock_routing_host> client_routing_host_{std::make_shared<mock_routing_host>()};
-    std::shared_ptr<mock_endpoint_host> server_endpoint_host_{std::make_shared<mock_endpoint_host>()};
-    std::shared_ptr<mock_endpoint_host> client_endpoint_host_{std::make_shared<mock_endpoint_host>()};
     std::shared_ptr<configuration> configuration_;
 };
 
 TEST_F(test_uds_local_endpoint, a_local_endpoint_can_connect_to_the_local_server) {
-    EXPECT_CALL(*client_endpoint_host_, on_connect);
 
     auto server = create_server();
     auto client = create_client_ep();
@@ -131,7 +127,6 @@ TEST_F(test_uds_local_endpoint, a_local_endpoint_can_connect_to_the_local_server
 }
 
 TEST_F(test_uds_local_endpoint, config_command_leads_to_information_forwarding_to_routing) {
-    EXPECT_CALL(*client_endpoint_host_, on_connect);
 
     auto server = create_server();
     auto client = create_client_ep();

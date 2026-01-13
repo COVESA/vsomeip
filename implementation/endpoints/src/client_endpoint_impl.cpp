@@ -19,7 +19,7 @@
 
 #include "../include/abstract_socket_factory.hpp"
 #include "../include/client_endpoint_impl.hpp"
-#include "../include/endpoint_host.hpp"
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../include/io_control_operation.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
@@ -27,14 +27,14 @@
 namespace vsomeip_v3 {
 
 template<typename Protocol>
-client_endpoint_impl<Protocol>::client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+client_endpoint_impl<Protocol>::client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                      const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
                                                      const endpoint_type& _remote, boost::asio::io_context& _io,
                                                      const std::shared_ptr<configuration>& _configuration) :
-    endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration), remote_{_remote}, flush_timer_{_io}, connect_timer_{_io},
-    connect_timeout_{VSOMEIP_DEFAULT_CONNECT_TIMEOUT}, state_{cei_state_e::CLOSED}, reconnect_counter_{0}, connecting_timer_{_io},
-    connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT}, train_{std::make_shared<train>()}, dispatch_timer_{_io},
-    has_last_departure_{false}, queue_size_{0}, was_not_connected_{false}, is_sending_{false}, strand_(_io) {
+    endpoint_impl<Protocol>(_boardnet_endpoint_host, _routing_host, _io, _configuration), remote_{_remote}, flush_timer_{_io},
+    connect_timer_{_io}, connect_timeout_{VSOMEIP_DEFAULT_CONNECT_TIMEOUT}, state_{cei_state_e::CLOSED}, reconnect_counter_{0},
+    connecting_timer_{_io}, connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT}, train_{std::make_shared<train>()},
+    dispatch_timer_{_io}, has_last_departure_{false}, queue_size_{0}, was_not_connected_{false}, is_sending_{false}, strand_(_io) {
     this->local_ = _local;
     recreate_socket();
 }
@@ -388,7 +388,7 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
         close_socket(false, false);
         return;
     }
-    std::shared_ptr<endpoint_host> its_host = this->endpoint_host_.lock();
+    std::shared_ptr<boardnet_endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
             VSOMEIP_WARNING << "cei::" << __func__ << ": restarting socket due to " << _error.message() << " (" << _error.value() << "),"

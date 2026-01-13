@@ -110,8 +110,8 @@ void routing_manager_client::init() {
     if (!state_machine_) {
         state_machine_ = routing_client_state_machine::create(
                 io_,
-                routing_client_state_machine::configuration{std::chrono::milliseconds(configuration_->get_shutdown_timeout()),
-                                                            std::chrono::seconds(3), std::chrono::seconds(3)},
+                routing_client_state_machine::configuration{std::chrono::seconds(3),
+                                                            std::chrono::milliseconds(configuration_->get_shutdown_timeout())},
                 [this, weak_self = weak_from_this()] {
                     if (auto self = weak_self.lock(); self) {
                         std::unique_lock lock{sender_mutex_};
@@ -949,28 +949,6 @@ bool routing_manager_client::send_to(const std::shared_ptr<endpoint_definition>&
     (void)_instance;
 
     return false;
-}
-
-void routing_manager_client::on_connect(const std::shared_ptr<endpoint>& _endpoint) {
-
-    {
-        std::scoped_lock its_sender_lock{sender_mutex_};
-        if (_endpoint != sender_) {
-            return;
-        }
-    }
-    assign_client();
-}
-
-void routing_manager_client::on_disconnect(const std::shared_ptr<endpoint>& _endpoint) {
-    {
-        std::scoped_lock its_sender_lock{sender_mutex_};
-        if (_endpoint != sender_) {
-            return;
-        }
-    }
-
-    cancel_keepalive();
 }
 
 void routing_manager_client::on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast,
@@ -1877,39 +1855,6 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
     state_machine_->deregistered();
 }
 
-void routing_manager_client::assign_client() {
-
-    VSOMEIP_INFO << "rmc::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << get_client() << ":"
-                 << host_->get_name() << ")";
-
-    protocol::assign_client_command its_command;
-    its_command.set_client(get_client());
-    its_command.set_name(host_->get_name());
-
-    std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-
-    if (its_error != protocol::error_e::ERROR_OK) {
-
-        VSOMEIP_ERROR << "rmc::" << __func__ << ": command creation failed (" << static_cast<int>(its_error) << ")";
-        return;
-    }
-
-    std::scoped_lock its_sender_lock{sender_mutex_};
-    if (sender_) {
-        if (!state_machine_->start_assignment()) {
-            VSOMEIP_WARNING << "rmc::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                            << ") Non-Deregistered State Set (" << state_machine_->state() << "). Returning";
-            return;
-        }
-        sender_->send(&its_buffer[0], static_cast<uint32_t>(its_buffer.size()));
-    } else {
-        VSOMEIP_WARNING << "rmc::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                        << ") sender not initialized. Ignoring client assignment";
-    }
-}
-
 void routing_manager_client::register_application() {
 
     if (!receiver_) {
@@ -2675,6 +2620,7 @@ void routing_manager_client::clear_remote_subscriptions() {
 }
 
 void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<std::recursive_mutex> const& _sender_mutex) {
+    cancel_keepalive();
     if (sender_) {
         sender_->stop(false);
         sender_ = nullptr;
@@ -2685,8 +2631,9 @@ void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<st
         return;
     }
     start_sender_after_debounce_ = false;
-    if (!state_machine_->start_connecting()) {
-        VSOMEIP_INFO << "rmc::" << __func__ << ": Interrupted";
+    if (!state_machine_->start_assignment()) {
+        VSOMEIP_WARNING << "rmc::" << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << get_client()
+                        << ") Non-Deregistered State Set (" << state_machine_->state() << "). Returning";
         return;
     }
     sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);

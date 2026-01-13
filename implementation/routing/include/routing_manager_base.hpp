@@ -136,8 +136,7 @@ public:
 
     void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port);
 
-    virtual void on_connect(const std::shared_ptr<endpoint>& _endpoint) = 0;
-    virtual void on_disconnect(const std::shared_ptr<endpoint>& _endpoint) = 0;
+    std::string const& get_name() const;
 
 protected:
     /**

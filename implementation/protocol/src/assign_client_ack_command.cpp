@@ -6,6 +6,7 @@
 #include <limits>
 
 #include "../include/assign_client_ack_command.hpp"
+#include "../../configuration/include/internal.hpp"
 
 namespace vsomeip_v3 {
 namespace protocol {
@@ -62,6 +63,15 @@ client_t assign_client_ack_command::get_assigned() const {
 void assign_client_ack_command::set_assigned(client_t _assigned) {
 
     assigned_ = _assigned;
+}
+
+client_t read_client_id(byte_t const* _data, uint32_t _size) {
+    client_t id{VSOMEIP_CLIENT_UNSET};
+    if (_data[protocol::COMMAND_POSITION_ID] == static_cast<byte_t>(id_e::ASSIGN_CLIENT_ACK_ID)
+        && COMMAND_POSITION_PAYLOAD + sizeof(id) == _size) {
+        std::memcpy(&id, &_data[COMMAND_POSITION_PAYLOAD], sizeof(id));
+    }
+    return id;
 }
 
 } // namespace protocol

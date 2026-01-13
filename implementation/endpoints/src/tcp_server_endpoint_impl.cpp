@@ -11,7 +11,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/endpoint_definition.hpp"
-#include "../include/endpoint_host.hpp"
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../include/tcp_server_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
@@ -21,10 +21,10 @@ namespace ip = boost::asio::ip;
 
 namespace vsomeip_v3 {
 
-tcp_server_endpoint_impl::tcp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+tcp_server_endpoint_impl::tcp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies) :
-    tcp_server_endpoint_base_impl(_endpoint_host, _routing_host, _io, _configuration), use_magic_cookies_(_use_magic_cookies),
+    tcp_server_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _io, _configuration), use_magic_cookies_(_use_magic_cookies),
     acceptor_(_io), buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
     // send timeout after 2/3 of configured ttl, warning after 1/3
     send_timeout_(configuration_->get_sd_ttl() * 666) {

@@ -10,6 +10,7 @@
 #include <queue>
 #include <thread>
 
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../include/endpoint_manager_base.hpp"
 
 namespace vsomeip_v3 {
@@ -17,7 +18,7 @@ namespace vsomeip_v3 {
 class routing_host;
 class local_server;
 
-class endpoint_manager_impl : public endpoint_manager_base {
+class endpoint_manager_impl : public endpoint_manager_base, public boardnet_endpoint_host {
 public:
     endpoint_manager_impl(routing_manager_base* const _rm, boost::asio::io_context& _io,
                           const std::shared_ptr<configuration>& _configuration);
@@ -61,7 +62,7 @@ public:
     bool remove_instance(service_t _service, endpoint* const _endpoint);
     bool remove_instance_multicast(service_t _service, instance_t _instance);
 
-    // endpoint_host interface
+    // boardnet_endpoint_host interface
     void on_connect(std::shared_ptr<endpoint> _endpoint);
     void on_disconnect(std::shared_ptr<endpoint> _endpoint);
     bool on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address, uint16_t _remote_port,
@@ -83,6 +84,9 @@ public:
 
     void suspend();
     void resume();
+    client_t get_client() const;
+
+    std::string get_client_host() const;
 
 private:
     std::shared_ptr<endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);

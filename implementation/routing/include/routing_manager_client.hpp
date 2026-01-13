@@ -83,8 +83,6 @@ public:
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
 
-    void on_connect(const std::shared_ptr<endpoint>& _endpoint);
-    void on_disconnect(const std::shared_ptr<endpoint>& _endpoint);
     void on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
 
@@ -98,7 +96,6 @@ public:
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type);
 
 private:
-    void assign_client();
     void register_application();
     void deregister_application();
 

@@ -8,7 +8,6 @@ project("unit_tests_endpoint_tests" LANGUAGES CXX)
 set(TEST_SRCS
     ../main.cpp
     base_endpoint_fixture.cpp
-    mock_endpoint_host.cpp
     mock_routing_host.cpp
     test_timer.cpp
     test_local_endpoint.cpp

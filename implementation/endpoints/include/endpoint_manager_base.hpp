@@ -17,7 +17,6 @@
 #include <vsomeip/primitive_types.hpp>
 
 #include "endpoint.hpp"
-#include "endpoint_host.hpp"
 
 namespace vsomeip_v3 {
 
@@ -27,7 +26,7 @@ class routing_host;
 class local_server;
 class local_endpoint;
 
-class endpoint_manager_base : public std::enable_shared_from_this<endpoint_manager_base>, public endpoint_host {
+class endpoint_manager_base : public std::enable_shared_from_this<endpoint_manager_base> {
 public:
     endpoint_manager_base(routing_manager_base* const _rm, boost::asio::io_context& _io,
                           const std::shared_ptr<configuration>& _configuration);
@@ -44,29 +43,14 @@ public:
 
     std::shared_ptr<local_server> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
 
-    // endpoint_host interface
-    virtual void on_connect(std::shared_ptr<endpoint> _endpoint);
-    virtual void on_disconnect(std::shared_ptr<endpoint> _endpoint);
-    virtual bool on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address, uint16_t _remote_port,
-                               uint16_t& _local_port);
-    virtual void on_error(const byte_t* _data, length_t _length, endpoint* const _receiver, const boost::asio::ip::address& _remote_address,
-                          std::uint16_t _remote_port);
-    virtual void release_port(uint16_t _port, bool _reliable);
-    client_t get_client() const;
-    std::string get_client_host() const;
-    instance_t find_instance(service_t _service, endpoint* const _endpoint) const;
-
     // Statistics
     void log_client_states() const;
     void print_status() const;
 
-    // Multicast options
-    void add_multicast_option(const multicast_option_t& _option);
-
-    virtual void suspend();
-    virtual void resume();
-
 private:
+    client_t get_client_id() const;
+    std::string get_client_env() const;
+
     std::shared_ptr<local_endpoint> create_local_unlocked(client_t _client);
     std::shared_ptr<local_endpoint> find_local_unlocked(client_t _client);
 

@@ -21,7 +21,6 @@
 
 namespace vsomeip_v3 {
 
-class endpoint_host;
 class local_endpoint;
 class local_acceptor;
 class local_socket;
@@ -61,12 +60,11 @@ public:
      * @param _acceptor Acceptor for incoming connections (TCP or UDS).
      * @param _configuration Configuration for security, limits, and routing info.
      * @param _routing_host Routing manager for client registration.
-     * @param _endpoint_host Endpoint manager for lifecycle notifications.
      * @param _is_router True if this is the routing manager's server.
      * @note the acceptor needs to be already in the "listen" state.
      */
     local_server(boost::asio::io_context& _io, std::shared_ptr<local_acceptor> _acceptor, std::shared_ptr<configuration> _configuration,
-                 std::weak_ptr<routing_host> _routing_host, std::weak_ptr<endpoint_host> _endpoint_host, bool _is_router);
+                 std::weak_ptr<routing_host> _routing_host, bool _is_router);
     ~local_server();
 
     /**
@@ -187,7 +185,6 @@ private:
     std::shared_ptr<configuration> const configuration_;
     std::shared_ptr<timer> debounce_;
     std::weak_ptr<routing_host> const routing_host_;
-    std::weak_ptr<endpoint_host> const endpoint_host_;
 
     std::mutex mutable mtx_;
     std::unordered_map<client_t, std::shared_ptr<local_endpoint>> clients_;

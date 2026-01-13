@@ -25,7 +25,6 @@
 
 #include "types.hpp"
 #include "../include/routing_host.hpp"
-#include "../../endpoints/include/endpoint_host.hpp"
 #include "../../protocol/include/protocol.hpp"
 #include "../../protocol/include/routing_info_entry.hpp"
 

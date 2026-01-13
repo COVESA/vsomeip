@@ -129,9 +129,6 @@ public:
     void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                             remote_subscription_id_t _id);
 
-    void on_connect(const std::shared_ptr<endpoint>& _endpoint);
-    void on_disconnect(const std::shared_ptr<endpoint>& _endpoint);
-
     void on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,

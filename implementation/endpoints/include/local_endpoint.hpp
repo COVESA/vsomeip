@@ -9,6 +9,7 @@
 #include "endpoint.hpp"
 #include "local_receive_buffer.hpp"
 #include "timer.hpp"
+#include "../../configuration/include/internal.hpp"
 
 #include <cstdint>
 #include <vsomeip/vsomeip_sec.h>
@@ -19,7 +20,6 @@
 
 namespace vsomeip_v3 {
 
-class endpoint_host;
 class configuration;
 class routing_host;
 class local_socket;
@@ -35,7 +35,6 @@ struct local_endpoint_context {
     boost::asio::io_context& io_;
     std::shared_ptr<configuration> configuration_;
     std::weak_ptr<routing_host> routing_host_;
-    std::weak_ptr<endpoint_host> endpoint_host_;
 };
 
 /**
@@ -46,6 +45,7 @@ struct local_endpoint_context {
  */
 struct local_endpoint_params {
     client_t peer_{0};
+    client_t own_{VSOMEIP_CLIENT_UNSET};
     std::shared_ptr<local_socket> socket_;
 };
 
@@ -76,7 +76,7 @@ struct local_endpoint_params {
  * - Receiver endpoints: Created via create_server_ep() from accepted connections (CONNECTED state)
  *
  * Thread-safety: All public methods are thread-safe. Callbacks to external code
- * (routing_host, endpoint_host, error_handler) are invoked without holding internal locks
+ * (routing_host, error_handler) are invoked without holding internal locks
  * to prevent deadlocks.
  *
  * Protocol-agnostic: Delegates protocol-specific behavior to local_socket implementations.
@@ -218,6 +218,8 @@ private:
     void receive_cbk(boost::system::error_code const& _ec, size_t _bytes);
     [[nodiscard]] bool process(size_t _new_bytes);
 
+    void assignment_timeout();
+
     void connect_unlock();
     void stop_internal(std::unique_lock<std::mutex>& lock, bool _due_to_error);
     void set_state_unlocked(state_e _state);
@@ -232,6 +234,7 @@ private:
 private:
     bool is_sending_{false};
     state_e state_{state_e::STOPPED};
+    client_t own_{VSOMEIP_CLIENT_UNSET};
     client_t const peer_;
     vsomeip_sec_client_t sec_client_{};
 
@@ -250,10 +253,10 @@ private:
     std::shared_ptr<local_socket> const socket_;
     std::weak_ptr<configuration> const configuration_;
     std::weak_ptr<routing_host> const routing_host_;
-    std::weak_ptr<endpoint_host> const endpoint_host_;
 
     std::shared_ptr<timer> connect_debounce_;
     std::shared_ptr<timer> connecting_timebox_;
+    std::shared_ptr<timer> assignment_timebox_;
 
     mutable std::mutex mutex_;
 };

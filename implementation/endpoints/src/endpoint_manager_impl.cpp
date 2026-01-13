@@ -253,7 +253,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
         if (_reliable) {
             bool its_magic_cookies_enabled = configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
                     || configuration_->has_enabled_magic_cookies("local", _port);
-            auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(shared_from_this(), rm_->shared_from_this(), io_, configuration_,
+            auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
+                                                                    rm_->shared_from_this(), io_, configuration_,
                                                                     its_magic_cookies_enabled)};
             if (its_tmp) {
                 boost::asio::ip::tcp::endpoint its_reliable(its_unicast, _port);
@@ -263,7 +264,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
                 }
             }
         } else {
-            auto its_tmp{std::make_shared<udp_server_endpoint_impl>(shared_from_this(), rm_->shared_from_this(), io_, configuration_)};
+            auto its_tmp{std::make_shared<udp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
+                                                                    rm_->shared_from_this(), io_, configuration_)};
             if (its_tmp) {
                 boost::asio::ip::udp::endpoint its_unreliable(its_unicast, _port);
                 its_tmp->init(its_unreliable, its_error);
@@ -646,7 +648,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                             return false;
                         }
 
-                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
+                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
                     }
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -673,7 +675,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                             return false;
                         }
 
-                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
+                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
                     }
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -698,7 +700,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                     return false;
                 }
 
-                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
+                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -735,7 +737,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                     return false;
                 }
 
-                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, weak_from_this(), true);
+                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -1083,12 +1085,14 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_client_endpoint(const bo
         if (_reliable) {
             bool its_use_magic_cookies = configuration_->has_enabled_magic_cookies(_address.to_string(), _remote_port);
             its_endpoint = std::make_shared<tcp_client_endpoint_impl>(
-                    shared_from_this(), rm_->shared_from_this(), boost::asio::ip::tcp::endpoint(its_unicast, _local_port),
-                    boost::asio::ip::tcp::endpoint(_address, _remote_port), io_, configuration_, its_use_magic_cookies);
+                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), rm_->shared_from_this(),
+                    boost::asio::ip::tcp::endpoint(its_unicast, _local_port), boost::asio::ip::tcp::endpoint(_address, _remote_port), io_,
+                    configuration_, its_use_magic_cookies);
         } else {
             its_endpoint = std::make_shared<udp_client_endpoint_impl>(
-                    shared_from_this(), rm_->shared_from_this(), boost::asio::ip::udp::endpoint(its_unicast, _local_port),
-                    boost::asio::ip::udp::endpoint(_address, _remote_port), io_, configuration_);
+                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), rm_->shared_from_this(),
+                    boost::asio::ip::udp::endpoint(its_unicast, _local_port), boost::asio::ip::udp::endpoint(_address, _remote_port), io_,
+                    configuration_);
         }
     } catch (...) {
         VSOMEIP_ERROR << __func__ << " Client endpoint creation failed";
@@ -1376,6 +1380,13 @@ void endpoint_manager_impl::resume() {
             its_endpoint->stop(true);
         }
     }
+}
+client_t endpoint_manager_impl::get_client() const {
+    return rm_->get_client();
+}
+
+std::string endpoint_manager_impl::get_client_host() const {
+    return rm_->get_client_host();
 }
 
 } // namespace vsomeip_v3

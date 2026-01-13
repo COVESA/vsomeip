@@ -3212,7 +3212,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             }
 
             // stop all server endpoints
-            ep_mgr_->suspend();
+            ep_mgr_impl_->suspend();
 
             VSOMEIP_INFO << "rmi::" << __func__ << " Set routing to suspend mode done, diagnosis mode is "
                          << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
@@ -3233,7 +3233,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                          << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
             // resume all endpoints
-            ep_mgr_->resume();
+            ep_mgr_impl_->resume();
 
             {
                 std::scoped_lock its_lock(last_resume_mutex_);
@@ -3902,12 +3902,6 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
     }
 }
 
-void routing_manager_impl::on_connect(const std::shared_ptr<endpoint>& _endpoint) {
-    (void)_endpoint;
-}
-void routing_manager_impl::on_disconnect(const std::shared_ptr<endpoint>& _endpoint) {
-    (void)_endpoint;
-}
 void routing_manager_impl::send_subscription(const client_t _offering_client, const service_t _service, const instance_t _instance,
                                              const eventgroup_t _eventgroup, const major_version_t _major,
                                              const std::set<client_t>& _clients, const remote_subscription_id_t _id) {

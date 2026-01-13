@@ -15,7 +15,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/endpoint_definition.hpp"
-#include "../include/endpoint_host.hpp"
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../include/udp_server_endpoint_impl_receive_op.hpp"
@@ -30,10 +30,10 @@ namespace ip = boost::asio::ip;
 
 namespace vsomeip_v3 {
 
-udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
-    server_endpoint_impl<ip::udp>(_endpoint_host, _routing_host, _io, _configuration), lifecycle_idx_(0),
+    server_endpoint_impl<ip::udp>(_boardnet_endpoint_host, _routing_host, _io, _configuration), lifecycle_idx_(0),
     netmask_(_configuration->get_netmask()), prefix_(_configuration->get_prefix()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)), tp_cleanup_timer_(_io) {
     is_supporting_someip_tp_ = true;

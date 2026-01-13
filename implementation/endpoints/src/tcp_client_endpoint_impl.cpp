@@ -14,7 +14,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/tcp_socket.hpp"
-#include "../include/endpoint_host.hpp"
+#include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/routing_host.hpp"
 #include "../include/tcp_client_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
@@ -22,11 +22,11 @@
 
 namespace vsomeip_v3 {
 
-tcp_client_endpoint_impl::tcp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
+tcp_client_endpoint_impl::tcp_client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
                                                    const endpoint_type& _remote, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies) :
-    tcp_client_endpoint_base_impl(_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
+    tcp_client_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
     use_magic_cookies_(_use_magic_cookies), last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)),
     recv_buffer_size_initial_(VSOMEIP_SOMEIP_HEADER_SIZE), recv_buffer_(std::make_shared<message_buffer_t>(recv_buffer_size_initial_, 0)),
     shrink_count_(0), buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()), remote_address_(_remote.address()),
@@ -45,11 +45,6 @@ tcp_client_endpoint_impl::~tcp_client_endpoint_impl() {
     // otherwise boost asio removes linger, which may leave connection in TIME_WAIT
     VSOMEIP_INFO << "tcei::~tcei: endpoint > " << this << " state_ > " << to_string(state_.load());
     close_socket(false, true);
-
-    std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
-    if (its_host) {
-        its_host->release_port(local_.port(), true);
-    }
 }
 
 bool tcp_client_endpoint_impl::is_local() const {
@@ -202,8 +197,7 @@ void tcp_client_endpoint_impl::connect() {
 
                 its_lock.unlock();
 
-                std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
-                if (its_host) {
+                if (std::shared_ptr<boardnet_endpoint_host> its_host = endpoint_host_.lock(); its_host) {
                     uint16_t local_port = ILLEGAL_PORT;
                     // set new client port depending on service / instance / remote port
                     if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_, local_port)) {
@@ -460,8 +454,8 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     VSOMEIP_INFO << msg.str();
 #endif
     std::unique_lock<std::mutex> its_lock(socket_mutex_);
-    std::shared_ptr<routing_host> its_host = routing_host_.lock();
-    if (its_host) {
+
+    if (std::shared_ptr<routing_host> its_host = routing_host_.lock(); its_host) {
         std::uint32_t its_missing_capacity(0);
         if (!_error && 0 < _bytes) {
             if (_recv_buffer_size + _bytes > _recv_buffer->size()) {
@@ -805,8 +799,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             if (state_ == cei_state_e::CONNECTING) {
                 VSOMEIP_WARNING << "tce::send_cbk endpoint is already restarting:" << get_remote_information();
             } else {
-                std::shared_ptr<endpoint_host> its_host = endpoint_host_.lock();
-                if (its_host) {
+                if (std::shared_ptr<boardnet_endpoint_host> its_host = endpoint_host_.lock(); its_host) {
                     its_host->on_disconnect(shared_from_this());
                 }
                 restart(true);
@@ -849,7 +842,7 @@ void tcp_client_endpoint_impl::wait_until_sent(const boost::system::error_code& 
         if (!_error)
             VSOMEIP_WARNING << __func__ << ": Maximum wait time for send operation exceeded for tce.";
 
-        std::shared_ptr<endpoint_host> its_ep_host = endpoint_host_.lock();
+        std::shared_ptr<boardnet_endpoint_host> its_ep_host = endpoint_host_.lock();
         its_ep_host->on_disconnect(shared_from_this());
         restart(true);
     } else {

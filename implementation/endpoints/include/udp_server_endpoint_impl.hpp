@@ -27,8 +27,9 @@ public:
     udp_server_endpoint_impl() = delete;
     udp_server_endpoint_impl(const udp_server_endpoint_impl&) = delete;
     udp_server_endpoint_impl(udp_server_endpoint_impl&&) = delete;
-    udp_server_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
-                             boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
+    udp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
+                             const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
+                             const std::shared_ptr<configuration>& _configuration);
     ~udp_server_endpoint_impl() override;
 
     udp_server_endpoint_impl& operator=(const udp_server_endpoint_impl&) = delete;

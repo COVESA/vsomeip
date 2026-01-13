@@ -19,7 +19,7 @@
 
 namespace vsomeip_v3 {
 
-class endpoint_host;
+class boardnet_endpoint_host;
 class routing_host;
 
 template<typename Protocol>
@@ -27,8 +27,9 @@ class endpoint_impl : public virtual endpoint {
 public:
     typedef typename Protocol::endpoint endpoint_type;
 
-    endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host, const std::shared_ptr<routing_host>& _routing_host,
-                  boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
+    endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
+                  const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
+                  const std::shared_ptr<configuration>& _configuration);
     endpoint_impl(endpoint_impl<Protocol> const&) = delete;
     endpoint_impl(endpoint_impl<Protocol> const&&) = delete;
     virtual ~endpoint_impl() = default;
@@ -62,7 +63,7 @@ protected:
     boost::asio::io_context& io_;
 
     // References to hosts
-    std::weak_ptr<endpoint_host> endpoint_host_;
+    std::weak_ptr<boardnet_endpoint_host> endpoint_host_;
     std::weak_ptr<routing_host> routing_host_;
 
     std::uint32_t max_message_size_;
