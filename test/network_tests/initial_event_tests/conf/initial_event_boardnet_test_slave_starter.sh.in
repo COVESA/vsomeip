@@ -4,30 +4,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
 FAIL=0
 
-if [ ! -z "$USE_LXC_TEST" ]; then
-    echo "starting initial event boardnet client test on slave LXC"
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/initial_event_tests; ./initial_event_boardnet_test_client"' &
-        PID_SLAVE=$!
-elif [ ! -z "$USE_DOCKER" ]; then
-        docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./initial_event_boardnet_test_client" &
-        PID_SLAVE=$!
-else
-cat <<End-of-message
-*******************************************************************************
-*******************************************************************************
-** Please now run:
-** initial_event_boardnet_test_client
-** from an external host to successfully complete this test.
-**
-** You probably will need to adapt the 'unicast' settings in
-** initial_event_boardnet_master.json and
-** initial_event_boardnet_slave.json to your personal setup.
-*******************************************************************************
-*******************************************************************************
-End-of-message
-fi
+exec_slave "./initial_event_boardnet_test_client"
+PID_SLAVE=$!
 
 wait $PID_SLAVE || FAIL=$(($FAIL+1))
 exit $FAIL

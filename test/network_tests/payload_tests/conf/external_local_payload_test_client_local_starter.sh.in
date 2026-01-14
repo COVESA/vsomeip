@@ -4,6 +4,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
 # Purpose: This script is needed to start the client and service with
 # one command. This is necessary as ctest - which is used to run the
 # tests - isn't able to start two binaries for one testcase. Therefore
@@ -90,10 +95,6 @@ check_tcp_udp_sockets_are_open  $SERVICE_PID 2
 # The client should use the shortcut over a local UDS instead of TCP/UDP,
 # therefore he shouldn't have any open TCP/UDP sockets
 check_tcp_udp_sockets_are_closed  $CLIENT_PID
-
-if [ ! -z "$USE_DOCKER" ]; then
-    FAIL=0
-fi
 
 # Fail gets incremented if either client or service exit
 # with a non-zero exit code

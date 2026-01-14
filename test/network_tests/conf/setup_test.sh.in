@@ -1,0 +1,68 @@
+#!/bin/bash -x
+# Copyright (C) 2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# common test utilities, helpers, etc
+
+# relative directory, for lxc execution
+# example "test/network_tests/payload_tests" for a caller in this directory
+RELATIVE_DIR=$(realpath $0) # has to be $0, not $BASH_SOURCE, because we need the caller script
+RELATIVE_DIR="test/${RELATIVE_DIR#*/test}" # prefix removal
+RELATIVE_DIR=$(dirname $RELATIVE_DIR) # suffix removal
+
+#######################################
+######### test setup helpers ##########
+#######################################
+
+# cleanup background processes
+cleanup() {
+    # kill all processes whose parent is this process
+    local pids=$(jobs -pr)
+
+    local sig="$1"
+    # print nothing if cleanup is triggered by EXIT
+    if [ ! -z "$sig" ]; then
+        echo "Cleanup triggered by signal: $sig" >&2
+    fi
+
+    if [ -n "$pids" ]; then
+        # test forgot to cleanup; this is an error
+        echo "Processes '$pids' still running at exit, kiling"
+        kill -9 $pids
+        # force test failure
+        exit 1
+    fi
+}
+
+# execute background command on slave lxc or docker image
+exec_slave() {
+    COM=$1
+
+    if [ ! -z "$USE_LXC_TEST" ]; then
+        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub \
+            -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP \
+            "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/${RELATIVE_DIR}; ${COM}\"" &
+        echo $!
+    elif [ ! -z "$USE_DOCKER" ]; then
+        docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ${COM}" &
+        echo $!
+    else
+        echo "No USE_LXC_TEST, no USE_DOCKER, cannot execute command on slave" >&2
+        exit 127
+    fi
+}
+
+#######################################
+############# test setup ##############
+#######################################
+
+# ensure cleanup of processes on exit
+for sig in INT QUIT HUP TERM; do
+  trap "
+    cleanup $sig
+    trap - $sig EXIT
+    kill -s $sig "'"$$"' "$sig"
+done
+trap cleanup EXIT

@@ -17,7 +17,6 @@ then
     exit 1
 fi
 
-
 export VSOMEIP_CONFIGURATION=$1
 export VSOMEIP_APPLICATION_NAME=service-sample
 ./e2e_profile_07_test_service --remote

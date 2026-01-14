@@ -4,6 +4,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
 # Purpose: This script is needed to start the client and service with
 # one command. This is necessary as ctest - which is used to run the
 # tests - isn't able to start two binaries for one testcase. Therefore
@@ -36,33 +41,10 @@ fi
 export VSOMEIP_APPLICATION_NAME=big_payload_test_client
 ./big_payload_test_client $1 &
 
-if [ ! -z "$USE_LXC_TEST" ]; then
-    echo "starting big payload test on slave LXC"
-    if [[ $# -gt 0 ]]; then
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/big_payload_tests; ./big_payload_test_external_service_start.sh $1\"" &
-    else
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP 'bash -ci "set -m; cd \$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/big_payload_tests; ./big_payload_test_external_service_start.sh"' &
-    fi
-elif [ ! -z "$USE_DOCKER" ]; then
-    if [[ $# -gt 0 ]]; then
-       docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./big_payload_test_external_service_start.sh $1" &
-    else
-       docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./big_payload_test_external_service_start.sh" &
-    fi
+if [[ $# -gt 0 ]]; then
+    exec_slave "./big_payload_test_external_service_start.sh $1"
 else
-cat <<End-of-message
-*******************************************************************************
-*******************************************************************************
-** Please now run:
-** big_payload_test_external_service_start.sh $1
-** from an external host to successfully complete this test.
-**
-** You probably will need to adapt the 'unicast' settings in
-** big_payload_test_tcp_service.json and
-** big_payload_test_tcp_client.json to your personal setup.
-*******************************************************************************
-*******************************************************************************
-End-of-message
+    exec_slave "./big_payload_test_external_service_start.sh"
 fi
 
 # Wait until client and service are finished

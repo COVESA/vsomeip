@@ -1,8 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/bash -x
 # Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
 
 # Configuration to be used by daemon and clients.
 export VSOMEIP_CONFIGURATION=cached_event_test_client.json
@@ -18,30 +23,8 @@ export VSOMEIP_APPLICATION_NAME="client-sample"
 CLIENT_PID=$!
 
 # Start the test service.
-SERVICE_PID=0
-if [ -n "$USE_LXC_TEST" ]; then
-    echo "starting cached_event_test_service.sh on service LXC"
-    ssh -tt -i "$SANDBOX_ROOT_DIR"/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@"$LXC_TEST_SLAVE_IP" "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/cached_event_tests; ./cached_event_test_service.sh\"" &
-    SERVICE_PID=$!
-    echo "remote ssh job id: $!"
-elif [ -n "$USE_DOCKER" ]; then
-    docker exec "$DOCKER_IMAGE" sh -c "cd $DOCKER_TESTS && ./cached_event_test_service.sh" &
-    SERVICE_PID=$!
-else
-    cat <<EOF
-*******************************************************************************
-*******************************************************************************
-** Please now run:
-** cached_event_test_service.sh
-** from an external host to successfully complete this test.
-**
-** You probably will need to adapt the 'unicast' settings in
-** cached_event_test_client.json and
-** cached_event_test_service.json to your personal setup.
-*******************************************************************************
-*******************************************************************************
-EOF
-fi
+exec_slave "./cached_event_test_service.sh"
+SERVICE_PID=$!
 
 # Whether the test failed.
 FAIL=0

@@ -10,6 +10,11 @@
 # the testcase simply executes this script. This script then runs the services
 # and checks that all exit successfully.
 
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
 if [ $# -lt 1 ]
 then
     echo "Please pass a json file to this script."
