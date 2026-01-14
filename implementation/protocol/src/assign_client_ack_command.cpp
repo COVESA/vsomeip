@@ -6,7 +6,12 @@
 #include <limits>
 
 #include "../include/assign_client_ack_command.hpp"
+
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
 #include "../../configuration/include/internal.hpp"
+#endif // ANDROID
 
 namespace vsomeip_v3 {
 namespace protocol {
