@@ -472,7 +472,6 @@ void application_impl::start() {
     try {
         std::unique_lock its_lock_start_stop{dispatcher_mutex_};
         auto its_dispatchers = dispatchers_;
-        availability_handlers_.clear();
         running_dispatchers_.clear();
         elapsed_dispatchers_.clear();
         dispatchers_.clear();
@@ -520,6 +519,11 @@ void application_impl::start() {
     } catch (const std::exception& e) {
         VSOMEIP_ERROR << "application_impl::" << __func__ << ": joining threads, "
                       << " catched exception: " << e.what();
+    }
+
+    {
+        std::scoped_lock its_lock{handlers_mutex_};
+        availability_handlers_.clear();
     }
 
     stopping_ = false;
@@ -2072,6 +2076,7 @@ void application_impl::clear_all_handler() {
     {
         std::scoped_lock its_lock{handlers_mutex_};
         handlers_.clear();
+        availability_handlers_.clear();
     }
 }
 
