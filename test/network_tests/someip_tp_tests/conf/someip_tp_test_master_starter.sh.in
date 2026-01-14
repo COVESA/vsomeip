@@ -4,6 +4,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
 FAIL=0
 
 if [ $# -lt 1 ]
@@ -25,27 +30,9 @@ export VSOMEIP_APPLICATION_NAME="service-sample"
 ./someip_tp_test_service $1 &
 PID_SERVICE=$!
 
-if [ ! -z "$USE_LXC_TEST" ]; then
-    ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/test/network_tests/someip_tp_tests; ./someip_tp_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE\"" &
-    PID_CLIENT=$!
-    echo "remote ssh pid: $!"
-elif [ ! -z "$USE_DOCKER" ]; then
-    docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ./someip_tp_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE" &
-    PID_CLIENT=$!
-else
-cat <<End-of-message
-*******************************************************************************
-*******************************************************************************
-** Please now run:
-** someip_tp_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE
-** from an external host to successfully complete this test.
-**
-** You probably will need to adapt the 'unicast' settings in
-** someip_tp_test_master.json to your personal setup.
-*******************************************************************************
-*******************************************************************************
-End-of-message
-fi
+exec_slave "./someip_tp_test_msg_sender @TEST_IP_MASTER@ @TEST_IP_SLAVE@ $TESTMODE" &
+PID_CLIENT=$!
+
 # Wait for the service and client to finish
 wait $PID_CLIENT || FAIL=$(($FAIL+1))
 wait $PID_SERVICE || FAIL=$(($FAIL+1))

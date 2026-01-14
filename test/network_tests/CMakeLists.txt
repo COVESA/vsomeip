@@ -146,6 +146,9 @@ function(add_custom_test)
     endif()
 endfunction()
 
+# setup helper for bash tests
+configure_files("setup_test.sh")
+
 ### ADD TESTS SUBDIRECTORIES ###
 if(NOT ${TESTS_BAT})
     add_subdirectory(availability_handler_tests)
