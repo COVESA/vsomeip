@@ -100,8 +100,9 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     socket_manager_->set_ignore_connections(_app_name, _ignore_connections);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay) {
-    return socket_manager_->delay_message_processing(_from, _to, _delay);
+[[nodiscard]] bool base_fake_socket_fixture::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
+                                                                      socket_role _role) {
+    return socket_manager_->delay_message_processing(_from, _to, _delay, _role);
 }
 
 [[nodiscard]] bool base_fake_socket_fixture::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,

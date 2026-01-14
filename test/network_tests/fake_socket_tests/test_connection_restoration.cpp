@@ -891,6 +891,24 @@ struct test_restart_clients : test_client_helper {
     std::string const client_two_{"client-two"};
 };
 
+TEST_F(test_restart_clients, test_assignment_timeout_recover) {
+    start_router();
+
+    // avoid processing any message from the router to the client (via either connection)
+    ASSERT_FALSE(delay_message_processing(routingmanager_name_, client_name_, true, socket_role::receiver));
+    ASSERT_FALSE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::sender));
+
+    client_ = start_client(client_name_);
+    ASSERT_NE(client_, nullptr);
+
+    // At this point in time, the client should not be able to register due to assignment timeout
+    ASSERT_FALSE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)));
+
+    ASSERT_FALSE(delay_message_processing(routingmanager_name_, client_name_, false, socket_role::receiver));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::sender));
+    EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+}
+
 TEST_F(test_restart_clients, test_restart_client_one_and_two_in_reverse_order) {
     start_router();
     start_server();

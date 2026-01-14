@@ -113,7 +113,8 @@ public:
      *
      * @return false, if the connection does not exist.
      **/
-    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay);
+    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
+                                                socket_role _role = socket_role::receiver);
 
     /**
      * Ensures that a broken connection is not propagated, when the connected socket is closed.

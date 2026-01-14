@@ -327,9 +327,10 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
         connections_to_ignore_.erase(_app_name);
     }
 }
-[[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay) {
-    auto connection = get_or_create_connection(_from, _to);
-    return connection->delay_message_processing(_delay);
+[[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
+                                                            socket_role _role) {
+    auto from_to_connection = get_or_create_connection(_from, _to);
+    return from_to_connection->delay_message_processing(_delay, _role);
 }
 
 [[nodiscard]] bool socket_manager::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,

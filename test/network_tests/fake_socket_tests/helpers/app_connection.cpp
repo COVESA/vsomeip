@@ -47,11 +47,17 @@ void app_connection::clear_command_record() const {
     }
 }
 
-bool app_connection::delay_message_processing(bool _delay) {
+bool app_connection::delay_message_processing(bool _delay, socket_role _role) {
     std::unique_lock lock{mtx_};
     // since this is a directed connection, there is only one
     // socket for this option
     to_options_.delay_message_processing_ = _delay;
+    if (_role == socket_role::unspecified || _role == socket_role::receiver) {
+        to_options_.delay_message_processing_ = _delay;
+    }
+    if (_role == socket_role::unspecified || _role == socket_role::sender) {
+        from_options_.delay_message_processing_ = _delay;
+    }
     return apply_options(std::move(lock));
 }
 

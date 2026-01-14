@@ -44,7 +44,7 @@ public:
     /**
      * Delays message processing on the receiving socket (can be set ahead of time)
      **/
-    [[nodiscard]] bool delay_message_processing(bool _delay);
+    [[nodiscard]] bool delay_message_processing(bool _delay, socket_role _role = socket_role::receiver);
 
     /**
      * sets the fake_tcp_socket_handle on each socket correspondingly (can be set ahead of time)
