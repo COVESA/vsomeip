@@ -15,12 +15,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Generate Version Info
+      - name: Verify Version Matches Tag
         run: |
-          # Replace VSOMEIP_GEN_VERSION in BUILD files with the git tag
-          VERSION="${GITHUB_REF_NAME#refs/tags/}"
-          echo "Updating VSOMEIP_GEN_VERSION to ${VERSION} in BUILD"
-          sed -i "s/VSOMEIP_GEN_VERSION = \".*\"/VSOMEIP_GEN_VERSION = \"${VERSION//\"}\"/" implementation/BUILD  
+          # Extract the tag version
+          TAG_VERSION="${GITHUB_REF_NAME}"
+          echo "Tag version: ${TAG_VERSION}"
+          
+          # Extract VSOMEIP_GEN_VERSION from BUILD file
+          BUILD_VERSION=$(grep -oP 'VSOMEIP_GEN_VERSION = "\K[^"]+' implementation/BUILD)
+          echo "BUILD file version: ${BUILD_VERSION}"
+          
+          # Compare versions
+          if [ "${TAG_VERSION}" != "${BUILD_VERSION}" ]; then
+            echo "❌ ERROR: Version mismatch!"
+            echo "Tag version: ${TAG_VERSION}"
+            echo "BUILD file version: ${BUILD_VERSION}"
+            echo ""
+            echo "Please update VSOMEIP_GEN_VERSION in implementation/BUILD to match the tag version before creating the release."
+            exit 1
+          fi
+          
+          echo "✅ Version matches: ${TAG_VERSION}"  
 
       - name: Create Tarball
         run: tar --exclude=.git -czf /tmp/${{ github.ref_name }}.tar.gz ./
