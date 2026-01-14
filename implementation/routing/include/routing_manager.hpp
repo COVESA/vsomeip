@@ -100,8 +100,6 @@ public:
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 
-    virtual void debounce_timeout_update_cbk(const boost::system::error_code& _error, const std::shared_ptr<vsomeip_v3::event>& _event,
-                                             client_t _client, const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
     virtual void register_debounce(const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
                                    const std::shared_ptr<vsomeip_v3::event>& _event) = 0;
     virtual void remove_debounce(client_t _client, event_t _event) = 0;
