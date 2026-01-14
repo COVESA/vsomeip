@@ -1,7 +1,7 @@
 load("@vsomeip//bazel:version.bzl", "version_dict_from_string")
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
 
-APEX_VSOMEIP_VERSION_TAG = "3.4.11-apex1"  # This version must match the git tag version.
+APEX_VSOMEIP_VERSION_TAG = "3.6.0-apex3"  # This version must match the git tag version.
 
 expand_template(
     name = "config",
