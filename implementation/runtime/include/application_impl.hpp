@@ -348,6 +348,7 @@ private:
 
     // Handlers
     mutable std::deque<std::shared_ptr<sync_handler>> handlers_;
+    service_instance_map<std::deque<std::shared_ptr<sync_handler>>> availability_handlers_;
     mutable std::mutex handlers_mutex_;
 
     // Dispatching
@@ -393,8 +394,6 @@ private:
 
     bool client_side_logging_;
     std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
-
-    service_instance_map<std::deque<std::shared_ptr<sync_handler>>> availability_handlers_;
 
     vsomeip_sec_client_t sec_client_;
 
