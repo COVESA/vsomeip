@@ -1,7 +1,7 @@
 load("@vsomeip//bazel:version.bzl", "version_dict_from_string")
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
 
-VSOMEIP_GEN_VERSION = "3.4.11-dev1"  # This version must match the git tag version.
+APEX_VSOMEIP_VERSION_TAG = "3.4.11-dev1"  # This version must match the git tag version.
 
 expand_template(
     name = "config",
@@ -21,7 +21,7 @@ expand_template(
         "//conditions:default": {"@VSOMEIP_BASE_PATH@": "/tmp"},
         "@platforms//os:qnx": {"@VSOMEIP_BASE_PATH@": "/var"},
     })
-    | version_dict_from_string(VSOMEIP_GEN_VERSION),
+    | version_dict_from_string(APEX_VSOMEIP_VERSION_TAG),
 )
 
 cc_library(

@@ -21,8 +21,8 @@ jobs:
           TAG_VERSION="${GITHUB_REF_NAME}"
           echo "Tag version: ${TAG_VERSION}"
           
-          # Extract VSOMEIP_GEN_VERSION from BUILD file
-          BUILD_VERSION=$(grep -oP 'VSOMEIP_GEN_VERSION = "\K[^"]+' implementation/BUILD)
+          # Extract APEX_VSOMEIP_VERSION_TAG from BUILD file
+          BUILD_VERSION=$(grep -oP 'APEX_VSOMEIP_VERSION_TAG = "\K[^"]+' implementation/BUILD)
           echo "BUILD file version: ${BUILD_VERSION}"
           
           # Compare versions
@@ -31,7 +31,7 @@ jobs:
             echo "Tag version: ${TAG_VERSION}"
             echo "BUILD file version: ${BUILD_VERSION}"
             echo ""
-            echo "Please update VSOMEIP_GEN_VERSION in implementation/BUILD to match the tag version before creating the release."
+            echo "Please update APEX_VSOMEIP_VERSION_TAG in implementation/BUILD to match the tag version before creating the release."
             exit 1
           fi
           

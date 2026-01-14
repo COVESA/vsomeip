@@ -3539,7 +3539,7 @@ bool routing_manager_impl::is_external_routing_ready() const {
     #ifdef __linux__
     return if_state_running_ && (!configuration_->is_sd_enabled() || (configuration_->is_sd_enabled() && sd_route_set_));
     #else
-    return if_state_running_ && configuration_->is_sd_enabled();
+    return if_state_running_;
     #endif
 }
 

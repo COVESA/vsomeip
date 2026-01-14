@@ -358,7 +358,7 @@ private:
     boost::asio::steady_timer version_log_timer_;
 
     std::atomic_bool if_state_running_;
-    std::atomic_bool sd_route_set_;
+    std::atomic_bool sd_route_set_; // Always false on non-linux systems
     std::atomic_bool routing_running_;
     std::mutex pending_sd_offers_mutex_;
     std::unordered_set<std::pair<service_t, instance_t>, boost::hash<std::pair<service_t, instance_t>>> pending_sd_offers_;
