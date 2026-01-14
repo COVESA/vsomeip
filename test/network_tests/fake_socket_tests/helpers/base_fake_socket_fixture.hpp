@@ -147,7 +147,8 @@ struct base_fake_socket_fixture : ::testing::Test {
     /**
      * @see socket_manager::delay_message_processing()
      **/
-    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay);
+    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
+                                                socket_role _role = socket_role::receiver);
 
     /**
      * @see socket_manager::set_ignore_inner_close()
