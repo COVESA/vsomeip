@@ -83,8 +83,9 @@ void routing_manager_base::debounce_timeout_update_cbk(const boost::system::erro
         debounce_clients_.erase(itr);
 
         if (event && filter) {
-            int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - filter->last_forwarded_).count();
-            bool is_elapsed = (filter->last_forwarded_ == std::chrono::steady_clock::time_point::max() || elapsed >= filter->interval_);
+            std::chrono::steady_clock::time_point last = filter->last_forwarded_.load();
+            int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
+            bool is_elapsed = (last == std::chrono::steady_clock::time_point::max() || elapsed >= filter->interval_);
             if (is_elapsed) {
                 if (data.update_) {
                     data.update_ = false;
@@ -559,13 +560,13 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                     if (its_debounce->interval_ > -1) {
                         // Check whether we should forward because of the elapsed time since
                         // we did last time
-                        std::chrono::steady_clock::time_point its_current = std::chrono::steady_clock::now();
-                        int64_t elapsed =
-                                std::chrono::duration_cast<std::chrono::milliseconds>(its_current - its_debounce->last_forwarded_).count();
-                        is_elapsed = (its_debounce->last_forwarded_ == std::chrono::steady_clock::time_point::max()
-                                      || elapsed >= its_debounce->interval_);
-                        if (is_elapsed || (is_changed && its_debounce->on_change_resets_interval_))
-                            its_debounce->last_forwarded_ = its_current;
+                        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                        std::chrono::steady_clock::time_point last = its_debounce->last_forwarded_.load();
+                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
+                        is_elapsed = (last == std::chrono::steady_clock::time_point::max() || elapsed >= its_debounce->interval_);
+                        if (is_elapsed || (is_changed && its_debounce->on_change_resets_interval_)) {
+                            its_debounce->last_forwarded_.store(now);
+                        }
                     }
                     return (is_changed || is_elapsed);
                 };

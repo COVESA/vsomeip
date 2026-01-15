@@ -500,14 +500,13 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
                     if (_filter->interval_ > -1) {
                         // Check whether we should forward because of the elapsed time since
                         // we did last time
-                        std::chrono::steady_clock::time_point its_current = std::chrono::steady_clock::now();
-
-                        int64_t elapsed =
-                                std::chrono::duration_cast<std::chrono::milliseconds>(its_current - _filter->last_forwarded_).count();
-                        is_elapsed =
-                                (_filter->last_forwarded_ == std::chrono::steady_clock::time_point::max() || elapsed >= _filter->interval_);
-                        if (is_elapsed || (is_changed && _filter->on_change_resets_interval_))
-                            _filter->last_forwarded_ = its_current;
+                        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+                        std::chrono::steady_clock::time_point last = _filter->last_forwarded_.load();
+                        int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
+                        is_elapsed = (last == std::chrono::steady_clock::time_point::max() || elapsed >= _filter->interval_);
+                        if (is_elapsed || (is_changed && _filter->on_change_resets_interval_)) {
+                            _filter->last_forwarded_.store(now);
+                        }
                     }
 
                     return (is_changed || is_elapsed);
