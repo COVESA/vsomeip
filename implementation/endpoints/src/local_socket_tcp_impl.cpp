@@ -251,4 +251,29 @@ void local_socket_tcp_impl::set_socket_options(configuration const& _configurati
 #endif
     }
 }
+size_t local_socket_tcp_impl::get_send_buffer_size(boost::system::error_code& _ec) {
+#if defined(__linux__) || defined(__QNX__)
+    io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+    {
+        std::scoped_lock its_lock(socket_mtx_);
+        if (socket_ && socket_->is_open()) {
+            socket_->io_control(send_buffer_size_cmd, _ec);
+        } else {
+            VSOMEIP_WARNING << "lsti::" << __func__ << ": socket is not open, " << name_;
+            _ec = boost::asio::error::not_connected;
+            return 0;
+        }
+    }
+
+    if (_ec) {
+        VSOMEIP_WARNING << "lsti::" << __func__ << ": fail to read send_buffer_size  "
+                        << "(" << _ec.value() << "): " << _ec.message() << ", " << name_;
+        return 0;
+    }
+    return send_buffer_size_cmd.get();
+#else
+    _ec.clear();
+    return 0;
+#endif
+}
 } // namespace vsomeip_v3

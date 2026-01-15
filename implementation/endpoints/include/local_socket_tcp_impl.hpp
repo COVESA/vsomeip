@@ -68,6 +68,8 @@ public:
 
     boost::asio::ip::tcp::endpoint peer_endpoint() const override;
 
+    size_t get_send_buffer_size(boost::system::error_code& _ec) override;
+
     /**
      * @brief Applies TCP socket options based on configuration and endpoint addresses.
      * @param _configuration Configuration containing timeout and keep-alive settings.

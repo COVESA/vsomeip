@@ -170,6 +170,8 @@ public:
      */
     std::string const& name() const;
 
+    void flush_queue();
+
 public:
     void prepare_stop(const prepare_stop_handler_t& _handler, service_t _service = ANY_SERVICE) override;
 

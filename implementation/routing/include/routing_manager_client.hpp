@@ -95,6 +95,8 @@ public:
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type);
 
+    void try_to_send_before_stop();
+
 private:
     void register_application();
     void deregister_application();

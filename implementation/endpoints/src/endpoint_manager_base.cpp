@@ -371,4 +371,19 @@ void endpoint_manager_base::print_status() const {
     }
 }
 
+void endpoint_manager_base::flush_local_endpoint_queues() const {
+    auto eps = [this] {
+        std::scoped_lock its_lock(local_endpoint_mutex_);
+        VSOMEIP_INFO << "emb::flush_local_endpoint_queues: Start endpoints flush for client " << std::hex << std::setfill('0')
+                     << std::setw(4) << get_client_id();
+        return local_endpoints_;
+    }();
+    // Note: The flushing effectively blocks. Therefore no mutex is allowed to be locked, to avoid stale mates
+    for (auto const& [id, ep] : eps) {
+        ep->flush_queue();
+    }
+    VSOMEIP_INFO << "emb::flush_local_endpoint_queues: Finished endpoints flush for client " << std::hex << std::setfill('0')
+                 << std::setw(4) << get_client_id();
+}
+
 } // namespace vsomeip_v3

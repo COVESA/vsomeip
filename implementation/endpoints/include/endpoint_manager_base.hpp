@@ -39,6 +39,8 @@ public:
     std::shared_ptr<local_endpoint> find_local(client_t _client);
     std::shared_ptr<local_endpoint> find_local(service_t _service, instance_t _instance);
 
+    void flush_local_endpoint_queues() const;
+
     std::unordered_set<client_t> get_connected_clients() const;
 
     std::shared_ptr<local_server> create_local_server(const std::shared_ptr<routing_host>& _routing_host);

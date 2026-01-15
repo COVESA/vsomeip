@@ -100,6 +100,16 @@ public:
      * @return String containing role, endpoints, and memory address.
      */
     virtual std::string const& to_string() const = 0;
+
+    /**
+     * @brief Returns the number of bytes currently pending in the kernel send buffer.
+     * @param _ec Error code set if the operation fails.
+     * @return Number of bytes pending to be sent. Returns 0 if not supported or on error.
+     *
+     * For TCP sockets, this queries the kernel for the amount of unsent data.
+     * For UDS sockets, this always returns 0.
+     */
+    virtual size_t get_send_buffer_size(boost::system::error_code& _ec) = 0;
 };
 } // namespace vsomeip_v3
 

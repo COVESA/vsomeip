@@ -223,6 +223,8 @@ public:
 
     bool is_external_routing_ready() const;
 
+    void try_to_send_before_stop();
+
 private:
     bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                        bool _must_queue);
