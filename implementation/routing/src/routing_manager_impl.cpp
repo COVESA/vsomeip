@@ -3213,6 +3213,14 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
             }
 
+            // flush SOME/IP-SD
+            // e.g., make sure all of those StopOffers/StopSubs were actually sent!
+            if (auto const endpoint = sd_info_ ? sd_info_->get_endpoint(false) : nullptr) {
+                if (auto const server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint)) {
+                    server_endpoint->wait_until_sent();
+                }
+            }
+
             // stop all server endpoints
             ep_mgr_impl_->suspend();
 

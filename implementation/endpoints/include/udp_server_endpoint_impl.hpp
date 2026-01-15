@@ -72,6 +72,14 @@ public:
     bool is_joined(const std::string& _address) const;
     bool is_joined(const std::string& _address, bool& _received) const;
 
+    /**
+     * @brief Block until all data is sent
+     *
+     * NOTE: that does mean _all_ data - no matter whether it is in the immediate queue, or in the dispatched trains, or in the
+     * to-be-dispatched train, so beware of dispatching/debouncing delays!
+     */
+    void wait_until_sent();
+
 private:
     void start_unlocked();
     void stop_unlocked();

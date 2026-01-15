@@ -1258,6 +1258,8 @@ void endpoint_manager_impl::suspend() {
     std::vector<std::weak_ptr<endpoint>> weak_endpoints;
 
     {
+        std::scoped_lock its_lock{endpoint_mutex_};
+
         for (const auto& [its_port, protocols] : server_endpoints_) {
             for (const auto& [its_protocol, its_endpoint] : protocols) {
                 weak_endpoints.push_back(its_endpoint);
