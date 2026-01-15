@@ -6,20 +6,20 @@
 #ifndef VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
 
+#include "boardnet_endpoint.hpp"
+
 #include <boost/asio/io_context.hpp>
-#include <vsomeip/primitive_types.hpp>
-#include "../include/endpoint.hpp"
 
 namespace vsomeip_v3 {
 
-class virtual_server_endpoint_impl : public endpoint, public std::enable_shared_from_this<virtual_server_endpoint_impl> {
+class virtual_server_endpoint_impl : public boardnet_endpoint, public std::enable_shared_from_this<virtual_server_endpoint_impl> {
 public:
     virtual_server_endpoint_impl(const std::string& _address, uint16_t _port, bool _reliable, boost::asio::io_context& _io);
 
     virtual ~virtual_server_endpoint_impl();
 
     void start();
-    void prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service);
+    void prepare_stop(const prepare_stop_handler_t& _handler, service_t _service);
     void stop(bool _due_to_error);
 
     bool is_established() const;
@@ -44,7 +44,6 @@ public:
 
     void restart(bool _force);
 
-    void register_error_handler(const error_handler_t& _handler);
     void print_status();
 
     size_t get_queue_size() const;

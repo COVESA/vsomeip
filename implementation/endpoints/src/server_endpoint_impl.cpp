@@ -34,7 +34,7 @@ server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shared_ptr<board
     endpoint_impl<Protocol>(_boardnet_endpoint_host, _routing_host, _io, _configuration) { }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service) {
+void server_endpoint_impl<Protocol>::prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service) {
 
     std::scoped_lock its_lock(mutex_);
     std::vector<target_data_iterator_type> its_erased;

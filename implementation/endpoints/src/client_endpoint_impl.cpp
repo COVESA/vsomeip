@@ -104,7 +104,7 @@ void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service) {
+void client_endpoint_impl<Protocol>::prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service) {
 
     (void)_handler;
     (void)_service;

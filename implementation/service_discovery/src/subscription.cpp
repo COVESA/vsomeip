@@ -26,11 +26,11 @@ void subscription::set_ttl(ttl_t _ttl) {
     ttl_ = _ttl;
 }
 
-std::shared_ptr<endpoint> subscription::get_endpoint(bool _reliable) const {
+std::shared_ptr<boardnet_endpoint> subscription::get_endpoint(bool _reliable) const {
     return _reliable ? reliable_ : unreliable_;
 }
 
-void subscription::set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable) {
+void subscription::set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable) {
     if (_reliable)
         reliable_ = _endpoint;
     else

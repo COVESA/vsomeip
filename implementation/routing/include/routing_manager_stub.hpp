@@ -33,6 +33,7 @@ namespace vsomeip_v3 {
 class configuration;
 class routing_manager_stub_host;
 class local_server;
+class local_endpoint;
 
 struct debounce_filter_impl_t;
 struct policy;
@@ -46,21 +47,21 @@ public:
     void start();
     void stop();
 
-    void on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
+    void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
 
     void on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
-    bool send_subscribe(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
+    bool send_subscribe(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
                         eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                         const std::shared_ptr<debounce_filter_impl_t>& _filter, remote_subscription_id_t _id);
 
-    bool send_unsubscribe(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
+    bool send_unsubscribe(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
                           eventgroup_t _eventgroup, event_t _event, remote_subscription_id_t _id);
 
-    bool send_expired_subscription(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
-                                   eventgroup_t _eventgroup, event_t _event, remote_subscription_id_t _id);
+    bool send_expired_subscription(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service,
+                                   instance_t _instance, eventgroup_t _eventgroup, event_t _event, remote_subscription_id_t _id);
 
     void send_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 

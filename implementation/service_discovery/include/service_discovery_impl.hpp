@@ -32,7 +32,7 @@
 
 namespace vsomeip_v3 {
 
-class endpoint;
+class boardnet_endpoint;
 class serializer;
 
 namespace sd {
@@ -85,7 +85,7 @@ public:
 
     void start_offer_watchdog();
 
-    void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<endpoint>& _endpoint);
+    void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<boardnet_endpoint>& _endpoint);
 
     void offer_service(const std::shared_ptr<serviceinfo>& _info);
     bool stop_offer_service(const std::shared_ptr<serviceinfo>& _info, bool _send);
@@ -186,10 +186,10 @@ private:
     bool check_static_header_fields(const std::shared_ptr<const message>& _message) const;
     bool check_layer_four_protocol(const std::shared_ptr<const ip_option_impl>& _ip_option) const;
 
-    void get_subscription_endpoints(service_t _service, instance_t _instance, std::shared_ptr<endpoint>& _reliable,
-                                    std::shared_ptr<endpoint>& _unreliable) const;
-    void get_subscription_address(const std::shared_ptr<endpoint>& _reliable, const std::shared_ptr<endpoint>& _unreliable,
-                                  boost::asio::ip::address& _address) const;
+    void get_subscription_endpoints(service_t _service, instance_t _instance, std::shared_ptr<boardnet_endpoint>& _reliable,
+                                    std::shared_ptr<boardnet_endpoint>& _unreliable) const;
+    void get_subscription_address(const std::shared_ptr<boardnet_endpoint>& _reliable,
+                                  const std::shared_ptr<boardnet_endpoint>& _unreliable, boost::asio::ip::address& _address) const;
 
     void update_request(service_t _service, instance_t _instance);
 
@@ -262,8 +262,9 @@ private:
                                    const boost::asio::ip::address& _unreliable_address, std::uint16_t _unreliable_port,
                                    bool _received_via_multicast);
 
-    std::shared_ptr<subscription> create_subscription(major_version_t _major, ttl_t _ttl, const std::shared_ptr<endpoint>& _reliable,
-                                                      const std::shared_ptr<endpoint>& _unreliable,
+    std::shared_ptr<subscription> create_subscription(major_version_t _major, ttl_t _ttl,
+                                                      const std::shared_ptr<boardnet_endpoint>& _reliable,
+                                                      const std::shared_ptr<boardnet_endpoint>& _unreliable,
                                                       const std::shared_ptr<eventgroupinfo>& _info) const;
 
     std::shared_ptr<remote_subscription> get_remote_subscription(const service_t _service, const instance_t _instance,
@@ -303,7 +304,7 @@ private:
     boost::asio::ip::address unicast_;
     uint16_t port_;
     bool reliable_;
-    std::shared_ptr<endpoint> endpoint_;
+    std::shared_ptr<boardnet_endpoint> endpoint_;
 
     std::shared_ptr<serializer> serializer_;
     std::shared_ptr<deserializer> deserializer_;

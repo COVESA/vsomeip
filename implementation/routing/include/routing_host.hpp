@@ -21,13 +21,13 @@
 
 namespace vsomeip_v3 {
 
-class endpoint;
+class boardnet_endpoint;
 
 class routing_host {
 public:
     virtual ~routing_host() = default;
 
-    virtual void on_message(const byte_t* _data, length_t _length, endpoint* _receiver, bool _is_multicast = false,
+    virtual void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, bool _is_multicast = false,
                             client_t _bound_client = VSOMEIP_ROUTING_CLIENT, const vsomeip_sec_client_t* _sec_client = nullptr,
                             const boost::asio::ip::address& _remote_address = boost::asio::ip::address(),
                             std::uint16_t _remote_port = 0) = 0;

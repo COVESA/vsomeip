@@ -6,7 +6,6 @@
 #ifndef VSOMEIP_V3_LOCAL_ENDPOINT_HPP_
 #define VSOMEIP_V3_LOCAL_ENDPOINT_HPP_
 
-#include "endpoint.hpp"
 #include "local_receive_buffer.hpp"
 #include "timer.hpp"
 
@@ -16,11 +15,14 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 
-#include <cstdint>
+#include <vsomeip/primitive_types.hpp>
+#include <vsomeip/constants.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
 #include <boost/asio.hpp>
 
+#include <vector>
+#include <cstdint>
 #include <memory>
 
 namespace vsomeip_v3 {
@@ -88,7 +90,7 @@ struct local_endpoint_params {
  *
  * @note This endpoint is non-restartable - once stopped, it cannot be reused.
  */
-class local_endpoint : public endpoint, public std::enable_shared_from_this<local_endpoint> {
+class local_endpoint : public std::enable_shared_from_this<local_endpoint> {
     struct hidden { };
 
     /**
@@ -107,6 +109,7 @@ class local_endpoint : public endpoint, public std::enable_shared_from_this<loca
     friend std::ostream& operator<<(std::ostream& _out, state_e _state);
 
 public:
+    using error_handler_t = std::function<void()>;
     /**
      * @brief Creates a receiver endpoint from an accepted connection.
      * @param _context Shared infrastructure context.
@@ -130,7 +133,7 @@ public:
     local_endpoint(hidden, local_endpoint_context const& _context, local_endpoint_params _params,
                    std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state);
 
-    virtual ~local_endpoint() override;
+    ~local_endpoint();
 
     /**
      * @brief Starts the endpoint (connect for senders, begin I/O for receivers).
@@ -138,14 +141,14 @@ public:
      * For INIT state (senders): Initiates connection to peer.
      * For CONNECTED state (receivers): Starts send/receive operations.
      */
-    void start() override;
+    void start();
 
     /**
      * @brief Stops the endpoint and closes the connection.
      * @param _due_to_error If true, forces immediate close (for TCP, no wait for pending data).
      * @note After stop(), the endpoint cannot be reused.
      */
-    void stop(bool _due_to_error) override;
+    void stop(bool _due_to_error);
 
     /**
      * @brief Sends data to the connected peer.
@@ -156,7 +159,7 @@ public:
      * Messages are queued and sent asynchronously.
      * Queue size is determined from configuration.
      */
-    bool send(byte_t const* _data, uint32_t _size) override;
+    bool send(byte_t const* _data, uint32_t _size);
 
     /**
      * @brief Retrieves the client ID of the connected peer.
@@ -173,34 +176,15 @@ public:
     void flush_queue();
 
 public:
-    void prepare_stop(const prepare_stop_handler_t& _handler, service_t _service = ANY_SERVICE) override;
+    std::uint16_t get_local_port() const;
+    boost::asio::ip::tcp::endpoint peer_endpoint() const;
 
-    bool is_established() const override;
-    bool is_established_or_connected() const override;
+    void register_error_handler(const error_handler_t& _error);
 
-    bool send_to(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
-    bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size) override;
-    void receive() override;
-
-    void add_default_target(service_t _service, const std::string& _address, uint16_t _port) override;
-    void remove_default_target(service_t _service) override;
-    void remove_stop_handler(service_t _service) override;
-
-    std::uint16_t get_local_port() const override;
-    bool is_reliable() const override;
-    bool is_local() const override;
-
-    void register_error_handler(const error_handler_t& _error) override;
-
-    void print_status() override;
-    size_t get_queue_size() const override;
-
-    void set_established(bool _established) override;
-    void set_connected(bool _connected) override;
+    void print_status();
+    size_t get_queue_size() const;
 
 private:
-    void restart(bool _force = false) override;
-
     /**
      * @brief Transitions to FAILED state and invokes error handler.
      * @note Called internally when unrecoverable errors occur. Must not lock the mutex when invoking

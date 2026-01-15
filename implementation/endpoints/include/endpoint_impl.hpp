@@ -14,7 +14,7 @@
 #include <boost/asio/steady_timer.hpp>
 
 #include "buffer.hpp"
-#include "endpoint.hpp"
+#include "boardnet_endpoint.hpp"
 #include "../../configuration/include/configuration.hpp"
 
 namespace vsomeip_v3 {
@@ -23,7 +23,7 @@ class boardnet_endpoint_host;
 class routing_host;
 
 template<typename Protocol>
-class endpoint_impl : public virtual endpoint {
+class endpoint_impl : public boardnet_endpoint {
 public:
     typedef typename Protocol::endpoint endpoint_type;
 
@@ -34,14 +34,13 @@ public:
     endpoint_impl(endpoint_impl<Protocol> const&&) = delete;
     virtual ~endpoint_impl() = default;
 
-    void add_default_target(service_t, const std::string&, uint16_t);
-    void remove_default_target(service_t);
-    void remove_stop_handler(service_t);
+    void add_default_target(service_t, const std::string&, uint16_t) override;
+    void remove_default_target(service_t) override;
+    void remove_stop_handler(service_t) override;
 
     virtual std::uint16_t get_local_port() const = 0;
     virtual bool is_reliable() const = 0;
 
-    void register_error_handler(const error_handler_t& _error_handler);
     virtual void print_status() = 0;
 
     virtual size_t get_queue_size() const = 0;
@@ -72,7 +71,6 @@ protected:
 
     endpoint_type local_;
 
-    error_handler_t error_handler_;
     std::mutex error_handler_mutex_;
 
     configuration::endpoint_queue_limit_t queue_limit_;

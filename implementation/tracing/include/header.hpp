@@ -16,15 +16,18 @@
 
 namespace vsomeip_v3 {
 
-class endpoint;
+class boardnet_endpoint;
+class local_endpoint;
 
 namespace trace {
 
 enum class protocol_e : uint8_t { local = 0x0, udp = 0x1, tcp = 0x2, unknown = 0xFF };
 
 struct header {
-    bool prepare(const std::shared_ptr<endpoint>& _endpoint, bool _is_sending, instance_t _instance);
-    bool prepare(const endpoint* _endpoint, bool _is_sending, instance_t _instance);
+    bool prepare(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _is_sending, instance_t _instance, protocol_e _protocol);
+    bool prepare(const boardnet_endpoint* _endpoint, bool _is_sending, instance_t _instance, protocol_e _protocol);
+    bool prepare(const std::shared_ptr<local_endpoint>& _endpoint, bool _is_sending, instance_t _instance);
+    bool prepare(const local_endpoint* _endpoint, bool _is_sending, instance_t _instance);
     void prepare(const boost::asio::ip::address_v4& _address, std::uint16_t _port, protocol_e _protocol, bool _is_sending,
                  instance_t _instance);
 

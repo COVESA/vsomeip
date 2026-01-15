@@ -128,10 +128,6 @@ void local_endpoint::escalate_internal(std::unique_lock<std::mutex>& _lock) {
     }
 }
 
-void local_endpoint::restart([[maybe_unused]] bool _force) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-
 bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     std::scoped_lock const lock{mutex_};
     if (std::numeric_limits<size_t>::max() - _size < send_queue_.size()) {
@@ -508,57 +504,6 @@ void local_endpoint::flush_queue() {
     }
 }
 
-void local_endpoint::prepare_stop([[maybe_unused]] const prepare_stop_handler_t& _handler, [[maybe_unused]] service_t _service) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-
-bool local_endpoint::is_established() const {
-    std::scoped_lock const lock{mutex_};
-    return state_ == state_e::CONNECTED;
-}
-bool local_endpoint::is_established_or_connected() const {
-    std::scoped_lock const lock{mutex_};
-    return state_ == state_e::CONNECTED;
-}
-
-bool local_endpoint::send_to([[maybe_unused]] std::shared_ptr<endpoint_definition> const _target, [[maybe_unused]] const byte_t* _data,
-                             [[maybe_unused]] uint32_t _size) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-    return false;
-}
-bool local_endpoint::send_error([[maybe_unused]] const std::shared_ptr<endpoint_definition> _target, [[maybe_unused]] const byte_t* _data,
-                                [[maybe_unused]] uint32_t _size) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-    return false;
-}
-void local_endpoint::receive() {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-
-void local_endpoint::add_default_target([[maybe_unused]] service_t _service, [[maybe_unused]] const std::string& _address,
-                                        [[maybe_unused]] uint16_t _port) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-void local_endpoint::remove_default_target([[maybe_unused]] service_t _service) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-void local_endpoint::remove_stop_handler([[maybe_unused]] service_t _service) {
-    VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-void local_endpoint::set_established([[maybe_unused]] bool _established) {
-    VSOMEIP_WARNING << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-void local_endpoint::set_connected([[maybe_unused]] bool _connected) {
-    VSOMEIP_WARNING << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
-}
-
-bool local_endpoint::is_reliable() const {
-    return false;
-}
-bool local_endpoint::is_local() const {
-    return true;
-}
-
 void local_endpoint::register_error_handler(const error_handler_t& _error) {
     std::scoped_lock const lock{mutex_};
     error_handler_ = _error;
@@ -575,6 +520,9 @@ size_t local_endpoint::get_queue_size() const {
 
 std::uint16_t local_endpoint::get_local_port() const {
     return socket_->own_port();
+}
+boost::asio::ip::tcp::endpoint local_endpoint::peer_endpoint() const {
+    return socket_->peer_endpoint();
 }
 
 client_t local_endpoint::connected_client() const {

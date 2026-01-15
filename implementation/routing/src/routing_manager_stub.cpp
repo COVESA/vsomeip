@@ -152,9 +152,9 @@ void routing_manager_stub::stop() {
     }
 }
 
-void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
-                                      const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address,
-                                      std::uint16_t _remote_port) {
+void routing_manager_stub::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
+                                      client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
+                                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
 
     (void)_receiver;
     (void)_is_multicast;
@@ -793,7 +793,7 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
+        auto its_endpoint = host_->find_local(_client);
         if (its_endpoint)
             its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size()));
     }
@@ -959,8 +959,7 @@ void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _se
 
 void routing_manager_stub::send_client_credentials(const client_t _target, std::set<std::pair<uid_t, gid_t>>& _credentials) {
 
-    std::shared_ptr<endpoint> its_endpoint = host_->find_local(_target);
-    if (its_endpoint) {
+    if (auto its_endpoint = host_->find_local(_target); its_endpoint) {
         protocol::update_security_credentials_command its_command;
         its_command.set_client(_target);
         its_command.set_credentials(_credentials);
@@ -1115,7 +1114,7 @@ void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const 
     std::scoped_lock its_guard{routing_info_mutex_};
     for (const auto& a : routing_info_) {
         if (a.first != VSOMEIP_ROUTING_CLIENT && a.first != host_->get_client()) {
-            std::shared_ptr<endpoint> its_endpoint = host_->find_local(a.first);
+            auto its_endpoint = host_->find_local(a.first);
             if (its_endpoint) {
                 its_endpoint->send(&_command[0], uint32_t(_command.size()));
             }
@@ -1123,7 +1122,7 @@ void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const 
     }
 }
 
-bool routing_manager_stub::send_subscribe(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service,
+bool routing_manager_stub::send_subscribe(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service,
                                           instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                                           const std::shared_ptr<debounce_filter_impl_t>& _filter, remote_subscription_id_t _id) {
 
@@ -1159,7 +1158,7 @@ bool routing_manager_stub::send_subscribe(const std::shared_ptr<endpoint>& _targ
     return has_sent;
 }
 
-bool routing_manager_stub::send_unsubscribe(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service,
+bool routing_manager_stub::send_unsubscribe(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service,
                                             instance_t _instance, eventgroup_t _eventgroup, event_t _event, remote_subscription_id_t _id) {
 
     bool has_sent(false);
@@ -1191,7 +1190,7 @@ bool routing_manager_stub::send_unsubscribe(const std::shared_ptr<endpoint>& _ta
     return has_sent;
 }
 
-bool routing_manager_stub::send_expired_subscription(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service,
+bool routing_manager_stub::send_expired_subscription(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service,
                                                      instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                                      remote_subscription_id_t _id) {
 
@@ -1227,7 +1226,7 @@ bool routing_manager_stub::send_expired_subscription(const std::shared_ptr<endpo
 void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                               event_t _event) {
 
-    std::shared_ptr<endpoint> its_target = host_->find_local(_client);
+    std::shared_ptr<local_endpoint> its_target = host_->find_local(_client);
     if (its_target) {
 
         protocol::subscribe_ack_command its_command;
@@ -1252,7 +1251,7 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
 void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                event_t _event) {
 
-    std::shared_ptr<endpoint> its_target = host_->find_local(_client);
+    std::shared_ptr<local_endpoint> its_target = host_->find_local(_client);
     if (its_target) {
 
         protocol::subscribe_nack_command its_command;
@@ -1419,7 +1418,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
 
     bool has_sent(false);
 
-    std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
+    std::shared_ptr<local_endpoint> its_endpoint = host_->find_local(_client);
     if (its_endpoint) {
         std::scoped_lock its_lock{pinged_clients_mutex_};
 
@@ -1772,7 +1771,7 @@ void routing_manager_stub::print_endpoint_status() const {
 
 bool routing_manager_stub::send_provided_event_resend_request(client_t _client, pending_remote_offer_id_t _id) {
 
-    std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
+    std::shared_ptr<local_endpoint> its_endpoint = host_->find_local(_client);
     if (its_endpoint) {
 
         protocol::resend_provided_events_command its_command;
@@ -1825,7 +1824,7 @@ bool routing_manager_stub::send_update_security_policy_request(client_t _client,
                                                                const std::shared_ptr<payload>& _payload) {
     (void)_uid;
 
-    std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
+    std::shared_ptr<local_endpoint> its_endpoint = host_->find_local(_client);
     if (its_endpoint) {
         std::vector<byte_t> its_command;
         // command
@@ -1861,7 +1860,7 @@ bool routing_manager_stub::send_update_security_policy_request(client_t _client,
 
 bool routing_manager_stub::send_cached_security_policies(client_t _client) {
 
-    std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
+    std::shared_ptr<local_endpoint> its_endpoint = host_->find_local(_client);
     if (its_endpoint) {
 
         std::scoped_lock its_lock{updated_security_policies_mutex_};
@@ -1904,7 +1903,7 @@ bool routing_manager_stub::send_remove_security_policy_request(client_t _client,
     its_command.serialize(its_buffer, its_error);
 
     if (its_error == protocol::error_e::ERROR_OK) {
-        std::shared_ptr<endpoint> its_endpoint = host_->find_local(_client);
+        std::shared_ptr<local_endpoint> its_endpoint = host_->find_local(_client);
         if (its_endpoint)
             return its_endpoint->send(&its_buffer[0], uint32_t(its_buffer.size()));
         else
@@ -2019,7 +2018,7 @@ bool routing_manager_stub::send_requester_policies(const std::unordered_set<clie
             its_message.insert(its_message.end(), its_policy_data.begin(), its_policy_data.end());
 
             for (const auto c : _clients) {
-                std::shared_ptr<endpoint> its_endpoint = host_->find_local(c);
+                std::shared_ptr<local_endpoint> its_endpoint = host_->find_local(c);
                 if (its_endpoint)
                     its_endpoint->send(&its_message[0], static_cast<uint32_t>(its_message.size()));
             }

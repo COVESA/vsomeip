@@ -55,7 +55,7 @@ public:
     bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
     bool flush();
 
-    void prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service);
+    void prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service);
     virtual void stop(bool _due_to_error);
     virtual void restart(bool _force = false) = 0;
 

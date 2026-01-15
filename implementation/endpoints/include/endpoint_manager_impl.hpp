@@ -12,11 +12,13 @@
 
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/endpoint_manager_base.hpp"
+#include "../include/endpoint_definition.hpp"
 
 namespace vsomeip_v3 {
 
 class routing_host;
 class local_server;
+class boardnet_endpoint;
 
 class endpoint_manager_impl : public endpoint_manager_base, public boardnet_endpoint_host {
 public:
@@ -24,7 +26,7 @@ public:
                           const std::shared_ptr<configuration>& _configuration);
     ~endpoint_manager_impl();
 
-    std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
     void find_or_create_remote_client(service_t _service, instance_t _instance);
     void is_remote_service_known(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -37,12 +39,12 @@ public:
                                  const std::shared_ptr<endpoint_definition>& _ep_definition_unreliable);
     void clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable);
 
-    std::shared_ptr<endpoint> create_server_endpoint(uint16_t _port, bool _reliable, bool _start);
+    std::shared_ptr<boardnet_endpoint> create_server_endpoint(uint16_t _port, bool _reliable, bool _start);
 
-    std::shared_ptr<endpoint> find_server_endpoint(uint16_t _port, bool _reliable) const;
+    std::shared_ptr<boardnet_endpoint> find_server_endpoint(uint16_t _port, bool _reliable) const;
 
-    std::shared_ptr<endpoint> find_or_create_server_endpoint(uint16_t _port, bool _reliable, bool _start, service_t _service,
-                                                             instance_t _instance, bool& _is_found, bool _is_multicast = false);
+    std::shared_ptr<boardnet_endpoint> find_or_create_server_endpoint(uint16_t _port, bool _reliable, bool _start, service_t _service,
+                                                                      instance_t _instance, bool& _is_found, bool _is_multicast = false);
     bool remove_server_endpoint(uint16_t _port, bool _reliable);
 
     void clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable);
@@ -56,19 +58,19 @@ public:
 
     bool create_routing_root(std::shared_ptr<local_server>& _root, bool& _is_socket_activated, const std::shared_ptr<routing_host>& _host);
 
-    instance_t find_instance(service_t _service, endpoint* const _endpoint) const;
+    instance_t find_instance(service_t _service, boardnet_endpoint* const _endpoint) const;
     instance_t find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const;
 
-    bool remove_instance(service_t _service, endpoint* const _endpoint);
+    bool remove_instance(service_t _service, boardnet_endpoint* const _endpoint);
     bool remove_instance_multicast(service_t _service, instance_t _instance);
 
     // boardnet_endpoint_host interface
-    void on_connect(std::shared_ptr<endpoint> _endpoint);
-    void on_disconnect(std::shared_ptr<endpoint> _endpoint);
-    bool on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address, uint16_t _remote_port,
+    void on_connect(std::shared_ptr<boardnet_endpoint> _endpoint);
+    void on_disconnect(std::shared_ptr<boardnet_endpoint> _endpoint);
+    bool on_bind_error(std::shared_ptr<boardnet_endpoint> _endpoint, const boost::asio::ip::address& _remote_address, uint16_t _remote_port,
                        uint16_t& _local_port);
-    void on_error(const byte_t* _data, length_t _length, endpoint* const _receiver, const boost::asio::ip::address& _remote_address,
-                  std::uint16_t _remote_port);
+    void on_error(const byte_t* _data, length_t _length, boardnet_endpoint* const _receiver,
+                  const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
 
     void get_used_client_ports(const boost::asio::ip::address& _remote_address, port_t _remote_port,
                                std::map<bool, std::set<port_t>>& _used_ports);
@@ -84,41 +86,41 @@ public:
 
     void suspend();
     void resume();
-    client_t get_client() const;
-
-    std::string get_client_host() const;
 
 private:
-    std::shared_ptr<endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
-    std::shared_ptr<endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);
-    std::shared_ptr<endpoint> create_client_endpoint(const boost::asio::ip::address& _address, uint16_t _local_port, uint16_t _remote_port,
-                                                     bool _reliable);
+    std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> create_client_endpoint(const boost::asio::ip::address& _address, uint16_t _local_port,
+                                                              uint16_t _remote_port, bool _reliable);
 
     // process join/leave options
     void process_multicast_options();
 
-    bool is_used_endpoint(endpoint* const _endpoint) const;
+    bool is_used_endpoint(boardnet_endpoint* const _endpoint) const;
+
+    client_t get_client() const;
+    std::string get_client_host() const;
 
 private:
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services
     std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;
 
-    typedef std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint>>>> remote_services_t;
+    typedef std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<boardnet_endpoint>>>> remote_services_t;
     remote_services_t remote_services_;
 
-    using client_endpoints_t =
-            std::map<boost::asio::ip::address, std::map<uint16_t, std::map<bool, std::map<partition_id_t, std::shared_ptr<endpoint>>>>>;
+    using client_endpoints_t = std::map<boost::asio::ip::address,
+                                        std::map<uint16_t, std::map<bool, std::map<partition_id_t, std::shared_ptr<boardnet_endpoint>>>>>;
     client_endpoints_t client_endpoints_;
 
-    std::map<service_t, std::map<endpoint*, instance_t>> service_instances_;
+    std::map<service_t, std::map<boardnet_endpoint*, instance_t>> service_instances_;
     std::map<service_t, std::map<boost::asio::ip::address, instance_t>> service_instances_multicast_;
 
     std::map<boost::asio::ip::address, std::map<port_t, std::map<bool, std::set<port_t>>>> used_client_ports_;
     std::mutex used_client_ports_mutex_;
 
     // Server endpoints for local services
-    using server_endpoints_t = std::map<uint16_t, std::map<bool, std::shared_ptr<endpoint>>>;
+    using server_endpoints_t = std::map<uint16_t, std::map<bool, std::shared_ptr<boardnet_endpoint>>>;
     server_endpoints_t server_endpoints_;
 
     // Multicast endpoint info (notifications)

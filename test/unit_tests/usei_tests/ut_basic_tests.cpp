@@ -120,7 +120,7 @@ TEST_F(usei_fixture, basic) {
     std::condition_variable event;
 
     EXPECT_CALL(*routing_, on_message)
-            .WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, vsomeip_v3::endpoint*, bool, vsomeip_v3::client_t,
+            .WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, vsomeip_v3::boardnet_endpoint*, bool, vsomeip_v3::client_t,
                           const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
                 std::unique_lock lock(sync);
                 received = true;
@@ -153,8 +153,8 @@ TEST_F(usei_fixture, corrupted_data) {
 
     EXPECT_CALL(*endpoint_, on_error).Times(AtLeast(MESSAGE_SENT_COUNT / 40));
     EXPECT_CALL(*routing_, on_message)
-            .WillRepeatedly([&](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, vsomeip_v3::endpoint*, bool, vsomeip_v3::client_t,
-                                const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
+            .WillRepeatedly([&](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, vsomeip_v3::boardnet_endpoint*, bool,
+                                vsomeip_v3::client_t, const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
                 if (len == 16 && data[0] == 0x1A && data[1] == 0x1B && data[2] == 0x1C && data[3] == 0x1D) {
                     std::unique_lock lock(sync);
                     received = true;
@@ -189,7 +189,7 @@ TEST_F(usei_fixture, basic_multicast) {
     std::condition_variable event;
 
     EXPECT_CALL(*routing_, on_message)
-            .WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, vsomeip_v3::endpoint*, bool, vsomeip_v3::client_t,
+            .WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, vsomeip_v3::boardnet_endpoint*, bool, vsomeip_v3::client_t,
                           const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
                 std::unique_lock lock(sync);
                 received = true;

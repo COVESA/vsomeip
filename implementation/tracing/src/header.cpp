@@ -6,21 +6,21 @@
 #include <cstring>
 
 #include "../include/header.hpp"
-#include "../../endpoints/include/endpoint.hpp"
+#include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../endpoints/include/client_endpoint.hpp"
+#include "../../endpoints/include/local_endpoint.hpp"
 #include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
 namespace trace {
 
-bool header::prepare(const std::shared_ptr<endpoint>& _endpoint, bool _is_sending, instance_t _instance) {
-    return prepare(_endpoint.get(), _is_sending, _instance);
+bool header::prepare(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _is_sending, instance_t _instance, protocol_e _protocol) {
+    return prepare(_endpoint.get(), _is_sending, _instance, _protocol);
 }
 
-bool header::prepare(const endpoint* _endpoint, bool _is_sending, instance_t _instance) {
+bool header::prepare(const boardnet_endpoint* _endpoint, bool _is_sending, instance_t _instance, protocol_e _protocol) {
     boost::asio::ip::address its_address;
     unsigned short its_port(0);
-    protocol_e its_protocol(protocol_e::unknown);
 
     if (_endpoint) {
         const client_endpoint* its_client_endpoint = dynamic_cast<const client_endpoint*>(_endpoint);
@@ -32,19 +32,25 @@ bool header::prepare(const endpoint* _endpoint, bool _is_sending, instance_t _in
             }
 
             its_port = its_client_endpoint->get_remote_port();
-
-            if (_endpoint->is_local()) {
-                its_protocol = protocol_e::local;
-            } else {
-                if (_endpoint->is_reliable()) {
-                    its_protocol = protocol_e::tcp;
-                } else {
-                    its_protocol = protocol_e::udp;
-                }
-            }
         }
     }
-    prepare(its_address.to_v4(), its_port, its_protocol, _is_sending, _instance);
+    prepare(its_address.to_v4(), its_port, _protocol, _is_sending, _instance);
+    return true;
+}
+bool header::prepare(const std::shared_ptr<local_endpoint>& _endpoint, bool _is_sending, instance_t _instance) {
+    return prepare(_endpoint.get(), _is_sending, _instance);
+}
+
+bool header::prepare(const local_endpoint* _endpoint, bool _is_sending, instance_t _instance) {
+    boost::asio::ip::address its_address;
+    unsigned short its_port(0);
+
+    if (_endpoint) {
+        auto const ep = _endpoint->peer_endpoint();
+        its_address = ep.address();
+        its_port = ep.port();
+    }
+    prepare(its_address.to_v4(), its_port, protocol_e::local, _is_sending, _instance);
     return true;
 }
 

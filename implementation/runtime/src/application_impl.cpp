@@ -33,6 +33,7 @@
 #include "../../configuration/include/configuration_plugin.hpp"
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 #include "../../plugin/include/plugin_manager_impl.hpp"
+#include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_manager_client.hpp"
 #include "../../security/include/security.hpp"

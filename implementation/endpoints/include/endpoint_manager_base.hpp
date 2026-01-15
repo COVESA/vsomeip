@@ -16,8 +16,6 @@
 #include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
 
-#include "endpoint.hpp"
-
 namespace vsomeip_v3 {
 
 class routing_manager_base;
