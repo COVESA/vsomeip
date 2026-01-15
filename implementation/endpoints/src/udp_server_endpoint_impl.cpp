@@ -1053,4 +1053,36 @@ bool udp_server_endpoint_impl::is_joining() const {
     return result;
 }
 
+void udp_server_endpoint_impl::wait_until_sent() {
+    std::unique_lock its_lock(mutex_);
+
+    uint32_t retry_count(0);
+    while (true) {
+        bool is_sending = false;
+        for (auto const& [_, endpoint_type] : targets_) {
+            size_t data_in_train = 0;
+            if (endpoint_type.train_) {
+                data_in_train = endpoint_type.train_->buffer_ ? endpoint_type.train_->buffer_->size() : 0;
+            }
+
+            is_sending = is_sending || endpoint_type.is_sending_ || data_in_train > 0 || endpoint_type.dispatched_trains_.size() > 0;
+        }
+
+        if (is_sending) {
+            VSOMEIP_WARNING << "usei::" << __func__ << ": waiting[" << retry_count << "] to complete send";
+
+            its_lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_UDP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
+            its_lock.lock();
+        } else {
+            break;
+        }
+        ++retry_count;
+        if (retry_count > VSOMEIP_UDP_CLOSE_SEND_BUFFER_RETRIES) {
+            VSOMEIP_ERROR << "usei::" << __func__ << ": max retries reached to send! will lose data";
+            break;
+        }
+    }
+}
+
 } // namespace vsomeip_v3
