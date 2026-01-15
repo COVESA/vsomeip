@@ -21,7 +21,7 @@ virtual_server_endpoint_impl::~virtual_server_endpoint_impl() { }
 
 void virtual_server_endpoint_impl::start() { }
 
-void virtual_server_endpoint_impl::prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service) {
+void virtual_server_endpoint_impl::prepare_stop(const prepare_stop_handler_t& _handler, service_t _service) {
     (void)_service;
 
     auto ptr = shared_from_this();
@@ -103,10 +103,6 @@ bool virtual_server_endpoint_impl::is_local() const {
 
 void virtual_server_endpoint_impl::restart(bool _force) {
     (void)_force;
-}
-
-void virtual_server_endpoint_impl::register_error_handler(const error_handler_t& _handler) {
-    (void)_handler;
 }
 
 void virtual_server_endpoint_impl::print_status() { }

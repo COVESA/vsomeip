@@ -18,7 +18,7 @@ public:
     ~mock_routing_host();
 
     MOCK_METHOD(void, on_message,
-                (const byte_t*, length_t, endpoint*, bool, client_t, const vsomeip_sec_client_t*, const boost::asio::ip::address&,
+                (const byte_t*, length_t, boardnet_endpoint*, bool, client_t, const vsomeip_sec_client_t*, const boost::asio::ip::address&,
                  std::uint16_t),
                 (override));
     MOCK_METHOD(client_t, get_client, (), (const, override));

@@ -22,7 +22,7 @@ class endpoint_adapter;
 
 typedef client_endpoint_impl<boost::asio::ip::udp> udp_client_endpoint_base_impl;
 
-class udp_client_endpoint_impl : virtual public udp_client_endpoint_base_impl {
+class udp_client_endpoint_impl : public udp_client_endpoint_base_impl {
 
 public:
     udp_client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,

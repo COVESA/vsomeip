@@ -682,7 +682,7 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     if (its_error == protocol::error_e::ERROR_OK) {
         client_t its_target_client = find_local_client(_service, _instance);
         if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
-            std::shared_ptr<vsomeip_v3::endpoint> its_target = ep_mgr_->find_or_create_local(its_target_client);
+            auto its_target = ep_mgr_->find_or_create_local(its_target_client);
             if (its_target) {
                 its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
             } else {
@@ -886,7 +886,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
                 is_sent = send_local(its_target, get_client(), _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
                 if (is_sent) {
                     trace::header its_header;
-                    if (its_header.prepare(nullptr, true, _instance))
+                    if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                 }
 
@@ -924,7 +924,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
             is_sent = send_local(its_target, its_client, _data, _size, _instance, _reliable, its_command, _status_check);
             if (is_sent && !utility::is_notification(VSOMEIP_MESSAGE_TYPE_POS) && !message_to_stub) {
                 trace::header its_header;
-                if (its_header.prepare(nullptr, true, _instance))
+                if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
             }
         }
@@ -953,7 +953,7 @@ bool routing_manager_client::send_to(const std::shared_ptr<endpoint_definition>&
     return false;
 }
 
-void routing_manager_client::on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast,
+void routing_manager_client::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
                                         client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
                                         const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
 
@@ -1158,7 +1158,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
                                 == client_side_logging_filter_.count(
                                         std::make_tuple(its_message->get_service(), its_message->get_instance()))))) {
                         trace::header its_header;
-                        if (its_header.prepare(nullptr, false, its_send_command.get_instance())) {
+                        if (its_header.prepare(nullptr, false, its_send_command.get_instance(), trace::protocol_e::unknown)) {
                             uint32_t its_message_size = its_send_command.get_size();
                             if (its_message_size >= uint32_t{vsomeip_v3::protocol::SEND_COMMAND_HEADER_SIZE})
                                 its_message_size -= uint32_t{vsomeip_v3::protocol::SEND_COMMAND_HEADER_SIZE};
@@ -2332,7 +2332,7 @@ void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_c
     request_debounce_timer_running_ = false;
 }
 
-void routing_manager_client::register_client_error_handler(client_t _client, const std::shared_ptr<endpoint>& _endpoint) {
+void routing_manager_client::register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) {
 
     _endpoint->register_error_handler(std::bind(&routing_manager_client::handle_client_error, this, _client));
 }

@@ -61,12 +61,12 @@ void serviceinfo::set_precise_ttl(std::chrono::milliseconds _precise_ttl) {
     ttl_ = _precise_ttl;
 }
 
-std::shared_ptr<endpoint> serviceinfo::get_endpoint(bool _reliable) const {
+std::shared_ptr<boardnet_endpoint> serviceinfo::get_endpoint(bool _reliable) const {
     std::scoped_lock its_lock(endpoint_mutex_);
     return _reliable ? reliable_ : unreliable_;
 }
 
-void serviceinfo::set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable) {
+void serviceinfo::set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable) {
     std::scoped_lock its_lock(endpoint_mutex_);
     if (_reliable) {
         reliable_ = _endpoint;

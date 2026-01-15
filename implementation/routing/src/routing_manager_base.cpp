@@ -990,7 +990,6 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
         std::scoped_lock its_lock(services_mutex_);
 
         // Clear service_info and service_group
-        std::shared_ptr<endpoint> its_empty_endpoint;
         if (!its_info->get_endpoint(!_reliable)) {
             if (1 >= services_[_service].size()) {
                 services_.erase(_service);
@@ -1000,7 +999,7 @@ void routing_manager_base::clear_service_info(service_t _service, instance_t _in
                 deleted_instance = true;
             }
         } else {
-            its_info->set_endpoint(its_empty_endpoint, _reliable);
+            its_info->set_endpoint(nullptr, _reliable);
         }
     }
 
@@ -1272,7 +1271,7 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
     // Trace the message if a local client but will _not_ be forwarded to the routing manager
     if (has_local && !has_remote) {
         trace::header its_header;
-        if (its_header.prepare(nullptr, true, _instance))
+        if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
             tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
     }
 

@@ -30,7 +30,6 @@
 #include "../include/serviceentry_impl.hpp"
 #include "../include/subscription.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../endpoints/include/endpoint.hpp"
 #include "../../endpoints/include/client_endpoint.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../endpoints/include/tcp_server_endpoint_impl.hpp"
@@ -280,7 +279,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
         }
     }
 
-    std::shared_ptr<endpoint> its_reliable, its_unreliable;
+    std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
     get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
 
     // New subscription
@@ -353,14 +352,15 @@ void service_discovery_impl::send_subscription(const std::shared_ptr<subscriptio
     }
 }
 
-void service_discovery_impl::get_subscription_endpoints(service_t _service, instance_t _instance, std::shared_ptr<endpoint>& _reliable,
-                                                        std::shared_ptr<endpoint>& _unreliable) const {
+void service_discovery_impl::get_subscription_endpoints(service_t _service, instance_t _instance,
+                                                        std::shared_ptr<boardnet_endpoint>& _reliable,
+                                                        std::shared_ptr<boardnet_endpoint>& _unreliable) const {
     _unreliable = host_->find_or_create_remote_client(_service, _instance, false);
     _reliable = host_->find_or_create_remote_client(_service, _instance, true);
 }
 
-void service_discovery_impl::get_subscription_address(const std::shared_ptr<endpoint>& _reliable,
-                                                      const std::shared_ptr<endpoint>& _unreliable,
+void service_discovery_impl::get_subscription_address(const std::shared_ptr<boardnet_endpoint>& _reliable,
+                                                      const std::shared_ptr<boardnet_endpoint>& _unreliable,
                                                       boost::asio::ip::address& _address) const {
     if (_reliable) {
         auto its_client_endpoint = std::dynamic_pointer_cast<client_endpoint>(_reliable);
@@ -719,8 +719,8 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
     its_data.entry_ = nullptr;
     its_data.other_ = nullptr;
 
-    std::shared_ptr<endpoint> its_reliable_endpoint(_subscription->get_endpoint(true));
-    std::shared_ptr<endpoint> its_unreliable_endpoint(_subscription->get_endpoint(false));
+    std::shared_ptr<boardnet_endpoint> its_reliable_endpoint(_subscription->get_endpoint(true));
+    std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint(_subscription->get_endpoint(false));
 
     bool insert_reliable(false);
     bool insert_unreliable(false);
@@ -1438,7 +1438,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                 if (0 < found_instance->second.size()) {
                     for (const auto& its_eventgroup : found_instance->second) {
                         auto its_subscription = its_eventgroup.second;
-                        std::shared_ptr<endpoint> its_reliable, its_unreliable;
+                        std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
                         get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
                         its_subscription->set_endpoint(its_reliable, true);
                         its_subscription->set_endpoint(its_unreliable, false);
@@ -1530,7 +1530,8 @@ void service_discovery_impl::send_multicast_offer_service(const std::shared_ptr<
     send(its_messages);
 }
 
-void service_discovery_impl::on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<endpoint>& _endpoint) {
+void service_discovery_impl::on_endpoint_connected(service_t _service, instance_t _instance,
+                                                   const std::shared_ptr<boardnet_endpoint>& _endpoint) {
     std::shared_ptr<runtime> its_runtime = runtime_.lock();
     if (!its_runtime) {
         return;
@@ -1544,7 +1545,7 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
     its_messages.push_back(std::make_shared<message_impl>());
     boost::asio::ip::address its_address;
 
-    std::shared_ptr<endpoint> its_dummy;
+    std::shared_ptr<boardnet_endpoint> its_dummy;
     if (_endpoint->is_reliable())
         get_subscription_address(_endpoint, its_dummy, its_address);
     else
@@ -1561,8 +1562,9 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
                         std::shared_ptr<subscription> its_subscription(its_eventgroup.second);
                         if (its_subscription) {
                             if (!its_subscription->is_tcp_connection_established() || !its_subscription->is_udp_connection_established()) {
-                                const std::shared_ptr<const endpoint> its_reliable_endpoint(its_subscription->get_endpoint(true));
-                                const std::shared_ptr<const endpoint> its_unreliable_endpoint(its_subscription->get_endpoint(false));
+                                const std::shared_ptr<const boardnet_endpoint> its_reliable_endpoint(its_subscription->get_endpoint(true));
+                                const std::shared_ptr<const boardnet_endpoint> its_unreliable_endpoint(
+                                        its_subscription->get_endpoint(false));
                                 if (its_reliable_endpoint && its_reliable_endpoint->is_established()) {
                                     if (its_reliable_endpoint.get() == _endpoint.get()) {
                                         // mark tcp as established
@@ -1583,8 +1585,8 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
                                     || (its_unreliable_endpoint && !its_reliable_endpoint
                                         && its_subscription->is_udp_connection_established())) {
 
-                                    std::shared_ptr<endpoint> its_unreliable;
-                                    std::shared_ptr<endpoint> its_reliable;
+                                    std::shared_ptr<boardnet_endpoint> its_unreliable;
+                                    std::shared_ptr<boardnet_endpoint> its_reliable;
                                     get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
                                     get_subscription_address(its_reliable, its_unreliable, its_address);
 
@@ -1629,13 +1631,13 @@ void service_discovery_impl::insert_offer_service(std::vector<std::shared_ptr<me
     entry_data_t its_data;
     its_data.entry_ = its_data.other_ = nullptr;
 
-    std::shared_ptr<endpoint> its_reliable = _info->get_endpoint(true);
+    std::shared_ptr<boardnet_endpoint> its_reliable = _info->get_endpoint(true);
     if (its_reliable) {
         auto its_new_option = create_ip_option(unicast_, its_reliable->get_local_port(), true);
         its_data.options_.push_back(its_new_option);
     }
 
-    std::shared_ptr<endpoint> its_unreliable = _info->get_endpoint(false);
+    std::shared_ptr<boardnet_endpoint> its_unreliable = _info->get_endpoint(false);
     if (its_unreliable) {
         auto its_new_option = create_ip_option(unicast_, its_unreliable->get_local_port(), false);
         its_data.options_.push_back(its_new_option);
@@ -3243,8 +3245,8 @@ bool service_discovery_impl::set_offer_multicast_state(service_t _service, insta
 }
 
 std::shared_ptr<subscription> service_discovery_impl::create_subscription(major_version_t _major, ttl_t _ttl,
-                                                                          const std::shared_ptr<endpoint>& _reliable,
-                                                                          const std::shared_ptr<endpoint>& _unreliable,
+                                                                          const std::shared_ptr<boardnet_endpoint>& _reliable,
+                                                                          const std::shared_ptr<boardnet_endpoint>& _unreliable,
                                                                           const std::shared_ptr<eventgroupinfo>& _info) const {
     auto its_subscription = std::make_shared<subscription>();
     its_subscription->set_major(_major);

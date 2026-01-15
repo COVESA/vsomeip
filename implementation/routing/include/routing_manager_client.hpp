@@ -83,12 +83,12 @@ public:
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
 
-    void on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
+    void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
 
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
-    void register_client_error_handler(client_t _client, const std::shared_ptr<endpoint>& _endpoint);
+    void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint);
     void handle_client_error(client_t _client);
 
     void on_offered_services_info(protocol::offered_services_response_command& _command);

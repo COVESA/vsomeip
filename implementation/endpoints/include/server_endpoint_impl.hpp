@@ -76,7 +76,7 @@ public:
     bool send(const uint8_t* _data, uint32_t _size);
     bool send(const std::vector<byte_t>& _cmd_header, const byte_t* _data, uint32_t _size);
 
-    void prepare_stop(const endpoint::prepare_stop_handler_t& _handler, service_t _service);
+    void prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service);
     bool flush(endpoint_type _it);
 
     size_t get_queue_size() const;
@@ -126,7 +126,7 @@ protected:
 
     target_data_type targets_;
 
-    std::map<service_t, endpoint::prepare_stop_handler_t> prepare_stop_handlers_;
+    std::map<service_t, boardnet_endpoint::prepare_stop_handler_t> prepare_stop_handlers_;
 
     mutable std::mutex mutex_;
 

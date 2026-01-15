@@ -18,7 +18,7 @@
 
 namespace vsomeip_v3 {
 
-class endpoint;
+class boardnet_endpoint;
 
 class serviceinfo {
 public:
@@ -39,8 +39,8 @@ public:
     VSOMEIP_EXPORT std::chrono::milliseconds get_precise_ttl() const;
     VSOMEIP_EXPORT void set_precise_ttl(std::chrono::milliseconds _precise_ttl);
 
-    VSOMEIP_EXPORT std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
-    VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable);
+    VSOMEIP_EXPORT std::shared_ptr<boardnet_endpoint> get_endpoint(bool _reliable) const;
+    VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable);
 
     VSOMEIP_EXPORT void add_client(client_t _client);
     VSOMEIP_EXPORT void remove_client(client_t _client);
@@ -69,8 +69,8 @@ private:
     mutable std::mutex ttl_mutex_;
     std::chrono::milliseconds ttl_;
 
-    std::shared_ptr<endpoint> reliable_;
-    std::shared_ptr<endpoint> unreliable_;
+    std::shared_ptr<boardnet_endpoint> reliable_;
+    std::shared_ptr<boardnet_endpoint> unreliable_;
 
     mutable std::mutex endpoint_mutex_;
     std::mutex requesters_mutex_;

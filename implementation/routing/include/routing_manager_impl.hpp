@@ -114,7 +114,7 @@ public:
     inline std::shared_ptr<local_endpoint> find_local(client_t _client) { return ep_mgr_->find_local(_client); }
     inline std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) { return ep_mgr_->find_or_create_local(_client); }
 
-    std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
     void remove_local(client_t _client, bool _remove_due_to_error);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -129,7 +129,7 @@ public:
     void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                             remote_subscription_id_t _id);
 
-    void on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
+    void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, uint8_t _check_status = 0, bool _is_from_remote = false);
@@ -145,7 +145,7 @@ public:
     std::shared_ptr<serviceinfo> get_offered_service(service_t _service, instance_t _instance) const;
     std::map<instance_t, std::shared_ptr<serviceinfo>> get_offered_service_instances(service_t _service) const;
 
-    std::shared_ptr<endpoint> create_service_discovery_endpoint(const std::string& _address, uint16_t _port, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> create_service_discovery_endpoint(const std::string& _address, uint16_t _port, bool _reliable);
     void init_routing_info();
     void add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                           const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
@@ -166,7 +166,7 @@ public:
 
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);
 
-    void register_client_error_handler(client_t _client, const std::shared_ptr<endpoint>& _endpoint);
+    void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint);
     void handle_client_error(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
@@ -186,11 +186,11 @@ public:
     void print_stub_status() const;
 
     void send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
-                    endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
+                    boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                    const std::shared_ptr<endpoint>& _endpoint);
+                                    const std::shared_ptr<boardnet_endpoint>& _endpoint);
     void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                       const std::shared_ptr<endpoint>& _endpoint);
+                                       const std::shared_ptr<boardnet_endpoint>& _endpoint);
 
     void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) const;
     void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) const;
@@ -244,9 +244,9 @@ private:
 
     bool is_field(service_t _service, instance_t _instance, event_t _event) const;
 
-    std::shared_ptr<endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
+    std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
 
-    std::shared_ptr<endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
+    std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
 
     void clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable);
     void clear_multicast_endpoints(service_t _service, instance_t _instance);
@@ -281,7 +281,7 @@ private:
     bool has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void call_sd_endpoint_connected(const boost::system::error_code& _error, service_t _service, instance_t _instance,
-                                    const std::shared_ptr<endpoint>& _endpoint, std::shared_ptr<boost::asio::steady_timer> _timer);
+                                    const std::shared_ptr<boardnet_endpoint>& _endpoint, std::shared_ptr<boost::asio::steady_timer> _timer);
 
     bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                                 const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
@@ -303,7 +303,7 @@ private:
     void send_expired_subscription(client_t _offering_client, const service_t _service, const instance_t _instance,
                                    const eventgroup_t _eventgroup, const std::set<client_t>& _removed, const remote_subscription_id_t _id);
 
-    void cleanup_server_endpoint(service_t _service, const std::shared_ptr<endpoint>& _endpoint);
+    void cleanup_server_endpoint(service_t _service, const std::shared_ptr<boardnet_endpoint>& _endpoint);
 
     pending_remote_offer_id_t pending_remote_offer_add(service_t _service, instance_t _instance);
     std::pair<service_t, instance_t> pending_remote_offer_remove(pending_remote_offer_id_t _id);
@@ -327,7 +327,7 @@ private:
 
     void clear_local_services();
 
-    bool is_acl_message_allowed(endpoint* _receiver, service_t _service, instance_t _instance,
+    bool is_acl_message_allowed(boardnet_endpoint* _receiver, service_t _service, instance_t _instance,
                                 const boost::asio::ip::address& _remote_address) const;
 
     bool has_subscribed_eventgroup(service_t _service, instance_t _instance) const;

@@ -817,7 +817,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
         return is_sent;
     }
 
-    std::shared_ptr<endpoint> its_target;
+    std::shared_ptr<boardnet_endpoint> its_target;
     // Check whether hosting application should get the message
     // If not, check routes to external
     if ((its_client == host_->get_client() && is_response)
@@ -855,7 +855,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                 is_sent = its_target->send(_data, _size);
                 if (is_sent) {
                     trace::header its_header;
-                    if (its_header.prepare(its_target, true, _instance))
+                    if (its_header.prepare(its_target, true, _instance,
+                                           its_target->is_reliable() ? trace::protocol_e::tcp : trace::protocol_e::udp))
                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                 }
             } else {
@@ -876,8 +877,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                         std::set<std::shared_ptr<endpoint_definition>> its_targets;
                         // we need both endpoints as clients can subscribe to events via TCP
                         // and UDP
-                        std::shared_ptr<endpoint> its_udp_server_endpoint = its_info->get_endpoint(false);
-                        std::shared_ptr<endpoint> its_tcp_server_endpoint = its_info->get_endpoint(true);
+                        auto its_udp_server_endpoint = its_info->get_endpoint(false);
+                        auto its_tcp_server_endpoint = its_info->get_endpoint(true);
 
                         if (its_udp_server_endpoint || its_tcp_server_endpoint) {
                             const auto its_reliability = its_event->get_reliability();
@@ -927,7 +928,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                         }
                         if (has_sent) {
                             trace::header its_header;
-                            if (its_header.prepare(nullptr, true, _instance))
+                            if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
                                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                         }
                     }
@@ -951,7 +952,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
                         is_sent = its_target->send(_data, _size);
                         if (is_sent) {
                             trace::header its_header;
-                            if (its_header.prepare(its_target, true, _instance))
+                            if (its_header.prepare(its_target, true, _instance,
+                                                   its_target->is_reliable() ? trace::protocol_e::tcp : trace::protocol_e::udp))
                                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                         }
                     } else {
@@ -1018,13 +1020,14 @@ bool routing_manager_impl::send_to(const client_t _client, const std::shared_ptr
 bool routing_manager_impl::send_to(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size,
                                    instance_t _instance) {
     bool is_sent{false};
-    std::shared_ptr<endpoint> its_endpoint = ep_mgr_impl_->find_server_endpoint(_target->get_remote_port(), _target->is_reliable());
+    auto its_endpoint = ep_mgr_impl_->find_server_endpoint(_target->get_remote_port(), _target->is_reliable());
 
     if (its_endpoint) {
         is_sent = its_endpoint->send_to(_target, _data, _size);
         if (is_sent) {
             trace::header its_header;
-            if (its_header.prepare(its_endpoint, true, _instance))
+            if (its_header.prepare(its_endpoint, true, _instance,
+                                   its_endpoint->is_reliable() ? trace::protocol_e::tcp : trace::protocol_e::udp))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
         }
     }
@@ -1034,13 +1037,13 @@ bool routing_manager_impl::send_to(const std::shared_ptr<endpoint_definition>& _
 bool routing_manager_impl::send_via_sd(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size,
                                        uint16_t _sd_port) {
     bool is_sent{false};
-    std::shared_ptr<endpoint> its_endpoint = ep_mgr_impl_->find_server_endpoint(_sd_port, _target->is_reliable());
+    auto its_endpoint = ep_mgr_impl_->find_server_endpoint(_sd_port, _target->is_reliable());
 
     if (its_endpoint) {
         is_sent = its_endpoint->send_to(_target, _data, _size);
         if (is_sent && tc_->is_sd_enabled()) {
             trace::header its_header;
-            if (its_header.prepare(its_endpoint, true, 0x0))
+            if (its_header.prepare(its_endpoint, true, 0x0, its_endpoint->is_reliable() ? trace::protocol_e::tcp : trace::protocol_e::udp))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
         }
     }
@@ -1199,7 +1202,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
         ret = false;
     }
     std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
-    std::shared_ptr<endpoint> its_server_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_server_endpoint;
     if (its_info) {
         its_server_endpoint = its_info->get_endpoint(_reliable);
     }
@@ -1222,7 +1225,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
 
         if (discovery_ && its_info) {
             discovery_->stop_offer_service(its_info, true);
-            its_info->set_endpoint(std::shared_ptr<endpoint>(), _reliable);
+            its_info->set_endpoint(nullptr, _reliable);
             VSOMEIP_INFO << __func__ << std::hex << std::setfill('0') << " sending StopOffer to [" << std::setw(4) << _service << '.'
                          << std::setw(4) << _instance << "." << std::dec << _port << "] with reliability (" << std::boolalpha << _reliable
                          << ')';
@@ -1231,10 +1234,10 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
         // service is still partly offered
         if (discovery_ && its_info) {
             std::shared_ptr<serviceinfo> its_copied_info = std::make_shared<serviceinfo>(*its_info);
-            its_info->set_endpoint(std::shared_ptr<endpoint>(), _reliable);
+            its_info->set_endpoint(nullptr, _reliable);
             // ensure to not send StopOffer for endpoint on which the service is
             // still offered
-            its_copied_info->set_endpoint(std::shared_ptr<endpoint>(), !_reliable);
+            its_copied_info->set_endpoint(nullptr, !_reliable);
             discovery_->stop_offer_service(its_copied_info, true);
             VSOMEIP_INFO << "rmi::" << __func__ << std::hex << std::setfill('0') << " only sending the StopOffer to [" << std::setw(4)
                          << _service << '.' << std::setw(4) << _instance << ']' << " with reliability (" << std::boolalpha << !_reliable
@@ -1246,9 +1249,9 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
     return ret;
 }
 
-void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
-                                      const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address,
-                                      std::uint16_t _remote_port) {
+void routing_manager_impl::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
+                                      client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
+                                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
     (void)_bound_client;
     uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
@@ -1463,8 +1466,8 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
      * After triggering "del_routing_info" this endpoints gets cleanup up
      * within this method if they not longer used by any other local service.
      */
-    std::shared_ptr<endpoint> its_reliable_endpoint;
-    std::shared_ptr<endpoint> its_unreliable_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_reliable_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint;
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
     if (its_info) {
         its_reliable_endpoint = its_info->get_endpoint(true);
@@ -1489,7 +1492,8 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                                                                its_info->get_major(), its_info->get_minor());
         auto ptr = shared_from_this();
 
-        auto callback = [this, ptr, ready_to_stop, _client, _service, _instance, _major, _minor](std::shared_ptr<endpoint> _endpoint) {
+        auto callback = [this, ptr, ready_to_stop, _client, _service, _instance, _major,
+                         _minor](std::shared_ptr<boardnet_endpoint> _endpoint) {
             bool reliable_endpoint = _endpoint->is_reliable();
             if (reliable_endpoint) {
                 ready_to_stop->reliable_ready_ = true;
@@ -1508,7 +1512,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
             if (ep_mgr_impl_->remove_instance(_service, _endpoint.get())) {
                 // last instance -> pass ANY_INSTANCE and shutdown completely
                 _endpoint->prepare_stop(
-                        [this, ptr](std::shared_ptr<endpoint> _endpoint_to_stop) {
+                        [this, ptr](std::shared_ptr<boardnet_endpoint> _endpoint_to_stop) {
                             if (ep_mgr_impl_->remove_server_endpoint(_endpoint_to_stop->get_local_port(),
                                                                      _endpoint_to_stop->is_reliable())) {
                                 _endpoint_to_stop->stop(false);
@@ -1841,9 +1845,9 @@ std::shared_ptr<eventgroupinfo> routing_manager_impl::find_eventgroup(service_t 
     return routing_manager_base::find_eventgroup(_service, _instance, _eventgroup);
 }
 
-std::shared_ptr<endpoint> routing_manager_impl::create_service_discovery_endpoint(const std::string& _address, uint16_t _port,
-                                                                                  bool _reliable) {
-    std::shared_ptr<endpoint> its_service_endpoint = ep_mgr_impl_->find_server_endpoint(_port, _reliable);
+std::shared_ptr<boardnet_endpoint> routing_manager_impl::create_service_discovery_endpoint(const std::string& _address, uint16_t _port,
+                                                                                           bool _reliable) {
+    auto its_service_endpoint = ep_mgr_impl_->find_server_endpoint(_port, _reliable);
     if (!its_service_endpoint) {
         try {
             its_service_endpoint = ep_mgr_impl_->create_server_endpoint(_port, _reliable, true);
@@ -1919,7 +1923,7 @@ std::map<instance_t, std::shared_ptr<serviceinfo>> routing_manager_impl::get_off
     return its_instances;
 }
 
-bool routing_manager_impl::is_acl_message_allowed(endpoint* _receiver, service_t _service, instance_t _instance,
+bool routing_manager_impl::is_acl_message_allowed(boardnet_endpoint* _receiver, service_t _service, instance_t _instance,
                                                   const boost::asio::ip::address& _remote_address) const {
     if (message_acceptance_handler_ && _receiver) {
         // Check the ACL whitelist rules if shall accepts the message
@@ -1954,7 +1958,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
             uint16_t its_reliable_port = configuration_->get_reliable_port(_service, _instance);
             bool _is_found(false);
             if (ILLEGAL_PORT != its_reliable_port) {
-                std::shared_ptr<endpoint> its_reliable_endpoint =
+                auto its_reliable_endpoint =
                         ep_mgr_impl_->find_or_create_server_endpoint(its_reliable_port, true, is_someip, _service, _instance, _is_found);
                 if (its_reliable_endpoint) {
                     its_info->set_endpoint(its_reliable_endpoint, true);
@@ -1962,7 +1966,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
             }
             uint16_t its_unreliable_port = configuration_->get_unreliable_port(_service, _instance);
             if (ILLEGAL_PORT != its_unreliable_port) {
-                std::shared_ptr<endpoint> its_unreliable_endpoint =
+                auto its_unreliable_endpoint =
                         ep_mgr_impl_->find_or_create_server_endpoint(its_unreliable_port, false, is_someip, _service, _instance, _is_found);
                 if (its_unreliable_endpoint) {
                     its_info->set_endpoint(its_unreliable_endpoint, false);
@@ -2094,7 +2098,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
     } else if (_reliable_port != ILLEGAL_PORT && is_reliable_known) {
         std::scoped_lock its_lock_inner{requested_services_mutex_};
         if (has_requester_unlocked(_service, _instance, _major, _minor)) {
-            std::shared_ptr<endpoint> ep = its_info->get_endpoint(true);
+            auto ep = its_info->get_endpoint(true);
             if (ep) {
                 if (ep->is_established() && stub_
                     && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
@@ -2144,7 +2148,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
             if (_reliable_port == ILLEGAL_PORT && !is_reliable_known && stub_
                 && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                      its_info->get_minor())) {
-                std::shared_ptr<endpoint> ep = its_info->get_endpoint(false);
+                auto ep = its_info->get_endpoint(false);
                 if (ep) {
                     if (ep->is_established()) {
                         stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
@@ -2616,7 +2620,8 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
     }
 }
 
-std::shared_ptr<endpoint> routing_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+std::shared_ptr<boardnet_endpoint> routing_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance,
+                                                                                      bool _reliable) {
     return ep_mgr_impl_->find_or_create_remote_client(_service, _instance, _reliable);
 }
 
@@ -2696,7 +2701,7 @@ return_code_e routing_manager_impl::check_error(const byte_t* _data, length_t /*
 }
 
 void routing_manager_impl::send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
-                                      endpoint* const _receiver, const boost::asio::ip::address& _remote_address,
+                                      boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address,
                                       std::uint16_t _remote_port) {
 
     client_t its_client = 0;
@@ -2731,12 +2736,13 @@ void routing_manager_impl::send_error(return_code_e _return_code, const byte_t* 
             if (_receiver) {
                 auto its_endpoint_def = std::make_shared<endpoint_definition>(_remote_address, _remote_port, _receiver->is_reliable());
                 its_endpoint_def->set_remote_port(_receiver->get_local_port());
-                std::shared_ptr<endpoint> its_endpoint =
+                auto its_endpoint =
                         ep_mgr_impl_->find_server_endpoint(its_endpoint_def->get_remote_port(), its_endpoint_def->is_reliable());
                 if (its_endpoint) {
                     its_endpoint->send_error(its_endpoint_def, its_serializer->get_data(), its_serializer->get_size());
                     trace::header its_header;
-                    if (its_header.prepare(its_endpoint, true, _instance))
+                    if (its_header.prepare(its_endpoint, true, _instance,
+                                           its_endpoint->is_reliable() ? trace::protocol_e::tcp : trace::protocol_e::udp))
                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                 }
             }
@@ -3028,7 +3034,7 @@ void routing_manager_impl::on_pong(client_t _client) {
     }
 }
 
-void routing_manager_impl::register_client_error_handler(client_t _client, const std::shared_ptr<endpoint>& _endpoint) {
+void routing_manager_impl::register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) {
     _endpoint->register_error_handler(std::bind(&routing_manager_impl::handle_client_error, this, _client));
 }
 
@@ -3669,7 +3675,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(servic
 }
 
 void routing_manager_impl::call_sd_endpoint_connected(const boost::system::error_code& _error, service_t _service, instance_t _instance,
-                                                      const std::shared_ptr<endpoint>& _endpoint,
+                                                      const std::shared_ptr<boardnet_endpoint>& _endpoint,
                                                       std::shared_ptr<boost::asio::steady_timer> _timer) {
     (void)_timer;
     if (_error) {
@@ -3798,7 +3804,7 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
 
     if (EOF
         == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib, &its_data,
-                    &its_dirtypages)) {
+                       &its_dirtypages)) {
         VSOMEIP_ERROR << "memory_log_timer_cbk: error reading: errno " << errno;
     }
     std::fclose(its_file);
@@ -3930,7 +3936,7 @@ void routing_manager_impl::send_subscription(const client_t _offering_client, co
     }
 }
 
-void routing_manager_impl::cleanup_server_endpoint(service_t _service, const std::shared_ptr<endpoint>& _endpoint) {
+void routing_manager_impl::cleanup_server_endpoint(service_t _service, const std::shared_ptr<boardnet_endpoint>& _endpoint) {
     if (_endpoint) {
         // Clear service_instances_, check whether any service still
         // uses this endpoint and clear server endpoint if no service
@@ -3982,7 +3988,7 @@ void routing_manager_impl::print_stub_status() const {
 }
 
 void routing_manager_impl::service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major,
-                                                      minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
+                                                      minor_version_t _minor, const std::shared_ptr<boardnet_endpoint>& _endpoint) {
     if (stub_) {
         stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
     }
@@ -3998,7 +4004,7 @@ void routing_manager_impl::service_endpoint_connected(service_t _service, instan
 }
 
 void routing_manager_impl::service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major,
-                                                         minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
+                                                         minor_version_t _minor, const std::shared_ptr<boardnet_endpoint>& _endpoint) {
     (void)_endpoint;
     on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
     if (stub_) {

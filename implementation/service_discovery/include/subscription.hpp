@@ -16,7 +16,7 @@
 
 namespace vsomeip_v3 {
 
-class endpoint;
+class boardnet_endpoint;
 class eventgroupinfo;
 
 namespace sd {
@@ -40,8 +40,8 @@ public:
     ttl_t get_ttl() const;
     void set_ttl(ttl_t _ttl);
 
-    std::shared_ptr<endpoint> get_endpoint(bool _reliable) const;
-    void set_endpoint(const std::shared_ptr<endpoint>& _endpoint, bool _reliable);
+    std::shared_ptr<boardnet_endpoint> get_endpoint(bool _reliable) const;
+    void set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable);
 
     bool is_selective() const;
     void set_selective(const bool _is_selective);
@@ -68,8 +68,8 @@ private:
     major_version_t major_;
     ttl_t ttl_;
 
-    std::shared_ptr<endpoint> reliable_;
-    std::shared_ptr<endpoint> unreliable_;
+    std::shared_ptr<boardnet_endpoint> reliable_;
+    std::shared_ptr<boardnet_endpoint> unreliable_;
 
     bool is_selective_;
 

@@ -12,7 +12,7 @@
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/handler.hpp>
 #include "../../routing/include/serviceinfo.hpp"
-#include "../../endpoints/include/endpoint.hpp"
+#include "../../endpoints/include/boardnet_endpoint.hpp"
 #include "../include/service_discovery_host.hpp"
 
 namespace vsomeip_v3 {
@@ -51,7 +51,7 @@ public:
 
     virtual void start_offer_watchdog() = 0;
 
-    virtual void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<endpoint>& _endpoint) = 0;
+    virtual void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<boardnet_endpoint>& _endpoint) = 0;
 
     virtual void offer_service(const std::shared_ptr<serviceinfo>& _info) = 0;
     virtual bool stop_offer_service(const std::shared_ptr<serviceinfo>& _info, bool _send) = 0;

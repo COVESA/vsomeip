@@ -21,7 +21,7 @@
 namespace vsomeip_v3 {
 
 class configuration;
-class endpoint;
+class boardnet_endpoint;
 class endpoint_definition;
 
 namespace sd {
@@ -32,7 +32,8 @@ public:
 
     virtual boost::asio::io_context& get_io() = 0;
 
-    virtual std::shared_ptr<endpoint> create_service_discovery_endpoint(const std::string& _address, uint16_t _port, bool _reliable) = 0;
+    virtual std::shared_ptr<boardnet_endpoint> create_service_discovery_endpoint(const std::string& _address, uint16_t _port,
+                                                                                 bool _reliable) = 0;
 
     virtual services_t get_offered_services() const = 0;
     virtual std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const = 0;
@@ -59,7 +60,7 @@ public:
     virtual void on_subscribe_ack_with_multicast(service_t _service, instance_t _instance, const boost::asio::ip::address& _sender,
                                                  const boost::asio::ip::address& _address, uint16_t _port) = 0;
 
-    virtual std::shared_ptr<endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) = 0;
+    virtual std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) = 0;
 
     virtual void expire_subscriptions(const boost::asio::ip::address& _address) = 0;
     virtual void expire_subscriptions(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) = 0;

@@ -6,11 +6,11 @@
 #ifndef VSOMEIP_V3_CLIENT_ENDPOINT_HPP_
 #define VSOMEIP_V3_CLIENT_ENDPOINT_HPP_
 
-#include "endpoint.hpp"
+#include "boardnet_endpoint.hpp"
 
 namespace vsomeip_v3 {
 
-class client_endpoint : public virtual endpoint {
+class client_endpoint {
 public:
     virtual ~client_endpoint() { }
 

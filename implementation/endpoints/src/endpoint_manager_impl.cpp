@@ -14,6 +14,7 @@
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../include/tcp_client_endpoint_impl.hpp"
 #include "../include/tcp_server_endpoint_impl.hpp"
+#include "../include/boardnet_endpoint.hpp"
 #include "../include/virtual_server_endpoint_impl.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../../routing/include/routing_manager_base.hpp"
@@ -58,7 +59,8 @@ endpoint_manager_impl::~endpoint_manager_impl() {
     options_thread_.join();
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance,
+                                                                                       bool _reliable) {
     const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
 
     if (!rtmgr) {
@@ -66,7 +68,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_remote_client(se
         return nullptr;
     }
 
-    std::shared_ptr<endpoint> its_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     bool start_endpoint(false);
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
@@ -90,8 +92,8 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
         return;
     }
 
-    std::shared_ptr<endpoint> its_reliable_endpoint;
-    std::shared_ptr<endpoint> its_unreliable_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_reliable_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint;
     bool start_reliable_endpoint(false);
     bool start_unreliable_endpoint(false);
     {
@@ -168,7 +170,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
                                                     const std::shared_ptr<endpoint_definition>& _ep_definition) {
 
     std::shared_ptr<serviceinfo> its_info;
-    std::shared_ptr<endpoint> its_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     bool must_report(false);
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
@@ -192,7 +194,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
                                                     const std::shared_ptr<endpoint_definition>& _ep_definition_unreliable) {
 
     std::shared_ptr<serviceinfo> its_info;
-    std::shared_ptr<endpoint> its_reliable, its_unreliable;
+    std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
     bool must_report(false);
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
@@ -235,7 +237,7 @@ void endpoint_manager_impl::clear_remote_service_info(service_t _service, instan
     }
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bool _start) {
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bool _start) {
     const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
 
     if (!rtmgr) {
@@ -243,7 +245,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
         return nullptr;
     }
 
-    std::shared_ptr<endpoint> its_server_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_server_endpoint;
     boost::system::error_code its_error;
     boost::asio::ip::address its_unicast{configuration_->get_unicast_address()};
     const std::string its_unicast_str{its_unicast.to_string()};
@@ -291,8 +293,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
     return its_server_endpoint;
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::find_server_endpoint(uint16_t _port, bool _reliable) const {
-    std::shared_ptr<endpoint> its_endpoint;
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_server_endpoint(uint16_t _port, bool _reliable) const {
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     auto found_port = server_endpoints_.find(_port);
     if (found_port != server_endpoints_.end()) {
@@ -304,10 +306,10 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_server_endpoint(uint16_t _
     return its_endpoint;
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(uint16_t _port, bool _reliable, bool _start,
-                                                                                service_t _service, instance_t _instance, bool& _is_found,
-                                                                                bool _is_multicast) {
-    std::shared_ptr<endpoint> its_endpoint = find_server_endpoint(_port, _reliable);
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_server_endpoint(uint16_t _port, bool _reliable, bool _start,
+                                                                                         service_t _service, instance_t _instance,
+                                                                                         bool& _is_found, bool _is_multicast) {
+    auto its_endpoint = find_server_endpoint(_port, _reliable);
     _is_found = false;
     if (!its_endpoint) {
         its_endpoint = create_server_endpoint(_port, _reliable, _start);
@@ -325,7 +327,7 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_or_create_server_endpoint(
 
 bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliable) {
 
-    std::shared_ptr<endpoint> its_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         auto found_port = server_endpoints_.find(_port);
@@ -355,7 +357,7 @@ bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliabl
 
 void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_t _instance, bool _reliable) {
 
-    std::shared_ptr<endpoint> its_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
 
     boost::asio::ip::address its_remote_address;
     port_t its_local_port(0);
@@ -480,7 +482,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
     const bool is_someip = configuration_->is_someip(_service, _instance);
     bool _is_found(false);
     // Create multicast endpoint & join multicase group
-    std::shared_ptr<endpoint> its_endpoint = find_or_create_server_endpoint(_port, false, is_someip, _service, _instance, _is_found, true);
+    auto its_endpoint = find_or_create_server_endpoint(_port, false, is_someip, _service, _instance, _is_found, true);
     if (!_is_found) {
         // Only save multicast info if we created a new endpoint
         // to be able to delete the new endpoint
@@ -505,7 +507,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
 }
 
 void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instance_t _instance) {
-    std::shared_ptr<endpoint> its_multicast_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_multicast_endpoint;
     std::string its_address;
 
     {
@@ -749,7 +751,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
     return true;
 }
 
-instance_t endpoint_manager_impl::find_instance(service_t _service, endpoint* const _endpoint) const {
+instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_endpoint* const _endpoint) const {
     instance_t its_instance(0xFFFF);
     std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     auto found_service = service_instances_.find(_service);
@@ -775,7 +777,7 @@ instance_t endpoint_manager_impl::find_instance_multicast(service_t _service, co
     return its_instance;
 }
 
-bool endpoint_manager_impl::remove_instance(service_t _service, endpoint* const _endpoint) {
+bool endpoint_manager_impl::remove_instance(service_t _service, boardnet_endpoint* const _endpoint) {
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
         auto found_service = service_instances_.find(_service);
@@ -808,14 +810,14 @@ bool endpoint_manager_impl::remove_instance_multicast(service_t _service, instan
     return false;
 }
 
-void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
+void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpoint) {
     // Is called when endpoint->connect succeeded!
     struct service_info {
         service_t service_id_;
         instance_t instance_id_;
         major_version_t major_;
         minor_version_t minor_;
-        std::shared_ptr<endpoint> endpoint_;
+        std::shared_ptr<boardnet_endpoint> endpoint_;
     };
 
     // Set to state CONNECTED as connection is not yet fully established in remote side POV
@@ -859,7 +861,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<endpoint> _endpoint) {
     }
 }
 
-void endpoint_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
+void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _endpoint) {
     // Is called when endpoint->connect fails!
     std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
     for (auto& its_service : remote_services_) {
@@ -885,7 +887,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
     }
 }
 
-bool endpoint_manager_impl::on_bind_error(std::shared_ptr<endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
+bool endpoint_manager_impl::on_bind_error(std::shared_ptr<boardnet_endpoint> _endpoint, const boost::asio::ip::address& _remote_address,
                                           std::uint16_t _remote_port, uint16_t& _local_port) {
 
     std::lock_guard<std::recursive_mutex> its_ep_lock(endpoint_mutex_);
@@ -915,7 +917,7 @@ bool endpoint_manager_impl::on_bind_error(std::shared_ptr<endpoint> _endpoint, c
     return false;
 }
 
-void endpoint_manager_impl::on_error(const byte_t* _data, length_t _length, endpoint* const _receiver,
+void endpoint_manager_impl::on_error(const byte_t* _data, length_t _length, boardnet_endpoint* const _receiver,
                                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
     instance_t its_instance = 0;
     if (_length >= VSOMEIP_SERVICE_POS_MAX) {
@@ -958,9 +960,9 @@ void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::addr
     }
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::find_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(service_t _service, instance_t _instance, bool _reliable) {
 
-    std::shared_ptr<endpoint> its_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     auto found_service = remote_services_.find(_service);
     if (found_service != remote_services_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -1019,8 +1021,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::find_remote_client(service_t _s
     return its_endpoint;
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(service_t _service, instance_t _instance, bool _reliable) {
-    std::shared_ptr<endpoint> its_endpoint;
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(service_t _service, instance_t _instance, bool _reliable) {
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     std::shared_ptr<endpoint_definition> its_endpoint_def;
     uint16_t its_local_port;
 
@@ -1075,10 +1077,11 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_remote_client(service_t 
     return its_endpoint;
 }
 
-std::shared_ptr<endpoint> endpoint_manager_impl::create_client_endpoint(const boost::asio::ip::address& _address, uint16_t _local_port,
-                                                                        uint16_t _remote_port, bool _reliable) {
+std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_client_endpoint(const boost::asio::ip::address& _address,
+                                                                                 uint16_t _local_port, uint16_t _remote_port,
+                                                                                 bool _reliable) {
 
-    std::shared_ptr<endpoint> its_endpoint;
+    std::shared_ptr<boardnet_endpoint> its_endpoint;
     boost::asio::ip::address its_unicast = configuration_->get_unicast_address();
 
     try {
@@ -1236,7 +1239,7 @@ void endpoint_manager_impl::process_multicast_options() {
     }
 }
 
-bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
+bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint) const {
 
     {
         std::lock_guard<std::recursive_mutex> its_lock(endpoint_mutex_);
@@ -1255,7 +1258,7 @@ bool endpoint_manager_impl::is_used_endpoint(endpoint* const _endpoint) const {
 }
 
 void endpoint_manager_impl::suspend() {
-    std::vector<std::weak_ptr<endpoint>> weak_endpoints;
+    std::vector<std::weak_ptr<boardnet_endpoint>> weak_endpoints;
 
     {
         std::scoped_lock its_lock{endpoint_mutex_};
@@ -1303,7 +1306,7 @@ void endpoint_manager_impl::resume() {
     }
 
     for (const auto& [its_address, its_port, its_protocol, its_partition] : clients) {
-        std::shared_ptr<endpoint> its_endpoint;
+        std::shared_ptr<boardnet_endpoint> its_endpoint;
 
         {
             std::scoped_lock its_lock{endpoint_mutex_};
@@ -1340,7 +1343,7 @@ void endpoint_manager_impl::resume() {
     }
 
     for (const auto& [its_port, its_protocol] : servers) {
-        std::shared_ptr<endpoint> its_endpoint;
+        std::shared_ptr<boardnet_endpoint> its_endpoint;
 
         {
             std::scoped_lock its_lock{endpoint_mutex_};
@@ -1363,7 +1366,7 @@ void endpoint_manager_impl::resume() {
 
         its_endpoint->restart();
 
-        std::shared_ptr<endpoint> its_check_endpoint;
+        std::shared_ptr<boardnet_endpoint> its_check_endpoint;
 
         {
             std::scoped_lock its_lock{endpoint_mutex_};
@@ -1390,5 +1393,4 @@ client_t endpoint_manager_impl::get_client() const {
 std::string endpoint_manager_impl::get_client_host() const {
     return rm_->get_client_host();
 }
-
 } // namespace vsomeip_v3

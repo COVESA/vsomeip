@@ -67,12 +67,6 @@ template<typename Protocol>
 void endpoint_impl<Protocol>::remove_stop_handler(service_t) { }
 
 template<typename Protocol>
-void endpoint_impl<Protocol>::register_error_handler(const error_handler_t& _error_handler) {
-    std::scoped_lock its_lock(error_handler_mutex_);
-    this->error_handler_ = _error_handler;
-}
-
-template<typename Protocol>
 instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 
     instance_t its_instance(0xFFFF);
