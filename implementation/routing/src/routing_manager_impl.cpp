@@ -293,6 +293,9 @@ void routing_manager_impl::stop() {
 
     if (discovery_)
         discovery_->stop();
+
+    try_to_send_before_stop();
+
     if (stub_)
         stub_->stop();
 
@@ -4265,6 +4268,10 @@ void routing_manager_impl::remove_subscriptions(port_t _local_port, const boost:
             }
         }
     }
+}
+
+void routing_manager_impl::try_to_send_before_stop() {
+    ep_mgr_->flush_local_endpoint_queues();
 }
 
 const char* routing_manager_impl::routing_state_tostring(routing_state_e _state) {

@@ -188,6 +188,8 @@ void routing_manager_client::stop() {
                 sender_->register_error_handler(nullptr);
             }
         }
+        // Important to do before deregistration to ensure messages are sent before the application deregisters with the daemon
+        try_to_send_before_stop();
         if (state_machine_->start_deregister()) {
             deregister_application();
         } else {
@@ -2652,6 +2654,17 @@ void routing_manager_client::debounce_restart_sender_done() {
     if (start_sender_after_debounce_) {
         restart_sender(its_sender_lock);
     }
+}
+
+void routing_manager_client::try_to_send_before_stop() {
+    {
+        std::scoped_lock its_lock(sender_mutex_);
+        if (sender_) {
+            sender_->flush_queue();
+        }
+    }
+
+    ep_mgr_->flush_local_endpoint_queues();
 }
 
 } // namespace vsomeip_v3

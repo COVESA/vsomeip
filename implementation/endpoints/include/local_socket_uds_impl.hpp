@@ -73,6 +73,11 @@ public:
 
     boost::asio::ip::tcp::endpoint peer_endpoint() const override;
 
+    size_t get_send_buffer_size(boost::system::error_code& _ec) override {
+        _ec.clear();
+        return 0; // UDS don't support TIOCOUTQ
+    };
+
 private:
     std::shared_ptr<socket_type> const socket_;
     std::mutex socket_mtx_;

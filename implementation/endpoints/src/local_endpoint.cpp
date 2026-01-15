@@ -475,6 +475,39 @@ bool local_endpoint::is_allowed() {
     return true;
 }
 
+void local_endpoint::flush_queue() {
+
+    std::unique_lock lock{mutex_};
+
+    boost::system::error_code its_error;
+    uint32_t retry_count(0);
+    while (true) {
+        size_t send_buffer_size = socket_->get_send_buffer_size(its_error);
+        if (its_error) {
+            VSOMEIP_WARNING << "le::" << __func__ << ": fail to read send_buffer_size  "
+                            << "(" << its_error.value() << "): " << its_error.message() << ", " << status_unlock();
+            break;
+        }
+
+        if (is_sending_ || !send_queue_.empty() || send_buffer_size > 0) {
+            VSOMEIP_WARNING << "ls::" << __func__ << ": waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
+                            << " and send_buffer_size: " << send_buffer_size;
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
+            lock.lock();
+            ++retry_count;
+        } else {
+            break;
+        }
+        if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
+            VSOMEIP_ERROR << "ls::" << __func__ << ": max retries reached to send! will drop remaining data on close, " << status_unlock()
+                          << " and send_buffer_size: " << send_buffer_size;
+            ;
+            break;
+        }
+    }
+}
+
 void local_endpoint::prepare_stop([[maybe_unused]] const prepare_stop_handler_t& _handler, [[maybe_unused]] service_t _service) {
     VSOMEIP_ERROR << "le::" << __func__ << ", no impl given for: " << socket_->to_string();
 }
