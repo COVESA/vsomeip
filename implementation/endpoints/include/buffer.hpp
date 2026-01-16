@@ -28,15 +28,6 @@ namespace vsomeip_v3 {
 typedef std::vector<byte_t> message_buffer_t;
 typedef std::shared_ptr<message_buffer_t> message_buffer_ptr_t;
 
-#if 0
-struct timing {
-    timing() : debouncing_(0), maximum_retention_(DEFAULT_NANOSECONDS_MAX) {};
-
-    std::chrono::nanoseconds debouncing_;
-    std::chrono::nanoseconds maximum_retention_;
-};
-#endif
-
 struct train {
     train() :
         buffer_(std::make_shared<message_buffer_t>()), minimal_debounce_time_(DEFAULT_NANOSECONDS_MAX),

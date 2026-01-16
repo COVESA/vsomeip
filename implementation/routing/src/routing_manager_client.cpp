@@ -962,13 +962,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
     (void)_remote_address;
     (void)_remote_port;
 
-#if 0
-    std::stringstream msg;
-    msg << "rmc::" << __func__ << ": " << std::hex << get_client() << ">: ";
-    for (length_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i])) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     protocol::id_e its_id;
     client_t its_client;
     service_t its_service;
@@ -1641,13 +1634,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, end
 }
 
 void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size) {
-#if 0
-    std::stringstream msg;
-    msg << "rmp::on_routing_info(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ";
-    for (uint32_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     auto its_policy_manager = configuration_->get_policy_manager();
     if (!its_policy_manager)
         return;
@@ -2082,16 +2068,7 @@ void routing_manager_client::send_register_event(client_t _client, service_t _se
 void routing_manager_client::on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                               event_t _event) {
     (void)_client;
-#if 0
-    VSOMEIP_ERROR << "rmc::" << __func__ << ": "
-            << std::hex << std::setfill('0')
-            << "(" << std::setw(4) << host_->get_client() << "):"
-            << "event="
-            << std::setw(4) << _service << "."
-            << std::setw(4) << _instance << "."
-            << std::setw(4) << _eventgroup << "."
-            << std::setw(4) << _event;
-#endif
+
     if (_event == ANY_EVENT) {
         auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
         if (its_eventgroup) {

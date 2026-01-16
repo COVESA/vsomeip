@@ -551,13 +551,6 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
         return;
     }
 
-#if 0
-    std::stringstream msg;
-    for (std::size_t i = 0; i < _bytes + recv_buffer_size_; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2)
-                << static_cast<int>( recv_buffer_[i] << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     std::unique_lock its_lock(socket_mutex_);
     std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
     if (its_host) {

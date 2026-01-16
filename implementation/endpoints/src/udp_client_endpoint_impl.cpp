@@ -194,37 +194,25 @@ void udp_client_endpoint_impl::restart(bool _force) {
 }
 
 void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) {
+    std::scoped_lock its_last_sent_lock(last_sent_mutex_);
+    std::scoped_lock its_socket_lock(socket_mutex_);
 
-#if 0
-    std::stringstream msg;
-    msg << "ucei<" << remote_.address() << ":"
-        << std::dec << remote_.port()  << ">::sq: ";
-    for (std::size_t i = 0; i < _buffer->size(); i++)
-        msg << std::hex << std::setfill('0') << std::setw(2)
-            << static_cast<int>((*_entry.first)[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
-    {
-        std::scoped_lock its_last_sent_lock(last_sent_mutex_);
-        std::scoped_lock its_socket_lock(socket_mutex_);
-
-        // Check whether we need to wait (SOME/IP-TP separation time)
-        if (_entry.second > 0) {
-            if (last_sent_ != std::chrono::steady_clock::time_point()) {
-                const auto its_elapsed =
-                        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_sent_).count();
-                if (_entry.second > its_elapsed)
-                    std::this_thread::sleep_for(std::chrono::microseconds(_entry.second - its_elapsed));
-            }
-            last_sent_ = std::chrono::steady_clock::now();
-        } else {
-            last_sent_ = std::chrono::steady_clock::time_point();
+    // Check whether we need to wait (SOME/IP-TP separation time)
+    if (_entry.second > 0) {
+        if (last_sent_ != std::chrono::steady_clock::time_point()) {
+            const auto its_elapsed =
+                    std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - last_sent_).count();
+            if (_entry.second > its_elapsed)
+                std::this_thread::sleep_for(std::chrono::microseconds(_entry.second - its_elapsed));
         }
-        // Send
-        socket_->async_send(boost::asio::buffer(*_entry.first),
-                            std::bind(&udp_client_endpoint_base_impl::send_cbk, shared_from_this(), std::placeholders::_1,
-                                      std::placeholders::_2, _entry.first));
+        last_sent_ = std::chrono::steady_clock::now();
+    } else {
+        last_sent_ = std::chrono::steady_clock::time_point();
     }
+    // Send
+    socket_->async_send(boost::asio::buffer(*_entry.first),
+                        std::bind(&udp_client_endpoint_base_impl::send_cbk, shared_from_this(), std::placeholders::_1,
+                                  std::placeholders::_2, _entry.first));
 }
 
 void udp_client_endpoint_impl::get_configured_times_from_endpoint(service_t _service, method_t _method,
@@ -281,14 +269,6 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     }
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
     if (!_error && 0 < _bytes && its_host) {
-#if 0
-        std::stringstream msg;
-        msg << "ucei::rcb(" << _error.message() << "): ";
-        for (std::size_t i = 0; i < _bytes; ++i)
-            msg << std::hex << std::setfill('0') << std::setw(2)
-                << static_cast<int>((*_recv_buffer)[i]) << " ";
-        VSOMEIP_INFO << msg.str();
-#endif
         std::size_t remaining_bytes = _bytes;
         std::size_t i = 0;
 

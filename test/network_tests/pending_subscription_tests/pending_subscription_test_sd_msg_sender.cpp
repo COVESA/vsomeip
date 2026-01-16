@@ -307,14 +307,6 @@ TEST_F(pending_subscription, send_alternating_subscribe_unsubscribe) {
                 responses_received = expected_responses;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
             } else {
-#if 0
-                std::stringstream str;
-                str << std::hex << std::setfill('0');
-                for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-                }
-                std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
                 std::uint32_t its_pos = 0;
 
                 while (bytes_transferred > 0) {
@@ -504,14 +496,6 @@ TEST_F(pending_subscription, send_multiple_unsubscriptions) {
                 responses_received = expected_responses;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
             } else {
-#if 0
-                std::stringstream str;
-                str << std::hex << std::setfill('0');
-                for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-                }
-                std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
                 std::uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
                     const std::uint32_t its_message_size =
@@ -701,14 +685,6 @@ TEST_F(pending_subscription, send_alternating_subscribe_nack_unsubscribe) {
                 nacks_received = expected_nacks;
                 ADD_FAILURE() << __func__ << " error: " << error.message();
             } else {
-#if 0
-                std::stringstream str;
-                str << std::hex << std::setfill('0');
-                for (size_t i = 0; i < bytes_transferred; i++) {
-                    str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-                }
-                std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
                 std::uint32_t its_pos = 0;
                 while (bytes_transferred > 0) {
                     const std::uint32_t its_message_size =
@@ -1341,16 +1317,6 @@ TEST_F(pending_subscription, send_subscribe_stop_subscribe_subscribe) {
                 std::uint32_t its_pos = 0;
 
                 while (bytes_transferred > 0) {
-#if 0
-                    std::stringstream str;
-                    str << std::hex << std::setfill('0');
-
-                    for (size_t i = 0; i < bytes_transferred; i++) {
-                        str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-                    }
-                    std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
-
                     const std::uint32_t its_message_size =
                             vsomeip::bithelper::read_uint32_be(&receive_buffer[its_pos + VSOMEIP_LENGTH_POS_MIN])
                             + VSOMEIP_SOMEIP_HEADER_SIZE;
@@ -1543,15 +1509,6 @@ TEST_F(pending_subscription, send_request_to_sd_port) {
                     its_pos += its_message_size;
                     bytes_transferred -= its_message_size;
 
-#if 0
-                    std::stringstream str;
-                    str << std::hex << std::setfill('0');
-
-                    for (size_t i = 0; i < bytes_transferred; i++) {
-                        str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-                    }
-                    std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
                     static int offers_received = 0;
                     static int responses_received = 0;
 

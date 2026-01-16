@@ -995,13 +995,6 @@ bool service_discovery_impl::send(bool _is_announcing) {
 // Interface boardnet_endpoint_host
 void service_discovery_impl::on_message(const byte_t* _data, length_t _length, const boost::asio::ip::address& _sender,
                                         bool _is_multicast) {
-#if 0
-    std::stringstream msg;
-    msg << "sdi::on_message: ";
-    for (length_t i = 0; i < _length; ++i)
-    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     std::scoped_lock its_lock(check_ttl_mutex_);
     std::scoped_lock its_session_lock(sessions_received_mutex_);
     std::lock_guard<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);

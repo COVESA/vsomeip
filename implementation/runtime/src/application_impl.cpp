@@ -2521,54 +2521,6 @@ void application_impl::set_sd_acceptance_required(const sd_acceptance_map_type_t
 
     (void)_remotes;
     (void)_enable;
-
-#if 0
-    if (!is_routing()) {
-        return;
-    }
-
-    configuration::sd_acceptance_rules_t its_rules;
-    for (const auto& remote_info : _remotes) {
-        const boost::asio::ip::address its_address(remote_info.first.ip_.is_v4_ ?
-                static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(
-                        remote_info.first.ip_.address_.v4_)) :
-                static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(
-                        remote_info.first.ip_.address_.v6_)));
-        const boost::icl::interval<std::uint16_t>::interval_type its_interval =
-                remote_info.first.is_range_ ?
-                    boost::icl::interval<std::uint16_t>::closed(
-                            remote_info.first.first_,
-                            ((remote_info.first.last_ == ANY_PORT) ?
-                                    std::numeric_limits<std::uint16_t>::max() :
-                                    remote_info.first.last_)) :
-                    boost::icl::interval<std::uint16_t>::closed(
-                            remote_info.first.first_, remote_info.first.first_);
-
-        const bool its_reliability = remote_info.first.is_reliable_;
-
-        const auto found_address = its_rules.find(its_address);
-        if (found_address != its_rules.end()) {
-            const auto found_reliability = found_address->second.second.find(
-                    its_reliability);
-            if (found_reliability != found_address->second.second.end()) {
-                found_reliability->second.insert(its_interval);
-            } else {
-                found_address->second.second.emplace(std::make_pair(
-                        its_reliability,
-                        boost::icl::interval_set<std::uint16_t>(its_interval)));
-            }
-        } else {
-            its_rules.insert(std::make_pair(its_address,
-                   std::make_pair(remote_info.second,
-                           std::map<bool, boost::icl::interval_set<std::uint16_t>>(
-                                  {{ its_reliability,
-                                      boost::icl::interval_set<std::uint16_t>(
-                                              its_interval) } }))));
-        }
-    }
-
-    configuration_->set_sd_acceptance_rules(its_rules, _enable);
-#endif
 }
 
 application::sd_acceptance_map_type_t application_impl::get_sd_acceptance_required() {
