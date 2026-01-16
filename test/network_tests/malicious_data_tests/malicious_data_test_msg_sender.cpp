@@ -74,14 +74,6 @@ TEST_F(malicious_data, send_malicious_events) {
                 ADD_FAILURE() << __func__ << " error: " << error.message();
                 return;
             }
-#if 0
-            std::stringstream str;
-                str << std::hex << std::setfill('0');
-            for (size_t i = 0; i < bytes_transferred; i++) {
-                str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-            }
-            std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
 
             vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
             vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);
@@ -752,14 +744,6 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
                     std::size_t bytes_transferred =
                             tcp_socket2.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
                     if (!error) {
-#if 0
-                        std::stringstream str;
-                        str << std::hex << std::setfill('0');
-                        for (size_t i = 0; i < bytes_transferred; i++) {
-                            str << std::setw(2) << std::uint32_t(receive_buffer[i]) << " ";
-                        }
-                        std::cout << __func__ << " received: " << std::dec << bytes_transferred << " bytes: " << str.str() << std::endl;
-#endif
                         vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
                         std::shared_ptr<vsomeip::message> its_message = its_deserializer.deserialize_message();
                         EXPECT_EQ(0x3345, its_message->get_service());

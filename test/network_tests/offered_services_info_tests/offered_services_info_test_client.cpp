@@ -294,13 +294,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-#if 0
-    if (argc >= 4 && std::string("SAME_SERVICE_ID") == std::string(argv[3])) {
-        use_same_service_id = true;
-    } else {
-        use_same_service_id = false;
-    }
-#endif
     return RUN_ALL_TESTS();
 }
 #endif

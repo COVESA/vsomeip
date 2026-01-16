@@ -159,13 +159,6 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, endpo
     (void)_is_multicast;
     (void)_remote_address;
     (void)_remote_port;
-#if 0
-    std::stringstream msg;
-    msg << "rms::" << __func__ << ": ";
-    for (length_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
 
     client_t its_client;
     protocol::id_e its_id;
@@ -970,14 +963,6 @@ void routing_manager_stub::send_client_credentials(const client_t _target, std::
         protocol::update_security_credentials_command its_command;
         its_command.set_client(_target);
         its_command.set_credentials(_credentials);
-
-#if 0
-        std::stringstream msg;
-        msg << "rms::" << __func__ << ": to (" << std::hex << _target << "): ";
-        for (uint32_t i = 0; i < its_size; ++i)
-            msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(its_command[i] << " ";
-        VSOMEIP_INFO << msg.str();
-#endif
 
         std::vector<byte_t> its_buffer;
         protocol::error_e its_error;

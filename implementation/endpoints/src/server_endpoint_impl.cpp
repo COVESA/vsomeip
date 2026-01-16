@@ -140,13 +140,6 @@ void server_endpoint_impl<Protocol>::set_connected(bool _connected) {
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) {
-#if 0
-    std::stringstream msg;
-    msg << "sei::send ";
-    for (uint32_t i = 0; i < _size; i++)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     endpoint_type its_target;
     bool is_valid_target(false);
 
@@ -222,13 +215,6 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
     bool must_depart(false);
     auto its_now(std::chrono::steady_clock::now());
 
-#if 0
-    std::stringstream msg;
-    msg << "sei::send_intern: ";
-    for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_DEBUG << msg.str();
-#endif
     // STEP 1: Check queue limit
     if (!check_queue_limit(_data, _size, its_data)) {
         return false;

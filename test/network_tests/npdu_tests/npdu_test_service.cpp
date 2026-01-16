@@ -149,19 +149,6 @@ void npdu_test_service::check_times() {
     // Disabled as it can't be guaranteed that exact every max retention time a
     // message leaves the client endpoint.
     std::ignore = max_retention_times_[method_idx];
-#if 0
-    if(time_since_last_message > max_retention_times_[method_idx]) {
-        VSOMEIP_ERROR << std::hex << std::setfill('0') 
-                << std::setw(4) << service_id_ << ":" 
-                << std::setw(4) << instance_id_ << ":" 
-                << std::setw(4) << npdu_test::method_ids[get_service_number()][method_idx]
-                << ": max_retention_time exceeded by: " 
-                << std::dec << std::chrono::duration_cast<std::chrono::milliseconds>(
-                        time_since_last_message - max_retention_times_[method_idx]).count()
-                << "ms";
-        GTEST_FATAL_FAILURE_("Max retention time was exceeded");
-    }
-#endif
 }
 
 template<int method_idx>

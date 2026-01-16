@@ -415,16 +415,6 @@ bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_t
     const auto its_entry = _it->second.queue_.front();
     const auto separation_time = its_entry.second;
 
-#if 0
-    std::stringstream msg;
-    msg << instance_name_ << "sq(" << _it->first.address().to_string() << ":" << _it->first.port()
-        << "): ";
-    for (std::size_t i = 0; i < its_entry.first->size(); ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2)
-            << static_cast<int>((*its_entry.first)[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
-
     // Check whether we need to wait (SOME/IP-TP separation time)
     if (separation_time > 0) {
         if (last_sent_ != std::chrono::steady_clock::time_point()) {
@@ -635,13 +625,6 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                       << get_local_port() << " from " << _remote.address() << ":" << _remote.port() << ". Message will be dropped";
         return;
     }
-#if 0
-    std::stringstream msg;
-    msg << instance_name_ << "rcb(" << _remote.address() << ":" << _remote.port() << "): ";
-    for (std::size_t i = 0; i < _bytes; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_buffer[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
 
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
 

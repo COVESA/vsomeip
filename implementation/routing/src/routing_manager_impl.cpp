@@ -423,13 +423,6 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
                 if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
                     insert_subscription(ps.service_, ps.instance_, ps.eventgroup_, ps.event_, nullptr, get_client(),
                                         &its_already_subscribed_events);
-#if 0
-                    VSOMEIP_ERROR << "rmi::" << __func__
-                            << ": event="
-                            << std::hex << ps.service_ << "."
-                            << std::hex << ps.instance_ << "."
-                            << std::hex << ps.event_;
-#endif
                 }
             }
         }
@@ -1256,13 +1249,6 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
 void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                                       const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address,
                                       std::uint16_t _remote_port) {
-#if 0
-    std::stringstream msg;
-    msg << "rmi::on_message: ";
-    for (uint32_t i = 0; i < _size; ++i)
-    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     (void)_bound_client;
     uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
@@ -1395,15 +1381,6 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
 bool routing_manager_impl::on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable,
                                       client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _check_status,
                                       bool _is_from_remote) {
-#if 0
-    std::stringstream msg;
-    msg << "rmi::on_message("
-            << std::hex << std::setfill('0') << std::setw(4)
-            << _service << ", " << _instance << "): ";
-    for (uint32_t i = 0; i < _size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     client_t its_client;
     bool is_forwarded(true);
 
@@ -3738,17 +3715,6 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _ser
 
 void routing_manager_impl::handle_subscription_state(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                      event_t _event) {
-#if 0
-    VSOMEIP_ERROR << "rmi::" << __func__
-            << "(" << std::hex << _client << "): "
-            << "event="
-            << std::hex << _service << "."
-            << std::hex << _instance << "."
-            << std::hex << _eventgroup << "."
-            << std::hex << _event
-            << " me="
-            << std::hex << get_client();
-#endif
     // Note: remote_subscription_state_mutex_ is already locked as this
     // method builds a critical section together with insert_subscription
     // from routing_manager_base.
@@ -3762,18 +3728,6 @@ void routing_manager_impl::handle_subscription_state(client_t _client, service_t
     auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, its_client);
     auto its_state = remote_subscription_state_.find(its_tuple);
     if (its_state != remote_subscription_state_.end()) {
-#if 0
-        VSOMEIP_ERROR << "rmi::" << __func__
-                << "(" << std::hex << _client << "): "
-                << "event="
-                << std::hex << _service << "."
-                << std::hex << _instance << "."
-                << std::hex << _eventgroup << "."
-                << std::hex << _event
-                << " state=" << std::hex << (int)its_state->second
-                << " me="
-                << std::hex << get_client();
-#endif
         if (its_state->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
             // Subscription already acknowledged!
             if (_client == get_client()) {

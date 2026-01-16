@@ -168,14 +168,6 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
     bool must_depart(false);
     auto its_now(std::chrono::steady_clock::now());
 
-#if 0
-    std::stringstream msg;
-    msg << "cei::send: ";
-    for (uint32_t i = 0; i < _size; i++)
-    msg << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_data[i]) << " ";
-    VSOMEIP_DEBUG << msg.str();
-#endif
-
     if (endpoint_impl<Protocol>::sending_blocked_ || !check_queue_limit(_data, _size)) {
         return false;
     }

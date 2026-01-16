@@ -333,15 +333,6 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
         }
     }
 
-#if 0
-    std::stringstream msg;
-    msg << "tcei<" << remote_.address() << ":"
-        << std::dec << remote_.port()  << ">::sq: ";
-    for (std::size_t i = 0; i < _buffer->size(); i++)
-        msg << std::hex << std::setfill('0') << std::setw(2)
-            << static_cast<int>((*_entry.first)[i] << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
     {
         if (socket_->is_open()) {
             socket_->async_write(
@@ -445,14 +436,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         // endpoint was stopped
         return;
     }
-#if 0
-    std::stringstream msg;
-    msg << "cei::rcb (" << _error.message() << "): ";
-    for (std::size_t i = 0; i < _bytes + _recv_buffer_size; ++i)
-        msg << std::hex << std::setfill('0') << std::setw(2)
-            << static_cast<int>( (_recv_buffer)[i] << " ";
-    VSOMEIP_INFO << msg.str();
-#endif
+
     std::unique_lock<std::mutex> its_lock(socket_mutex_);
 
     if (std::shared_ptr<routing_host> its_host = routing_host_.lock(); its_host) {
