@@ -32,6 +32,12 @@ public:
     void set_sockets(std::weak_ptr<fake_tcp_socket_handle> _from, std::weak_ptr<fake_tcp_socket_handle> _to);
 
     /**
+     * will wake-up the condition_variable to check connection changes.
+     * Called from the socket_manager
+     **/
+    void notify();
+
+    /**
      * Injects a payload into the receiving socket
      **/
     [[nodiscard]] bool inject_command(std::vector<unsigned char> _payload) const;
@@ -66,6 +72,10 @@ public:
      * waits for at most _timeout milliseconds for set_sockets to have been called
      **/
     [[nodiscard]] bool wait_for_connection(std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
+    /**
+     * waits until socket_count_ is at least 1, and the sockets become disconnected
+     **/
+    [[nodiscard]] bool wait_for_connection_drop(std::chrono::milliseconds _timeout) const;
 
     /**
      * waits for at most _timeout milliseconds for _id to be received by the receiving socket

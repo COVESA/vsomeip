@@ -279,6 +279,9 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
 
         config_command.set_client(id_to_be_sent);
         config_command.insert("hostname", get_client_env());
+        auto id_str = std::string(sizeof(_client), '0');
+        std::memcpy(id_str.data(), &_client, sizeof(_client));
+        config_command.insert("expected_id", std::move(id_str));
 
         std::vector<byte_t> config_buffer;
         protocol::error_e err;

@@ -64,6 +64,11 @@ void fake_tcp_socket_handle::cancel() {
     }();
     if (remote) {
         remote->inner_close();
+        auto sm = [this] {
+            auto const lock = std::scoped_lock(mtx_);
+            return socket_manager_.lock();
+        }();
+        sm->close_connection(get_app_name(), remote->get_app_name(), socket_id_.role_);
     }
 }
 

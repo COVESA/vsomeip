@@ -24,6 +24,10 @@ void app_connection::set_sockets(std::weak_ptr<fake_tcp_socket_handle> _from, st
     cv_.notify_all();
 }
 
+void app_connection::notify() {
+    cv_.notify_all();
+}
+
 bool app_connection::inject_command(std::vector<unsigned char> _payload) const {
     auto [from, to] = promoted();
     if (to) {
@@ -98,6 +102,15 @@ bool app_connection::wait_for_connection(std::chrono::milliseconds _timeout) con
             return false;
         }
         return from->is_connected(to_);
+    });
+}
+
+[[nodiscard]] bool app_connection::wait_for_connection_drop(std::chrono::milliseconds _timeout) const {
+    std::shared_ptr<fake_tcp_socket_handle> from;
+    auto lock = std::unique_lock(mtx_);
+    return cv_.wait_for(lock, _timeout, [this, &from] {
+        from = from_.lock();
+        return socket_count_ > 0 && (!from || !from->is_connected(to_));
     });
 }
 

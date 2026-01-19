@@ -8,14 +8,20 @@
 
 #include "local_receive_buffer.hpp"
 #include "timer.hpp"
-#include <cstdint>
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
+
 #include <vsomeip/primitive_types.hpp>
 
 #include <boost/system/error_code.hpp>
 #include <boost/asio.hpp>
 
-#include <memory>
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 
@@ -99,6 +105,11 @@ public:
     port_t get_local_port() const;
     void print_status() const;
 
+    /**
+     * @brief Set the client id of the owning application
+     **/
+    void set_id(client_t _client);
+
 private:
     /**
      * @brief Callback invoked when a connection is accepted.
@@ -113,6 +124,7 @@ private:
     /**
      * @brief Adds a fully-handshaked connection as a managed endpoint.
      * @param _client Client ID of the connected application.
+     * @param _expected_id Client ID the remote endpoint expects to be owned by the server
      * @param _socket Socket for communication (ownership transferred).
      * @param _buffer Receive buffer (may contain data after handshake).
      * @param _lc_count Lifecycle counter from when connection was initiated.
@@ -121,8 +133,8 @@ private:
      * Rejects connection if lifecycle counter doesn't match (stale connection).
      * Notifies routing_host and creates local_endpoint for ongoing communication.
      */
-    void add_connection(client_t _client, std::shared_ptr<local_socket> _socket, std::shared_ptr<local_receive_buffer> _buffer,
-                        uint32_t _lc_count, std::string _environment);
+    void add_connection(client_t _client, client_t _expected_id, std::shared_ptr<local_socket> _socket,
+                        std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment);
 
     /**
      * @brief Removes a connection when endpoint reports failure.
@@ -166,6 +178,7 @@ private:
 
         bool const is_router_{false};
         uint32_t const lc_count_{0};
+        client_t expected_id_{VSOMEIP_CLIENT_UNSET};
         std::string client_host_;
         std::shared_ptr<local_socket> socket_; // not const as it will be moved out after the handshake
 
@@ -180,6 +193,7 @@ private:
     bool const is_router_{false};
     state_e state_{state_e::STOPPED};
     uint32_t lc_count_{0};
+    client_t own_client_id_{VSOMEIP_CLIENT_UNSET};
     boost::asio::io_context& io_;
     std::shared_ptr<local_acceptor> const acceptor_;
     std::shared_ptr<configuration> const configuration_;

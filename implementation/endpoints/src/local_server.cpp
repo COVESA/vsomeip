@@ -96,7 +96,12 @@ port_t local_server::get_local_port() const {
 
 void local_server::print_status() const {
     std::scoped_lock const lock{mtx_};
-    VSOMEIP_INFO << "ls::" << __func__ << ": lc: " << lc_count_ << ", connected clients: " << clients_.size() << ", self: " << this;
+    VSOMEIP_INFO << "ls::" << __func__ << ": lc: " << lc_count_ << ", connected clients: " << clients_.size() << ", self: " << std::hex
+                 << std::setfill('0') << std::setw(4) << own_client_id_ << ", mem: " << this;
+}
+void local_server::set_id(client_t _id) {
+    std::scoped_lock const lock{mtx_};
+    own_client_id_ = _id;
 }
 
 void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_ptr<local_socket> _socket, uint32_t _lc_count) {
@@ -158,11 +163,20 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
         }
     }
 }
-void local_server::add_connection(client_t _client, std::shared_ptr<local_socket> _socket, std::shared_ptr<local_receive_buffer> _buffer,
-                                  uint32_t _lc_count, std::string _environment) {
+void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _expected_id, std::shared_ptr<local_socket> _socket,
+                                  std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment) {
 
     std::unique_lock lock{mtx_};
     if (_lc_count == lc_count_) {
+        if (_expected_id != own_client_id_ && _expected_id != VSOMEIP_CLIENT_UNSET) {
+            VSOMEIP_WARNING << "ls::" << __func__ << ": connection refused due to wrong client id, expected: " << std::hex
+                            << std::setfill('0') << std::setw(4) << _expected_id << ", actual: " << own_client_id_
+                            << ", from client: " << _client;
+            // This should not happen for the router, as the router for tcp needs to be configured, an no other
+            // application should be able to claim this ip+port
+            _socket->stop(true);
+            return;
+        }
         if (auto rh = routing_host_.lock(); rh) {
             auto const peer_endpoint = _socket->peer_endpoint();
             // Carful: Order matters. First call add_known_client (lazy load of config for this client), before trying to create
@@ -356,6 +370,12 @@ client_t local_server::tmp_connection::read_config_command(uint8_t const* _data,
         VSOMEIP_ERROR << "ls::" << __func__ << ": config command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
         return VSOMEIP_CLIENT_UNSET;
     }
+    if (command.contains("expected_id")) {
+        auto str = command.at("expected_id");
+        if (str.size() == sizeof(expected_id_)) {
+            std::memcpy(&expected_id_, str.data(), sizeof(expected_id_));
+        }
+    }
     if (!command.contains("hostname")) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": config command did not contain hostname";
         return VSOMEIP_CLIENT_UNSET;
@@ -391,7 +411,7 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
 
 void local_server::tmp_connection::hand_over(client_t _client) {
     if (auto p = parent_.lock(); p) {
-        p->add_connection(_client, std::move(socket_), receive_buffer_, lc_count_, std::move(client_host_));
+        p->add_connection(_client, expected_id_, std::move(socket_), receive_buffer_, lc_count_, std::move(client_host_));
     }
 }
 }
