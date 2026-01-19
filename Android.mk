@@ -89,12 +89,10 @@ LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/security)
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/interface \
 
-LOCAL_HEADER_LIBRARIES := \
-    libboost_headers \
-
 LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
+    libboost_system \
     libboost_filesystem \
 
 LOCAL_CFLAGS :=  \
@@ -149,14 +147,12 @@ LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/configuration)
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/interface \
 
-LOCAL_HEADER_LIBRARIES := \
-    libboost_headers \
-
 LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
-    libvsomeip3_dlt \
+    libboost_system \
     libboost_filesystem \
+    libvsomeip3_dlt \
 
 LOCAL_CFLAGS := \
     -std=c++17 \
