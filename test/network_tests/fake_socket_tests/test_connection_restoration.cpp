@@ -314,6 +314,47 @@ TEST_F(test_client_helper, the_server_sends_subscribe_ack_when_the_routing_info_
     EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 }
 
+TEST_F(test_client_helper, outdated_routing_info_will_not_cause_a_wrong_permanent_connection) {
+
+    // This test ensures that outdated routing_info can not lead to a wrong
+    // connection mapping:
+    // 1. Service is offered
+    // 2. Client requests service
+    // 3. Router sends info out, while service application is stopped
+    // 4. A new application is started claiming the former ip address + port
+    // 5. Client establishes connection to new app, thinking this app offers the
+    //    service.
+    // 6. Ensure that the connection is not kept
+
+    // 1.
+    start_apps();
+    // to ensure 3., that the routing info is not received by the client, before the service is stopped
+    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, true)); // Note that the client can still request a service
+
+    // 2.
+    clear_command_record(routingmanager_name_, client_name_); // because ROUTING_INFO is also the registration completion
+    request_service();
+    client_->subscribe_field(offered_field_);
+    ASSERT_TRUE(wait_for_command(routingmanager_name_, client_name_, protocol::id_e::ROUTING_INFO_ID));
+
+    // 3.
+    stop_client(server_name_); // stop server
+
+    // 4. Note: The test requires that the new_app claims the port just freed from the server
+    auto new_app_name = "new_application";
+    create_app(new_app_name);
+    auto new_app = start_client(new_app_name);
+    ASSERT_NE(new_app, nullptr);
+    ASSERT_TRUE(new_app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // 5. trigger client tries to connect
+    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, false));
+
+    // 6. we expect that the established connection is dropped (note that the predicate includes the check that connection has been
+    // established)
+    EXPECT_TRUE(wait_for_connection_drop(client_name_, new_app_name));
+}
+
 TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_router_and_client) {
     start_apps();
     ASSERT_TRUE(subscribe_to_event());

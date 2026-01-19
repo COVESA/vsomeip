@@ -172,6 +172,12 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
+    /**
+     * @see socket_manager::wait_for_connection_drop
+     **/
+    [[nodiscard]] bool wait_for_connection_drop(std::string const& _from, std::string const& _to,
+                                                std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+
     void fail_on_bind(std::string const& _app, bool _fail);
 
     /**

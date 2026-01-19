@@ -356,6 +356,12 @@ void socket_manager::clear_command_record(std::string const& _from, std::string 
     return connection->wait_for_command(_id, _timeout);
 }
 
+[[nodiscard]] bool socket_manager::wait_for_connection_drop(std::string const& _from, std::string const& _to,
+                                                            std::chrono::milliseconds _timeout) {
+    auto connection = get_or_create_connection(_from, _to);
+    return connection->wait_for_connection_drop(_timeout);
+}
+
 void socket_manager::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     auto const lock = std::scoped_lock(mtx_);
     if (_set) {
@@ -405,5 +411,9 @@ void socket_manager::set_custom_command_handler(std::string const& _from, std::s
                                                 socket_role _sender) {
     auto connection = get_or_create_connection(_from, _to);
     connection->set_custom_command_handler(_handler, _sender);
+}
+void socket_manager::close_connection(std::string const& _one, std::string const& _two, socket_role _closing) {
+    auto connection = _closing == socket_role::receiver ? get_or_create_connection(_two, _one) : get_or_create_connection(_one, _two);
+    connection->notify();
 }
 }

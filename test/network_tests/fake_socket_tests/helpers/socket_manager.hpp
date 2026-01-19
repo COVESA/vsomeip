@@ -150,6 +150,15 @@ public:
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
+     * Waits for the _from -> _to connection to be dropped.
+     * If there is no record of this connection it first awaited to have this connection established,
+     * If there is currently a connection it is waited until one socket disconnects,
+     * If there is no longer any connection true is returned.
+     **/
+    [[nodiscard]] bool wait_for_connection_drop(std::string const& _from, std::string const& _to,
+                                                std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+
+    /**
      * Set whether a write on a disconnected socket should result in a silent error, or a broken pipe
      */
     void set_ignore_broken_pipe(std::string const& _app_name, bool _set);
@@ -223,6 +232,11 @@ public:
      */
     void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
                                     socket_role _sender = socket_role::unspecified);
+
+    /**
+     * Invoked by a connected socket upon closing the connection
+     **/
+    void close_connection(std::string const& _one, std::string const& _two, socket_role _closing);
 
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);

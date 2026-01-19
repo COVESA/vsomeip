@@ -88,6 +88,7 @@ void routing_manager_stub::start() {
         init_routing_endpoint();
     }
     if (root_) {
+        root_->set_id(VSOMEIP_ROUTING_CLIENT);
         root_->start();
     }
 
@@ -1408,8 +1409,10 @@ void routing_manager_stub::create_local_receiver() {
     local_receiver_ =
             std::static_pointer_cast<endpoint_manager_base>(host_->get_endpoint_manager())->create_local_server(shared_from_this());
 
-    if (local_receiver_)
+    if (local_receiver_) {
+        local_receiver_->set_id(get_client());
         local_receiver_->start();
+    }
 }
 
 bool routing_manager_stub::send_ping(client_t _client) {

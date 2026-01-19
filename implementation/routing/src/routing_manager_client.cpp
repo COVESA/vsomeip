@@ -2560,6 +2560,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
     init_receiver(its_lock);
     {
         if (receiver_) {
+            receiver_->set_id(_client);
             receiver_->start();
             VSOMEIP_INFO << "rmc::" << __func__ << ": Client 0x" << std::hex << std::setw(4) << std::setfill('0') << get_client() << " ("
                          << host_->get_name() << ") successfully connected to routing  ~> registering..";
