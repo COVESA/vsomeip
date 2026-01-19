@@ -31,9 +31,10 @@ x-common:
     - "SYS_PTRACE"
   environment:
     ENABLE_COVERAGE: ${ENABLE_COVERAGE-False} # empty to inherit from parent environment (Zuul/Ansible)
+    ENABLE_SANITIZERS: ${ENABLE_SANITIZERS-OFF}
+    ENABLE_THREAD_SANITIZER: ${ENABLE_THREAD_SANITIZER-OFF}
     GLOBAL_TIMEOUT: 240 minutes
     IP_SLAVE_2ND: *slave-2nd
-    SANITIZER_TYPE: ${SANITIZER_TYPE-}
     STRESS_LABELS: ${STRESS_LABELS-[]}
     VALGRIND_TYPE: ${VALGRIND_TYPE-}
   networks:

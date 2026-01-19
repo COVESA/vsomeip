@@ -20,6 +20,9 @@ message (STATUS "  Building vSomeip-Lib v${VSOMEIP_VERSION}.${VSOMEIP_HOTFIX_VER
 set (PACKAGE_VERSION ${VSOMEIP_VERSION}) # Used in documentation/doxygen.in
 set (CMAKE_VERBOSE_MAKEFILE off)
 
+option(ENABLE_THREAD_SANITIZER "Enable use of TSAN" OFF)
+option(ENABLE_SANITIZERS "Enable ASAN/LSAN/UBSAN, not compatible with ENABLE_THREAD_SANITIZER" OFF)
+
 if (NOT GTEST_ROOT)
     if (DEFINED ENV{GTEST_ROOT})
         set(GTEST_ROOT $ENV{GTEST_ROOT})
@@ -116,20 +119,12 @@ endif ()
 
 if (NOT MSVC)
     # Sanitizers
-    if (ENABLE_UNDEFINED_SANITIZER)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+    if (ENABLE_SANITIZERS)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize=leak -fsanitize=undefined")
     endif ()
 
     if (ENABLE_THREAD_SANITIZER)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
-    endif ()
-
-    if (ENABLE_LEAK_SANITIZER)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
-    endif ()
-
-    if (ENABLE_ADDRESS_SANITIZER)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     endif ()
 
     if (ENABLE_PROFILING)
