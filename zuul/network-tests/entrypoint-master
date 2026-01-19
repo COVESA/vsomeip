@@ -1,5 +1,8 @@
 #!/bin/bash -xeu
 
+# Enable timestamps for all commands (works with -x flag)
+export PS4='+ [$(date "+%Y-%m-%d %H:%M:%S")] '
+
 source "${BASH_SOURCE[0]%/*}"/shlib/common.shlib
 source "${BASH_SOURCE[0]%/*}"/shlib/results.shlib
 
@@ -24,7 +27,8 @@ mapfile -t stress_times < <(jq -r '.["ctest-stress"] // "1-1" | split("-") | map
 (
 	set -x
 	cmake --preset ci-network-tests \
-		-D "ENABLE_${SANITIZER_TYPE}_SANITIZER=Y" \
+		-D "ENABLE_SANITIZERS=${ENABLE_SANITIZERS}" \
+		-D "ENABLE_THREAD_SANITIZER=${ENABLE_THREAD_SANITIZER}" \
 		-D "TEST_IP_MASTER=$ip_master" \
 		-D "TEST_IP_SLAVE=$ip_slave" \
 		-D "VALGRIND_LOGS_DIR=/home/logs/valgrind/$VALGRIND_TYPE" \
@@ -89,9 +93,9 @@ gen-core-backtraces /home/logs/cores
 if [ "$ENABLE_COVERAGE" != False ]
 then
 	# Temporarily ignore parse errors to unblock ci
-	run-both gcovr --merge-mode-functions=merge-use-line-0 --gcov-executable "$GCOV" --gcov-ignore-parse-errors=suspicious_hits.warn --json /home/logs/coverage/@name@.json --root /home/source /home/build
+	run-both gcovr -j 0 --merge-mode-functions=merge-use-line-0 --gcov-executable "$GCOV" --gcov-ignore-parse-errors=suspicious_hits.warn --json /home/logs/coverage/@name@.json --root /home/source /home/build
 	run-both lcov --base-directory /home/source --capture --directory /home/build --gcov-tool "$GCOV" --output-file /home/logs/coverage/@name@.info
-	gcovr --add-tracefile=/home/logs/coverage/{master,slave}.json --json /home/logs/coverage.json
+	gcovr -j 0 --add-tracefile=/home/logs/coverage/{master,slave}.json --json /home/logs/coverage.json
 	lcov --add-tracefile=/home/logs/coverage/{master,slave}.info --output-file /home/logs/coverage/merged.info
 	lcov --remove /home/logs/coverage/merged.info '/usr/*' --output-file /home/logs/coverage/filtered.info
 	genhtml --output-directory /home/logs/coverage/html --prefix /home/source /home/logs/coverage/filtered.info
