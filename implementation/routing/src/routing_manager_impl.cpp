@@ -3250,9 +3250,20 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             discovery_->start();
 
             // if there are any offered services, start offers watchdog
-            if (get_offered_services().size() > 0) {
+            // TODO: this is awkward as hell - why are we passing services without endpoints to `discovery_`?
+            bool trigger_offer_watchdog = false;
+            for (const auto& its_service : get_offered_services()) {
+                for (const auto& its_instance : its_service.second) {
+                    if (its_instance.second->get_endpoint(true) != nullptr || its_instance.second->get_endpoint(false) != nullptr) {
+                        trigger_offer_watchdog = true;
+                        break;
+                    }
+                }
+            }
+            if (trigger_offer_watchdog) {
                 discovery_->start_offer_watchdog();
             }
+
             // Trigger initial offer phase for relevant services
             VSOMEIP_INFO << "rmi::" << __func__ << ": Offer services.";
             for (const auto& its_service : get_offered_services()) {
