@@ -486,7 +486,7 @@ void local_endpoint::flush_queue() {
         }
 
         if (is_sending_ || !send_queue_.empty() || send_buffer_size > 0) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
+            VSOMEIP_WARNING << "le::" << __func__ << ": waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
                             << " and send_buffer_size: " << send_buffer_size;
             lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
@@ -496,7 +496,7 @@ void local_endpoint::flush_queue() {
             break;
         }
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": max retries reached to send! will drop remaining data on close, " << status_unlock()
+            VSOMEIP_ERROR << "le::" << __func__ << ": max retries reached to send! will drop remaining data on close, " << status_unlock()
                           << " and send_buffer_size: " << send_buffer_size;
             ;
             break;
