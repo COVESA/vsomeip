@@ -34,11 +34,6 @@ set(executable_targets
 targets_add_default_dependencies("${executable_targets}")
 targets_link_default_libraries("${executable_targets}")
 
-# Skip valgrind
-if (DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
-    set(TEST_ENTRYPOINT ${TEST_ENTRYPOINT} --trace-children-skip=*/application_test*,*/routingmanagerd)
-endif()
-
 # Add custom test command.
 add_custom_test(
     NAME application_test
