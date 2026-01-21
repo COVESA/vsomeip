@@ -3,7 +3,11 @@
     "logging":
     {
         "level":"trace",
-        "console":"true"
+        "console":"true",
+        "version" :
+        {
+            "interval": 0
+        }
     },
     "tracing" :
     {
@@ -48,6 +52,10 @@
                 }
             ]
         }
+    },
+    "service-discovery" :
+    {
+        "enable": "false"
     }
 }
 

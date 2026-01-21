@@ -54,6 +54,11 @@ public:
     void stop();
 
     /**
+     * Whether application is a router, e.g., is routingmanagerd
+     */
+    bool is_router() const;
+
+    /**
      * Forwards the request to the vsomeip::application::offer_service()
      */
     void offer(service_instance _si);
