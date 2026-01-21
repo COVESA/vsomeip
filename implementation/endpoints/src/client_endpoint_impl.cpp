@@ -113,7 +113,7 @@ void client_endpoint_impl<Protocol>::prepare_stop(const boardnet_endpoint::prepa
 template<typename Protocol>
 void client_endpoint_impl<Protocol>::stop(bool _due_to_error) {
     {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
         endpoint_impl<Protocol>::sending_blocked_ = true;
         // delete unsent messages
         queue_.clear();
@@ -164,7 +164,7 @@ bool client_endpoint_impl<Protocol>::send_error(const std::shared_ptr<endpoint_d
 template<typename Protocol>
 bool client_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) {
 
-    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
     bool must_depart(false);
     auto its_now(std::chrono::steady_clock::now());
 
@@ -332,7 +332,7 @@ bool client_endpoint_impl<Protocol>::flush() {
     bool has_queued(true);
     bool is_current_train(true);
 
-    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
 
     std::shared_ptr<train> its_train(train_);
     if (!dispatched_trains_.empty()) {
@@ -494,7 +494,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
     (void)_bytes;
 
     if (!_error) {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
         if (queue_.size() > 0) {
             queue_size_ -= queue_.front().first->size();
             queue_.pop_front();
@@ -526,7 +526,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
 
         bool stopping(false);
         {
-            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
             stopping = endpoint_impl<Protocol>::sending_blocked_;
             if (stopping) {
                 queue_.clear();
@@ -566,7 +566,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         }
 
         if (_error == boost::asio::error::no_permission) {
-            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
         }
@@ -604,7 +604,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         print_status();
     }
 
-    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
     was_not_connected_ = true;
     is_sending_ = false;
 }
@@ -831,7 +831,7 @@ void client_endpoint_impl<Protocol>::queue_train(const std::shared_ptr<train>& _
 template<typename Protocol>
 size_t client_endpoint_impl<Protocol>::get_queue_size() const {
 
-    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
     return queue_size_;
 }
 
