@@ -99,7 +99,19 @@
             "output": {
                 "maxFailedTestOutputSize": 1e9,
                 "maxPassedTestOutputSize": 1e9,
-                "outputOnFailure": true
+                "outputOnFailure": true,
+                "verbosity": "default"
+            },
+            "execution": {
+                "repeat": {
+                    "mode": "until-fail",
+                    "count": 1
+                }
+            },
+            "filter": {
+                "include": {
+                    "name": "^"
+                }
             }
         }
     ]
