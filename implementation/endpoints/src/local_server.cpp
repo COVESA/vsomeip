@@ -220,8 +220,6 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                     }
                 }
             });
-            // Carful: A call to start might end up calling the error handler causing a lock inversion
-            lock.unlock();
             ep->start();
         } else {
             VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << std::hex << std::setfill('0') << std::setw(4)
