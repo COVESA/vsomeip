@@ -257,7 +257,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
         return;
     }
 
-    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -387,7 +387,7 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
 
     boost::asio::ip::address its_address;
     {
-        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -457,7 +457,7 @@ void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _ins
     boost::asio::ip::address its_address;
 
     {
-        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -493,7 +493,7 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
     std::map<boost::asio::ip::address, std::vector<std::shared_ptr<message_impl>>> its_stopsubscribes;
 
     {
-        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
         for (auto its_service : subscribed_) {
             for (auto its_instance : its_service.second) {
                 for (auto& its_eventgroup : its_instance.second) {
@@ -532,7 +532,7 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
 
 void service_discovery_impl::remove_subscriptions(service_t _service, instance_t _instance) {
 
-    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         found_service->second.erase(_instance);
@@ -997,7 +997,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
                                         bool _is_multicast) {
     std::scoped_lock its_lock(check_ttl_mutex_);
     std::scoped_lock its_session_lock(sessions_received_mutex_);
-    std::lock_guard<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);
 
     if (is_suspended_) {
         return;
@@ -1552,7 +1552,7 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
         get_subscription_address(its_dummy, _endpoint, its_address);
 
     {
-        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -2210,7 +2210,7 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
                                                                  uint8_t _counter, const std::set<client_t>& _clients) {
     (void)_counter;
 
-    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2240,7 +2240,7 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(service_t _servi
     (void)_ttl;
     (void)_counter;
 
-    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
