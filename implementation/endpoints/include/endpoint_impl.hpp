@@ -36,7 +36,6 @@ public:
 
     void add_default_target(service_t, const std::string&, uint16_t) override;
     void remove_default_target(service_t) override;
-    void remove_stop_handler(service_t) override;
 
     virtual std::uint16_t get_local_port() const = 0;
     virtual bool is_reliable() const = 0;
