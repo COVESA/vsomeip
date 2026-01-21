@@ -44,6 +44,10 @@ void app::stop() {
     app_ = nullptr;
 }
 
+bool app::is_router() const {
+    return app_ && app_->is_routing();
+}
+
 void app::offer(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _si;
     app_->offer_service(_si.service_, _si.instance_);

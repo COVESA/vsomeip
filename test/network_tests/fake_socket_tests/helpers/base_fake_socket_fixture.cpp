@@ -19,8 +19,17 @@ base_fake_socket_fixture::base_fake_socket_fixture() {
 }
 
 base_fake_socket_fixture::~base_fake_socket_fixture() {
+    // stop normal applications first, let them deregister
     for (auto& name_to_client : name_to_client_) {
-        name_to_client.second->stop();
+        if (!name_to_client.second->is_router()) {
+            name_to_client.second->stop();
+        }
+    }
+    // stop routing applications
+    for (auto& name_to_client : name_to_client_) {
+        if (name_to_client.second->is_router()) {
+            name_to_client.second->stop();
+        }
     }
     name_to_client_.clear();
     factory_->set_manager(nullptr);
