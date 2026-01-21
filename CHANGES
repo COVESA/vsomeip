@@ -1,5 +1,100 @@
 Changes
 =======
+v3.6.3
+- global
+  - rework shutdown to simplify thread detach mechanism
+  - avoid is-allowed call as sender
+  - fix lock smells
+  - remove remaining DLT uses
+  - fix Android compilation issue
+  - add endpoint status logs on routing manager client
+  - fix broken android build when ANDROID_CI_BUILD is not set
+  - reuse clientids asap
+  - remove libboost_thread as a dependency
+  - removing CI ANDROID ifdefs
+  - decrease log level in local_server
+  - fix application version logging
+  - logging when registration/Assignment times out
+  - add libboost_system for Android build
+  - do not print network state if files are empty
+  - enable udp abstraction
+  - copyright header updated
+  - watchdog offers
+  - soft revert of rework shutdown to simplify thread detach mechanism
+  - fix include of internal.hpp on android
+  - adjust valgrind-memcheck instance
+  - try to send data before stop application for IPC
+  - update nodes for network-tests
+  - drop dead code blocks
+  - merge asan/lsan/ubsan jobs
+  - fix stop offer watchdog
+
+- endpoints
+  - fix presence of TCP FINs
+  - make libsystemd dependency optional
+  - remove redundant set_connected and set_established
+  - drop message if it is over VSOMEIP_MAX_UDP_MESSAGE_SIZE
+  - fix send_queued error handling
+  - downgrade error log
+  - trim timer logs
+  - abstract uds sockets
+  - remove wait_connecting_timer
+  - wait for sent data on `stop`
+  - endpoint_host -> boardnet_endpoint_host
+  - introduce the boardnet_endpoint
+  - check client_id when accepting a connection
+
+- routing
+  - log event caching
+  - fix routing race
+  - unified log message structure
+  - fix availability inconsistency
+  - introduce routing_client_state_machine
+  - minor serviceinfo cleanup
+  - unified log message structure
+  - fix double stop race condition
+  - improves readability with structured binding
+  - fix debounce race
+  - removes deprecated config_id command
+  - fix debounce_filter race
+  - flush SOME/IP-SD at suspend
+
+- runtime
+  - fix racy properties_
+  - sayonara shutdown thread
+
+- tests
+  - optimize all external_local tests
+  - add reuse_client_id_tests
+  - remove tags from registration check test
+  - fix network_tests/someip_tp_tests
+  - enable dropping and injection of vsomeip commands
+  - fix reproduction_allow_reconnects_on_first test
+  - make reuse_clientID_test more robust
+  - fix malicious_data_tests
+  - fake socket tests timeouts
+  - attribute_recorder cleanup
+  - fix client_id test
+  - fix initial_tests signal logic
+  - fake-socket-tests minor updates
+  - fix deadlock on socket_manager
+  - speed up magic cookie test
+  - speed-up local huge_payload test
+  - introduce sequence tests for fake_sockets
+  - generate coredump on timeout
+  - fix memory_test
+  - remove sleeps
+  - add routing info conflict tests
+  - remove files to run network tests as bat
+  - fix gcc unit tests coverage job
+  - minor test speedups
+  - remove "manual" execution, add setup script
+  - removes DLT TSAN suppression, since DLT is not used for tests
+  - updates delay message processing helper function
+
+- application
+  - fix missing executor guard, again
+  - fix availability_handlers_ race
 
 v3.6.2
 - global
