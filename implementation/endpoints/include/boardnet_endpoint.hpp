@@ -19,11 +19,7 @@ class endpoint_definition;
 
 class boardnet_endpoint {
 public:
-    using prepare_stop_handler_t = std::function<void(const std::shared_ptr<boardnet_endpoint>&)>;
-
     virtual ~boardnet_endpoint() = default;
-
-    virtual void prepare_stop(const prepare_stop_handler_t& _handler, service_t _service = ANY_SERVICE) = 0;
 
     virtual void start() = 0;
     /**
@@ -41,7 +37,6 @@ public:
 
     virtual void add_default_target(service_t _service, const std::string& _address, uint16_t _port) = 0;
     virtual void remove_default_target(service_t _service) = 0;
-    virtual void remove_stop_handler(service_t _service) = 0;
 
     virtual bool is_established() const = 0;
     virtual bool is_established_or_connected() const = 0;

@@ -43,9 +43,6 @@ template<typename Protocol>
 void vsomeip_v3::endpoint_impl<Protocol>::remove_default_target(service_t) { }
 
 template<typename Protocol>
-void vsomeip_v3::endpoint_impl<Protocol>::remove_stop_handler(service_t) { }
-
-template<typename Protocol>
 vsomeip_v3::instance_t vsomeip_v3::endpoint_impl<Protocol>::get_instance(service_t /*_service*/) {
     return 0xFFFF;
 }
@@ -56,10 +53,6 @@ vsomeip_v3::server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shar
                                                                  boost::asio::io_context& _io,
                                                                  const std::shared_ptr<configuration>& _configuration) :
     endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration) { }
-
-template<typename Protocol>
-void vsomeip_v3::server_endpoint_impl<Protocol>::prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& /*_handler*/,
-                                                              service_t /*_service*/) { }
 
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::stop(bool /*_due_to_error*/) { }
@@ -175,9 +168,6 @@ void vsomeip_v3::server_endpoint_impl<Protocol>::send_cbk(const endpoint_type /*
 
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::flush_cbk(endpoint_type /*_key*/, const boost::system::error_code& /*_error_code*/) { }
-
-template<typename Protocol>
-void vsomeip_v3::server_endpoint_impl<Protocol>::remove_stop_handler(service_t /*_service*/) { }
 
 template<typename Protocol>
 size_t vsomeip_v3::server_endpoint_impl<Protocol>::get_queue_size() const {

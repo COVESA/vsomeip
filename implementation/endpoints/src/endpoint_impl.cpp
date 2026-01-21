@@ -64,9 +64,6 @@ template<typename Protocol>
 void endpoint_impl<Protocol>::remove_default_target(service_t) { }
 
 template<typename Protocol>
-void endpoint_impl<Protocol>::remove_stop_handler(service_t) { }
-
-template<typename Protocol>
 instance_t endpoint_impl<Protocol>::get_instance(service_t _service) {
 
     instance_t its_instance(0xFFFF);

@@ -127,6 +127,8 @@ void tcp_server_endpoint_impl::start() {
 void tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
     VSOMEIP_INFO << instance_name_ << __func__;
 
+    connections_t conns;
+
     {
         std::scoped_lock first_lock(acceptor_mutex_);
 
@@ -141,8 +143,12 @@ void tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
         for (const auto& [_, c] : connections_) {
             c->stop();
         }
+
+        conns = connections_;
         connections_.clear();
     }
+
+    conns.clear(); // release outside of held mutexes; `tsei::~connection` is non-trivial
 
     VSOMEIP_INFO << instance_name_ << __func__ << ": done";
 }
@@ -187,32 +193,6 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
             VSOMEIP_INFO << instance_name_ << __func__ << ": didn't find connection: " << _it->first.address().to_string() << ":"
                          << std::dec << static_cast<std::uint16_t>(_it->first.port()) << " dropping outstanding messages (" << std::dec
                          << _it->second.queue_.size() << ").";
-
-            if (_it->second.queue_.size()) {
-                std::set<service_t> its_services;
-
-                // check all outstanding messages of this connection
-                // whether stop handlers need to be called
-                for (const auto& its_q : _it->second.queue_) {
-                    auto its_buffer(its_q.first);
-                    if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
-                        service_t its_service = bithelper::read_uint16_be(&(*its_buffer)[VSOMEIP_SERVICE_POS_MIN]);
-                        its_services.insert(its_service);
-                    }
-                }
-
-                for (auto its_service : its_services) {
-                    auto found_cbk = prepare_stop_handlers_.find(its_service);
-                    if (found_cbk != prepare_stop_handlers_.end()) {
-                        VSOMEIP_INFO << instance_name_ << __func__ << ": calling prepare stop handler "
-                                     << "for service: 0x" << std::hex << std::setfill('0') << std::setw(4) << its_service;
-                        auto handler = found_cbk->second;
-                        auto ptr = this->shared_from_this();
-                        boost::asio::post(io_, [ptr, handler]() { handler(ptr); });
-                        prepare_stop_handlers_.erase(found_cbk);
-                    }
-                }
-            }
 
             // Drop outstanding messages.
             _it->second.queue_.clear();

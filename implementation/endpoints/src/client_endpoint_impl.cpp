@@ -104,13 +104,6 @@ void client_endpoint_impl<Protocol>::set_connected(bool _connected) {
 }
 
 template<typename Protocol>
-void client_endpoint_impl<Protocol>::prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service) {
-
-    (void)_handler;
-    (void)_service;
-}
-
-template<typename Protocol>
 void client_endpoint_impl<Protocol>::stop(bool _due_to_error) {
     {
         std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
