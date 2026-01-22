@@ -67,7 +67,7 @@ void debounce_test_service::start_test() {
     auto its_payload = vsomeip::runtime::get()->create_payload();
     auto wakeup_time = std::chrono::steady_clock::now();
 
-    for (int i = 0; i <= 1000; i++) {
+    while (is_running_.load()) {
         its_payload->set_data({0x00, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07});
         app_->notify(DEBOUNCE_SERVICE, DEBOUNCE_INSTANCE, DEBOUNCE_EVENT, its_payload);
         wakeup_time += std::chrono::milliseconds(5);

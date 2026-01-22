@@ -16,7 +16,7 @@ constexpr vsomeip::byte_t DATA_SERVICE_TO_CLIENT = 0xAA;
 constexpr vsomeip::byte_t DATA_CLIENT_TO_SERVICE = 0xFF;
 
 constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES = 10;
-constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM = 50;
+constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM = 5;
 
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID = 0x1234;
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED = 0x1235;

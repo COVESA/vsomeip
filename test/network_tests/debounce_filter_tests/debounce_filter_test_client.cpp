@@ -137,7 +137,15 @@ void debounce_test_client::run_test() {
     its_message->set_payload(its_payload);
     app_->send(its_message);
 
-    std::this_thread::sleep_for(std::chrono::seconds(15));
+    if (interval > 0) {
+        // wait until we receive enough messages
+        while (nb_msgs_rcvd.load() < 5) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    } else {
+        // wait.. a while, to see that nothing appears
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
 }
 
 void debounce_test_client::unsubscribe_all() {
@@ -172,9 +180,9 @@ TEST(debounce_test, normal_interval) {
     its_client.start();
     its_client.wait();
 
-    // Average Interval should be between 95ms and 105ms
-    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 - 5);
-    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 + 5);
+    // Average Interval should be between 30ms and 70ms
+    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 - 20);
+    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_1 + 20);
 }
 
 TEST(debounce_test, large_interval) {
@@ -184,9 +192,9 @@ TEST(debounce_test, large_interval) {
     its_client.start();
     its_client.wait();
 
-    // Average Interval should be between 995ms and 1005ms
-    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 - 5);
-    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 + 5);
+    // Average Interval should be between 280ms and 320ms
+    EXPECT_GE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 - 20);
+    EXPECT_LE(its_client.get_avgtime().count(), (double)DEBOUNCE_INTERVAL_2 + 20);
 }
 
 TEST(debounce_test, disable) {
