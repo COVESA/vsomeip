@@ -58,6 +58,12 @@ public:
     [[nodiscard]] bool set_ignore_inner_close(bool _from, bool _to);
 
     /**
+     * toggles the fake_tcp_socket_handle to (not) report an error if there is no
+     * connected socket when async_receive is invoked.
+     **/
+    void set_ignore_nothing_to_read_from(socket_role _role, bool _ignore);
+
+    /**
      * sets the handler on each socket (can be set ahead of time), see socket_manager::set_custom_command_handler()
      **/
     void set_custom_command_handler(vsomeip_command_handler _handler, socket_role _sender);
@@ -97,6 +103,7 @@ private:
     struct connection_options {
         bool delay_message_processing_{false};
         bool ignore_inner_close_{false};
+        bool ignore_nothing_to_read_from_{false};
         std::optional<std::chrono::milliseconds> block_on_close_time_{};
         vsomeip_command_handler handler_{};
     };

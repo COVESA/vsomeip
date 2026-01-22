@@ -72,6 +72,17 @@ bool app_connection::delay_message_processing(bool _delay, socket_role _role) {
     return apply_options(std::move(lock));
 }
 
+void app_connection::set_ignore_nothing_to_read_from(socket_role _role, bool _ignore) {
+    std::unique_lock lock{mtx_};
+    if (_role == socket_role::unspecified || _role == socket_role::sender) {
+        from_options_.ignore_nothing_to_read_from_ = _ignore;
+    }
+    if (_role == socket_role::unspecified || _role == socket_role::receiver) {
+        to_options_.ignore_nothing_to_read_from_ = _ignore;
+    }
+    apply_options(std::move(lock));
+}
+
 void app_connection::set_custom_command_handler(vsomeip_command_handler _handler, socket_role _sender) {
     std::unique_lock lock{mtx_};
     if (_sender == socket_role::unspecified || _sender == socket_role::sender) {
@@ -174,6 +185,7 @@ bool app_connection::apply_options(std::unique_lock<std::mutex> _lock) {
             if (opt.handler_) {
                 ptr->set_vsomeip_command_handler(opt.handler_);
             }
+            ptr->ignore_nothing_to_read_from(opt.ignore_nothing_to_read_from_);
             return true;
         }
         LOCAL_LOG << __func__ << ": Failed, no socket to apply options to on: " << name_;
