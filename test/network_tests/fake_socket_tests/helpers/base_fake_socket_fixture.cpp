@@ -119,6 +119,11 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     return socket_manager_->set_ignore_inner_close(_from, _ignore_in_from, _to, _ignore_in_to);
 }
 
+void base_fake_socket_fixture::set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role,
+                                                               bool _ignore) {
+    return socket_manager_->set_ignore_nothing_to_read_from(_from, _to, _role, _ignore);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::block_on_close_for(std::string const& _from,
                                                                 std::optional<std::chrono::milliseconds> _from_block_time,
                                                                 std::string const& _to,

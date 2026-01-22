@@ -151,6 +151,11 @@ struct base_fake_socket_fixture : ::testing::Test {
                                                 socket_role _role = socket_role::receiver);
 
     /**
+     * @see socket_manager::set_ignore_nothing_to_read_from()
+     **/
+    void set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore);
+
+    /**
      * @see socket_manager::set_ignore_inner_close()
      **/
     [[nodiscard]] bool set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to, bool _ignore_in_to);

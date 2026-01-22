@@ -128,6 +128,13 @@ public:
     [[nodiscard]] bool set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to, bool _ignore_in_to);
 
     /**
+     * Ensures that a async_receive will not fail, if the other socket disconnected.
+     * This is helpful for simulating suspend sequences.
+     * Note: This option is permanent to the connection and needs to be actively reset.
+     **/
+    void set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore);
+
+    /**
      * searches for the _from -> _to connected sockets and demands from _from to block execution
      * for _from_block_time when close is invoked, equivalent for _to with _to_block_time.
      * @see fake_tcp_socket_handle::block_on_close_for() for further details.
