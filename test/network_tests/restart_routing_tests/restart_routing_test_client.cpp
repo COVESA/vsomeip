@@ -145,10 +145,9 @@ void routing_restart_test_client::run() {
         its_sent_requests++;
         VSOMEIP_INFO << "Sent request " << its_sent_requests << " with session id " << std::hex << std::setfill('0') << std::setw(4)
                      << request->get_session();
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 
-    if (std::future_status::ready == all_responses_received_.get_future().wait_for(std::chrono::milliseconds(100))) {
+    if (std::future_status::ready == all_responses_received_.get_future().wait_for(std::chrono::milliseconds(1000))) {
         EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS, received_responses_);
         VSOMEIP_WARNING << "Received all answers";
     } else {
