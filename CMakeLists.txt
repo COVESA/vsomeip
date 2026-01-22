@@ -614,6 +614,8 @@ add_subdirectory( examples EXCLUDE_FROM_ALL )
 # add test directory
 enable_testing()
 
+option(WITH_TEST_DISCOVERY "Enables ctest regex selection of single test cases" OFF)
+
 add_subdirectory( test EXCLUDE_FROM_ALL )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
