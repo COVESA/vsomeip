@@ -411,8 +411,12 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
     send_first_message();
     ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 
-    // simulating a suspend of a client:
+    // simulating a suspend of a client (the client should not react to any action of the server)
+    ASSERT_TRUE(set_ignore_inner_close(client_name_, true, server_name_, false));
+    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, client_name_, false));
     set_ignore_connections(client_name_, true);
+    set_ignore_nothing_to_read_from(server_name_, client_name_, socket_role::receiver, true);
+
     ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
     std::ignore = disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::timed_out);
 

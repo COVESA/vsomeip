@@ -339,6 +339,11 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
     return connection->set_ignore_inner_close(_ignore_in_from, _ignore_in_to);
 }
 
+void socket_manager::set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore) {
+    auto connection = get_or_create_connection(_from, _to);
+    connection->set_ignore_nothing_to_read_from(_role, _ignore);
+}
+
 [[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
                                                       std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
     auto connection = get_or_create_connection(_from, _to);
