@@ -333,8 +333,6 @@ private:
     boost::asio::steady_timer subscription_expiration_timer_;
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
-    uint32_t max_message_size_;
-
     std::chrono::milliseconds initial_delay_;
     std::chrono::milliseconds offer_debounce_time_;
     std::chrono::milliseconds repetitions_base_delay_;
