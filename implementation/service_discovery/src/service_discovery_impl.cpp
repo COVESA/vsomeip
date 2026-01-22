@@ -49,10 +49,10 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     serializer_(std::make_shared<serializer>(configuration_->get_buffer_shrink_threshold())),
     deserializer_(std::make_shared<deserializer>(configuration_->get_buffer_shrink_threshold())), ttl_timer_(_host->get_io()),
     ttl_timer_runtime_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 2), ttl_(VSOMEIP_SD_DEFAULT_TTL),
-    subscription_expiration_timer_(_host->get_io()), max_message_size_(VSOMEIP_MAX_UDP_SD_PAYLOAD), initial_delay_(0),
-    offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME), repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY),
-    repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX), cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY),
-    offer_debounce_timer_(_host->get_io()), find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
+    subscription_expiration_timer_(_host->get_io()), initial_delay_(0), offer_debounce_time_(VSOMEIP_SD_DEFAULT_OFFER_DEBOUNCE_TIME),
+    repetitions_base_delay_(VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY), repetitions_max_(VSOMEIP_SD_DEFAULT_REPETITIONS_MAX),
+    cyclic_offer_delay_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY), offer_debounce_timer_(_host->get_io()),
+    find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
     remaining_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(_host->get_io()), main_phase_timer_(_host->get_io()),
     is_suspended_(false), is_diagnosis_(false), last_msg_received_timer_(_host->get_io()),
@@ -81,7 +81,6 @@ void service_discovery_impl::init() {
 
     port_ = configuration_->get_sd_port();
     reliable_ = (configuration_->get_sd_protocol() == "tcp");
-    max_message_size_ = (reliable_ ? VSOMEIP_MAX_TCP_SD_PAYLOAD : VSOMEIP_MAX_UDP_SD_PAYLOAD);
 
     ttl_ = configuration_->get_sd_ttl();
 
@@ -794,7 +793,7 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
             for (const auto its_client : _subscription->get_clients()) {
                 if (_subscription->get_state(its_client) == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
                     its_other = std::make_shared<eventgroupentry_impl>();
-                    its_other->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+                    its_other->set_type(entry_type_e::STOP_SUBSCRIBE_EVENTGROUP);
                     its_other->set_service(_service);
                     its_other->set_instance(_instance);
                     its_other->set_eventgroup(_eventgroup);
@@ -844,7 +843,7 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
                 if (_subscription->get_state(its_client) == subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED) {
                     if (!its_other) {
                         its_other = std::make_shared<eventgroupentry_impl>();
-                        its_other->set_type(entry_type_e::SUBSCRIBE_EVENTGROUP);
+                        its_other->set_type(entry_type_e::STOP_SUBSCRIBE_EVENTGROUP);
                         its_other->set_service(_service);
                         its_other->set_instance(_instance);
                         its_other->set_eventgroup(_eventgroup);
