@@ -886,7 +886,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
                 is_sent = send_local(its_target, get_client(), _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
                 if (is_sent) {
                     trace::header its_header;
-                    if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
+                    if (its_header.prepare(its_target, true, _instance))
                         tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
                 }
 
@@ -924,7 +924,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
             is_sent = send_local(its_target, its_client, _data, _size, _instance, _reliable, its_command, _status_check);
             if (is_sent && !utility::is_notification(VSOMEIP_MESSAGE_TYPE_POS) && !message_to_stub) {
                 trace::header its_header;
-                if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
+                if (its_header.prepare(its_target, true, _instance))
                     tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
             }
         }

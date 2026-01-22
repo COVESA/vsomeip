@@ -70,8 +70,6 @@ protected:
 
     endpoint_type local_;
 
-    std::mutex error_handler_mutex_;
-
     configuration::endpoint_queue_limit_t queue_limit_;
 
     std::shared_ptr<configuration> configuration_;
