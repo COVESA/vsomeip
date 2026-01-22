@@ -54,8 +54,7 @@ void debounce_test_client::run() {
 
     {
         std::unique_lock<std::mutex> its_lock(run_mutex_);
-        auto availability_timeout = interval > 0 ? std::chrono::milliseconds(interval * 2) : std::chrono::seconds(20);
-        if (!run_condition_.wait_for(its_lock, availability_timeout, [this] { return is_available_; })) {
+        if (!run_condition_.wait_for(its_lock, std::chrono::seconds(20), [this] { return is_available_; })) {
             GTEST_FATAL_FAILURE_("Debounce service did not become available before timeout.");
             stop();
             return;
@@ -146,10 +145,7 @@ void debounce_test_client::run_test() {
     app_->send(its_message);
 
     std::unique_lock<std::mutex> lock(run_mutex_);
-    auto expected_messages = static_cast<std::size_t>(payloads__.size());
-    auto wait_budget =
-            interval > 0 ? std::chrono::milliseconds(interval * static_cast<int64_t>(expected_messages)) : std::chrono::seconds(30);
-    if (!run_condition_.wait_for(lock, wait_budget, [&] { return messagesReceived_; })) {
+    if (!run_condition_.wait_for(lock, std::chrono::seconds(30), [&] { return messagesReceived_; })) {
         VSOMEIP_ERROR << "debounce_test_client::on_message: Timeout waiting for messages";
     }
 }
@@ -178,8 +174,8 @@ size_t debounce_test_client::getIndex() {
 }
 
 TEST(debounce_timeout_test, callback) {
-    // Interval time of 2 seconds
-    debounce_test_client its_client(2000);
+    // Interval time of 200 milliseconds
+    debounce_test_client its_client(200);
     ASSERT_TRUE(its_client.init());
     VSOMEIP_INFO << "Debounce Client successfully initialized!";
     its_client.start();

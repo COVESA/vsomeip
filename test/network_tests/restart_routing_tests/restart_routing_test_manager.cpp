@@ -245,8 +245,6 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
     process_manager service{service_executor, custom_env("restart_routing_test_without_id.json", "restart_routing_test_service")};
     service.run();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
     process_manager host{host_executor, custom_env("restart_routing_test_without_id.json", "routingmanagerd")};
     host.run();
     host.wait_for_start();

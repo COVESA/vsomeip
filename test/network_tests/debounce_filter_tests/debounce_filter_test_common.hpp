@@ -17,8 +17,8 @@ const vsomeip::eventgroup_t DEBOUNCE_EVENTGROUP = 0x0005;
 const vsomeip::major_version_t DEBOUNCE_MAJOR = 0x01;
 const vsomeip::minor_version_t DEBOUNCE_MINOR = 0x01;
 
-const int64_t DEBOUNCE_INTERVAL_1 = 100;
-const int64_t DEBOUNCE_INTERVAL_2 = 1000;
+const int64_t DEBOUNCE_INTERVAL_1 = 50;
+const int64_t DEBOUNCE_INTERVAL_2 = 300;
 const int64_t DEBOUNCE_INTERVAL_3 = -1;
 
 #endif // DEBOUNCE_TEST_COMMON_HPP_
