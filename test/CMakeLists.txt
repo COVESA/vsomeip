@@ -6,7 +6,14 @@
 ##############################################################################
 # Test section
 ##############################################################################
-set(CMAKE_CXX_STANDARD 20)
+if(NOT DEFINED VSOMEIP_CXX_STANDARD)
+    set (VSOMEIP_CXX_STANDARD 20)
+endif()
+if (VSOMEIP_CXX_STANDARD LESS 20)
+    message(STATUS "C++ standard is less than 20, force to use C++20 for tests")
+    set (VSOMEIP_CXX_STANDARD 20)
+endif()
+set(CMAKE_CXX_STANDARD ${VSOMEIP_CXX_STANDARD})
 
 ##############################################################################
 # google benchmark
