@@ -29,4 +29,9 @@ add_executable(${PROJECT_NAME}
 targets_link_default_libraries("${PROJECT_NAME}")
 targets_add_default_dependencies("${PROJECT_NAME}")
 
-add_custom_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
+if (WITH_TEST_DISCOVERY)
+    include(GoogleTest)
+    gtest_add_tests(TARGET ${PROJECT_NAME} TEST_LIST tests)
+else()
+    add_custom_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
+endif()
