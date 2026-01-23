@@ -19,10 +19,6 @@ void routing_restart_test_client::stop() {
 
     shutdown_service();
 
-    // magic sleep to give time for the last message to be sent
-    // TODO: FIXME! REMOVE THIS!
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
     app_->clear_all_handler();
     app_->stop();
     if (starter_.joinable()) {
