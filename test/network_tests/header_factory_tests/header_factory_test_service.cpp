@@ -105,10 +105,6 @@ void header_factory_test_service::run() {
     }
     condition_.wait(its_lock, [this] { return blocked_; });
 
-    // magic sleep to give time for the last message to be sent
-    // TODO: FIXME! REMOVE THIS!
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
     VSOMEIP_INFO << "Stopping...";
 
     app_->stop();
