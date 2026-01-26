@@ -1250,17 +1250,13 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                  its_major](const bool _subscription_accepted) {
                                     std::uint32_t its_count(0);
                                     if (_subscription_accepted) {
-                                        std::set<event_t> its_already_subscribed_events;
-                                        bool inserted =
-                                                insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter,
-                                                                    VSOMEIP_ROUTING_CLIENT, &its_already_subscribed_events);
+                                        insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter,
+                                                            VSOMEIP_ROUTING_CLIENT);
                                         // NOTE: order matters, send ACK _after_ inserting the subscription
                                         send_subscribe_ack(its_client, its_service, its_instance, its_eventgroup, its_event,
                                                            its_pending_id);
-                                        if (inserted) {
-                                            notify_remote_initially(its_service, its_instance, its_eventgroup,
-                                                                    its_already_subscribed_events);
-                                        }
+                                        notify_remote_initially(its_service, its_instance, its_eventgroup);
+
                                         its_count = get_remote_subscriber_count(its_service, its_instance, its_eventgroup, true);
                                     } else {
                                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event,
@@ -1320,32 +1316,29 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
 
                     auto its_info = find_service(its_service, its_instance);
                     if (its_info) {
-                        host_->on_subscription(its_service, its_instance, its_eventgroup, its_client, _sec_client, its_env, true,
-                                               [this, self, its_client, its_filter, its_pending_id, its_env, its_service, its_instance,
-                                                its_eventgroup, its_event, its_major](const bool _subscription_accepted) {
-                                                   if (!_subscription_accepted) {
-                                                       send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event,
-                                                                           PENDING_SUBSCRIPTION_ID);
-                                                   } else {
+                        host_->on_subscription(
+                                its_service, its_instance, its_eventgroup, its_client, _sec_client, its_env, true,
+                                [this, self, its_client, its_filter, its_pending_id, its_env, its_service, its_instance, its_eventgroup,
+                                 its_event, its_major](const bool _subscription_accepted) {
+                                    if (!_subscription_accepted) {
+                                        send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event,
+                                                            PENDING_SUBSCRIPTION_ID);
+                                    } else {
 
-                                                       std::set<event_t> its_already_subscribed_events;
-                                                       insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter,
-                                                                           its_client, &its_already_subscribed_events);
-                                                       // NOTE: order matters, send ACK _after_ inserting the subscription
-                                                       send_subscribe_ack(its_client, its_service, its_instance, its_eventgroup, its_event,
-                                                                          PENDING_SUBSCRIPTION_ID);
-                                                       notify_one_current_value(its_client, its_service, its_instance, its_eventgroup,
-                                                                                its_event, its_already_subscribed_events);
-                                                   }
+                                        insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter, its_client);
+                                        // NOTE: order matters, send ACK _after_ inserting the subscription
+                                        send_subscribe_ack(its_client, its_service, its_instance, its_eventgroup, its_event,
+                                                           PENDING_SUBSCRIPTION_ID);
+                                        notify_one_current_value(its_client, its_service, its_instance, its_eventgroup, its_event);
+                                    }
 
-                                                   VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4)
-                                                                << its_client << "): [" << std::setw(4) << its_service << "."
-                                                                << std::setw(4) << its_instance << "." << std::setw(4) << its_eventgroup
-                                                                << ":" << std::setw(4) << its_event << ":" << std::dec
-                                                                << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
-                                                                << (its_pending_id != PENDING_SUBSCRIPTION_ID)
-                                                                << (_subscription_accepted ? " accepted" : "not accepted");
-                                               });
+                                    VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): ["
+                                                 << std::setw(4) << its_service << "." << std::setw(4) << its_instance << "."
+                                                 << std::setw(4) << its_eventgroup << ":" << std::setw(4) << its_event << ":" << std::dec
+                                                 << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
+                                                 << (its_pending_id != PENDING_SUBSCRIPTION_ID)
+                                                 << (_subscription_accepted ? " accepted" : "not accepted");
+                                });
                     } else {
                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event, PENDING_SUBSCRIPTION_ID);
                     }
@@ -2172,13 +2165,12 @@ void routing_manager_client::init_receiver([[maybe_unused]] std::unique_lock<std
     }
 }
 
-void routing_manager_client::notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                                     const std::set<event_t>& _events_to_exclude) {
+void routing_manager_client::notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         auto service_info = find_service(_service, _instance);
         for (const auto& e : its_eventgroup->get_events()) {
-            if (e->is_field() && e->is_set() && _events_to_exclude.find(e->get_event()) == _events_to_exclude.end()) {
+            if (e->is_field() && e->is_set()) {
                 std::shared_ptr<message> its_notification = runtime::get()->create_notification();
                 its_notification->set_service(_service);
                 its_notification->set_instance(_instance);
