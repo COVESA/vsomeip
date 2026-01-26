@@ -27,15 +27,13 @@
 
 class initial_event_test_client {
 public:
-    initial_event_test_client(int _client_number, bool _service_offered_tcp_and_udp,
-                              std::array<initial_event_test::service_info, 7> _service_infos, bool _subscribe_on_available,
-                              std::uint32_t _events_to_subscribe, bool _initial_event_strict_checking, bool _dont_exit,
-                              bool _subscribe_only_one, vsomeip::reliability_type_e _reliability_type, bool _client_subscribes_twice) :
-        client_number_(_client_number), service_infos_(_service_infos), service_offered_tcp_and_udp_(_service_offered_tcp_and_udp),
-        app_(vsomeip::runtime::get()->create_application()), wait_for_stop_(true), is_first(true),
-        subscribe_on_available_(_subscribe_on_available), events_to_subscribe_(_events_to_subscribe),
-        initial_event_strict_checking_(_initial_event_strict_checking), dont_exit_(_dont_exit), subscribe_only_one_(_subscribe_only_one),
-        reliability_type_(_reliability_type), client_subscribes_twice_(_client_subscribes_twice) {
+    initial_event_test_client(int _client_number, std::array<initial_event_test::service_info, 7> _service_infos,
+                              bool _subscribe_on_available, std::uint32_t _events_to_subscribe, bool _dont_exit, bool _subscribe_only_one,
+                              vsomeip::reliability_type_e _reliability_type, bool _client_subscribes_twice) :
+        client_number_(_client_number), service_infos_(_service_infos), app_(vsomeip::runtime::get()->create_application()),
+        wait_for_stop_(true), is_first(true), subscribe_on_available_(_subscribe_on_available), events_to_subscribe_(_events_to_subscribe),
+        dont_exit_(_dont_exit), subscribe_only_one_(_subscribe_only_one), reliability_type_(_reliability_type),
+        client_subscribes_twice_(_client_subscribes_twice) {
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
             return;
@@ -211,15 +209,9 @@ public:
                     }
                 }
             } else {
-                if (!service_offered_tcp_and_udp_) {
-                    std::scoped_lock its_lock(received_notifications_mutex_);
-                    if (all_notifications_received()) {
-                        notify = true;
-                    }
-                } else {
-                    if (all_notifications_received_tcp_and_udp()) {
-                        notify = true;
-                    }
+                std::scoped_lock its_lock(received_notifications_mutex_);
+                if (all_notifications_received()) {
+                    notify = true;
                 }
             }
 
@@ -235,28 +227,14 @@ public:
         return std::all_of(other_services_received_notification_.cbegin(), other_services_received_notification_.cend(),
                            [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
                                bool result;
-                               if (v.second == initial_event_test::notifications_to_send) {
+                               // NOTE: can receive multiple initial notifications; see ff0d2ae2
+                               if (v.second >= initial_event_test::notifications_to_send) {
                                    result = true;
                                } else {
-                                   if (v.second >= initial_event_test::notifications_to_send) {
-                                       VSOMEIP_WARNING << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
-                                                       << " Received multiple initial events from service/instance: " << std::setw(4)
-                                                       << v.first.first << "." << std::setw(4) << v.first.second
-                                                       << " number of received events: " << v.second
-                                                       << ". This is caused by StopSubscribe/Subscribe messages and/or"
-                                                       << " service offered via UDP and TCP";
-                                       if (initial_event_strict_checking_) {
-                                           ADD_FAILURE() << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
-                                                         << " Received multiple initial events from "
-                                                            "service/instance: "
-                                                         << std::setw(4) << v.first.first << "." << std::setw(4) << v.first.second
-                                                         << " number of received events: " << v.second;
-                                       }
-                                       result = initial_event_strict_checking_ ? false : true;
-
-                                   } else {
-                                       result = false;
-                                   }
+                                   VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
+                                                << "Still missing initial events from service/instance: " << std::setw(4) << v.first.first
+                                                << "." << std::setw(4) << v.first.second << " number of received events: " << v.second;
+                                   result = false;
                                }
 
                                return result;
@@ -267,73 +245,17 @@ public:
         return std::all_of(other_services_received_notification_.cbegin(), other_services_received_notification_.cend(),
                            [&](const std::map<std::pair<vsomeip::service_t, vsomeip::method_t>, std::uint32_t>::value_type& v) {
                                bool result;
-                               if (v.second == initial_event_test::notifications_to_send * 2) {
+                               // NOTE: can receive multiple initial notifications; see ff0d2ae2
+                               if (v.second >= initial_event_test::notifications_to_send * 2) {
                                    result = true;
                                } else {
-                                   if (v.second >= initial_event_test::notifications_to_send * 2) {
-                                       VSOMEIP_WARNING << __func__ << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_
-                                                       << "] "
-                                                       << " Received multiple initial events from service/instance: " << std::setw(4)
-                                                       << v.first.first << "." << std::setw(4) << v.first.second
-                                                       << " number of received events: " << v.second
-                                                       << ". This is caused by StopSubscribe/Subscribe messages and/or"
-                                                       << " service offered via UDP and TCP";
-                                       if (initial_event_strict_checking_) {
-                                           ADD_FAILURE() << __func__ << "[" << std::hex << std::setfill('0') << std::setw(4)
-                                                         << client_number_ << "] "
-                                                         << " Received multiple initial events from "
-                                                            "service/instance: "
-                                                         << std::setw(4) << v.first.first << "." << std::setw(4) << v.first.second
-                                                         << " number of received events: " << v.second;
-                                       }
-                                       result = initial_event_strict_checking_ ? false : true;
-
-                                   } else {
-                                       result = false;
-                                   }
+                                   VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
+                                                << "Still missing initial events from service/instance: " << std::setw(4) << v.first.first
+                                                << "." << std::setw(4) << v.first.second << " number of received events: " << v.second;
+                                   result = false;
                                }
                                return result;
                            });
-    }
-
-    bool all_notifications_received_tcp_and_udp() {
-        std::scoped_lock its_lock(received_notifications_mutex_);
-        std::uint32_t received_twice(0);
-        std::uint32_t received_normal(0);
-        for (const auto& v : other_services_received_notification_) {
-            if (!initial_event_strict_checking_ && v.second > initial_event_test::notifications_to_send * 2) {
-                VSOMEIP_WARNING << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
-                                << " Received multiple initial events from service/instance: " << std::setw(4) << v.first.first << "."
-                                << std::setw(4) << v.first.second << ". This is caused by StopSubscribe/Subscribe messages and/or"
-                                << " service offered via UDP and TCP";
-                received_twice++;
-            } else if (initial_event_strict_checking_ && v.second > initial_event_test::notifications_to_send * 2) {
-                ADD_FAILURE() << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
-                              << " Received multiple initial events from service/instance: " << std::setw(4) << v.first.first << "."
-                              << std::setw(4) << v.first.second << " number of received events: " << v.second;
-            } else if (v.second == initial_event_test::notifications_to_send * 2) {
-                received_twice++;
-            } else if (v.second == initial_event_test::notifications_to_send) {
-                received_normal++;
-            }
-        }
-
-        if (received_twice == ((service_infos_.size() - 1) * events_to_subscribe_) / 2
-            && received_normal == ((service_infos_.size() - 1) * events_to_subscribe_) / 2) {
-            // routing manager stub receives the notification
-            // - twice from external nodes
-            // - and normal from all internal nodes
-            VSOMEIP_ERROR << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
-                          << "Received notifications:"
-                          << " Normal: " << received_normal << " Twice: " << received_twice;
-            return true;
-        } else if (initial_event_strict_checking_ && (received_twice > ((service_infos_.size() - 1) * events_to_subscribe_) / 2)) {
-            ADD_FAILURE() << "[" << std::hex << std::setfill('0') << std::setw(4) << client_number_ << "] "
-                          << " Received too much initial events twice: " << received_twice;
-        } else if (received_normal == (events_to_subscribe_ * (service_infos_.size() - 1))) {
-            return true;
-        }
-        return false;
     }
 
     void wait_for_signal() {
@@ -385,7 +307,6 @@ public:
 private:
     int client_number_;
     std::array<initial_event_test::service_info, 7> service_infos_;
-    bool service_offered_tcp_and_udp_;
     std::shared_ptr<vsomeip::application> app_;
     std::map<std::pair<vsomeip::service_t, vsomeip::instance_t>, bool> other_services_available_;
     std::mutex received_notifications_mutex_;
@@ -396,7 +317,6 @@ private:
 
     bool subscribe_on_available_;
     std::uint32_t events_to_subscribe_;
-    bool initial_event_strict_checking_;
     bool dont_exit_;
     bool subscribe_only_one_;
 
@@ -410,11 +330,9 @@ private:
 };
 
 static int client_number;
-static bool service_offered_tcp_and_udp;
 static bool use_same_service_id;
 static bool subscribe_on_available;
 static std::uint32_t subscribe_multiple_events;
-static bool initial_event_strict_checking;
 static bool dont_exit;
 static bool subscribe_only_one;
 static bool client_subscribes_twice;
@@ -423,13 +341,13 @@ vsomeip::reliability_type_e reliability_type = vsomeip::reliability_type_e::RT_U
 
 TEST(someip_initial_event_test, wait_for_initial_events_of_all_services) {
     if (use_same_service_id) {
-        initial_event_test_client its_sample(client_number, service_offered_tcp_and_udp, initial_event_test::service_infos_same_service_id,
-                                             subscribe_on_available, subscribe_multiple_events, initial_event_strict_checking, dont_exit,
-                                             subscribe_only_one, reliability_type, client_subscribes_twice);
+        initial_event_test_client its_sample(client_number, initial_event_test::service_infos_same_service_id, subscribe_on_available,
+                                             subscribe_multiple_events, dont_exit, subscribe_only_one, reliability_type,
+                                             client_subscribes_twice);
     } else {
-        initial_event_test_client its_sample(client_number, service_offered_tcp_and_udp, initial_event_test::service_infos,
-                                             subscribe_on_available, subscribe_multiple_events, initial_event_strict_checking, dont_exit,
-                                             subscribe_only_one, reliability_type, client_subscribes_twice);
+        initial_event_test_client its_sample(client_number, initial_event_test::service_infos, subscribe_on_available,
+                                             subscribe_multiple_events, dont_exit, subscribe_only_one, reliability_type,
+                                             client_subscribes_twice);
     }
 }
 
@@ -450,9 +368,6 @@ int main(int argc, char** argv) {
         std::cerr << "Please specify a client number, like: " << argv[0] << " 2 SUBSCRIBE_BEFORE_START SAME_SERVICE_ID" << std::endl;
         std::cerr << "Valid client numbers are from 0 to 0xFFFF" << std::endl;
         std::cerr << "After client number one/multiple of these flags can be specified:";
-        std::cerr << " - SERVICE_OFFERED_TCP_AND_UDP flag. Set this if the service is offered via "
-                     "TCP and UDP"
-                  << std::endl;
         std::cerr << " - Time of subscription, valid values: [SUBSCRIBE_ON_AVAILABILITY, "
                      "SUBSCRIBE_BEFORE_START], default SUBSCRIBE_BEFORE_START"
                   << std::endl;
@@ -461,10 +376,6 @@ int main(int argc, char** argv) {
                   << std::endl;
         std::cerr << " - MULTIPLE_EVENTS flag. If set the test will subscribe to multiple events "
                      "in the eventgroup, default false"
-                  << std::endl;
-        std::cerr << " - STRICT_CHECKING flag. If set the test will only successfully finish if "
-                     "exactly the number of initial events were received (and not more). Default "
-                     "false"
                   << std::endl;
         std::cerr << " - DONT_EXIT flag. If set the test will not exit if all notifications have "
                      "been received. Default false"
@@ -478,8 +389,6 @@ int main(int argc, char** argv) {
     client_number = std::stoi(std::string(argv[1]), nullptr);
 
     subscribe_on_available = false;
-    initial_event_strict_checking = false;
-    service_offered_tcp_and_udp = false;
     use_same_service_id = false;
     subscribe_multiple_events = 1;
     dont_exit = false;
@@ -499,9 +408,6 @@ int main(int argc, char** argv) {
             } else if (std::string("MULTIPLE_EVENTS") == std::string(argv[i])) {
                 subscribe_multiple_events = 5;
                 std::cout << "Subscribing to multiple events" << std::endl;
-            } else if (std::string("STRICT_CHECKING") == std::string(argv[i])) {
-                initial_event_strict_checking = true;
-                std::cout << "Checking if the number of events received is correct" << std::endl;
             } else if (std::string("DONT_EXIT") == std::string(argv[i])) {
                 dont_exit = true;
                 std::cout << "Waiting for all notifications to be received" << std::endl;

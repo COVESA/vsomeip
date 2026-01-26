@@ -151,7 +151,6 @@ public:
         condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
         condition_.wait(its_lock, [this] { return !wait_until_subscribed_; });
 
-        std::this_thread::sleep_for(std::chrono::seconds(3));
         std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();
         its_req->set_service(1);
         its_req->set_instance(1);

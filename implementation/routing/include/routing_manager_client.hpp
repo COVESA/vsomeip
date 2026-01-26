@@ -138,8 +138,7 @@ private:
 
     void init_receiver(std::unique_lock<std::mutex> const& _receive_lock);
 
-    void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                 const std::set<event_t>& _events_to_exclude);
+    void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
     uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _increment);
     void clear_remote_subscriber_count(service_t _service, instance_t _instance);

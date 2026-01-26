@@ -924,6 +924,38 @@ TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
     EXPECT_TRUE(client_->availability_record_.wait_for_any(service_availability::unavailable(service_instance_)));
 }
 
+TEST_F(test_client_helper, subscribe_eventgroup_connection_break) {
+    /// check whether a subscription to an event group is restored after a connection break
+
+    start_apps();
+
+    send_field_message();
+
+    client_->request_service(service_instance_);
+    client_->subscribe_eventgroup_field(offered_field_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 0; }));
+
+    // need to increase the odds, hence the extra iterations
+    for (size_t i = 0; i < 100; ++i) {
+        TEST_LOG << "Iteration " << i;
+
+        client_->availability_record_.clear();
+        client_->subscription_record_.clear();
+        client_->message_record_.clear();
+
+        // client -> server connection breaks..
+        std::ignore = disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt);
+
+        // we *MUST* see available/subscribed/message
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+        ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+        ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 0; }));
+    }
+}
+
 struct test_restart_clients : test_client_helper {
 
     bool subscribe(app* client) {

@@ -415,13 +415,11 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     }
 
     {
-        std::set<event_t> its_already_subscribed_events;
         {
             std::scoped_lock ist_lock(pending_subscription_mutex_);
             for (auto& ps : pending_subscriptions_) {
                 if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
-                    insert_subscription(ps.service_, ps.instance_, ps.eventgroup_, ps.event_, nullptr, get_client(),
-                                        &its_already_subscribed_events);
+                    insert_subscription(ps.service_, ps.instance_, ps.eventgroup_, ps.event_, nullptr, get_client());
                 }
             }
         }
@@ -624,15 +622,14 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                         if (stub_)
                             stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
                     } else {
-                        std::set<event_t> its_already_subscribed_events;
-                        insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, &its_already_subscribed_events);
+                        insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
 
                         // NOTE: order matters, send ACK _after_ inserting the subscription
                         if (stub_) {
                             stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
                         }
 
-                        notify_one_current_value(_client, _service, _instance, _eventgroup, _event, its_already_subscribed_events);
+                        notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
                     }
 
                     VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
@@ -642,21 +639,19 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                 });
     } else {
         if (discovery_) {
-            std::set<event_t> its_already_subscribed_events;
-
             // Note: The calls to insert_subscription & handle_subscription_state must not
             // run concurrently to a call to on_subscribe_ack. Therefore the lock is acquired
             // before calling insert_subscription and released after the call to
             // handle_subscription_state.
             std::unique_lock<std::mutex> its_critical(remote_subscription_state_mutex_);
-            bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, &its_already_subscribed_events);
+            bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
             const bool subscriber_is_rm_host = (get_client() == _client);
             if (inserted) {
                 if (0 == its_local_client) {
                     handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
                     its_critical.unlock();
                     static const ttl_t configured_ttl(configuration_->get_sd_ttl());
-                    notify_one_current_value(_client, _service, _instance, _eventgroup, _event, its_already_subscribed_events);
+                    notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
 
                     auto its_info = find_eventgroup(_service, _instance, _eventgroup);
                     // if the subscriber is the rm_host itself: check if service
