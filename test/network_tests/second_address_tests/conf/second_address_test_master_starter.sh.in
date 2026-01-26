@@ -40,7 +40,7 @@ elif [ "$OPERATIONMODE" = "CLIENT" ]; then
 fi
 
 export VSOMEIP_APPLICATION_NAME=routingmanagerd
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_APPLICATION_NAME=$MASTER_APPLICATION

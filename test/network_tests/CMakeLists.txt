@@ -196,7 +196,7 @@ add_subdirectory(npdu_tests)
 add_subdirectory(payload_tests)
 add_subdirectory(routing_tests)
 
-# some tests require the routingmanagerd
+# some tests require example binaries
 if(NOT MSVC)
-    add_dependencies(build_network_tests routingmanagerd)
+    add_dependencies(build_network_tests routingmanagerd wait-until-available)
 endif()

@@ -20,7 +20,7 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=offer_test_big_sd_msg_master.json
 # start daemon
 export VSOMEIP_APPLICATION_NAME="client-routingmanager"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_APPLICATION_NAME="client-sample"
