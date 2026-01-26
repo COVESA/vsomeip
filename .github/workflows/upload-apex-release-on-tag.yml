@@ -1,0 +1,51 @@
+name: Upload Release Asset
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Version Matches Tag
+        run: |
+          # Extract the tag version
+          TAG_VERSION="${GITHUB_REF_NAME}"
+          echo "Tag version: ${TAG_VERSION}"
+          
+          # Extract APEX_VSOMEIP_VERSION_TAG from BUILD file
+          BUILD_VERSION=$(grep -oP 'APEX_VSOMEIP_VERSION_TAG = "\K[^"]+' implementation/BUILD)
+          echo "BUILD file version: ${BUILD_VERSION}"
+          
+          # Compare versions
+          if [ "${TAG_VERSION}" != "${BUILD_VERSION}" ]; then
+            echo "❌ ERROR: Version mismatch!"
+            echo "Tag version: ${TAG_VERSION}"
+            echo "BUILD file version: ${BUILD_VERSION}"
+            echo ""
+            echo "Please update APEX_VSOMEIP_VERSION_TAG in implementation/BUILD to match the tag version before creating the release."
+            exit 1
+          fi
+          
+          echo "✅ Version matches: ${TAG_VERSION}"  
+
+      - name: Create Tarball
+        run: tar --exclude=.git -czf /tmp/${{ github.ref_name }}.tar.gz ./
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: /tmp/${{ github.ref_name }}.tar.gz
+          draft: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
