@@ -12,7 +12,7 @@ fi
 # Start client routing host
 export VSOMEIP_CONFIGURATION=multicast_group_test_client.json
 export VSOMEIP_APPLICATION_NAME="routingmanagerd-client"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 
 HOST_PID=$!
 

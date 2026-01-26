@@ -15,7 +15,7 @@ export VSOMEIP_CONFIGURATION=cyclic_event_test_client.json
 
 # Start the routing manager.
 export VSOMEIP_APPLICATION_NAME="client-daemon"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 DAEMON_PID=$!
 
 # Start the test client.

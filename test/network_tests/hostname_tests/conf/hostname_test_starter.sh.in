@@ -14,7 +14,7 @@ export VSOMEIP_CONFIGURATION=hostname_test_service.json
 
 # Start the routing manager.
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 DAEMON_PID=$!
 
 # Start the test service.

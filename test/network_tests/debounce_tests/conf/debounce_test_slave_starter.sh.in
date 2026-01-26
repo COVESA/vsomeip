@@ -13,7 +13,7 @@ FAIL=0
 
 export VSOMEIP_CONFIGURATION=debounce_test_service.json
 export VSOMEIP_APPLICATION_NAME=service-routingmanagerd
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 
 export VSOMEIP_APPLICATION_NAME=service-sample
