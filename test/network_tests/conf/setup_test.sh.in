@@ -12,6 +12,10 @@ RELATIVE_DIR=$(realpath $0) # has to be $0, not $BASH_SOURCE, because we need th
 RELATIVE_DIR="test/${RELATIVE_DIR#*/test}" # prefix removal
 RELATIVE_DIR=$(dirname $RELATIVE_DIR) # suffix removal
 
+# add common binaries to path
+# bit of a strong assumption on the directory structure, but this is anyhow just to simplify tests
+export PATH="$PATH:../../../examples/routingmanagerd:../../../examples/wait-until-available"
+
 #######################################
 ######### test setup helpers ##########
 #######################################

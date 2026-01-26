@@ -14,7 +14,7 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=offer_stop_offer_test_service.json
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
 
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 HOST_PID=$!
 
 # start service app

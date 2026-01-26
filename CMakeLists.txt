@@ -602,6 +602,8 @@ add_subdirectory( examples/routingmanagerd )
 add_subdirectory( examples/hello_world )
 endif()
 
+add_subdirectory( examples/wait-until-available )
+
 # build tools
 add_custom_target( tools )
 add_subdirectory( tools/vsomeip_ctrl )

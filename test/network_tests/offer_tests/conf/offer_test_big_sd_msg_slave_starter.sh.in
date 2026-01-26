@@ -21,7 +21,7 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=offer_test_big_sd_msg_slave.json
 # start daemon
 export VSOMEIP_APPLICATION_NAME="service-routingmanager"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services

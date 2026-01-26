@@ -31,7 +31,7 @@ export VSOMEIP_CONFIGURATION=pending_subscription_test_master.json
 
 # start daemon
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services
