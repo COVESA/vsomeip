@@ -181,8 +181,7 @@ protected:
                     bool _reliable, protocol::id_e _command, uint8_t _status_check) const;
 
     bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
-                             std::set<event_t>* _already_subscribed_events);
+                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
 
     void clear_shadow_subscriptions(void);
 
@@ -201,8 +200,7 @@ protected:
     void unset_all_eventpayloads(service_t _service, instance_t _instance);
     void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
-    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                  const std::set<event_t>& _events_to_exclude);
+    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
 

@@ -109,6 +109,26 @@ public:
     void subscribe_field(event_ids const& _ei);
 
     /**
+     * 1. registers a subscription handler to record subscription events with @see
+     * subscription_record_.
+     * 2. calls vsomeip::application::request_event()
+     * 3. calls vsomeip::application::subscribe(), with only the event group
+     *
+     * Note: Received events are recorded in the @see message_record_.
+     */
+    void subscribe_eventgroup_event(event_ids const& _ei);
+
+    /**
+     * 1. registers a subscription handler to record subscription events with @see
+     * subscription_record_.
+     * 2. calls vsomeip::application::request_event()
+     * 3. calls vsomeip::application::subscribe(), with only the event group
+     *
+     * Note: Received events are recorded in the @see message_record_.
+     */
+    void subscribe_eventgroup_field(event_ids const& _ei);
+
+    /**
      * registers a message handler that will
      * 1. record the incoming request in the
      * @see message_record_
@@ -151,6 +171,7 @@ private:
     void on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
                                         vsomeip::event_t _event, uint16_t error_code);
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);
+    void subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et);
     void offer(event_ids const& _ei, vsomeip::event_type_e _et);
 
     bool is_running_{false};

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <mutex>
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -69,6 +70,7 @@ public:
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available." : "NOT available.") << std::endl;
 
+        std::scoped_lock lock{mutex_};
         availability_handler_calls++;
     }
 
@@ -87,6 +89,7 @@ public:
         }
         VSOMEIP_INFO << its_message.str();
 
+        std::scoped_lock lock{mutex_};
         if ((its_payload->get_length() % 5) == 0) {
             notifications_received++;
             if (notifications_received == 2) {
@@ -110,7 +113,9 @@ public:
             } else if (notifications_received == 4) {
                 // All expected notifications received, stop the client and send shutdown message to
                 // service
-                EXPECT_EQ(availability_handler_calls, 7);
+                // due to double initial notifications, might be stopping a "bit" early, hence the different number of
+                // expected availability callbacks
+                EXPECT_TRUE(availability_handler_calls == 5 || availability_handler_calls == 7);
 
                 std::shared_ptr<vsomeip::message> its_set = vsomeip::runtime::get()->create_message();
                 its_set->set_message_type(vsomeip_v3::message_type_e::MT_REQUEST_NO_RETURN);
@@ -143,6 +148,7 @@ public:
 private:
     std::shared_ptr<vsomeip::application> app_;
     struct climate_test::service_info service_info_;
+    std::mutex mutex_;
     uint8_t availability_handler_calls = 0;
     uint8_t notifications_received = 0;
 };

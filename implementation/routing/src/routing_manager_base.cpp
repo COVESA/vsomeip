@@ -902,7 +902,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 }
 
 void routing_manager_base::notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                                    event_t _event, const std::set<event_t>& _events_to_exclude) {
+                                                    event_t _event) {
     if (_event != ANY_EVENT) {
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event && its_event->is_field())
@@ -912,7 +912,7 @@ void routing_manager_base::notify_one_current_value(client_t _client, service_t 
         if (its_eventgroup) {
             std::set<std::shared_ptr<event>> its_events = its_eventgroup->get_events();
             for (const auto& e : its_events) {
-                if (e->is_field() && _events_to_exclude.find(e->get_event()) == _events_to_exclude.end()) {
+                if (e->is_field()) {
                     e->notify_one(_client, false);
                 }
             }
@@ -1302,8 +1302,7 @@ bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, 
 }
 
 bool routing_manager_base::insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                               const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
-                                               std::set<event_t>* _already_subscribed_events) {
+                                               const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client) {
 
     bool is_inserted(false);
     std::scoped_lock its_lock{subscription_mutex};
@@ -1329,12 +1328,6 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
                 create_place_holder = true;
             } else {
                 for (const auto& e : its_events) {
-                    if (e->is_subscribed(_client)) {
-                        // client is already subscribed to event from eventgroup
-                        // this can happen if events are members of multiple
-                        // eventgroups
-                        _already_subscribed_events->insert(e->get_event());
-                    }
                     is_inserted = e->add_subscriber(_eventgroup, _filter, _client, host_->is_routing()) || is_inserted;
                 }
             }
