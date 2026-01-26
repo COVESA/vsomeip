@@ -29,7 +29,6 @@
     "vsomeip_portcfg.json,vsomeip_device.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/vendor/run/etc/vsomeip"
-#define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
 #define VSOMEIP_LOCAL_CONFIGURATION_FOLDER      "./vsomeip"
 
 // VSOMEIP_BASE_PATH should be specified in Android.bp or/and Android.mk file via c/c++ compiler
@@ -61,7 +60,6 @@
 #define VSOMEIP_DEFAULT_CONNECT_TIMEOUT         100
 #define VSOMEIP_MAX_CONNECT_TIMEOUT             1600
 #define VSOMEIP_DEFAULT_CONNECTING_TIMEOUT      500
-#define VSOMEIP_DEFAULT_FLUSH_TIMEOUT           1000
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES  10000
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10 // miliseconds
 
@@ -76,8 +74,6 @@
 #define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
 #define VSOMEIP_MAX_TCP_SENT_WAIT_TIME          10000
 #define VSOMEIP_TCP_USER_TIMEOUT                3000
-
-#define VSOMEIP_MAX_NETLINK_RETRIES             3
 
 #define VSOMEIP_TP_MAX_SEGMENT_LENGTH_DEFAULT   1392
 
@@ -95,8 +91,6 @@
 
 #define VSOMEIP_DEFAULT_MAX_DISPATCH_TIME       100
 #define VSOMEIP_DEFAULT_MAX_DISPATCHERS         10
-
-#define VSOMEIP_MAX_WAIT_TIME_DETACHED_THREADS  3
 
 #define VSOMEIP_REQUEST_DEBOUNCE_TIME           10
 #define VSOMEIP_DEFAULT_STATISTICS_MAX_MSG      50
@@ -129,16 +123,10 @@
 #define VSOMEIP_DEFAULT_TCP_KEEPINTVL           1
 #define VSOMEIP_DEFAULT_TCP_KEEPCNT             3
 
-#define MIN_ENDPOINT_WAIT_INTERVAL              10
-#define MAX_ENDPOINT_WAIT_INTERVAL              160
-#define SUM_ENDPOINT_WAIT_INTERVAL              500
-
 #include <pthread.h>
 
-#define VSOMEIP_DATA_ID                         0x677D
 #define VSOMEIP_DIAGNOSIS_ADDRESS               0x01
 
-#define VSOMEIP_DEFAULT_SHM_PERMISSION          0666
 #define VSOMEIP_DEFAULT_UDS_PERMISSIONS         0666
 
 #define VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE           "SOME/IP routing ready."
