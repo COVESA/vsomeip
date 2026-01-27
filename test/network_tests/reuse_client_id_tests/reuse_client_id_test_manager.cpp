@@ -85,7 +85,6 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
 
     process_manager host{host_executor, custom_env("reuse_client_id_test.json", "routingmanagerd")};
     host.run();
-    host.wait_for_start();
 
     // start client1
     auto client1 = std::make_unique<process_manager>("./reuse_client_id_test_client 6301 1",
@@ -120,7 +119,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
     }
     reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
-    client4->join();
+    EXPECT_EQ(client4->wait(), 0);
 
     // restart client1
     {
@@ -142,7 +141,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         shm_data.sync_ptr->stop_clients_[CLIENT_2_IDX] = true;
     }
     reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
-    client2->join();
+    EXPECT_EQ(client2->wait(), 0);
 
     // restart client1
     {
@@ -163,18 +162,12 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
     }
     reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
-    client1->join();
-    client3->join();
-    client5->join();
+    EXPECT_EQ(client1->wait(), 0);
+    EXPECT_EQ(client3->wait(), 0);
+    EXPECT_EQ(client5->wait(), 0);
 
-    EXPECT_EQ(client1->exit_code_, 0);
-    EXPECT_EQ(client2->exit_code_, 0);
-    EXPECT_EQ(client3->exit_code_, 0);
-    EXPECT_EQ(client4->exit_code_, 0);
-    EXPECT_EQ(client5->exit_code_, 0);
-
-    // Terminate host, do not assert exit code.
-    host.terminate();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
