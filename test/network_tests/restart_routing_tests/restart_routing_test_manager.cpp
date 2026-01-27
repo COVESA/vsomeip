@@ -75,7 +75,6 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
 
     process_manager host{host_executor, custom_env("restart_routing_test_autoconfig.json", "routingmanagerd")};
     host.run();
-    host.wait_for_start();
 
     process_manager service{service_executor, custom_env("restart_routing_test_autoconfig.json", "restart_routing_test_service")};
     service.run();
@@ -96,13 +95,15 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
-    host.reset();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
+    host.run();
     // Wait for restart to be completed.
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -114,14 +115,13 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
     restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
-    service.join();
+    EXPECT_EQ(service.wait(), 0);
     for (const auto& client : clients) {
-        client->join();
-        EXPECT_EQ(client->exit_code_, 0);
+        EXPECT_EQ(client->wait(), 0);
     }
 
-    // Terminate host, do not assert exit code.
-    host.terminate();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
 }
 
 /**
@@ -152,13 +152,16 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_servic
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
-    service.reset();
+    service.send_signal(SIGKILL);
+    // UGLY AS HELL! we SIGKILL'd, so no exit code check
+    std::ignore = service.wait();
+    service.run();
     // Wait for restart to be completed.
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -171,10 +174,10 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_servic
 
     // Wait for processes termination and test exit code.
     for (const auto& client : clients) {
-        client->join();
-        EXPECT_EQ(client->exit_code_, 0);
+        EXPECT_EQ(client->wait(), 0);
     }
-    service.join();
+
+    EXPECT_EQ(service.wait(), 0);
 }
 
 /**
@@ -186,7 +189,6 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
 
     process_manager host{host_executor, custom_env("restart_routing_test_service.json", "routingmanagerd")};
     host.run();
-    host.wait_for_start();
 
     process_manager service{service_executor, custom_env("restart_routing_test_service.json", "restart_routing_test_service")};
     service.run();
@@ -207,13 +209,15 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
-    host.reset();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
+    host.run();
     // Wait for restart to be completed.
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -225,14 +229,13 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
     restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
-    service.join();
+    EXPECT_EQ(service.wait(), 0);
     for (const auto& client : clients) {
-        client->join();
-        EXPECT_EQ(client->exit_code_, 0);
+        EXPECT_EQ(client->wait(), 0);
     }
 
-    // Terminate host, do not assert exit code.
-    host.terminate();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
 }
 
 /**
@@ -247,7 +250,6 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
 
     process_manager host{host_executor, custom_env("restart_routing_test_without_id.json", "routingmanagerd")};
     host.run();
-    host.wait_for_start();
 
     std::unordered_set<std::unique_ptr<process_manager>> clients;
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
@@ -265,13 +267,15 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
-    host.reset();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
+    host.run();
     // Wait for restart to be completed.
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -283,19 +287,18 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
     restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
-    service.join();
+    EXPECT_EQ(service.wait(), 0);
     for (const auto& client : clients) {
-        client->join();
-        EXPECT_EQ(client->exit_code_, 0);
+        EXPECT_EQ(client->wait(), 0);
     }
 
-    // Terminate host, do not assert exit code.
-    host.terminate();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
 }
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td(600);
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

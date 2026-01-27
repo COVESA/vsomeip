@@ -30,7 +30,6 @@
 #include <boost/process/v1/system.hpp>
 #include <boost/process/v1/start_dir.hpp>
 #endif
-#include <boost/asio/io_context.hpp>
 
 #include <iostream>
 
@@ -46,83 +45,30 @@ public:
      * @param env_vars Specific environment variables to be passed to new process, new process environemnt base is copied from the current
      * one.
      */
-    process_manager(std::string cmd, std::map<std::string, std::string> env_vars) : command_{cmd}, env_vars_{env_vars} { }
+    process_manager(const std::string& cmd, const std::map<std::string, std::string>& env_vars) : command_{cmd}, env_vars_{env_vars} { }
 
     /**
-     * @brief Dtor, waits for spawning thread.
-     * TBD - Should probably try terminate process also.
-     */
-    ~process_manager() { join(); }
-
-    /**
-     * @brief Creates Spawning thread.
-     */
-    void run() { thread_ = std::make_unique<std::thread>(std::bind(&process_manager::spawn, this)); }
-
-    /**
-     * @brief If joinable, joins spawning thread.
-     */
-    void join() {
-        if (thread_->joinable()) {
-            thread_->join();
-        }
-    }
-
-    /**
-     * @brief Forces the restart of the process with same conditions.
-     */
-    void reset() {
-        terminate();
-        join();
-        thread_.reset(std::make_unique<std::thread>(std::bind(&process_manager::spawn, this)).release());
-    }
-
-    /**
-     * @brief Forces the shutdown of the spawned process.
-     */
-    void terminate() {
-        std::scoped_lock lock(process_mutex_);
-        if (process_.running()) {
-            process_.terminate();
-        }
-    }
-
-    /**
-     * @brief Waits for spawned process to be shifted into ready state i.e., the process might not have started yet.
-     */
-    void wait_for_start() {
-        std::unique_lock<std::mutex> lock(process_mutex_);
-        start_cv_.wait(lock, [this]() { return process_.valid(); });
-    }
-
-    /**
-     * @brief Verifies if process native handle has been created.
+     * @brief Destructor
      *
-     * @return True is valid, false otherwise.
+     * EXPLODES if you do not wait for the launched process!
      */
-    bool valid() { return process_.valid(); }
-
-    /**
-     * @brief Send a specified signal type to the spawned process.
-     *
-     * @param signal Signal to be sent.
-     */
-    void send_signal(int signal) {
-        std::scoped_lock lock(process_mutex_);
-        kill(process_.id(), signal);
+    ~process_manager() {
+        if (process_) {
+            std::cerr << "ABORTING BECAUSE THERE ARE STILL BACKGROUND PROCESSES RUNNING!" << std::endl;
+            std::abort();
+        };
     }
 
-    std::atomic_int32_t exit_code_{0};
-
-private:
     /**
-     * @brief Manages the creation of the process and enforces the wait on it to ensure it's lifetime.
+     * @brief Laucnh process
      */
-    void spawn() {
-        std::unique_lock<std::mutex> lock(process_mutex_);
-        boost::asio::io_context io;
+    void run() {
+        std::scoped_lock lock(mutex_);
+        if (process_) {
+            std::cerr << "ABORTING BECAUSE THERE ARE STILL BACKGROUND PROCESSES RUNNING!" << std::endl;
+            std::abort();
+        }
 
-        // Handle env vars
         boost::process::environment cp_env;
         for (const auto& env_entry : boost::this_process::environment()) {
             cp_env[env_entry.get_name()] = env_entry.to_string();
@@ -133,22 +79,49 @@ private:
             cp_env[k] = v;
         }
 
-        process_ = boost::process::child(
-                command_, cp_env, io, boost::process::on_exit = [this](int exit, const std::error_code& eci) {
-                    exit_code_ = exit;
-                    std::cout << "Process " << command_ << " exited with " << exit << " and ec " << eci.message() << std::endl;
-                });
-        start_cv_.notify_all();
-        if (process_.running()) {
-            lock.unlock();
-            io.run();
-        }
+        process_ = std::make_unique<boost::process::child>(command_, cp_env);
+
+        std::cout << "Process '" << command_ << "' started, pid " << process_->id() << std::endl;
     }
 
-    boost::process::child process_;
-    std::unique_ptr<std::thread> thread_;
-    std::string command_;
-    std::map<std::string, std::string> env_vars_;
-    std::mutex process_mutex_;
-    std::condition_variable start_cv_;
+    /**
+     * @brief Wait for process to finish, return exit code
+     */
+    [[nodiscard]] int wait() {
+        std::unique_lock lock(mutex_);
+        if (process_ == nullptr) {
+            std::cerr << "Aborting because there is no process '" << command_ << "' running!" << std::endl;
+            std::abort();
+        }
+
+        lock.unlock();
+        process_->wait();
+        lock.lock();
+
+        int exit_code = process_->exit_code();
+        std::cout << "Process '" << command_ << "' exited with " << exit_code << std::endl;
+        process_ = nullptr;
+        return exit_code;
+    }
+
+    /**
+     * @brief Send a specified signal type to the spawned process.
+     *
+     * @param signal Signal to be sent.
+     */
+    void send_signal(int signal) {
+        std::scoped_lock lock(mutex_);
+        if (process_ == nullptr) {
+            std::cerr << "Aborting because there is no process '" << command_ << "' running!" << std::endl;
+            std::abort();
+        }
+
+        kill(process_->id(), signal);
+    }
+
+private:
+    const std::string command_;
+    const std::map<std::string, std::string> env_vars_;
+    std::mutex mutex_;
+    std::unique_ptr<boost::process::child> process_;
 };
