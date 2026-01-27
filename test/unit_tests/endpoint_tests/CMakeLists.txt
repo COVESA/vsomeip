@@ -14,29 +14,6 @@ set(TEST_SRCS
     test_local_receive_buffer.cpp
 )
 
-# We need to set the source files directly because vsomeip doesn't export the
-# timer for linking.
-set(
-    VSIP_SRCS
-    ../../../implementation/endpoints/src/timer.cpp
-    ../../../implementation/endpoints/src/abstract_socket_factory.cpp
-    ../../../implementation/endpoints/src/asio_socket_factory.cpp
-    ../../../implementation/endpoints/src/netlink_connector.cpp
-    ../../../implementation/endpoints/src/local_endpoint.cpp
-    ../../../implementation/endpoints/src/local_server.cpp
-    ../../../implementation/endpoints/src/local_receive_buffer.cpp
-    ../../../implementation/endpoints/src/local_acceptor_uds_impl.cpp
-    ../../../implementation/endpoints/src/local_socket_uds_impl.cpp
-    ../../../implementation/endpoints/src/local_socket.cpp
-    ../../../implementation/protocol/src/command.cpp
-    ../../../implementation/protocol/src/config_command.cpp
-    ../../../implementation/protocol/src/assign_client_command.cpp
-    ../../../implementation/protocol/src/assign_client_ack_command.cpp
-    ../../../implementation/protocol/src/service_command_base.cpp
-    ../../../implementation/protocol/src/offer_service_command.cpp
-    ../../../implementation/configuration/src/configuration_impl.cpp
-)
-
 # see https://github.com/google/googletest/issues/3514
 # otherwise test_local_endpoint.cpp fails to compile in clang
 add_compile_options(-Wno-uninitialized)
@@ -51,7 +28,8 @@ target_link_libraries(
     ${PROJECT_NAME}
     gtest
     gmock
-    ${VSOMEIP_NAME}
+    ${VSOMEIP_NAME}-test
+    ${VSOMEIP_NAME}-cfg-test
     ${Boost_LIBRARIES}
 )
 

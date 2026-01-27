@@ -7,16 +7,18 @@ project(unit_tests_netlink_tests LANGUAGES CXX)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-file(GLOB SRCS *.cpp ../main.cpp
-     "../../../implementation/endpoints/src/netlink_connector.cpp")
+file(GLOB SRCS *.cpp ../main.cpp)
 add_executable(${PROJECT_NAME} ${SRCS})
 
-target_link_libraries(${PROJECT_NAME}
-                      PRIVATE Threads::Threads ${Boost_LIBRARIES} ${DL_LIBRARY} gtest vsomeip_utilities)
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-     target_link_libraries(${PROJECT_NAME} PRIVATE stdc++ m)
-endif()
+target_link_libraries(
+    ${PROJECT_NAME}
+    vsomeip3-test
+    vsomeip3-cfg-test
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    gtest
+    vsomeip_utilities
+)
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 

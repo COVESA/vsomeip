@@ -12,7 +12,7 @@ endif()
 if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     target_link_libraries(routingmanagerd socket)
 endif()
-add_dependencies(routingmanagerd ${VSOMEIP_NAME})
+add_dependencies(routingmanagerd ${VSOMEIP_NAME} ${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME}-sd ${VSOMEIP_NAME}-e2e)
 
 option(VSOMEIP_INSTALL_ROUTINGMANAGERD "Whether or not to install the routing manager daemon.")
 

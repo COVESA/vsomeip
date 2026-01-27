@@ -39,7 +39,7 @@ add_executable(client_id_test_utility
 
 # Link vsomeip configuration libraries.
 target_link_libraries(client_id_test_utility
-    ${VSOMEIP_NAME}-cfg
+    ${VSOMEIP_NAME}-cfg-test
 )
 
 # Add build dependencies and link libraries to executables.
