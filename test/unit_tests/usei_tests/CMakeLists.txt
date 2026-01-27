@@ -7,14 +7,14 @@ project(unit_tests_usei_tests LANGUAGES CXX)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-file(GLOB SRCS *.cpp ../main.cpp
-     "../../../implementation/endpoints/src/udp_server_endpoint_impl.cpp")
+file(GLOB SRCS *.cpp ../main.cpp)
 add_executable(${PROJECT_NAME} ${SRCS})
 
 target_link_libraries(
   ${PROJECT_NAME}
  PRIVATE
-  vsomeip3-cfg
+  vsomeip3-test
+  vsomeip3-cfg-test
   Threads::Threads
   ${Boost_LIBRARIES}
   ${DL_LIBRARY}

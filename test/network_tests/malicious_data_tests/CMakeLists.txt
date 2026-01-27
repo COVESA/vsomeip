@@ -17,37 +17,13 @@ add_executable(malicious_data_test_service
     malicious_data_test_service.cpp
 )
 
-# Add test executable.
-set(service_discovery_sources
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/configuration_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/entry_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/eventgroupentry_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ip_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ipv4_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/ipv6_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/load_balancing_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/message_element_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/message_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/protection_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/selective_option_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/serviceentry_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/service_discovery/src/unknown_option_impl.cpp
-)
-set(message_sources
-    ${CMAKE_SOURCE_DIR}/implementation/message/src/deserializer.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/message/src/message_impl.cpp
-    ${CMAKE_SOURCE_DIR}/implementation/message/src/payload_impl.cpp
-)
 add_executable(malicious_data_test_msg_sender
     malicious_data_test_msg_sender.cpp
-    ${service_discovery_sources}
-    ${message_sources}
 )
 
 # Link the vsomeip-sd library to the executable.
 target_link_libraries(malicious_data_test_msg_sender
-    ${VSOMEIP_NAME}-sd
+    vsomeip3-sd-test
 )
 
 # Add build dependencies and link libraries to executables.

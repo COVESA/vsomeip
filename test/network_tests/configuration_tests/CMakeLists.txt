@@ -18,7 +18,8 @@ add_executable(configuration_test
 
 # Link vsomeip configuration libraries.
 target_link_libraries(configuration_test
-    ${VSOMEIP_NAME}-cfg
+    ${VSOMEIP_NAME}-test
+    ${VSOMEIP_NAME}-cfg-test
 )
 
 # Add build dependencies and link libraries to executable.

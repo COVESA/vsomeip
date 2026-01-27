@@ -43,7 +43,7 @@
                 },
                 "CMAKE_CXX_FLAGS_INIT": {
                     "type": "STRING",
-                    "value": "--coverage -Wno-error=tsan -fprofile-update=atomic"
+                    "value": "--coverage -fprofile-update=atomic"
                 },
                 "TEST_IP_SLAVE_SECOND": {
                     "type": "STRING",
@@ -89,7 +89,6 @@
             "displayName": "Network tests (CI)",
             "description": "Preset for network tests on CI",
             "environment": {
-                "LD_LIBRARY_PATH": "/home/build",
                 "LXC_TEST_MASTER_IP": "master",
                 "LXC_TEST_SLAVE_IP": "slave",
                 "TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan-suppressions.txt",

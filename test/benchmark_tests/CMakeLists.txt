@@ -16,8 +16,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 add_executable (${PROJECT_NAME} ${SRCS} )
 target_link_libraries (
     ${PROJECT_NAME}
-    vsomeip3
-    vsomeip3-cfg
+    vsomeip3-test
+    vsomeip3-cfg-test
     Threads::Threads
     ${Boost_LIBRARIES}
     ${DL_LIBRARY}

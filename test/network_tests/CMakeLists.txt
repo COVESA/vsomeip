@@ -57,13 +57,14 @@ endfunction()
 function(targets_link_default_libraries targets)
     foreach(target ${targets})
         target_link_libraries(${target}
-            ${VSOMEIP_NAME}
+            ${VSOMEIP_NAME}-test
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
             ${DLT_LIBRARIES}
             vsomeip_utilities
         )
+
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             target_link_libraries(${target} stdc++)
             if(UNIX)
