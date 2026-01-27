@@ -41,6 +41,47 @@ if ("${BUILD_SHARED_LIBS_AUTOMATIC_OFF}" STREQUAL "1")
 endif()
 
 ##############################################################################
+# test libraries
+# these expose all symbols, unlike the normal vsomeip libraries; useful for tests
+
+add_library(${VSOMEIP_NAME}-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-internal>)
+# libvsomeip also `dlopens` other libs (cfg, sd, ..) so leave a rpath hint
+set_target_properties(${VSOMEIP_NAME}-test PROPERTIES BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
+set_target_properties(${VSOMEIP_NAME}-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME} VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_link_libraries(${VSOMEIP_NAME}-test PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+if (NOT MSVC)
+    if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        # add syscall wrappers to deal with CLOEXEC
+        set_target_properties(${VSOMEIP_NAME}-test PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
+    else ()
+        # add syscall wrappers to deal with CLOEXEC + react on certain errors
+        set_target_properties(${VSOMEIP_NAME}-test PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open -Wl,-wrap,close -Wl,-wrap,recvfrom -Wl,-wrap,recvmsg -Wl,-wrap,sendto -Wl,-wrap,sendmsg -Wl,-wrap,epoll_wait -Wl,-wrap,epoll_pwait")
+    endif ()
+endif ()
+
+add_library(${VSOMEIP_NAME}-cfg-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-cfg-internal>)
+set_target_properties(${VSOMEIP_NAME}-cfg-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME}-cfg VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_link_libraries(${VSOMEIP_NAME}-cfg-test ${VSOMEIP_NAME}-test ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+set_target_properties(${VSOMEIP_NAME}-cfg-test PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+
+add_library(${VSOMEIP_NAME}-sd-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-sd-internal>)
+set_target_properties(${VSOMEIP_NAME}-sd-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME}-sd VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_link_libraries(${VSOMEIP_NAME}-sd-test ${VSOMEIP_NAME}-test ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+add_library(${VSOMEIP_NAME}-e2e-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-e2e-internal>)
+set_target_properties(${VSOMEIP_NAME}-e2e-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME}-e2e VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+target_link_libraries(${VSOMEIP_NAME}-e2e-test ${VSOMEIP_NAME}-test ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
+if (MSVC)
+    set_target_properties(${VSOMEIP_NAME}-test PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    set_target_properties(${VSOMEIP_NAME}-test PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    set_target_properties(${VSOMEIP_NAME}-cfg-test PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    set_target_properties(${VSOMEIP_NAME}-sd-test PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+    set_target_properties(${VSOMEIP_NAME}-e2e-test PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+endif ()
+
+##############################################################################
 # build tests
 
 SET(TESTS_BAT "OFF" CACHE BOOL
@@ -108,19 +149,15 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 add_dependencies(check build_tests)
 
 add_custom_target(build_network_tests)
-add_dependencies(build_network_tests ${VSOMEIP_NAME})
-add_dependencies(build_network_tests ${VSOMEIP_NAME}-e2e)
-add_dependencies(build_network_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_network_tests ${VSOMEIP_NAME}-test ${VSOMEIP_NAME}-cfg-test ${VSOMEIP_NAME}-e2e-test ${VSOMEIP_NAME}-sd-test)
 add_dependencies(build_tests build_network_tests)
 
 add_custom_target(build_unit_tests)
-add_dependencies(build_unit_tests ${VSOMEIP_NAME})
-add_dependencies(build_unit_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_unit_tests ${VSOMEIP_NAME}-test ${VSOMEIP_NAME}-cfg-test ${VSOMEIP_NAME}-e2e-test ${VSOMEIP_NAME}-sd-test)
 add_dependencies(build_tests build_unit_tests)
 
 add_custom_target(build_benchmark_tests)
-add_dependencies(build_benchmark_tests ${VSOMEIP_NAME})
-add_dependencies(build_benchmark_tests ${VSOMEIP_NAME}-sd)
+add_dependencies(build_benchmark_tests ${VSOMEIP_NAME}-test ${VSOMEIP_NAME}-cfg-test ${VSOMEIP_NAME}-e2e-test ${VSOMEIP_NAME}-sd-test)
 add_dependencies(build_tests build_benchmark_tests)
 
 ##############################################################################

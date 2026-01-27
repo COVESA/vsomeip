@@ -7,22 +7,15 @@ project("unit_tests_protocol_tests" LANGUAGES CXX)
 
 file(GLOB TEST_SRCS main.cpp *.cpp)
 
-# We need to set the source files directly because vsomeip doesn't export the
-# commands for linking.
-set(
-    VSIP_SRCS
-    ../../../implementation/protocol/src/config_command.cpp
-    ../../../implementation/protocol/src/command.cpp
-)
-
 add_executable(
     ${PROJECT_NAME}
     ${TEST_SRCS}
-    ${VSIP_SRCS}
 )
 
 target_link_libraries(
     ${PROJECT_NAME}
+    vsomeip3-test
+    vsomeip3-cfg-test
     gtest
 )
 

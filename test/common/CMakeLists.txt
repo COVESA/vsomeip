@@ -21,7 +21,7 @@ file(COPY ${EXAMPLES_POLICIES_FILES} DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/ex
 # Declare the library
 # ----------------------------------------------------------------------------
 add_library (
-    ${PROJECT_NAME} SHARED
+    ${PROJECT_NAME} OBJECT
     ${SRC}
     ${INC}
 )
@@ -29,7 +29,7 @@ add_library (
 TARGET_LINK_LIBRARIES (
     ${PROJECT_NAME}
     PUBLIC
-        ${VSOMEIP_NAME}
+        ${VSOMEIP_NAME}-test
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
