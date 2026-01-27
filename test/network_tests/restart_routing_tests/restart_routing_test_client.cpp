@@ -105,9 +105,9 @@ void routing_restart_test_client::run() {
 
     {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
-        restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
                 ip_sync->client_cv_, its_lock, 10, ip_sync->sending_status_,
-                restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES);
+                restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES));
     }
 
     std::uint32_t its_sent_requests(0);
@@ -171,7 +171,7 @@ TEST(someip_restart_routing_test, request_response_over_restart) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td(600);
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -158,17 +158,19 @@ TEST(someip_initial_boardnet_event_test, wait_for_initial_events_of_all_services
     // Clear up service sync data
     service_provider.reset();
     // Restart host
-    host.reset();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
+    host.run();
 
     service_provider.wait_for_registration();
     service_provider.wait_for_subscription();
     EXPECT_TRUE(service_provider.wait_for_message()) << "Client didn't received initial event after host restart";
 
     // Wait for client process exit and test process exit code.
-    slave.join();
-    EXPECT_EQ(slave.exit_code_, 0);
+    EXPECT_EQ(slave.wait(), 0);
 
-    host.terminate();
+    host.send_signal(SIGINT);
+    EXPECT_EQ(host.wait(), 0);
 }
 
 #if defined(__linux__) || defined(__QNX__)
