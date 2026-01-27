@@ -327,8 +327,9 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
                 return;
             }
         } else {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: " << result.message_data_[protocol::COMMAND_POSITION_ID]
-                          << " received. Breaking connection > " << socket_->to_string();
+            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: 0x" << std::hex << std::setfill('0') << std::setw(2)
+                          << static_cast<int>(result.message_data_[protocol::COMMAND_POSITION_ID]) << " received. Breaking connection > "
+                          << socket_->to_string();
             socket_->stop(true);
             return;
         }
