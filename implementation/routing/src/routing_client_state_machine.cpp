@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <iomanip>
+
 #include "../include/routing_client_state_machine.hpp"
 #include "../../utility/include/is_value.hpp"
 
@@ -65,15 +67,18 @@ void routing_client_state_machine::target_running() {
     return true;
 }
 
-[[nodiscard]] bool routing_client_state_machine::assigned() {
+[[nodiscard]] bool routing_client_state_machine::assigned(client_t _client) {
     std::scoped_lock lock{mtx_};
     if (state_ != routing_client_state_e::ST_ASSIGNING) {
         VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
         return false;
     }
+
+    client_ = _client;
     change_state_unlocked(routing_client_state_e::ST_ASSIGNED);
     return true;
 }
+
 [[nodiscard]] bool routing_client_state_machine::start_registration() {
 
     std::scoped_lock lock{mtx_};
@@ -162,6 +167,7 @@ void routing_client_state_machine::registration_timed_out() {
 
 void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock) {
     change_state_unlocked(routing_client_state_e::ST_DEREGISTERED);
+    client_ = VSOMEIP_CLIENT_UNSET;
     if (registration_timebox_) {
         registration_timebox_->stop();
     }
@@ -178,7 +184,8 @@ void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mut
 }
 
 void routing_client_state_machine::change_state_unlocked(routing_client_state_e _state) {
-    VSOMEIP_INFO << "rcsm::" << __func__ << ": " << state_ << " -> " << _state;
+    VSOMEIP_INFO << "rcsm::" << __func__ << ": client " << std::hex << std::setfill('0') << std::setw(4) << client_ << ", state " << state_
+                 << " -> " << _state;
     state_ = _state;
     if (is_value(state_).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_DEREGISTERED)) {
         cv_.notify_one();
