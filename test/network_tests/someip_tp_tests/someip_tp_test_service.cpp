@@ -261,6 +261,8 @@ public:
         offer();
 
         condition_.wait(its_lock, [this] { return !wait_for_slave_service_available_; });
+
+        condition_.wait(its_lock, [this] { return !wait_for_slave_subscription_; });
         send_fragmented_request_to_slave();
 
         condition_.wait(its_lock, [this] { return !wait_for_two_responses_of_slave_; });
@@ -270,9 +272,9 @@ public:
         EXPECT_EQ(2u, number_requests_from_slave_);
 
         condition_.wait(its_lock, [this] { return !wait_for_two_notifications_of_slave_; });
+
         EXPECT_EQ(2u, number_notifications_of_slave_);
 
-        condition_.wait(its_lock, [this] { return !wait_for_slave_subscription_; });
         // slave subscribed --> sent a notification
         on_notify_method_called(vsomeip::runtime::get()->create_message());
 
