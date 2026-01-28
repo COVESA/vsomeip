@@ -207,7 +207,9 @@ export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
-sleep 1
+# wait until service is available..
+export VSOMEIP_APPLICATION_NAME="wua"
+wait-until-available 0x1111 || FAIL=$(($FAIL+1))
 # Pause the service
 kill -STOP $PID_SERVICE_TWO
 
