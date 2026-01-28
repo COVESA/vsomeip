@@ -66,6 +66,8 @@ public:
         address_local_(boost::asio::ip::make_address(std::string(local_address))), runtime_(vsomeip::runtime::get()) { }
 
 protected:
+    std::mutex udp_sd_socket_mutex;
+
     void TearDown() {
         io_.stop();
         io_thread_.join();
@@ -105,6 +107,8 @@ protected:
     }
 
     void subscribe_at_master(boost::asio::ip::udp::socket* const _udp_socket) {
+        boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
+
         std::uint8_t its_subscription[] = {
                 0xff, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00, 0x30, // length
                 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x02, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, // length entries array
@@ -116,10 +120,9 @@ protected:
                 0x00, 0x11, 0x75, 0x31, // port 30001
         };
         std::memcpy(&its_subscription[48], &address_local_.to_v4().to_bytes()[0], 4);
+        std::scoped_lock its_lock(udp_sd_socket_mutex);
         std::uint16_t its_session = htons(++sd_session_);
         std::memcpy(&its_subscription[10], &its_session, sizeof(its_session));
-
-        boost::asio::ip::udp::socket::endpoint_type target_sd(address_remote_, 30490);
         _udp_socket->send_to(boost::asio::buffer(its_subscription), target_sd);
     }
 
@@ -339,7 +342,6 @@ TEST_P(someip_tp, send_in_mode) {
     std::atomic<std::uint16_t> remote_client_subscription_port(0);
     std::promise<void> offer_received;
 
-    std::mutex udp_sd_socket_mutex;
     boost::asio::ip::udp::socket udp_sd_socket(io_, boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), 30490));
     udp_sd_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
@@ -350,12 +352,13 @@ TEST_P(someip_tp, send_in_mode) {
     udp_server_socket.set_option(boost::asio::socket_base::reuse_address(true));
 
     std::thread sd_receive_thread([&]() {
-        std::atomic<bool> keep_receiving(true);
+        bool keep_receiving(true);
         std::vector<std::uint8_t> receive_buffer(4096);
         std::vector<vsomeip::event_t> its_received_events;
-        std::atomic<bool> service_offered(false);
-        std::atomic<bool> client_subscribed(false);
+        bool service_offered(false);
+        bool client_subscribed(false);
         std::size_t bytes_transferred;
+        bool its_subscribed_at_master;
 
         // join the sd multicast group 224.0.77.1
         udp_sd_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.77.1").to_v4()));
@@ -364,7 +367,8 @@ TEST_P(someip_tp, send_in_mode) {
             {
                 std::scoped_lock its_lock(udp_sd_socket_mutex);
                 bytes_transferred = udp_sd_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, error);
-                offer_service(&udp_sd_socket);
+                if (!client_subscribed)
+                    offer_service(&udp_sd_socket);
             }
             if (error) {
                 keep_receiving = false;
@@ -441,9 +445,19 @@ TEST_P(someip_tp, send_in_mode) {
                             }
                             offer_received.set_value();
                             service_offered = true;
+                            // Try to subscribe at master after receiving its offer
+                            subscribe_at_master(&udp_sd_socket);
+                        } else if (e->get_type() == vsomeip::sd::entry_type_e::SUBSCRIBE_EVENTGROUP_ACK) {
+                            if (e->get_ttl()) {
+                                its_subscribed_at_master = true;
+                            } else {
+                                // Sleep to avoid sending an excessive amount of subscriptions when retrying to subscribe
+                                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                                subscribe_at_master(&udp_sd_socket);
+                            }
                         }
                     }
-                    if (service_offered && client_subscribed) {
+                    if (service_offered && client_subscribed && its_subscribed_at_master) {
                         keep_receiving = false;
                     }
                 } else {
@@ -461,11 +475,6 @@ TEST_P(someip_tp, send_in_mode) {
             if (std::future_status::timeout == offer_received.get_future().wait_for(std::chrono::seconds(10))) {
                 ADD_FAILURE() << "Didn't receive offer within time";
                 return;
-            }
-
-            {
-                std::scoped_lock its_lock(udp_sd_socket_mutex);
-                subscribe_at_master(&udp_sd_socket);
             }
 
             std::mutex all_fragments_received_mutex_;
@@ -556,7 +565,7 @@ TEST_P(someip_tp, send_in_mode) {
                 }
             });
 
-            // send SOMEI-TP message fragmented into 6 parts to service:
+            // send SOMEIP-TP message fragmented into 6 parts to service:
             boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_, 30001);
 
             std::unique_lock<std::mutex> its_lock(all_fragments_received_mutex_);
@@ -727,7 +736,7 @@ TEST_P(someip_tp, send_in_mode) {
                 }
                 {
                     while (wait_for_all_response_fragments_received_) {
-                        if (std::cv_status::timeout == all_fragments_received_cond_.wait_for(its_lock, std::chrono::seconds(20))) {
+                        if (std::cv_status::timeout == all_fragments_received_cond_.wait_for(its_lock, std::chrono::seconds(5))) {
                             ADD_FAILURE() << "Didn't receive response to"
                                              " fragmented message within time: "
                                           << std::uint32_t(mode);
@@ -806,7 +815,7 @@ TEST_P(someip_tp, send_in_mode) {
                 fragments_request_to_master_.clear();
             }
 
-            if (!all_fragments_received_cond_.wait_for(its_lock, std::chrono::seconds(20), [&wait_for_all_event_fragments_received_] {
+            if (!all_fragments_received_cond_.wait_for(its_lock, std::chrono::seconds(5), [&wait_for_all_event_fragments_received_] {
                     return !wait_for_all_event_fragments_received_;
                 })) {
                 ADD_FAILURE() << "Didn't receive fragmented event from master within time";
@@ -1034,7 +1043,7 @@ TEST_P(someip_tp, send_in_mode) {
         for (const order_e mode : {order_e::ASCENDING, order_e::DESCENDING}) {
             while (wait_for_all_fragments_received_as_server_) {
                 if (std::cv_status::timeout
-                    == all_fragments_received_as_server_cond_.wait_for(all_fragments_received_as_server_lock, std::chrono::seconds(20))) {
+                    == all_fragments_received_as_server_cond_.wait_for(all_fragments_received_as_server_lock, std::chrono::seconds(5))) {
                     ADD_FAILURE() << "Didn't receive request from client within time: " << std::uint32_t(mode);
                     return;
                 } else {
