@@ -14,7 +14,7 @@
 void print_help() {
     std::cout << "Usage: wait-until-available <service-id> [-h|--help][-t|--timeout <s>]" << std::endl;
     std::cout << "  <service-id>           Service to wait for, in hex" << std::endl;
-    std::cout << "  -t, --timeout <s>     Timeout in seconds (default: 30)" << std::endl;
+    std::cout << "  -t, --timeout <s>      Timeout in seconds (default: 10)" << std::endl;
     std::cout << "  -h, --help             Show this help message" << std::endl;
 }
 
@@ -66,8 +66,8 @@ int main(int argc, char** argv) {
     std::future<bool> availability_future = availability_promise.get_future();
     app->register_availability_handler(
             service_id, vsomeip::ANY_INSTANCE,
-            [&availability_promise](vsomeip::service_t /*_service*/, vsomeip::instance_t /*_instance*/, bool _is_available) {
-                if (_is_available) {
+            [&availability_promise](vsomeip::service_t /*_service*/, vsomeip::instance_t _instance, bool _is_available) {
+                if (_instance != vsomeip::ANY_INSTANCE && _is_available) {
                     try {
                         availability_promise.set_value(true);
                     } catch (...) {
