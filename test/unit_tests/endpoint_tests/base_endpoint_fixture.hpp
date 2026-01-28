@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_BASE_ENDPOINT_FIXTURE
-#define VSOMEIP_V3_BASE_ENDPOINT_FIXTURE
+#pragma once
 
 #include "delegating_socket_factory.hpp"
 
@@ -19,5 +18,3 @@ struct base_endpoint_fixture : ::testing::Test {
 };
 
 }
-
-#endif

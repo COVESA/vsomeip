@@ -5,8 +5,7 @@
 
 #include <cstdint>
 
-#ifndef VSOMEIP_V3_SD_ENUMERATION_TYPES_HPP
-#define VSOMEIP_V3_SD_ENUMERATION_TYPES_HPP
+#pragma once
 
 namespace vsomeip_v3 {
 namespace sd {
@@ -42,5 +41,3 @@ enum class layer_four_protocol_e : uint8_t { TCP = 0x06, UDP = 0x11, UNKNOWN = 0
 
 } // namespace sd
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_SD_ENUMERATION_TYPES_HPP

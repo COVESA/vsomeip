@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef MOCKED_VSOMEIP_DEPENDENCIES_HPP_
-#define MOCKED_VSOMEIP_DEPENDENCIES_HPP_
+#pragma once
 
 #include <gmock/gmock.h>
 
@@ -248,5 +247,3 @@ struct mock_routing_host : public vsomeip_v3::routing_host {
                  void(vsomeip_v3::port_t _local_port, const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port));
     MOCK_METHOD0(get_routing_state, vsomeip_v3::routing_state_e());
 };
-
-#endif /* MOCKED_VSOMEIP_DEPENDENCIES_HPP_ */

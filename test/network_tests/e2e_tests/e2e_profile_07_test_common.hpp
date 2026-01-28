@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef E2E_PROFILE_07_TEST_COMMON_HPP_
-#define E2E_PROFILE_07_TEST_COMMON_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -20,5 +19,3 @@ const vsomeip::eventgroup_t PROFILE_07_EVENTGROUP = 0x0001;
 const vsomeip::event_t PROFILE_07_EVENT = 0x8001;
 
 #define PROFILE_07_NUM_MESSAGES 3
-
-#endif // E2E_PROFILE_07_TEST_COMMON_HPP_

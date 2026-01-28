@@ -1,5 +1,4 @@
-#ifndef VSOMEIP_V3_PROTOCOL_REGISTER_EVENT_HPP_
-#define VSOMEIP_V3_PROTOCOL_REGISTER_EVENT_HPP_
+#pragma once
 
 #include <set>
 #include <vector>
@@ -62,5 +61,3 @@ private:
 
 } // namespace protocol
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_PROTOCOL_REGISTER_EVENT_HPP_

@@ -19,8 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-#ifndef TINY_PROCESS_LIBRARY_HPP_
-#define TINY_PROCESS_LIBRARY_HPP_
+#pragma once
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -195,5 +194,3 @@ private:
 };
 
 } // namespace TinyProcessLib
-
-#endif // TINY_PROCESS_LIBRARY_HPP_

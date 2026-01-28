@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP
-#define VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP
+#pragma once
 
 #include <atomic>
 #include <list>
@@ -657,5 +656,3 @@ protected:
 
 } // namespace cfg
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_CFG_CONFIGURATION_IMPL_HPP

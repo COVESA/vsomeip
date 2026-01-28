@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_SERVICEINSTANCEMAP_HPP
-#define VSOMEIP_V3_SERVICEINSTANCEMAP_HPP
+#pragma once
 
 #include <boost/functional/hash.hpp>
 #include <unordered_map>
@@ -47,5 +46,3 @@ struct hash<vsomeip_v3::service_instance_t> {
     }
 };
 } // namespace std
-
-#endif // VSOMEIP_V3_SERVICE_INSTANCE_MAP_HPP

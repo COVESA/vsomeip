@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef STOP_WATCH_H_
-#define STOP_WATCH_H_
+#pragma once
 
 #include <cstdint>
 
@@ -42,4 +41,4 @@ private:
     usec_t total_elapsed_;
 };
 
-#endif // STOP_WATCH_H_
+#pragma once

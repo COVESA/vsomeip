@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef HEADERFACTORYTESTSERVICE_HPP_
-#define HEADERFACTORYTESTSERVICE_HPP_
+#pragma once
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
@@ -40,5 +39,3 @@ private:
     std::uint32_t number_of_received_messages_;
     std::thread offer_thread_;
 };
-
-#endif /* HEADERFACTORYTESTSERVICE_HPP_ */

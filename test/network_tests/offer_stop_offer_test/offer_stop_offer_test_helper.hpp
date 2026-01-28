@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef TEST_OFFER_STOP_OFFER_HELPER_HPP
-#define TEST_OFFER_STOP_OFFER_HELPER_HPP
+#pragma once
 
 #include <chrono>
 
@@ -20,5 +19,3 @@ constexpr auto SERVICE_STOP_OFFER_TIME = std::chrono::milliseconds(2);
 
 /// @brief Time for which the client application is active
 constexpr auto CLIENT_UP_TIME = std::chrono::seconds(10);
-
-#endif // TEST_OFFER_STOP_OFFER_HELPER_HPP

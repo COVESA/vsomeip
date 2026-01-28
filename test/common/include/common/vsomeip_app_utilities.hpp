@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_BASE_APP
-#define VSOMEIP_BASE_APP
+#pragma once
+
 #include <vsomeip/vsomeip.hpp>
 #include <condition_variable>
 #include <mutex>
@@ -30,4 +30,3 @@ public:
     ~base_vsip_app();
 };
 }
-#endif // VSOMEIP_BASE_APP

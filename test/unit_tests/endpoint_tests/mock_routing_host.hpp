@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_MOCK_ROUTING_HOST_
-#define VSOMEIP_V3_MOCK_ROUTING_HOST_
+#pragma once
 
 #include "../../../implementation/routing/include/routing_host.hpp"
 
@@ -31,5 +30,3 @@ public:
     MOCK_METHOD(void, remove_subscriptions, (port_t, const boost::asio::ip::address&, port_t), (override));
 };
 }
-
-#endif

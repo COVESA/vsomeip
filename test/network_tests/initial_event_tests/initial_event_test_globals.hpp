@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_
-#define SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace initial_event_test {
 
@@ -44,5 +43,3 @@ static constexpr service_info stop_service_slave = {0x9999, 0x1, 0x9999, 0x0, 0x
 
 static constexpr int notifications_to_send = 1;
 }
-
-#endif /* SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_ */

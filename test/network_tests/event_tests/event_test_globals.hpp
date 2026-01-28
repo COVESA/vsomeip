@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef EVENT_TEST_GLOBALS_HPP_
-#define EVENT_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace event_test {
 
@@ -25,5 +24,3 @@ enum test_mode_e : std::uint8_t { UNKNOWN, PAYLOAD_FIXED, PAYLOAD_DYNAMIC };
 std::uint32_t payload_fixed_length = 20;
 
 }
-
-#endif /* EVENT_TEST_GLOBALS_HPP_ */

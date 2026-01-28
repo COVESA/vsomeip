@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef OFFER_TEST_GLOBALS_HPP_
-#define OFFER_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace offer_test {
 
@@ -25,5 +24,3 @@ uint8_t num_remote_offered_services = 3;
 struct service_info service = {0x1111, 0x1, 0x1111, 0x1111, 0x1000, 0x0404, 0x1404};
 struct service_info remote_service = {0x2222, 0x2, 0x2222, 0x2222, 0x2000, 0x0808, 0x2808};
 }
-
-#endif /* OFFER_TEST_GLOBALS_HPP_ */

@@ -4,8 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #if defined(__linux__) || defined(__QNX__)
-#ifndef VSOMEIP_V3_LOCAL_ACCEPTOR_UDS_IMPL_HPP_
-#define VSOMEIP_V3_LOCAL_ACCEPTOR_UDS_IMPL_HPP_
+#pragma once
 
 #include "local_acceptor.hpp"
 #include "uds_socket.hpp"
@@ -84,5 +83,4 @@ private:
 
 }
 
-#endif
 #endif
