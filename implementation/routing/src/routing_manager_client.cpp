@@ -2542,7 +2542,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
     // interleaving stopping of the receiver within the ::stop method.
     bool is_started{false};
     std::unique_lock its_lock{receiver_mutex_};
-    if (!state_machine_->assigned()) {
+    if (!state_machine_->assigned(_client)) {
         VSOMEIP_INFO << "rmc::" << __func__ << ": Not starting the application registration for Client 0x" << std::hex << std::setw(4)
                      << std::setfill('0') << _client;
         its_lock.unlock();
