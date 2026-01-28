@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef MEMORY_TEST_SERVICE_HPP_
-#define MEMORY_TEST_SERVICE_HPP_
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -35,5 +34,3 @@ private:
     void on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/);
 };
 void check_memory(std::vector<std::uint64_t>& test_memory_);
-
-#endif // MEMORY_TEST_SERVICE_HPP_

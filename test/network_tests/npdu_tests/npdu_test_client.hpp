@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef NPDUTESTCLIENT_HPP_
-#define NPDUTESTCLIENT_HPP_
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -93,5 +92,3 @@ private:
     std::array<bool, npdu_test::service_ids.size()> finished_;
     std::thread finished_waiter_;
 };
-
-#endif /* NPDUTESTCLIENT_HPP_ */

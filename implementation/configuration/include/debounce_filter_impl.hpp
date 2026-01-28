@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_DEBOUNCE_HPP
-#define VSOMEIP_V3_DEBOUNCE_HPP
+#pragma once
 
 #include <atomic>
 
@@ -27,5 +26,3 @@ struct debounce_filter_impl_t : debounce_filter_t {
 using debounce_configuration_t = service_instance_map<std::unordered_map<event_t, std::shared_ptr<debounce_filter_impl_t>>>;
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_DEBOUNCE_HPP

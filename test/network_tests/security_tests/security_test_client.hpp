@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SECURITY_TEST_CLIENT_HPP
-#define SECURITY_TEST_CLIENT_HPP
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -49,5 +48,3 @@ private:
     bool test_external_communication_;
     bool is_remote_client_allowed_;
 };
-
-#endif // SECURITY_TEST_CLIENT_HPP

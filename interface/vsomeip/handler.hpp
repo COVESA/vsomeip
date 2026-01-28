@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_HANDLER_HPP_
-#define VSOMEIP_V3_HANDLER_HPP_
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -103,5 +102,3 @@ typedef std::function<void(security_update_state_e)> security_update_handler_t;
 typedef std::function<bool(const message_acceptance_t&)> message_acceptance_handler_t;
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_HANDLER_HPP_

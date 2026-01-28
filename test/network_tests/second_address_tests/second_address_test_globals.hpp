@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SECOND_ADDRESS_TEST_GLOBALS_HPP_
-#define SECOND_ADDRESS_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace second_address_test {
 
@@ -25,5 +24,3 @@ struct service_info service = {0x3333, 0x1, 0x1, 0x3301, 0x2, 0x3302, 0x1111, 0x
 static constexpr std::uint32_t number_of_messages_to_send = 150;
 static constexpr std::uint8_t number_of_events_to_send = 150;
 }
-
-#endif /* SECOND_ADDRESS_TEST_GLOBALS_HPP_ */

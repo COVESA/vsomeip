@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_PAYLOAD_IMPL_HPP
-#define VSOMEIP_V3_PAYLOAD_IMPL_HPP
+#pragma once
 
 #include <vsomeip/export.hpp>
 #include <vsomeip/payload.hpp>
@@ -46,5 +45,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_PAYLOAD_IMPL_HPP

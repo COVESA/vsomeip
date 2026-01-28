@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SD_DEFINES_HPP
-#define VSOMEIP_SD_DEFINES_HPP
+#pragma once
 
 #define VSOMEIP_MAX_UDP_SD_PAYLOAD               1380
 
@@ -43,5 +42,3 @@
 #define VSOMEIP_SD_WAIT_ROUTE_NETLINK_NOTIFICATION  true
 #define VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME         2000
 #define VSOMEIP_SD_OFFERS_WATCHDOG_TIME             4000
-
-#endif // VSOMEIP_SD_DEFINES_HPP

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TRACE_CONNECTOR_HPP_
-#define VSOMEIP_V3_TRACE_CONNECTOR_HPP_
+#pragma once
 
 #ifdef USE_DLT
 #include <dlt/dlt.h>
@@ -77,5 +76,3 @@ private:
 
 } // namespace trace
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_TC_TRACE_CONNECTOR_HPP

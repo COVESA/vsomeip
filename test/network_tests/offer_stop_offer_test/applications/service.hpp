@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERVICE_HPP
-#define VSOMEIP_SERVICE_HPP
+#pragma once
 
 #include <future>
 #include <list>
@@ -96,5 +95,3 @@ private:
 
     std::atomic<vsomeip::state_type_e> app_registration_state;
 };
-
-#endif // VSOMEIP_SERVICE_HPP

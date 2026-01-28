@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef DEBOUNCE_FREQUENCY_TEST_COMMON_HPP_
-#define DEBOUNCE_FREQUENCY_TEST_COMMON_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -21,5 +20,3 @@ const vsomeip::minor_version_t DEBOUNCE_MINOR = 0x01;
 enum debounce_frequency_test_id_e : uint8_t {
     DTI_FLAT = 0x00,
 };
-
-#endif // DEBOUNCE_FREQUENCY_TEST_COMMON_HPP_

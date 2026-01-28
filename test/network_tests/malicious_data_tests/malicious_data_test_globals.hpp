@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef MALICIOUS_DATA_TEST_GLOBALS_HPP_
-#define MALICIOUS_DATA_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace malicious_data_test {
 
@@ -22,5 +21,3 @@ struct service_info service = {0x3344, 0x1, 0x1111, 0x8002, 0x1, 0x1404, 0x4242}
 
 enum test_mode_e { MALICIOUS_EVENTS, PROTOCOL_VERSION, MESSAGE_TYPE, RETURN_CODE, WRONG_HEADER_FIELDS_UDP };
 }
-
-#endif /* MALICIOUS_DATA_TEST_GLOBALS_HPP_ */

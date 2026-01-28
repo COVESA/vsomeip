@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef ROUTING_MANAGER_UT_SETUP_HPP
-#define ROUTING_MANAGER_UT_SETUP_HPP
+#pragma once
 
 #include <utility>
 
@@ -27,5 +26,3 @@ protected:
     // Tears down the test fixture.
     void TearDown() override;
 };
-
-#endif // ROUTING_MANAGER_UT_SETUP_HPP

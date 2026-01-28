@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef LOCALROUTINGTESTSERVICE_HPP_
-#define LOCALROUTINGTESTSERVICE_HPP_
+#pragma once
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
@@ -41,5 +40,3 @@ private:
     std::condition_variable condition_;
     std::thread offer_thread_;
 };
-
-#endif /* LOCALROUTINGTESTSERVICE_HPP_ */

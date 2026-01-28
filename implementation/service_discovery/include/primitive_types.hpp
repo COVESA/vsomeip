@@ -5,8 +5,7 @@
 
 #include <cstdint>
 
-#ifndef VSOMEIP_V3_SD_PRIMITIVE_TYPES_HPP_
-#define VSOMEIP_V3_SD_PRIMITIVE_TYPES_HPP_
+#pragma once
 
 namespace vsomeip_v3 {
 namespace sd {
@@ -24,5 +23,3 @@ typedef uint8_t flags_t;
 
 } // namespace sd
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_SD_PRIMITIVE_TYPES_HPP_

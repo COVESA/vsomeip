@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef AVAILABILITY_HANDLER_TEST_GLOBALS_HPP_
-#define AVAILABILITY_HANDLER_TEST_GLOBALS_HPP_
+#pragma once
 
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
@@ -64,5 +63,3 @@ public:
 };
 
 }
-
-#endif /* AVAILABILITY_HANDLER_TEST_GLOBALS_HPP_ */

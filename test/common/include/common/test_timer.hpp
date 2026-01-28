@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef COMMON_TEST_TIMER_HPP
-#define COMMON_TEST_TIMER_HPP
+#pragma once
 
 #include <chrono>
 
@@ -25,5 +24,3 @@ private:
     std::chrono::system_clock::time_point start;
 };
 } // namespace common
-
-#endif // COMMON_TEST_TIMER_HPP

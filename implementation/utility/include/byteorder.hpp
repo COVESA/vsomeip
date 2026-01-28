@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_BYTEORDER_HPP
-#define VSOMEIP_V3_BYTEORDER_HPP
+#pragma once
 
 #define BYTEORDER_UNKNOWN 0
 #define BYTEORDER_LITTLE_ENDIAN 1
@@ -47,5 +46,3 @@
 #else
 #define COMPILE_TIME_ENDIAN BYTEORDER_UNKNOWN
 #endif
-
-#endif // VSOMEIP_V3_BYTEORDER_HPP

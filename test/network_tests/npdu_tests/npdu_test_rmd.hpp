@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef NPDU_TESTS_NPDUTESTROUTINGMANAGERDAEMON_HPP_
-#define NPDU_TESTS_NPDUTESTROUTINGMANAGERDAEMON_HPP_
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -37,5 +36,3 @@ private:
     std::thread offer_thread_;
     std::thread shutdown_thread_;
 };
-
-#endif /* NPDU_TESTS_NPDUTESTROUTINGMANAGERDAEMON_HPP_ */

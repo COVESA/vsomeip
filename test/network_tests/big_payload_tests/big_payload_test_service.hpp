@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef BIGPAYLOADTESTSERVICE_HPP_
-#define BIGPAYLOADTESTSERVICE_HPP_
+#pragma once
 #include <gtest/gtest.h>
 
 #include <vsomeip/vsomeip.hpp>
@@ -47,5 +46,3 @@ private:
     vsomeip::service_t service_id_;
     std::queue<std::shared_ptr<vsomeip::message>> incoming_requests_;
 };
-
-#endif /* BIGPAYLOADTESTSERVICE_HPP_ */

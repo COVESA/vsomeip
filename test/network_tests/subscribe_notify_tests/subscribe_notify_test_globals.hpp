@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_
-#define SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace subscribe_notify_test {
 
@@ -47,5 +46,3 @@ static constexpr vsomeip::method_t shutdown_method_id = 0x6666;
 static constexpr vsomeip::method_t set_method_id = 0x7777;
 
 }
-
-#endif /* SUBSCRIBE_NOTIFY_TEST_GLOBALS_HPP_ */

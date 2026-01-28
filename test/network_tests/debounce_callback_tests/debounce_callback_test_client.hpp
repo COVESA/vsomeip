@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef DEBOUNCE_TEST_CLIENT_HPP_
-#define DEBOUNCE_TEST_CLIENT_HPP_
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -55,5 +54,3 @@ private:
     std::thread runner_;
     std::shared_ptr<vsomeip::application> app_;
 };
-
-#endif // DEBOUNCE_CALLBACK_TEST_CLIENT_HPP_

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef RESTART_ROUTING_TEST_SERVICE_HPP
-#define RESTART_ROUTING_TEST_SERVICE_HPP
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -53,5 +52,3 @@ private:
 
     std::thread offer_thread_;
 };
-
-#endif // RESTART_ROUTING_TEST_SERVICE_HPP

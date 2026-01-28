@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_CLIENT_HPP
-#define VSOMEIP_CLIENT_HPP
+#pragma once
 
 #include <future>
 #include <list>
@@ -96,5 +95,3 @@ private:
     ///        client_request_t are removed after the response is received and promise is set.
     std::list<client_request_t> pending_requests;
 };
-
-#endif // VSOMEIP_CLIENT_HPP
