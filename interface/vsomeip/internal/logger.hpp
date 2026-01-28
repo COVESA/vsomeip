@@ -13,6 +13,10 @@
 #include <string_view>
 #include <vector>
 
+#ifdef __QNX__
+#include <sys/slog2.h>
+#endif
+
 #include <vsomeip/export.hpp>
 
 namespace vsomeip_v3 {
@@ -27,6 +31,35 @@ enum class VSOMEIP_IMPORT_EXPORT level_e : std::uint8_t {
     LL_DEBUG = 5,
     LL_VERBOSE = 6
 };
+
+#ifdef __QNX__
+inline constexpr auto log_level_as_slog2(level_e const _level) -> std::uint8_t
+{
+    uint8_t severity = 0;
+    switch (_level) {
+    case level_e::LL_FATAL:
+        severity = SLOG2_CRITICAL;
+        break;
+    case level_e::LL_ERROR:
+        severity = SLOG2_ERROR;
+        break;
+    case level_e::LL_WARNING:
+        severity = SLOG2_WARNING;
+        break;
+    case level_e::LL_INFO:
+        severity = SLOG2_INFO;
+        break;
+    case level_e::LL_DEBUG:
+        severity = SLOG2_DEBUG1;
+        break;
+    case level_e::LL_VERBOSE:
+    default:
+        severity = SLOG2_DEBUG2;
+        break;
+    }
+    return severity;
+}
+#endif
 
 class message : public std::ostream {
 public:
@@ -55,7 +88,9 @@ private:
 
     buffer buffer_;
     const level_e level_;
+    level_e threshold_level_;
     bool console_enabled_{false};
+    bool slog2_enabled_{false};
     bool dlt_enabled_{false};
     bool file_enabled_{false};
     std::chrono::system_clock::time_point when_;

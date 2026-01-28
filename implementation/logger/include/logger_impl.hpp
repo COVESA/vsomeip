@@ -34,6 +34,7 @@ public:
     // alignas(4) to work around a bug in ancient MSVC15 which for some reason we still support...
     struct alignas(4) config {
         bool console_enabled;
+        bool slog2_enabled;
         bool dlt_enabled;
         bool file_enabled;
         level_e loglevel;
@@ -43,6 +44,7 @@ public:
     config get_configuration() const;
 
     void log_to_file(std::string_view _msg);
+    void log_to_slog2(level_e _level, std::string_view _msg);
 
 #ifdef USE_DLT
     static DltContext& dlt_context();
@@ -54,6 +56,17 @@ private:
 
     std::mutex log_file_mutex_;
     std::ofstream log_file_;
+    std::string app_name_;
+
+#ifdef __QNX__
+    // Flag whether slog2 was successfully initialized.
+    bool slog2_is_initialized_ = false;
+
+    static slog2_buffer_set_config_t   buffer_config;
+    static slog2_buffer_t              buffer_handle[1];
+    static std::uint8_t levelAsSlog2(level_e const _level);
+#endif
+    auto init_slog2(const std::shared_ptr<configuration>& _configuration) -> void;
 };
 
 } // namespace logger
