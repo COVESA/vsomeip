@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef MEMORY_TEST_COMMON_HPP_
-#define MEMORY_TEST_COMMON_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -28,5 +27,3 @@ constexpr uint16_t TEST_EVENT_NUMBER = 20;
 constexpr uint16_t TEST_MESSAGE_NUMBER = 9000;
 constexpr int NOTIFY_PAYLOAD_SIZE = 4000;
 constexpr double MEMORY_LOAD_LIMIT = 1.15; // meaning 15% limit above the average value
-
-#endif // MEMORY_TEST_COMMON_HPP_

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_COMMAND_RECORD_
-#define VSOMEIP_V3_TESTING_COMMAND_RECORD_
+#pragma once
 
 #include "command_message.hpp"
 #include "vsomeip_command_handler.hpp"
@@ -52,5 +51,3 @@ private:
 bool operator==(std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>> const& _lhs, command_record const& _rhs);
 
 }
-
-#endif

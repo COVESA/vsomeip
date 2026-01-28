@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef E2E_TEST_CLIENT_HPP
-#define E2E_TEST_CLIENT_HPP
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -46,5 +45,3 @@ private:
     std::atomic<std::uint32_t> received_responses_;
     std::atomic<std::uint32_t> received_allowed_events_;
 };
-
-#endif // E2E_TEST_CLIENT_HPP

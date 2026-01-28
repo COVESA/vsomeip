@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_SHARED_TCP_SOCKET_STATE_HPP_
-#define VSOMEIP_V3_TESTING_SHARED_TCP_SOCKET_STATE_HPP_
+#pragma once
 
 #include "../../../implementation/endpoints/include/tcp_socket.hpp"
 #include "attribute_recorder.hpp"
@@ -316,5 +315,3 @@ private:
     boost::asio::ip::tcp::endpoint endpoint_;
 };
 }
-
-#endif

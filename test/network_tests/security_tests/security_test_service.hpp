@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SECURITY_TEST_SERVICE_HPP
-#define SECURITY_TEST_SERVICE_HPP
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -41,5 +40,3 @@ private:
     std::uint32_t number_of_received_messages_;
     std::thread offer_thread_;
 };
-
-#endif // SECURITY_TEST_SERVICE_HPP

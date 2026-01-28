@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TIMER_TESTING_
-#define VSOMEIP_V3_TIMER_TESTING_
+#pragma once
 
 #include "base_endpoint_fixture.hpp"
 
@@ -73,4 +72,3 @@ struct test_timer_base : base_endpoint_fixture {
     std::shared_ptr<fake_factory> factory_;
 };
 }
-#endif

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_COMMAND_MESSAGE_HPP_
-#define VSOMEIP_V3_COMMAND_MESSAGE_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 #include "../../../../implementation/protocol/include/protocol.hpp"
@@ -95,5 +94,3 @@ std::vector<unsigned char> construct_basic_raw_command(Ts&&... payload) {
     return message;
 }
 }
-
-#endif

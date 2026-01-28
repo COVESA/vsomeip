@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef HEADERFACTORYTESTCLIENT_HPP_
-#define HEADERFACTORYTESTCLIENT_HPP_
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -43,5 +42,3 @@ private:
     std::uint32_t number_of_acknowledged_messages_;
     std::thread sender_;
 };
-
-#endif /* HEADERFACTORYTESTCLIENT_HPP_ */

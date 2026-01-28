@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_DELEGATING_SOCKET_FACTORY_
-#define VSOMEIP_V3_DELEGATING_SOCKET_FACTORY_
+#pragma once
 
 #include "../../../implementation/endpoints/include/abstract_socket_factory.hpp"
 
@@ -34,5 +33,3 @@ public:
     std::shared_ptr<abstract_socket_factory> impl_;
 };
 }
-
-#endif

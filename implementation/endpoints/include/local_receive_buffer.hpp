@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_LOCAL_RECEIVE_BUFFER_
-#define VSOMEIP_V3_LOCAL_RECEIVE_BUFFER_
+#pragma once
 
 #include <cstdint>
 #include <cstddef>
@@ -264,5 +263,3 @@ private:
     size_t end_{0};
 };
 }
-
-#endif

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef BIG_PAYLOAD_TEST_GLOBALS_HPP_
-#define BIG_PAYLOAD_TEST_GLOBALS_HPP_
+#pragma once
 
 #include <cstdint>
 
@@ -33,5 +32,3 @@ constexpr vsomeip::method_t STOP_METHOD = 0x0999;
 
 enum test_mode { RANDOM, LIMITED, LIMITED_GENERAL, QUEUE_LIMITED_GENERAL, QUEUE_LIMITED_SPECIFIC, UDP, UNKNOWN };
 }
-
-#endif /* BIG_PAYLOAD_TEST_GLOBALS_HPP_ */
