@@ -3,9 +3,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-project("unit_tests_routing_manager_tests" LANGUAGES CXX)
+project(unit_tests_routing_manager_tests LANGUAGES CXX)
 
-file(GLOB SRCS ../main.cpp routing_manager_ut_setup.cpp ut_set_routing_state.cpp mocks/*.cpp)
+file(GLOB SRCS ../main.cpp routing_manager_ut_setup.cpp routing_manager_base_tests.cpp ut_set_routing_state.cpp mocks/*.cpp)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
@@ -13,6 +13,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 # Executable and libraries to link
 # ----------------------------------------------------------------------------
 add_executable(${PROJECT_NAME} ${SRCS})
+
 target_link_libraries(
     ${PROJECT_NAME}
     vsomeip3-test
