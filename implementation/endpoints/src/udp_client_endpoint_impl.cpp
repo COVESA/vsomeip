@@ -242,6 +242,8 @@ bool udp_client_endpoint_impl::get_remote_address(boost::asio::ip::address& _add
 }
 
 std::uint16_t udp_client_endpoint_impl::get_local_port() const {
+    std::scoped_lock its_lock(socket_mutex_);
+
     return local_.port();
 }
 
