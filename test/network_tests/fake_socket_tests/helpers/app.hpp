@@ -128,18 +128,54 @@ public:
     void subscribe_eventgroup_field(event_ids const& _ei);
 
     /**
+     * @see subscribe_event
+     *
+     * Uses `subscribe_with_debounce`
+     */
+    void subscribe_event_debounce(event_ids const& _ei, debounce_filter_t const& _filter);
+
+    /*
+     * @see subscribe_field
+     *
+     * Uses `subscribe_with_debounce`
+     */
+    void subscribe_field_debounce(event_ids const& _ei, debounce_filter_t const& _filter);
+
+    /**
      * registers a message handler that will
      * 1. record the incoming request in the
      * @see message_record_
      * 2. uses the _payload_creator to fill the response
      * 3. dispatch the response with vsomeip::application::send()
      */
-    void answer_request(request const& r, std::function<std::vector<unsigned char>()> payload_creator);
+    void answer_request(request const& _r, std::function<std::vector<unsigned char>()> _payload_creator);
 
     /**
      * Forwards the event payload to the vsomeip::application::notify()
      */
     void send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload);
+
+    /**
+     * Wait for message (payloads!) to reach given state
+     *
+     * It is essentially an advanced wrapper around `message_record_`, which only looks at payloads (and ignores service/method/session/...)
+     */
+    bool wait_for_messages(std::vector<std::vector<uint8_t>> const& _payloads,
+                           std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        return message_record_.wait_for(
+                [&_payloads](auto const& _record) {
+                    if (_record.size() != _payloads.size()) {
+                        return false;
+                    }
+
+                    bool equal = true;
+                    for (size_t i = 0; i < _record.size(); ++i) {
+                        equal = equal && _record[i].payload_ == _payloads[i];
+                    }
+                    return equal;
+                },
+                timeout);
+    }
 
     /**
      * After app::start() has been called this helper can be used to await the registration
@@ -171,6 +207,7 @@ private:
                                         vsomeip::event_t _event, uint16_t error_code);
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);
     void subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et);
+    void subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& _filter);
     void offer(event_ids const& _ei, vsomeip::event_type_e _et);
 
     bool is_running_{false};

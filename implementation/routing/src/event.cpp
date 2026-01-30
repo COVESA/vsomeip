@@ -446,8 +446,14 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
             for (auto i : _filter->ignore_)
                 its_filter_parameters << "(" << std::dec << i.first << ", " << std::hex << std::setfill('0') << std::setw(2)
                                       << static_cast<int>(i.second) << ") ";
-            its_filter_parameters << "])";
+            its_filter_parameters << "], send_current_value_after_=" << std::boolalpha << _filter->send_current_value_after_ << ")";
+
             VSOMEIP_INFO << "Filter parameters: " << its_filter_parameters.str();
+
+            if (_filter->send_current_value_after_) {
+                VSOMEIP_WARNING << "Filter uses unsupported parameter `send_current_value_after_`";
+            }
+
             {
                 std::scoped_lock lk{filters_mutex_};
                 filters_[_client] = [_filter](const std::shared_ptr<payload>& _old, const std::shared_ptr<payload>& _new) {
@@ -512,9 +518,6 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
                     return (is_changed || is_elapsed);
                 };
             }
-
-            // Create a new callback for this client if filter interval is used
-            routing_->register_debounce(_filter, _client, shared_from_this());
         } else {
             std::scoped_lock lk{filters_mutex_};
             filters_.erase(_client);
@@ -537,7 +540,6 @@ void event::remove_subscriber(eventgroup_t _eventgroup, client_t _client) {
     auto find_eventgroup = eventgroups_.find(_eventgroup);
     if (find_eventgroup != eventgroups_.end()) {
         find_eventgroup->second.erase(_client);
-        routing_->remove_debounce(_client, get_event());
     }
 }
 
@@ -616,20 +618,12 @@ std::set<client_t> event::get_filtered_subscribers(bool _force) {
     return its_filtered_subscribers;
 }
 
-// Get the clients that have pending updates after debounce timeout
-void event::get_pending_updates(const std::set<client_t>& _clients) {
-    if (has_changed(current_->get_payload(), update_->get_payload())) {
-        routing_->update_debounce_clients(_clients, get_event());
-    }
-}
-
 std::set<client_t> event::update_and_get_filtered_subscribers(const std::shared_ptr<payload>& _payload, bool _is_from_remote) {
 
     std::scoped_lock its_lock(mutex_);
 
     (void)prepare_update_payload_unlocked(_payload, true);
     auto its_subscribers = get_filtered_subscribers(!_is_from_remote);
-    get_pending_updates(its_subscribers);
     if (_is_from_remote)
         update_payload_unlocked();
 

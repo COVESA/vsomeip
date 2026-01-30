@@ -33,24 +33,18 @@ struct debounce_filter_t {
     }
 
     inline bool operator==(const debounce_filter_t& _other) const {
-
         return (on_change_ == _other.on_change_ && on_change_resets_interval_ == _other.on_change_resets_interval_
                 && interval_ == _other.interval_ && ignore_ == _other.ignore_
                 && send_current_value_after_ == _other.send_current_value_after_);
     }
 
-    inline bool operator!=(const debounce_filter_t& _other) const {
-
-        return (on_change_ != _other.on_change_ || on_change_resets_interval_ != _other.on_change_resets_interval_
-                || interval_ != _other.interval_ || ignore_ != _other.ignore_
-                || send_current_value_after_ != _other.send_current_value_after_);
-    }
+    inline bool operator!=(const debounce_filter_t& _other) const { return !(*this == _other); }
 
     bool on_change_;
     bool on_change_resets_interval_;
     int64_t interval_;
     std::map<std::size_t, byte_t> ignore_;
-    bool send_current_value_after_;
+    bool send_current_value_after_; // ignored, does nothing
 };
 
 } // namespace vsomeip_v3

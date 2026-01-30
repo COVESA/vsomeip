@@ -132,8 +132,6 @@ private:
     bool prepare_update_payload_unlocked(const std::shared_ptr<payload>& _payload, bool _force);
     void update_payload_unlocked();
 
-    void get_pending_updates(const std::set<client_t>& _clients);
-
     /// Updates the `is_set` flag to the given `value`.
     ///
     /// This is used to track changes to the flag.

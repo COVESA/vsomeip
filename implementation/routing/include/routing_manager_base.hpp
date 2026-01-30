@@ -60,11 +60,6 @@ public:
 
     virtual std::string get_env(client_t _client) const = 0;
 
-    virtual void register_debounce(const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
-                                   const std::shared_ptr<vsomeip_v3::event>& _event);
-    virtual void remove_debounce(client_t _client, event_t _event);
-    virtual void update_debounce_clients(const std::set<client_t>& _clients, event_t _event);
-
     virtual bool is_routing_manager() const;
 
     virtual void init() = 0;
@@ -215,7 +210,6 @@ protected:
 private:
     virtual bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                                         const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client) = 0;
-    void debounce_timeout_update_cbk(const boost::system::error_code& _error, size_t _lifecycle_idx);
 
 protected:
     routing_manager_host* host_;
@@ -244,18 +238,6 @@ protected:
     // Events (part of one or more eventgroups)
     mutable std::mutex events_mutex_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> events_;
-
-    struct debounce_data_t {
-        client_t client_;
-        bool update_;
-        event_t event_;
-        std::weak_ptr<event> weak_event_;
-        std::weak_ptr<debounce_filter_impl_t> weak_filter_;
-    };
-    boost::asio::steady_timer debounce_timer_;
-    size_t debounce_lifecycle_idx_ = 0;
-    std::multimap<std::chrono::steady_clock::time_point, debounce_data_t> debounce_clients_;
-    mutable std::mutex debounce_mutex_;
 
     std::mutex event_registration_mutex_;
 
