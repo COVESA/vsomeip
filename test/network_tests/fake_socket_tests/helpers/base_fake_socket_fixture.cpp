@@ -151,9 +151,10 @@ void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail)
 void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     socket_manager_->set_ignore_broken_pipe(_app_name, _set);
 }
-bool base_fake_socket_fixture::wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                                             std::chrono::milliseconds _timeout) {
-    return socket_manager_->wait_once_for_dropped_command(_from, _to, _id, _timeout);
+
+std::future<protocol::id_e> base_fake_socket_fixture::drop_command_once(std::string const& _from, std::string const& _to,
+                                                                        protocol::id_e _id) {
+    return socket_manager_->drop_command_once(_from, _to, _id);
 }
 
 void base_fake_socket_fixture::set_custom_command_handler(std::string const& _from, std::string const& _to,
