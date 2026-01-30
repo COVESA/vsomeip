@@ -217,11 +217,11 @@ public:
     void awaiting();
 
     /**
-     * Stops once the delivery of a specific vsomeip command @param _id from @param _from towards @param _to.
-     * Returns when the command is stopped or when @param _timeout expires.
+     * Prepares a drop for the specific vsomeip command @param _id from @param _from towards @param _to, gives a future for when it happens
+     *
+     * NOTE: not composeable, difficut to use, take care..
      */
-    bool wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                       std::chrono::milliseconds _timeout);
+    std::future<protocol::id_e> drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id);
 
     /**
      * Forces the delivery of a vsomeip message @param _payload from @param _from to @param _to.

@@ -191,10 +191,9 @@ struct base_fake_socket_fixture : ::testing::Test {
     void set_ignore_broken_pipe(std::string const& _app_name, bool _set);
 
     /**
-     * @see socket_manager::wait_once_for_dropped_command
+     * @see socket_manager::drop_command_once
      */
-    bool wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                       std::chrono::milliseconds _timeout);
+    std::future<protocol::id_e> drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id);
 
     /**
      * @see socket_manager::inject_command

@@ -1071,12 +1071,22 @@ TEST_F(test_restart_clients, test_restart_service_availability) {
  */
 TEST_F(test_restart_clients, block_registration_process) {
     start_router();
+
+    std::future<protocol::id_e> fut = drop_command_once(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID);
+
+    // start a client
     create_app(client_one_);
     auto* one = start_client(client_one_);
-    ASSERT_TRUE(await_connection(client_one_, routingmanager_name_, std::chrono::seconds(2)));
-    ASSERT_TRUE(wait_once_for_dropped_command(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID,
-                                              std::chrono::milliseconds(500)));
+    ASSERT_TRUE(await_connection(client_one_, routingmanager_name_));
+
     ASSERT_FALSE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(1)));
+
+    // sanity check that the right message was dropped
+    ASSERT_TRUE(fut.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    ASSERT_EQ(fut.get(), protocol::id_e::REGISTER_APPLICATION_ID);
+
+    // and that application eventually registers
+    EXPECT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 }
 
 struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
