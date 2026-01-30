@@ -1598,7 +1598,6 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
             - **mask** - 1 Byte bitmask applied to byte at given payload index. **Example mask**: 0x0f ignores payload changes in low nibble of the byte at given index.
         - **interval** - Specifies if the event shall be debounced based on elapsed time interval. (valid values: `time in ms`, `never`). The default value is  `never`.
         - **on_change_resets_interval** (optional) - Specifies if interval timer is reset when payload change was detected, valid values are `false`, `true`. The default value is `false`.
-        - **send_current_value_after** (optional) - Specifies if last message should be sent after interval timeout, valid values are `false`, `true`. The default value is `false`.
 
 
 <details><summary>Debounce configuration</summary>

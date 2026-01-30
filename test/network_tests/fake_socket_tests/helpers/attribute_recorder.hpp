@@ -70,9 +70,17 @@ public:
     std::string to_string() const {
         auto lock = std::unique_lock(mtx_);
         std::stringstream s;
+        s << "[";
+        bool first = true;
         for (auto const& val : record_) {
+            if (first) {
+                first = false;
+            } else {
+                s << ", ";
+            }
             s << val;
         }
+        s << "]";
 
         return s.str();
     }

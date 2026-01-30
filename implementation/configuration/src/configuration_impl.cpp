@@ -3942,6 +3942,7 @@ void configuration_impl::load_event_debounce(const boost::property_tree::ptree& 
                 its_converter >> its_debounce->interval_;
             }
         } else if (its_key == "send_current_value_after") {
+            VSOMEIP_WARNING << "Filter uses unsupported parameter 'send_current_value_after'";
             its_debounce->send_current_value_after_ = (its_value == "true");
         }
     }
