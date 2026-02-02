@@ -176,12 +176,10 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
         std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
         remote_service_info_[_service][_instance][_ep_definition->is_reliable()] = _ep_definition;
 
-        if (_ep_definition->is_reliable()) {
-            its_endpoint = find_remote_client(_service, _instance, true);
-            must_report = (its_endpoint && its_endpoint->is_established_or_connected());
-            if (must_report)
-                its_info = rm_->find_service(_service, _instance);
-        }
+        its_endpoint = find_remote_client(_service, _instance, _ep_definition->is_reliable());
+        must_report = (its_endpoint && its_endpoint->is_established_or_connected());
+        if (must_report)
+            its_info = rm_->find_service(_service, _instance);
     }
 
     if (must_report)
