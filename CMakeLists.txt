@@ -557,11 +557,12 @@ configure_file (${VSOMEIP_NAME}Config.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_
 configure_file (${VSOMEIP_NAME}ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}ConfigVersion.cmake" @ONLY)
 
 # configure internal.hpp for correct version number
+if(NOT ANDROID_CI_BUILD)
 configure_file (
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp.in"
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp"
 )
-
+endif ()
 # Install the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion.cmake
 install (
     FILES
