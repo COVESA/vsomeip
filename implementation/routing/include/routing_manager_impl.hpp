@@ -277,6 +277,8 @@ private:
                                   minor_version_t _minor);
     std::set<client_t> get_requesters(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     std::set<client_t> get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
+
+    bool has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     bool has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void call_sd_endpoint_connected(const boost::system::error_code& _error, service_t _service, instance_t _instance,
