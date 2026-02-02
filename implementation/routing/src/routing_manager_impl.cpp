@@ -594,7 +594,10 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
         }
     } else {
         if (discovery_) {
-            discovery_->release_service(_service, _instance);
+            // Release the service only if there are no more requesters.
+            if (!has_requester(_service, _instance, ANY_MAJOR, ANY_MINOR)) {
+                discovery_->release_service(_service, _instance);
+            }
         }
     }
 }
@@ -3483,6 +3486,11 @@ std::set<client_t> routing_manager_impl::get_requesters_unlocked(service_t _serv
     return its_requesters;
 }
 
+bool routing_manager_impl::has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
+    std::scoped_lock lock{requested_services_mutex_};
+    return has_requester_unlocked(_service, _instance, _major, _minor);
+}
+
 bool routing_manager_impl::has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major,
                                                   minor_version_t _minor) {
 
@@ -3503,10 +3511,9 @@ bool routing_manager_impl::has_requester_unlocked(service_t _service, instance_t
     }
 
     for (const auto& [major, minors_map] : found_instance->second) {
-        if (major == _major || _major == DEFAULT_MAJOR || major == ANY_MAJOR) {
+        if (major == _major || _major == DEFAULT_MAJOR || major == ANY_MAJOR || _major == ANY_MAJOR) {
             for (const auto& [minor, clients] : minors_map) {
-                if (minor <= _minor || _minor == DEFAULT_MINOR || minor == ANY_MINOR) {
-
+                if (minor <= _minor || _minor == DEFAULT_MINOR || minor == ANY_MINOR || _minor == ANY_MINOR) {
                     return true;
                 }
             }
