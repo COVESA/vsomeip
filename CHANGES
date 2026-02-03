@@ -1,5 +1,43 @@
 Changes
 =======
+v3.6.4
+- global
+  - improve logging
+  - add defaults to CMakePresets
+  - scoped lock all recursive mutexes
+  - remove unused definitions
+  - cleanup exported symbols
+  - pragma once the entire codebase
+  - debouncing drop send_current_value_after
+  - fix internal.hpp with ANDROID_CI_BUILD flag
+
+- application
+  - fix plugin_manager_impl singleton free-after-use on dtor bug
+
+- endpoints
+  - refactor local_endpoint::start
+  - drop prepare_stop
+  - fix data race when calling get_local_port()
+  - fix delayed availability
+
+- routing
+  - send initial event on every sub
+  - fix missing find on resume
+
+- tests
+  - general test speedups
+  - remove valgrind trace-children-skip
+  - stop routing app last
+  - extend helpers to simulate suspend
+  - enable ctest -R for fake socket tests
+  - fix offer_test_local race condition
+  - fix usei_fixture.no_overwrite
+  - fix someip_tp_tests
+  - fix block_registration_process
+  - rewrite process_manager
+  - new subscribe_before_register test
+  - new shutdown_test for IPC
+
 v3.6.3
 - global
   - rework shutdown to simplify thread detach mechanism
