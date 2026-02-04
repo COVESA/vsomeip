@@ -10,6 +10,7 @@
 #include "../../routing/include/routing_host.hpp"
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../utility/include/is_value.hpp"
+#include "../../utility/include/utility.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
 
 #include <boost/asio/error.hpp>
@@ -345,9 +346,8 @@ std::string local_endpoint::status() const {
 }
 std::string local_endpoint::status_unlock() const {
     std::stringstream s;
-    s << "client: " << std::hex << std::setfill('0') << std::setw(4) << peer_ << ", connection : " << socket_->to_string()
-      << ", send_queue: " << send_queue_.size() << ", receive_buffer: " << *receive_buffer_
-      << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
+    s << "client: " << hex4(peer_) << ", connection : " << socket_->to_string() << ", send_queue: " << send_queue_.size()
+      << ", receive_buffer: " << *receive_buffer_ << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
     return s.str();
 }
 

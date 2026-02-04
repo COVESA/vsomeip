@@ -537,8 +537,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
                 }
                 VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                                 << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
-                                << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service
-                                << "." << std::setw(4) << its_method << "." << std::setw(4) << its_session << "]"
+                                << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                                << "]"
                                 << " endpoint > " << this << " socket state > " << to_string(state_.load());
             }
         }
@@ -590,9 +590,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value()
-                        << "), remote: " << get_remote_information() << " " << queue_.size() << " " << queue_size_ << " (" << std::hex
-                        << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4)
-                        << its_method << "." << std::setw(4) << its_session << "]"
+                        << "), remote: " << get_remote_information() << " " << queue_.size() << " " << queue_size_ << " ("
+                        << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
                         << " endpoint > " << this << " socket state > " << to_string(state_.load());
         print_status();
     }
@@ -798,8 +797,8 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "cei::check_queue_limit: queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_
-                      << ") reached. Dropping message (" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): ["
-                      << std::setw(4) << its_service << "." << std::setw(4) << its_method << "." << std::setw(4) << its_session << "] "
+                      << ") reached. Dropping message (" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method)
+                      << "." << hex4(its_session) << "] "
                       << "queue_size: " << std::dec << queue_size_ << " data size: " << _size;
         return false;
     }

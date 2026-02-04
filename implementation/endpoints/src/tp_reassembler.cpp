@@ -13,6 +13,7 @@
 
 #include "../include/tp.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../../utility/include/utility.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
@@ -75,11 +76,10 @@ std::pair<bool, message_buffer_t> tp_reassembler::process_tp_message(const byte_
                                     << ": Received new segment "
                                        "although old one is not finished yet. Dropping "
                                        "old. ("
-                                    << std::hex << std::setfill('0') << std::setw(4) << its_client << ") [" << std::setw(4) << its_service
-                                    << "." << std::setw(4) << its_method << "." << std::setw(2)
+                                    << hex4(its_client) << ") [" << hex4(its_service) << "." << hex4(its_method) << "." << std::setw(2)
                                     << static_cast<uint16_t>(its_interface_version) << "." << std::setw(2)
-                                    << static_cast<uint16_t>(its_msg_type) << "] Old: 0x" << std::setw(4) << found_tp_msg->second.first
-                                    << ", new: 0x" << std::setw(4) << its_session;
+                                    << static_cast<uint16_t>(its_msg_type) << "] Old: 0x" << hex4(found_tp_msg->second.first) << ", new: 0x"
+                                    << hex4(its_session);
                     // new segment with different session id -> throw away current
                     found_tp_msg->second.first = its_session;
                     found_tp_msg->second.second = tp_message(_data, _data_size, max_message_size_);
@@ -114,10 +114,10 @@ bool tp_reassembler::cleanup_unfinished_messages() {
                     const auto its_interface_version = static_cast<interface_version_t>(tp_id_iter->first >> 8);
                     const auto its_msg_type = static_cast<message_type_e>(tp_id_iter->first >> 0);
                     VSOMEIP_WARNING << __func__ << ": deleting unfinished SOME/IP-TP message from: " << ip_iter->first.to_string() << ":"
-                                    << std::dec << port_iter->first << " (" << std::hex << std::setfill('0') << std::setw(4) << its_client
-                                    << ") [" << std::setw(4) << its_service << "." << std::setw(4) << its_method << "." << std::setw(2)
-                                    << static_cast<std::uint16_t>(its_interface_version) << "." << std::setw(2)
-                                    << static_cast<std::uint16_t>(its_msg_type) << "." << std::setw(4) << tp_id_iter->second.first << "]";
+                                    << std::dec << port_iter->first << " (" << hex4(its_client) << ") [" << hex4(its_service) << "."
+                                    << hex4(its_method) << "." << std::setw(2) << static_cast<std::uint16_t>(its_interface_version) << "."
+                                    << std::setw(2) << static_cast<std::uint16_t>(its_msg_type) << "." << hex4(tp_id_iter->second.first)
+                                    << "]";
                     tp_id_iter = port_iter->second.erase(tp_id_iter);
                 } else {
                     tp_id_iter++;

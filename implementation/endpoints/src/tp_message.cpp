@@ -11,6 +11,7 @@
 #include "../include/tp_message.hpp"
 #include "../include/tp.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../../utility/include/utility.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
@@ -235,9 +236,10 @@ std::string tp_message::get_message_id(const byte_t* const _data, std::uint32_t 
         const interface_version_t its_interface_version = _data[VSOMEIP_INTERFACE_VERSION_POS];
         const message_type_e its_msg_type = tp::tp_flag_unset(_data[VSOMEIP_MESSAGE_TYPE_POS]);
 
-        ss << "(" << std::hex << std::setfill('0') << std::setw(4) << its_client << ") [" << std::setw(4) << its_service << "."
-           << std::setw(4) << its_method << "." << std::setw(2) << static_cast<uint16_t>(its_interface_version) << "." << std::setw(2)
-           << static_cast<uint16_t>(its_msg_type) << "." << std::setw(4) << its_session << "] ";
+        ss << "(" << hex4(its_client) << ") [" << hex4(its_service) << "." << hex4(its_method) << "." << std::setw(2)
+           << static_cast<uint16_t>(its_interface_version) << "." << hex4(its_method) << "." << std::setw(2)
+           << static_cast<uint16_t>(its_interface_version) << "." << std::setw(2) << static_cast<uint16_t>(its_msg_type) << "."
+           << hex4(its_session) << "] ";
         if (_data_length > VSOMEIP_TP_HEADER_POS_MAX) {
             const tp_header_t its_tp_header = bithelper::read_uint32_be(&_data[VSOMEIP_TP_HEADER_POS_MIN]);
             const length_t its_offset = tp::get_offset(its_tp_header);

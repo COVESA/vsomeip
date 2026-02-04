@@ -375,8 +375,8 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
         VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_
-                      << ") reached. Dropping message (" << std::hex << std::setfill('0') << std::setw(4) << its_client << "): ["
-                      << std::setw(4) << its_service << "." << std::setw(4) << its_method << "." << std::setw(4) << its_session << "]"
+                      << ") reached. Dropping message (" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method)
+                      << "." << hex4(its_session) << "]"
                       << " queue_size: " << std::dec << _endpoint_data.queue_size_ << " data size: " << _size;
         return false;
     }
@@ -512,9 +512,9 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
         } else {
             parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
             VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: " << its_data.queue_size_
-                            << " payload_size: " << payload_size << " payload: (" << std::hex << std::setfill('0') << std::setw(4)
-                            << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4) << its_method << "."
-                            << std::setw(4) << its_session << "]";
+                            << " payload_size: " << payload_size << " payload: (" << hex4(its_client) << "): [" << hex4(its_service) << "."
+                            << hex4(its_method) << "." << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "."
+                            << hex4(its_session) << "]";
             its_data.queue_.pop_front();
             recalculate_queue_size(its_data);
         }
@@ -529,9 +529,8 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
         // delete remaining outstanding responses
         parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
         VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                        << get_remote_information(it) << " " << its_data.queue_.size() << " " << its_data.queue_size_ << " (" << std::hex
-                        << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4)
-                        << its_method << "." << std::setw(4) << its_session << "]"
+                        << get_remote_information(it) << " " << its_data.queue_.size() << " " << its_data.queue_size_ << " ("
+                        << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
                         << " endpoint -> " << this;
         cancel_dispatch_timer(it);
         targets_.erase(it);

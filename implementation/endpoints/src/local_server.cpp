@@ -96,8 +96,8 @@ port_t local_server::get_local_port() const {
 
 void local_server::print_status() const {
     std::scoped_lock const lock{mtx_};
-    VSOMEIP_INFO << "ls::" << __func__ << ": lc: " << lc_count_ << ", connected clients: " << clients_.size() << ", self: " << std::hex
-                 << std::setfill('0') << std::setw(4) << own_client_id_ << ", mem: " << this;
+    VSOMEIP_INFO << "ls::" << __func__ << ": lc: " << lc_count_ << ", connected clients: " << clients_.size()
+                 << ", self: " << hex4(own_client_id_) << ", mem: " << this;
 }
 void local_server::set_id(client_t _id) {
     std::scoped_lock const lock{mtx_};
@@ -169,9 +169,8 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
     std::unique_lock lock{mtx_};
     if (_lc_count == lc_count_) {
         if (_expected_id != own_client_id_ && _expected_id != VSOMEIP_CLIENT_UNSET) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": connection refused due to wrong client id, expected: " << std::hex
-                            << std::setfill('0') << std::setw(4) << _expected_id << ", actual: " << own_client_id_
-                            << ", from client: " << _client;
+            VSOMEIP_WARNING << "ls::" << __func__ << ": connection refused due to wrong client id, expected: " << hex4(_expected_id)
+                            << ", actual: " << hex4(own_client_id_) << ", from client: " << _client;
             // This should not happen for the router, as the router for tcp needs to be configured, an no other
             // application should be able to claim this ip+port
             _socket->stop(true);
@@ -188,8 +187,7 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                                                        local_endpoint_params{_client, rh->get_client(), std::move(_socket)},
                                                        std::move(_buffer));
             if (!ep) {
-                VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << std::hex << std::setfill('0')
-                              << std::setw(4) << _client << ", self: " << this;
+                VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << hex4(_client) << ", self: " << this;
                 // socket is closed already in the create_server_ep on failure
                 // clean-up id
                 utility::release_client_id(configuration_->get_network(), _client);
@@ -203,14 +201,14 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             }
 
             if (auto it = clients_.find(_client); it != clients_.end()) {
-                VSOMEIP_WARNING << "ls::" << __func__ << ": Replacing already existing connection to client " << std::hex
-                                << std::setfill('0') << std::setw(4) << _client << ", previous connection: " << it->second->name() << "/"
-                                << it->second.get() << ", new connection " << ep->name() << "/" << ep.get() << ", self: " << this;
+                VSOMEIP_WARNING << "ls::" << __func__ << ": Replacing already existing connection to client " << hex4(_client)
+                                << ", previous connection: " << it->second->name() << "/" << it->second.get() << ", new connection "
+                                << ep->name() << "/" << ep.get() << ", self: " << this;
                 // Carful: A lock release should not be necessary, as stop of an endpoint must not invoke the error handler
                 it->second->stop(true);
             } else {
-                VSOMEIP_INFO << "ls::" << __func__ << ": Received a connection from " << std::hex << std::setfill('0') << std::setw(4)
-                             << _client << ", new connection " << ep->name() << "/" << ep.get() << ", self: " << this;
+                VSOMEIP_INFO << "ls::" << __func__ << ": Received a connection from " << hex4(_client) << ", new connection " << ep->name()
+                             << "/" << ep.get() << ", self: " << this;
             }
             clients_[_client] = ep;
             ep->register_error_handler([weak_self = weak_from_this(), weak_ep = std::weak_ptr<local_endpoint>(ep), _client] {
@@ -222,14 +220,14 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             });
             ep->start();
         } else {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << std::hex << std::setfill('0') << std::setw(4)
-                            << _client << ", from former lifecycle: " << _lc_count << ", current lc: " << lc_count_
+            VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << hex4(_client)
+                            << ", from former lifecycle: " << _lc_count << ", current lc: " << lc_count_
                             << ", as routing host is no longer available self: " << this;
             _socket->stop(true);
         }
     } else {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << std::hex << std::setfill('0') << std::setw(4) << _client
-                        << ", from former lifecycle: " << _lc_count << ", current lc: " << lc_count_ << ", self: " << this;
+        VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << hex4(_client) << ", from former lifecycle: " << _lc_count
+                        << ", current lc: " << lc_count_ << ", self: " << this;
         _socket->stop(true);
     }
 }
@@ -237,12 +235,11 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
 void local_server::remove_connection(client_t _client, std::shared_ptr<local_endpoint> _ep) {
     std::scoped_lock lock{mtx_};
     if (auto it = clients_.find(_client); it == clients_.end()) {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << _client
-                        << " has no registered connection to "
+        VSOMEIP_WARNING << "ls::" << __func__ << ": Client " << hex4(_client) << " has no registered connection to "
                         << " remove, endpoint > " << this;
     } else {
         if (_ep.get() != it->second.get()) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << _client
+            VSOMEIP_WARNING << "ls::" << __func__ << ": Client " << hex4(_client)
                             << " has a different recorded connection. Not removing the currently recorded connection: "
                             << it->second->name() << "/" << it->second.get() << ", stopped connection " << _ep->name() << "/" << _ep.get()
                             << ", self: " << this;
@@ -304,7 +301,7 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
             auto client_id = assign_client(result.message_data_, result.message_size_);
 
             std::stringstream ss;
-            ss << "ls::" << __func__ << ": Assigned client ID " << std::hex << std::setw(4) << client_id << " to \""
+            ss << "ls::" << __func__ << ": Assigned client ID " << hex4(client_id) << " to \""
                << utility::get_client_name(configuration_, client_id) << "\" (\"" << client_host_ << "\")";
 
             // check if is uds socket
@@ -397,7 +394,7 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
         return;
     }
 
-    VSOMEIP_DEBUG << "ls::send_client_id: dispatching client id: " << std::hex << std::setfill('0') << std::setw(4) << _client;
+    VSOMEIP_DEBUG << "ls::send_client_id: dispatching client id: " << hex4(_client);
     socket_->async_send(std::move(buffer), [self = shared_from_this(), this, _client](auto const& _ec, size_t, auto) {
         if (!_ec) {
             hand_over(_client);

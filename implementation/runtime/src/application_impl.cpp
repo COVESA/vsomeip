@@ -81,8 +81,7 @@ application_impl::~application_impl() {
 bool application_impl::init() {
     std::scoped_lock its_initialized_lock{initialize_mutex_};
     if (is_initialized_) {
-        VSOMEIP_WARNING << "Trying to initialize already-initialized application \"" << name_ << "\" (" << std::hex << std::setfill('0')
-                        << std::setw(4) << client_ << ")";
+        VSOMEIP_WARNING << "Trying to initialize already-initialized application \"" << name_ << "\" (" << hex4(client_) << ")";
         return true;
     }
 
@@ -188,11 +187,10 @@ bool application_impl::init() {
                 case '\0': {
                     if ('.' != c) {
                         if (0xffffu == prev_val) {
-                            VSOMEIP_INFO << "+filter " << std::hex << std::setfill('0') << std::setw(4) << val;
+                            VSOMEIP_INFO << "+filter " << hex4(val);
                             client_side_logging_filter_.insert(std::make_tuple(val, ANY_INSTANCE));
                         } else {
-                            VSOMEIP_INFO << "+filter " << std::hex << std::setfill('0') << std::setw(4) << prev_val << "." << std::setw(4)
-                                         << val;
+                            VSOMEIP_INFO << "+filter " << hex4(prev_val) << "." << hex4(val);
                             client_side_logging_filter_.insert(std::make_tuple(prev_val, val));
                         }
                         val = 0xffffu;
@@ -261,8 +259,8 @@ bool application_impl::init() {
         std::shared_ptr<cfg::trace> its_trace_configuration = its_configuration->get_trace();
         its_connector->configure(its_trace_configuration);
 
-        VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed") << ", " << std::hex << std::setfill('0') << std::setw(4)
-                     << client_ << ") is initialized (" << std::dec << max_dispatchers_ << ", " << max_dispatch_time_ << ").";
+        VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed") << ", " << hex4(client_) << ") is initialized (" << std::dec
+                     << max_dispatchers_ << ", " << max_dispatch_time_ << ").";
 
         is_initialized_ = true;
     }
@@ -307,8 +305,7 @@ bool application_impl::init() {
         std::exit(EXIT_FAILURE);
     }
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << " end of init, application \"" << name_ << "\" (" << std::hex << std::setfill('0')
-                 << std::setw(4) << client_ << ")";
+    VSOMEIP_INFO << "application_impl::" << __func__ << " end of init, application \"" << name_ << "\" (" << hex4(client_) << ")";
 
     return is_initialized_;
 }
@@ -319,15 +316,14 @@ void application_impl::start() {
     if (getpid() != static_cast<pid_t>(syscall(SYS_gettid))) {
         start_thread_ = pthread_self();
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << 0;
+        s << hex4(client_) << "_io" << std::setw(2) << 0;
         pthread_setname_np(start_thread_, s.str().c_str());
     }
 #endif
     {
         std::scoped_lock its_initialized_lock{initialize_mutex_};
         if (!is_initialized_) {
-            VSOMEIP_ERROR << "Trying to start uninitialized application \"" << name_ << "\" (" << std::hex << std::setfill('0')
-                          << std::setw(4) << client_ << ")";
+            VSOMEIP_ERROR << "Trying to start uninitialized application \"" << name_ << "\" (" << hex4(client_) << ")";
             return;
         }
     }
@@ -340,7 +336,7 @@ void application_impl::start() {
         {
             std::scoped_lock its_lock_inner{dispatcher_mutex_};
             if (!dispatchers_.empty() || !io_threads_.empty()) {
-                VSOMEIP_ERROR << "Trying to start an already started application";
+                VSOMEIP_ERROR << "Trying to start an already started application (" << hex4(client_) << ")  ";
                 return;
             }
         }
@@ -349,8 +345,8 @@ void application_impl::start() {
             io_.restart();
         }
 
-        VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << std::hex << std::setfill('0') << std::setw(4) << client_
-                     << ") using " << std::dec << io_thread_count << " threads"
+        VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << hex4(client_) << ") using " << std::dec << io_thread_count
+                     << " threads"
 #if defined(__linux__) || defined(__QNX__)
                      << " I/O nice " << io_thread_nice_level
 #endif
@@ -374,14 +370,14 @@ void application_impl::start() {
 #if defined(__linux__)
                 {
                     std::stringstream s;
-                    s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1;
+                    s << hex4(client_) << "_io" << std::setw(2) << i + 1;
                     pthread_setname_np(pthread_self(), s.str().c_str());
                 }
                 utility::set_thread_niceness(io_thread_nice_level);
 #endif
 
-                VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2)
-                             << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+                VSOMEIP_INFO << "Started thread " << hex4(client_) << "_io" << std::setw(2) << i + 1 << ", application '" << name_
+                             << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                              << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -392,9 +388,8 @@ void application_impl::start() {
                         io_.run();
 
                         if (!stopping_) {
-                            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0')
-                                          << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1 << ", application '" << name_
-                                          << "', id " << std::hex << std::this_thread::get_id()
+                            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io" << std::setw(2)
+                                          << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                                           << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -412,8 +407,8 @@ void application_impl::start() {
                     }
                 }
 
-                VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2)
-                             << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+                VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_io" << std::setw(2) << i + 1 << ", application '" << name_
+                             << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                              << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -423,7 +418,7 @@ void application_impl::start() {
         }
     }
 
-    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io00"
+    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_io00"
                  << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -448,8 +443,7 @@ void application_impl::start() {
         try {
             io_.run();
             if (!stopping_) {
-                VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << std::hex << std::setfill('0') << std::setw(4)
-                              << client_ << "_io00"
+                VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00"
                               << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                               << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -467,9 +461,8 @@ void application_impl::start() {
         }
     }
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": io_.run() end for app(" << name_ << ", " << std::hex << std::setfill('0')
-                 << std::setw(4) << client_ << ")" << "; Join Dispatcher threads for app(" << name_ << ", " << std::hex << std::setfill('0')
-                 << std::setw(4) << client_ << ")";
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")"
+                 << "; Join Dispatcher threads for app(" << name_ << ", " << hex4(client_) << ")";
 
     try {
         std::unique_lock its_lock_start_stop{dispatcher_mutex_};
@@ -506,8 +499,7 @@ void application_impl::start() {
                       << " catched exception: " << e.what();
     }
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": Join IO threads for app(" << name_ << ", " << std::hex << std::setfill('0')
-                 << std::setw(4) << client_ << ")";
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": Join IO threads for app(" << name_ << ", " << hex4(client_) << ")";
     try {
         std::unique_lock its_lock_start_stop{start_stop_mutex_};
         auto its_threads = io_threads_;
@@ -530,7 +522,7 @@ void application_impl::start() {
 
     stopping_ = false;
 
-    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io00"
+    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_io00"
                  << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -541,8 +533,7 @@ void application_impl::start() {
 void application_impl::stop() {
     std::scoped_lock its_lock_start_stop{start_stop_mutex_};
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": Stopping vsomeip application \"" << name_ << "\" (" << std::hex
-                 << std::setfill('0') << std::setw(4) << client_ << ").";
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": Stopping vsomeip application \"" << name_ << "\" (" << hex4(client_) << ").";
 
     if (stopping_) {
         VSOMEIP_WARNING << "application_impl::" << __func__
@@ -845,9 +836,8 @@ void application_impl::send(std::shared_ptr<message> _message) {
     // likely that the user created a message (with `runtime::create_message`) and forgot to set the type
     // fail here in an obvious way, instead of down-the-line in some client-lookup code
     if (_message->get_message_type() == message_type_e::MT_UNKNOWN) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": message [" << std::hex << std::setfill('0') << std::setw(4)
-                      << _message->get_service() << "." << std::setw(4) << _message->get_instance() << "." << std::setw(4)
-                      << _message->get_method() << "] has unknown type, cannot send!";
+        VSOMEIP_ERROR << "application_impl::" << __func__ << ": message [" << hex4(_message->get_service()) << "."
+                      << hex4(_message->get_instance()) << "." << hex4(_message->get_method()) << "] has unknown type, cannot send!";
         return;
     }
 
@@ -856,10 +846,10 @@ void application_impl::send(std::shared_ptr<message> _message) {
         && (client_side_logging_filter_.empty()
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), ANY_INSTANCE)))
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), _message->get_instance()))))) {
-        VSOMEIP_INFO << "application_impl::send: (" << std::hex << std::setfill('0') << std::setw(4) << client_ << "): [" << std::setw(4)
-                     << _message->get_service() << "." << std::setw(4) << _message->get_instance() << "." << std::setw(4)
-                     << _message->get_method() << ":" << std::setw(4) << (is_request ? session_ : _message->get_session()) << ":"
-                     << std::setw(4) << (is_request ? client_.load() : _message->get_client()) << "] "
+        VSOMEIP_INFO << "application_impl::send: (" << hex4(client_) << "): [" << hex4(_message->get_service()) << "."
+                     << hex4(_message->get_instance()) << "." << hex4(_message->get_method()) << ":"
+                     << hex4(is_request ? session_ : _message->get_session()) << ":"
+                     << hex4(is_request ? client_.load() : _message->get_client()) << "] "
                      << "type=" << static_cast<std::uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
     }
     if (routing_) {
@@ -1084,8 +1074,8 @@ void application_impl::register_subscription_handler(service_t _service, instanc
 void application_impl::register_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                      const subscription_handler_sec_t& _handler) {
 
-    VSOMEIP_INFO << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): [" << std::setw(4) << _service
-                 << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]";
+    VSOMEIP_INFO << __func__ << ": (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                 << hex4(_eventgroup) << "]";
 
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
@@ -1323,8 +1313,7 @@ void application_impl::register_subscription_status_handler(service_t _service, 
         VSOMEIP_WARNING << "application_impl::register_subscription_status_handler: "
                            "_handler is null, for unregistration please use "
                            "application_impl::unregister_subscription_status_handler ["
-                        << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
-                        << std::setw(4) << _eventgroup << "." << std::setw(4) << _event << "]";
+                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
     }
 }
 
@@ -1372,9 +1361,8 @@ void application_impl::offer_event(service_t _service, instance_t _instance, eve
 
             configuration_->get_event_update_properties(_service, _instance, _notifier, _cycle, _change_resets_cycle, _update_on_change);
 
-            VSOMEIP_INFO << __func__ << std::hex << std::setfill('0') << ": Event [" << std::setw(4) << _service << "." << std::setw(4)
-                         << _instance << "." << std::setw(4) << _notifier << "] uses configured cycle time " << std::dec << _cycle.count()
-                         << "ms";
+            VSOMEIP_INFO << __func__ << ": Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
+                         << "] uses configured cycle time " << std::dec << _cycle.count() << "ms";
         }
 
         routing_->register_event(client_, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle, _change_resets_cycle,
@@ -1422,7 +1410,7 @@ void application_impl::set_client(const client_t& _client) {
     // start thread
     if (start_thread_ != 0) {
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << 0;
+        s << hex4(client_) << "_io" << std::setw(2) << 0;
         pthread_setname_np(start_thread_, s.str().c_str());
     }
     // io thread(s)
@@ -1430,7 +1418,7 @@ void application_impl::set_client(const client_t& _client) {
         std::scoped_lock its_lock{start_stop_mutex_};
         for (size_t i = 0; i < io_threads_.size(); ++i) {
             std::stringstream s;
-            s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_io" << std::setw(2) << i + 1;
+            s << hex4(client_) << "_io" << std::setw(2) << i + 1;
 
             pthread_setname_np(io_threads_[i]->native_handle(), s.str().c_str());
         }
@@ -1443,7 +1431,7 @@ void application_impl::set_client(const client_t& _client) {
         // they are not numbered anyhow, and secondary dispatchers are temporary - there is likely
         // none at all
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch";
+        s << hex4(client_) << "_m_dispatch";
 
         for (const auto& [id, thread] : dispatchers_) {
             pthread_setname_np(thread->native_handle(), s.str().c_str());
@@ -1454,7 +1442,7 @@ void application_impl::set_client(const client_t& _client) {
         std::scoped_lock its_lock{start_stop_mutex_};
 
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_shutdown";
+        s << hex4(client_) << "_shutdown";
 
         if (stop_thread_.joinable()) {
             pthread_setname_np(stop_thread_.native_handle(), s.str().c_str());
@@ -1714,9 +1702,8 @@ void application_impl::on_message(std::shared_ptr<message>&& _message) {
 
     if (_message->get_message_type() == message_type_e::MT_NOTIFICATION) {
         if (!check_for_active_subscription(its_service, its_instance, static_cast<event_t>(its_method))) {
-            VSOMEIP_INFO << "application_impl::on_message [" << std::hex << std::setfill('0') << std::setw(4) << its_service << "."
-                         << std::setw(4) << its_instance << "." << std::setw(4) << its_method << "]"
-                         << ": blocked as the subscription is already inactive.";
+            VSOMEIP_INFO << "application_impl::on_message [" << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_method)
+                         << "]: blocked as the subscription is already inactive.";
             return;
         }
     }
@@ -1752,13 +1739,13 @@ void application_impl::main_dispatch() {
 #if defined(__linux__) || defined(__QNX__)
     {
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch";
+        s << hex4(client_) << "_m_dispatch";
         pthread_setname_np(pthread_self(), s.str().c_str());
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
 
-    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch"
+    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_m_dispatch"
                  << ", application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -1792,7 +1779,7 @@ void application_impl::main_dispatch() {
         }
     }
 
-    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_m_dispatch"
+    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_m_dispatch"
                  << ", application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -1804,13 +1791,13 @@ void application_impl::dispatch() {
 #if defined(__linux__)
     {
         std::stringstream s;
-        s << std::hex << std::setfill('0') << std::setw(4) << client_ << "_dispatch";
+        s << hex4(client_) << "_dispatch";
         pthread_setname_np(pthread_self(), s.str().c_str());
     }
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
 
-    VSOMEIP_INFO << "Started thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_dispatch"
+    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_dispatch"
                  << ", application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -1853,7 +1840,7 @@ void application_impl::dispatch() {
     }
     dispatcher_condition_.notify_all();
 
-    VSOMEIP_INFO << "Stopped thread " << std::hex << std::setfill('0') << std::setw(4) << client_ << "_dispatch"
+    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_dispatch"
                  << ", application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
@@ -1968,9 +1955,9 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
         && (client_side_logging_filter_.empty()
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, ANY_INSTANCE)))
             || (1 == client_side_logging_filter_.count(std::make_tuple(its_sync_handler->service_id_, its_sync_handler->instance_id_))))) {
-        VSOMEIP_INFO << "Invoking handler: (" << std::hex << std::setfill('0') << std::setw(4) << client_ << "): [" << std::setw(4)
-                     << its_sync_handler->service_id_ << "." << std::setw(4) << its_sync_handler->instance_id_ << "." << std::setw(4)
-                     << its_sync_handler->method_id_ << ":" << std::setw(4) << its_sync_handler->session_id_ << "] "
+        VSOMEIP_INFO << "Invoking handler: (" << hex4(client_) << "): [" << hex4(its_sync_handler->service_id_) << "."
+                     << hex4(its_sync_handler->instance_id_) << "." << hex4(its_sync_handler->method_id_) << ":"
+                     << hex4(its_sync_handler->session_id_) << "] "
                      << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
     }
 
@@ -2096,8 +2083,8 @@ void application_impl::send_back_cached_event(service_t _service, instance_t _in
         its_message->set_payload(its_event->get_payload());
         its_message->set_initial(true);
         on_message(std::move(its_message));
-        VSOMEIP_INFO << "Sending back cached event (" << std::hex << std::setfill('0') << std::setw(4) << client_ << "): [" << std::setw(4)
-                     << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _event << "]";
+        VSOMEIP_INFO << "Sending back cached event (" << hex4(client_) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                     << hex4(_event) << "]";
     }
 }
 
@@ -2113,9 +2100,8 @@ void application_impl::send_back_cached_eventgroup(service_t _service, instance_
             its_message->set_payload(its_event->get_payload());
             its_message->set_initial(true);
             on_message(std::move(its_message));
-            VSOMEIP_INFO << "Sending back cached event (" << std::hex << std::setfill('0') << std::setw(4) << client_ << "): ["
-                         << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << its_event_id
-                         << "] from eventgroup " << std::setw(4) << _eventgroup;
+            VSOMEIP_INFO << "Sending back cached event (" << hex4(client_) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                         << hex4(its_event_id) << "] from eventgroup " << hex4(_eventgroup);
         }
     }
 }
@@ -2309,30 +2295,29 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
 void application_impl::print_blocking_call(const std::shared_ptr<sync_handler>& _handler) {
     switch (_handler->handler_type_) {
     case handler_type_e::AVAILABILITY:
-        VSOMEIP_WARNING << "BLOCKING CALL AVAILABILITY(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ["
-                        << std::setw(4) << _handler->service_id_ << "." << std::setw(4) << _handler->instance_id_ << "]";
+        VSOMEIP_WARNING << "BLOCKING CALL AVAILABILITY(" << hex4(get_client()) << "): [" << hex4(_handler->service_id_) << "."
+                        << hex4(_handler->instance_id_) << "]";
         break;
     case handler_type_e::MESSAGE:
-        VSOMEIP_WARNING << "BLOCKING CALL MESSAGE(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ["
-                        << std::setw(4) << _handler->service_id_ << "." << std::setw(4) << _handler->instance_id_ << "." << std::setw(4)
-                        << _handler->method_id_ << ":" << std::setw(4) << _handler->session_id_ << "]";
+        VSOMEIP_WARNING << "BLOCKING CALL MESSAGE(" << hex4(get_client()) << "): [" << hex4(_handler->service_id_) << "."
+                        << hex4(_handler->instance_id_) << "." << hex4(_handler->method_id_) << ":" << hex4(_handler->session_id_) << "]";
         break;
     case handler_type_e::STATE:
-        VSOMEIP_WARNING << "BLOCKING CALL STATE(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
+        VSOMEIP_WARNING << "BLOCKING CALL STATE(" << hex4(get_client()) << ")";
         break;
     case handler_type_e::SUBSCRIPTION:
-        VSOMEIP_WARNING << "BLOCKING CALL SUBSCRIPTION(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): ["
-                        << std::setw(4) << _handler->service_id_ << "." << std::setw(4) << _handler->instance_id_ << "." << std::setw(4)
-                        << _handler->eventgroup_id_ << ":" << std::setw(4) << _handler->method_id_ << "]";
+        VSOMEIP_WARNING << "BLOCKING CALL SUBSCRIPTION(" << hex4(get_client()) << "): [" << hex4(_handler->service_id_) << "."
+                        << hex4(_handler->instance_id_) << "." << hex4(_handler->eventgroup_id_) << ":" << hex4(_handler->method_id_)
+                        << "]";
         break;
     case handler_type_e::OFFERED_SERVICES_INFO:
-        VSOMEIP_WARNING << "BLOCKING CALL OFFERED_SERVICES_INFO(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
+        VSOMEIP_WARNING << "BLOCKING CALL OFFERED_SERVICES_INFO(" << hex4(get_client()) << ")";
         break;
     case handler_type_e::WATCHDOG:
-        VSOMEIP_WARNING << "BLOCKING CALL WATCHDOG(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
+        VSOMEIP_WARNING << "BLOCKING CALL WATCHDOG(" << hex4(get_client()) << ")";
         break;
     case handler_type_e::UNKNOWN:
-        VSOMEIP_WARNING << "BLOCKING CALL UNKNOWN(" << std::hex << std::setfill('0') << std::setw(4) << get_client() << ")";
+        VSOMEIP_WARNING << "BLOCKING CALL UNKNOWN(" << hex4(get_client()) << ")";
         break;
     }
 }
@@ -2462,8 +2447,8 @@ void application_impl::register_async_subscription_handler(service_t _service, i
 void application_impl::register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                            async_subscription_handler_sec_t _handler) {
 
-    VSOMEIP_INFO << __func__ << ": (" << std::hex << std::setfill('0') << std::setw(4) << get_client() << "): [" << std::setw(4) << _service
-                 << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]";
+    VSOMEIP_INFO << __func__ << ": (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                 << hex4(_eventgroup) << "]";
 
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);

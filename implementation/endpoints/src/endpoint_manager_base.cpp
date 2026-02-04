@@ -37,13 +37,13 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local(client_t _cl
 }
 
 void endpoint_manager_base::remove_local(const client_t _client, bool _remove_due_to_error) {
-    VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << get_client_id() << ", client "
-                 << _client << ", error " << _remove_due_to_error;
+    VSOMEIP_INFO << "emb::" << __func__ << ": self " << hex4(get_client_id()) << ", client " << hex4(_client) << ", error "
+                 << _remove_due_to_error;
     std::shared_ptr<local_endpoint> its_endpoint{find_local(_client)};
     if (its_endpoint) {
         its_endpoint->register_error_handler(nullptr);
         its_endpoint->stop(_remove_due_to_error);
-        VSOMEIP_INFO << "Client [" << std::hex << get_client_id() << "] is closing connection to [" << std::hex << _client << "]"
+        VSOMEIP_INFO << "Client [" << hex4(get_client_id()) << "] is closing connection to [" << hex4(_client) << "]"
                      << " endpoint > " << its_endpoint;
         std::scoped_lock its_lock(local_endpoint_mutex_);
         local_endpoints_.erase(_client);
@@ -56,16 +56,15 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local(clie
         std::scoped_lock its_lock{local_endpoint_mutex_};
         its_endpoint = find_local_unlocked(_client);
         if (!its_endpoint) {
-            VSOMEIP_INFO << "emb::" << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << get_client_id()
-                         << ", client " << _client;
+            VSOMEIP_INFO << "emb::" << __func__ << ": self " << hex4(get_client_id()) << ", client " << hex4(_client);
             its_endpoint = create_local_unlocked(_client);
 
             if (its_endpoint) {
                 its_endpoint->start();
 
             } else {
-                VSOMEIP_ERROR << "emb::" << __func__ << ": couldn't find or create endpoint, self " << std::hex << std::setfill('0')
-                              << std::setw(4) << get_client_id() << ", client " << std::hex << _client;
+                VSOMEIP_ERROR << "emb::" << __func__ << ": couldn't find or create endpoint, self " << hex4(get_client_id()) << ", client "
+                              << hex4(_client);
             }
         }
     }
@@ -104,9 +103,8 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server(const s
             boost::system::error_code its_error;
             tmp->init(its_error, std::nullopt);
             if (its_error) {
-                VSOMEIP_ERROR << "emb::" << __func__ << ": Local UDS server endpoint initialization failed. Client " << std::hex
-                              << std::setfill('0') << std::setw(4) << its_client << " Path: " << its_path.str()
-                              << " Reason: " << its_error.message();
+                VSOMEIP_ERROR << "emb::" << __func__ << ": Local UDS server endpoint initialization failed. Client " << hex4(its_client)
+                              << " Path: " << its_path.str() << " Reason: " << its_error.message();
 
             } else {
                 its_acceptor = tmp;
@@ -160,8 +158,7 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server(const s
                 rm_->add_guest(its_client, its_address, its_port);
             } else {
                 VSOMEIP_ERROR << "emb::" << __func__ << ": Local TCP server endpoint initialization failed. "
-                              << "Client " << std::hex << std::setfill('0') << std::setw(4) << its_client
-                              << " Reason: No local port available!";
+                              << "Client " << hex4(its_client) << " Reason: No local port available!";
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << "emb::" << __func__ << ": Caught exception: " << e.what();
@@ -203,7 +200,7 @@ void endpoint_manager_base::log_client_states() const {
     size_t its_max(std::min(size_t(10), its_client_queue_sizes.size()));
     its_log << std::setfill('0');
     for (size_t i = 0; i < its_max; i++) {
-        its_log << std::hex << std::setw(4) << its_client_queue_sizes[i].first << ":" << std::dec << its_client_queue_sizes[i].second;
+        its_log << hex4(its_client_queue_sizes[i].first) << ":" << std::dec << its_client_queue_sizes[i].second;
         if (i < its_max - 1)
             its_log << ", ";
     }
@@ -249,15 +246,13 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
                                                                         boost::asio::ip::tcp::endpoint(its_remote_address, its_remote_port),
                                                                         socket_role_e::SENDER)});
 
-                VSOMEIP_INFO << "Client [" << std::hex << std::setfill('0') << std::setw(4) << get_client_id() << "] @ "
-                             << its_local_address.to_string() << ":" << std::dec << local_port_ << " is connecting to [" << std::hex
-                             << std::setfill('0') << std::setw(4) << _client << "] @ " << its_remote_address.to_string() << ":" << std::dec
-                             << its_remote_port << " endpoint > " << its_endpoint;
+                VSOMEIP_INFO << "Client [" << hex4(get_client_id()) << "] @ " << its_local_address.to_string() << ":" << std::dec
+                             << local_port_ << " is connecting to [" << hex4(_client) << "] @ " << its_remote_address.to_string() << ":"
+                             << std::dec << its_remote_port << " endpoint > " << its_endpoint;
 
             } catch (...) { }
         } else {
-            VSOMEIP_ERROR << __func__ << ": self " << std::hex << std::setfill('0') << std::setw(4) << get_client_id()
-                          << " cannot get guest address of client [" << _client << "]";
+            VSOMEIP_ERROR << __func__ << ": self " << hex4(get_client_id()) << " cannot get guest address of client [" << _client << "]";
         }
     }
 
@@ -290,8 +285,8 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
         if (err == protocol::error_e::ERROR_OK) {
             its_endpoint->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
         } else {
-            VSOMEIP_ERROR << "emb::" << __func__ << ": config_command creation failed , self " << std::hex << std::setfill('0')
-                          << std::setw(4) << get_client_id() << ", client " << _client << ", err " << static_cast<int>(err);
+            VSOMEIP_ERROR << "emb::" << __func__ << ": config_command creation failed , self " << hex4(get_client_id()) << ", client "
+                          << hex4(_client) << ", err " << static_cast<int>(err);
             return nullptr;
         }
 
@@ -306,8 +301,8 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_unlocked(cli
             if (err == protocol::error_e::ERROR_OK) {
                 its_endpoint->send(&assign_buffer[0], static_cast<uint32_t>(assign_buffer.size()));
             } else {
-                VSOMEIP_ERROR << "emb::" << __func__ << ": assign_client_command creation failed , self " << std::hex << std::setfill('0')
-                              << std::setw(4) << get_client_id() << ", client " << _client << ", err " << static_cast<int>(err);
+                VSOMEIP_ERROR << "emb::" << __func__ << ": assign_client_command creation failed , self " << hex4(get_client_id())
+                              << ", client " << hex4(_client) << ", err " << static_cast<int>(err);
                 return nullptr;
             }
         } else {
@@ -377,16 +372,14 @@ void endpoint_manager_base::print_status() const {
 void endpoint_manager_base::flush_local_endpoint_queues() const {
     auto eps = [this] {
         std::scoped_lock its_lock(local_endpoint_mutex_);
-        VSOMEIP_INFO << "emb::flush_local_endpoint_queues: Start endpoints flush for client " << std::hex << std::setfill('0')
-                     << std::setw(4) << get_client_id();
+        VSOMEIP_INFO << "emb::flush_local_endpoint_queues: Start endpoints flush for client " << hex4(get_client_id());
         return local_endpoints_;
     }();
     // Note: The flushing effectively blocks. Therefore no mutex is allowed to be locked, to avoid stale mates
     for (auto const& [id, ep] : eps) {
         ep->flush_queue();
     }
-    VSOMEIP_INFO << "emb::flush_local_endpoint_queues: Finished endpoints flush for client " << std::hex << std::setfill('0')
-                 << std::setw(4) << get_client_id();
+    VSOMEIP_INFO << "emb::flush_local_endpoint_queues: Finished endpoints flush for client " << hex4(get_client_id());
 }
 
 } // namespace vsomeip_v3

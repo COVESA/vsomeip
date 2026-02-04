@@ -435,8 +435,8 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                 }
                 VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                                 << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
-                                << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service
-                                << "." << std::setw(4) << its_method << "." << std::setw(4) << its_session << "]";
+                                << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                                << "]";
             }
         }
         if (!stopping) {
@@ -485,9 +485,8 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         }
         VSOMEIP_WARNING << "uce::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                         << get_remote_information() << " "
-                        << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " (" << std::hex << std::setfill('0')
-                        << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4) << its_method << "."
-                        << std::setw(4) << its_session << "]";
+                        << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " (" << hex4(its_client) << "): ["
+                        << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]";
         print_status();
     }
 

@@ -88,9 +88,8 @@ void tcp_client_endpoint_impl::restart(bool _force) {
                 const client_t its_client = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_CLIENT_POS_MIN]);
                 const session_t its_session = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SESSION_POS_MIN]);
                 VSOMEIP_WARNING << "tce::restart: dropping message: "
-                                << "remote:" << self->get_address_port_remote() << " (" << std::hex << std::setfill('0') << std::setw(4)
-                                << its_client << "): [" << std::setw(4) << its_service << "." << std::setw(4) << its_method << "."
-                                << std::setw(4) << its_session << "]"
+                                << "remote:" << self->get_address_port_remote() << " (" << hex4(its_client) << "): [" << hex4(its_service)
+                                << "." << hex4(its_method) << "." << hex4(its_session) << "]"
                                 << " size: " << std::dec << q.first->size();
             }
             self->queue_.clear();
@@ -384,8 +383,8 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::sy
         VSOMEIP_ERROR << "tce::write_completion_condition: " << _error.message() << "(" << std::dec << _error.value()
                       << ") bytes transferred: " << std::dec << _bytes_transferred << " bytes to sent: " << std::dec << _bytes_to_send
                       << " "
-                      << "remote:" << get_address_port_remote() << " (" << std::hex << std::setfill('0') << std::setw(4) << _client
-                      << "): [" << std::setw(4) << _service << "." << std::setw(4) << _method << "." << std::setw(4) << _session << "]";
+                      << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_method)
+                      << "." << hex4(_session) << "]";
         return 0;
     }
 
@@ -396,15 +395,14 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::sy
             VSOMEIP_ERROR << "tce::write_completion_condition: " << _error.message() << "(" << std::dec << _error.value()
                           << ") took longer than " << std::dec << send_timeout_.count() << "ms bytes transferred: " << std::dec
                           << _bytes_transferred << " bytes to sent: " << std::dec << _bytes_to_send << " "
-                          << "remote:" << get_address_port_remote() << " (" << std::hex << std::setfill('0') << std::setw(4) << _client
-                          << "): [" << std::setw(4) << _service << "." << std::setw(4) << _method << "." << std::setw(4) << _session << "]";
+                          << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
+                          << hex4(_method) << "." << hex4(_session) << "]";
         } else {
             VSOMEIP_WARNING << "tce::write_completion_condition: " << _error.message() << "(" << std::dec << _error.value()
                             << ") took longer than " << std::dec << send_timeout_warning_.count() << "ms bytes transferred: " << std::dec
                             << _bytes_transferred << " bytes to sent: " << std::dec << _bytes_to_send << " "
-                            << "remote:" << get_address_port_remote() << " (" << std::hex << std::setfill('0') << std::setw(4) << _client
-                            << "): [" << std::setw(4) << _service << "." << std::setw(4) << _method << "." << std::setw(4) << _session
-                            << "]";
+                            << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
+                            << hex4(_method) << "." << hex4(_session) << "]";
         }
     }
     return _bytes_to_send - _bytes_transferred;
@@ -802,8 +800,8 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             }
             VSOMEIP_WARNING << "tce::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
                             << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
-                            << std::hex << std::setfill('0') << std::setw(4) << its_client << "): [" << std::setw(4) << its_service << "."
-                            << std::setw(4) << its_method << "." << std::setw(4) << its_session << "]";
+                            << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                            << "]";
         }
     }
 }

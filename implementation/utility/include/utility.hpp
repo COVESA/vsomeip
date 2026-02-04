@@ -11,6 +11,8 @@
 #include <memory>
 #include <set>
 #include <vector>
+#include <ostream>
+#include <iomanip>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -115,6 +117,14 @@ public:
     }
 
     static void set_thread_niceness(int _nice) noexcept;
+    class Hex4 {
+    public:
+        explicit constexpr Hex4(std::uint16_t _v) noexcept : value_(_v) { }
+        std::uint16_t get() const { return value_; }
+
+    private:
+        std::uint16_t value_;
+    };
 
 private:
     struct data_t {
@@ -135,5 +145,19 @@ private:
     static std::mutex& get_utility_mutex();
     static std::map<std::string, data_t>& get_utility_data();
 };
+
+inline utility::Hex4 hex4(std::uint16_t _v) {
+    return utility::Hex4(_v);
+}
+
+inline std::ostream& operator<<(std::ostream& os, utility::Hex4 v) {
+    auto flags = os.flags();
+    auto fill = os.fill();
+
+    os << std::hex << std::setfill('0') << std::setw(4) << v.get();
+    os.flags(flags);
+    os.fill(fill);
+    return os;
+}
 
 } // namespace vsomeip_v3

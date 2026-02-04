@@ -139,9 +139,8 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                     if (its_definition->get_address() == _reliable_address && its_definition->get_port() == _reliable_port) {
                         *_reliable_known = true;
                     } else {
-                        VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << std::hex << std::setfill('0') << std::setw(4)
-                                        << _service << "." << std::setw(4) << _instance << "." << std::dec
-                                        << static_cast<std::uint32_t>(_major) << "." << _minor
+                        VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
+                                        << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
                                         << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
                                         << " new: " << _reliable_address.to_string() << ":" << _reliable_port;
                     }
@@ -154,9 +153,8 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                     if (its_definition->get_address() == _unreliable_address && its_definition->get_port() == _unreliable_port) {
                         *_unreliable_known = true;
                     } else {
-                        VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << std::hex << std::setfill('0') << std::setw(4)
-                                        << _service << "." << std::setw(4) << _instance << "." << std::dec
-                                        << static_cast<std::uint32_t>(_major) << "." << _minor
+                        VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
+                                        << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
                                         << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
                                         << " new: " << _unreliable_address.to_string() << ":" << _unreliable_port;
                     }
@@ -612,9 +610,8 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
     client_t its_routing_host_id = configuration_->get_id(configuration_->get_routing_host_name());
     if (configuration_->is_security_enabled() && get_client() != its_routing_host_id) {
         VSOMEIP_ERROR << "endpoint_manager_impl::" << __func__ << ": "
-                      << "Client [" << std::hex << std::setfill('0') << std::setw(4) << get_client()
-                      << "] does not match the configured routing manager client identifier [" << std::hex << std::setfill('0')
-                      << std::setw(4) << its_routing_host_id << "]";
+                      << "Client [" << hex4(get_client()) << "] does not match the configured routing manager client identifier ["
+                      << hex4(its_routing_host_id) << "]";
 
         return false;
     }
@@ -642,8 +639,8 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 
                         its_acceptor->init(its_error, its_socket);
                         if (its_error) {
-                            VSOMEIP_ERROR << "Routing endpoint creation failed. Client ID: " << std::hex << std::setfill('0')
-                                          << std::setw(4) << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+                            VSOMEIP_ERROR << "Routing endpoint creation failed. Client ID: " << hex4(VSOMEIP_ROUTING_CLIENT) << ": "
+                                          << its_error.message();
 
                             return false;
                         }
@@ -669,8 +666,8 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 
                         its_acceptor->init(its_error, std::nullopt);
                         if (its_error) {
-                            VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: " << std::hex << std::setfill('0')
-                                          << std::setw(4) << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+                            VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: " << hex4(VSOMEIP_ROUTING_CLIENT) << ": "
+                                          << its_error.message();
 
                             return false;
                         }
@@ -695,8 +692,8 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 
                 its_acceptor->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
                 if (its_error) {
-                    VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: " << std::hex << std::setfill('0') << std::setw(4)
-                                  << VSOMEIP_ROUTING_CLIENT << ": " << its_error.message();
+                    VSOMEIP_ERROR << "Local routing endpoint creation failed. Client ID: " << hex4(VSOMEIP_ROUTING_CLIENT) << ": "
+                                  << its_error.message();
                     return false;
                 }
 
@@ -725,8 +722,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                     if (its_error) {
                         VSOMEIP_ERROR << "endpoint_manager_impl::create_routing_root: "
                                       << "Remote routing root endpoint creation failed (" << its_retry << ") "
-                                      << "Client: " << std::hex << std::setfill('0') << std::setw(4) << VSOMEIP_ROUTING_CLIENT << ": "
-                                      << its_error.message();
+                                      << "Client: " << hex4(VSOMEIP_ROUTING_CLIENT) << ": " << its_error.message();
 
                         std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL));
                     }

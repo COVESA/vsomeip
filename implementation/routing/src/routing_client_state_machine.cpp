@@ -7,6 +7,7 @@
 
 #include "../include/routing_client_state_machine.hpp"
 #include "../../utility/include/is_value.hpp"
+#include "../../utility/include/utility.hpp"
 
 #include <vsomeip/internal/logger.hpp>
 namespace vsomeip_v3 {
@@ -184,8 +185,7 @@ void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mut
 }
 
 void routing_client_state_machine::change_state_unlocked(routing_client_state_e _state) {
-    VSOMEIP_INFO << "rcsm::" << __func__ << ": client " << std::hex << std::setfill('0') << std::setw(4) << client_ << ", state " << state_
-                 << " -> " << _state;
+    VSOMEIP_INFO << "rcsm::" << __func__ << ": client " << hex4(client_) << ", state " << state_ << " -> " << _state;
     state_ = _state;
     if (is_value(state_).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_DEREGISTERED)) {
         cv_.notify_one();

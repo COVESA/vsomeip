@@ -286,14 +286,14 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
                 if (config_id == _client) {
                     return _client;
                 } else {
-                    VSOMEIP_ERROR << "Configured client requested different client-id (" << std::hex << std::setw(4) << _client
-                                  << "), assigning configured client-id: " << std::hex << std::setw(4) << config_id;
+                    VSOMEIP_ERROR << "Configured client requested different client-id (" << hex4(_client)
+                                  << "), assigning configured client-id: " << hex4(config_id);
                     return config_id;
                 }
             }
 
-            VSOMEIP_WARNING << "Requested client identifier " << std::hex << std::setfill('0') << std::setw(4) << _client
-                            << " is already used by application \"" << its_iterator->second << "\".";
+            VSOMEIP_WARNING << "Requested client identifier " << hex4(_client) << " is already used by application \""
+                            << its_iterator->second << "\".";
             // intentionally fall through
         }
     }

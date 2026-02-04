@@ -843,8 +843,8 @@ std::size_t tcp_server_endpoint_impl::connection::write_completion_condition(con
         VSOMEIP_ERROR << instance_name_ << __func__ << ": " << _error.message() << "(" << std::dec << _error.value()
                       << ") bytes transferred: " << std::dec << _bytes_transferred << " bytes to sent: " << std::dec << _bytes_to_send
                       << " "
-                      << "remote:" << get_address_port_remote() << " (" << std::hex << std::setfill('0') << std::setw(4) << _client
-                      << "): [" << std::setw(4) << _service << "." << std::setw(4) << _method << "." << std::setw(4) << _session << "]";
+                      << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_method)
+                      << "." << hex4(_session) << "]";
         stop_and_remove_connection();
         return 0;
     }
@@ -855,15 +855,13 @@ std::size_t tcp_server_endpoint_impl::connection::write_completion_condition(con
         if (passed > send_timeout_) {
             VSOMEIP_ERROR << instance_name_ << __func__ << ": " << _error.message() << "(" << std::dec << _error.value()
                           << ") took longer than " << send_timeout_.count() << "ms bytes transferred: " << _bytes_transferred
-                          << " bytes to sent: " << _bytes_to_send << " remote:" << get_address_port_remote() << " (" << std::hex
-                          << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service << "." << std::setw(4)
-                          << _method << "." << std::setw(4) << _session << "]";
+                          << " bytes to sent: " << _bytes_to_send << " remote:" << get_address_port_remote() << " (" << hex4(_client)
+                          << "): [" << hex4(_service) << "." << hex4(_method) << "." << hex4(_session) << "]";
         } else {
             VSOMEIP_WARNING << instance_name_ << __func__ << ": " << _error.message() << "(" << std::dec << _error.value()
                             << ") took longer than " << send_timeout_warning_.count() << "ms bytes transferred: " << _bytes_transferred
-                            << " bytes to sent: " << _bytes_to_send << " remote:" << get_address_port_remote() << " (" << std::hex
-                            << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service << "." << std::setw(4)
-                            << _method << "." << std::setw(4) << _session << "]";
+                            << " bytes to sent: " << _bytes_to_send << " remote:" << get_address_port_remote() << " (" << hex4(_client)
+                            << "): [" << hex4(_service) << "." << hex4(_method) << "." << hex4(_session) << "]";
         }
     }
     return _bytes_to_send - _bytes_transferred;

@@ -397,8 +397,8 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
             bool updated(false);
             const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
             if (search != services_.end()) {
-                VSOMEIP_INFO << "Updating remote configuration for service [" << std::hex << std::setfill('0') << std::setw(4)
-                             << its_service->service_ << "." << its_service->instance_ << "]";
+                VSOMEIP_INFO << "Updating remote configuration for service [" << hex4(its_service->service_) << "."
+                             << hex4(its_service->instance_) << "]";
                 if (_reliable) {
                     search->second->reliable_ = its_service->reliable_;
                 } else {
@@ -409,8 +409,8 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
 
             if (!updated) {
                 services_[service_instance_t{_service, _instance}] = its_service;
-                VSOMEIP_INFO << "Added new remote configuration for service [" << std::hex << std::setfill('0') << std::setw(4)
-                             << its_service->service_ << "." << std::setw(4) << its_service->instance_ << "]";
+                VSOMEIP_INFO << "Added new remote configuration for service [" << hex4(its_service->service_) << "."
+                             << hex4(its_service->instance_) << "]";
             }
             if (_magic_cookies_enabled) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
@@ -434,8 +434,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t
         std::scoped_lock its_lock(services_mutex_);
         const auto search = services_.find(service_instance_t{_service, _instance});
         if (search != services_.end()) {
-            VSOMEIP_INFO << "Removing remote configuration for service [" << std::hex << std::setfill('0') << std::setw(4) << _service
-                         << "." << _instance << "]";
+            VSOMEIP_INFO << "Removing remote configuration for service [" << hex4(_service) << "." << hex4(_instance) << "]";
             if (_reliable) {
                 search->second->reliable_ = ILLEGAL_PORT;
                 // TODO delete from magic_cookies_map without overwriting
@@ -1456,8 +1455,7 @@ void configuration_impl::print_suppress_events(void) const {
     VSOMEIP_INFO << "Suppress Event logs size: " << suppress_events_.size();
 
     for (const auto& its_log : suppress_events_) {
-        VSOMEIP_INFO << std::hex << std::setfill('0') << "+[" << std::setw(4) << its_log.service << "." << std::setw(4) << its_log.instance
-                     << "." << its_log.event << "]";
+        VSOMEIP_INFO << "+[" << hex4(its_log.service) << "." << hex4(its_log.instance) << "." << its_log.event << "]";
     }
 }
 
@@ -2085,8 +2083,8 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
         if (its_event_id > 0) {
             auto found_event = _service->events_.find(its_event_id);
             if (found_event != _service->events_.end()) {
-                VSOMEIP_INFO << "Multiple configurations for event [" << std::hex << std::setfill('0') << std::setw(4) << _service->service_
-                             << "." << std::setw(4) << _service->instance_ << "." << std::setw(4) << its_event_id << "].";
+                VSOMEIP_INFO << "Multiple configurations for event [" << hex4(_service->service_) << "." << hex4(_service->instance_) << "."
+                             << hex4(its_event_id) << "].";
             } else {
                 // If event reliability type was not configured,
                 if (its_reliability == reliability_type_e::RT_UNKNOWN) {
@@ -2095,9 +2093,8 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
                     } else if (_service->reliable_ != ILLEGAL_PORT) {
                         its_reliability = reliability_type_e::RT_RELIABLE;
                     }
-                    VSOMEIP_WARNING << "Reliability type for event [" << std::hex << std::setfill('0') << std::setw(4) << _service->service_
-                                    << "." << std::setw(4) << _service->instance_ << "." << std::setw(4) << its_event_id
-                                    << "] was not configured Using : "
+                    VSOMEIP_WARNING << "Reliability type for event [" << hex4(_service->service_) << "." << hex4(_service->instance_) << "."
+                                    << hex4(its_event_id) << "] was not configured Using : "
                                     << ((its_reliability == reliability_type_e::RT_RELIABLE) ? "RT_RELIABLE" : "RT_UNRELIABLE");
                 }
 
@@ -2731,7 +2728,7 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
             for (const auto& p : its_partition_members) {
                 for (const auto& m : p.second) {
                     partitions_[service_instance_t{p.first, m}] = its_partition_id;
-                    its_log << "<" << std::hex << std::setfill('0') << std::setw(4) << p.first << "." << std::setw(4) << m << ">";
+                    its_log << "<" << hex4(p.first) << "." << hex4(m) << ">";
                 }
             }
 
@@ -2953,9 +2950,9 @@ bool configuration_impl::get_client_port(service_t _service, instance_t _instanc
     }
 
     // Configured ports do exist, but they are all in use
-    VSOMEIP_ERROR << "Cannot find free client port for communication to service [" << std::hex << std::setfill('0') << std::setw(4)
-                  << _service << "." << std::setw(4) << _instance << "." << std::dec << _remote_port << "." << std::boolalpha << _reliable
-                  << "]";
+    VSOMEIP_ERROR << "Cannot find free client port for communication to service [" << hex4(_service) << "." << hex4(_instance) << "."
+                  << std::dec << _remote_port << "." << std::boolalpha << _reliable << hex4(_service) << "." << hex4(_instance) << "."
+                  << std::dec << _remote_port << "." << std::boolalpha << _reliable << "]";
 
     return false;
 }
@@ -3893,8 +3890,7 @@ void configuration_impl::load_service_debounce(const boost::property_tree::ptree
         const auto search = debounces_.find(service_instance_t{its_service, its_instance});
 
         if (search != debounces_.end()) {
-            VSOMEIP_ERROR << "Multiple debounce configurations for service " << std::hex << std::setfill('0') << std::setw(4) << its_service
-                          << "." << std::setw(4) << its_instance;
+            VSOMEIP_ERROR << "Multiple debounce configurations for service " << hex4(its_service) << "." << hex4(its_instance);
             return;
         }
 
@@ -4298,9 +4294,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_client_config_.end()) {
                         _service->tp_client_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << std::hex << std::setfill('0')
-                                        << std::setw(4) << _service->service_ << "." << std::setw(4) << _service->instance_ << "."
-                                        << std::setw(4) << its_method << "]:"
+                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << hex4(_service->service_) << "."
+                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]:"
                                         << " using (" << std::dec << its_entry->second.first << ", " << its_entry->second.second << ")";
                     }
                 } else {
@@ -4308,9 +4303,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_service_config_.end()) {
                         _service->tp_service_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << std::hex << std::setfill('0')
-                                        << std::setw(4) << _service->service_ << "." << std::setw(4) << _service->instance_ << "."
-                                        << std::setw(4) << its_method << "]:"
+                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << hex4(_service->service_) << "."
+                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]:"
                                         << " using (" << std::dec << its_entry->second.first << ", " << its_entry->second.second << ")";
                     }
                 }

@@ -18,7 +18,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 #include "../../endpoints/include/endpoint_definition.hpp"
-
+#include "../../utility/include/utility.hpp"
 namespace vsomeip_v3 {
 
 eventgroupinfo::eventgroupinfo() :
@@ -296,8 +296,7 @@ bool eventgroupinfo::is_remote_subscription_limit_reached(const std::shared_ptr<
         if (find_address != remote_subscribers_count_.end()) {
             if (find_address->second >= max_remote_subscribers_) {
                 VSOMEIP_WARNING << ": remote subscriber limit [" << std::dec << static_cast<uint32_t>(max_remote_subscribers_) << "] to ["
-                                << std::hex << std::setfill('0') << std::setw(4) << service_ << "." << std::setw(4) << instance_ << "."
-                                << std::setw(4) << eventgroup_ << "]"
+                                << hex4(service_) << "." << hex4(instance_) << "." << hex4(eventgroup_) << "]"
                                 << " reached for remote address: " << its_address.to_string() << " rejecting subscription!";
                 return true;
             }
@@ -420,9 +419,9 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
                     its_unreliable_events.insert(its_event);
                     break;
                 default:
-                    VSOMEIP_WARNING << __func__ << "Event reliability unknown: [" << std::hex << std::setfill('0') << std::setw(4)
-                                    << service_ << "." << std::setw(4) << instance_ << "." << std::setw(4) << eventgroup_ << "."
-                                    << std::setw(4) << its_event->get_event() << "]";
+                    VSOMEIP_WARNING << __func__ << "Event reliability unknown: [" << hex4(service_) << "." << hex4(instance_) << "."
+                                    << hex4(eventgroup_) << "." << hex4(service_) << "." << hex4(instance_) << "." << hex4(eventgroup_)
+                                    << "." << hex4(eventgroup_) << "." << hex4(its_event->get_event()) << "]";
                 }
             }
         }
