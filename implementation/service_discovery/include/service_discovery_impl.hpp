@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <boost/asio/ip/address.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -28,6 +29,20 @@
 #include "ipv6_option_impl.hpp"
 #include "deserializer.hpp"
 #include "message_impl.hpp"
+
+#if VSOMEIP_BOOST_VERSION < 107600
+#include <boost/container_hash/hash.hpp>
+
+// Custom hash function for boost::asio::ip::address.
+//
+// Used because there is no hash implementation before Boost v1.76.
+struct address_hash {
+    std::size_t operator()(const boost::asio::ip::address& addr) const noexcept {
+        return addr.is_v4() ? boost::hash<boost::asio::ip::address_v4::bytes_type>()(addr.to_v4().to_bytes())
+                            : boost::hash<boost::asio::ip::address_v6::bytes_type>()(addr.to_v6().to_bytes());
+    }
+};
+#endif // VSOMEIP_BOOST_VERSION < 107600
 
 namespace vsomeip_v3 {
 
@@ -292,6 +307,17 @@ private:
     void check_stopped_services_on_suspend(const boost::system::error_code& error);
     void check_offer_services(const boost::system::error_code& error, uint32_t _faulty_value);
 
+    // Report that we have received a message from the given host.
+    //
+    // This will generate a log the first time that a message is received through unicast and
+    // multicast.
+    void observed_host(const boost::asio::ip::address& _host, const bool _multicast);
+
+    // Clear list of observer host.
+    //
+    // This will trigger new KPI reports the next time that each host is seen.
+    void clear_observed_host();
+
 private:
     // Runtime
     std::weak_ptr<runtime> runtime_;
@@ -423,6 +449,13 @@ private:
     std::chrono::milliseconds offers_watchdog_time_;
     std::atomic<uint32_t> offers_received_after_last_resume_;
     std::atomic<uint32_t> offers_received_;
+
+// List of hosts from which we have received unicast and multicast messages.
+#if VSOMEIP_BOOST_VERSION < 107600
+    std::unordered_map<boost::asio::ip::address, std::tuple<bool, bool>, address_hash> observed_hosts;
+#else
+    std::unordered_map<boost::asio::ip::address, std::tuple<bool, bool>> observed_hosts;
+#endif
 };
 
 } // namespace sd

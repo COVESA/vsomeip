@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <tuple>
 #include <vsomeip/constants.hpp>
 
 #include <chrono>
@@ -199,6 +200,11 @@ void service_discovery_impl::stop() {
     stop_offer_debounce_timer();
     stop_main_phase_timer();
     offers_watchdog_.cancel();
+    {
+        // FIXME(bruno.ld.silva): Replace with general-purpose service discovery mutex, when available.
+        std::scoped_lock its_session_lock(sessions_received_mutex_);
+        clear_observed_host();
+    }
 }
 
 void service_discovery_impl::request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -992,6 +998,9 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     std::scoped_lock its_lock(check_ttl_mutex_);
     std::scoped_lock its_session_lock(sessions_received_mutex_);
     std::scoped_lock<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);
+
+    // Print KPI on first message from host.
+    observed_host(_sender, _is_multicast);
 
     if (is_suspended_) {
         return;
@@ -3426,6 +3435,31 @@ void service_discovery_impl::check_offer_services(const boost::system::error_cod
             VSOMEIP_TERMINATE("No offer was received after resume");
         }
     }
+}
+
+void service_discovery_impl::observed_host(const boost::asio::ip::address& _host, const bool _multicast) {
+    // Add en entry if it doesn't already exist.
+    if (observed_hosts.find(_host) == observed_hosts.end()) {
+        observed_hosts[_host] = std::make_tuple(false, false);
+    }
+
+    // Update the entry and log the KPI if necessary.
+    auto& [unicast_seen, multicast_seen] = observed_hosts.at(_host);
+    if (_multicast) {
+        if (!multicast_seen) {
+            VSOMEIP_INFO << "KPI NET4 First SD multicast message from " << _host;
+            multicast_seen = true;
+        }
+    } else {
+        if (!unicast_seen) {
+            VSOMEIP_INFO << "KPI NET4 First SD unicast message from " << _host;
+            unicast_seen = true;
+        }
+    }
+}
+
+void service_discovery_impl::clear_observed_host() {
+    observed_hosts.clear();
 }
 
 } // namespace sd
