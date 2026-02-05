@@ -18,6 +18,20 @@
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/bithelper.hpp"
 
+#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
+#include <utils/Log.h>
+
+#ifdef ALOGI
+#undef ALOGI
+#endif
+
+#define ALOGI(LOG_TAG, ...) ((void)ALOG(LOG_INFO, LOG_TAG, __VA_ARGS__))
+#ifndef LOGI
+#define LOGI ALOGI
+#endif
+
+#endif
+
 namespace vsomeip_v3 {
 namespace trace {
 
@@ -244,7 +258,9 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
             }
 #else
             std::stringstream ss;
+#if !defined(ANDROID)
             ss << its_channel.first << ":";
+#endif
             for (int i = 0; i < _header_size; i++) {
                 ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_header[i]);
             }
@@ -257,8 +273,12 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
             for (int i = 0; i < its_data_size; i++) {
                 ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
             }
-
+#if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
+            std::string app = runtime::get_property("LogApplication");
+            ALOGI(app.c_str(), ss.str().c_str());
+#else
             VSOMEIP_INFO << ss.str();
+#endif
 #endif
         }
     }
