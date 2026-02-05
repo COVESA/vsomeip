@@ -2591,7 +2591,7 @@ void routing_manager_client::clear_remote_subscriptions() {
 void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<std::recursive_mutex> const& _sender_mutex) {
     cancel_keepalive();
     if (sender_) {
-        sender_->stop(false);
+        sender_->stop(true);
         sender_ = nullptr;
     }
     if (sender_debounce_active_) {
