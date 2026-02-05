@@ -2914,9 +2914,9 @@ void routing_manager_impl::on_pong(client_t _client) {
                 // received pong from an application were another application wants
                 // to offer its service, delete the other applications offer as
                 // the current offering application is still alive
-                VSOMEIP_WARNING << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "." << hex4(instance_iter->first)
-                                << ":" << std::dec << std::uint32_t(major) << "." << minor
-                                << "] was rejected as application: " << hex4(_client) << " is still alive";
+                VSOMEIP_ERROR << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "." << hex4(instance_iter->first)
+                              << ":" << std::dec << std::uint32_t(major) << "." << minor
+                              << "] was rejected as application: " << hex4(_client) << " is still alive";
                 instance_iter = service_iter->second.erase(instance_iter);
             } else {
                 ++instance_iter;
