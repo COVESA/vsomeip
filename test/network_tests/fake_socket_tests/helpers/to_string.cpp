@@ -137,11 +137,27 @@ std::string to_string(command_message const& c) {
 std::string to_string(std::string const& _str) {
     return "\"" + _str + "\"";
 }
+
+std::string hex_bytes_to_string(std::string_view bytes) {
+    std::ostringstream os;
+
+    os << std::hex << std::setfill('0');
+
+    for (unsigned char ch : bytes) {
+        os << std::setw(2) << static_cast<uint16_t>(ch);
+    }
+
+    return os.str();
+}
 std::string to_string(vsomeip_v3::protocol::config_command const& c) {
     std::vector<std::pair<std::string, std::string>> v;
     auto const& container = c.configs();
     v.reserve(container.size());
-    std::copy(container.begin(), container.end(), std::back_inserter(v));
+
+    for (const auto& [key, value] : container) {
+        v.emplace_back(key, (key == "expected_id") ? hex_bytes_to_string(value) : value);
+    }
+
     return to_string(v);
 }
 }
