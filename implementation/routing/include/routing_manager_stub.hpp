@@ -78,8 +78,6 @@ public:
 
     void update_registration(client_t _client, registration_type_e _type, const boost::asio::ip::address& _address, port_t _port);
 
-    void print_endpoint_status() const;
-
     bool send_provided_event_resend_request(client_t _client, pending_remote_offer_id_t _id);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -191,6 +189,9 @@ private:
 
     void add_pending_security_update_handler(pending_security_update_id_t _id, const security_update_handler_t& _handler);
     void add_pending_security_update_timer(pending_security_update_id_t _id);
+
+    std::shared_ptr<local_endpoint> find_local_routing_endpoint(client_t _client) const;
+    static bool send_local(std::shared_ptr<local_endpoint> const& _ep, std::vector<byte_t> const& _data);
 
 private:
     routing_manager_stub_host* host_;

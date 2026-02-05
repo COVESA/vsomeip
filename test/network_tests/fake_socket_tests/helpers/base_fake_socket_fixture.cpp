@@ -82,19 +82,21 @@ void base_fake_socket_fixture::stop_client(std::string const _name) {
     return socket_manager_->await_connectable(_name, _timeout);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::await_connection(std::string const& _from, std::string const& _to,
+[[nodiscard]] bool base_fake_socket_fixture::await_connection(std::string const& _client, std::string const& _server,
                                                               std::chrono::milliseconds _timeout) {
-    return socket_manager_->await_connection(_from, _to, _timeout);
+    return socket_manager_->await_connection(_client, _server, _timeout);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                                        std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+[[nodiscard]] bool base_fake_socket_fixture::disconnect(std::string const& _client_name,
+                                                        std::optional<boost::system::error_code> _client_error,
+                                                        std::string const& _server_name,
+                                                        std::optional<boost::system::error_code> _server_error,
                                                         socket_role _side_to_disconnect) {
-    return socket_manager_->disconnect(_from_name, _from_error, _to_name, _to_error, _side_to_disconnect);
+    return socket_manager_->disconnect(_client_name, _client_error, _server_name, _server_error, _side_to_disconnect);
 }
 
-size_t base_fake_socket_fixture::connection_count(std::string const& _from, std::string const& _to) {
-    return socket_manager_->count_established_connections(_from, _to);
+size_t base_fake_socket_fixture::connection_count(std::string const& _client, std::string const& _server) {
+    return socket_manager_->count_established_connections(_client, _server);
 }
 
 void base_fake_socket_fixture::report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors) {
@@ -109,39 +111,39 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     socket_manager_->set_ignore_connections(_app_name, _ignore_connections);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
+[[nodiscard]] bool base_fake_socket_fixture::delay_message_processing(std::string const& _client, std::string const& _server, bool _delay,
                                                                       socket_role _role) {
-    return socket_manager_->delay_message_processing(_from, _to, _delay, _role);
+    return socket_manager_->delay_message_processing(_client, _server, _delay, _role);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,
-                                                                    bool _ignore_in_to) {
-    return socket_manager_->set_ignore_inner_close(_from, _ignore_in_from, _to, _ignore_in_to);
+[[nodiscard]] bool base_fake_socket_fixture::set_ignore_inner_close(std::string const& _client, bool _ignore_in_client,
+                                                                    std::string const& _server, bool _ignore_in_server) {
+    return socket_manager_->set_ignore_inner_close(_client, _ignore_in_client, _server, _ignore_in_server);
 }
 
-void base_fake_socket_fixture::set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role,
+void base_fake_socket_fixture::set_ignore_nothing_to_read_from(std::string const& _client, std::string const& _server, socket_role _role,
                                                                bool _ignore) {
-    return socket_manager_->set_ignore_nothing_to_read_from(_from, _to, _role, _ignore);
+    return socket_manager_->set_ignore_nothing_to_read_from(_client, _server, _role, _ignore);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::block_on_close_for(std::string const& _from,
-                                                                std::optional<std::chrono::milliseconds> _from_block_time,
-                                                                std::string const& _to,
-                                                                std::optional<std::chrono::milliseconds> _to_block_time) {
-    return socket_manager_->block_on_close_for(_from, _from_block_time, _to, _to_block_time);
+[[nodiscard]] bool base_fake_socket_fixture::block_on_close_for(std::string const& _client,
+                                                                std::optional<std::chrono::milliseconds> _client_block_time,
+                                                                std::string const& _server,
+                                                                std::optional<std::chrono::milliseconds> _server_block_time) {
+    return socket_manager_->block_on_close_for(_client, _client_block_time, _server, _server_block_time);
 }
 
-void base_fake_socket_fixture::clear_command_record(std::string const& _from, std::string const& _to) {
-    socket_manager_->clear_command_record(_from, _to);
+void base_fake_socket_fixture::clear_command_record(std::string const& _client, std::string const& _server) {
+    socket_manager_->clear_command_record(_client, _server);
 }
 
-[[nodiscard]] bool base_fake_socket_fixture::wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                                              std::chrono::milliseconds _timeout) {
-    return socket_manager_->wait_for_command(_from, _to, _id, _timeout);
+[[nodiscard]] bool base_fake_socket_fixture::wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id,
+                                                              socket_role _waiting, std::chrono::milliseconds _timeout) {
+    return socket_manager_->wait_for_command(_client, _server, _id, _waiting, _timeout);
 }
-[[nodiscard]] bool base_fake_socket_fixture::wait_for_connection_drop(std::string const& _from, std::string const& _to,
+[[nodiscard]] bool base_fake_socket_fixture::wait_for_connection_drop(std::string const& _client, std::string const& _server,
                                                                       std::chrono::milliseconds _timeout) {
-    return socket_manager_->wait_for_connection_drop(_from, _to, _timeout);
+    return socket_manager_->wait_for_connection_drop(_client, _server, _timeout);
 }
 
 void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail) {
@@ -151,18 +153,18 @@ void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail)
 void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     socket_manager_->set_ignore_broken_pipe(_app_name, _set);
 }
-
 std::future<protocol::id_e> base_fake_socket_fixture::drop_command_once(std::string const& _from, std::string const& _to,
                                                                         protocol::id_e _id) {
     return socket_manager_->drop_command_once(_from, _to, _id);
 }
 
-void base_fake_socket_fixture::set_custom_command_handler(std::string const& _from, std::string const& _to,
+void base_fake_socket_fixture::set_custom_command_handler(std::string const& _client, std::string const& _server,
                                                           vsomeip_command_handler const& _handler, socket_role _sender) {
-    socket_manager_->set_custom_command_handler(_from, _to, _handler, _sender);
+    socket_manager_->set_custom_command_handler(_client, _server, _handler, _sender);
 }
 
-void base_fake_socket_fixture::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
-    socket_manager_->inject_command(_from, _to, _payload);
+void base_fake_socket_fixture::inject_command(std::string const& _client, std::string const& _server,
+                                              std::vector<unsigned char>& _payload) {
+    socket_manager_->inject_command(_client, _server, _payload);
 }
 }

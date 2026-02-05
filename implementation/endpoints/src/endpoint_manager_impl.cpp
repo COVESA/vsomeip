@@ -17,6 +17,7 @@
 #include "../include/boardnet_endpoint.hpp"
 #include "../include/virtual_server_endpoint_impl.hpp"
 #include "../include/endpoint_definition.hpp"
+#include "../../protocol/include/config_command.hpp"
 #include "../../routing/include/routing_manager_base.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_host.hpp"
@@ -558,6 +559,14 @@ bool endpoint_manager_impl::supports_selective(service_t _service, instance_t _i
 }
 
 void endpoint_manager_impl::print_status() const {
+    {
+        std::scoped_lock const its_lock{routing_endpoint_mtx_};
+        VSOMEIP_INFO << "status local routing endpoints: " << std::dec << routing_endpoints_.size();
+        for (const auto& [_, ep] : routing_endpoints_) {
+            ep->print_status();
+        }
+        VSOMEIP_INFO << "status pending local routing endpoints: " << std::dec << pending_routing_endpoints_.size();
+    }
     // local client endpoints
     endpoint_manager_base::print_status();
 
@@ -587,8 +596,6 @@ void endpoint_manager_impl::print_status() const {
 
         VSOMEIP_INFO << "status start server endpoints:";
         std::uint32_t num_server_endpoints(1);
-        // local server endpoints
-        static_cast<routing_manager_impl*>(rm_)->print_stub_status();
 
         // server endpoints
         for (const auto& p : its_server_endpoints) {
@@ -616,6 +623,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
         return false;
     }
 
+    std::shared_ptr<local_acceptor> acceptor;
     if (configuration_->is_local_routing()) {
 #ifdef SYSTEMD_SOCKET_ACTIVATION
         int its_socket{0};
@@ -644,8 +652,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 
                             return false;
                         }
-
-                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
+                        acceptor = its_acceptor;
                     }
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -671,8 +678,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 
                             return false;
                         }
-
-                        _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
+                        acceptor = its_acceptor;
                     }
                 } catch (const std::exception& e) {
                     VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -696,8 +702,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                                   << its_error.message();
                     return false;
                 }
-
-                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
+                acceptor = its_acceptor;
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << __func__ << ": " << e.what();
@@ -732,14 +737,23 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
                 if (its_error) {
                     return false;
                 }
-
-                _root = std::make_shared<local_server>(io_, std::move(its_acceptor), configuration_, _host, true);
+                acceptor = its_acceptor;
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR << __func__ << ": " << e.what();
         }
 
         _is_socket_activated = false;
+    }
+    if (acceptor) {
+        _root = std::make_shared<local_server>(
+                io_, std::move(acceptor), configuration_, _host,
+                [weak_self = weak_from_this(), this](auto _ep) {
+                    if (auto self = weak_self.lock(); self) {
+                        add_local_routing_endpoint(std::move(_ep));
+                    }
+                },
+                true, get_client_host());
     }
 
     return true;
@@ -1249,6 +1263,82 @@ bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint)
         return its_udp_server_endpoint->is_joining();
 
     return false;
+}
+
+void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep) {
+    auto const client = _ep->connected_client();
+    std::scoped_lock const its_endpoint_lock{routing_endpoint_mtx_};
+    add_local_routing_endpoint_unlocked(client, _ep);
+}
+
+void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep) {
+    if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
+        VSOMEIP_WARNING << "emi::" << __func__ << ": Already existing endpoint found for client 0x" << hex4(_client)
+                        << ". Enforcing a clean-up of endpoint:" << it->second->name() << " but queuing endpoint: " << _ep->name();
+        if (auto const it2 = pending_routing_endpoints_.find(_client); it2 != pending_routing_endpoints_.end()) {
+            VSOMEIP_WARNING << "emi::" << __func__ << ": Replacing existing pending for client 0x" << hex4(_client)
+                            << ", connection: " << it2->second->name();
+            it2->second->stop(true);
+        }
+        pending_routing_endpoints_[_client] = _ep;
+        it->second->trigger_error();
+        return;
+    }
+    rm_->register_client_error_handler(_client, _ep);
+    routing_endpoints_[_client] = _ep;
+    _ep->start();
+    VSOMEIP_INFO << "emi::" << __func__ << ": self 0x" << hex4(rm_->get_client()) << ", client 0x" << hex4(_client) << ", connection > "
+                 << _ep->name();
+}
+
+void endpoint_manager_impl::flush_routing_endpoint_queues() {
+    auto const eps = [this] {
+        std::scoped_lock lock{routing_endpoint_mtx_};
+        return routing_endpoints_;
+    }();
+    for (auto const& [_, ep] : eps) {
+        ep->flush_queue();
+    }
+}
+
+std::shared_ptr<local_endpoint> endpoint_manager_impl::find_routing_endpoint(client_t _client) const {
+    std::scoped_lock const lock{routing_endpoint_mtx_};
+    if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+void endpoint_manager_impl::remove_routing_endpoint(client_t _client, bool _remove_due_to_error) {
+    VSOMEIP_INFO << "emi::" << __func__ << ": client 0x" << hex4(_client) << ", error " << _remove_due_to_error;
+    std::scoped_lock const lock{routing_endpoint_mtx_};
+    if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
+        it->second->register_error_handler(nullptr);
+        it->second->stop(_remove_due_to_error);
+        VSOMEIP_INFO << "emi::" << __func__ << " self 0x" << hex4(rm_->get_client()) << " is closing connection to client 0x"
+                     << hex4(_client) << " endpoint > " << it->second->name();
+        routing_endpoints_.erase(it);
+    }
+    if (auto const it = pending_routing_endpoints_.find(_client); it != pending_routing_endpoints_.end()) {
+        add_local_routing_endpoint_unlocked(_client, it->second);
+        // safe to still use the iterator, because the adding of the endpoint can no longer fail
+        // (because of the locked mtx), therefore the pending set remains untouched
+        pending_routing_endpoints_.erase(it);
+    }
+}
+
+void endpoint_manager_impl::clear_routing_endpoints() {
+    VSOMEIP_INFO << "emi::" << __func__;
+    std::scoped_lock const lock{routing_endpoint_mtx_};
+    for (auto const& [id, ep] : routing_endpoints_) {
+        ep->register_error_handler(nullptr);
+        ep->stop(false);
+    }
+    for (auto const& [id, ep] : pending_routing_endpoints_) {
+        ep->stop(true); // never "started", but the socket needs to be stopped anyhow
+    }
+    routing_endpoints_.clear();
+    pending_routing_endpoints_.clear();
 }
 
 void endpoint_manager_impl::suspend() {

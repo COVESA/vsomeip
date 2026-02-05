@@ -44,7 +44,7 @@ public:
      * @param _socket Existing UDS socket (ownership transferred).
      * @param _own_endpoint This application's UDS endpoint (socket path).
      * @param _peer_endpoint Peer application's UDS endpoint (socket path).
-     * @param _role Socket role (SENDER or RECEIVER).
+     * @param _role Socket role (CLIENT or SERVER).
      */
     local_socket_uds_impl(boost::asio::io_context& _io, std::shared_ptr<socket_type> _socket, endpoint _own_endpoint,
                           endpoint _peer_endpoint, socket_role_e _role);
@@ -54,7 +54,7 @@ public:
      * @param _io IO context for asynchronous operations.
      * @param _own_endpoint This application's UDS endpoint (socket path).
      * @param _peer_endpoint Peer application's UDS endpoint to connect to.
-     * @param _role Socket role (SENDER or RECEIVER).
+     * @param _role Socket role (CLIENT or SERVER).
      */
     local_socket_uds_impl(boost::asio::io_context& _io, endpoint _own_endpoint, endpoint _peer_endpoint, socket_role_e _role);
     ~local_socket_uds_impl() override = default;

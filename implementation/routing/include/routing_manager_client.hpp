@@ -97,6 +97,8 @@ public:
     void try_to_send_before_stop();
 
 private:
+    [[nodiscard]] bool is_local_client(client_t _client) const override;
+
     void register_application();
     void deregister_application();
 

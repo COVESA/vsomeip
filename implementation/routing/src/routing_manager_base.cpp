@@ -701,7 +701,7 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance, 
             if (its_eventgroup) {
                 // Eventgroup is valid for service/instance
                 found_eventgroup = true;
-                if (ep_mgr_->find_local(_client)) {
+                if (is_local_client(_client)) {
                     already_subscribed = its_event->has_subscriber(its_group, _client);
                 } else {
                     // Remotes always needs to be marked as subscribed here
@@ -1109,7 +1109,8 @@ void routing_manager_base::remove_eventgroup_info(service_t _service, instance_t
 }
 
 bool routing_manager_base::send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
-                                                   bool _reliable, uint8_t _status_check, bool _force) {
+                                                   bool _reliable, uint8_t _status_check, bool _force,
+                                                   std::shared_ptr<local_endpoint> _fallback) {
     bool has_local(false);
     (void)_client;
     bool has_remote(false);
@@ -1127,9 +1128,13 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
                 has_local = true;
             }
 
-            std::shared_ptr<local_endpoint> its_local_target = ep_mgr_->find_local(its_client);
+            std::shared_ptr<local_endpoint> its_local_target = ep_mgr_->find_local_server_endpoint(its_client);
             if (its_local_target) {
                 send_local(its_local_target, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+            } else if (_fallback) {
+                send_local(_fallback, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+            } else {
+                VSOMEIP_WARNING << "rmb::" << __func__ << ": No target connection. Dropping the message to client: 0x" << hex4(its_client);
             }
         }
     }

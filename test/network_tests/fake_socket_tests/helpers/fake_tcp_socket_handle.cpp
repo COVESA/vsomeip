@@ -15,10 +15,10 @@ namespace vsomeip_v3::testing {
 
 char const* to_string(socket_role role) {
     switch (role) {
-    case socket_role::sender:
-        return "sender";
-    case socket_role::receiver:
-        return "receiver";
+    case socket_role::client:
+        return "client";
+    case socket_role::server:
+        return "server";
     default:
         return "unspecified";
     }
@@ -145,7 +145,7 @@ void fake_tcp_socket_handle::delay_processing(bool _delay) {
     update_reception();
 }
 
-void fake_tcp_socket_handle::ignore_nothing_to_read_from(bool _ignore) {
+void fake_tcp_socket_handle::set_ignore_nothing_to_read_from(bool _ignore) {
     auto const lock = std::scoped_lock(mtx_);
     TEST_LOG << "[fake-socket] setting ignore_nothing_to_read_from: " << (_ignore ? "true" : "false") << " on: " << socket_id_;
     ignore_nothing_to_read_from_ = _ignore;
@@ -228,12 +228,12 @@ void fake_tcp_socket_handle::clear_handler() {
     connected_socket_ = _connecting.weak_from_this();
     remote_ep_ = _connecting.local_ep_;
     protocol_type_ = _connecting.protocol_type_;
-    socket_id_.role_ = socket_role::receiver;
+    socket_id_.role_ = socket_role::server;
     local_ep_ = boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), socket_id_.fd_);
 
     _connecting.connected_socket_ = weak_from_this();
     _connecting.remote_ep_ = local_ep_;
-    _connecting.socket_id_.role_ = socket_role::sender;
+    _connecting.socket_id_.role_ = socket_role::client;
 
     TEST_LOG << "[fake-socket] Established connection: " << _connecting.socket_id_ << " -> " << socket_id_;
     return true;
@@ -385,6 +385,10 @@ std::string fake_tcp_socket_handle::get_app_name() const {
 void fake_tcp_socket_handle::ignore_inner_close() {
     auto const lock = std::scoped_lock(mtx_);
     ignore_inner_close_ = true;
+}
+void fake_tcp_socket_handle::ignore_nothing_to_read_from(bool _ignore) {
+    auto const lock = std::scoped_lock(mtx_);
+    ignore_nothing_to_read_from_ = _ignore;
 }
 
 fd_t fake_tcp_socket_handle::fd() {

@@ -183,6 +183,11 @@ public:
 
     void flush_queue();
 
+    /**
+     * @brief Triggers the error_handler of the endpoint.
+     */
+    void trigger_error();
+
 public:
     std::uint16_t get_local_port() const;
     boost::asio::ip::tcp::endpoint peer_endpoint() const;

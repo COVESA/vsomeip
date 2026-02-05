@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <unordered_set>
+#include <unordered_map>
 #include <memory>
 #include <optional>
 
@@ -29,18 +30,22 @@ public:
                           const std::shared_ptr<configuration>& _configuration);
     virtual ~endpoint_manager_base() = default;
 
-    std::shared_ptr<local_endpoint> create_local(client_t _client);
-    void remove_local(client_t _client, bool _remove_due_to_error);
+    std::shared_ptr<local_server> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
 
-    std::shared_ptr<local_endpoint> find_or_create_local(client_t _client);
-    std::shared_ptr<local_endpoint> find_local(client_t _client);
-    std::shared_ptr<local_endpoint> find_local(service_t _service, instance_t _instance);
+    std::shared_ptr<local_endpoint> create_local_client(client_t _client);
+    std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client);
+    std::shared_ptr<local_endpoint> find_local_client(client_t _client);
+    std::shared_ptr<local_endpoint> find_local_client(service_t _service, instance_t _instance);
+
+    // server endpoint API (endpoints towards clients of this application)
+    std::shared_ptr<local_endpoint> find_local_server_endpoint(client_t _client) const;
+
+    void remove_local(client_t _client, bool _remove_due_to_error);
+    void clear_local_endpoints();
 
     void flush_local_endpoint_queues() const;
 
     std::unordered_set<client_t> get_connected_clients() const;
-
-    std::shared_ptr<local_server> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
 
     // Statistics
     void log_client_states() const;
@@ -50,8 +55,14 @@ private:
     client_t get_client_id() const;
     std::string get_client_env() const;
 
-    std::shared_ptr<local_endpoint> create_local_unlocked(client_t _client);
-    std::shared_ptr<local_endpoint> find_local_unlocked(client_t _client);
+    void add_local_server_endpoint(std::shared_ptr<local_endpoint> _connection);
+    void add_local_server_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _connection);
+
+    std::shared_ptr<local_endpoint> create_local_client_unlocked(client_t _client);
+    std::shared_ptr<local_endpoint> find_local_client_unlocked(client_t _client);
+
+    void remove_local_client_endpoint_unlocked(client_t _client, bool _remove_due_to_error);
+    void remove_local_server_endpoint_unlocked(client_t _client, bool _remove_due_to_error);
 
     bool get_local_server_port(port_t& _port, const std::set<port_t>& _used_ports) const;
 
@@ -65,8 +76,18 @@ protected:
                         // vsomeip application via TCP
 
 private:
-    mutable std::mutex local_endpoint_mutex_;
-    std::map<client_t, std::shared_ptr<local_endpoint>> local_endpoints_;
+    mutable std::mutex mtx_;
+    std::map<client_t, std::shared_ptr<local_endpoint>> local_client_endpoints_;
+    std::map<client_t, std::shared_ptr<local_endpoint>> local_server_endpoints_;
+
+    /**
+     * It can happen that a new connection has to be accepted, when a former
+     * endpoint was not cleaned-up. In this situation it is important to first
+     * clean-up all client related state, before accepting a new connection.
+     * (Because one can neither tell whether it is really the same client, nor,
+     * if one would knew, whether all handlers are still installed)
+     **/
+    std::unordered_map<client_t, std::shared_ptr<local_endpoint>> pending_server_endpoints_;
 };
 
 } // namespace vsomeip_v3

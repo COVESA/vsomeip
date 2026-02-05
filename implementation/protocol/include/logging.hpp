@@ -3,16 +3,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "../include/local_socket.hpp"
+#ifndef VSOMEIP_V3_PROTOCOL_LOGGING_HPP_
+#define VSOMEIP_V3_PROTOCOL_LOGGING_HPP_
 
-namespace vsomeip_v3 {
-char const* to_string(socket_role_e _role) {
-    switch (_role) {
-    case socket_role_e::CLIENT:
-        return "client";
-    case socket_role_e::SERVER:
-        return "server";
-    }
-    return "unknown";
+#include "protocol.hpp"
+
+#include <string>
+#include <ostream>
+
+namespace vsomeip_v3::protocol {
+
+char const* to_string(id_e _id);
+std::ostream& operator<<(std::ostream& _out, id_e _id);
+
 }
-}
+
+#endif

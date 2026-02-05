@@ -22,7 +22,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <unordered_map>
 
 namespace vsomeip_v3 {
 
@@ -59,17 +58,22 @@ class routing_host;
  */
 class local_server : public std::enable_shared_from_this<local_server> {
 public:
+    using connection_handler = std::function<void(std::shared_ptr<local_endpoint>)>;
     /**
      * @brief Constructs a local server.
      * @param _io IO context for asynchronous operations.
      * @param _acceptor Acceptor for incoming connections (TCP or UDS).
      * @param _configuration Configuration for security, limits, and routing info.
      * @param _routing_host Routing manager for client registration.
+     * @param _connection_handler handler to register accepted connections.
      * @param _is_router True if this is the routing manager's server.
+     * @param _server_host environment of the server itself. Required to send out the config_id to the client
+     *
      * @note the acceptor needs to be already in the "listen" state.
      */
     local_server(boost::asio::io_context& _io, std::shared_ptr<local_acceptor> _acceptor, std::shared_ptr<configuration> _configuration,
-                 std::weak_ptr<routing_host> _routing_host, bool _is_router);
+                 std::weak_ptr<routing_host> _routing_host, connection_handler _connection_handler, bool _is_router,
+                 std::string _server_host);
     ~local_server();
 
     /**
@@ -91,18 +95,10 @@ public:
     void halt();
 
     /**
-     * @brief Disconnects a specific client.
-     * @param _client Client ID to disconnect.
-     * @param _due_to_error If true, forces immediate close without graceful shutdown.
-     */
-    void disconnect_from(client_t _client, bool _due_to_error);
-
-    /**
      * @brief Retrieves the local port number the server is bound to.
      * @return Port number for TCP, VSOMEIP_SEC_PORT_UNUSED for UDS.
      */
     port_t get_local_port() const;
-    void print_status() const;
 
     /**
      * @brief Set the client id of the owning application
@@ -134,21 +130,6 @@ private:
      */
     void add_connection(client_t _client, client_t _expected_id, std::shared_ptr<local_socket> _socket,
                         std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment);
-
-    /**
-     * @brief Removes a connection when endpoint reports failure.
-     * @param _client Client ID to remove.
-     * @param _ep Endpoint reporting the failure.
-     *
-     * Validates that the endpoint matches the registered one before removing.
-     */
-    void remove_connection(client_t _client, std::shared_ptr<local_endpoint> _ep);
-
-    /**
-     * @brief Stops all connected client endpoints.
-     * @note Called during server shutdown.
-     */
-    void stop_client_connections_unlock();
 
     void start_unlock(uint32_t _lc_count);
 
@@ -198,8 +179,9 @@ private:
     std::shared_ptr<configuration> const configuration_;
     std::shared_ptr<timer> debounce_;
     std::weak_ptr<routing_host> const routing_host_;
+    connection_handler const connection_handler_;
+    std::string const server_host_;
 
     std::mutex mutable mtx_;
-    std::unordered_map<client_t, std::shared_ptr<local_endpoint>> clients_;
 };
 }

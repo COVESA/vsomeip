@@ -110,8 +110,10 @@ public:
                            remote_subscription_id_t _id);
 
     // interface to stub
-    inline std::shared_ptr<local_endpoint> find_local(client_t _client) { return ep_mgr_->find_local(_client); }
-    inline std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) { return ep_mgr_->find_or_create_local(_client); }
+    inline std::shared_ptr<local_endpoint> find_local_client(client_t _client) { return ep_mgr_->find_local_client(_client); }
+    inline std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client) {
+        return ep_mgr_->find_or_create_local_client(_client);
+    }
 
     std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
@@ -182,8 +184,6 @@ public:
     void send_initial_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                              const std::shared_ptr<endpoint_definition>& _subscriber);
 
-    void print_stub_status() const;
-
     void send_error(return_code_e _return_code, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
                     boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -225,6 +225,8 @@ public:
     void try_to_send_before_stop();
 
 private:
+    [[nodiscard]] bool is_local_client(client_t _client) const override;
+
     bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                        bool _must_queue);
 
@@ -332,6 +334,8 @@ private:
                                 const boost::asio::ip::address& _remote_address) const;
 
     bool has_subscribed_eventgroup(service_t _service, instance_t _instance) const;
+
+    std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;

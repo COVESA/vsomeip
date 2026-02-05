@@ -68,14 +68,20 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         if (ec) {
             throw std::logic_error("server could not be set-up");
         }
-        return std::make_shared<local_server>(io_, std::move(acceptor), configuration_, server_routing_host_, false);
+        return std::make_shared<local_server>(
+                io_, std::move(acceptor), configuration_, server_routing_host_,
+                [this](auto const& ep) {
+                    server_eps_.push_back(ep);
+                    ep->start();
+                },
+                false, "host-env");
     }
     auto create_client_ep() {
         return local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, client_routing_host_},
                 local_endpoint_params{server_, client_,
                                       std::make_unique<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint{},
-                                                                              server_endpoint_, socket_role_e::SENDER)});
+                                                                              server_endpoint_, socket_role_e::CLIENT)});
     }
     auto create_client_config_command() {
         std::vector<byte_t> msg;
@@ -114,6 +120,7 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
     std::shared_ptr<mock_routing_host> server_routing_host_{std::make_shared<mock_routing_host>()};
     std::shared_ptr<mock_routing_host> client_routing_host_{std::make_shared<mock_routing_host>()};
     std::shared_ptr<configuration> configuration_;
+    std::vector<std::shared_ptr<local_endpoint>> server_eps_;
 };
 
 TEST_F(test_uds_local_endpoint, a_local_endpoint_can_connect_to_the_local_server) {

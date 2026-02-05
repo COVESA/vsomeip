@@ -66,9 +66,9 @@ public:
     virtual void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
                                  minor_version_t _minor) = 0;
 
-    virtual std::shared_ptr<local_endpoint> find_local(client_t _client) = 0;
+    virtual std::shared_ptr<local_endpoint> find_local_client(client_t _client) = 0;
 
-    virtual std::shared_ptr<local_endpoint> find_or_create_local(client_t _client) = 0;
+    virtual std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client) = 0;
     /// @brief Remove local client
     ///
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
@@ -101,6 +101,7 @@ public:
     virtual std::string get_env(client_t _client) const = 0;
 
     virtual void set_client_host(const std::string& _client_host) = 0;
+    virtual std::string get_client_host() const = 0;
 
     virtual bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const = 0;
     /// @brief Get guest client-id by address/port

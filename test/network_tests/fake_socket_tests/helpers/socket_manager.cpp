@@ -8,8 +8,8 @@
 #include "app_connection.hpp"
 #include "test_logging.hpp"
 
-std::string connection_name(std::string const& _from, std::string const& _to) {
-    return _from + "_to_" + _to;
+std::string connection_name(std::string const& _client, std::string const& _server) {
+    return _client + "_to_" + _server;
 }
 
 #define LOCAL_LOG TEST_LOG << "[socket-manager] "
@@ -161,9 +161,9 @@ void socket_manager::try_add(boost::asio::io_context* _io, fd_t _fd, char const*
     }
 }
 
-std::shared_ptr<app_connection> socket_manager::get_or_create_connection(std::string const& _from, std::string const& _to) {
+std::shared_ptr<app_connection> socket_manager::get_or_create_connection(std::string const& _client, std::string const& _server) {
 
-    auto const name = connection_name(_from, _to);
+    auto const name = connection_name(_client, _server);
     auto const lock = std::scoped_lock(mtx_);
     if (auto it = connections_.find(name); it != connections_.end()) {
         return it->second;
@@ -253,11 +253,11 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
     }
 }
 
-[[nodiscard]] bool socket_manager::disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                              std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+[[nodiscard]] bool socket_manager::disconnect(std::string const& _client_name, std::optional<boost::system::error_code> _client_error,
+                                              std::string const& _server_name, std::optional<boost::system::error_code> _server_error,
                                               socket_role _side_to_disconnect) {
-    auto connection = get_or_create_connection(_from_name, _to_name);
-    return connection->disconnect(_from_error, _to_error, _side_to_disconnect);
+    auto connection = get_or_create_connection(_client_name, _server_name);
+    return connection->disconnect(_client_error, _server_error, _side_to_disconnect);
 }
 
 [[nodiscard]] bool socket_manager::await_assignment(std::string const& _app, std::chrono::milliseconds _timeout) {
@@ -294,8 +294,9 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
     });
 }
 
-[[nodiscard]] bool socket_manager::await_connection(std::string const& _from, std::string const& _to, std::chrono::milliseconds _timeout) {
-    auto connection = get_or_create_connection(_from, _to);
+[[nodiscard]] bool socket_manager::await_connection(std::string const& _client, std::string const& _server,
+                                                    std::chrono::milliseconds _timeout) {
+    auto connection = get_or_create_connection(_client, _server);
     return connection->wait_for_connection(_timeout);
 }
 
@@ -303,8 +304,8 @@ void socket_manager::awaiting() {
     connectable_cv_.notify_all();
 }
 
-size_t socket_manager::count_established_connections(std::string const& _from, std::string const& _to) {
-    return get_or_create_connection(_from, _to)->count();
+size_t socket_manager::count_established_connections(std::string const& _client, std::string const& _server) {
+    return get_or_create_connection(_client, _server)->count();
 }
 
 void socket_manager::report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors) {
@@ -327,43 +328,46 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
         connections_to_ignore_.erase(_app_name);
     }
 }
-[[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
+[[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _client, std::string const& _server, bool _delay,
                                                             socket_role _role) {
-    auto from_to_connection = get_or_create_connection(_from, _to);
-    return from_to_connection->delay_message_processing(_delay, _role);
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->delay_message_processing(_delay, _role);
 }
 
-[[nodiscard]] bool socket_manager::set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to,
-                                                          bool _ignore_in_to) {
-    auto connection = get_or_create_connection(_from, _to);
-    return connection->set_ignore_inner_close(_ignore_in_from, _ignore_in_to);
+[[nodiscard]] bool socket_manager::set_ignore_inner_close(std::string const& _client, bool _ignore_in_client, std::string const& _server,
+                                                          bool _ignore_in_server) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->set_ignore_inner_close(_ignore_in_client, _ignore_in_server);
 }
 
-void socket_manager::set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore) {
-    auto connection = get_or_create_connection(_from, _to);
+void socket_manager::set_ignore_nothing_to_read_from(std::string const& _client, std::string const& _server, socket_role _role,
+                                                     bool _ignore) {
+    auto connection = get_or_create_connection(_client, _server);
     connection->set_ignore_nothing_to_read_from(_role, _ignore);
 }
 
-[[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
-                                                      std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
-    auto connection = get_or_create_connection(_from, _to);
-    return connection->block_on_close_for(_from_block_time, _to_block_time);
+[[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _client,
+                                                      std::optional<std::chrono::milliseconds> _client_block_time,
+                                                      std::string const& _server,
+                                                      std::optional<std::chrono::milliseconds> _server_block_time) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->block_on_close_for(_client_block_time, _server_block_time);
 }
 
-void socket_manager::clear_command_record(std::string const& _from, std::string const& _to) {
-    auto connection = get_or_create_connection(_from, _to);
+void socket_manager::clear_command_record(std::string const& _client, std::string const& _server) {
+    auto connection = get_or_create_connection(_client, _server);
     connection->clear_command_record();
 }
 
-[[nodiscard]] bool socket_manager::wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                                    std::chrono::milliseconds _timeout) {
-    auto connection = get_or_create_connection(_from, _to);
-    return connection->wait_for_command(_id, _timeout);
+[[nodiscard]] bool socket_manager::wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id,
+                                                    socket_role _waiting, std::chrono::milliseconds _timeout) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->wait_for_command(_id, _waiting, _timeout);
 }
 
-[[nodiscard]] bool socket_manager::wait_for_connection_drop(std::string const& _from, std::string const& _to,
+[[nodiscard]] bool socket_manager::wait_for_connection_drop(std::string const& _client, std::string const& _server,
                                                             std::chrono::milliseconds _timeout) {
-    auto connection = get_or_create_connection(_from, _to);
+    auto connection = get_or_create_connection(_client, _server);
     return connection->wait_for_connection_drop(_timeout);
 }
 
@@ -404,18 +408,18 @@ std::future<protocol::id_e> socket_manager::drop_command_once(std::string const&
     return fut;
 }
 
-bool socket_manager::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {
-    auto connection = get_or_create_connection(_from, _to);
+bool socket_manager::inject_command(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload) {
+    auto connection = get_or_create_connection(_client, _server);
     return connection->inject_command(_payload);
 }
 
-void socket_manager::set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
-                                                socket_role _sender) {
-    auto connection = get_or_create_connection(_from, _to);
+void socket_manager::set_custom_command_handler(std::string const& _client, std::string const& _server,
+                                                vsomeip_command_handler const& _handler, socket_role _sender) {
+    auto connection = get_or_create_connection(_client, _server);
     connection->set_custom_command_handler(_handler, _sender);
 }
 void socket_manager::close_connection(std::string const& _one, std::string const& _two, socket_role _closing) {
-    auto connection = _closing == socket_role::receiver ? get_or_create_connection(_two, _one) : get_or_create_connection(_one, _two);
+    auto connection = _closing == socket_role::server ? get_or_create_connection(_two, _one) : get_or_create_connection(_one, _two);
     connection->notify();
 }
 }

@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <queue>
 #include <thread>
+#include <unordered_map>
 
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/endpoint_manager_base.hpp"
@@ -86,6 +87,11 @@ public:
     void suspend();
     void resume();
 
+    std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
+    void remove_routing_endpoint(client_t _client, bool _remove_due_to_error);
+    void clear_routing_endpoints();
+    void flush_routing_endpoint_queues();
+
 private:
     std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);
@@ -99,6 +105,9 @@ private:
 
     client_t get_client() const;
     std::string get_client_host() const;
+
+    void add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep);
+    void add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);
 
 private:
     mutable std::recursive_mutex endpoint_mutex_;
@@ -131,6 +140,10 @@ private:
     std::condition_variable options_condition_;
     std::queue<multicast_option_t> options_queue_;
     std::thread options_thread_;
+
+    mutable std::mutex routing_endpoint_mtx_;
+    std::unordered_map<client_t, std::shared_ptr<local_endpoint>> routing_endpoints_;
+    std::unordered_map<client_t, std::shared_ptr<local_endpoint>> pending_routing_endpoints_;
 };
 
 } // namespace vsomeip_v3

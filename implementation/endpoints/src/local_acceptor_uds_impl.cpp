@@ -133,7 +133,7 @@ void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, c
     lock.unlock();
     // invoke handler only without the lock (avoids the need of a recursive mutex)
     _handler(_ec,
-             std::make_shared<local_socket_uds_impl>(io_, std::move(_socket), own_endpoint_, std::move(remote), socket_role_e::RECEIVER));
+             std::make_shared<local_socket_uds_impl>(io_, std::move(_socket), own_endpoint_, std::move(remote), socket_role_e::SERVER));
 }
 }
 #endif

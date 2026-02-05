@@ -12,7 +12,9 @@
 #include "../../utility/include/is_value.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
+#include "../../protocol/include/logging.hpp"
 
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/error.hpp>
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -93,8 +95,9 @@ void local_endpoint::start() {
                 if (!process(0, inner_lock)) {
                     escalate_internal(inner_lock);
                 }
-                // sending is not required to be started here, as nothing
-                // should be in the queue for the just accepted connection
+                // sending does not need to be called, as nothing can be stale
+                // in the queue when the endpoint is started as a connected endpoint
+                // (if something would have been send, it is already on its way)
             }
         });
     } else {
@@ -141,7 +144,8 @@ void local_endpoint::escalate_internal(std::unique_lock<std::mutex>& _lock) {
 bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     std::scoped_lock const lock{mutex_};
     if (std::numeric_limits<size_t>::max() - _size < send_queue_.size()) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message of size: " << _size << ", to avoid buffer overflow, " << status_unlock();
+        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message type: " << protocol::read_command_id(_data, _size)
+                      << " and size: " << _size << ", to avoid buffer overflow, " << status_unlock();
         return false;
     }
     // Note: _size + send_queue_.size() could oveflow,
@@ -152,13 +156,15 @@ bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     // 2. send_queue_.size() starts with 0 -> queue_limit_ is not smaller then send_queue_.size() after n = 0
     // 1. + 2. => the next line can never cause trouble
     if (queue_limit_ != QUEUE_SIZE_UNLIMITED && queue_limit_ - send_queue_.size() < _size) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message, because the queue limit (" << queue_limit_
-                      << ") would be exceeded with the message size: " << _size << ", " << status_unlock();
+        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message of type: " << protocol::read_command_id(_data, _size)
+                      << ", because the queue limit (" << queue_limit_ << ") would be exceeded with the message size: " << _size << ", "
+                      << status_unlock();
         return false;
     }
     if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && max_message_size_ < _size) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message, because the message size (" << _size << ") exceeded the limit ("
-                      << max_message_size_ << "), " << status_unlock();
+        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message of type: " << protocol::read_command_id(_data, _size)
+                      << " because the message size (" << _size << ") exceeded the limit (" << max_message_size_ << "), "
+                      << status_unlock();
         return false;
     }
     send_queue_.insert(send_queue_.end(), _data, _data + _size);
@@ -307,8 +313,12 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
                 });
             }
             assignment_timebox_->start();
+        } else {
+            if (!is_allowed()) {
+                escalate_internal(lock);
+                return;
+            }
         }
-
         send_unlock();
         receive_unlock();
         return;
@@ -510,6 +520,16 @@ void local_endpoint::flush_queue() {
             break;
         }
     }
+}
+
+void local_endpoint::trigger_error() {
+    // post to uphold the interface contract of the local_endpoint:
+    // No public API call will lead to a callback invocation
+    boost::asio::post(io_, [weak_self = weak_from_this()] {
+        if (auto self = weak_self.lock(); self) {
+            self->escalate();
+        }
+    });
 }
 
 void local_endpoint::register_error_handler(const error_handler_t& _error) {

@@ -111,7 +111,7 @@ void local_acceptor_tcp_impl::accept_cbk(boost::system::error_code const& _ec, c
     }
 
     // transfer ownership of the socket member, subsequent async_accept calls will re-instantiate it
-    auto socket = std::make_shared<local_socket_tcp_impl>(io_, std::move(_socket), local_ep_, std::move(remote), socket_role_e::RECEIVER);
+    auto socket = std::make_shared<local_socket_tcp_impl>(io_, std::move(_socket), local_ep_, std::move(remote), socket_role_e::SERVER);
     socket->set_socket_options(*configuration_);
     lock.unlock();
     // invoke handler only without the lock (avoids the need of a recursive mutex)

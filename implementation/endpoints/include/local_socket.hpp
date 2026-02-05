@@ -19,7 +19,7 @@
 namespace vsomeip_v3 {
 class configuration;
 
-enum class socket_role_e { SENDER, RECEIVER };
+enum class socket_role_e { CLIENT, SERVER };
 char const* to_string(socket_role_e _role);
 
 /**

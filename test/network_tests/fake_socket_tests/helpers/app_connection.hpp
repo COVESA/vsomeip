@@ -28,7 +28,7 @@ public:
      * called by the socket_manager to set-up the connection and trigger
      * option settings
      **/
-    void set_sockets(std::weak_ptr<fake_tcp_socket_handle> _from, std::weak_ptr<fake_tcp_socket_handle> _to);
+    void set_sockets(std::weak_ptr<fake_tcp_socket_handle> _client, std::weak_ptr<fake_tcp_socket_handle> _server);
 
     /**
      * will wake-up the condition_variable to check connection changes.
@@ -47,14 +47,14 @@ public:
     void clear_command_record() const;
 
     /**
-     * Delays message processing on the receiving socket (can be set ahead of time)
+     * Delays message processing on the socket having the corresponding role (can be set ahead of time)
      **/
-    [[nodiscard]] bool delay_message_processing(bool _delay, socket_role _role = socket_role::receiver);
+    [[nodiscard]] bool delay_message_processing(bool _delay, socket_role _role);
 
     /**
      * sets the fake_tcp_socket_handle on each socket correspondingly (can be set ahead of time)
      **/
-    [[nodiscard]] bool set_ignore_inner_close(bool _from, bool _to);
+    [[nodiscard]] bool set_ignore_inner_close(bool _client, bool _server);
 
     /**
      * toggles the fake_tcp_socket_handle to (not) report an error if there is no
@@ -70,8 +70,8 @@ public:
     /**
      * sets the fake_tcp_socket_handle on each socket correspondingly (can be set ahead of time)
      **/
-    [[nodiscard]] bool block_on_close_for(std::optional<std::chrono::milliseconds> _from_block_time,
-                                          std::optional<std::chrono::milliseconds> _to_block_time);
+    [[nodiscard]] bool block_on_close_for(std::optional<std::chrono::milliseconds> _client_block_time,
+                                          std::optional<std::chrono::milliseconds> _server_block_time);
 
     /**
      * waits for at most _timeout milliseconds for set_sockets to have been called
@@ -85,13 +85,14 @@ public:
     /**
      * waits for at most _timeout milliseconds for _id to be received by the receiving socket
      **/
-    [[nodiscard]] bool wait_for_command(protocol::id_e _id, std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
+    [[nodiscard]] bool wait_for_command(protocol::id_e _id, socket_role _waiting,
+                                        std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
 
     /**
      * disconnects the two sockets
      **/
-    [[nodiscard]] bool disconnect(std::optional<boost::system::error_code> _from_error, std::optional<boost::system::error_code> _to_error,
-                                  socket_role _side_to_disconnect);
+    [[nodiscard]] bool disconnect(std::optional<boost::system::error_code> _client_error,
+                                  std::optional<boost::system::error_code> _server_error, socket_role _side_to_disconnect);
 
     /**
      * counts how often set_sockets has been called
@@ -114,11 +115,11 @@ private:
     std::string const name_;
     size_t socket_count_{0};
 
-    std::weak_ptr<fake_tcp_socket_handle> from_;
-    std::weak_ptr<fake_tcp_socket_handle> to_;
+    std::weak_ptr<fake_tcp_socket_handle> client_;
+    std::weak_ptr<fake_tcp_socket_handle> server_;
 
-    connection_options from_options_;
-    connection_options to_options_;
+    connection_options client_options_;
+    connection_options server_options_;
 
     std::condition_variable mutable cv_;
     std::mutex mutable mtx_;

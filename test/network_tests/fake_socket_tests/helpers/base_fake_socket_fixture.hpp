@@ -94,21 +94,21 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool await_connectable(std::string const& _name, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
-     * Waits until _timeout expires or the application identified by _from and _to established a
-     * connection. The direction matters. It is awaited that _from connects on an accepting _to.
+     * Waits until _timeout expires or the application identified by _client and _server established a
+     * connection. The direction matters. It is awaited that _client connects on an accepting _server.
      *
      * @ret true, if the application is awaiting a connection within the passed in timeout,
      *      false, else.
      */
-    [[nodiscard]] bool await_connection(std::string const& _from, std::string const& _to,
+    [[nodiscard]] bool await_connection(std::string const& _client, std::string const& _server,
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
-     * Searches for a connection in which _from_name connected to an accepting _to_name.
+     * Searches for a connection in which _client_name connected to an accepting _server_name.
      * If the connection is found:
-     * 1. it will try to inject the passed in _from_error into the async_receive handler of the
-     *_from socket.
-     * 2. it will try to inject the passed in _to_error into the async_receive handler form the _to
+     * 1. it will try to inject the passed in _client_error into the async_receive handler of the
+     *_client socket.
+     * 2. it will try to inject the passed in _server_error into the async_receive handler form the _server
      *socket.
      * 3. it will remove the capability of sending data between the socket. If the socket would be
      *requested to async_send something the passed in handler would be invoked with a broken pipe
@@ -120,14 +120,14 @@ struct base_fake_socket_fixture : ::testing::Test {
      * @ret true, if the passed in errors were successfully injected (note two nullopts are always
      *successfully injected) false, else
      **/
-    [[nodiscard]] bool disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+    [[nodiscard]] bool disconnect(std::string const& _client_name, std::optional<boost::system::error_code> _client_error,
+                                  std::string const& _server_name, std::optional<boost::system::error_code> _server_error,
                                   socket_role _side_to_disconnect = socket_role::unspecified);
 
     /**
      * @see socket_manager::connection_count()
      **/
-    size_t connection_count(std::string const& _from, std::string const& _to);
+    size_t connection_count(std::string const& _client, std::string const& _server);
 
     /**
      * @see socket_manager::report_on_connect()
@@ -147,40 +147,41 @@ struct base_fake_socket_fixture : ::testing::Test {
     /**
      * @see socket_manager::delay_message_processing()
      **/
-    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
-                                                socket_role _role = socket_role::receiver);
+    [[nodiscard]] bool delay_message_processing(std::string const& _client, std::string const& _server, bool _delay,
+                                                socket_role _role = socket_role::server);
 
     /**
      * @see socket_manager::set_ignore_nothing_to_read_from()
      **/
-    void set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore);
+    void set_ignore_nothing_to_read_from(std::string const& _client, std::string const& _server, socket_role _role, bool _ignore);
 
     /**
      * @see socket_manager::set_ignore_inner_close()
      **/
-    [[nodiscard]] bool set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to, bool _ignore_in_to);
+    [[nodiscard]] bool set_ignore_inner_close(std::string const& _client, bool _ignore_in_client, std::string const& _server,
+                                              bool _ignore_in_server);
 
     /**
      * @see socket_manager::block_on_close_for()
      **/
-    [[nodiscard]] bool block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
-                                          std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time);
+    [[nodiscard]] bool block_on_close_for(std::string const& _client, std::optional<std::chrono::milliseconds> _client_block_time,
+                                          std::string const& _server, std::optional<std::chrono::milliseconds> _server_block_time);
 
     /**
      * @see socket_manager::clear_command_record
      **/
-    void clear_command_record(std::string const& _from, std::string const& _to);
+    void clear_command_record(std::string const& _client, std::string const& _server);
 
     /**
      * @see socket_manager::wait_for_command
      **/
-    [[nodiscard]] bool wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+    [[nodiscard]] bool wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id, socket_role _waiting,
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
      * @see socket_manager::wait_for_connection_drop
      **/
-    [[nodiscard]] bool wait_for_connection_drop(std::string const& _from, std::string const& _to,
+    [[nodiscard]] bool wait_for_connection_drop(std::string const& _client, std::string const& _server,
                                                 std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     void fail_on_bind(std::string const& _app, bool _fail);
@@ -198,12 +199,12 @@ struct base_fake_socket_fixture : ::testing::Test {
     /**
      * @see socket_manager::inject_command
      */
-    void inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload);
+    void inject_command(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
 
     /**
      * @see socket_manager::set_custom_command_handler
      */
-    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
+    void set_custom_command_handler(std::string const& _client, std::string const& _server, vsomeip_command_handler const& _handler,
                                     socket_role _sender = socket_role::unspecified);
 
 private:

@@ -38,7 +38,7 @@ public:
      * @param _socket Existing TCP socket (ownership transferred).
      * @param _own This application's TCP endpoint (address:port).
      * @param _peer Peer application's TCP endpoint (address:port).
-     * @param _role Socket role (SENDER or RECEIVER).
+     * @param _role Socket role (CLIENT or SERVER).
      */
     local_socket_tcp_impl(boost::asio::io_context& _io, std::shared_ptr<tcp_socket> _socket, boost::asio::ip::tcp::endpoint _own,
                           boost::asio::ip::tcp::endpoint _remote, socket_role_e _role);
@@ -48,7 +48,7 @@ public:
      * @param _io IO context for asynchronous operations.
      * @param _own This application's TCP endpoint to bind to.
      * @param _peer Peer application's TCP endpoint to connect to.
-     * @param _role Socket role (SENDER or RECEIVER).
+     * @param _role Socket role (CLIENT or SERVER).
      */
     local_socket_tcp_impl(boost::asio::io_context& _io, boost::asio::ip::tcp::endpoint _own, boost::asio::ip::tcp::endpoint _remote,
                           socket_role_e _role);

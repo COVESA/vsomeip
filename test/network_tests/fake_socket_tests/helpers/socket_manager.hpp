@@ -66,25 +66,25 @@ public:
 
     /**
      * Waits until either the timeout expires, or the application associated
-     * with _from established a connection to the application associated with _to.
+     * with _from established a connection to the application associated with _server.
      *
-     * Note the implication is that the _to application called async_accept on
+     * Note the implication is that the _server application called async_accept on
      * a fake_tcp_acceptor with some endpoint and that _from called async_connect
      * with some fake_tcp_socket towards this very endpoint.
      */
-    [[nodiscard]] bool await_connection(std::string const& _from, std::string const& _to, std::chrono::milliseconds _timeout);
+    [[nodiscard]] bool await_connection(std::string const& _client, std::string const& _server, std::chrono::milliseconds _timeout);
 
     /**
      * Counts how often the directed connection was established.
      */
-    size_t count_established_connections(std::string const& _from, std::string const& _to);
+    size_t count_established_connections(std::string const& _client, std::string const& _server);
 
     /**
-     * Searches for a directed connection _from_name to _to_name and calls
+     * Searches for a directed connection _client_name to _server_name and calls
      * fake_tcp_socket_handle::disconnect and accumulates the result.
      */
-    [[nodiscard]] bool disconnect(std::string const& _from_name, std::optional<boost::system::error_code> _from_error,
-                                  std::string const& _to_name, std::optional<boost::system::error_code> _to_error,
+    [[nodiscard]] bool disconnect(std::string const& _client_name, std::optional<boost::system::error_code> _client_error,
+                                  std::string const& _server_name, std::optional<boost::system::error_code> _server_error,
                                   socket_role _side_to_disconnect = socket_role::unspecified);
 
     /**
@@ -107,61 +107,62 @@ public:
     void set_ignore_connections(std::string const& _app_name, bool _ignore_connections);
 
     /**
-     * Ensures that write calls from _from are reported to be successful, but if _delay == true,
-     * the callback of _to is not invoked, but remains waiting until _delay turns true again.
+     * Ensures that write calls from _client are reported to be successful, but if _delay == true,
+     * the callback of _server is not invoked, but remains waiting until _delay turns true again.
      *
      * @return false, if the connection does not exist.
      **/
-    [[nodiscard]] bool delay_message_processing(std::string const& _from, std::string const& _to, bool _delay,
-                                                socket_role _role = socket_role::receiver);
+    [[nodiscard]] bool delay_message_processing(std::string const& _client, std::string const& _server, bool _delay,
+                                                socket_role _role = socket_role::server);
 
     /**
      * Ensures that a broken connection is not propagated, when the connected socket is closed.
      * The connection is identified by:
-     * _from -> _to.
-     * if _ignore_in_from is true, the _from socket will ignore closings of _to,
-     * if _ignore_in_to is true, the _to socket will ignore closings of _from.
+     * _client -> _server.
+     * if _ignore_in_client is true, the _client socket will ignore closings of _server,
+     * if _ignore_in_server is true, the _server socket will ignore closings of _client.
      *
      * Closing can later be triggered with disconnect()
      **/
-    [[nodiscard]] bool set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to, bool _ignore_in_to);
+    [[nodiscard]] bool set_ignore_inner_close(std::string const& _client, bool _ignore_in_client, std::string const& _server,
+                                              bool _ignore_in_server);
 
     /**
      * Ensures that a async_receive will not fail, if the other socket disconnected.
      * This is helpful for simulating suspend sequences.
      * Note: This option is permanent to the connection and needs to be actively reset.
      **/
-    void set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore);
+    void set_ignore_nothing_to_read_from(std::string const& _client, std::string const& _server, socket_role _role, bool _ignore);
 
     /**
-     * searches for the _from -> _to connected sockets and demands from _from to block execution
-     * for _from_block_time when close is invoked, equivalent for _to with _to_block_time.
+     * searches for the _client -> _server connected sockets and demands from _client to block execution
+     * for _client_block_time when close is invoked, equivalent for _server with _server_block_time.
      * @see fake_tcp_socket_handle::block_on_close_for() for further details.
      *
      * @return true, if all non nullopts could be forwarded
      **/
-    [[nodiscard]] bool block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
-                                          std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time);
+    [[nodiscard]] bool block_on_close_for(std::string const& _client, std::optional<std::chrono::milliseconds> _client_block_time,
+                                          std::string const& _server, std::optional<std::chrono::milliseconds> _server_block_time);
 
     /**
-     * Clears all received commands in the _to socket from the _from -> _to connection
+     * Clears all received commands in the _server socket from the _client -> _server connection
      **/
-    void clear_command_record(std::string const& _from, std::string const& _to);
+    void clear_command_record(std::string const& _client, std::string const& _server);
 
     /**
-     * Waits for _id to be received in the _from -> _to connection for _timeout amount of time.
+     * Waits for _id to be received in the _client -> _server connection for _timeout amount of time.
      * @return false, if the _id was not received within time.
      **/
-    [[nodiscard]] bool wait_for_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
+    [[nodiscard]] bool wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id, socket_role _waiting,
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
-     * Waits for the _from -> _to connection to be dropped.
+     * Waits for the _client -> _server connection to be dropped.
      * If there is no record of this connection it first awaited to have this connection established,
      * If there is currently a connection it is waited until one socket disconnects,
      * If there is no longer any connection true is returned.
      **/
-    [[nodiscard]] bool wait_for_connection_drop(std::string const& _from, std::string const& _to,
+    [[nodiscard]] bool wait_for_connection_drop(std::string const& _client, std::string const& _server,
                                                 std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
@@ -224,19 +225,19 @@ public:
     std::future<protocol::id_e> drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id);
 
     /**
-     * Forces the delivery of a vsomeip message @param _payload from @param _from to @param _to.
+     * Forces the delivery of a vsomeip message @param _payload from @param _client to @param _server.
      */
-    bool inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload);
+    bool inject_command(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
 
     /**
      * Allows setting a custom vsomeip command controller @param _handler to be invoked every time a message
      * is parsed, enables the test to decide what can be delivered or to assert based on the payload.
      * The _sender argument specifies which messages to parse.
-     * if _sender == sender -> only parses messages from the sender to the receiver
-     * if _sender == receiver -> reverse
+     * if _sender == client -> only parses messages from the client to the server
+     * if _sender == server -> reverse
      * if _sender == unspecified -> both
      */
-    void set_custom_command_handler(std::string const& _from, std::string const& _to, vsomeip_command_handler const& _handler,
+    void set_custom_command_handler(std::string const& _client, std::string const& _server, vsomeip_command_handler const& _handler,
                                     socket_role _sender = socket_role::unspecified);
 
     /**
@@ -246,7 +247,7 @@ public:
 
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
-    std::shared_ptr<app_connection> get_or_create_connection(std::string const& _from, std::string const& _to);
+    std::shared_ptr<app_connection> get_or_create_connection(std::string const& _client, std::string const& _server);
 
     std::mutex mtx_;
     std::condition_variable assignment_cv_;

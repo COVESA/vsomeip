@@ -29,9 +29,10 @@
 namespace vsomeip_v3 {
 
 local_server::local_server(boost::asio::io_context& _io, std::shared_ptr<local_acceptor> _acceptor,
-                           std::shared_ptr<configuration> _configuration, std::weak_ptr<routing_host> _routing_host, bool _is_router) :
+                           std::shared_ptr<configuration> _configuration, std::weak_ptr<routing_host> _routing_host,
+                           connection_handler _connection_handler, bool _is_router, std::string _server_host) :
     is_router_(_is_router), io_(_io), acceptor_(std::move(_acceptor)), configuration_(std::move(_configuration)),
-    routing_host_(std::move(_routing_host)) { }
+    routing_host_(std::move(_routing_host)), connection_handler_(std::move(_connection_handler)), server_host_(std::move(_server_host)) { }
 
 local_server::~local_server() = default;
 
@@ -59,7 +60,6 @@ void local_server::stop() {
     if (ec) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": Error encountered: " << ec.message() << ", self: " << this;
     }
-    stop_client_connections_unlock();
     if (debounce_) {
         debounce_->stop();
     }
@@ -78,27 +78,12 @@ void local_server::halt() {
     if (ec) {
         VSOMEIP_ERROR << "ls::" << __func__ << ": Error encountered: " << ec.message() << ", self: " << this;
     }
-    stop_client_connections_unlock();
-}
-
-void local_server::disconnect_from(client_t _client, bool _due_to_error) {
-    std::scoped_lock lock{mtx_};
-    if (clients_.find(_client) == clients_.end()) {
-        return;
-    }
-    clients_.at(_client)->stop(_due_to_error);
-    clients_.erase(_client);
 }
 
 port_t local_server::get_local_port() const {
     return acceptor_->get_local_port();
 }
 
-void local_server::print_status() const {
-    std::scoped_lock const lock{mtx_};
-    VSOMEIP_INFO << "ls::" << __func__ << ": lc: " << lc_count_ << ", connected clients: " << clients_.size()
-                 << ", self: " << hex4(own_client_id_) << ", mem: " << this;
-}
 void local_server::set_id(client_t _id) {
     std::scoped_lock const lock{mtx_};
     own_client_id_ = _id;
@@ -199,26 +184,19 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
                 rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
             }
+            protocol::config_command config_command;
+            config_command.set_client(own_client_id_);
+            config_command.insert("hostname", std::string(server_host_));
+            std::vector<byte_t> buffer;
+            protocol::error_e error;
+            config_command.serialize(buffer, error);
 
-            if (auto it = clients_.find(_client); it != clients_.end()) {
-                VSOMEIP_WARNING << "ls::" << __func__ << ": Replacing already existing connection to client " << hex4(_client)
-                                << ", previous connection: " << it->second->name() << "/" << it->second.get() << ", new connection "
-                                << ep->name() << "/" << ep.get() << ", self: " << this;
-                // Carful: A lock release should not be necessary, as stop of an endpoint must not invoke the error handler
-                it->second->stop(true);
-            } else {
-                VSOMEIP_INFO << "ls::" << __func__ << ": Received a connection from " << hex4(_client) << ", new connection " << ep->name()
-                             << "/" << ep.get() << ", self: " << this;
+            if (error == protocol::error_e::ERROR_OK) {
+                ep->send(&buffer[0], static_cast<uint32_t>(buffer.size()));
             }
-            clients_[_client] = ep;
-            ep->register_error_handler([weak_self = weak_from_this(), weak_ep = std::weak_ptr<local_endpoint>(ep), _client] {
-                if (auto server = weak_self.lock(); server) {
-                    if (auto shared_ep = weak_ep.lock(); shared_ep) {
-                        server->remove_connection(_client, shared_ep);
-                    }
-                }
-            });
-            ep->start();
+
+            lock.unlock();
+            connection_handler_(ep);
         } else {
             VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << hex4(_client)
                             << ", from former lifecycle: " << _lc_count << ", current lc: " << lc_count_
@@ -230,33 +208,6 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                         << ", current lc: " << lc_count_ << ", self: " << this;
         _socket->stop(true);
     }
-}
-
-void local_server::remove_connection(client_t _client, std::shared_ptr<local_endpoint> _ep) {
-    std::scoped_lock lock{mtx_};
-    if (auto it = clients_.find(_client); it == clients_.end()) {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Client " << hex4(_client) << " has no registered connection to "
-                        << " remove, endpoint > " << this;
-    } else {
-        if (_ep.get() != it->second.get()) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Client " << hex4(_client)
-                            << " has a different recorded connection. Not removing the currently recorded connection: "
-                            << it->second->name() << "/" << it->second.get() << ", stopped connection " << _ep->name() << "/" << _ep.get()
-                            << ", self: " << this;
-        } else {
-            clients_.erase(it);
-            configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
-        }
-    }
-    // irrespective of whether this connection was known, the endpoint should be stopped
-    _ep->stop(true);
-}
-
-void local_server::stop_client_connections_unlock() {
-    for (const auto& [key, ep] : clients_) {
-        ep->stop(false);
-    }
-    clients_.clear();
 }
 
 void local_server::start_unlock(uint32_t _lc_count) {

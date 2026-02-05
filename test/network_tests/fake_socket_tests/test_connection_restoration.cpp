@@ -106,22 +106,22 @@ struct test_protocol_messages : test_client_helper {
     std::shared_ptr<command_record> record_{command_record::create()};
 
     void track_client_server() {
-        set_custom_command_handler(server_name_, client_name_, record_->create_collector(server_to_client_), socket_role::sender);
-        set_custom_command_handler(server_name_, client_name_, record_->create_collector(client_to_server_), socket_role::receiver);
-        set_custom_command_handler(client_name_, server_name_, record_->create_collector(server_to_client_), socket_role::receiver);
-        set_custom_command_handler(client_name_, server_name_, record_->create_collector(client_to_server_), socket_role::sender);
+        set_custom_command_handler(server_name_, client_name_, record_->create_collector(server_to_client_), socket_role::client);
+        set_custom_command_handler(server_name_, client_name_, record_->create_collector(client_to_server_), socket_role::server);
+        set_custom_command_handler(client_name_, server_name_, record_->create_collector(server_to_client_), socket_role::server);
+        set_custom_command_handler(client_name_, server_name_, record_->create_collector(client_to_server_), socket_role::client);
     }
     void track_client_router() {
-        set_custom_command_handler(routingmanager_name_, client_name_, record_->create_collector(router_to_client_), socket_role::sender);
-        set_custom_command_handler(routingmanager_name_, client_name_, record_->create_collector(client_to_router_), socket_role::receiver);
-        set_custom_command_handler(client_name_, routingmanager_name_, record_->create_collector(router_to_client_), socket_role::receiver);
-        set_custom_command_handler(client_name_, routingmanager_name_, record_->create_collector(client_to_router_), socket_role::sender);
+        set_custom_command_handler(routingmanager_name_, client_name_, record_->create_collector(router_to_client_), socket_role::client);
+        set_custom_command_handler(routingmanager_name_, client_name_, record_->create_collector(client_to_router_), socket_role::server);
+        set_custom_command_handler(client_name_, routingmanager_name_, record_->create_collector(router_to_client_), socket_role::server);
+        set_custom_command_handler(client_name_, routingmanager_name_, record_->create_collector(client_to_router_), socket_role::client);
     }
     void track_server_router() {
-        set_custom_command_handler(routingmanager_name_, server_name_, record_->create_collector(router_to_server_), socket_role::sender);
-        set_custom_command_handler(routingmanager_name_, server_name_, record_->create_collector(server_to_router_), socket_role::receiver);
-        set_custom_command_handler(server_name_, routingmanager_name_, record_->create_collector(router_to_server_), socket_role::receiver);
-        set_custom_command_handler(server_name_, routingmanager_name_, record_->create_collector(server_to_router_), socket_role::sender);
+        set_custom_command_handler(routingmanager_name_, server_name_, record_->create_collector(router_to_server_), socket_role::client);
+        set_custom_command_handler(routingmanager_name_, server_name_, record_->create_collector(server_to_router_), socket_role::server);
+        set_custom_command_handler(server_name_, routingmanager_name_, record_->create_collector(router_to_server_), socket_role::server);
+        set_custom_command_handler(server_name_, routingmanager_name_, record_->create_collector(server_to_router_), socket_role::client);
     }
 
     std::string const router_to_client_{routingmanager_name_ + "-to-" + client_name_};
@@ -139,14 +139,36 @@ TEST_F(test_protocol_messages, ensure_sequence_of_registration_message) {
     start_client_app();
 
     using namespace vsomeip_v3::protocol;
-    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+    // REGISTER_APPLICATION_ID/CONFIG_ID are send in parallel and might appear in different orders in the record
+    auto const expected_sequence1 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {client_to_router_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
-            {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds receiver
-            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}, // only message currently received over the sender
+            {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds server
+            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}, // only message currently received over the client
             {client_to_router_, id_e::REGISTER_APPLICATION_ID}, // 2. registration step -> ask router to connect back
-            {router_to_client_, id_e::CONFIG_ID}, // lazy load security for other apps from the router environment
+            {router_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the client
             {router_to_client_, id_e::ROUTING_INFO_ID}, // received by client: application knows that the router is connected
             {client_to_router_, id_e::REGISTERED_ACK_ID}}; // router knows that it can successfully send message -> registration succeeded.
+    auto const expected_sequence2 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_router_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
+            {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds server
+            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}, // only message currently received over the client
+            {router_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the client
+            {client_to_router_, id_e::REGISTER_APPLICATION_ID}, // 2. registration step -> ask router to connect back
+            {router_to_client_, id_e::ROUTING_INFO_ID}, // received by client: application knows that the router is connected
+            {client_to_router_, id_e::REGISTERED_ACK_ID}}; // router knows that it can successfully send message -> registration succeeded.
+    bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
+    EXPECT_TRUE(is_any) << *record_;
+}
+TEST_F(test_protocol_messages, ensure_sequence_of_routing_info_request) {
+    // collect all message over both connection between a client and the router
+
+    start_apps();
+    track_client_router();
+    request_service();
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_router_, id_e::REQUEST_SERVICE_ID}, {router_to_client_, id_e::ROUTING_INFO_ID}};
     EXPECT_EQ(expected_sequence, *record_);
 }
 TEST_F(test_protocol_messages, ensure_sequence_of_event_registration) {
@@ -160,7 +182,7 @@ TEST_F(test_protocol_messages, ensure_sequence_of_event_registration) {
     auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy
             {client_to_server_, id_e::SUBSCRIBE_ID},
-            {server_to_client_, id_e::CONFIG_ID}, // Ensure environment is known (should be redundant)
+            {server_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy for the service
             {server_to_client_, id_e::SUBSCRIBE_ACK_ID}};
     EXPECT_EQ(expected_sequence, *record_);
 }
@@ -176,9 +198,9 @@ TEST_F(test_protocol_messages, ensure_sequence_of_field_registration) {
 
     using namespace vsomeip_v3::protocol;
     auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
-            {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
+            {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the server
             {client_to_server_, id_e::SUBSCRIBE_ID},
-            {server_to_client_, id_e::CONFIG_ID}, // Ensure environment is known (should be redundant)
+            {server_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy for the service
             {server_to_client_, id_e::SUBSCRIBE_ACK_ID},
             {server_to_client_, id_e::SEND_ID} // initial event
     };
@@ -205,13 +227,21 @@ TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {
     EXPECT_TRUE(client_->message_record_.wait_for_last(expected_reply_));
 
     using namespace vsomeip_v3::protocol;
-    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
-            {client_to_server_, id_e::CONFIG_ID}, // lazy load security policy
+    // SEND_ID/CONFIG_ID are send in parallel and might appear in different orders in the record
+    auto const expected_sequence1 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // lazy load security policy in the server
             {client_to_server_, id_e::SEND_ID}, // request
-            {server_to_client_, id_e::CONFIG_ID}, // lazy load security policy
+            {server_to_client_, id_e::CONFIG_ID}, // lazy load security policy in the client
             {server_to_client_, id_e::SEND_ID} // reply
     };
-    EXPECT_EQ(expected_sequence, *record_);
+    auto const expected_sequence2 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // lazy load security policy in the server
+            {server_to_client_, id_e::CONFIG_ID}, // lazy load security policy in the client
+            {client_to_server_, id_e::SEND_ID}, // request
+            {server_to_client_, id_e::SEND_ID} // reply
+    };
+    bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
+    EXPECT_TRUE(is_any) << *record_;
 }
 
 TEST_F(test_client_helper, ensure_unavail_after_stop_offer) {
@@ -241,6 +271,85 @@ TEST_F(test_client_helper, field_subscription) {
     ASSERT_TRUE(subscribe_to_field());
 
     EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
+}
+
+TEST_F(test_client_helper, router_offers_field) {
+    start_router();
+    start_client_app();
+    routingmanagerd_->offer(service_instance_);
+    routingmanagerd_->offer_event(offered_event_);
+    routingmanagerd_->offer_field(offered_field_);
+    routingmanagerd_->send_event(offered_field_, field_payload_);
+
+    ASSERT_TRUE(subscribe_to_field());
+    EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
+}
+
+TEST_F(test_client_helper, client_renews_connection_deletes_client_info) {
+    /**
+     * When a server does not notice that a client connection is broken,
+     * a new connection needs to trigger a clean-up of the former client state.
+     * In the following scenario a single client will be restarted,
+     * but subscribing in the first lifecycle to a field, but in the second
+     * to some other event.
+     * If the server correctly cleaned up the state, no update of the initial
+     * subscription is received.
+     **/
+    start_apps();
+    ASSERT_TRUE(subscribe_to_field());
+
+    ASSERT_TRUE(set_ignore_inner_close(client_name_, false, server_name_, true));
+    TEST_LOG << " ##### Stopping the client #####";
+    stop_client(client_name_);
+    TEST_LOG << " ##### Starting the client #####";
+    create_app(client_name_);
+    start_client_app();
+    ASSERT_TRUE(subscribe_to_event());
+    TEST_LOG << " ##### Sending the field #####";
+
+    send_field_message();
+    // 10ms are enough to be at least flaky if the server is not correctly cleaning
+    // the state
+    ASSERT_FALSE(wait_for_command(client_name_, server_name_, protocol::id_e::SEND_ID, socket_role::client, std::chrono::milliseconds(10)));
+}
+TEST_F(test_client_helper, re_registered_client_deletes_client_info) {
+    /**
+     * When the router does not notice that a client connection is broken,
+     * a new connection (fixed client id scenario) needs to trigger a clean-up
+     * of the former client state.
+     * In the following scenario a single client will be restarted,
+     * but requesting in the first lifecycle only to a service.
+     * If the router properly cleans up the client data, then no notification
+     * should be send on an unavail/avail toggle to the client.
+     **/
+    start_apps();
+    request_service();
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // ensure that the routing_managers error handler will not be invoked
+    ASSERT_TRUE(set_ignore_inner_close(client_name_, false, routingmanager_name_, true));
+    // ensure that the router will not allow for reconnect
+    set_ignore_connections(routingmanager_name_, true);
+    // a disconnect is faster then a graceful shutdown (and with the option above the router will not notice)
+    TEST_LOG << " ##### Stopping the client #####";
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, routingmanager_name_, std::nullopt));
+    // this ensures that the connection was really dropped for the client (and speeds up the stop)
+    ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_DEREGISTERED));
+    stop_client(client_name_);
+
+    TEST_LOG << " ##### Starting the client #####";
+    create_app(client_name_);
+    // allow the client to re-register
+    set_ignore_connections(routingmanager_name_, false);
+    start_client_app();
+
+    clear_command_record(client_name_, routingmanager_name_); // because ROUTING_INFO is also the registration completion
+    // when the client state is not cleaned-up, then the client would be informed about the dropped service
+    stop_offer();
+    // 10ms are enough to be at least flaky if the server is not correctly cleaning
+    // the state
+    ASSERT_FALSE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::ROUTING_INFO_ID, socket_role::client,
+                                  std::chrono::milliseconds(10)));
 }
 
 TEST_F(test_client_helper, request_reply_no_sub) {
@@ -299,14 +408,12 @@ TEST_F(test_client_helper, the_server_sends_subscribe_ack_when_the_routing_info_
     send_field_message();
 
     // ensure that the routing info is not received by the server before the subscription
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, true));
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true));
     client_->request_service(service_instance_);
     client_->subscribe_field(offered_field_);
 
     // TODO what could we await here?
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, false));
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false));
 
     ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
@@ -329,13 +436,14 @@ TEST_F(test_client_helper, outdated_routing_info_will_not_cause_a_wrong_permanen
     // 1.
     start_apps();
     // to ensure 3., that the routing info is not received by the client, before the service is stopped
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, true)); // Note that the client can still request a service
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true,
+                                         socket_role::client)); // Note that the client can still request a service
 
     // 2.
-    clear_command_record(routingmanager_name_, client_name_); // because ROUTING_INFO is also the registration completion
+    clear_command_record(client_name_, routingmanager_name_); // because ROUTING_INFO is also the registration completion
     request_service();
     client_->subscribe_field(offered_field_);
-    ASSERT_TRUE(wait_for_command(routingmanager_name_, client_name_, protocol::id_e::ROUTING_INFO_ID));
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::ROUTING_INFO_ID, socket_role::client));
 
     // 3.
     stop_client(server_name_); // stop server
@@ -348,7 +456,7 @@ TEST_F(test_client_helper, outdated_routing_info_will_not_cause_a_wrong_permanen
     ASSERT_TRUE(new_app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
     // 5. trigger client tries to connect
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, false));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::client));
 
     // 6. we expect that the established connection is dropped (note that the predicate includes the check that connection has been
     // established)
@@ -365,7 +473,6 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
     ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_, boost::asio::error::timed_out));
-    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
 
     client_->subscription_record_.clear();
 
@@ -374,7 +481,6 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
     // resume of the client:
     set_ignore_connections(client_name_, false);
     // resume of the client:
-    std::ignore = disconnect(routingmanager_name_, std::nullopt, client_name_, boost::asio::error::connection_reset);
     std::ignore = disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, std::nullopt);
 
     // in order for the server to be able to send an event, the server needs to connect back
@@ -383,8 +489,6 @@ TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_ro
     // Therefore first await that the client <-> router connections are re-established, before
     // awaiting that the client <-> server connections are re-established.
     ASSERT_TRUE(await_connection(client_name_, routingmanager_name_));
-    ASSERT_TRUE(await_connection(routingmanager_name_, client_name_));
-    ASSERT_TRUE(await_connection(server_name_, client_name_));
     ASSERT_TRUE(await_connection(client_name_, server_name_));
 
     // client needs to re-subscribe, wait for it
@@ -413,12 +517,10 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
 
     // simulating a suspend of a client (the client should not react to any action of the server)
     ASSERT_TRUE(set_ignore_inner_close(client_name_, true, server_name_, false));
-    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, client_name_, false));
     set_ignore_connections(client_name_, true);
-    set_ignore_nothing_to_read_from(server_name_, client_name_, socket_role::receiver, true);
+    set_ignore_nothing_to_read_from(client_name_, server_name_, socket_role::client, true);
 
-    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
-    std::ignore = disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::timed_out);
+    ASSERT_TRUE(disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::timed_out));
 
     client_->subscription_record_.clear();
 
@@ -426,10 +528,9 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
 
     // resume of the client:
     set_ignore_connections(client_name_, false);
-    std::ignore = disconnect(server_name_, std::nullopt, client_name_, boost::asio::error::connection_reset);
-    std::ignore = disconnect(client_name_, boost::asio::error::connection_reset, server_name_, std::nullopt);
+    set_ignore_nothing_to_read_from(client_name_, server_name_, socket_role::client, false);
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, std::nullopt));
 
-    ASSERT_TRUE(await_connection(server_name_, client_name_));
     ASSERT_TRUE(await_connection(client_name_, server_name_));
 
     // client needs to re-subscribe, wait for it
@@ -470,7 +571,6 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
     // simulating a suspend of a server:
     set_ignore_connections(server_name_, true);
     ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt));
-    std::ignore = disconnect(server_name_, std::nullopt, client_name_, boost::asio::error::timed_out);
 
     client_->subscription_record_.clear();
 
@@ -479,9 +579,7 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
     // resume of the server:
     set_ignore_connections(server_name_, false);
     std::ignore = disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::connection_reset);
-    std::ignore = disconnect(server_name_, boost::asio::error::connection_reset, client_name_, std::nullopt);
 
-    ASSERT_TRUE(await_connection(server_name_, client_name_));
     ASSERT_TRUE(await_connection(client_name_, server_name_));
 
     // client needs to re-subscribe, wait for it
@@ -502,13 +600,13 @@ TEST_F(test_client_helper, field_updates_are_resend_when_a_broken_routing_connec
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
-    ASSERT_TRUE(disconnect(routingmanager_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_, boost::asio::error::timed_out));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(700));
     // resume of the client:
     set_ignore_connections(client_name_, false);
     // resume of the client:
-    std::ignore = disconnect(routingmanager_name_, std::nullopt, client_name_, boost::asio::error::connection_reset);
+    std::ignore = disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, std::nullopt);
 
     // TODO:
     // Because the re-connection needs to timeout before being successful, let's
@@ -537,38 +635,6 @@ TEST_F(test_client_helper, client_ignores_server_connection_attempt_once) {
     EXPECT_TRUE(subscribe_to_event());
 }
 
-TEST_F(test_client_helper, client_ignores_server_connections_for_a_while) {
-    /// a somewhat more complex version of `client_ignores_server_connection_attempt_once`
-    /// except not only are the connections ignored, but also any writes
-
-    start_apps();
-
-    // client ignores connections
-    set_ignore_connections(client_name_, true);
-    // server has to ignore any broken pipes - so that not only does `connect()` never return, but also no `async_write` callbacks
-    set_ignore_broken_pipe(server_name_, true);
-    // server has to answer with an initial value
-    send_field_message();
-
-    // client subscribes to field
-    client_->request_service(service_instance_);
-    client_->subscribe_field(offered_field_);
-
-    // unfortunate, but we need to wait for magics amount of time - there will be background attempts to connect+write failures
-    EXPECT_FALSE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_),
-                                                             std::chrono::seconds(1)));
-
-    // accept connections again
-    // (and no need to worry about the broken pipe)
-    set_ignore_connections(client_name_, false);
-
-    // CONFIG_ID should be sent when the connection is established
-    EXPECT_TRUE(await_connection(server_name_, client_name_));
-    EXPECT_TRUE(wait_for_command(server_name_, client_name_, protocol::id_e::CONFIG_ID));
-    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
-    EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
-}
-
 TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection_is_re_established_then_the_subscription_confirmed) {
     start_apps();
     send_field_message();
@@ -583,7 +649,8 @@ TEST_F(test_client_helper, given_server_to_client_breaksdown_when_the_connection
     // break the server->client connection. Notice that if the blocking above is in place,
     // the "wrong" order of cleaning up server->client + client->server will lead to a race
     // condition.
-    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
+    // --> No longer applicable, but we keep the test for now?
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::timed_out));
 
     EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 }
@@ -601,10 +668,9 @@ TEST_F(test_client_helper, break_client_with_eof_before_finishing_registration) 
     // Do not wait for client registering and break the connection immediately
 
     TEST_LOG << " ##### BREAKING Client connection before registration #####";
-    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, routingmanager_name_, boost::asio::error::eof, socket_role::sender));
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, routingmanager_name_, boost::asio::error::eof, socket_role::client));
 
     ASSERT_TRUE(await_connection(client_name_, routingmanager_name_));
-    ASSERT_TRUE(await_connection(routingmanager_name_, client_name_));
     EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 }
 
@@ -612,10 +678,9 @@ TEST_F(test_client_helper, break_host_side_only_with_broken_pipe) {
     start_apps();
 
     ASSERT_TRUE(
-            disconnect(routingmanager_name_, boost::asio::error::broken_pipe, client_name_, boost::asio::error::eof, socket_role::sender));
+            disconnect(client_name_, boost::asio::error::eof, routingmanager_name_, boost::asio::error::broken_pipe, socket_role::server));
 
     ASSERT_TRUE(await_connection(client_name_, routingmanager_name_));
-    ASSERT_TRUE(await_connection(routingmanager_name_, client_name_));
 }
 
 TEST_F(test_client_helper, handle_early_routing_info_within_server_after_reconnect) {
@@ -637,20 +702,20 @@ TEST_F(test_client_helper, handle_early_routing_info_within_server_after_reconne
 
     // preparation
     // freeze routing -> client (to hold back ROUTING_INFO, see 4. and 7.)
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, true));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::server));
     // freeze close reception in server, for server -> client (to hold back close(), see 5.)
-    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, client_name_, false));
+    ASSERT_TRUE(set_ignore_inner_close(client_name_, false, server_name_, true));
     // clear commands so we can peek
     clear_command_record(routingmanager_name_, server_name_);
 
     // trigger 1.
     ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::eof));
     // 4.
-    ASSERT_TRUE(wait_for_command(routingmanager_name_, server_name_, protocol::id_e::CONFIG_ID));
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, protocol::id_e::CONFIG_ID, socket_role::client));
     // 5.
-    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::connection_reset, client_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::connection_reset));
     // 7.
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, false));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::server));
 
     EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 }
@@ -677,8 +742,8 @@ TEST_F(test_client_helper, missing_initial_events) {
     // 1.
     server_ = start_client(server_name_);
     ASSERT_NE(server_, nullptr);
-    // ASSERT_TRUE(await_connectable(server_name_)); wouldn't work as the receiver is only started after sender received a client_id
-    // TODO at this point in time application::start() is called on a background thread and the receiver has tried to claim some port.
+    // ASSERT_TRUE(await_connectable(server_name_)); wouldn't work as the server is only started after client received a client_id
+    // TODO at this point in time application::start() is called on a background thread and the server has tried to claim some port.
     // But it can happen that this port is not free, while we continue with the "sending" of the field.
     // Only after some port is claimed will the unguarded sec_client be set for the "send" preparation,
     // while the send preparation already requires the sec_client. This is a race condition
@@ -725,20 +790,20 @@ TEST_F(test_client_helper, handle_late_clean_up_within_server_after_reconnect) {
     // 5. the server cleans up the connection as a last step
 
     // ensure that the routing info requested by the client will be received later (for 3.)
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, true));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::server));
     // for 4.
-    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, client_name_, false));
+    ASSERT_TRUE(set_ignore_inner_close(client_name_, false, server_name_, true));
 
     // trigger 1./2.
     ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::eof));
 
     // 3. await the routing info in the server
-    ASSERT_TRUE(wait_for_command(routingmanager_name_, server_name_, protocol::id_e::CONFIG_ID));
+    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, protocol::id_e::CONFIG_ID, socket_role::client));
 
     // 4. a) receive the routing info b) await the new connection c) await the subscribe command
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, client_name_, false));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::server));
     ASSERT_TRUE(await_connection(client_name_, server_name_));
-    ASSERT_TRUE(wait_for_command(client_name_, server_name_, protocol::id_e::SUBSCRIBE_ID));
+    ASSERT_TRUE(wait_for_command(client_name_, server_name_, protocol::id_e::SUBSCRIBE_ID, socket_role::server));
 
     // 5. this requires from the server to remove the info
     std::ignore = disconnect(server_name_, boost::asio::error::connection_reset, client_name_, std::nullopt);
@@ -860,7 +925,7 @@ TEST_F(test_client_helper, test_subscription_for_ghost_service) {
                                                             static_cast<uint16_t>(0) // pending id
     );
     inject_command(client_name_, server_name_, subscription_payload);
-    ASSERT_TRUE(wait_for_command(server_name_, client_name_, protocol::id_e::SUBSCRIBE_NACK_ID));
+    ASSERT_TRUE(wait_for_command(client_name_, server_name_, protocol::id_e::SUBSCRIBE_NACK_ID, socket_role::client));
 }
 
 TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
@@ -892,7 +957,6 @@ TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
     // now it becomes tricky
     // we need to stop server, but such that routingmanagerd does not see it deregistering
     ASSERT_TRUE(set_ignore_inner_close(server_name_, true, routingmanager_name_, true)); // avoid ltsei connection closing
-    ASSERT_TRUE(set_ignore_inner_close(routingmanager_name_, true, server_name_, true)); // avoid ltcei connection closing
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true)); // avoid DEREGISTER_APPLICATION_ID
 
     // stimulate an error on server, so that it will not block on deregister
@@ -972,8 +1036,7 @@ TEST_F(test_restart_clients, test_assignment_timeout_recover) {
     start_router();
 
     // avoid processing any message from the router to the client (via either connection)
-    ASSERT_FALSE(delay_message_processing(routingmanager_name_, client_name_, true, socket_role::receiver));
-    ASSERT_FALSE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::sender));
+    ASSERT_FALSE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::server));
 
     client_ = start_client(client_name_);
     ASSERT_NE(client_, nullptr);
@@ -981,8 +1044,7 @@ TEST_F(test_restart_clients, test_assignment_timeout_recover) {
     // At this point in time, the client should not be able to register due to assignment timeout
     ASSERT_FALSE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)));
 
-    ASSERT_FALSE(delay_message_processing(routingmanager_name_, client_name_, false, socket_role::receiver));
-    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::sender));
+    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::server));
     EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 }
 
@@ -1002,7 +1064,7 @@ TEST_F(test_restart_clients, test_restart_client_one_and_two_in_reverse_order) {
 
     // Hold back the routing info update from client_one for the server (including the remove_client
     // command)
-    ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, true));
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true, socket_role::server));
     TEST_LOG << "[step] stopping the apps";
     stop_client(client_one_);
     stop_client(client_two_);
@@ -1018,11 +1080,11 @@ TEST_F(test_restart_clients, test_restart_client_one_and_two_in_reverse_order) {
         one->request_service(service_instance_);
         one->subscribe_field(offered_field_);
         ASSERT_TRUE(await_connection(client_one_, server_name_));
-        ASSERT_TRUE(wait_for_command(client_one_, server_name_, protocol::id_e::SUBSCRIBE_ID));
+        ASSERT_TRUE(wait_for_command(client_one_, server_name_, protocol::id_e::SUBSCRIBE_ID, socket_role::server));
 
         TEST_LOG << "[step] forward routing info";
         // ensure server receives updated routing info
-        ASSERT_TRUE(delay_message_processing(routingmanager_name_, server_name_, false));
+        ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false, socket_role::server));
         // now the new event should be send
         EXPECT_TRUE(one->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     }
@@ -1145,7 +1207,6 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
 }
 
 INSTANTIATE_TEST_SUITE_P(test_all_permutations, test_single_connection_breakdown,
-                         ::testing::Values(std::pair{routingmanager_name_, client_name_}, std::pair{client_name_, routingmanager_name_},
-                                           std::pair{routingmanager_name_, server_name_}, std::pair{server_name_, routingmanager_name_},
-                                           std::pair{client_name_, server_name_}, std::pair{server_name_, client_name_}));
+                         ::testing::Values(std::pair{client_name_, routingmanager_name_}, std::pair{server_name_, routingmanager_name_},
+                                           std::pair{client_name_, server_name_}));
 }

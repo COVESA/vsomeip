@@ -126,7 +126,7 @@ void routing_manager_client::start() {
     {
         std::scoped_lock its_receiver_lock(receiver_mutex_);
         // NOTE: order matters, `create_local_server` must done first
-        // with TCP, following `create_local` will use whatever port is established there
+        // with TCP, following `create_local_client` will use whatever port is established there
         if (!configuration_->is_local_routing() && !receiver_) {
             receiver_ = ep_mgr_->create_local_server(shared_from_this());
         }
@@ -228,11 +228,7 @@ void routing_manager_client::stop() {
         sender_ = nullptr;
     }
 
-    for (const auto client : ep_mgr_->get_connected_clients()) {
-        if (client != VSOMEIP_ROUTING_CLIENT) {
-            remove_local(client, false);
-        }
-    }
+    ep_mgr_->clear_local_endpoints();
 }
 
 std::shared_ptr<configuration> routing_manager_client::get_configuration() const {
@@ -680,12 +676,12 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     if (its_error == protocol::error_e::ERROR_OK) {
         client_t its_target_client = find_local_client(_service, _instance);
         if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
-            auto its_target = ep_mgr_->find_or_create_local(its_target_client);
+            auto its_target = ep_mgr_->find_or_create_local_client(its_target_client);
             if (its_target) {
                 its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
             } else {
                 VSOMEIP_ERROR << "rmc::" << __func__ << ": no target available to send subscription."
-                              << " client=0x" << hex4(_client) << " service=0x" << hex4(_service) << "." << hex4(_instance) << "."
+                              << " client=0x" << hex4(_client) << " service=" << hex4(_service) << "." << hex4(_instance) << "."
                               << std::setw(2) << static_cast<std::uint16_t>(_major) << " event=" << hex4(_event);
                 // if we can not create a connection with this client -> there should be something wrong with the routing info,
                 // but we assume the service is offered -> this is an error and we should handle it
@@ -721,10 +717,14 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber, service_t
     its_command.serialize(its_buffer, its_error);
     if (its_error == protocol::error_e::ERROR_OK) {
         if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
-            auto its_target = ep_mgr_->find_local(_subscriber);
+            auto its_target = ep_mgr_->find_local_server_endpoint(_subscriber);
             if (its_target) {
                 its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 return;
+            } else {
+                VSOMEIP_WARNING << "rmc::" << __func__ << ": no target available to send subscription nack."
+                                << " client=0x" << hex4(_subscriber) << " service=" << hex4(_service) << "." << hex4(_instance)
+                                << " event=" << hex4(_event);
             }
         }
         {
@@ -757,10 +757,14 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber, service_t 
     its_command.serialize(its_buffer, its_error);
     if (its_error == protocol::error_e::ERROR_OK) {
         if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
-            auto its_target = ep_mgr_->find_local(_subscriber);
+            auto its_target = ep_mgr_->find_local_server_endpoint(_subscriber);
             if (its_target) {
                 its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 return;
+            } else {
+                VSOMEIP_WARNING << "rmc::" << __func__ << ": no target available to send subscription ack."
+                                << " client=0x" << hex4(_subscriber) << " service=" << hex4(_service) << "." << hex4(_instance)
+                                << " event=" << hex4(_event);
             }
         }
         {
@@ -802,10 +806,14 @@ void routing_manager_client::unsubscribe(client_t _client, const vsomeip_sec_cli
 
             if (its_error == protocol::error_e::ERROR_OK) {
 
-                auto its_target = ep_mgr_->find_local(_service, _instance);
+                auto its_target = ep_mgr_->find_local_client(_service, _instance);
                 if (its_target) {
                     its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 } else {
+                    if (_client != VSOMEIP_ROUTING_CLIENT) {
+                        VSOMEIP_WARNING << "rmc::" << __func__ << ": could not find endpoint for client 0x" << hex4(_client)
+                                        << ", sending to the router";
+                    }
                     std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
                     if (sender_) {
                         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
@@ -861,23 +869,35 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
             client_t its_client = find_local_client(its_service, _instance);
             if (its_client != VSOMEIP_ROUTING_CLIENT) {
                 if (is_client_known(its_client)) {
-                    its_target = ep_mgr_->find_or_create_local(its_client);
+                    its_target = ep_mgr_->find_or_create_local_client(its_client);
                 }
             }
         } else if (!utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
             // Response
             client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
             if (its_client != VSOMEIP_ROUTING_CLIENT) {
-                if (is_client_known(its_client)) {
-                    its_target = ep_mgr_->find_or_create_local(its_client);
-                }
+                its_target = ep_mgr_->find_local_server_endpoint(its_client);
             }
         } else if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]) && _client == VSOMEIP_ROUTING_CLIENT) {
             // notify
-            has_remote_subscribers = send_local_notification(get_client(), _data, _size, _instance, _reliable, _status_check, _force);
+            std::scoped_lock lock{sender_mutex_};
+            /**
+             * Note: The sender_ is passed in in case the routing client subscribed with its actual id. We need
+             * to explicitly pass it in, because the router uses the routing connection for everything. Before
+             * the refactoring the router would have send everything over one sender, but would have accepted
+             * a connection for the sub_ack from the client (meaning the client would have found an endpoint for this id).
+             * BUT: in case the router subscribed on behalf of a boardnet client it would have used VSOMEIP_ROUTING_CLIENT as an id.
+             * But the base class has a dedicated case for this id in which it does not send anything out.
+             * Note: the _client == VSOMEIP_ROUTING_CLIENT needs to be read as "broadcast this event".
+             * For these reasons one should neither do an early return here (as the broadcast should also mean: Send it also to the router).
+             * All this is somewhat questionable, but in the course of the sender/receiver -> client/server arch change,
+             * this should not be reworked.
+             **/
+            has_remote_subscribers =
+                    send_local_notification(get_client(), _data, _size, _instance, _reliable, _status_check, _force, sender_);
         } else if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]) && _client != VSOMEIP_ROUTING_CLIENT) {
             // notify_one
-            its_target = ep_mgr_->find_local(_client);
+            its_target = ep_mgr_->find_local_server_endpoint(_client);
             if (its_target) {
                 is_sent = send_local(its_target, get_client(), _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
                 if (is_sent) {
@@ -898,6 +918,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
                 its_target = sender_;
                 message_to_stub = true;
             } else {
+                VSOMEIP_WARNING << "rmc::" << __func__ << ": No connection to router. Message will be dropped";
                 return false;
             }
         }
@@ -991,10 +1012,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
             if (configuration_->is_local_routing()) {
                 // if security is enabled, client ID of routing must be configured
                 // and credential passing is active. Otherwise bound client is zero by default
-                is_from_routing = (_bound_client == routing_host_id);
+                is_from_routing = (_bound_client == routing_host_id || _bound_client == VSOMEIP_ROUTING_CLIENT);
             } else {
                 is_from_routing = (_remote_address == configuration_->get_routing_host_address()
-                                   && _remote_port == configuration_->get_routing_host_port() + 1);
+                                   && _remote_port == configuration_->get_routing_host_port());
             }
         } else {
             is_from_routing = (its_client == routing_host_id);
@@ -1050,6 +1071,18 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                 return;
                             }
                         } else { // Notification or Response
+                            // By analysis we know that this branch is never taken,
+                            // but sonarQube files the unchecked usage as a bug
+                            // -> introduce a check just for sonarQube
+                            if (!_sec_client) {
+                                return;
+                            }
+                            // TODO for external security ports are checked.
+                            // Notification and responses were originally send out by the "sender".
+                            // With the refactoring towards client-server we have to temporarily "lie"
+                            // to security about the port we received the message from...
+                            auto sec_client = *_sec_client;
+                            sec_client.port = htons(ntohs(_sec_client->port) - 1);
 
                             // Verifies security offer rule for messages (notifications and
                             // responses)
@@ -1057,7 +1090,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                     (configuration_->is_security_external()
                                      && VSOMEIP_SEC_OK
                                              == configuration_->get_security()->is_client_allowed_to_offer(
-                                                     _sec_client, its_message->get_service(), its_message->get_instance()));
+                                                     &sec_client, its_message->get_service(), its_message->get_instance()));
 
                             if (!is_offer_access_ok && configuration_->is_security_external()) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
@@ -1298,12 +1331,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                             << " ~> Skip Subscribe!";
                             return;
                         }
-                    }
-
-                    // Local & already known subscriber: create endpoint + send (N)ACK + insert
-                    // subscription
-                    if (is_client_known(its_client)) {
-                        (void)ep_mgr_->find_or_create_local(its_client);
                     }
 
                     auto self = shared_from_this();
@@ -1598,7 +1625,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                               << static_cast<int>(its_command_error) << ")";
                 break;
             }
-            if (its_command.contains("hostname") && is_client_known(its_command.get_client())) {
+            if (its_command.contains("hostname")) {
                 add_known_client(its_command.get_client(), its_command.at("hostname"));
             }
             break;
@@ -1636,7 +1663,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
                                   << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: "
                                      "isn't allowed"
-                                  << " to use the server endpoint due to credential check failed!";
+                                  << " to use the client endpoint due to credential check failed!";
                     deregister_application();
                     host_->on_state(state_type_e::ST_DEREGISTERED);
                     return;
@@ -1811,6 +1838,10 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
         }
     }
     state_machine_->deregistered();
+}
+
+bool routing_manager_client::is_local_client(client_t _client) const {
+    return ep_mgr_->find_local_server_endpoint(_client) != nullptr;
 }
 
 void routing_manager_client::register_application() {
@@ -2315,13 +2346,6 @@ void routing_manager_client::handle_client_error(client_t _client) {
         // be handled by a partially cleaned-up connection
         std::set<protocol::service> requested_services;
         remove_local(_client, true, get_subscriptions(_client), &requested_services);
-        // Remove the client from the local connections.
-        {
-            std::scoped_lock lock{receiver_mutex_};
-            if (receiver_) {
-                receiver_->disconnect_from(_client, true /*error encountered*/);
-            }
-        }
 
         // Request the host these services again.
         if (auto state = state_machine_->state(); state == routing_client_state_e::ST_REGISTERED) {
@@ -2581,7 +2605,7 @@ void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<st
                         << "). Returning";
         return;
     }
-    sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
+    sender_ = ep_mgr_->create_local_client(VSOMEIP_ROUTING_CLIENT);
     if (sender_) {
         sender_->start();
         sender_debounce_active_ = true;

@@ -20,7 +20,7 @@ namespace vsomeip_v3::testing {
  **/
 using fd_t = unsigned short;
 
-enum class socket_role { unspecified, sender, receiver };
+enum class socket_role { unspecified, client, server };
 struct socket_id {
     fd_t fd_{};
     socket_role role_{socket_role::unspecified};
@@ -131,7 +131,7 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      * 1. Fails if this handle is connected already,
      * 2. adds a weak references to both handles
      * 3. sets the remote endpoint to the local endpoint of the other socket
-     * 4. assings roles (sender vs. receiver) to the handlers
+     * 4. assings roles (client vs. server) to the handlers
      *
      * Used by the socket_manager.
      **/
@@ -147,7 +147,7 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      * Removes the weak reference to the connected socket.
      * If an error is passed in it is tried to be injected
      * into the handler of the last async_receive call.
-     * If no receiver is set, the error is stashed until a receiver
+     * If no server is set, the error is stashed until a server
      * is passed in.
      *
      * Used by the socket_manager.
@@ -181,6 +181,12 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      * with disconnect()
      **/
     void ignore_inner_close();
+
+    /**
+     * Ensures that the socket will not report an error
+     * when there is no longer a remote socket on async_receive
+     **/
+    void set_ignore_nothing_to_read_from(bool _ignore);
 
     size_t consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception = false);
 

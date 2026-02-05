@@ -123,6 +123,9 @@ static inline bool operator==(const id_e& _lhs, const byte_t& _rhs) {
 
     return (_rhs == _lhs);
 }
+static inline id_e read_command_id(byte_t const* _data, size_t _size) {
+    return _size <= COMMAND_POSITION_ID ? id_e::UNKNOWN_ID : static_cast<id_e>(_data[COMMAND_POSITION_ID]);
+}
 
 } // namespace protocol
 } // namespace vsomeip_v3
