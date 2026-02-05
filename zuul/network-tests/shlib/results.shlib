@@ -64,6 +64,12 @@ function valgrind-errors
 function gen-core-backtraces
 {
 	local outputs_folder="$1"
+	local label="${2:-}"
+	local prefix=""
+	if [[ -n "$label" ]]
+	then
+		prefix="$label."
+	fi
 	shopt -s nullglob
 	for core in /tmp/core.*
 	do
@@ -92,8 +98,8 @@ function gen-core-backtraces
 			-ex 'echo \n[files]\n' \
 			-ex 'info file' \
 			-ex 'echo \n[Cached Traces]\n' \
-			-batch "${prog%.*}" "$core" | tee "$outputs_folder/backtrace.${prog##*/}"
-		cp -v "$core" "$outputs_folder/core.${prog##*/}"
+			-batch "${prog%.*}" "$core" | tee "$outputs_folder/backtrace.${prefix}${prog##*/}"
+		cp -v "$core" "$outputs_folder/core.${prefix}${prog##*/}"
 	done
 	shopt -u nullglob
 }

@@ -88,7 +88,8 @@ done
 	fi
 )
 
-gen-core-backtraces /home/logs/cores
+gen-core-backtraces /home/logs/cores master
+run-slave bash -lc 'source /home/source/zuul/network-tests/shlib/results.shlib; gen-core-backtraces /home/logs/cores slave' || :
 
 if [ "$ENABLE_COVERAGE" != False ]
 then
