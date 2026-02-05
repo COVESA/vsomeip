@@ -390,7 +390,6 @@ bool udp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
             can_be_send = false;
         }
     }
-
     return can_be_send;
 }
 
@@ -618,9 +617,14 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
     // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
     // IPv6 or adding security means)"
     if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
-        VSOMEIP_ERROR << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
+        VSOMEIP_ERROR << "usei::" << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
                       << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
                       << get_local_port() << " from " << _remote.address() << ":" << _remote.port() << ". Message will be dropped";
+        return;
+    }
+    if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
+        VSOMEIP_ERROR << "usei::" << __func__ << ": Dropping packet that is smaller than VSOMEIP_FULL_HEADER_SIZE (16). size=" << _bytes
+                      << " remote=" << _remote;
         return;
     }
 
@@ -683,12 +687,11 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                     remaining_bytes -= current_message_size;
                     const service_t its_service = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SERVICE_POS_MIN]);
 
-                    if (utility::is_request(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
+                    if (static_cast<message_type_e>(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS]) == message_type_e::MT_REQUEST) {
                         const client_t its_client = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_CLIENT_POS_MIN]);
                         if (its_client != MAGIC_COOKIE_CLIENT) {
                             const method_t its_method = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_METHOD_POS_MIN]);
-                            std::scoped_lock its_clients_lock(clients_mutex_);
-                            clients_to_target_[to_clients_key(its_service, its_method, its_client)] = _remote;
+                            set_client_target(to_clients_key(its_service, its_method, its_client), _remote);
                         }
                     }
                     if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])) {
@@ -707,11 +710,10 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                         const auto res =
                                 tp_reassembler_->process_tp_message(&_buffer[i], current_message_size, its_remote_address, its_remote_port);
                         if (res.first) {
-                            if (utility::is_request(res.second[VSOMEIP_MESSAGE_TYPE_POS])) {
+                            if (static_cast<message_type_e>(res.second[VSOMEIP_MESSAGE_TYPE_POS]) == message_type_e::MT_REQUEST) {
                                 const client_t its_client = bithelper::read_uint16_be(&res.second[VSOMEIP_CLIENT_POS_MIN]);
                                 if (its_client != MAGIC_COOKIE_CLIENT) {
-                                    std::scoped_lock its_clients_lock(clients_mutex_);
-                                    clients_to_target_[to_clients_key(its_service, its_method, its_client)] = _remote;
+                                    set_client_target(to_clients_key(its_service, its_method, its_client), _remote);
                                 }
                             }
                             its_host->on_message(&res.second[0], static_cast<uint32_t>(res.second.size()), this, _is_multicast,
@@ -928,7 +930,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                 _error.clear();
             }
 #ifndef _WIN32
-            struct timeval timeout { };
+            struct timeval timeout;
 
             timeout.tv_sec = VSOMEIP_SETSOCKOPT_TIMEOUT_US / 1'000'000;
             timeout.tv_usec = VSOMEIP_SETSOCKOPT_TIMEOUT_US % 1'000'000;

@@ -5,10 +5,13 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <deque>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -82,7 +85,6 @@ public:
     virtual bool is_reliable() const = 0;
     virtual std::uint16_t get_local_port() const = 0;
 
-public:
     void connect_cbk(boost::system::error_code const& _error);
     void send_cbk(const endpoint_type _key, boost::system::error_code const& _error, std::size_t _bytes);
     void flush_cbk(endpoint_type _key, const boost::system::error_code& _error_code);
@@ -116,10 +118,13 @@ protected:
 
     static clients_key_t to_clients_key(service_t its_service, method_t its_method, client_t its_client);
 
-protected:
-    std::mutex clients_mutex_;
+    // Sets the target endpoint of the given client.
+    //
+    // This is used to map responses to the correct targets.
+    void set_client_target(const clients_key_t _client, const endpoint_type& _target);
 
-    std::unordered_map<clients_key_t, endpoint_type> clients_to_target_;
+    // Returns the target for the given client.
+    std::optional<endpoint_type> get_client_target(const clients_key_t _client);
 
     target_data_type targets_;
 
@@ -138,6 +143,10 @@ private:
 
     // The caller must hold the `mutex_` lock
     void recalculate_queue_size(endpoint_data_type& _data) const;
+
+    // Mapping of client ids to remote endpoints used to send responses to the correct targets.
+    std::unordered_map<clients_key_t, endpoint_type> clients_to_target_;
+    std::mutex clients_mutex_;
 };
 
 } // namespace vsomeip_v3

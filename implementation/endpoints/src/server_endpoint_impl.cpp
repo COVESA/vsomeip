@@ -87,16 +87,12 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
         const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
         const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
 
-        {
-            auto clients_key = to_clients_key(its_service, its_method, its_client);
-            std::scoped_lock its_clients_lock{clients_mutex_};
-            auto found_client_key = clients_to_target_.find(clients_key);
-            if (found_client_key != clients_to_target_.end()) {
-                its_target = found_client_key->second;
-                is_valid_target = true;
-            } else {
-                is_valid_target = get_default_target(its_service, its_target);
-            }
+        auto clients_key = to_clients_key(its_service, its_method, its_client);
+        if (auto target = get_client_target(clients_key); target) {
+            its_target = target.value();
+            is_valid_target = true;
+        } else {
+            is_valid_target = get_default_target(its_service, its_target);
         }
 
         if (is_valid_target) {
@@ -109,7 +105,6 @@ bool server_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
 template<typename Protocol>
 typename server_endpoint_impl<Protocol>::clients_key_t
 server_endpoint_impl<Protocol>::to_clients_key(service_t its_service, method_t its_method, client_t its_client) {
-
     return (static_cast<clients_key_t>(its_service) << 48) | (static_cast<clients_key_t>(its_method) << 32)
             | (static_cast<clients_key_t>(its_client) << 16);
 }
@@ -217,6 +212,32 @@ bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const by
     start_dispatch_timer(its_target_iterator, its_now);
 
     return true;
+}
+
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::set_client_target(const clients_key_t _client, const endpoint_type& _target) {
+    std::scoped_lock its_clients_lock{clients_mutex_};
+    if (auto it = clients_to_target_.find(_client); it != clients_to_target_.end()) {
+        auto& [id, current_target] = *it;
+        if (current_target != _target) {
+            const auto service = static_cast<uint16_t>((_client >> 48) & 0xffff);
+            const auto method = static_cast<uint16_t>((_client >> 32) & 0xffff);
+            const auto client = static_cast<uint16_t>((_client >> 16) & 0xffff);
+            VSOMEIP_ERROR << "sei::" << __func__ << ": Target replaced. May cause pending response to be lost. message=" << hex4(service)
+                          << "." << hex4(method) << " client=" << hex4(client) << " old=" << current_target << " new=" << _target;
+        }
+    }
+    clients_to_target_[_client] = _target;
+}
+
+template<typename Protocol>
+std::optional<typename Protocol::endpoint> server_endpoint_impl<Protocol>::get_client_target(const clients_key_t _client) {
+    std::scoped_lock its_clients_lock{clients_mutex_};
+    if (auto it = clients_to_target_.find(_client); it != clients_to_target_.end()) {
+        auto& [id, target] = *it;
+        return std::optional(target);
+    }
+    return std::nullopt;
 }
 
 template<typename Protocol>

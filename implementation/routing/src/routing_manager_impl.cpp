@@ -1250,6 +1250,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
     const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
     const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+    const auto its_return_code = static_cast<return_code_e>(_data[VSOMEIP_RETURN_CODE_POS]);
 
     // refer to error workflow in PRS_SOMEIP_00195
     // (although note that it is *NOT* strictly followed!)
@@ -1265,6 +1266,13 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
         VSOMEIP_ERROR << "Dropped message with invalid remote address from: " << _remote_address.to_string() << ":" << std::dec
                       << _remote_port;
         return;
+    }
+
+    // Log messages which could cause routing issues.
+    if (!is_valid_client_id(its_client, its_message_type)) {
+        VSOMEIP_ERROR << "rmi::" << __func__ << ": Invalid client id. message=" << hex4(its_service) << "." << hex4(its_method) << "."
+                      << std::setw(2) << static_cast<int>(its_message_type) << "." << std::setw(2) << static_cast<int>(its_return_code)
+                      << " client=" << hex4(its_client) << " source=" << _remote_address << ":" << std::dec << _remote_port;
     }
 
     if (its_service == VSOMEIP_SD_SERVICE) {
@@ -4144,6 +4152,32 @@ const char* routing_manager_impl::routing_state_tostring(routing_state_e _state)
     default:
         return "Unknown State";
     }
+}
+
+bool routing_manager_impl::is_valid_client_id(const client_t _client, const message_type_e _type) const {
+    // The diagnostic address can be used to identify client ids used by this host.
+    const diagnosis_t diag = configuration_->get_diagnosis_address();
+
+    // No point in checking the diagnostics address if the user hasn't defined one.
+    if (diag == VSOMEIP_DIAGNOSIS_ADDRESS) {
+        return true;
+    }
+    const diagnosis_t address = (_client & configuration_->get_diagnosis_mask()) >> 8;
+
+    // We only expect responses to requests sent by this host.
+    if (_type == message_type_e::MT_RESPONSE) {
+        return address == diag;
+    }
+
+    // We only expect requests from other hosts.
+    if (_type == message_type_e::MT_REQUEST) {
+        // Requests must not use client ids from this host, otherwise the response will not be
+        // routed back to the remote host.
+        return address != diag;
+    }
+
+    // Any id is valid or can be ignored in every other situation.
+    return true;
 }
 
 } // namespace vsomeip_v3

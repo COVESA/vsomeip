@@ -89,7 +89,6 @@ template<typename Protocol>
 bool vsomeip_v3::server_endpoint_impl<Protocol>::send(const uint8_t* /*_data*/, uint32_t /*_size*/) {
     return true;
 }
-
 template<typename Protocol>
 typename vsomeip_v3::server_endpoint_impl<Protocol>::clients_key_t
 vsomeip_v3::server_endpoint_impl<Protocol>::to_clients_key(service_t its_service, method_t its_method, client_t its_client) {
@@ -106,6 +105,14 @@ bool vsomeip_v3::server_endpoint_impl<Protocol>::send(const std::vector<byte_t>&
 template<typename Protocol>
 bool vsomeip_v3::server_endpoint_impl<Protocol>::send_intern(endpoint_type /*_target*/, const byte_t* /*_data*/, uint32_t /*_size*/) {
     return true;
+}
+
+template<typename Protocol>
+void vsomeip_v3::server_endpoint_impl<Protocol>::set_client_target(const clients_key_t /*_client*/, const endpoint_type& /*target*/) { }
+
+template<typename Protocol>
+std::optional<typename Protocol::endpoint> vsomeip_v3::server_endpoint_impl<Protocol>::get_client_target(const clients_key_t /*_client*/) {
+    return std::nullopt;
 }
 
 template<typename Protocol>

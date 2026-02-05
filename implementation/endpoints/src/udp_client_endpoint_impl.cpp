@@ -267,9 +267,14 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
     // IPv6 or adding security means)"
     if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
-        VSOMEIP_ERROR << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
+        VSOMEIP_ERROR << "ucei::" << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
                       << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
                       << get_local_port() << " from " << remote_.address() << ":" << remote_.port() << ". Message will be dropped";
+        return;
+    }
+    if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
+        VSOMEIP_ERROR << "ucei::" << __func__ << ": Dropping packet that is smaller than VSOMEIP_FULL_HEADER_SIZE (16). size=" << _bytes
+                      << " remote=" << remote_;
         return;
     }
     std::shared_ptr<routing_host> its_host = routing_host_.lock();

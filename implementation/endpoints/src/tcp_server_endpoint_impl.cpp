@@ -173,7 +173,6 @@ bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
             return send_queued(its_target_iterator);
         }
     }
-
     return false;
 }
 
@@ -578,7 +577,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                         }
                     }
                     if (needs_forwarding) {
-                        if (utility::is_request(recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])) {
+                        if (static_cast<message_type_e>(recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])
+                            == message_type_e::MT_REQUEST) {
                             const client_t its_client =
                                     bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_CLIENT_POS_MIN]);
                             if (its_client != MAGIC_COOKIE_CLIENT) {
@@ -586,8 +586,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                         bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_SERVICE_POS_MIN]);
                                 const method_t its_method =
                                         bithelper::read_uint16_be(&recv_buffer_[its_iteration_gap + VSOMEIP_METHOD_POS_MIN]);
-                                std::scoped_lock its_clients_lock{its_server->clients_mutex_};
-                                its_server->clients_to_target_[to_clients_key(its_service, its_method, its_client)] = remote_;
+                                its_server->set_client_target(to_clients_key(its_service, its_method, its_client), remote_);
                             }
                         }
                         if (!use_magic_cookies_) {

@@ -335,6 +335,17 @@ private:
 
     bool has_subscribed_eventgroup(service_t _service, instance_t _instance) const;
 
+    /// Whether the `_client` is valid for the given message `_type`.
+    ///
+    /// Returns `true` if:
+    ///
+    /// - For requests, the client id does not match the diagnostic address.
+    /// - For responses, the client id matches the diagnostic address of this host.
+    ///
+    /// This is used to check incoming SOME/IP messages for client IDs which could cause routing
+    /// problems, such as routing responses to the incorrect application.
+    bool is_valid_client_id(const client_t _client, const message_type_e _type) const;
+
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
 
 private:
