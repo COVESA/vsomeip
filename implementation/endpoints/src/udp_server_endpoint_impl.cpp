@@ -106,12 +106,11 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
 
 #if defined(__linux__) || defined(__QNX__)
     // If specified, bind to device
-    std::string its_device(configuration_->get_device());
+    const std::string its_device = configuration_->get_device();
     if (!its_device.empty()) {
-        if (setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(),
-                       static_cast<socklen_t>(its_device.size()))
-            == -1) {
-            VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind to device, " << _error.message();
+        unicast_socket_->set_option(udp_bind_to_device{its_device}, _error);
+        if (_error) {
+            VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind to device \"" << its_device << "\", " << _error.message();
             // Non-fatal error
             _error.clear();
         }
@@ -170,11 +169,10 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     // If regular setting of the buffer size did not work, try to force
     // (requires CAP_NET_ADMIN to be successful)
     if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
-        _error.assign(setsockopt(unicast_socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE, &its_udp_recv_buffer_size,
-                                 sizeof(its_udp_recv_buffer_size)),
-                      boost::system::generic_category());
+        unicast_socket_->set_option(udp_receive_buffer_force{its_udp_recv_buffer_size}, _error);
         if (_error) {
-            VSOMEIP_INFO << instance_name_ << __func__ << ": failed to force receive buffer size, " << _error.message();
+            VSOMEIP_INFO << instance_name_ << __func__ << ": failed to force receive buffer size " << its_udp_recv_buffer_size << ", "
+                         << _error.message();
             // Non-fatal error
             _error.clear();
         }
@@ -893,9 +891,15 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             ::setsockopt(multicast_socket_->native_handle(), (is_v4_ ? IPPROTO_IP : IPPROTO_IPV6), (is_v4_ ? IP_PKTINFO : IPV6_PKTINFO),
                          its_pktinfo_option, sizeof(its_pktinfo_option));
 #else
-            int its_pktinfo_option(1);
-            ::setsockopt(multicast_socket_->native_handle(), (is_v4_ ? IPPROTO_IP : IPPROTO_IPV6), (is_v4_ ? IP_PKTINFO : IPV6_RECVPKTINFO),
-                         &its_pktinfo_option, sizeof(its_pktinfo_option));
+            boost::system::error_code its_pktinfo_error{};
+            if (is_v4_) {
+                multicast_socket_->set_option(udp_packet_info_ip4{}, its_pktinfo_error);
+            } else {
+                multicast_socket_->set_option(udp_packet_info_ip6{}, its_pktinfo_error);
+            }
+            if (its_pktinfo_error) {
+                VSOMEIP_ERROR << "usei::" << __func__ << ": failed setting the packet_info option: " << its_pktinfo_error.message();
+            }
 #endif
 
             if (!multicast_local_) {
@@ -929,13 +933,14 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             timeout.tv_sec = VSOMEIP_SETSOCKOPT_TIMEOUT_US / 1'000'000;
             timeout.tv_usec = VSOMEIP_SETSOCKOPT_TIMEOUT_US % 1'000'000;
 
-            if (setsockopt(multicast_socket_->native_handle(), SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+            multicast_socket_->set_option(udp_receive_timeout{timeout}, _error);
+            if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure SO_RCVTIMEO, " << _error.message();
                 // Non-fatal error
                 _error.clear();
             }
-
-            if (setsockopt(multicast_socket_->native_handle(), SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) == -1) {
+            multicast_socket_->set_option(udp_send_timeout{timeout}, _error);
+            if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure SO_SNDTIMEO, " << _error.message();
                 // Non-fatal error
                 _error.clear();
@@ -952,9 +957,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             // If regular setting of the buffer size did not work, try to force
             // (requires CAP_NET_ADMIN to be successful)
             if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
-                _error.assign(setsockopt(multicast_socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE, &its_udp_recv_buffer_size,
-                                         sizeof(its_udp_recv_buffer_size)),
-                              boost::system::generic_category());
+                multicast_socket_->set_option(udp_receive_buffer_force{its_udp_recv_buffer_size}, _error);
                 if (_error) {
                     VSOMEIP_INFO << instance_name_ << __func__ << ": failed to force received buffer size, " << _error.message();
                     // Non-fatal error

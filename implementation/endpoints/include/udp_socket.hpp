@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "socket_options.hpp"
+
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/multicast.hpp>
 
@@ -38,6 +40,18 @@ public:
 
     virtual boost::asio::ip::udp::endpoint local_endpoint(boost::system::error_code&) const = 0;
 
+#if defined(__linux__) || defined(__QNX__)
+    virtual void set_option(udp_bind_to_device _opt, boost::system::error_code& _ec) = 0;
+    virtual void set_option(udp_packet_info_ip4 _opt, boost::system::error_code& _ec) = 0;
+    virtual void set_option(udp_packet_info_ip6 _opt, boost::system::error_code& _ec) = 0;
+    virtual void set_option(udp_send_timeout _opt, boost::system::error_code& _ec) = 0;
+    virtual void set_option(udp_receive_timeout _opt, boost::system::error_code& _ec) = 0;
+
+    virtual bool can_read_fd_flags() = 0;
+#endif
+#ifdef __linux__
+    virtual void set_option(udp_receive_buffer_force _opt, boost::system::error_code& _ec) = 0;
+#endif
     virtual void set_option(boost::asio::ip::udp::socket::reuse_address, boost::system::error_code&) = 0;
     virtual void set_option(boost::asio::ip::multicast::outbound_interface outbound, boost::system::error_code& ec) = 0;
     virtual void set_option(boost::asio::ip::udp::socket::broadcast broad, boost::system::error_code& ec) = 0;

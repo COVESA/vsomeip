@@ -70,12 +70,14 @@ void udp_client_endpoint_impl::connect() {
         // If regular setting of the buffer size did not work, try to force
         // (requires CAP_NET_ADMIN to be successful)
         if (its_option.value() < 0 || its_option.value() < udp_receive_buffer_size_) {
-            its_error.assign(setsockopt(socket_->native_handle(), SOL_SOCKET, SO_RCVBUFFORCE, &udp_receive_buffer_size_,
-                                        sizeof(udp_receive_buffer_size_)),
-                             boost::system::generic_category());
+            socket_->set_option(udp_receive_buffer_force{udp_receive_buffer_size_}, its_error);
             if (!its_error) {
                 VSOMEIP_INFO << "udp_client_endpoint_impl::connect: "
                              << "SO_RCVBUFFORCE successful!";
+            } else {
+                VSOMEIP_INFO << "udp_client_endpoint_impl::connect: "
+                             << "SO_RCVBUFFORCE failed, " << its_error.message();
+                its_error = {};
             }
             socket_->get_option(its_option, its_error);
         }
@@ -99,8 +101,10 @@ void udp_client_endpoint_impl::connect() {
         // If specified, bind to device
         std::string its_device(configuration_->get_device());
         if (its_device != "") {
-            if (setsockopt(socket_->native_handle(), SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(), socklen_t(its_device.size())) == -1) {
-                VSOMEIP_WARNING << "UDP Client: Could not bind to device \"" << its_device << "\"";
+            boost::system::error_code its_ec{};
+            socket_->set_option(udp_bind_to_device{its_device}, its_ec);
+            if (its_ec) {
+                VSOMEIP_WARNING << "UDP Client: Could not bind to device \"" << its_device << "\", " << its_ec.message();
             }
         }
 #endif

@@ -668,16 +668,9 @@ void client_endpoint_impl<Protocol>::close_socket_unlocked(bool _recreate_socket
 
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(__QNX__)
-        if constexpr (std::is_same_v<Protocol, boost::asio::ip::tcp>) {
-            if (!socket_->can_read_fd_flags()) {
-                VSOMEIP_ERROR << "cei::close_socket_unlocked: socket/handle closed already '"
-                              << ", errno " << errno << ", " << get_remote_information() << " endpoint > " << this;
-            }
-        } else {
-            if (-1 == fcntl(socket_->native_handle(), F_GETFD)) {
-                VSOMEIP_ERROR << "cei::close_socket_unlocked: socket/handle closed already '"
-                              << ", errno " << errno << ", " << get_remote_information() << " endpoint > " << this;
-            }
+        if (!socket_->can_read_fd_flags()) {
+            VSOMEIP_ERROR << "cei::close_socket_unlocked: socket/handle closed already '"
+                          << ", errno " << errno << ", " << get_remote_information() << " endpoint > " << this;
         }
 #endif
 
