@@ -209,23 +209,37 @@ void service_discovery_impl::stop() {
 
 void service_discovery_impl::request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                              ttl_t _ttl) {
-    std::scoped_lock its_lock(requested_mutex_);
-    auto find_service = requested_.find(_service);
-    if (find_service != requested_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance == find_service->second.end()) {
-            find_service->second[_instance] = std::make_shared<request>(_major, _minor, _ttl);
+    bool state_changed = false;
+    {
+        std::scoped_lock its_lock(requested_mutex_);
+        auto find_service = requested_.find(_service);
+        if (find_service != requested_.end()) {
+            auto find_instance = find_service->second.find(_instance);
+            if (find_instance == find_service->second.end()) {
+                find_service->second[_instance] = std::make_shared<request>(_major, _minor, _ttl);
+                state_changed = true;
+            }
+        } else {
+            requested_[_service][_instance] = std::make_shared<request>(_major, _minor, _ttl);
+            state_changed = true;
         }
-    } else {
-        requested_[_service][_instance] = std::make_shared<request>(_major, _minor, _ttl);
+    }
+    if (state_changed) {
+        VSOMEIP_INFO << "REQUEST SD: [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << _major << "." << _minor << "]";
     }
 }
 
 void service_discovery_impl::release_service(service_t _service, instance_t _instance) {
-    std::scoped_lock its_lock(requested_mutex_);
-    auto find_service = requested_.find(_service);
-    if (find_service != requested_.end()) {
-        find_service->second.erase(_instance);
+    bool state_changed = false;
+    {
+        std::scoped_lock its_lock(requested_mutex_);
+        auto find_service = requested_.find(_service);
+        if (find_service != requested_.end()) {
+            state_changed = find_service->second.erase(_instance) > 0;
+        }
+    }
+    if (state_changed) {
+        VSOMEIP_INFO << "RELEASE SD: [" << hex4(_service) << "." << hex4(_instance) << "]";
     }
 }
 
