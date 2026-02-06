@@ -15,12 +15,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(event_test_client
     event_test_client.cpp
 )
 
-# Add test executable.
 add_executable(event_test_service
     event_test_service.cpp
 )
@@ -33,26 +31,26 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME event_test_payload_fixed_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_FIXED UDP
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME event_test_payload_fixed_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_FIXED TCP
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME event_test_payload_dynamic_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_DYNAMIC UDP
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME event_test_payload_dynamic_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/event_test_master_starter.sh PAYLOAD_DYNAMIC TCP
+    SEQUENTIAL
 )

@@ -15,7 +15,7 @@
 #include <boost/interprocess/mapped_region.hpp>
 
 #include <common/process_manager.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 #include "reuse_client_id_test_globals.hpp"
 
 #define REGISTRATION_TIMEOUT_MS 6
@@ -39,7 +39,7 @@ struct shared_memory_data {
 
 class reuse_client_id_test_manager : public testing::Test {
 protected:
-    void SetUp() { }
+    void SetUp() { bpi::shared_memory_object::remove("ReuseClientIdSync"); }
 
     void TearDown() { bpi::shared_memory_object::remove("ReuseClientIdSync"); }
 
@@ -172,8 +172,6 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

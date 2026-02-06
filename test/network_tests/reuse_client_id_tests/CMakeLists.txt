@@ -11,7 +11,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(reuse_client_id_test_manager
     reuse_client_id_test_manager.cpp
 )
@@ -28,7 +27,6 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME reuse_client_id_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/reuse_client_id_test_manager

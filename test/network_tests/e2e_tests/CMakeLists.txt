@@ -13,12 +13,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(e2e_test_client
     e2e_test_client.cpp
 )
 
-# Add test executable.
 add_executable(e2e_test_service
     e2e_test_service.cpp
 )
@@ -31,10 +29,10 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME e2e_test_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_test_external_master_start.sh e2e_test_client_external.json
+    SEQUENTIAL
 )
 
 if(TEST_E2E_PROFILE_04)
@@ -48,12 +46,10 @@ if(TEST_E2E_PROFILE_04)
     )
     configure_files("${configuration_files}")
 
-    # Add test executable.
     add_executable(e2e_profile_04_test_client
         e2e_profile_04_test_client.cpp
     )
 
-    # Add test executable.
     add_executable(e2e_profile_04_test_service
         e2e_profile_04_test_service.cpp
     )
@@ -66,10 +62,10 @@ if(TEST_E2E_PROFILE_04)
     targets_link_default_libraries("${executables}")
     targets_add_default_dependencies("${executables}")
 
-    # Add custom test command.
     add_custom_test(
         NAME e2e_profile_04_test_external
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_profile_04_test_external_master_start.sh e2e_profile_04_test_client_external.json
+        SEQUENTIAL
     )
 
 endif()
@@ -85,12 +81,10 @@ if(TEST_E2E_PROFILE_07)
     )
     configure_files("${configuration_files}")
 
-    # Add test executable.
     add_executable(e2e_profile_07_test_client
         e2e_profile_07_test_client.cpp
     )
 
-    # Add test executable.
     add_executable(e2e_profile_07_test_service
         e2e_profile_07_test_service.cpp
     )
@@ -103,10 +97,10 @@ if(TEST_E2E_PROFILE_07)
     targets_link_default_libraries("${executables}")
     targets_add_default_dependencies("${executables}")
 
-    # Add custom test command.
     add_custom_test(
         NAME e2e_profile_07_test_external
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/e2e_profile_07_test_external_master_start.sh e2e_profile_07_test_client_external.json
+        SEQUENTIAL
     )
 
 endif()

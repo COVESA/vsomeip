@@ -27,12 +27,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(client_id_test_service
     client_id_test_service.cpp
 )
 
-# Add test executable.
 add_executable(client_id_test_utility
     client_id_test_utility.cpp
 )
@@ -55,16 +53,19 @@ targets_add_default_dependencies("${test_executables}")
 add_custom_test(
     NAME client_id_test_diff_client_ids_diff_ports
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_master_starter.sh client_id_test_diff_client_ids_diff_ports_master.json
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME client_id_test_diff_client_ids_same_ports
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_master_starter.sh client_id_test_diff_client_ids_same_ports_master.json
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME client_id_test_diff_client_ids_partial_same_ports
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_master_starter.sh client_id_test_diff_client_ids_partial_same_ports_master.json
+    SEQUENTIAL
 )
 
 add_custom_test(

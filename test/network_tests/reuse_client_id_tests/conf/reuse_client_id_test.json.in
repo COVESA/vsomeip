@@ -15,7 +15,7 @@
       {
          "name" : "routingmanagerd",
          "unicast" : "@TEST_IP_MASTER@",
-         "port" : "31490"
+         "port" : "12000"
       },
       "guests" :
       {

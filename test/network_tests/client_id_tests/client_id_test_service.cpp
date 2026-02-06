@@ -20,7 +20,7 @@
 #include "client_id_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class client_id_test_service {
 public:
@@ -229,14 +229,12 @@ TEST(someip_client_id_test, send_ten_messages_to_service) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
         return 1;
     }
     service_number = std::stoi(std::string(argv[1]), nullptr);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

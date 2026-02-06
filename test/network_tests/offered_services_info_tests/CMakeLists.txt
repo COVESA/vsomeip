@@ -12,12 +12,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(offered_services_info_test_service
     offered_services_info_test_service.cpp
 )
 
-# Add test executable.
 add_executable(offered_services_info_test_client
     offered_services_info_test_client.cpp
 )
@@ -30,8 +28,8 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME offered_services_info_test_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offered_services_info_test_local_starter.sh
+    SEQUENTIAL
 )

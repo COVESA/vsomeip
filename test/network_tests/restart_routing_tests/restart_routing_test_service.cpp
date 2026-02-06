@@ -4,7 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "restart_routing_test_service.hpp"
 
@@ -138,8 +138,6 @@ TEST(someip_restart_routing_test, send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

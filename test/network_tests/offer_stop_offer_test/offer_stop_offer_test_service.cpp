@@ -13,7 +13,7 @@
 #include <vsomeip/internal/logger.hpp>
 #include <common/vsomeip_app_utilities.hpp>
 #include <common/test_timer.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include <gtest/gtest.h>
 
@@ -71,7 +71,5 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

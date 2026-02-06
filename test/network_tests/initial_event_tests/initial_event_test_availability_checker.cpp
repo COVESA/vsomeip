@@ -20,7 +20,7 @@
 #include "initial_event_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class initial_event_test_availability_checker {
 public:
@@ -122,8 +122,6 @@ TEST(someip_initial_event_test, wait_for_availability_and_exit) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a client number and subscription type, like: " << argv[0] << " 2 SAME_SERVICE_ID" << std::endl;
         std::cerr << "Valid client numbers are from 0 to 0xFFFF" << std::endl;
@@ -143,6 +141,7 @@ int main(int argc, char** argv) {
             }
         }
     }
-    return RUN_ALL_TESTS();
+
+    return test_main(argc, argv);
 }
 #endif

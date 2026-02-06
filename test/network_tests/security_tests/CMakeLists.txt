@@ -20,12 +20,10 @@ if(TEST_SECURITY)
     )
     configure_files("${configuration_files}")
 
-    # Add test executable.
     add_executable(security_test_service
         security_test_service.cpp
     )
 
-    # Add test executable.
     add_executable(security_test_client
         security_test_client.cpp
     )
@@ -38,22 +36,21 @@ if(TEST_SECURITY)
     targets_add_default_dependencies("${executables}")
     targets_link_default_libraries("${executables}")
 
-    # Add custom test command.
     add_custom_test(
         NAME security_test
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_local_start.sh
     )
 
-    # Add custom test command.
     add_custom_test(
         NAME security_test_external_allow
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_external_master_start.sh security_test_config_client_external_allow.json --allow
+        SEQUENTIAL
     )
 
-    # Add custom test command.
     add_custom_test(
         NAME security_test_external_deny
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_external_master_start.sh security_test_config_client_external_deny.json --deny
+        SEQUENTIAL
     )
 
 endif()

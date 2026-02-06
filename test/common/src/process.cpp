@@ -3,9 +3,16 @@
 #include <csignal>
 #include <iostream>
 #include <cstdlib>
+#include <cstdio>
 #include <mutex>
 
 #include <assert.h>
+
+#ifndef _WIN32
+extern char** environ;
+#else
+extern char** _environ;
+#endif
 
 namespace common {
 // ----------------------------------------------------------------------------
@@ -30,7 +37,10 @@ void process_manager_t::spawn() {
         for (const auto& [key, value] : env_vars_) {
             env[key] = value;
         }
-        process_ = std::make_unique<TinyProcessLib::Process>(command_, "", env);
+
+        // NOTE! need to use argv-style so TinyProcessLib does execv
+        // otherwise it spawns /bin/sh.. which is problematic if we have to signal spawned processes
+        process_ = std::make_unique<TinyProcessLib::Process>(std::vector<std::string>({command_}), "", env);
     }
 }
 
@@ -63,6 +73,28 @@ void process_manager_t::terminate() {
 // PROCESS GROUP
 // ----------------------------------------------------------------------------
 
+static std::map<std::string, std::string> setup_env(const std::string& name) {
+    std::map<std::string, std::string> env;
+    // pass all environment variables
+#ifndef _WIN32
+    for (char** e = environ; *e; e++) {
+#else
+    for (char** e = _environ; *e; e++) {
+#endif
+        // format: "key=value"
+        std::string e1(*e);
+        size_t pos = e1.find("=");
+        assert(pos != std::string::npos);
+        std::string name = e1.substr(0, pos);
+        std::string value = e1.substr(pos + 1);
+        env[name] = value;
+    }
+    // always set application name to the process name
+    env["VSOMEIP_APPLICATION_NAME"] = name;
+
+    return env;
+}
+
 process_group_t::process_group_t() {
     types_["daemon"] = {"../../../examples/routingmanagerd/routingmanagerd", [](auto& env) {
                             (void)env; /* daemon uses empty env */
@@ -76,20 +108,17 @@ process_group_t& process_group_t::define_type(const std::string& type_name, std:
 
 process_group_t& process_group_t::add_process(const std::string& name, const std::string& type_name) {
     auto& type = types_.at(type_name);
-    std::map<std::string, std::string> env;
-
-    // Apply type-specific environment setup
+    std::map<std::string, std::string> env = setup_env(name);
+    // apply type-specific environment setup
     type.env_setup(env);
 
-    // Always set application name to the process name
-    env["VSOMEIP_APPLICATION_NAME"] = name;
     configs_.push_back({name, type.executable, env});
     return *this;
 }
 
 process_group_t& process_group_t::add_daemon(std::string config_file) {
     auto& type = types_.at("daemon");
-    std::map<std::string, std::string> env;
+    std::map<std::string, std::string> env = setup_env("daemon");
     env["VSOMEIP_CONFIGURATION"] = std::move(config_file);
 
     configs_.push_back({"daemon", type.executable, env});

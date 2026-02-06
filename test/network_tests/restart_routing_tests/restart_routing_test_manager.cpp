@@ -15,7 +15,7 @@
 #include <boost/interprocess/mapped_region.hpp>
 
 #include <common/process_manager.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 #include "restart_routing_test_globals.hpp"
 
 namespace bpi = boost::interprocess;
@@ -34,7 +34,10 @@ struct shared_memory_data {
 
 class restart_routing_test_manager : public testing::Test {
 protected:
-    void SetUp() { std::cout << "Setting up restart_routing_test_manager" << std::endl; }
+    void SetUp() {
+        std::cout << "Setting up restart_routing_test_manager" << std::endl;
+        bpi::shared_memory_object::remove("RestartRoutingSync");
+    }
 
     void TearDown() {
         std::cout << "Tearing down restart_routing_test_manager" << std::endl;
@@ -298,8 +301,6 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

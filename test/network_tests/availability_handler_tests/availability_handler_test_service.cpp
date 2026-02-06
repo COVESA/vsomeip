@@ -27,7 +27,7 @@
 #include "availability_handler_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class availability_handler_test_service {
 public:
@@ -164,10 +164,13 @@ private:
     }
 };
 
-#if defined(__linux__) || defined(__QNX__)
-int main() {
-    timeout_detector td;
+TEST(availability_handler_service, run) {
     availability_handler_test_service service;
     service.run();
+}
+
+#if defined(__linux__) || defined(__QNX__)
+int main(int argc, char** argv) {
+    return test_main(argc, argv);
 }
 #endif

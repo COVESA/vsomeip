@@ -24,7 +24,7 @@
 #include "someip_tp_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class someip_tp_test_service {
 public:
@@ -329,8 +329,6 @@ TEST(someip_someip_tp_test, echo_requests) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please pass a test mode to this binary like: " << argv[0] << " IN_SEQUENCE" << std::endl;
         std::cerr << "Testmodes are [ IN_SEQUENCE, MIXED, INCOMPLETE, DUPLICATE, OVERLAP, "
@@ -354,6 +352,6 @@ int main(int argc, char** argv) {
         its_testmode = someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK;
     }
 
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

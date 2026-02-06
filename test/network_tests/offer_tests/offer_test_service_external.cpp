@@ -20,7 +20,7 @@
 #include "../someip_test_globals.hpp"
 #include "offer_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 static std::string service_number;
 
@@ -118,14 +118,12 @@ TEST(someip_offer_test, notify_increasing_counter) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;
         return 1;
     }
 
     service_number = std::string(argv[1]);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

@@ -43,9 +43,49 @@ declare -i valgrind_errors=0
 mkdir -p /home/logs/{cores,coverage,{,failed-}junit,pcap,"valgrind/$VALGRIND_TYPE"}
 gen-result-file "$tests_result_file" "/home/source/.tests-whitelist"
 
+PARALLEL_JOBS="$(nproc --all)"
+
 for ((n = 0; n < stress_times[0]; n++))
 do
-	for test in $(ctest --preset ci-network-tests --show-only=json-v1 ${stress_regex:+--tests-regex "$stress_regex"} | jq -r '.tests[].name')
+	# run parallel tests
+	for test in $(ctest --preset ci-network-tests -LE SEQUENTIAL --show-only=json-v1 ${stress_regex:+--tests-regex "$stress_regex"} | jq -r '.tests[].name')
+	do
+		# test does not matter, condition above is just to see if there is _any_ test that can be run in parallel
+		test="parallel"
+		if ! ctest --preset ci-network-tests -LE SEQUENTIAL -j "${PARALLEL_JOBS}" --output-junit /home/logs/junit/"$test".xml
+		then
+			update-result-file "$tests_result_file" "$test" 1
+			cp /home/logs/{junit/"$test".xml,failed-junit/}
+		else
+			valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$test")
+			if ((valgrind_errors > 0))
+			then
+				update-result-file "$tests_result_file" "$test" "$valgrind_errors" "$VALGRIND_TYPE"
+				cp /home/logs/{junit/"$test".xml,failed-junit/}
+			else
+				update-result-file "$tests_result_file" "$test"
+			fi
+		fi
+
+		# look also inside output, report the individual test failures/successes
+		grep "testcase name" /home/logs/junit/"$test".xml | while read line;
+		do
+			# example: <testcase name="availability_handler_test" classname="availability_handler_test" time="16.9096" status="run">
+			testcase=$(echo $line | sed 's/.*name="//' | sed 's/".*//')
+			if [[ $line == *'status="fail"'* ]];
+			then
+				update-result-file "$tests_result_file" "$testcase" 1
+				cp /home/logs/{junit/"$test".xml,failed-junit/"$testcase".xml}
+			else
+				update-result-file "$tests_result_file" "$testcase"
+			fi
+		done
+
+		break
+	done
+
+	# run sequential tests
+	for test in $(ctest --preset ci-network-tests -L SEQUENTIAL --show-only=json-v1 ${stress_regex:+--tests-regex "$stress_regex"} | jq -r '.tests[].name')
 	do
 		for ((m = 0; m < stress_times[1]; m++))
 		do
@@ -54,7 +94,6 @@ do
 				break
 			fi
 
-			run-both rm -f /tmp/vsomeip*
 			tcpdump -U -i eth0 -w /home/logs/pcap/"$test".pcap &
 
 			if ! ctest --preset ci-network-tests --output-junit /home/logs/junit/"$test".xml --tests-regex "^$test$" --test-output-size-passed 1073741824 --test-output-size-failed 1073741824

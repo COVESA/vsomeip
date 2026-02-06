@@ -12,12 +12,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(debounce_epsilon_test_service
     debounce_epsilon_test_service.cpp
 )
 
-# Add test executable.
 add_executable(debounce_epsilon_test_client
     debounce_epsilon_test_client.cpp
 )
@@ -30,8 +28,8 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME debounce_epsilon_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/debounce_epsilon_test_client.sh
+    SEQUENTIAL
 )

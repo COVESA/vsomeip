@@ -14,12 +14,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(cyclic_event_test_service
     cyclic_event_test_service.cpp
 )
 
-# Add test executable.
 add_executable(cyclic_event_test_client
     cyclic_event_test_client.cpp
 )
@@ -32,8 +30,8 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME cyclic_event_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cyclic_event_test_master_starter.sh
+    SEQUENTIAL
 )

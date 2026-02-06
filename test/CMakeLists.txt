@@ -91,7 +91,7 @@ SET(TEST_SYMLINK_CONFIG_FILES "OFF" CACHE BOOL
 SET(TEST_SYMLINK_CONFIG_FILES_RELATIVE "OFF" CACHE BOOL
     "Controls if the json and scripts needed needed to run the tests are symlinked relatively into the build directroy (ignored on Windows)")
 
-SET(TEST_IP_DEFAULT_VALUE "XXX.XXX.XXX.XXX")
+SET(TEST_IP_DEFAULT_VALUE "127.0.0.1")
 SET(TEST_IP_MASTER "${TEST_IP_DEFAULT_VALUE}" CACHE STRING
     "The IP address of the interface which will act as test master")
     SET(TEST_IP_SLAVE "${TEST_IP_DEFAULT_VALUE}" CACHE STRING

@@ -21,7 +21,7 @@
 #include "second_address_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class second_address_test_client {
 public:
@@ -288,8 +288,6 @@ TEST(someip_event_test, communicate_using_second_address) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a communication mode, like: " << argv[0] << " TCP" << std::endl;
         std::cerr << "Valid communication modes are UDP or TCP" << std::endl;
@@ -302,6 +300,6 @@ int main(int argc, char** argv) {
         use_tcp = false;
     }
 
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

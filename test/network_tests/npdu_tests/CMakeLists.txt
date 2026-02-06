@@ -23,7 +23,6 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 
     # Routing managers.
 
-    # Add test executable.
     add_executable(npdu_test_rmd_client_side
         npdu_test_rmd.cpp
     )
@@ -31,7 +30,6 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         PROPERTIES COMPILE_FLAGS -DRMD_CLIENT_SIDE
     )
 
-    # Add test executable.
     add_executable(npdu_test_rmd_service_side
         npdu_test_rmd.cpp
     )
@@ -49,12 +47,10 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 
     # Clients and Services.
 
-    # Add test executable.
     add_executable(npdu_test_service
         npdu_test_service.cpp
     )
 
-    # Add test executable.
     add_executable(npdu_test_client
         npdu_test_client.cpp
     )
@@ -72,16 +68,16 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         target_link_libraries(${target} ${VSOMEIP_NAME}-cfg-test)
     endforeach()
 
-    # Add custom test command.
     add_custom_test(
         NAME npdu_test_udp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh UDP sync
+        SEQUENTIAL
     )
 
-    # Add custom test command.
     add_custom_test(
         NAME npdu_test_tcp
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/npdu_test_starter.sh TCP sync
+        SEQUENTIAL
     )
 
 endif()

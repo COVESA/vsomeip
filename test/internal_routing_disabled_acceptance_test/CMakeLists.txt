@@ -13,7 +13,14 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_executable(${PROJECT_NAME} applet.cpp client.cpp server.cpp main.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ${gtest_SOURCE_DIR}/include)
-target_link_libraries(${PROJECT_NAME} PRIVATE gtest Threads::Threads vsomeip3-test ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}
+PRIVATE
+    gtest
+    Threads::Threads
+    vsomeip3-test
+    ${Boost_LIBRARIES}
+    vsomeip_utilities
+)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_link_libraries(${PROJECT_NAME} PRIVATE stdc++ m)

@@ -22,7 +22,7 @@
 #include "malicious_data_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class malicious_data_test_service {
 public:
@@ -148,8 +148,6 @@ TEST(someip_malicious_data_test, block_subscription_handler) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     std::string its_passed_testmode = argv[1];
     if (its_passed_testmode == std::string("MALICIOUS_EVENTS")) {
         its_testmode = malicious_data_test::test_mode_e::MALICIOUS_EVENTS;
@@ -162,6 +160,7 @@ int main(int argc, char** argv) {
     } else if (its_passed_testmode == std::string("WRONG_HEADER_FIELDS_UDP")) {
         its_testmode = malicious_data_test::test_mode_e::WRONG_HEADER_FIELDS_UDP;
     }
-    return RUN_ALL_TESTS();
+
+    return test_main(argc, argv);
 }
 #endif

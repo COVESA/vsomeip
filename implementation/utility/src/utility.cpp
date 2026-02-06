@@ -30,6 +30,25 @@
 #include "../include/utility.hpp"
 #include "../../configuration/include/configuration.hpp"
 
+static std::string base_path() {
+    static std::string path = []() {
+        std::string p;
+        if (const char* e = std::getenv(VSOMEIP_ENV_BASE_PATH); e != nullptr && e[0] != '\0') {
+            p = std::string(e);
+        } else {
+            p = std::string(VSOMEIP_BASE_PATH);
+        }
+
+        if (p.empty() || p.back() != '/') {
+            p.push_back('/');
+        }
+
+        return p;
+    }();
+
+    return path;
+}
+
 namespace vsomeip_v3 {
 
 std::mutex& utility::get_utility_mutex() {
@@ -167,7 +186,7 @@ bool utility::is_routing_manager(const std::string& _network) {
 
     return (r.first->second.lock_handle_ != INVALID_HANDLE_VALUE);
 #else
-    std::string its_base_path(VSOMEIP_BASE_PATH + _network);
+    std::string its_base_path(base_path() + _network);
     std::string its_lockfile(its_base_path + ".lck");
     int its_lock_ctrl(-1);
 
@@ -211,7 +230,7 @@ void utility::remove_lockfile(const std::string& _network) {
         }
     }
 #else
-    std::string its_base_path(VSOMEIP_BASE_PATH + _network);
+    std::string its_base_path(base_path() + _network);
     std::string its_lockfile(its_base_path + ".lck");
 
     if (r->second.lock_fd_ != -1) {
@@ -250,7 +269,7 @@ bool utility::is_folder(const std::string& _path) {
 }
 
 std::string utility::get_base_path(const std::string& _network) {
-    return std::string(VSOMEIP_BASE_PATH + _network + "-");
+    return base_path() + _network + "-";
 }
 
 client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, const std::string& _name, client_t _client) {

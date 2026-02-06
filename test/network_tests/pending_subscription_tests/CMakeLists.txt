@@ -12,12 +12,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(pending_subscription_test_service
     pending_subscription_test_service.cpp
 )
 
-# Add test executable.
 add_executable(pending_subscription_test_sd_msg_sender
     pending_subscription_test_sd_msg_sender.cpp
 )
@@ -35,50 +33,50 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_subscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_alternating_subscribe_unsubscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_UNSUBSCRIBE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_unsubscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh UNSUBSCRIBE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_alternating_subscribe_unsubscribe_nack
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_UNSUBSCRIBE_NACK
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_alternating_subscribe_unsubscribe_same_port
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_UNSUBSCRIBE_SAME_PORT
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_subscribe_resubscribe_mixed
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_RESUBSCRIBE_MIXED
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_subscribe_stopsubscribe_subscribe
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME pending_subscription_test_send_request_to_sd_port
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/pending_subscription_test_master_starter.sh REQUEST_TO_SD
+    SEQUENTIAL
 )

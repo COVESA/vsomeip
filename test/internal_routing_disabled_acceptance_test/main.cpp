@@ -2,7 +2,7 @@
 #include <iostream>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "common/test_main.hpp"
 
 #include <vsomeip/internal/logger.hpp>
 
@@ -38,7 +38,6 @@ TEST(internal_routing_disabled_acceptance_test, check_connectivity) {
     EXPECT_EQ(c->get_method_response_count(), 0);
 }
 
-int main(int count, char** values) {
-    testing::InitGoogleTest(&count, values);
-    return RUN_ALL_TESTS();
+int main(int argc, char** argv) {
+    return test_main(argc, argv);
 }

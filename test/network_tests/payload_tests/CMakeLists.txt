@@ -27,12 +27,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(payload_test_service
     payload_test_service.cpp
 )
 
-# Add test executable.
 add_executable(payload_test_client
     payload_test_client.cpp
     stopwatch.cpp
@@ -46,32 +44,29 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME local_payload_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_payload_test_starter.sh
 )
 
-# Add custom test command.
 add_custom_test(
     NAME local_payload_test_huge_payload
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_payload_test_huge_payload_starter.sh
 )
 
-# Add custom test command.
 add_custom_test(
     NAME external_local_payload_test_client_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_local_starter.sh
 )
 
-# Add custom test command.
 add_custom_test(
     NAME external_local_payload_test_client_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_external_starter.sh
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME external_local_payload_test_client_local_and_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_payload_test_client_local_and_external_starter.sh
+    SEQUENTIAL
 )

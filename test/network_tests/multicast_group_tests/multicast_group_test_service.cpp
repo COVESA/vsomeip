@@ -5,6 +5,7 @@
 
 #include <iomanip>
 
+#include "common/test_main.hpp"
 #include "multicast_group_test_globals.hpp"
 
 using namespace multicast_group_test;
@@ -95,6 +96,5 @@ TEST(MulticastGroupTest, ServiceOffersTheService) {
 }
 
 int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

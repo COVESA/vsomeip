@@ -31,6 +31,7 @@ target_link_libraries(
     ${VSOMEIP_NAME}-test
     ${VSOMEIP_NAME}-cfg-test
     ${Boost_LIBRARIES}
+    vsomeip_utilities
 )
 
 add_dependencies(build_unit_tests ${PROJECT_NAME})

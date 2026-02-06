@@ -21,7 +21,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "initial_event_test_globals.hpp"
 
@@ -353,7 +353,6 @@ TEST(someip_initial_event_test, wait_for_initial_events_of_all_services) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
     // block signals as soon as possible; `sigwait` is used later
     sigset_t set;
     sigemptyset(&set);
@@ -361,8 +360,6 @@ int main(int argc, char** argv) {
     sigaddset(&set, SIGTERM);
     sigaddset(&set, SIGINT);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    ::testing::InitGoogleTest(&argc, argv);
 
     if (argc < 2) {
         std::cerr << "Please specify a client number, like: " << argv[0] << " 2 SUBSCRIBE_BEFORE_START SAME_SERVICE_ID" << std::endl;
@@ -435,6 +432,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

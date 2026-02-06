@@ -27,7 +27,7 @@
 #include "offer_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 // number of notifications until `offer_test_client` exits in mode "SUBSCRIBE"
 constexpr size_t NUMBER_OF_NOTIFICATIONS = 10;
@@ -233,8 +233,6 @@ TEST(someip_offer_test, subscribe_or_call_method_at_service) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cerr << "Please specify a operation mode, like: " << argv[0] << " SUBSCRIBE" << std::endl;
         std::cerr << "Valid operation modes are SUBSCRIBE and METHODCALL" << std::endl;
@@ -252,6 +250,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

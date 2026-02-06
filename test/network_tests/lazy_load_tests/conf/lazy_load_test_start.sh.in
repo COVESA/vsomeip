@@ -35,7 +35,10 @@ PID_CLIENT=$!
 
 export VSOMEIP_CONFIGURATION=/vsomeip/
 export VSOMEIP_APPLICATION_NAME=client-sample-lazy
+
 # start lazy client with linux user id 1 and group id 1 to use the 1_1 folder in extensions
+# + allow user to access directory where descriptors are created
+chmod 777 $TEST_TMPDIR
 setpriv --reuid=1 --regid=1 --clear-groups ./lazy_load_test_lazy_client
 PID_LAZY_CLIENT=$!
 

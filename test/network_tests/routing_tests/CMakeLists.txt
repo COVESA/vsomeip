@@ -20,12 +20,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(local_routing_test_service
     local_routing_test_service.cpp
 )
 
-# Add test executable.
 add_executable(local_routing_test_client
     local_routing_test_client.cpp
 )
@@ -38,7 +36,6 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME local_routing_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/local_routing_test_starter.sh
@@ -46,7 +43,6 @@ add_custom_test(
 
 if(NOT TESTS_BAT)
 
-    # Add test executable.
     add_executable(external_local_routing_test_service
         external_local_routing_test_service.cpp
     )
@@ -58,10 +54,10 @@ if(NOT TESTS_BAT)
     targets_add_default_dependencies("${executables}")
     targets_link_default_libraries("${executables}")
 
-    # Add custom test command.
     add_custom_test(
         NAME external_local_routing_test
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_routing_test_starter.sh
+        SEQUENTIAL
     )
     
 endif()

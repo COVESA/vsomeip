@@ -4,7 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "cyclic_event_test_globals.hpp"
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 using namespace cyclic_event_test;
 
@@ -58,7 +58,5 @@ TEST(CyclicEventTest, ServiceNotifiesClient) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

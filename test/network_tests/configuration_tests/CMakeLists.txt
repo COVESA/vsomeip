@@ -11,7 +11,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(configuration_test
     configuration_test.cpp
 )
@@ -26,7 +25,6 @@ target_link_libraries(configuration_test
 targets_link_default_libraries(configuration_test)
 targets_add_default_dependencies(configuration_test)
 
-# Add custom test command.
 add_custom_test(
     NAME configuration_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/configuration_test

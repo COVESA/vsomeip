@@ -12,12 +12,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(cached_event_test_service
     cached_event_test_service.cpp
 )
 
-# Add test executable.
 add_executable(cached_event_test_client
     cached_event_test_client.cpp
 )
@@ -30,8 +28,8 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME cached_event_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cached_event_test_client.sh
+    SEQUENTIAL
 )

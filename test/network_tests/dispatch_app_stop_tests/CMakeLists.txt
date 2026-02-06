@@ -5,7 +5,6 @@
 
 project(dispatch_app_stop_tests LANGUAGES CXX)
 
-# Add test executable.
 add_executable(dispatch_app_stop_test
     dispatch_app_stop_test.cpp
 )
@@ -16,7 +15,6 @@ set(executables dispatch_app_stop_test)
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME dispatch_app_stop_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/dispatch_app_stop_test

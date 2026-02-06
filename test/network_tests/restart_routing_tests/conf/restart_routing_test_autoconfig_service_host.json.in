@@ -15,7 +15,7 @@
       {
          "name" : "restart_routing_test_service",
          "unicast" : "@TEST_IP_MASTER@",
-         "port" : "31490"
+         "port" : "11000"
       },
       "guests" :
       {

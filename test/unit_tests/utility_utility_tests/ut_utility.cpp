@@ -44,7 +44,10 @@ std::string get_temp_dir() {
     else
         return "C:\\Temp\\";
 #else
-    return "/tmp/";
+
+    std::string dir = vsomeip_v3::utility::get_base_path("");
+    dir.pop_back(); // remove trailing '-'
+    return dir;
 #endif
 }
 
@@ -256,14 +259,14 @@ TEST(utility_test, get_base_path) {
 
     // Random network name.
     const std::string network_("is_folder_tests");
-    const std::string base_path_("/tmp/is_folder_tests-");
+    const std::string base_path_suffix("/is_folder_tests-");
 
     // First caller become the routing manager, creating the network creates file
-    // /tmp/is_folder_tests.lck
+    // <VSOMEIP_BASE_PATH>/is_folder_tests.lck
     ASSERT_TRUE(its_utility->is_routing_manager(network_));
 
-    // Assert equal
-    ASSERT_EQ(its_utility->get_base_path(network_), base_path_);
+    const std::string path = its_utility->get_base_path(network_);
+    ASSERT_TRUE(path.size() >= base_path_suffix.size() && std::equal(base_path_suffix.rbegin(), base_path_suffix.rend(), path.rbegin()));
 
     // Clean up
     its_utility->remove_lockfile(network_);

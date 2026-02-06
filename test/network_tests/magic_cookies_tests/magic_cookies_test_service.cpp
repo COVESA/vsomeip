@@ -16,7 +16,7 @@
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class magic_cookies_test_service {
 public:
@@ -135,13 +135,12 @@ TEST(someip_magic_cookies_test, reply_to_good_messages) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td(300);
-    ::testing::InitGoogleTest(&argc, argv);
     std::string static_routing_enable("--static-routing");
     for (int i = 1; i < argc; i++) {
         if (static_routing_enable == argv[i]) {
             use_static_routing = true;
         }
     }
-    return RUN_ALL_TESTS();
+
+    return test_main(argc, argv);
 }

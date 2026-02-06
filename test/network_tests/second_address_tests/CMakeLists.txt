@@ -16,12 +16,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(second_address_test_service
     second_address_test_service.cpp
 )
 
-# Add test executable.
 add_executable(second_address_test_client
     second_address_test_client.cpp
 )
@@ -34,14 +32,14 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME second_address_test_second_ip_address_service_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/second_address_test_master_starter.sh SERVICE UDP
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME second_address_test_second_ip_address_client_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/second_address_test_master_starter.sh CLIENT UDP
+    SEQUENTIAL
 )

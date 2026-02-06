@@ -16,17 +16,14 @@ if (TEST_SECURITY)
     )
     configure_files("${configuration_files}")
 
-    # Add test executable.
     add_executable(lazy_load_test_service
         lazy_load_test_service.cpp
     )
 
-    # Add test executable.
     add_executable(lazy_load_test_client
         lazy_load_test_client.cpp
     )
 
-    # Add test executable.
     add_executable(lazy_load_test_lazy_client
         lazy_load_test_lazy_client.cpp
     )
@@ -44,10 +41,10 @@ if (TEST_SECURITY)
     # will run as uid:1 gid:1, which is not allowed to write to the log file
     list(FILTER TEST_ENTRYPOINT EXCLUDE REGEX "^--log-file=") 
 
-    # Add custom test command.
     add_custom_test(
         NAME lazy_load_test
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/lazy_load_test_start.sh
+        SEQUENTIAL
     )
 
 endif()

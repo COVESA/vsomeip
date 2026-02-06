@@ -58,6 +58,7 @@ target_link_libraries(
     gmock
     ${VSOMEIP_NAME}-test
     ${Boost_LIBRARIES}
+    vsomeip_utilities
 )
 
 add_dependencies(build_unit_tests unit_tests_routing_client_state_machine)

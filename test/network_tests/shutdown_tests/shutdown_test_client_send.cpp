@@ -18,7 +18,7 @@
 #include <vsomeip/internal/logger.hpp>
 #include <common/vsomeip_app_utilities.hpp>
 
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class shutdown_test_client {
 public:
@@ -115,7 +115,6 @@ bool shutdown_test_client::is_tcp_ = false;
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
     if (argc > 1) {
         if (std::string("TCP") == std::string(argv[1])) {
             shutdown_test_client::size_buffer_ = shutdown_test::SHUTDOWN_SIZE_TCP;
@@ -128,8 +127,7 @@ int main(int argc, char** argv) {
             shutdown_test_client::is_tcp_ = false;
         }
     }
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::GTEST_FLAG(throw_on_failure) = true;
-    return RUN_ALL_TESTS();
+
+    return test_main(argc, argv);
 }
 #endif

@@ -64,17 +64,14 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(subscribe_notify_test_service
     subscribe_notify_test_service.cpp
 )
 
-# Add test executable.
 add_executable(subscribe_notify_test_one_event_two_eventgroups_service
     subscribe_notify_test_one_event_two_eventgroups_service.cpp
 )
 
-# Add test executable.
 add_executable(subscribe_notify_test_one_event_two_eventgroups_client
     subscribe_notify_test_one_event_two_eventgroups_client.cpp
 )
@@ -90,184 +87,184 @@ targets_link_default_libraries("${executables}")
 
 # Subscribe Notify Tests - Local Communication over UDS
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master_udp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP
         subscribe_notify_test_diff_client_ids_diff_ports_master_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_both_tcp_and_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_same_ports_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_same_ports_master_udp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_same_ports_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP
         subscribe_notify_test_diff_client_ids_same_ports_master_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_same_ports_both_tcp_and_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_same_ports_master.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_partial_same_ports_both_tcp_and_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_partial_same_ports_master.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp.json
         SAME_SERVICE_ID
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master.json
+    SEQUENTIAL
 )
 
 # Subscribe Notify Tests - Local Communication over TCP
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master_udp_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_tcp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP
         subscribe_notify_test_diff_client_ids_diff_ports_master_tcp_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_both_tcp_and_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_diff_ports_master_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_same_ports_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_same_ports_master_udp_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_same_ports_tcp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP
         subscribe_notify_test_diff_client_ids_same_ports_master_tcp_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_same_ports_both_tcp_and_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_same_ports_master_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_partial_same_ports_both_tcp_and_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         TCP_AND_UDP
         subscribe_notify_test_diff_client_ids_partial_same_ports_master_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_same_service_id_master_udp_local_tcp.json
         SAME_SERVICE_ID
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_master_starter.sh
         UDP
         subscribe_notify_test_diff_client_ids_diff_ports_autoconfig_master_local_tcp.json
+    SEQUENTIAL
 )
 
 # Subscribe Notify Tests - One Event Two Eventgroups
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_one_event_two_eventgroups_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
         UDP
         subscribe_notify_test_one_event_two_eventgroups_master.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_one_event_two_eventgroups_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
         TCP
         subscribe_notify_test_one_event_two_eventgroups_master.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_one_event_two_eventgroups_udp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
         UDP
         subscribe_notify_test_one_event_two_eventgroups_master_local_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_test_one_event_two_eventgroups_tcp_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_test_one_event_two_eventgroups_master_starter.sh
         TCP
         subscribe_notify_test_one_event_two_eventgroups_master_local_tcp.json
+    SEQUENTIAL
 )

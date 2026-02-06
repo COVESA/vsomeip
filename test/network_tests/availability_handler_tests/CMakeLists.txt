@@ -13,17 +13,14 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(availability_handler_test_manager
     availability_handler_test_manager.cpp
 )
 
-# Add test executable.
 add_executable(availability_handler_test_service
     availability_handler_test_service.cpp
 )
 
-# Add test executable.
 add_executable(availability_handler_test_client
     availability_handler_test_client.cpp
 )
@@ -37,7 +34,6 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME availability_handler_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/availability_handler_test_manager

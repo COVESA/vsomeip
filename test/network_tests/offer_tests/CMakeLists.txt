@@ -21,27 +21,22 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(offer_test_service
     offer_test_service.cpp
 )
 
-# Add test executable.
 add_executable(offer_test_multiple_offerings
     offer_test_multiple_offerings.cpp
 )
 
-# Add test executable.
 add_executable(offer_test_client
     offer_test_client.cpp
 )
 
-# Add test executable.
 add_executable(offer_test_service_external
     offer_test_service_external.cpp
 )
 
-# Add test executable.
 add_executable(offer_test_external_sd_msg_sender
     offer_test_external_sd_msg_sender.cpp
 )
@@ -49,12 +44,10 @@ add_executable(offer_test_external_sd_msg_sender
 # offer_test_external_sd_msg_sender.cpp directly uses some sd symbols
 target_link_libraries(offer_test_external_sd_msg_sender vsomeip3-sd-test)
 
-# Add test executable.
 add_executable(offer_test_big_sd_msg_service
     offer_test_big_sd_msg_service.cpp
 )
 
-# Add test executable.
 add_executable(offer_test_big_sd_msg_client
     offer_test_big_sd_msg_client.cpp
 )
@@ -72,25 +65,23 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME offer_test_local
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_local_starter.sh
 )
 
-# Add custom test command.
 add_custom_test(
     NAME offer_test_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_external_master_starter.sh
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME offer_test_big_sd_msg
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_big_sd_msg_master_starter.sh
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME offer_test_multiple_offerings
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_multiple_offerings

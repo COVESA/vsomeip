@@ -16,7 +16,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add the test executable.
 add_executable(application_test
     application_test.cpp
 )
@@ -34,13 +33,11 @@ set(executable_targets
 targets_add_default_dependencies("${executable_targets}")
 targets_link_default_libraries("${executable_targets}")
 
-# Add custom test command.
 add_custom_test(
     NAME application_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_starter.sh
 )
 
-# Add custom test command.
 add_custom_test(
     NAME application_test_multiple_init
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_multiple_init.sh
@@ -54,7 +51,6 @@ if (NOT ${TESTS_BAT})
     )
     configure_files("${configuration_files}")
 
-    # Add the test executable.
     add_executable(application_test_single_process
         application_test_single_process.cpp
     )
@@ -65,7 +61,6 @@ if (NOT ${TESTS_BAT})
         )
     endif()
 
-    # Add the test executable.
     add_executable(application_test_availability
         application_test_availability.cpp
     )
@@ -78,14 +73,12 @@ if (NOT ${TESTS_BAT})
     targets_add_default_dependencies("${executable_targets}")
     targets_link_default_libraries("${executable_targets}")
 
-    # Add custom test command.
     add_custom_test(
         NAME application_test_single_process
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process
         ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/application_test_single_process.json"
     )
 
-    # Add custom test command.
     add_custom_test(
         NAME application_test_availability
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_availability_starter.sh

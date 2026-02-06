@@ -16,13 +16,11 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(cpu_load_test_service
     cpu_load_test_service.cpp
     cpu_load_measurer.cpp
 )
 
-# Add test executable.
 add_executable(cpu_load_test_client
     cpu_load_test_client.cpp
     cpu_load_measurer.cpp
@@ -39,10 +37,12 @@ targets_add_default_dependencies("${executables}")
 add_custom_test(
     NAME cpu_load_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cpu_load_test_master_starter.sh
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME cpu_load_test_swap
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/cpu_load_test_swap_master_starter.sh
     TIMEOUT 3000
+    SEQUENTIAL
 )

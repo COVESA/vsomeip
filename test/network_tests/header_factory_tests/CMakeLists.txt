@@ -15,17 +15,14 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(header_factory_test
     header_factory_test.cpp
 )
 
-# Add test executable.
 add_executable(header_factory_test_client
     header_factory_test_client.cpp
 )
 
-# Add test executable.
 add_executable(header_factory_test_service
     header_factory_test_service.cpp
 )
@@ -46,13 +43,11 @@ foreach(target ${executables})
     )
 endforeach()
 
-# Add custom test command.
 add_custom_test(
     NAME header_factory_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/header_factory_test
 )
 
-# Add custom test command.
 add_custom_test(
     NAME header_factory_test_send_receive
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/header_factory_test_send_receive_starter.sh

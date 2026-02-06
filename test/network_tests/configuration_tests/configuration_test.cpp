@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <common/utility.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
@@ -824,7 +824,5 @@ TEST(configuration_test, version_and_status) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

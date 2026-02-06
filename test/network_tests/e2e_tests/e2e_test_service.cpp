@@ -4,7 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "e2e_test_service.hpp"
 
@@ -197,7 +197,6 @@ TEST(someip_e2e_test, basic_subscribe_request_response) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
     /*
      e2e profile01 CRC8 protected sample payloads using the following config at receiver:
     "service_id" : "0x1234",
@@ -271,7 +270,6 @@ int main(int argc, char** argv) {
         i++;
     }
 
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

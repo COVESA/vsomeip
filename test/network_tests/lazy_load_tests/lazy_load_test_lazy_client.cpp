@@ -4,7 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <iomanip>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "lazy_load_test_lazy_client.hpp"
 
@@ -191,7 +191,5 @@ TEST(someip_lazy_load_test, lazy_client) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

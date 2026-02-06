@@ -17,6 +17,7 @@ target_link_libraries(
     vsomeip3-test
     vsomeip3-cfg-test
     gtest
+    vsomeip_utilities
 )
 
 add_dependencies(build_unit_tests ${PROJECT_NAME})

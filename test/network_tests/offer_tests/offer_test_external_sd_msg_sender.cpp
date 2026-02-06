@@ -12,7 +12,7 @@
 #include <thread>
 
 #include <vsomeip/vsomeip.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
@@ -86,13 +86,11 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 2) {
         std::cout << "Please pass an target IP address to this binary like: " << argv[0] << " 10.0.3.1" << std::endl;
         exit(1);
     }
     passed_address = argv[1];
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

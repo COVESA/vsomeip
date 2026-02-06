@@ -15,7 +15,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(restart_routing_test_service
     restart_routing_test_service.cpp
 )
@@ -37,7 +36,6 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME restart_routing_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/restart_routing_test_manager

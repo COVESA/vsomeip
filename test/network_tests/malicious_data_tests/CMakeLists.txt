@@ -12,7 +12,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(malicious_data_test_service
     malicious_data_test_service.cpp
 )
@@ -34,32 +33,32 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME malicious_data_test_events
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh MALICIOUS_EVENTS
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME malicious_data_test_protocol_version
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh PROTOCOL_VERSION
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME malicious_data_test_message_type
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh MESSAGE_TYPE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME malicious_data_test_return_code
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh RETURN_CODE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME malicious_data_test_wrong_header_fields_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/malicious_data_test_master_starter.sh WRONG_HEADER_FIELDS_UDP
+    SEQUENTIAL
 )

@@ -14,12 +14,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(memory_test_client
     memory_test_client.cpp
 )
 
-# Add test executable.
 add_executable(memory_test_service
     memory_test_service.cpp
 )
@@ -32,9 +30,9 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME memory_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/memory_test_master_starter.sh
     ENVIRONMENT LSAN_OPTIONS=intercept_tls_get_addr=0
+    SEQUENTIAL
 )

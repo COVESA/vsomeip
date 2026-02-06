@@ -43,12 +43,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(big_payload_test_service
     big_payload_test_service.cpp
 )
 
-# Add test executable.
 add_executable(big_payload_test_client
     big_payload_test_client.cpp
 )
@@ -60,8 +58,6 @@ set(test_executables
 )
 targets_link_default_libraries("${test_executables}")
 targets_add_default_dependencies("${test_executables}")
-
-# Add custom test commands.
 
 add_custom_test(
     NAME big_payload_test_local
@@ -86,54 +82,65 @@ add_custom_test(
 add_custom_test(
     NAME big_payload_test_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_local_tcp_starter.sh
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_local_tcp_random
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_local_tcp_starter.sh RANDOM
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_local_tcp_limited
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_local_tcp_starter.sh LIMITED
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_local_tcp_queue_limited
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_local_tcp_starter.sh QUEUELIMITEDGENERAL
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external_random
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh RANDOM
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external_limited
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh LIMITED
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external_limited_general
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh LIMITEDGENERAL
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external_queue_limited_general
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh QUEUELIMITEDGENERAL
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external_queue_limited_specific
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh QUEUELIMITEDSPECIFIC
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME big_payload_test_external_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/big_payload_test_external_starter.sh UDP
+    SEQUENTIAL
 )

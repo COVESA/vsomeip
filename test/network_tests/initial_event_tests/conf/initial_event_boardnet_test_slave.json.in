@@ -3,12 +3,7 @@
     "logging":
     {
         "level":"trace",
-        "console":"true",
-        "file":
-        {
-            "enable":"false",
-            "path":"/tmp/vsomeip.log"
-        }
+        "console":"true"
     },
     "tracing" :
     {

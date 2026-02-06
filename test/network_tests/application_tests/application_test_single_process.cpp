@@ -7,7 +7,7 @@
 #include "application_test_service.cpp"
 #include "application_test_client.cpp"
 #include "application_test_daemon.cpp"
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 TEST(someip_application_test_single_process, notify_increasing_counter) {
     // start application acting as daemon (rm_stub)
@@ -37,8 +37,6 @@ TEST(someip_application_test_single_process, notify_increasing_counter) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

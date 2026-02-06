@@ -26,7 +26,7 @@
 #include "availability_handler_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class availability_handler_test_manager : public testing::Test {
 protected:
@@ -253,8 +253,6 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

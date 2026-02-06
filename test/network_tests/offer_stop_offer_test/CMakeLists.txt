@@ -13,13 +13,11 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(offer_stop_offer_test_client
     offer_stop_offer_test_client.cpp
     applications/client.cpp
 )
 
-# Add test executable.
 add_executable(offer_stop_offer_test_service
     offer_stop_offer_test_service.cpp
     applications/service.cpp
@@ -33,9 +31,9 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME offer_stop_offer_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_stop_offer_test_client_starter.sh
+    SEQUENTIAL
 )
 endif()

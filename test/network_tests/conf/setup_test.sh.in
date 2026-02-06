@@ -31,6 +31,11 @@ cleanup() {
         echo "Cleanup triggered by signal: $sig" >&2
     fi
 
+    # cleanup temporary directory
+    if [ ! -z "$TEST_TMPDIR" ]; then
+        rm -rf "$TEST_TMPDIR"
+    fi
+
     if [ -n "$pids" ]; then
         # test forgot to cleanup; this is an error
         echo "Processes '$pids' still running at exit, kiling"
@@ -44,13 +49,19 @@ cleanup() {
 exec_slave() {
     COM=$1
 
+    # careful with environment variables, they are also passed (at least with `USE_LXC_TEST`)
+    # must reset `VSOMEIP_BASE_PATH` and allow test to create another directory
     if [ ! -z "$USE_LXC_TEST" ]; then
-        ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub \
-            -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP \
-            "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/${RELATIVE_DIR}; ${COM}\"" &
+        VSOMEIP_BASE_PATH="" \
+            ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub \
+                -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP \
+                "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/${RELATIVE_DIR}; ${COM}\"" &
+
         echo $!
     elif [ ! -z "$USE_DOCKER" ]; then
-        docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ${COM}" &
+        VSOMEIP_BASE_PATH="" \
+            docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ${COM}" &
+
         echo $!
     else
         echo "No USE_LXC_TEST, no USE_DOCKER, cannot execute command on slave" >&2
@@ -61,6 +72,13 @@ exec_slave() {
 #######################################
 ############# test setup ##############
 #######################################
+
+# setup temporary directory
+if [ -z "$VSOMEIP_BASE_PATH" ]; then
+    TEST_TMPDIR="$(mktemp -d)"
+    TEST_TMPDIR="$(realpath $TEST_TMPDIR)"
+    export VSOMEIP_BASE_PATH="$TEST_TMPDIR"
+fi
 
 # ensure cleanup of processes on exit
 for sig in INT QUIT HUP TERM; do

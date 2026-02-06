@@ -7,7 +7,7 @@
 #include <iomanip>
 
 #include <vsomeip/internal/logger.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "debounce_test_client.hpp"
 
@@ -228,7 +228,6 @@ TEST(debounce_test, mask) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
     std::shared_ptr<vsomeip::payload> its_payload;
 
     // Flat test
@@ -335,6 +334,5 @@ int main(int argc, char** argv) {
     its_payload->set_data({0x24, 0x02, 0x03, 0x04, 0x05, 0x07, 0x07});
     payloads__[debounce_test_id_e::DTI_MASK].push_back(its_payload);
 
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

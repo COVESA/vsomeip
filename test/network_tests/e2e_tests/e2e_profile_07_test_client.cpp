@@ -9,7 +9,7 @@
 #include "e2e_profile_07_test_client.hpp"
 
 #include <vsomeip/internal/logger.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 std::vector<std::vector<vsomeip::byte_t>> responses_;
 std::vector<std::vector<vsomeip::byte_t>> events_;
@@ -199,8 +199,6 @@ TEST(someip_e2e_profile_07_test, test_crc_calculation) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-
     // The first 8 bytes are the CRC calculated over all the data (except the CRC itself) and the
     // previous 8 bytes from the vSomeIP header The next 4 bytes are the length of the data The next
     // 4 bytes are the counter, starting at 0 the next 4 bytes are the DataID The rest are just
@@ -238,6 +236,5 @@ int main(int argc, char** argv) {
                 0x97, 0x45, 0x3f, 0xb3, 0x86, 0x81, 0xbd, 0x8a, 0xda, 0xc2, 0x3c, 0xf6, 0x00, 0x7a, 0xbd, 0xb4, 0xf9, 0xb9,
                 0x3f, 0x80, 0x00, 0x00, 0xfc, 0x01, 0x01, 0x3c, 0x1c, 0x1b, 0x72, 0x01, 0x01, 0x3c, 0x2a, 0x9e, 0x1f, 0x00}};
 
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

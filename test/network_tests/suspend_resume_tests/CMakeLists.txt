@@ -14,12 +14,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(suspend_resume_test_service
     suspend_resume_test_service.cpp
 )
 
-# Add test executable.
 add_executable(suspend_resume_test_client
     suspend_resume_test_client.cpp
 )
@@ -32,8 +30,8 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME suspend_resume_test_initial
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/suspend_resume_test_master_starter.sh SERVICE
+    SEQUENTIAL
 )

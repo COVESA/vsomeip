@@ -14,12 +14,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(climate_test_service
     climate_test_service.cpp
 )
 
-# Add test executable.
 add_executable(climate_test_client
     climate_test_client.cpp
 )
@@ -32,8 +30,8 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME climate_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/climate_test_master_starter.sh
+    SEQUENTIAL
 )

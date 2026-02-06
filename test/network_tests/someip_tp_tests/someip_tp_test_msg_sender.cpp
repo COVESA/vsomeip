@@ -25,7 +25,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
@@ -1340,8 +1340,6 @@ TEST_P(someip_tp, send_in_mode) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {
         std::cerr << "Please pass an target, local IP address and test mode to this binary like: " << argv[0]
                   << " 10.0.3.1 10.0.3.202 TP_IN_SEQUENCE" << std::endl;
@@ -1364,6 +1362,7 @@ int main(int argc, char** argv) {
             ::testing::GTEST_FLAG(filter) = "*send_in_mode/5";
         }
     }
-    return RUN_ALL_TESTS();
+
+    return test_main(argc, argv);
 }
 #endif

@@ -13,17 +13,14 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(start_stop_start_test_manager
     start_stop_start_test_manager.cpp
 )
 
-# Add test executable.
 add_executable(start_stop_start_test_app1
     start_stop_start_test_app1.cpp
 )
 
-# Add test executable.
 add_executable(start_stop_start_test_app2
     start_stop_start_test_app2.cpp
 )
@@ -37,7 +34,6 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME start_stop_start_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/start_stop_start_test_manager

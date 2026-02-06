@@ -15,12 +15,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(magic_cookies_test_client
     magic_cookies_test_client.cpp
 )
 
-# Add test executable.
 add_executable(magic_cookies_test_service
     magic_cookies_test_service.cpp
 )
@@ -38,8 +36,8 @@ foreach(target ${executables})
     target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT})
 endforeach()
 
-# Add custom test command.
 add_custom_test(
     NAME magic_cookies_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/magic_cookies_test_starter.sh
+    SEQUENTIAL
 )

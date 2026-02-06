@@ -5,7 +5,7 @@
 
 #include <iomanip>
 
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "payload_test_service.hpp"
 
@@ -131,7 +131,6 @@ TEST(someip_payload_test, send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td(1800);
     std::string help("--help");
     std::string check("--do-not-check-payload");
 
@@ -148,7 +147,6 @@ int main(int argc, char** argv) {
         i++;
     }
 
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

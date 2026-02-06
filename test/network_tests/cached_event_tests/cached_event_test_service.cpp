@@ -10,7 +10,7 @@
 
 #include "cached_event_test_globals.hpp"
 #include "vsomeip/internal/logger.hpp"
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 using namespace cached_event_test;
 
@@ -62,7 +62,5 @@ TEST(cached_event_test, service_is_offered) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

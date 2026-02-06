@@ -5,7 +5,7 @@
 
 #include <iomanip>
 
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "payload_test_client.hpp"
 
@@ -248,7 +248,6 @@ TEST(someip_payload_test, send_different_payloads) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td(1800);
     std::string tcp_enable("--tcp");
     std::string udp_enable("--udp");
     std::string sync_enable("--sync");
@@ -322,8 +321,6 @@ int main(int argc, char** argv) {
         i++;
     }
 
-    ::testing::InitGoogleTest(&argc, argv);
-    int ret = RUN_ALL_TESTS();
-    return ret;
+    return test_main(argc, argv);
 }
 #endif

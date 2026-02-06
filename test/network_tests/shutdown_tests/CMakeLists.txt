@@ -54,16 +54,19 @@ targets_add_default_dependencies("${test_executables}")
 add_custom_test(
     NAME shutdown_test_client_send_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_starter.sh TCP CLIENT
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME shutdown_test_client_send_local_client_host_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_client_host_starter.sh TCP CLIENT
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME shutdown_test_client_send_local_service_host_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_service_host_starter.sh TCP CLIENT
+    SEQUENTIAL
 )
 
 add_custom_test(
@@ -84,16 +87,19 @@ add_custom_test(
 add_custom_test(
     NAME shutdown_test_service_send_local_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_starter.sh TCP SERVICE
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME shutdown_test_service_send_local_client_host_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_client_host_starter.sh TCP SERVICE
+    SEQUENTIAL
 )
 
 add_custom_test(
     NAME shutdown_test_service_send_local_service_host_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/shutdown_test_local_service_host_starter.sh TCP SERVICE
+    SEQUENTIAL
 )
 
 add_custom_test(

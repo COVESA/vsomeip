@@ -16,7 +16,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "../../implementation/utility/include/bithelper.hpp"
 #include "../../implementation/message/include/deserializer.hpp"
@@ -1694,8 +1694,6 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {
         std::cerr << "Please pass an target, local IP address and test mode to this binary like: " << argv[0]
                   << " 10.0.3.1 10.0.3.202 EVENTS" << std::endl;
@@ -1715,6 +1713,7 @@ int main(int argc, char** argv) {
     } else if (its_testmode == std::string("WRONG_HEADER_FIELDS_UDP")) {
         ::testing::GTEST_FLAG(filter) = "*wrong_header_fields_udp";
     }
-    return RUN_ALL_TESTS();
+
+    return test_main(argc, argv);
 }
 #endif

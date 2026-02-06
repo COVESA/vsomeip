@@ -36,8 +36,8 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME multicast_group_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/multicast_group_test_service_starter.sh
+    SEQUENTIAL
 )

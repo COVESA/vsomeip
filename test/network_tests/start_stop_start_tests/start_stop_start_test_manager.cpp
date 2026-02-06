@@ -11,24 +11,27 @@
 #include <vsomeip/vsomeip.hpp>
 #include "common/interprocess.hpp"
 #include "common/process.hpp"
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 #include "start_stop_start_test_globals.hpp"
 
 namespace start_stop_start {
 namespace manager {
 
-class start_stop_start_test_manager : public base_logger {
+class start_stop_start_test_manager : public testing::Test {
 protected:
-    static void SetUp() { VSOMEIP_INFO << "Setting up start_stop_start_test_manager"; }
-    static void TearDown() { VSOMEIP_INFO << "Tearing down start_stop_start_test_manager"; }
+    void SetUp() {
+        VSOMEIP_INFO << "Setting up start_stop_start_test_manager";
+        boost::interprocess::shared_memory_object::remove(start_stop_start::TEST_NAME.data());
+    }
+    void TearDown() { VSOMEIP_INFO << "Tearing down start_stop_start_test_manager"; }
 };
 
-TEST(start_stop_start_test_manager, start_stop_start_with_one_application) {
+TEST_F(start_stop_start_test_manager, start_stop_start_with_one_application) {
     auto shm =
             shared_memory_master_t<start_stop_start::state_t>(std::string(start_stop_start::TEST_NAME), start_stop_start::N_COMPONENTS_T1);
 
     auto& app1_queue = shm.get_queue(start_stop_start::APP1_IDX);
-    int receiver_timeout_ms = 3000;
+    int receiver_timeout_ms = 10000;
 
     process_group_t group;
     group.define_type("application1", "./start_stop_start_test_app1",
@@ -40,7 +43,8 @@ TEST(start_stop_start_test_manager, start_stop_start_with_one_application) {
 
     scenario.add_step(Steps::_1, "#1 - LAUNCH APPLICATION 1",
                       [&]() {
-                          ASSERT_EQ(start_stop_start::state_t::REGISTERED, app1_queue.receive(receiver_timeout_ms));
+                          // NOTE: might receive DEREGISTERED multiple times, app can start before the daemon, fail to register for a bit..
+                          ASSERT_TRUE(app1_queue.receive_until(start_stop_start::state_t::REGISTERED, receiver_timeout_ms));
                           std::cout << "MANAGER GOT APPLICATION 1 REGISTERED" << std::endl;
                       })
             .add_step(Steps::_2, "#2 - STOP APPLICATION 1",
@@ -67,13 +71,13 @@ TEST(start_stop_start_test_manager, start_stop_start_with_one_application) {
     }
 } // start_stop_start_with_one_application
 
-TEST(start_stop_start_test_manager, start_stop_start_with_two_application) {
+TEST_F(start_stop_start_test_manager, start_stop_start_with_two_application) {
     auto shm =
             shared_memory_master_t<start_stop_start::state_t>(std::string(start_stop_start::TEST_NAME), start_stop_start::N_COMPONENTS_T2);
 
     auto& app1_queue = shm.get_queue(start_stop_start::APP1_IDX);
     auto& app2_queue = shm.get_queue(start_stop_start::APP2_IDX);
-    int receiver_timeout_ms = 3000;
+    int receiver_timeout_ms = 10000;
 
     process_group_t group;
     group.define_type("application1", "./start_stop_start_test_app1",
@@ -88,7 +92,7 @@ TEST(start_stop_start_test_manager, start_stop_start_with_two_application) {
 
     scenario.add_step(Steps::_1, "#1 - LAUNCH APPLICATION 1",
                       [&]() {
-                          ASSERT_EQ(start_stop_start::state_t::REGISTERED, app1_queue.receive(receiver_timeout_ms));
+                          ASSERT_TRUE(app1_queue.receive_until(start_stop_start::state_t::REGISTERED, receiver_timeout_ms));
                           std::cout << "MANAGER GOT APPLICATION 1 REGISTERED" << std::endl;
                       })
             .add_step(Steps::_2, "#2 - STOP APPLICATION 1",
@@ -98,7 +102,7 @@ TEST(start_stop_start_test_manager, start_stop_start_with_two_application) {
                       })
             .add_step(Steps::_3, "#3 - LAUNCH APPLICATION 2",
                       [&]() {
-                          ASSERT_EQ(start_stop_start::state_t::REGISTERED, app2_queue.receive(receiver_timeout_ms));
+                          ASSERT_TRUE(app2_queue.receive_until(start_stop_start::state_t::REGISTERED, receiver_timeout_ms));
                           std::cout << "MANAGER GOT APPLICATION 2 REGISTERED" << std::endl;
                       })
             .add_step(Steps::_4, "#4 - START APPLICATION 1 AGAIN",
@@ -127,9 +131,6 @@ TEST(start_stop_start_test_manager, start_stop_start_with_two_application) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::GTEST_FLAG(throw_on_failure) = true;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

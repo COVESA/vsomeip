@@ -15,7 +15,7 @@
 #include <numeric>
 #include <thread>
 
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "cpu_load_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
@@ -165,8 +165,6 @@ TEST(someip_payload_test, DISABLED_send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td(3000);
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

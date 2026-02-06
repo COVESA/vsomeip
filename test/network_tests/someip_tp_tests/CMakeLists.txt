@@ -12,12 +12,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(someip_tp_test_service
     someip_tp_test_service.cpp
 )
 
-# Add test executable.
 add_executable(someip_tp_test_msg_sender
     someip_tp_test_msg_sender.cpp
 )
@@ -35,38 +33,38 @@ set(executables
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME someip_tp_test_in_sequence
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh IN_SEQUENCE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME someip_tp_test_mixed
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh MIXED
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME someip_tp_test_incomplete
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh INCOMPLETE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME someip_tp_test_duplicate
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh DUPLICATE
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME someip_tp_test_overlap
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh OVERLAP
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME someip_tp_test_overlap_front_back
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/someip_tp_test_master_starter.sh OVERLAP_FRONT_BACK
+    SEQUENTIAL
 )

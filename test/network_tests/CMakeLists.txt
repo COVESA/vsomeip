@@ -105,9 +105,10 @@ endfunction()
 # NAME my_test_name
 # COMMAND ${CMAKE_CURRENT_BINARY_DIR}/my_test_starter.sh ARG1 ARG2...
 # ENVIRONMENT VSOMEIP_CONFIGURATION=my_test_config.json # Optional.
+# SEQUENTIAL # Optional
 # )
 function(add_custom_test)
-    set(options "")
+    set(options SEQUENTIAL)
     set(oneValueArgs NAME TIMEOUT)
     set(multiValueArgs COMMAND ENVIRONMENT)
     cmake_parse_arguments(MY_TEST
@@ -117,7 +118,7 @@ function(add_custom_test)
     # Skip valgrind
     if(DEFINED VALGRIND_TYPE AND NOT VALGRIND_TYPE STREQUAL "")
         set(TEST_ENTRYPOINT
-            ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq,/usr/bin/sleep,/usr/bin/netstat,/usr/bin/awk,/usr/bin/mawk,/usr/bin/grep,/usr/bin/wc,/usr/bin/pgrep,/usr/bin/python3,*/python3,/usr/sbin/iptables,*/xtables-nft-multi
+            ${TEST_ENTRYPOINT} --trace-children-skip=*/ssh${SUBPROCESSES},/usr/bin/seq,/usr/bin/sleep,/usr/bin/netstat,/usr/bin/awk,/usr/bin/mawk,/usr/bin/grep,/usr/bin/wc,/usr/bin/pgrep,/usr/bin/python3,*/python3,/usr/sbin/iptables,*/xtables-nft-multi,/usr/bin/mktemp
         )
     endif()
 
@@ -134,8 +135,12 @@ function(add_custom_test)
 
     # Set a timeout for the test.
     set_tests_properties(${MY_TEST_NAME}
-        PROPERTIES TIMEOUT 700
+        PROPERTIES TIMEOUT 210
     )
+
+    if (MY_TEST_SEQUENTIAL)
+        set_tests_properties(${MY_TEST_NAME} PROPERTIES LABELS SEQUENTIAL)
+    endif()
 
     if(MY_TEST_ENVIRONMENT)
         # Set environment variables for the test.

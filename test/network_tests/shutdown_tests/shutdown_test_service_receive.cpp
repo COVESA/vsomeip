@@ -16,7 +16,7 @@
 
 #include "shutdown_test_globals.hpp"
 #include <vsomeip/internal/logger.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class shutdown_test_service {
 public:
@@ -109,9 +109,6 @@ TEST(someip_shutdown_test, receive_message__send_reply_and_wait_for_shutdown) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::GTEST_FLAG(throw_on_failure) = true;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

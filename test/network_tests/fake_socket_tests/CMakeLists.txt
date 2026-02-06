@@ -11,7 +11,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(${PROJECT_NAME}
     helpers/app.cpp
     helpers/app_connection.cpp

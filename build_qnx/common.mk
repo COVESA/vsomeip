@@ -24,8 +24,8 @@ CMAKE_BUILD_TYPE ?= Release
 #set the following to TRUE if you want to compile the vsomeip tests.
 #If you do, make sure to set GTEST_ROOT to point to the google test library sources
 GENERATE_TESTS ?= TRUE
-TEST_IP_MASTER ?= XXX.XXX.XXX.XXX
-TEST_IP_SLAVE ?= XXX.XXX.XXX.XXX
+TEST_IP_MASTER ?= 127.0.0.1
+TEST_IP_SLAVE ?= 127.0.0.1
 
 #set the following to FALSE if generating .pinfo files is causing problems
 GENERATE_PINFO_FILES ?= TRUE

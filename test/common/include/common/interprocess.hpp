@@ -94,6 +94,37 @@ struct bounded_channel_t {
         return value;
     }
 
+    /**
+     * @brief Receive an expected value, skip all the rest
+     */
+    bool receive_until(T val, size_t timeout_ms) {
+        bip::scoped_lock<bip::interprocess_mutex> lock(mutex_);
+        auto deadline = boost::posix_time::microsec_clock::universal_time() + boost::posix_time::milliseconds(timeout_ms);
+        while (true) {
+            auto now = boost::posix_time::microsec_clock::universal_time();
+            if (now >= deadline) {
+                return false;
+            }
+
+            auto timeout_point = now + boost::posix_time::milliseconds(100);
+            bool result = full_condition_.timed_wait(lock, timeout_point, [this]() { return has_data_; });
+            if (!result) {
+                continue;
+            }
+
+            if (data_ == val) {
+                break;
+            } else {
+                has_data_ = false;
+                empty_condition_.notify_all();
+            }
+        }
+
+        has_data_ = false;
+        empty_condition_.notify_all();
+        return true;
+    }
+
 private:
     bip::interprocess_mutex mutex_;
     bip::interprocess_condition empty_condition_;

@@ -30,7 +30,7 @@
         {
             "name":"routingmanagerd",
             "unicast":"@TEST_IP_MASTER@",
-            "port":"31490"
+            "port":"13000"
         }
     },
     "service-discovery":

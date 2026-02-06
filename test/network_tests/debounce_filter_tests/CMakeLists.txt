@@ -14,12 +14,10 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(debounce_filter_test_client
     debounce_filter_test_client.cpp
 )
 
-# Add test executable.
 add_executable(debounce_filter_test_service
     debounce_filter_test_service.cpp
 )
@@ -32,8 +30,8 @@ set(executables
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")
 
-# Add custom test command.
 add_custom_test(
     NAME debounce_filter_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/debounce_filter_test_master_starter.sh
+    SEQUENTIAL
 )

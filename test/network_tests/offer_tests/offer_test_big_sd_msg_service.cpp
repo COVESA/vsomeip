@@ -22,7 +22,7 @@
 #include "offer_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class offer_test_big_sd_msg_service {
 public:
@@ -146,8 +146,6 @@ TEST(someip_offer_test_big_sd_msg, notify_increasing_counter) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif

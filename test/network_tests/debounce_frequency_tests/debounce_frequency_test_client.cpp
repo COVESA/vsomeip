@@ -7,7 +7,7 @@
 #include <iomanip>
 
 #include <vsomeip/internal/logger.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 #include "debounce_frequency_test_client.hpp"
 
@@ -113,7 +113,5 @@ TEST(debounce_frequency_test, client) {
 }
 
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }

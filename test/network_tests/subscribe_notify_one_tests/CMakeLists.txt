@@ -18,7 +18,6 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-# Add test executable.
 add_executable(subscribe_notify_one_test_service
     subscribe_notify_one_test_service.cpp
 )
@@ -27,23 +26,23 @@ add_executable(subscribe_notify_one_test_service
 targets_add_default_dependencies(subscribe_notify_one_test_service)
 targets_link_default_libraries(subscribe_notify_one_test_service)
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_one_test_diff_client_ids_diff_ports_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_one_test_master_starter.sh
         UDP subscribe_notify_one_test_diff_client_ids_diff_ports_master_udp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_one_test_diff_client_ids_diff_ports_tcp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_one_test_master_starter.sh
         TCP subscribe_notify_one_test_diff_client_ids_diff_ports_master_tcp.json
+    SEQUENTIAL
 )
 
-# Add custom test command.
 add_custom_test(
     NAME subscribe_notify_one_test_diff_client_ids_diff_ports_both_tcp_and_udp
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/subscribe_notify_one_test_master_starter.sh
         TCP_AND_UDP subscribe_notify_one_test_diff_client_ids_diff_ports_master.json
+    SEQUENTIAL
 )

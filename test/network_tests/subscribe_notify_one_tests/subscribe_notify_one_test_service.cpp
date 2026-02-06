@@ -22,7 +22,7 @@
 #include "subscribe_notify_one_test_globals.hpp"
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
-#include "common/timeout_detector.hpp"
+#include "common/test_main.hpp"
 
 class subscribe_notify_one_test_service {
 public:
@@ -371,8 +371,6 @@ TEST(someip_subscribe_notify_one_test, send_ten_notifications_to_service) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td;
-    ::testing::InitGoogleTest(&argc, argv);
     if (argc < 3) {
         std::cerr << "Please specify a service number and event reliability type, like: " << argv[0] << " 2 UDP" << std::endl;
         std::cerr << "Valid service numbers are in the range of [1,6]" << std::endl;
@@ -391,6 +389,6 @@ int main(int argc, char** argv) {
         reliability_type = vsomeip::reliability_type_e::RT_BOTH;
     }
 
-    return RUN_ALL_TESTS();
+    return test_main(argc, argv);
 }
 #endif
