@@ -179,12 +179,19 @@ TEST_F(test_protocol_messages, ensure_sequence_of_event_registration) {
     ASSERT_TRUE(subscribe_to_event());
 
     using namespace vsomeip_v3::protocol;
-    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+    // SUBSCRIBE_ID/CONFIG_ID are send in parallel and might appear in different orders in the record
+    auto const expected_sequence1 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy
             {client_to_server_, id_e::SUBSCRIBE_ID},
             {server_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy for the service
             {server_to_client_, id_e::SUBSCRIBE_ACK_ID}};
-    EXPECT_EQ(expected_sequence, *record_);
+    auto const expected_sequence2 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy
+            {server_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy for the service
+            {client_to_server_, id_e::SUBSCRIBE_ID},
+            {server_to_client_, id_e::SUBSCRIBE_ACK_ID}};
+    bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
+    EXPECT_TRUE(is_any) << *record_;
 }
 TEST_F(test_protocol_messages, ensure_sequence_of_field_registration) {
     // collect all message over both connection between a client and the router
@@ -197,14 +204,23 @@ TEST_F(test_protocol_messages, ensure_sequence_of_field_registration) {
     ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 
     using namespace vsomeip_v3::protocol;
-    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+    // SUBSCRIBE_ID/CONFIG_ID are send in parallel and might appear in different orders in the record
+    auto const expected_sequence1 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the server
             {client_to_server_, id_e::SUBSCRIBE_ID},
             {server_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy for the service
             {server_to_client_, id_e::SUBSCRIBE_ACK_ID},
             {server_to_client_, id_e::SEND_ID} // initial event
     };
-    EXPECT_EQ(expected_sequence, *record_);
+    auto const expected_sequence2 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {client_to_server_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the server
+            {server_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy for the service
+            {client_to_server_, id_e::SUBSCRIBE_ID},
+            {server_to_client_, id_e::SUBSCRIBE_ACK_ID},
+            {server_to_client_, id_e::SEND_ID} // initial event
+    };
+    bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
+    EXPECT_TRUE(is_any) << *record_;
 }
 
 TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {

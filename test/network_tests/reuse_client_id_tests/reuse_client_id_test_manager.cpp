@@ -18,7 +18,8 @@
 #include "common/test_main.hpp"
 #include "reuse_client_id_test_globals.hpp"
 
-#define REGISTRATION_TIMEOUT_MS 6
+// 20 is intentionally generous, execution times (especially with valgrind) can be quite long
+#define REGISTRATION_TIMEOUT_MS 20
 #define CLIENT_1_IDX 0
 #define CLIENT_2_IDX 1
 #define CLIENT_3_IDX 2

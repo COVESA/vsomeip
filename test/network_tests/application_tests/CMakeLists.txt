@@ -33,9 +33,11 @@ set(executable_targets
 targets_add_default_dependencies("${executable_targets}")
 targets_link_default_libraries("${executable_targets}")
 
+# TODO: FIXME, remove SEQUENTIAL
 add_custom_test(
     NAME application_test
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/application_test_starter.sh
+    SEQUENTIAL
 )
 
 add_custom_test(

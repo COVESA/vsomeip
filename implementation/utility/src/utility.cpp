@@ -31,22 +31,22 @@
 #include "../../configuration/include/configuration.hpp"
 
 static std::string base_path() {
-    static std::string path = []() {
-        std::string p;
+    static std::string* path = []() {
+        std::string* p;
         if (const char* e = std::getenv(VSOMEIP_ENV_BASE_PATH); e != nullptr && e[0] != '\0') {
-            p = std::string(e);
+            p = new std::string(e);
         } else {
-            p = std::string(VSOMEIP_BASE_PATH);
+            p = new std::string(VSOMEIP_BASE_PATH);
         }
 
-        if (p.empty() || p.back() != '/') {
-            p.push_back('/');
+        if (p->empty() || p->back() != '/') {
+            p->push_back('/');
         }
 
         return p;
     }();
 
-    return path;
+    return *path;
 }
 
 namespace vsomeip_v3 {
