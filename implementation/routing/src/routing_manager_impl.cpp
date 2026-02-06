@@ -557,6 +557,21 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
                 discovery_->release_service(_service, _instance);
                 discovery_->unsubscribe_all(_service, _instance);
             }
+
+            // Flush client endpoints before clearing them
+            if (auto its_reliable_endpoint = its_info->get_endpoint(true)) {
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing reliable client endpoint queues for service [" << std::hex
+                             << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
+                             << std::setw(4) << _client << " (remote: " << its_reliable_endpoint->get_remote_information() << ")";
+                its_reliable_endpoint->flush_queue();
+            }
+            if (auto its_unreliable_endpoint = its_info->get_endpoint(false)) {
+                VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing unreliable client endpoint queues for service [" << std::hex
+                             << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
+                             << std::setw(4) << _client << " (remote: " << its_unreliable_endpoint->get_remote_information() << ")";
+                its_unreliable_endpoint->flush_queue();
+            }
+
             ep_mgr_impl_->clear_client_endpoints(_service, _instance, true);
             ep_mgr_impl_->clear_client_endpoints(_service, _instance, false);
             its_info->set_endpoint(nullptr, true);
@@ -1461,6 +1476,21 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
     if (its_info) {
         std::shared_ptr<boardnet_endpoint> its_reliable_endpoint = its_info->get_endpoint(true);
         std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint = its_info->get_endpoint(false);
+
+        if (its_reliable_endpoint) {
+            VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing reliable server endpoint queues for service [" << std::hex
+                         << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
+                         << std::setw(4) << _client << " (local port: " << std::dec << its_reliable_endpoint->get_local_port()
+                         << ", remote information: " << its_reliable_endpoint->get_remote_information() << ")";
+            its_reliable_endpoint->flush_queue();
+        }
+        if (its_unreliable_endpoint) {
+            VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing unreliable server endpoint queues for service [" << std::hex
+                         << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
+                         << std::setw(4) << _client << " (local port: " << std::dec << its_unreliable_endpoint->get_local_port()
+                         << ", remote information: " << its_unreliable_endpoint->get_remote_information() << ")";
+            its_unreliable_endpoint->flush_queue();
+        }
 
         for (const auto& ep : {its_reliable_endpoint, its_unreliable_endpoint}) {
             if (ep == nullptr) {
@@ -4129,6 +4159,7 @@ std::shared_ptr<local_endpoint> routing_manager_impl::find_routing_endpoint(clie
 }
 
 void routing_manager_impl::try_to_send_before_stop() {
+    ep_mgr_impl_->flush_boardnet_endpoint_queues();
     ep_mgr_->flush_local_endpoint_queues();
     ep_mgr_impl_->flush_routing_endpoint_queues();
 }

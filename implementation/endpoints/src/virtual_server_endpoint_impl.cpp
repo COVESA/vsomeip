@@ -84,6 +84,10 @@ std::uint16_t virtual_server_endpoint_impl::get_remote_port() const {
     return ILLEGAL_PORT;
 }
 
+std::string virtual_server_endpoint_impl::get_remote_information() const {
+    return address_ + ":" + std::to_string(port_);
+}
+
 bool virtual_server_endpoint_impl::is_reliable() const {
     return reliable_;
 }
@@ -101,4 +105,7 @@ void virtual_server_endpoint_impl::print_status() { }
 size_t virtual_server_endpoint_impl::get_queue_size() const {
     return 0;
 }
+
+void virtual_server_endpoint_impl::flush_queue() { }
+
 } // namespace vsomeip_v3

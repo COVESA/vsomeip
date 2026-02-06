@@ -94,8 +94,6 @@ public:
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type);
 
-    void try_to_send_before_stop();
-
 private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
@@ -171,6 +169,8 @@ private:
     port_t get_routing_port();
 
     void on_suspend();
+
+    void try_to_send_before_stop();
 
     /**
      * @brief Remove all remote subscriptions.

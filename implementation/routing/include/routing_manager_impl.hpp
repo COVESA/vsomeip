@@ -222,8 +222,6 @@ public:
 
     bool is_external_routing_ready() const;
 
-    void try_to_send_before_stop();
-
 private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
@@ -334,6 +332,8 @@ private:
                                 const boost::asio::ip::address& _remote_address) const;
 
     bool has_subscribed_eventgroup(service_t _service, instance_t _instance) const;
+
+    void try_to_send_before_stop();
 
     /// Whether the `_client` is valid for the given message `_type`.
     ///

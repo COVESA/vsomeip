@@ -16,6 +16,7 @@
 #include "../include/tcp_server_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../include/io_control_operation.hpp"
 
 namespace ip = boost::asio::ip;
 
@@ -920,6 +921,34 @@ std::string tcp_server_endpoint_impl::get_remote_information(const endpoint_type
     return _remote.address().to_string() + ":" + std::to_string(_remote.port());
 }
 
+std::string tcp_server_endpoint_impl::get_remote_information() const {
+    std::stringstream its_info;
+    std::scoped_lock<std::mutex> its_lock(mutex_);
+
+    if (targets_.empty()) {
+        its_info << "no clients (Nothing to send)";
+    } else {
+        its_info << targets_.size() << " client(s): ";
+        // NOTE: limit is important, do *NOT* want an arbitrarily big string!
+        // libdlt behaves very poorly with arbitrarily-long strings
+        size_t its_max = std::min(size_t(10), targets_.size());
+        size_t count = 0;
+        bool first = true;
+        for (const auto& target : targets_) {
+            if (count >= its_max)
+                break;
+            if (!first)
+                its_info << ", ";
+            its_info << target.first.address().to_string() << ":" << target.first.port();
+            first = false;
+            count++;
+        }
+        if (targets_.size() > its_max)
+            its_info << " ...";
+    }
+    return its_info.str();
+}
+
 void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::error_code& _error) {
     std::shared_ptr<tcp_server_endpoint_impl> its_server(server_.lock());
     if (!its_server)
@@ -950,4 +979,113 @@ void tcp_server_endpoint_impl::connection::wait_until_sent(const boost::system::
     its_server->remove_connection(remote_, this);
 }
 
+void tcp_server_endpoint_impl::flush_queue() {
+    std::unique_lock its_lock(mutex_);
+
+    // STEP 1: Force all current trains to dispatched_trains_ if not empty
+    for (auto it = targets_.begin(); it != targets_.end();) {
+        auto& its_data = it->second;
+        if (its_data.train_ && its_data.train_->buffer_ && !its_data.train_->buffer_->empty()) {
+            schedule_train(its_data);
+            its_data.train_ = std::make_shared<train>();
+            its_data.train_->departure_ = std::chrono::steady_clock::now();
+        }
+
+        // STEP 2: Move ALL dispatched_trains_ to queue at once for all targets
+        while (!its_data.dispatched_trains_.empty()) {
+            auto its_dispatched = its_data.dispatched_trains_.begin();
+            for (const auto& train_item : its_dispatched->second) {
+                its_data.queue_size_ += train_item->buffer_->size();
+                its_data.queue_.emplace_back(train_item->buffer_, 0);
+            }
+            its_data.dispatched_trains_.erase(its_dispatched);
+        }
+
+        // STEP 3: Force start sending if idle for all targets
+        if (!its_data.is_sending_ && !its_data.queue_.empty()) {
+            send_queued(it);
+        }
+        ++it;
+    }
+
+    boost::system::error_code ec;
+    uint32_t retry_count(0);
+    while (true) {
+        bool is_sending = false;
+        for (auto const& [remote_ep, endpoint_type] : targets_) {
+            size_t kernel_buffer_size = get_send_buffer_size(remote_ep, ec);
+            if (ec) {
+                VSOMEIP_WARNING << "tsei::" << __func__ << ": fail to read send_buffer_size "
+                                << "(" << ec.value() << "): " << ec.message();
+                continue;
+            }
+
+            is_sending = is_sending || endpoint_type.is_sending_ || !endpoint_type.queue_.empty() || kernel_buffer_size > 0;
+            if (is_sending) {
+                VSOMEIP_INFO << "tsei::" << __func__ << ": is_sending_ : " << std::boolalpha << endpoint_type.is_sending_
+                             << " queue_.size(): " << endpoint_type.queue_.size() << " kernel_buffer_size: " << kernel_buffer_size;
+            }
+        }
+
+        if (is_sending) {
+            VSOMEIP_WARNING << "tsei::" << __func__ << ": waiting[" << retry_count << "] to complete send";
+
+            its_lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
+            its_lock.lock();
+        } else {
+            break;
+        }
+        ++retry_count;
+        if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
+            VSOMEIP_ERROR << "tsei::" << __func__ << ": max retries reached to send! will lose data";
+            break;
+        }
+    }
+}
+
+size_t tcp_server_endpoint_impl::get_send_buffer_size(const endpoint_type& _remote, boost::system::error_code& _ec) {
+#if defined(__linux__) || defined(__QNX__)
+    std::scoped_lock its_lock(connections_mutex_);
+
+    auto connection_it = connections_.find(_remote);
+    if (connection_it == connections_.end()) {
+        VSOMEIP_WARNING << instance_name_ << __func__ << ": connection not found for " << get_remote_information(_remote);
+        _ec = boost::asio::error::not_connected;
+        return 0;
+    }
+
+    auto its_connection = connection_it->second;
+    if (!its_connection) {
+        VSOMEIP_WARNING << instance_name_ << __func__ << ": connection pointer is null for " << get_remote_information(_remote);
+        _ec = boost::asio::error::not_connected;
+        return 0;
+    }
+
+    // Lock the socket for this specific connection
+    std::unique_lock<std::mutex> its_socket_lock = its_connection->get_socket_lock();
+    socket_type& its_socket = its_connection->get_socket();
+
+    if (!its_socket.is_open()) {
+        VSOMEIP_WARNING << instance_name_ << __func__ << ": socket is not open for " << get_remote_information(_remote);
+        _ec = boost::asio::error::not_connected;
+        return 0;
+    }
+
+    // Use io_control to get the number of bytes in the send buffer
+    io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
+    its_socket.io_control(send_buffer_size_cmd, _ec);
+    if (_ec) {
+        VSOMEIP_WARNING << instance_name_ << __func__ << ": io_control failed for " << get_remote_information(_remote) << " ("
+                        << _ec.value() << "): " << _ec.message();
+        return 0;
+    }
+
+    return send_buffer_size_cmd.get();
+#else
+    (void)_remote;
+    _ec.clear();
+    return 0;
+#endif
+}
 } // namespace vsomeip_v3
