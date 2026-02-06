@@ -270,13 +270,17 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         VSOMEIP_ERROR << "ucei::" << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
                       << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
                       << get_local_port() << " from " << remote_.address() << ":" << remote_.port() << ". Message will be dropped";
+
+        receive();
         return;
-    }
-    if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
+    } else if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
         VSOMEIP_ERROR << "ucei::" << __func__ << ": Dropping packet that is smaller than VSOMEIP_FULL_HEADER_SIZE (16). size=" << _bytes
                       << " remote=" << remote_;
+
+        receive();
         return;
     }
+
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
     if (!_error && 0 < _bytes && its_host) {
         std::size_t remaining_bytes = _bytes;
@@ -286,12 +290,15 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
             uint64_t read_message_size = utility::get_message_size(&(*_recv_buffer)[i], remaining_bytes);
             if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
                 VSOMEIP_ERROR << "Message size exceeds allowed maximum!";
+                receive();
                 return;
             }
+
             uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
             if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE && current_message_size <= remaining_bytes) {
                 if (remaining_bytes - current_message_size > remaining_bytes) {
                     VSOMEIP_ERROR << "buffer underflow in udp client endpoint ~> abort!";
+                    receive();
                     return;
                 } else if (current_message_size > VSOMEIP_RETURN_CODE_POS
                            && ((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION
@@ -314,6 +321,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                       << std::uint32_t((*_recv_buffer)[i + VSOMEIP_RETURN_CODE_POS])
                                       << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                     }
+
                     receive();
                     return;
                 } else if (tp::tp::tp_flag_is_set((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])) {
@@ -338,6 +346,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
             i += current_message_size;
         } while (remaining_bytes > 0);
     }
+
     if (!_error) {
         receive();
     } else {
