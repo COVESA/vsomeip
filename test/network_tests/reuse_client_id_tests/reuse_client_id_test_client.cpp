@@ -13,6 +13,7 @@
 #include "common/test_main.hpp"
 
 namespace bpi = boost::interprocess;
+namespace vt = vsomeip_test;
 
 uint16_t expected_clientid;
 bool expected_to_register;
@@ -30,7 +31,7 @@ void reuse_client_id_test_client::on_state(vsomeip::state_type_e _state) {
             ip_sync->client_status_[app_id_] =
                     reuse_client_id::reuse_client_id_test_interprocess_sync::registration_status::STATE_REGISTERED;
         }
-        reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(ip_sync->client_cv_);
+        vt::interprocess_utils::notify_all_component_unlocked(ip_sync->client_cv_);
     }
 }
 
@@ -57,8 +58,7 @@ void reuse_client_id_test_client::run() {
     auto restart = std::thread([&] {
         {
             bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
-            reuse_client_id::reuse_client_id_test_interprocess_utils::wait_and_check_unlocked(ip_sync->client_cv_, its_lock, 10,
-                                                                                              ip_sync->restart_clients_[app_id_], true);
+            vt::interprocess_utils::wait_and_check_unlocked(ip_sync->client_cv_, its_lock, 10, ip_sync->restart_clients_[app_id_], true);
         }
 
         if (expected_to_register) {
@@ -77,8 +77,8 @@ void reuse_client_id_test_client::run() {
             // wait for other client to register
             {
                 bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
-                reuse_client_id::reuse_client_id_test_interprocess_utils::wait_and_check_unlocked(
-                        ip_sync->client_cv_, its_lock, 10, ip_sync->restart_clients_[app_id_], false);
+                vt::interprocess_utils::wait_and_check_unlocked(ip_sync->client_cv_, its_lock, 10, ip_sync->restart_clients_[app_id_],
+                                                                false);
             }
             restarted = true;
             app_->start();
@@ -88,8 +88,7 @@ void reuse_client_id_test_client::run() {
     // wait for notify from test manager
     {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
-        reuse_client_id::reuse_client_id_test_interprocess_utils::wait_and_check_unlocked(ip_sync->client_cv_, its_lock, 10,
-                                                                                          ip_sync->stop_clients_[app_id_], true);
+        vt::interprocess_utils::wait_and_check_unlocked(ip_sync->client_cv_, its_lock, 10, ip_sync->stop_clients_[app_id_], true);
     }
 
     // prevent restart
@@ -99,7 +98,7 @@ void reuse_client_id_test_client::run() {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
         ip_sync->restart_clients_[app_id_] = true;
     }
-    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(ip_sync->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(ip_sync->client_cv_);
 
     EXPECT_EQ(is_registered, expected_to_register);
 

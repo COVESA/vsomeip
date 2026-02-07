@@ -28,6 +28,8 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
 
+namespace vt = vsomeip_test;
+
 class availability_handler_test_client {
 public:
     availability_handler_test_client() {
@@ -105,7 +107,7 @@ private:
             availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
 
             app_->clear_all_handler();
-            availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
         }
 
         app_->stop();
@@ -127,7 +129,7 @@ private:
 
         availability_handler_shared_->reregister_status_ = availability_handler::availability_handler_test_steps::REREGISTER_DONE;
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -147,7 +149,7 @@ private:
 
         local_client_cv_.notify_one();
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
     }
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
@@ -178,7 +180,7 @@ private:
 
         availability_handler_shared_->request_status_ = availability_handler::availability_handler_test_steps::REQUESTS_SENT;
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
     }
 };
 

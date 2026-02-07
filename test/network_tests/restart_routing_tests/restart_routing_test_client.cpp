@@ -10,6 +10,7 @@
 #include <boost/interprocess/managed_shared_memory.hpp>
 
 namespace bpi = boost::interprocess;
+namespace vt = vsomeip_test;
 
 routing_restart_test_client::routing_restart_test_client(uint32_t app_id) :
     app_(vsomeip::runtime::get()->create_application()), is_available_(false), received_responses_(0), app_id_{app_id} { }
@@ -34,7 +35,7 @@ void routing_restart_test_client::on_state(vsomeip::state_type_e _state) {
             ip_sync->client_status_[app_id_] =
                     restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED;
         }
-        restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(ip_sync->client_cv_);
+        vt::interprocess_utils::notify_all_component_unlocked(ip_sync->client_cv_);
     }
 }
 
@@ -105,9 +106,9 @@ void routing_restart_test_client::run() {
 
     {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
-        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        vt::interprocess_utils::assert_wait_and_check_unlocked(
                 ip_sync->client_cv_, its_lock, 10, ip_sync->sending_status_,
-                restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES));
+                restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES);
     }
 
     std::uint32_t its_sent_requests(0);

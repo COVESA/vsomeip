@@ -19,6 +19,7 @@
 #include "restart_routing_test_globals.hpp"
 
 namespace bpi = boost::interprocess;
+namespace vt = vsomeip_test;
 
 const std::string service_executor("./restart_routing_test_service");
 const std::string client_executor("./restart_routing_test_client");
@@ -98,9 +99,9 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        vt::interprocess_utils::assert_wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
     }
 
     // Restart host.
@@ -115,7 +116,7 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->sending_status_ = restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES;
     }
-    restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
     EXPECT_EQ(service.wait(), 0);
@@ -155,9 +156,9 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_servic
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        vt::interprocess_utils::assert_wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
     }
 
     // Restart host.
@@ -173,7 +174,7 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_servic
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->sending_status_ = restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES;
     }
-    restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
     for (const auto& client : clients) {
@@ -212,9 +213,9 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        vt::interprocess_utils::assert_wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
     }
 
     // Restart host.
@@ -229,7 +230,7 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->sending_status_ = restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES;
     }
-    restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
     EXPECT_EQ(service.wait(), 0);
@@ -270,9 +271,9 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        ASSERT_TRUE(restart_routing::restart_routing_test_interprocess_utils::wait_and_check_unlocked(
+        vt::interprocess_utils::assert_wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
     }
 
     // Restart host.
@@ -287,7 +288,7 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->sending_status_ = restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES;
     }
-    restart_routing::restart_routing_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // Wait for processes termination and test exit code.
     EXPECT_EQ(service.wait(), 0);

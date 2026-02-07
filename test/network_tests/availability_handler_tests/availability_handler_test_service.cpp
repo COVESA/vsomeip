@@ -29,6 +29,8 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
 
+namespace vt = vsomeip_test;
+
 class availability_handler_test_service {
 public:
     availability_handler_test_service() {
@@ -108,7 +110,7 @@ private:
 
         availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
 
         app_->clear_all_handler();
 
@@ -134,7 +136,7 @@ private:
 
         local_service_cv_.notify_one();
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
     }
 
     void send_offers() {
@@ -147,7 +149,7 @@ private:
 
         availability_handler_shared_->offer_status_ = availability_handler::availability_handler_test_steps::OFFERS_SENT;
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
     }
 
     void send_stop_offers() {
@@ -160,7 +162,7 @@ private:
 
         availability_handler_shared_->offer_status_ = availability_handler::availability_handler_test_steps::STOP_OFFERS_SENT;
 
-        availability_handler::availability_handler_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
     }
 };
 

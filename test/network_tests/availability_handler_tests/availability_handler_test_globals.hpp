@@ -7,7 +7,7 @@
 
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include "../someip_test_utils.hpp"
 
 namespace availability_handler {
 
@@ -34,32 +34,6 @@ struct availability_handler_test_steps {
     releasing_status release_status_ = SERVICES_NOT_RELEASED;
     availability_received_status availability_status_ = AVAILABILITY_NOT_RECEIVED;
     reregistering_status reregister_status_ = REREGISTER_NOT_DONE;
-};
-
-class availability_handler_utils {
-public:
-    // To be used on test_manager side
-    template<typename T>
-    static void wait_and_check_unlocked(boost::interprocess::interprocess_condition& cv,
-                                        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock, int timeout_s,
-                                        T& value_to_check, T expected_value) {
-        boost::posix_time::ptime timeout = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(timeout_s);
-
-        cv.timed_wait(its_lock, timeout, [&] { return value_to_check == expected_value; });
-
-        ASSERT_EQ(value_to_check, expected_value);
-    }
-
-    static void notify_component_unlocked(boost::interprocess::interprocess_condition& cv) { cv.notify_one(); }
-
-    // To be used on components side
-    static void notify_and_wait_unlocked(boost::interprocess::interprocess_condition& cv,
-                                         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock) {
-
-        cv.notify_one();
-
-        cv.wait(its_lock);
-    }
 };
 
 }

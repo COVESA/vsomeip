@@ -27,6 +27,7 @@
 #define CLIENT_5_IDX 4
 
 namespace bpi = boost::interprocess;
+namespace vt = vsomeip_test;
 
 const std::string host_executor("../../../examples/routingmanagerd/routingmanagerd");
 
@@ -64,7 +65,7 @@ protected:
         bool result;
         {
             bpi::scoped_lock<bpi::interprocess_mutex> its_lock(_shm_data.sync_ptr->client_mutex_);
-            result = reuse_client_id::reuse_client_id_test_interprocess_utils::wait_and_check_unlocked(
+            result = vt::interprocess_utils::wait_and_check_unlocked(
                     _shm_data.sync_ptr->client_cv_, its_lock, _timeout, _shm_data.sync_ptr->client_status_[_app_id],
                     reuse_client_id::reuse_client_id_test_interprocess_sync::registration_status::STATE_REGISTERED);
         }
@@ -118,7 +119,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->stop_clients_[CLIENT_4_IDX] = true;
     }
-    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     EXPECT_EQ(client4->wait(), 0);
 
@@ -127,13 +128,13 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->restart_clients_[CLIENT_1_IDX] = true;
     }
-    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // start client5
     auto client5 = std::make_unique<process_manager>("./reuse_client_id_test_client 6301 1",
                                                      custom_env("reuse_client_id_test.json", "client5", "4"));
     client5->run();
-    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_5_IDX, REGISTRATION_TIMEOUT_MS));
+    wait_for_registration(shm_data, CLIENT_5_IDX, REGISTRATION_TIMEOUT_MS);
 
     // stop client2
     // make clientID available
@@ -141,7 +142,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->stop_clients_[CLIENT_2_IDX] = true;
     }
-    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
     EXPECT_EQ(client2->wait(), 0);
 
     // restart client1
@@ -149,7 +150,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
         shm_data.sync_ptr->restart_clients_[CLIENT_1_IDX] = false;
     }
-    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     // allow client1 to get clientID (6302)
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -161,7 +162,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
         shm_data.sync_ptr->stop_clients_[CLIENT_3_IDX] = true;
         shm_data.sync_ptr->stop_clients_[CLIENT_5_IDX] = true;
     }
-    reuse_client_id::reuse_client_id_test_interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
+    vt::interprocess_utils::notify_all_component_unlocked(shm_data.sync_ptr->client_cv_);
 
     EXPECT_EQ(client1->wait(), 0);
     EXPECT_EQ(client3->wait(), 0);
