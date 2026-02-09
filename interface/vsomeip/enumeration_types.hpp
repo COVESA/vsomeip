@@ -12,6 +12,11 @@ namespace vsomeip_v3 {
 
 enum class state_type_e : uint8_t { ST_REGISTERED = 0x0, ST_DEREGISTERED = 0x1 };
 
+enum class availability_reason_e : uint8_t {
+    NO_REASON = 0x00,
+    OFFER_SERVICE_TTL_EXPIRED = 0x01,
+};
+
 // SIP_RPC_684
 enum class message_type_e : uint8_t {
     MT_REQUEST = 0x00,

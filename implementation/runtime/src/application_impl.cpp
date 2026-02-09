@@ -898,8 +898,8 @@ void application_impl::register_availability_handler(service_t _service, instanc
                                                      major_version_t _major, minor_version_t _minor) {
 
     std::scoped_lock availability_lock{availability_mutex_};
-    auto its_handler_ext = [_handler](service_t _service_inner, instance_t _instance_inner, availability_state_e _state) {
-        _handler(_service_inner, _instance_inner, (_state == availability_state_e::AS_AVAILABLE));
+    auto its_handler_ext = [_handler](service_t _service_inner, instance_t _instance_inner, availability_state_e _state, availability_reason_e reason) {
+      _handler(_service_inner, _instance_inner, (_state == availability_state_e::AS_AVAILABLE), reason);
     };
 
     register_availability_handler_unlocked(_service, _instance, its_handler_ext, _major, _minor);
@@ -938,7 +938,7 @@ void application_impl::invoke_availability_handler(service_t _service, instance_
 
                         std::scoped_lock handlers_lock{handlers_mutex_};
                         auto its_sync_handler = std::make_shared<sync_handler>(
-                                [its_handler, _service, _instance, its_state]() { its_handler(_service, _instance, its_state); });
+                            [its_handler, _service, _instance, its_state]() { its_handler(_service, _instance, its_state, availability_reason_e::NO_REASON); });
                         its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
                         its_sync_handler->service_id_ = _service;
                         its_sync_handler->instance_id_ = _instance;
@@ -963,7 +963,7 @@ void application_impl::register_availability_handler_unlocked(service_t _service
     availability_[_service][_instance][_major][_minor] = std::make_pair(_handler, its_availability_state);
 
     auto add_sync_handler = [&](service_t _srvc, instance_t _nstnc, const availability_state_handler_t& _hndlr, availability_state_e _stt) {
-        auto its_sync_handler = std::make_shared<sync_handler>([_hndlr, _srvc, _nstnc, _stt]() { _hndlr(_srvc, _nstnc, _stt); });
+      auto its_sync_handler = std::make_shared<sync_handler>([_hndlr, _srvc, _nstnc, _stt]() { _hndlr(_srvc, _nstnc, _stt, availability_reason_e::NO_REASON); });
         its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
         its_sync_handler->service_id_ = _srvc;
         its_sync_handler->instance_id_ = _nstnc;
@@ -1544,7 +1544,7 @@ void application_impl::set_availability_state(availability_state_t& _availabilit
 }
 
 void application_impl::on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                                       minor_version_t _minor) {
+                                       minor_version_t _minor, availability_reason_e _reason) {
 
     std::vector<availability_state_handler_t> its_handlers;
     {
@@ -1636,7 +1636,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             std::scoped_lock handlers_lock{handlers_mutex_};
             for (const auto& handler : its_handlers) {
                 auto its_sync_handler =
-                        std::make_shared<sync_handler>([handler, _service, _instance, _state]() { handler(_service, _instance, _state); });
+                    std::make_shared<sync_handler>([handler, _service, _instance, _state, _reason]() { handler(_service, _instance, _state, _reason); });
                 its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
                 its_sync_handler->service_id_ = _service;
                 its_sync_handler->instance_id_ = _instance;

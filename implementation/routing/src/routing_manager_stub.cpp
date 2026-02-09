@@ -742,7 +742,7 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
         }
     }
     for (const auto& s : services_to_report) {
-        host_->on_availability(std::get<0>(s), std::get<1>(s), availability_state_e::AS_UNAVAILABLE, std::get<2>(s), std::get<3>(s));
+      host_->on_availability(std::get<0>(s), std::get<1>(s), availability_state_e::AS_UNAVAILABLE, std::get<2>(s), std::get<3>(s), availability_reason_e::NO_REASON);
         host_->on_stop_offer_service(_client, std::get<0>(s), std::get<1>(s), std::get<2>(s), std::get<3>(s));
     }
 }

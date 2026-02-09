@@ -437,7 +437,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     erase_offer_command(_service, _instance);
     if (stub_)
         stub_->on_offer_service(_client, _service, _instance, _major, _minor);
-    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
+    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor, availability_reason_e::NO_REASON);
 
     VSOMEIP_INFO << "OFFER(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4) << _service << "."
                  << std::setw(4) << _instance << ":" << std::dec << int(_major) << "." << _minor << "]"
@@ -1131,7 +1131,7 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance, 
 }
 
 void routing_manager_impl::on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                                           minor_version_t _minor) {
+                                           minor_version_t _minor, availability_reason_e reason) {
     // insert subscriptions of routing manager into service discovery
     // to send SubscribeEventgroup after StopOffer / Offer was received
     if (_state == availability_state_e::AS_AVAILABLE) {
@@ -1153,7 +1153,7 @@ void routing_manager_impl::on_availability(service_t _service, instance_t _insta
             }
         }
     }
-    host_->on_availability(_service, _instance, _state, _major, _minor);
+    host_->on_availability(_service, _instance, _state, _major, _minor, reason);
 }
 
 bool routing_manager_impl::offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
@@ -1540,7 +1540,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                         erase_offer_command(_service, _instance);
                         if (stub_)
                             stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-                        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+                        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor, availability_reason_e::NO_REASON);
                     } else {
                         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
                     }
@@ -1559,7 +1559,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
             erase_offer_command(_service, _instance);
             if (stub_)
                 stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-            on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+            on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor, availability_reason_e::NO_REASON);
         }
 
         std::set<std::shared_ptr<eventgroupinfo>> its_eventgroup_info_set;
@@ -1581,7 +1581,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         erase_offer_command(_service, _instance);
         if (stub_)
             stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor, availability_reason_e::NO_REASON);
     }
 }
 
@@ -2118,7 +2118,8 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                          its_info->get_minor())) {
                     stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
-                    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
+                    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor(),
+                                    availability_reason_e::NO_REASON);
                     if (discovery_) {
                         discovery_->on_endpoint_connected(_service, _instance, ep);
                     }
@@ -2134,7 +2135,8 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 }
             }
         } else {
-            on_availability(_service, _instance, availability_state_e::AS_OFFERED, its_info->get_major(), its_info->get_minor());
+            on_availability(_service, _instance, availability_state_e::AS_OFFERED, its_info->get_major(), its_info->get_minor(),
+                            availability_reason_e::NO_REASON);
         }
     }
 
@@ -2167,7 +2169,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     if (ep->is_established()) {
                         stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
                         on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(),
-                                        its_info->get_minor());
+                                        its_info->get_minor(), availability_reason_e::NO_REASON);
                         if (discovery_) {
                             discovery_->on_endpoint_connected(_service, _instance, ep);
                         }
@@ -2180,20 +2182,22 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 }
             }
         } else {
-            on_availability(_service, _instance, availability_state_e::AS_OFFERED, _major, _minor);
+          on_availability(_service, _instance, availability_state_e::AS_OFFERED, _major, _minor, availability_reason_e::NO_REASON);
         }
     }
 }
 
 void routing_manager_impl::del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable,
-                                            bool _trigger_availability) {
+                                            bool _trigger_availability, bool ttl_expired) {
 
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
     if (!its_info)
         return;
 
     if (_trigger_availability) {
-        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, its_info->get_major(), its_info->get_minor());
+        const auto reason =
+                ttl_expired ? availability_reason_e::OFFER_SERVICE_TTL_EXPIRED : availability_reason_e::NO_REASON;
+        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, its_info->get_major(), its_info->get_minor(), reason);
         if (stub_)
             stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
     }
@@ -2299,7 +2303,7 @@ void routing_manager_impl::update_routing_info(std::chrono::milliseconds _elapse
                 // go to Initial Wait Phase
                 discovery_->reset_request_sent_counter(s.first, i);
             }
-            del_routing_info(s.first, i, true, true, true);
+            del_routing_info(s.first, i, true, true, true, true);
             VSOMEIP_INFO << "rmi::" << __func__ << ": update_routing_info: elapsed=" << _elapsed.count() << " : delete service/instance "
                          << std::hex << std::setfill('0') << std::setw(4) << s.first << "." << std::setw(4) << i;
         }
@@ -4086,7 +4090,7 @@ void routing_manager_impl::service_endpoint_connected(service_t _service, instan
                                                       minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
     if (stub_)
         stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
-    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
+    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor, availability_reason_e::NO_REASON);
 
     auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
     its_timer->expires_after(std::chrono::milliseconds(3));
@@ -4100,7 +4104,7 @@ void routing_manager_impl::service_endpoint_connected(service_t _service, instan
 void routing_manager_impl::service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major,
                                                          minor_version_t _minor, const std::shared_ptr<endpoint>& _endpoint) {
     (void)_endpoint;
-    on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+    on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor, availability_reason_e::NO_REASON);
     if (stub_)
         stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
     VSOMEIP_WARNING << "rmi::" << __func__ << ": lost connection to remote service: [" << std::hex << std::setfill('0') << std::setw(4)

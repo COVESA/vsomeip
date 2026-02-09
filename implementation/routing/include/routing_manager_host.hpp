@@ -32,7 +32,7 @@ public:
     virtual boost::asio::io_context& get_io() = 0;
 
     virtual void on_availability(service_t _service, instance_t _instance, availability_state_e _state,
-                                 major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR) = 0;
+                                 major_version_t _major = DEFAULT_MAJOR, minor_version_t _minor = DEFAULT_MINOR, availability_reason_e _reason = availability_reason_e::NO_REASON) = 0;
     virtual void on_state(state_type_e _state) = 0;
     virtual void on_message(std::shared_ptr<message>&& _message) = 0;
     virtual void on_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client,

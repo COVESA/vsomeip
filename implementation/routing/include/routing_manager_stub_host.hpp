@@ -64,7 +64,7 @@ public:
                                        minor_version_t _minor) = 0;
 
     virtual void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                                 minor_version_t _minor) = 0;
+                                 minor_version_t _minor, availability_reason_e reason) = 0;
 
     virtual std::shared_ptr<endpoint> find_local(client_t _client) = 0;
 

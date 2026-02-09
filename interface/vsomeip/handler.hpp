@@ -10,6 +10,7 @@
 #include <memory>
 #include <tuple>
 
+#include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/deprecated.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip_sec.h>
@@ -20,8 +21,8 @@ class message;
 
 typedef std::function<void(state_type_e)> state_handler_t;
 typedef std::function<void(const std::shared_ptr<message>&)> message_handler_t;
-typedef std::function<void(service_t, instance_t, bool)> availability_handler_t;
-typedef std::function<void(service_t, instance_t, availability_state_e)> availability_state_handler_t;
+typedef std::function<void(service_t, instance_t, bool, availability_reason_e)> availability_handler_t;
+typedef std::function<void(service_t, instance_t, availability_state_e, availability_reason_e)> availability_state_handler_t;
 VSOMEIP_DEPRECATED_UID_GID typedef std::function<bool(client_t, uid_t, gid_t, bool)> subscription_handler_t;
 VSOMEIP_DEPRECATED_UID_GID typedef std::function<bool(client_t, uid_t, gid_t, const std::string&, bool)> subscription_handler_ext_t;
 typedef std::function<void(const uint16_t)> error_handler_t;

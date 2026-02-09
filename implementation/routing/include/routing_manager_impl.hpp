@@ -119,7 +119,7 @@ public:
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                         minor_version_t _minor);
+                         minor_version_t _minor, availability_reason_e reason);
 
     void on_pong(client_t _client);
 
@@ -152,7 +152,7 @@ public:
     void add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                           const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,
                           const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port);
-    void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable, bool _trigger_availability);
+    void del_routing_info(service_t _service, instance_t _instance, bool _has_reliable, bool _has_unreliable, bool _trigger_availability, bool ttl_expired = false);
     void update_routing_info(std::chrono::milliseconds _elapsed);
 
     // Handle remote subscriptions / subscription acks

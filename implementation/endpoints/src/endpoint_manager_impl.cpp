@@ -882,7 +882,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<endpoint> _endpoint) {
                     if (!is_reliable) {
                         static_cast<routing_manager_impl*>(rm_)->on_availability(its_service.first, its_instance.first,
                                                                                  availability_state_e::AS_UNAVAILABLE,
-                                                                                 its_info->get_major(), its_info->get_minor());
+                                                                                 its_info->get_major(), its_info->get_minor(), availability_reason_e::NO_REASON);
                     }
                     static_cast<routing_manager_impl*>(rm_)->service_endpoint_disconnected(
                             its_service.first, its_instance.first, its_info->get_major(), its_info->get_minor(), _endpoint);
