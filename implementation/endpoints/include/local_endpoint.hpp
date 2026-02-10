@@ -166,6 +166,8 @@ public:
      *
      * Messages are queued and sent asynchronously.
      * Queue size is determined from configuration.
+     *
+     * Note that the messages are only send out after start() has been called.
      */
     bool send(byte_t const* _data, uint32_t _size);
 
@@ -236,6 +238,10 @@ private:
     std::string status_unlock() const;
 
 private:
+    // this flag indicates whether sending is already allowed, after
+    // starting already connected. Before le::start() had been called,
+    // nothing should have been send.
+    bool is_started_{false};
     bool is_sending_{false};
     state_e state_{state_e::STOPPED};
     client_t own_{VSOMEIP_CLIENT_UNSET};

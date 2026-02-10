@@ -368,6 +368,44 @@ TEST_F(test_client_helper, re_registered_client_deletes_client_info) {
                                   std::chrono::milliseconds(10)));
 }
 
+TEST_F(test_client_helper, when_a_client_connection_is_broken_just_after_accept_then_it_can_be_cleand_up) {
+
+    /**
+     * 1. The client attempts to connect
+     * 2. router receives the connection and answers the assign_client_id
+     * 3. router tries to send the config_id
+     * 4. connection is broken
+     * 5. endpoint on router side would enter the failed state (if it could)
+     * 6. endpoint_manager only now registers the error handler
+     * 7. endpoint did not clean-up itself.
+     **/
+    start_router();
+    auto disconnect_on_assign_command = [this](auto const& _command) {
+        if (_command.id_ == vsomeip_v3::protocol::id_e::ASSIGN_CLIENT_ACK_ID) {
+            // 1. ensure the connection is broken
+            if (!disconnect(client_name_, boost::asio::error::timed_out, routingmanager_name_, std::nullopt)) {
+                TEST_LOG << "[ERROR] this shouldn't happen!!!!!";
+            }
+            // 2. second registration attempt should be successful
+            set_custom_command_handler(client_name_, routingmanager_name_, nullptr);
+        }
+        return false;
+    };
+    // some iterations are needed as the former defect would only sometimes manifest
+    // But due to the test inherent restart of the sender (+debounce of the restart),
+    // any iteration is costing 100ms -> keep the iteration count low, to ensure
+    // this test is at least flaky.
+    for (int i = 0; i < 5; ++i) {
+        set_custom_command_handler(client_name_, routingmanager_name_, disconnect_on_assign_command, socket_role::server);
+
+        client_ = start_client(client_name_);
+        ASSERT_NE(client_, nullptr);
+        ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        stop_client(client_name_);
+        create_app(client_name_);
+    }
+}
+
 TEST_F(test_client_helper, request_reply_no_sub) {
     start_apps();
 

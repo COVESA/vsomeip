@@ -79,6 +79,7 @@ local_endpoint::~local_endpoint() {
 
 void local_endpoint::start() {
     std::unique_lock lock{mutex_};
+    is_started_ = true;
     if (state_ == state_e::INIT) {
         connect_unlock();
     } else if (state_ == state_e::CONNECTED) {
@@ -94,10 +95,10 @@ void local_endpoint::start() {
                 }
                 if (!process(0, inner_lock)) {
                     escalate_internal(inner_lock);
+                    return;
                 }
-                // sending does not need to be called, as nothing can be stale
-                // in the queue when the endpoint is started as a connected endpoint
-                // (if something would have been send, it is already on its way)
+                // only now we allow sending
+                send_unlock();
             }
         });
     } else {
@@ -268,7 +269,7 @@ void local_endpoint::receive_unlock() {
             });
 }
 void local_endpoint::send_unlock() {
-    if (state_ == state_e::CONNECTED && !is_sending_) {
+    if (is_started_ && state_ == state_e::CONNECTED && !is_sending_) {
         send_buffer_unlock();
     } else if (state_ == state_e::STOPPED || state_ == state_e::FAILED) {
         // any `send` in this state is "interesting", so log it
