@@ -10,6 +10,8 @@
 
 #include <boost/asio/ip/address.hpp>
 
+#include <vsomeip/enumeration_types.hpp>
+
 #include "protocol.hpp"
 
 namespace vsomeip_v3 {
@@ -40,6 +42,9 @@ public:
     const std::vector<service>& get_services() const;
     void add_service(const service& _service);
 
+    availability_reason_e get_reason() const;
+    void set_reason(availability_reason_e _reason);
+
 private:
     routing_info_entry_type_e type_;
 
@@ -49,6 +54,7 @@ private:
     port_t port_;
 
     std::vector<service> services_;
+    availability_reason_e reason_;
 };
 
 } // namespace protocol

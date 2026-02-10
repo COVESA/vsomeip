@@ -14,10 +14,11 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-routing_info_entry::routing_info_entry() : type_(routing_info_entry_type_e::RIE_UNKNOWN), port_(0) { }
+routing_info_entry::routing_info_entry() : type_(routing_info_entry_type_e::RIE_UNKNOWN), port_(0), reason_(availability_reason_e::NO_REASON) { }
 
 routing_info_entry::routing_info_entry(const routing_info_entry& _source) :
-    type_(_source.type_), client_(_source.client_), address_(_source.address_), port_(_source.port_), services_(_source.services_) { }
+    type_(_source.type_), client_(_source.client_), address_(_source.address_), port_(_source.port_), services_(_source.services_),
+    reason_(_source.reason_) { }
 
 void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index, error_e& _error) const {
 
@@ -68,6 +69,8 @@ void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index,
     }
 
     if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
+        _buffer[_index] = static_cast<byte_t>(reason_);
+        _index += sizeof(byte_t);
 
         its_size = (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
 
@@ -155,6 +158,12 @@ void routing_info_entry::deserialize(const std::vector<byte_t>& _buffer, size_t&
     }
 
     if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
+        if (_buffer.size() < _index + sizeof(byte_t)) {
+            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+            return;
+        }
+        reason_ = static_cast<availability_reason_e>(_buffer[_index]);
+        _index += sizeof(byte_t);
 
         if (_buffer.size() < _index + sizeof(its_size)) {
 
@@ -214,6 +223,7 @@ size_t routing_info_entry::get_size() const {
 
     if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
         its_size += sizeof(uint32_t); // size of the client info
+        its_size += sizeof(byte_t); // availability reason
         its_size += sizeof(uint32_t); // size of the services array
         its_size += (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
     }
@@ -259,6 +269,14 @@ const std::vector<service>& routing_info_entry::get_services() const {
 void routing_info_entry::add_service(const service& _service) {
 
     services_.push_back(_service);
+}
+
+availability_reason_e routing_info_entry::get_reason() const {
+    return reason_;
+}
+
+void routing_info_entry::set_reason(availability_reason_e _reason) {
+    reason_ = _reason;
 }
 
 } // namespace protocol

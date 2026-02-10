@@ -2199,7 +2199,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
                 ttl_expired ? availability_reason_e::OFFER_SERVICE_TTL_EXPIRED : availability_reason_e::NO_REASON;
         on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, its_info->get_major(), its_info->get_minor(), reason);
         if (stub_)
-            stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
+            stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor(), reason);
     }
 
     // Implicit unsubscribe

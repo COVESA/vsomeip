@@ -50,7 +50,8 @@ public:
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) override;
 
     void on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
-    void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
+    void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                               availability_reason_e _reason = availability_reason_e::NO_REASON);
 
     bool send_subscribe(const std::shared_ptr<endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
                         eventgroup_t _eventgroup, major_version_t _major, event_t _event,
@@ -133,7 +134,8 @@ private:
     void distribute_credentials(client_t _hoster, service_t _service, instance_t _instance);
 
     void inform_requesters(client_t _hoster, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                           protocol::routing_info_entry_type_e _entry, bool _inform_service);
+                           protocol::routing_info_entry_type_e _entry, bool _inform_service,
+                           availability_reason_e _reason = availability_reason_e::NO_REASON);
 
     void broadcast_ping() const;
     void on_ping(client_t _client);

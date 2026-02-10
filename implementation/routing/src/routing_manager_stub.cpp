@@ -770,6 +770,7 @@ void routing_manager_stub::on_register_application_ack(client_t _client) {
         its_entry.set_type(service_available ? protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
                                              : protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
         its_entry.set_client(service_provider_client);
+        its_entry.set_reason(availability_reason_e::NO_REASON);
 
         // For local tcp
         boost::asio::ip::address its_address;
@@ -936,11 +937,12 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
     if (configuration_->is_security_enabled()) {
         distribute_credentials(_client, _service, _instance);
     }
-    inform_requesters(_client, _service, _instance, _major, _minor, protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE, true);
+    inform_requesters(_client, _service, _instance, _major, _minor, protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE, true,
+                      availability_reason_e::NO_REASON);
 }
 
 void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                                 minor_version_t _minor) {
+                                                 minor_version_t _minor, availability_reason_e _reason) {
 
     VSOMEIP_DEBUG << "ON_STOP_OFFER_SERVICE (" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
                   << _service << "." << std::setw(4) << _instance << ":" << std::dec << static_cast<int>(_major) << "." << _minor << "]";
@@ -959,14 +961,14 @@ void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _se
                         found_client->second.second.erase(_service);
                     }
                     inform_requesters(_client, _service, _instance, _major, _minor,
-                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE, false);
+                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE, false, _reason);
                 } else if (_major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR) {
                     found_service->second.erase(_instance);
                     if (0 == found_service->second.size()) {
                         found_client->second.second.erase(_service);
                     }
                     inform_requesters(_client, _service, _instance, _major, _minor,
-                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE, false);
+                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE, false, _reason);
                 }
             }
         }
@@ -1092,7 +1094,8 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
 }
 
 void routing_manager_stub::inform_requesters(client_t _hoster, service_t _service, instance_t _instance, major_version_t _major,
-                                             minor_version_t _minor, protocol::routing_info_entry_type_e _type, bool _inform_service) {
+                                             minor_version_t _minor, protocol::routing_info_entry_type_e _type, bool _inform_service,
+                                             availability_reason_e _reason) {
 
     boost::asio::ip::address its_address;
     port_t its_port;
@@ -1121,6 +1124,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                     protocol::routing_info_entry its_entry;
                     its_entry.set_type(_type);
                     its_entry.set_client(_hoster);
+                    its_entry.set_reason(_reason);
                     if ((_type == protocol::routing_info_entry_type_e::RIE_ADD_CLIENT
                          || _type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE)
                         && host_->get_guest(_hoster, its_address, its_port)) {
