@@ -37,11 +37,15 @@ public:
     VSOMEIP_EXPORT void* load_symbol(void* _handle, const std::string& _symbol);
     VSOMEIP_EXPORT void unload_library(void* _handle);
 
+    void register_static_plugin(plugin_type_e _type, create_plugin_func _factory);
+
 private:
+    std::shared_ptr<plugin> load_static_plugin(plugin_type_e _type, uint32_t _version);
     void add_plugin(const std::shared_ptr<plugin>& _plugin, const std::string& _name);
 
     std::map<plugin_type_e, std::map<std::string, std::shared_ptr<plugin>>> plugins_;
     std::map<plugin_type_e, std::map<std::string, void*>> handles_;
+    std::map<plugin_type_e, create_plugin_func> static_factories_;
     std::recursive_mutex plugins_mutex_;
 
     static std::shared_ptr<plugin_manager_impl> the_plugin_manager__;

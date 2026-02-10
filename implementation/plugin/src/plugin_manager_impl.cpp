@@ -33,9 +33,13 @@
 
 namespace vsomeip_v3 {
 
-std::shared_ptr<plugin_manager_impl> plugin_manager_impl::the_plugin_manager__ = std::make_shared<plugin_manager_impl>();
+std::shared_ptr<plugin_manager_impl> plugin_manager_impl::the_plugin_manager__ = nullptr;
 
 std::shared_ptr<plugin_manager_impl> plugin_manager_impl::get() {
+    static std::once_flag initialization_flag;
+    std::call_once(initialization_flag, []() {
+        the_plugin_manager__ = std::make_shared<plugin_manager_impl>();
+    });
     return the_plugin_manager__;
 }
 
@@ -59,6 +63,11 @@ std::shared_ptr<plugin> plugin_manager_impl::get_plugin(plugin_type_e _type, con
 }
 
 std::shared_ptr<plugin> plugin_manager_impl::load_plugin(const std::string& _library, plugin_type_e _type, uint32_t _version) {
+    if (auto its_plugin = load_static_plugin(_type, _version)) {
+        handles_[_type][_library] = nullptr;
+        add_plugin(its_plugin, _library);
+        return its_plugin;
+    }
     void* handle = load_library(_library);
     plugin_init_func its_init_func = reinterpret_cast<plugin_init_func>(load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
     if (its_init_func) {
@@ -75,6 +84,26 @@ std::shared_ptr<plugin> plugin_manager_impl::load_plugin(const std::string& _lib
                 }
             }
         }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<plugin> plugin_manager_impl::load_static_plugin(plugin_type_e _type, uint32_t _version) {
+    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    auto its_factory = static_factories_.find(_type);
+    if (its_factory == static_factories_.end()) {
+        return nullptr;
+    }
+    auto its_create_func = its_factory->second;
+    if (!its_create_func) {
+        return nullptr;
+    }
+    auto its_plugin = (*its_create_func)();
+    if (its_plugin && its_plugin->get_plugin_type() == _type && its_plugin->get_plugin_version() == _version) {
+        return its_plugin;
+    }
+    if (its_plugin) {
+        VSOMEIP_ERROR << "Plugin version mismatch. Ignoring static plugin " << its_plugin->get_plugin_name();
     }
     return nullptr;
 }
@@ -102,6 +131,11 @@ bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
 
 void plugin_manager_impl::add_plugin(const std::shared_ptr<plugin>& _plugin, const std::string& _name) {
     plugins_[_plugin->get_plugin_type()][_name] = _plugin;
+}
+
+void plugin_manager_impl::register_static_plugin(plugin_type_e _type, create_plugin_func _factory) {
+    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    static_factories_[_type] = _factory;
 }
 
 void* plugin_manager_impl::load_library(const std::string& _path) {

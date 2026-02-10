@@ -11,4 +11,8 @@ std::shared_ptr<plugin_manager> plugin_manager::get() {
     return plugin_manager_impl::get();
 }
 
+void plugin_manager::register_static_plugin(plugin_type_e _type, create_plugin_func _factory) {
+    plugin_manager_impl::get()->register_static_plugin(_type, _factory);
+}
+
 } // namespace vsomeip_v3
