@@ -5,6 +5,7 @@
 
 #include <vsomeip/defines.hpp>
 #include <vsomeip/message.hpp>
+#include <vsomeip/internal/plugin_manager.hpp>
 
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
@@ -12,9 +13,8 @@
 #include "../include/runtime_impl.hpp"
 #include "../include/service_discovery_impl.hpp"
 
-VSOMEIP_PLUGIN(vsomeip_v3::sd::runtime_impl)
-
 namespace vsomeip_v3 {
+
 namespace sd {
 
 runtime_impl::runtime_impl() : plugin_impl("vsomeip SD plug-in", 1, plugin_type_e::SD_RUNTIME_PLUGIN) { }
@@ -27,4 +27,17 @@ std::shared_ptr<service_discovery> runtime_impl::create_service_discovery(servic
 }
 
 } // namespace sd
+
+namespace {
+
+struct sd_plugin_registrar {
+    sd_plugin_registrar() {
+        plugin_manager::register_static_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, sd::runtime_impl::get_plugin);
+    }
+};
+
+const sd_plugin_registrar sd_plugin_registrar_{};
+
+} // namespace
+
 } // namespace vsomeip_v3

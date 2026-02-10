@@ -4,11 +4,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/internal/logger.hpp>
+#include <vsomeip/internal/plugin_manager.hpp>
 
 #include "../include/configuration_plugin_impl.hpp"
 #include "../include/configuration_impl.hpp"
-
-VSOMEIP_PLUGIN(vsomeip_v3::configuration_plugin_impl)
 
 namespace vsomeip_v3 {
 
@@ -37,4 +36,17 @@ bool configuration_plugin_impl::remove_configuration(const std::string& _name) {
     std::scoped_lock its_lock(mutex_);
     return configurations_.erase(_name) > 0;
 }
+
+namespace {
+
+struct configuration_plugin_static_registrar {
+    configuration_plugin_static_registrar() {
+        plugin_manager::register_static_plugin(plugin_type_e::CONFIGURATION_PLUGIN,
+                                               configuration_plugin_impl::get_plugin);
+    }
+};
+
+const configuration_plugin_static_registrar configuration_plugin_static_registrar_{};
+
+} // namespace
 } // namespace vsomeip_v3
