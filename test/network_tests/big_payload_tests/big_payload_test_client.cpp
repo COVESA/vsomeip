@@ -233,10 +233,6 @@ void big_payload_test_client::run() {
 
     app_->send(request_);
 
-    // magic sleep to give time for the last message to be sent
-    // TODO: FIXME! REMOVE THIS!
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
     stop();
 }
 

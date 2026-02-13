@@ -64,9 +64,14 @@ void debounce_test_client::run() {
     VSOMEIP_INFO << __func__ << ": Stopping the service.";
     stop_service();
 
-    // magic sleep to give time for the last message to be sent
-    // TODO: FIXME! REMOVE THIS!
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    // Wait for service to become unavailable before stopping client
+    // This ensures the service has completed its cleanup before the next test starts
+    {
+        std::unique_lock<std::mutex> its_lock(run_mutex_);
+        if (!run_condition_.wait_for(its_lock, std::chrono::seconds(2), [this] { return !is_available_; })) {
+            VSOMEIP_WARNING << "Service did not become unavailable within timeout";
+        }
+    }
 
     stop();
 }

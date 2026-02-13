@@ -124,10 +124,6 @@ public:
                 its_set->set_method(service_info_.shutdown_method_id);
                 app_->send(its_set);
 
-                // magic sleep to give time for the last message to be sent
-                // TODO: FIXME! REMOVE THIS!
-                std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
                 stop();
             }
         }

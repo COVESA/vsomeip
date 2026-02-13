@@ -111,10 +111,6 @@ TEST(someip_initial_event_test, boardnet_client) {
     // Host should be restart by manager at this point.
     ASSERT_TRUE(client_consumer.wait_for_initial_event(2)) << "Failed to receive initial event after master host restart";
     client_consumer.send_message();
-
-    // magic sleep to give time for the last message to be sent
-    // TODO: FIXME! REMOVE THIS!
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 }
 
 #if defined(__linux__) || defined(__QNX__)

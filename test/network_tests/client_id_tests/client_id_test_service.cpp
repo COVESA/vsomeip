@@ -195,7 +195,8 @@ public:
             condition_.notify_one();
         }
 
-        // magic sleep to give time for the last message to be sent
+        // magic sleep to give time for the last message to be sent and processed by the client before STOP_OFFER is sent, otherwise the
+        // client may drop the message and the test will fail
         // TODO: FIXME! REMOVE THIS!
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
