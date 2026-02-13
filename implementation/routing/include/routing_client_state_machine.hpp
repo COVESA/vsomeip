@@ -353,6 +353,9 @@ private:
     /// Client-id for logging
     client_t client_ = VSOMEIP_CLIENT_UNSET;
 
+    /// Former Client-id for logging
+    client_t former_client_ = VSOMEIP_CLIENT_UNSET;
+
     /// Protects all state and timers
     mutable std::mutex mtx_;
 

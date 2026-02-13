@@ -75,6 +75,8 @@ void routing_client_state_machine::target_running() {
         return false;
     }
 
+    VSOMEIP_INFO << "rcsm::" << __func__ << ": former client id: 0x" << hex4(former_client_) << ", new 0x" << hex4(_client);
+    former_client_ = client_;
     client_ = _client;
     change_state_unlocked(routing_client_state_e::ST_ASSIGNED);
     return true;
@@ -168,6 +170,10 @@ void routing_client_state_machine::registration_timed_out() {
 
 void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock) {
     change_state_unlocked(routing_client_state_e::ST_DEREGISTERED);
+    if (client_ != VSOMEIP_CLIENT_UNSET) {
+        // stash the last meaningful client id, to be able to tell whether the client id changed across registration states
+        former_client_ = client_;
+    }
     client_ = VSOMEIP_CLIENT_UNSET;
     if (registration_timebox_) {
         registration_timebox_->stop();
