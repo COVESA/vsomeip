@@ -186,8 +186,7 @@ filter_id_t channel_impl::add_filter(const match_t& _from, const match_t& _to, f
     // Check usage of ANY_* which is forbidden here
     if (std::get<0>(_from) == ANY_SERVICE || std::get<1>(_from) == ANY_INSTANCE || std::get<2>(_from) == ANY_METHOD
         || std::get<0>(_to) == ANY_SERVICE || std::get<1>(_to) == ANY_INSTANCE || std::get<2>(_to) == ANY_METHOD) {
-        VSOMEIP_ERROR << "Trace filter configuration error: "
-                         "You must not use wildcards in range filters.";
+        VSOMEIP_ERROR << "Trace filter configuration error: You must not use wildcards in range filters.";
         return FILTER_ID_ERROR;
     }
 

@@ -19,6 +19,8 @@
 #endif // ANDROID
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../utility/include/utility.hpp"
+
+#define VSOMEIP_LOG_PREFIX "eventgroupinfo"
 namespace vsomeip_v3 {
 
 eventgroupinfo::eventgroupinfo() :
@@ -107,7 +109,7 @@ std::set<std::shared_ptr<event>> eventgroupinfo::get_events() const {
 void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
 
     if (_event == nullptr) {
-        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        VSOMEIP_ERROR_P << "Received ptr is null";
         return;
     }
 
@@ -144,7 +146,7 @@ void eventgroupinfo::add_event(const std::shared_ptr<event>& _event) {
 void eventgroupinfo::remove_event(const std::shared_ptr<event>& _event) {
 
     if (_event == nullptr) {
-        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        VSOMEIP_ERROR_P << "Received ptr is null";
         return;
     }
 
@@ -203,7 +205,7 @@ bool eventgroupinfo::update_remote_subscription(const std::shared_ptr<remote_sub
     bool its_result(false);
 
     if (_subscription == nullptr) {
-        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        VSOMEIP_ERROR_P << "Received ptr is null";
         return its_result;
     }
 
@@ -282,7 +284,7 @@ bool eventgroupinfo::is_remote_subscription_limit_reached(const std::shared_ptr<
     bool limit_reached(false);
 
     if (_subscription == nullptr) {
-        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        VSOMEIP_ERROR_P << "Received ptr is null";
         return limit_reached;
     }
 
@@ -295,7 +297,7 @@ bool eventgroupinfo::is_remote_subscription_limit_reached(const std::shared_ptr<
         auto find_address = remote_subscribers_count_.find(its_address);
         if (find_address != remote_subscribers_count_.end()) {
             if (find_address->second >= max_remote_subscribers_) {
-                VSOMEIP_WARNING << ": remote subscriber limit [" << std::dec << static_cast<uint32_t>(max_remote_subscribers_) << "] to ["
+                VSOMEIP_WARNING << "Remote subscriber limit [" << std::dec << static_cast<uint32_t>(max_remote_subscribers_) << "] to ["
                                 << hex4(service_) << "." << hex4(instance_) << "." << hex4(eventgroup_) << "]"
                                 << " reached for remote address: " << its_address.to_string() << " rejecting subscription!";
                 return true;
@@ -308,7 +310,7 @@ bool eventgroupinfo::is_remote_subscription_limit_reached(const std::shared_ptr<
 remote_subscription_id_t eventgroupinfo::add_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription) {
 
     if (_subscription == nullptr) {
-        VSOMEIP_ERROR << __func__ << ": Received ptr is null";
+        VSOMEIP_ERROR_P << "Received ptr is null";
         return id_;
     }
     std::scoped_lock its_lock(subscriptions_mutex_);
@@ -419,9 +421,9 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
                     its_unreliable_events.insert(its_event);
                     break;
                 default:
-                    VSOMEIP_WARNING << __func__ << "Event reliability unknown: [" << hex4(service_) << "." << hex4(instance_) << "."
-                                    << hex4(eventgroup_) << "." << hex4(service_) << "." << hex4(instance_) << "." << hex4(eventgroup_)
-                                    << "." << hex4(eventgroup_) << "." << hex4(its_event->get_event()) << "]";
+                    VSOMEIP_WARNING_P << "Event reliability unknown: [" << hex4(service_) << "." << hex4(instance_) << "."
+                                      << hex4(eventgroup_) << "." << hex4(service_) << "." << hex4(instance_) << "." << hex4(eventgroup_)
+                                      << "." << hex4(eventgroup_) << "." << hex4(its_event->get_event()) << "]";
                 }
             }
         }
@@ -433,7 +435,7 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
             for (const auto& its_event : its_reliable_events)
                 its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _reliable);
         } else {
-            VSOMEIP_ERROR << __func__ << ": Received ptr (_reliable) is null";
+            VSOMEIP_ERROR_P << "Received ptr (_reliable) is null";
         }
     }
 
@@ -442,7 +444,7 @@ void eventgroupinfo::send_initial_events(const std::shared_ptr<endpoint_definiti
             for (const auto& its_event : its_unreliable_events)
                 its_event->notify_one(VSOMEIP_ROUTING_CLIENT, _unreliable);
         } else {
-            VSOMEIP_ERROR << __func__ << ": Received ptr (_unreliable) is null";
+            VSOMEIP_ERROR_P << "Received ptr (_unreliable) is null";
         }
     }
 }

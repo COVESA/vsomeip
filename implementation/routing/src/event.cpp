@@ -22,6 +22,8 @@
 #include "../../message/include/payload_impl.hpp"
 #include "../../utility/include/utility.hpp"
 
+#define VSOMEIP_LOG_PREFIX "event"
+
 namespace vsomeip_v3 {
 
 event::event(routing_manager* _routing, bool _is_shadow) :
@@ -64,8 +66,8 @@ void event::set_version(major_version_t _major) {
         return;
     }
     if (major != 0x00) {
-        VSOMEIP_ERROR << __func__ << std::hex << ": Trying to change version from non-default value. old=" << static_cast<int>(major)
-                      << " new=" << static_cast<int>(_major);
+        VSOMEIP_ERROR_P << "Trying to change version from non-default value. old=" << static_cast<int>(major)
+                        << " new=" << static_cast<int>(_major);
         return;
     }
     current_->set_interface_version(_major);
@@ -147,8 +149,8 @@ void event::set_payload(const std::shared_ptr<payload>& _payload, bool _force) {
             }
         }
     } else {
-        VSOMEIP_INFO << __func__ << ":" << __LINE__ << " Cannot set payload for event [" << hex4(current_->get_service()) << "."
-                     << hex4(current_->get_instance()) << "." << hex4(current_->get_method()) << "]. It isn't provided";
+        VSOMEIP_INFO_P << "Cannot set payload for event [" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
+                       << hex4(current_->get_method()) << "]. It isn't provided";
     }
 }
 
@@ -163,8 +165,8 @@ void event::set_payload(const std::shared_ptr<payload>& _payload, client_t _clie
             }
         }
     } else {
-        VSOMEIP_INFO << __func__ << ":" << __LINE__ << " Cannot set payload for event [" << hex4(current_->get_service()) << "."
-                     << hex4(current_->get_instance()) << "." << hex4(current_->get_method()) << "]. It isn't provided";
+        VSOMEIP_INFO_P << "Cannot set payload for event [" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
+                       << hex4(current_->get_method()) << "]. It isn't provided";
     }
 }
 
@@ -180,8 +182,8 @@ void event::set_payload(const std::shared_ptr<payload>& _payload, const client_t
             }
         }
     } else {
-        VSOMEIP_INFO << __func__ << ":" << __LINE__ << " Cannot set payload for event [" << hex4(current_->get_service()) << "."
-                     << hex4(current_->get_instance()) << "." << hex4(current_->get_method()) << "]. It isn't provided";
+        VSOMEIP_INFO_P << "Cannot set payload for event [" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
+                       << hex4(current_->get_method()) << "]. It isn't provided";
     }
 }
 
@@ -309,8 +311,8 @@ void event::notify(bool _force) {
         set_session();
         routing_->send(VSOMEIP_ROUTING_CLIENT, update_, _force);
     } else {
-        VSOMEIP_INFO << __func__ << ": Notifying" << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
-                     << " failed. Event payload not (yet) set!";
+        VSOMEIP_INFO_P << "Notifying" << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
+                       << " failed. Event payload not (yet) set!";
     }
 }
 
@@ -320,8 +322,8 @@ void event::notify_one(client_t _client, const std::shared_ptr<endpoint_definiti
         std::scoped_lock its_lock(mutex_);
         notify_one_unlocked(_client, _target);
     } else {
-        VSOMEIP_WARNING << __func__ << ": Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
-                        << " failed. Target undefined";
+        VSOMEIP_WARNING_P << "Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
+                          << " failed. Target undefined";
     }
 }
 
@@ -332,13 +334,13 @@ void event::notify_one_unlocked(client_t _client, const std::shared_ptr<endpoint
             set_session();
             routing_->send_to(_client, _target, update_);
         } else {
-            VSOMEIP_INFO << __func__ << ": Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
-                         << hex4(get_instance()) << "." << hex4(get_event()) << " failed. Event payload not (yet) set!";
+            VSOMEIP_INFO_P << "Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
+                           << hex4(get_instance()) << "." << hex4(get_event()) << " failed. Event payload not (yet) set!";
             pending_.insert(_target);
         }
     } else {
-        VSOMEIP_WARNING << __func__ << ": Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
-                        << " failed. Target undefined";
+        VSOMEIP_WARNING_P << "Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
+                          << " failed. Target undefined";
     }
 }
 
@@ -354,9 +356,8 @@ void event::notify_one_unlocked(client_t _client, bool _force) {
         set_session();
         routing_->send(_client, update_, _force);
     } else {
-        VSOMEIP_INFO << __func__ << ": Initial value for [" << hex4(get_service()) << "." << hex4(get_instance()) << "."
-                     << hex4(get_event()) << "] not yet set by the service/client."
-                     << " Client " << _client << " will not receive any initial notification!";
+        VSOMEIP_INFO_P << "Initial value for [" << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
+                       << "] not yet set by the service/client. Client " << hex4(_client) << " will not receive any initial notification!";
     }
 }
 
@@ -523,9 +524,9 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
         ret = eventgroups_[_eventgroup].insert(_client).second;
 
     } else {
-        VSOMEIP_WARNING << __func__ << ": Didnt' insert client " << hex4(_client) << " to eventgroup 0x" << hex4(get_service()) << "."
-                        << hex4(get_instance()) << "." << hex4(_eventgroup) << " _force: " << _force << " is_provided_: " << is_provided_
-                        << " is_shadow_: " << is_shadow_ << " is_cache_placeholder_: " << is_cache_placeholder_;
+        VSOMEIP_WARNING_P << "Didn't insert client " << hex4(_client) << " to eventgroup 0x" << hex4(get_service()) << "."
+                          << hex4(get_instance()) << "." << hex4(_eventgroup) << " _force: " << _force << " is_provided_: " << is_provided_
+                          << " is_shadow_: " << is_shadow_ << " is_cache_placeholder_: " << is_cache_placeholder_;
     }
     return ret;
 }
@@ -732,8 +733,8 @@ void event::set_reliability(const reliability_type_e _reliability) {
         return;
     }
     if (reliability_ != reliability_type_e::RT_UNKNOWN) {
-        VSOMEIP_ERROR << __func__ << std::hex << ": Trying to change reliability from non-default value. old="
-                      << static_cast<int>(reliability_.load(std::memory_order_acquire)) << " new=" << static_cast<int>(_reliability);
+        VSOMEIP_ERROR_P << "Trying to change reliability from non-default value. old="
+                        << static_cast<int>(reliability_.load(std::memory_order_acquire)) << " new=" << static_cast<int>(_reliability);
         return;
     }
     current_->set_reliable(_reliability == reliability_type_e::RT_RELIABLE);
@@ -762,8 +763,8 @@ void event::set_payload_filled(const bool value) {
     const bool is_internal_provider = is_provided_ != is_shadow_;
     const bool is_field = type_ == event_type_e::ET_FIELD;
     if (has_changed && is_internal_provider && is_field) {
-        VSOMEIP_INFO << "event{id=" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
-                     << hex4(current_->get_method()) << "}::" << __func__ << ": value=" << std::boolalpha << value;
+        VSOMEIP_INFO_P << "event [id=" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
+                       << hex4(current_->get_method()) << "]:: value=" << std::boolalpha << value;
     }
 }
 

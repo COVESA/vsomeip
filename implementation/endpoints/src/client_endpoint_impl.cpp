@@ -24,6 +24,8 @@
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
 
+#define VSOMEIP_LOG_PREFIX "cei"
+
 namespace vsomeip_v3 {
 
 template<typename Protocol>
@@ -138,8 +140,7 @@ bool client_endpoint_impl<Protocol>::send_to(const std::shared_ptr<endpoint_defi
     (void)_target;
     (void)_data;
     (void)_size;
-    VSOMEIP_ERROR << "Clients endpoints must not be used to "
-                  << "send to explicitely specified targets";
+    VSOMEIP_ERROR << "Clients endpoints must not be used to send to explicitly specified targets";
     return false;
 }
 
@@ -149,8 +150,7 @@ bool client_endpoint_impl<Protocol>::send_error(const std::shared_ptr<endpoint_d
     (void)_target;
     (void)_data;
     (void)_size;
-    VSOMEIP_ERROR << "Clients endpoints must not be used to "
-                  << "send errors to explicitly specified targets";
+    VSOMEIP_ERROR << "Clients endpoints must not be used to send errors to explicitly specified targets";
     return false;
 }
 
@@ -368,17 +368,17 @@ template<typename Protocol>
 void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const& _error) {
 
     if (_error == boost::asio::error::operation_aborted || endpoint_impl<Protocol>::sending_blocked_) {
-        VSOMEIP_WARNING << "cei::" << __func__ << ": endpoint stopped, remote: " << get_remote_information() << ", endpoint > " << this
-                        << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Endpoint stopped, remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                          << to_string(state_.load());
         close_socket(false, false);
         return;
     }
     std::shared_ptr<boardnet_endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
         if (_error && _error != boost::asio::error::already_connected) {
-            VSOMEIP_WARNING << "cei::" << __func__ << ": restarting socket due to " << _error.message() << " (" << _error.value() << "),"
-                            << " remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                            << to_string(state_.load());
+            VSOMEIP_WARNING_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
+                              << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                              << to_string(state_.load());
 
             close_socket(true, true);
 
@@ -397,9 +397,9 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
                 connect_timeout_ = (connect_timeout_ << 1);
         } else {
             if (_error) {
-                VSOMEIP_WARNING << "cei::" << __func__ << ": connect_cbk attempt (" << _error.value() << "):" << _error.message()
-                                << ", remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                                << to_string(state_.load());
+                VSOMEIP_WARNING_P << "connect_cbk attempt (" << _error.value() << "):" << _error.message()
+                                  << ", remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                                  << to_string(state_.load());
             }
             {
                 std::scoped_lock its_lock(connect_timer_mutex_);
@@ -415,8 +415,8 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
                     if (its_entry.first) {
                         is_sending_ = true;
                         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::send_queued, this->shared_from_this(), its_entry));
-                        VSOMEIP_WARNING << __func__ << ": resume sending to: " << get_remote_information() << " endpoint > " << this
-                                        << " socket state > " << to_string(state_.load());
+                        VSOMEIP_WARNING_P << "Resume sending to: " << get_remote_information() << " endpoint > " << this
+                                          << " socket state > " << to_string(state_.load());
                     }
                 }
             }
@@ -444,14 +444,13 @@ void client_endpoint_impl<Protocol>::cancel_and_connect_cbk(boost::system::error
     }
     if (operations_cancelled != 0) {
         if (_error) {
-            VSOMEIP_WARNING << "cei::" << __func__ << ": cancelled " << operations_cancelled << " operations err: (" << _error.value()
-                            << "): msg: " << _error.message() << ", remote: " << get_remote_information() << ", endpoint > " << this
-                            << " socket state > " << to_string(state_.load());
+            VSOMEIP_WARNING_P << "Cancelled " << operations_cancelled << " operations err: (" << _error.value()
+                              << "): msg: " << _error.message() << ", remote: " << get_remote_information() << ", endpoint > " << this
+                              << " socket state > " << to_string(state_.load());
         }
         connect_cbk(_error);
     } else {
-        VSOMEIP_INFO << "cei::" << __func__ << " operations_cancelled is 0 endpoint > " << this << " socket state > "
-                     << to_string(state_.load());
+        VSOMEIP_INFO_P << "Operations_cancelled is 0 endpoint > " << this << " socket state > " << to_string(state_.load());
     }
 }
 
@@ -470,13 +469,12 @@ void client_endpoint_impl<Protocol>::wait_connecting_cbk(boost::system::error_co
     if (!_error && !client_endpoint_impl<Protocol>::sending_blocked_) {
         connect_cbk(boost::asio::error::timed_out);
     } else if (_error.value() != ECANCELED) {
-        VSOMEIP_WARNING << "cei::" << __func__ << ": not calling connect_cbk: "
-                        << "sending_blocked_: " << client_endpoint_impl<Protocol>::sending_blocked_ << " (" << _error.value()
-                        << "):" << _error.message() << "," << " remote: " << get_remote_information() << ", endpoint > " << this
-                        << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Not calling connect_cbk: sending_blocked_: " << client_endpoint_impl<Protocol>::sending_blocked_ << " ("
+                          << _error.value() << "):" << _error.message() << ", remote: " << get_remote_information() << ", endpoint > "
+                          << this << " socket state > " << to_string(state_.load());
     } else {
-        VSOMEIP_INFO << "cei::wait_connecting_cbk: remote > " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                     << to_string(state_.load());
+        VSOMEIP_INFO_P << "Remote > " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                       << to_string(state_.load());
     }
 }
 
@@ -501,8 +499,7 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
                 if (its_entry.first) {
                     send_queued(its_entry);
                 } else {
-                    VSOMEIP_INFO << "cei::" << __func__ << ": not calling send_queued | endpoint > " << this << " socket state > "
-                                 << to_string(state_.load());
+                    VSOMEIP_INFO_P << "Not calling send_queued | endpoint > " << this << " socket state > " << to_string(state_.load());
                     is_sending_ = false;
                 }
             }
@@ -510,8 +507,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         return;
     } else if (_error == boost::asio::error::broken_pipe) {
 
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                        << get_remote_information() << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
+                          << get_remote_information() << " endpoint > " << this << " socket state > " << to_string(state_.load());
 
         if (!ensure_connected(_error)) {
             return;
@@ -535,11 +532,10 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
                     its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
                     its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
                 }
-                VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                                << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
-                                << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
-                                << "]"
-                                << " endpoint > " << this << " socket state > " << to_string(state_.load());
+                VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
+                                  << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
+                                  << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                                  << "] endpoint > " << this << " socket state > " << to_string(state_.load());
             }
         }
         if (!stopping) {
@@ -551,8 +547,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission || _error == boost::asio::error::not_socket) {
 
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                        << get_remote_information() << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
+                          << get_remote_information() << " endpoint > " << this << " socket state > " << to_string(state_.load());
 
         if (!ensure_connected(_error)) {
             return;
@@ -568,9 +564,9 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
 
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value()
-                        << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                        << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value()
+                          << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                          << to_string(state_.load());
 
         if (!ensure_connected(_error)) {
             return;
@@ -589,10 +585,10 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
             its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
-        VSOMEIP_WARNING << "cei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value()
-                        << "), remote: " << get_remote_information() << " " << queue_.size() << " " << queue_size_ << " ("
-                        << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
-                        << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value()
+                          << "), remote: " << get_remote_information() << " " << queue_.size() << " " << queue_size_ << " ("
+                          << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                          << "] endpoint > " << this << " socket state > " << to_string(state_.load());
         print_status();
     }
 
@@ -627,9 +623,9 @@ void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _d
             }
 
             if (its_error) {
-                VSOMEIP_WARNING << "cei::" << __func__ << ": fail to read send_buffer_size  "
-                                << "(" << its_error.value() << "): " << its_error.message() << ", remote: " << get_remote_information()
-                                << ", endpoint > " << this << " socket state > " << to_string(state_.load());
+                VSOMEIP_WARNING_P << "Fail to read send_buffer_size (" << its_error.value() << "): " << its_error.message()
+                                  << ", remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                                  << to_string(state_.load());
                 break;
             }
 
@@ -637,13 +633,12 @@ void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _d
             if (send_buffer_size > 0) {
                 // close_socket was called on error, do not wait to send remaining data
                 if (_due_to_error) {
-                    VSOMEIP_WARNING << "cei::" << __func__
-                                    << ": error on socket, not waiting to send remaining data, remote: " << get_remote_information()
-                                    << ", endpoint > " << this << " socket state > " << to_string(state_.load());
+                    VSOMEIP_WARNING_P << "Error on socket, not waiting to send remaining data, remote: " << get_remote_information()
+                                      << ", endpoint > " << this << " socket state > " << to_string(state_.load());
                     break;
                 } else {
-                    VSOMEIP_WARNING << "cei::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
-                                    << " bytes , remote: " << get_remote_information() << ", endpoint > " << this;
+                    VSOMEIP_WARNING_P << "Waiting[" << retry_count << "] on close to send " << send_buffer_size
+                                      << " bytes , remote: " << get_remote_information() << ", endpoint > " << this;
                     std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
                 }
             } else {
@@ -651,8 +646,8 @@ void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _d
             }
             ++retry_count;
             if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
-                VSOMEIP_ERROR << "cei::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size
-                              << " bytes on close, remote: " << get_remote_information() << ", endpoint > " << this;
+                VSOMEIP_ERROR_P << "Max retries reached to send! will drop " << send_buffer_size
+                                << " bytes on close, remote: " << get_remote_information() << ", endpoint > " << this;
                 break;
             }
         }
@@ -669,8 +664,8 @@ void client_endpoint_impl<Protocol>::close_socket_unlocked(bool _recreate_socket
     if (socket_->is_open()) {
 #if defined(__linux__) || defined(__QNX__)
         if (!socket_->can_read_fd_flags()) {
-            VSOMEIP_ERROR << "cei::close_socket_unlocked: socket/handle closed already '"
-                          << ", errno " << errno << ", " << get_remote_information() << " endpoint > " << this;
+            VSOMEIP_ERROR_P << "Socket/handle closed already, errno " << errno << ", " << get_remote_information() << " endpoint > "
+                            << this;
         }
 #endif
 
@@ -679,24 +674,24 @@ void client_endpoint_impl<Protocol>::close_socket_unlocked(bool _recreate_socket
         boost::system::error_code its_error;
         socket_->close(its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "cei::" << __func__ << ": socket close error, "
-                            << "(" << its_error.value() << "): " << its_error.message() << ", remote: " << get_remote_information() << ","
-                            << " endpoint > " << this << " socket state > " << to_string(state_.load());
+            VSOMEIP_WARNING_P << "Socket close error, (" << its_error.value() << "): " << its_error.message()
+                              << ", remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                              << to_string(state_.load());
         }
     } else {
-        VSOMEIP_WARNING << "cei::" << __func__ << ": socket was not open, remote: " << get_remote_information() << ","
-                        << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Socket was not open, remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                          << to_string(state_.load());
     }
 
     state_ = cei_state_e::CLOSED;
 
     if (_recreate_socket) {
         recreate_socket();
-        VSOMEIP_WARNING << "cei::" << __func__ << ": socket has been reset, remote: " << get_remote_information() << ","
-                        << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Socket has been reset, remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                          << to_string(state_.load());
     } else {
-        VSOMEIP_INFO << "cei::" << __func__ << ": not recreating socket, remote: " << get_remote_information() << ","
-                     << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_INFO_P << "Not recreating socket, remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
+                       << to_string(state_.load());
     }
 }
 
@@ -762,8 +757,8 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
             }
         }
     }
-    VSOMEIP_ERROR << "cei::segment_message: Dropping to big message (" << std::dec << _size
-                  << " Bytes). Maximum allowed message size is: " << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
+    VSOMEIP_ERROR_P << "Dropping to big message (" << std::dec << _size
+                    << " Bytes). Maximum allowed message size is: " << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
     return endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
 }
 
@@ -789,10 +784,9 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
-        VSOMEIP_ERROR << "cei::check_queue_limit: queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_
-                      << ") reached. Dropping message (" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method)
-                      << "." << hex4(its_session) << "] "
-                      << "queue_size: " << std::dec << queue_size_ << " data size: " << _size;
+        VSOMEIP_ERROR_P << "Queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
+                        << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "] "
+                        << "queue_size: " << std::dec << queue_size_ << " data size: " << _size;
         return false;
     }
     return true;
@@ -867,10 +861,8 @@ template<typename Protocol>
 bool client_endpoint_impl<Protocol>::ensure_connected(const boost::system::error_code& _error) {
     bool result = true;
     if (!is_established_or_connected()) {
-        VSOMEIP_WARNING << "cei::" << __func__ << ": socket not yet connected "
-                        << "(" << _error.message() << ")"
-                        << " remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                        << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Socket not yet connected (" << _error.message() << ") remote: " << get_remote_information() << ", endpoint > "
+                          << this << " socket state > " << to_string(state_.load());
         was_not_connected_ = true;
         is_sending_ = false;
         result = false;

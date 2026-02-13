@@ -64,6 +64,8 @@
 
 namespace vsomeip_v3 {
 
+#define VSOMEIP_LOG_PREFIX "rms"
+
 routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
     host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), root_(nullptr), local_receiver_(nullptr),
     configuration_(_configuration), is_socket_activated_(false), client_registration_running_(false),
@@ -186,8 +188,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
     its_base_command.deserialize(its_buffer, its_error);
     if (its_error != protocol::error_e::ERROR_OK) {
 
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Deserialization of command and client identifier failed (" << std::dec
-                      << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR_P << "Deserialization of command and client identifier failed (" << std::dec << static_cast<int>(its_error) << ")";
         return;
     }
 
@@ -209,8 +210,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         if (its_error == protocol::error_e::ERROR_OK)
             update_registration(its_command.get_client(), registration_type_e::REGISTER, _remote_address, its_command.get_port());
         else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing register application failed (" << std::dec
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Deserializing register application failed (" << std::dec << static_cast<int>(its_error) << ")";
 
         break;
     }
@@ -221,8 +221,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         if (its_error == protocol::error_e::ERROR_OK)
             update_registration(its_command.get_client(), registration_type_e::DEREGISTER, _remote_address, _remote_port);
         else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing register application failed (" << std::dec
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Deserializing register application failed (" << std::dec << static_cast<int>(its_error) << ")";
 
         break;
     }
@@ -234,7 +233,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             on_ping(its_client);
             VSOMEIP_TRACE << "PING(" << hex4(its_client) << ")";
         } else {
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing ping failed (" << std::dec << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Deserializing ping failed (" << std::dec << static_cast<int>(its_error) << ")";
         }
         break;
     }
@@ -246,7 +245,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             on_pong(its_client);
             VSOMEIP_TRACE << "PONG(" << hex4(its_client) << ")";
         } else {
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing pong failed (" << std::dec << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Deserializing pong failed (" << std::dec << static_cast<int>(its_error) << ")";
         }
         break;
     }
@@ -266,12 +265,11 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
                 host_->offer_service(its_client, its_service, its_instance, its_major, its_minor);
             } else {
                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_client)
-                                << " : routing_manager_stub::on_message: isn't allowed to offer "
-                                << "the following service/instance " << its_service << "/" << its_instance << " ~> Skip offer!";
+                                << " : routing_manager_stub::on_message: isn't allowed to offer the following service / instance "
+                                << hex4(its_service) << " / " << hex4(its_instance) << " ~ > Skip offer !";
             }
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing offer service failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Deserializing offer service failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -288,8 +286,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
 
             host_->stop_offer_service(its_client, its_service, its_instance, its_major, its_minor);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing stop offer service failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Deserializing stop offer service failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -313,8 +310,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
                 } else {
                     VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_client) << " :  routing_manager_stub::on_message: "
                                     << " subscribes to service/instance/event " << hex4(its_service) << "/" << hex4(its_instance)
-                                    << "/ANY_EVENT"
-                                    << " which violates the security policy ~> Skip subscribe!";
+                                    << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
                 }
             } else {
                 if (VSOMEIP_SEC_OK
@@ -329,7 +325,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
                 }
             }
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing subscribe failed (" << std::dec << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Deserializing subscribe failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -346,8 +342,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
 
             host_->unsubscribe(its_client, _sec_client, its_service, its_instance, its_eventgroup, its_notifier);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing unsubscribe failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Deserializing unsubscribe failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -369,8 +364,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             VSOMEIP_INFO << "SUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
                          << hex4(its_eventgroup) << "." << hex4(its_notifier) << "] id=" << hex4(its_subscription_id);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing subscribe ack failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Deserializing subscribe ack failed (" << std::dec << static_cast<int>(its_error) << ")";
 
         break;
     }
@@ -393,8 +387,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             VSOMEIP_INFO << "SUBSCRIBE NACK(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
                          << hex4(its_eventgroup) << "." << hex4(its_notifier) << "] id=" << hex4(its_subscription_id);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing subscribe nack failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Deserializing subscribe nack failed (" << std::dec << static_cast<int>(its_error) << ")";
 
         break;
     }
@@ -415,8 +408,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             VSOMEIP_INFO << "UNSUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
                          << hex4(its_eventgroup) << "] id=" << hex4(its_subscription_id);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Deserializing unsubscribe ack failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Deserializing unsubscribe ack failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -442,17 +434,17 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
                     if (VSOMEIP_SEC_OK
                         != configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, its_service, its_instance,
                                                                                               its_method)) {
-                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_client
-                                        << " : routing_manager_stub::on_message: "
-                                        << " isn't allowed to send a request to service/instance/method " << its_service << "/"
-                                        << its_instance << "/" << its_method << " ~> Skip message!";
+                        VSOMEIP_WARNING
+                                << "vSomeIP Security: Client 0x" << hex4(its_client)
+                                << " : routing_manager_stub::on_message: isn't allowed to send a request to service/instance/method "
+                                << hex4(its_service) << "/" << hex4(its_instance) << "/" << hex4(its_method) << " ~> Skip message!";
                         return;
                     }
                 }
                 // reduce by size of instance, flush, reliable, client and is_valid_crc flag
                 uint32_t its_contained_size = bithelper::read_uint32_be(&its_message_data[VSOMEIP_LENGTH_POS_MIN]);
                 if (its_message_data.size() != its_contained_size + VSOMEIP_SOMEIP_HEADER_SIZE) {
-                    VSOMEIP_WARNING << "rms::" << __func__ << ": Received a SEND command containing message with invalid size -> skip!";
+                    VSOMEIP_WARNING_P << "Received a SEND command containing message with invalid size -> skip!";
                     break;
                 }
                 host_->on_message(its_service, its_instance, &its_message_data[0], length_t(its_message_data.size()), is_reliable,
@@ -478,7 +470,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
                 uint32_t its_contained_size = bithelper::read_uint32_be(&its_message_data[VSOMEIP_LENGTH_POS_MIN]);
 
                 if (its_message_data.size() != its_contained_size + VSOMEIP_SOMEIP_HEADER_SIZE) {
-                    VSOMEIP_WARNING << "rms::" << __func__ << ": Received a NOTIFY command containing message with invalid size -> skip!";
+                    VSOMEIP_WARNING_P << "Received a NOTIFY command containing message with invalid size -> skip!";
                     break;
                 }
 
@@ -513,8 +505,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             }
             handle_requests(its_client, its_allowed_requests);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Request service deserialization failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Request service deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
 
         break;
     }
@@ -526,8 +517,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
 
             host_->release_service(its_command.get_client(), its_command.get_service(), its_command.get_instance());
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Release service deserialization failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Release service deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -561,8 +551,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             }
 
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Register event deserialization failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Register event deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -578,8 +567,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
                          << hex4(its_command.get_instance()) << "." << hex4(its_command.get_event()) << ":is_provider=" << std::boolalpha
                          << its_command.is_provided() << "]";
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Unregister event deserialization failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Unregister event deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -593,8 +581,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             on_register_application_ack(its_command.get_client());
 
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Registered ack deserialization failed (" << std::dec << static_cast<int>(its_error)
-                          << ")";
+            VSOMEIP_ERROR_P << "Registered ack deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -605,8 +592,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
 
             on_offered_service_request(its_command.get_client(), its_command.get_offer_type());
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Offer service request deserialization failed (" << std::dec
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Offer service request deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -617,8 +603,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             host_->on_resend_provided_events_response(its_command.get_remote_offer_id());
             VSOMEIP_INFO << "RESEND_PROVIDED_EVENTS(" << hex4(its_client) << ")";
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Resend provided events deserialization failed (" << std::dec
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Resend provided events deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -628,8 +613,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         if (its_error == protocol::error_e::ERROR_OK) {
             on_security_update_response(its_command.get_update_id(), its_client);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Update security policy deserialization failed (" << std::dec
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Update security policy deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 
@@ -639,13 +623,12 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         if (its_error == protocol::error_e::ERROR_OK) {
             on_security_update_response(its_command.get_update_id(), its_client);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Update security policy deserialization failed (" << std::dec
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Update security policy deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
         break;
     }
 #endif // !VSOMEIP_DISABLE_SECURITY
     default:
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Received an unhandled command (" << std::dec << static_cast<int>(its_id) << ")";
+        VSOMEIP_ERROR_P << "Received an unhandled command (" << std::dec << static_cast<int>(its_id) << ")";
     }
 }
 
@@ -791,7 +774,7 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
         if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
             send_local(its_endpoint, its_buffer);
         } else {
-            VSOMEIP_ERROR << "rms::" << __func__ << ": failed for client 0x" << hex4(_client) << ", as no routing connection was given";
+            VSOMEIP_ERROR_P << "Failed for client 0x" << hex4(_client) << ", as no routing connection was given";
         }
     }
 }
@@ -820,7 +803,7 @@ void routing_manager_stub::client_registration_func(void) {
 
 void routing_manager_stub::registration_func(client_t client_id, std::vector<registration_type_e> registration_type) {
     for (auto type : registration_type) {
-        VSOMEIP_INFO << "Application/Client " << std::hex << client_id << " is "
+        VSOMEIP_INFO << "Application/Client " << hex4(client_id) << " is "
                      << (type == registration_type_e::REGISTER ? "registering" : "deregistering");
 
         bool continue_registration = true;
@@ -897,7 +880,7 @@ void routing_manager_stub::init_routing_endpoint() {
     bool is_successful = host_->get_endpoint_manager()->create_routing_root(root_, is_socket_activated_, shared_from_this());
 
     if (!is_successful) {
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Routing root creating (partially) failed. Please check your configuration.";
+        VSOMEIP_WARNING_P << "Routing root creating (partially) failed. Please check your configuration.";
     }
 }
 
@@ -964,13 +947,12 @@ void routing_manager_stub::send_client_credentials(const client_t _target, std::
             if (its_buffer.size() <= max_local_message_size_ || VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0) {
                 send_local(its_endpoint, its_buffer);
             } else
-                VSOMEIP_ERROR << "rms::" << __func__ << ": Credentials info exceeds maximum message size: Can't send!";
+                VSOMEIP_ERROR_P << "Credentials info exceeds maximum message size: Can't send!";
 
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Update security credentials command serialization failed ("
-                          << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Update security credentials command serialization failed (" << static_cast<int>(its_error) << ")";
     } else
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Sending credentials to client [" << hex4(_target) << "] failed";
+        VSOMEIP_ERROR_P << "Sending credentials to client [" << hex4(_target) << "] failed";
 }
 
 void routing_manager_stub::send_client_routing_info(const client_t _target, protocol::routing_info_entry& _entry) {
@@ -995,9 +977,9 @@ void routing_manager_stub::send_client_routing_info(const client_t _target, std:
         if (its_error == protocol::error_e::ERROR_OK) {
             send_local(its_target_endpoint, its_buffer);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Routing info command serialization failed (" << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Routing info command serialization failed (" << static_cast<int>(its_error) << ")";
     } else
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Sending routing info to client [" << hex4(_target) << "] failed";
+        VSOMEIP_ERROR_P << "Sending routing info to client [" << hex4(_target) << "] failed";
 }
 
 void routing_manager_stub::send_client_config_command(const client_t _client, const client_t _target) {
@@ -1015,10 +997,10 @@ void routing_manager_stub::send_client_config_command(const client_t _client, co
         if (its_error == protocol::error_e::ERROR_OK) {
             send_local(its_target_endpoint, its_buffer);
         } else {
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Config command serialization failed(" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Config command serialization failed(" << std::dec << int(its_error) << ")";
         }
     } else {
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Couldn't send config command to local client: " << hex4(_client);
+        VSOMEIP_WARNING_P << "Couldn't send config command to local client: " << hex4(_client);
     }
 }
 
@@ -1104,8 +1086,7 @@ void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const 
             if (auto its_endpoint = find_local_routing_endpoint(a.first); its_endpoint) {
                 send_local(its_endpoint, _command);
             } else {
-                VSOMEIP_WARNING << "rms::" << __func__ << ": failed for client 0x" << hex4(a.first)
-                                << ", as no routing connection was given";
+                VSOMEIP_WARNING_P << "Failed for client 0x" << hex4(a.first) << ", as no routing connection was given";
             }
         }
     }
@@ -1136,11 +1117,11 @@ bool routing_manager_stub::send_subscribe(const std::shared_ptr<local_endpoint>&
         if (its_error == protocol::error_e::ERROR_OK) {
             has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Subscribe command serialization failed (" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Subscribe command serialization failed (" << std::dec << int(its_error) << ")";
 
     } else {
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Couldn't send subscription to local client [" << hex4(_service) << "."
-                        << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
+        VSOMEIP_WARNING_P << "Couldn't send subscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
+                          << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
     }
 
     return has_sent;
@@ -1168,10 +1149,10 @@ bool routing_manager_stub::send_unsubscribe(const std::shared_ptr<local_endpoint
         if (its_error == protocol::error_e::ERROR_OK) {
             has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Unsubscribe command serialization failed (" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Unsubscribe command serialization failed (" << std::dec << int(its_error) << ")";
     } else {
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Couldn't send unsubscription to local client [" << hex4(_service) << "."
-                        << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
+        VSOMEIP_WARNING_P << "Couldn't send unsubscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
+                          << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
     }
 
     return has_sent;
@@ -1200,10 +1181,10 @@ bool routing_manager_stub::send_expired_subscription(const std::shared_ptr<local
         if (its_error == protocol::error_e::ERROR_OK) {
             has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Unsubscribe command serialization failed (" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Unsubscribe command serialization failed (" << std::dec << int(its_error) << ")";
     } else {
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Couldn't send expired subscription to local client [" << hex4(_service) << "."
-                        << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
+        VSOMEIP_WARNING_P << "Couldn't send expired subscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
+                          << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
     }
 
     return has_sent;
@@ -1229,7 +1210,7 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
         if (its_error == protocol::error_e::ERROR_OK) {
             send_local(its_target, its_buffer);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Subscribe ack command serialization failed (" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Subscribe ack command serialization failed (" << std::dec << int(its_error) << ")";
     }
 }
 
@@ -1253,7 +1234,7 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
         if (its_error == protocol::error_e::ERROR_OK) {
             send_local(its_target, its_buffer);
         } else
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Subscribe ack command serialization failed (" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Subscribe ack command serialization failed (" << std::dec << int(its_error) << ")";
     }
 }
 
@@ -1287,7 +1268,7 @@ void routing_manager_stub::broadcast_ping() const {
     if (its_error == protocol::error_e::ERROR_OK)
         broadcast(its_buffer);
     else
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Ping command serialization failed (" << std::dec << int(its_error) << ")";
+        VSOMEIP_ERROR_P << "Ping command serialization failed (" << std::dec << int(its_error) << ")";
 }
 
 void routing_manager_stub::on_ping(client_t _client) {
@@ -1302,10 +1283,10 @@ void routing_manager_stub::on_ping(client_t _client) {
         if (its_error == protocol::error_e::ERROR_OK) {
             send_local(its_endpoint, its_buffer);
         } else {
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Pong command serialization failed (" << std::dec << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Pong command serialization failed (" << std::dec << int(its_error) << ")";
         }
     } else {
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Couldn't find endpoint for client " << std::hex << _client;
+        VSOMEIP_WARNING_P << "Couldn't find endpoint for client " << hex4(_client);
     }
 }
 
@@ -1316,7 +1297,7 @@ void routing_manager_stub::on_pong(client_t _client) {
         if (found_info != routing_info_.end()) {
             found_info->second.first = 0;
         } else {
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Received PONG from unregistered application: " << hex4(_client);
+            VSOMEIP_ERROR_P << "Received PONG from unregistered application: " << hex4(_client);
         }
     }
     remove_from_pinged_clients(_client);
@@ -1381,8 +1362,8 @@ void routing_manager_stub::create_local_receiver() {
     }
 #ifdef __linux__
     else if (!configuration_->get_policy_manager()->check_credentials(get_client(), &sec_client)) {
-        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
-                      << " : routing_manager_stub::create_local_receiver:  isn't allowed"
+        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
+                      << " : routing_manager_stub::create_local_receiver: isn't allowed"
                       << " to create a server endpoint due to credential check failed!";
         return;
     }
@@ -1434,7 +1415,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
             if (its_error == protocol::error_e::ERROR_OK)
                 has_sent = send_local(its_endpoint, its_buffer);
             else
-                VSOMEIP_ERROR << "rms::" << __func__ << ": Ping command serialization failed (" << std::dec << int(its_error) << ")";
+                VSOMEIP_ERROR_P << "Ping command serialization failed (" << std::dec << int(its_error) << ")";
         }
     }
 
@@ -1527,8 +1508,8 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
         its_client << " @ " << _address.to_string() << ":" << std::dec << _port;
     }
 
-    VSOMEIP_INFO << "rms::" << __func__ << ": Queueing a " << (_type == registration_type_e::REGISTER ? "register" : "deregister")
-                 << " request for application/client " << its_client.str();
+    VSOMEIP_INFO_P << "Queueing a " << (_type == registration_type_e::REGISTER ? "register" : "deregister")
+                   << " request for application/client " << its_client.str();
 
     if (_type != registration_type_e::REGISTER) {
         configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
@@ -1538,8 +1519,8 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
             // as address/port are unique and that definitely means the client no longer exists
             if (client_t old_client = host_->get_guest_by_address(_address, _port);
                 old_client != VSOMEIP_CLIENT_UNSET && old_client != _client) {
-                VSOMEIP_WARNING << "rms::" << __func__ << ": Deregistering old client " << hex4(old_client) << " due to new client "
-                                << hex4(_client) << " @ " << _address.to_string() + ":" << std::dec << _port;
+                VSOMEIP_WARNING_P << "Deregistering old client " << hex4(old_client) << " due to new client " << hex4(_client) << " @ "
+                                  << _address.to_string() + ":" << std::dec << _port;
 
                 // we *definitely* need to do this in order - deregister old client, register new client
                 // therefore schedule another registration event
@@ -1580,8 +1561,8 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
         if (_type != it->second.back()) {
             it->second.emplace_back(_type);
         } else {
-            VSOMEIP_WARNING << "rms::" << __func__ << " application/client " << its_client.str() << " already has a "
-                            << (_type == registration_type_e::REGISTER ? "REGISTER" : "DEREGISTER") << " request queued. Ignoring!";
+            VSOMEIP_WARNING_P << "Application/client " << its_client.str() << " already has a "
+                              << (_type == registration_type_e::REGISTER ? "REGISTER" : "DEREGISTER") << " request queued. Ignoring!";
         }
     } else {
         pending_client_registrations_queue_.emplace_back(_client, std::vector<registration_type_e>{_type});
@@ -1756,7 +1737,7 @@ bool routing_manager_stub::send_provided_event_resend_request(client_t _client, 
             send_local(its_endpoint, its_buffer);
         }
     } else {
-        VSOMEIP_WARNING << "rms::" << __func__ << " Couldn't send provided event resend request to local client: 0x" << hex4(_client);
+        VSOMEIP_WARNING_P << "Couldn't send provided event resend request to local client: 0x" << hex4(_client);
     }
 
     return false;
@@ -1767,7 +1748,7 @@ bool routing_manager_stub::is_policy_cached(uid_t _uid) {
     {
         std::scoped_lock its_lock{updated_security_policies_mutex_};
         if (updated_security_policies_.find(_uid) != updated_security_policies_.end()) {
-            VSOMEIP_INFO << "rms::" << __func__ << ": Policy for UID: " << std::dec << _uid << " was already updated before!";
+            VSOMEIP_INFO_P << "Policy for UID: " << std::dec << _uid << " was already updated before!";
             return true;
         } else {
             return false;
@@ -1834,8 +1815,8 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
         std::scoped_lock its_lock{updated_security_policies_mutex_};
         if (!updated_security_policies_.empty()) {
 
-            VSOMEIP_INFO << "rms::" << __func__ << ": Distributing " << std::dec << updated_security_policies_.size()
-                         << " security policy updates to registering client: " << std::hex << _client;
+            VSOMEIP_INFO_P << "Distributing " << std::dec << updated_security_policies_.size()
+                           << " security policy updates to registering client: " << hex4(_client);
 
             protocol::distribute_security_policies_command its_command;
             its_command.set_client(get_client());
@@ -1849,10 +1830,10 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
                 send_local(its_endpoint, its_buffer);
             }
 
-            VSOMEIP_ERROR << "rms::" << __func__ << ": Serializing distribute security policies (" << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Serializing distribute security policies (" << static_cast<int>(its_error) << ")";
         }
     } else
-        VSOMEIP_WARNING << "rms::" << __func__ << ": Could not send cached security policies to registering client: 0x" << hex4(_client);
+        VSOMEIP_WARNING_P << "Could not send cached security policies to registering client: 0x" << hex4(_client);
 
     return false;
 }
@@ -1874,11 +1855,10 @@ bool routing_manager_stub::send_remove_security_policy_request(client_t _client,
         if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
             return send_local(its_endpoint, its_buffer);
         } else {
-            VSOMEIP_ERROR << __func__ << ": Cannot find local client endpoint for client 0x" << hex4(_client);
+            VSOMEIP_ERROR_P << "Cannot find local client endpoint for client 0x" << hex4(_client);
         }
     } else
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Remove security policy command serialization failed (" << std::dec
-                      << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR_P << "Remove security policy command serialization failed (" << std::dec << static_cast<int>(its_error) << ")";
 
     return false;
 }
@@ -2014,12 +1994,12 @@ void routing_manager_stub::on_security_update_timeout(const boost::system::error
         //  disconnected
         if (!its_missing_clients.empty()) {
             for (auto its_client : its_missing_clients) {
-                VSOMEIP_INFO << "rms::" << __func__ << ": Client 0x" << std::hex << its_client
-                             << " did not respond to the policy update / removal with ID: 0x" << std::hex << _id;
+                VSOMEIP_INFO_P << "Client 0x" << hex4(its_client) << " did not respond to the policy update/removal with ID: 0x" << std::hex
+                               << _id;
                 if (!find_local_routing_endpoint(its_client)) {
-                    VSOMEIP_INFO << "rms::" << __func__ << ": Client 0x" << std::hex << its_client
-                                 << " is not connected anymore, do not expect answer for policy update / removal with ID: 0x" << std::hex
-                                 << _id;
+                    VSOMEIP_INFO_P << "Client 0x" << hex4(its_client)
+                                   << " is not connected anymore, do not expect answer for policy update/removal with ID: 0x" << std::hex
+                                   << _id;
                     pending_security_update_remove(_id, its_client);
                 }
             }
@@ -2027,7 +2007,7 @@ void routing_manager_stub::on_security_update_timeout(const boost::system::error
 
         its_missing_clients = pending_security_update_get(_id);
         if (its_missing_clients.empty()) {
-            VSOMEIP_INFO << "rms::" << __func__ << ": Received all responses for security update/removal ID: 0x" << std::hex << _id;
+            VSOMEIP_INFO_P << "Received all responses for security update/removal ID: 0x" << std::hex << _id;
             its_state = security_update_state_e::SU_SUCCESS;
         }
         {
@@ -2043,7 +2023,7 @@ void routing_manager_stub::on_security_update_timeout(const boost::system::error
             found_handler->second(its_state);
             security_update_handlers_.erase(found_handler);
         } else {
-            VSOMEIP_WARNING << "rms::" << __func__ << ": Callback not found for security update / removal with ID: 0x" << std::hex << _id;
+            VSOMEIP_WARNING_P << "Callback not found for security update/removal with ID: 0x" << std::hex << _id;
         }
     }
 }
@@ -2084,14 +2064,13 @@ bool routing_manager_stub::update_security_policy_configuration(uid_t _uid, gid_
         // trigger all currently connected clients to update the security policy
         uint32_t sent_counter(0);
         uint32_t its_tranche = uint32_t(its_clients_to_inform.size() >= 10 ? (its_clients_to_inform.size() / 10) : 1);
-        VSOMEIP_INFO << "rms::" << __func__ << ": Informing [" << std::dec << its_clients_to_inform.size()
-                     << "] currently connected clients about policy update for UID: " << std::dec << _uid << " with update ID: 0x"
-                     << std::hex << its_id;
+        VSOMEIP_INFO_P << "Informing [" << std::dec << its_clients_to_inform.size()
+                       << "] currently connected clients about policy update for UID: " << std::dec << _uid << " with update ID: 0x"
+                       << std::hex << its_id;
         for (auto its_client : its_clients_to_inform) {
             if (!send_update_security_policy_request(its_client, its_id, _uid, _payload)) {
-                VSOMEIP_INFO << "rms::" << __func__ << ": Couldn't send update security policy "
-                             << "request to client 0x" << hex4(its_client) << " policy UID: " << _uid << " GID: " << _gid
-                             << " with update ID: 0x" << its_id << " as client already disconnected";
+                VSOMEIP_INFO_P << "Couldn't send update security policy request to client 0x" << hex4(its_client) << " policy UID: " << _uid
+                               << " GID: " << _gid << " with update ID: 0x" << its_id << " as client already disconnected";
                 // remove client from expected answer list
                 pending_security_update_remove(its_id, its_client);
             }
@@ -2140,14 +2119,14 @@ bool routing_manager_stub::remove_security_policy_configuration(uid_t _uid, gid_
                 // trigger all clients to remove the security policy
                 uint32_t sent_counter(0);
                 uint32_t its_tranche = uint32_t(its_clients_to_inform.size() >= 10 ? (its_clients_to_inform.size() / 10) : 1);
-                VSOMEIP_INFO << "rms::" << __func__ << ": Informing [" << std::dec << its_clients_to_inform.size()
-                             << "] currently connected clients about policy removal for UID: " << std::dec << _uid
-                             << " with update ID: " << its_id;
+                VSOMEIP_INFO_P << "Informing [" << std::dec << its_clients_to_inform.size()
+                               << "] currently connected clients about policy removal for UID: " << std::dec << _uid
+                               << " with update ID: " << its_id;
                 for (auto its_client : its_clients_to_inform) {
                     if (!send_remove_security_policy_request(its_client, its_id, _uid, _gid)) {
-                        VSOMEIP_INFO << "rms::" << __func__ << ": Couldn't send remove security policy "
-                                     << "request to client 0x" << hex4(its_client) << " policy UID: " << _uid << " GID: " << _gid
-                                     << " with update ID: 0x" << its_id << " as client already disconnected";
+                        VSOMEIP_INFO_P << "Couldn't send remove security policyrequest to client 0x" << hex4(its_client)
+                                       << " policy UID: " << _uid << " GID: " << _gid << " with update ID: 0x" << its_id
+                                       << " as client already disconnected";
                         // remove client from expected answer list
                         pending_security_update_remove(its_id, its_client);
                     }
@@ -2226,8 +2205,8 @@ void routing_manager_stub::on_security_update_response(pending_security_update_i
                     found_timer->second->cancel();
                     security_update_timers_.erase(found_timer);
                 } else {
-                    VSOMEIP_WARNING << "rms::" << __func__ << ": Received all responses for security update/removal ID: 0x" << std::hex
-                                    << _id << " but timeout already happened";
+                    VSOMEIP_WARNING_P << "Received all responses for security update/removal ID: 0x" << std::hex << _id
+                                      << " but timeout already happened";
                 }
             }
 
@@ -2238,10 +2217,10 @@ void routing_manager_stub::on_security_update_response(pending_security_update_i
                 if (found_handler != security_update_handlers_.end()) {
                     found_handler->second(security_update_state_e::SU_SUCCESS);
                     security_update_handlers_.erase(found_handler);
-                    VSOMEIP_INFO << "rms::" << __func__ << ": Received all responses for security update/removal ID: 0x" << std::hex << _id;
+                    VSOMEIP_INFO_P << "Received all responses for security update/removal ID: 0x" << std::hex << _id;
                 } else {
-                    VSOMEIP_WARNING << "rms::" << __func__ << ": Received all responses for security update/removal ID: 0x" << std::hex
-                                    << _id << " but didn't find handler";
+                    VSOMEIP_WARNING_P << "Received all responses for security update/removal ID: 0x" << std::hex << _id
+                                      << " but didn't find handler";
                 }
             }
         }
@@ -2264,7 +2243,7 @@ void routing_manager_stub::send_suspend() const {
     if (its_error == protocol::error_e::ERROR_OK)
         broadcast(its_buffer);
     else
-        VSOMEIP_ERROR << "rms::" << __func__ << ": Suspend command serialization failed (" << std::dec << int(its_error) << ")";
+        VSOMEIP_ERROR_P << "Suspend command serialization failed (" << std::dec << int(its_error) << ")";
 }
 
 void routing_manager_stub::remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port) {
@@ -2306,9 +2285,9 @@ std::shared_ptr<local_endpoint> routing_manager_stub::find_local_routing_endpoin
 
 bool routing_manager_stub::send_local(std::shared_ptr<local_endpoint> const& _ep, std::vector<byte_t> const& _data) {
     if (std::numeric_limits<uint32_t>::max() < (_data.size())) {
-        VSOMEIP_ERROR << "rms::" << __func__ << ": failed for client: 0x" << hex4(_ep->connected_client())
-                      << ", command: " << protocol::read_command_id(_data.data(), _data.size())
-                      << ", as the message exceeded the max length";
+        VSOMEIP_ERROR_P << "Failed for client: 0x" << hex4(_ep->connected_client())
+                        << ", command: " << protocol::read_command_id(_data.data(), _data.size())
+                        << ", as the message exceeded the max length";
         return false;
     }
     return _ep->send(&_data[0], static_cast<uint32_t>(_data.size()));

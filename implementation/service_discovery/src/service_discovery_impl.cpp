@@ -44,6 +44,9 @@
 #include "../../utility/include/utility.hpp"
 
 namespace vsomeip_v3 {
+
+#define VSOMEIP_LOG_PREFIX "sdi"
+
 namespace sd {
 
 service_discovery_impl::service_discovery_impl(service_discovery_host* _host, const std::shared_ptr<configuration>& _configuration) :
@@ -170,8 +173,8 @@ void service_discovery_impl::start() {
         if (endpoint_ && !reliable_) {
             auto its_server_endpoint = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
             if (its_server_endpoint && !its_server_endpoint->is_joined(sd_multicast_)) {
-                VSOMEIP_INFO << "sd::" << __func__ << ": calling its_server_endpoint->join(" << sd_multicast_
-                             << ")  its_server_endpoint = " << its_server_endpoint;
+                VSOMEIP_INFO_P << "Calling its_server_endpoint->join(" << sd_multicast_
+                               << ")  its_server_endpoint = " << its_server_endpoint;
                 its_server_endpoint->join(sd_multicast_);
             }
         }
@@ -273,7 +276,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
                                        ttl_t _ttl, client_t _client, const std::shared_ptr<eventgroupinfo>& _info) {
 
     if (is_suspended_) {
-        VSOMEIP_WARNING << "service_discovery::" << __func__ << ": Ignoring subscription as we are suspended.";
+        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended.";
         return;
     }
 
@@ -286,8 +289,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
             if (found_eventgroup != found_instance->second.end()) {
                 auto its_subscription = found_eventgroup->second;
                 if (its_subscription->get_major() != _major) {
-                    VSOMEIP_ERROR << "Subscriptions to different versions of the same "
-                                     "service instance are not supported!";
+                    VSOMEIP_ERROR << "Subscriptions to different versions of the same service instance are not supported!";
                 } else if (its_subscription->is_selective()) {
                     if (its_subscription->add_client(_client)) {
                         its_subscription->set_state(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
@@ -306,7 +308,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
     std::shared_ptr<subscription> its_subscription = create_subscription(_major, _ttl, its_reliable, its_unreliable, _info);
 
     if (!its_subscription) {
-        VSOMEIP_ERROR << __func__ << ": creating subscription failed!";
+        VSOMEIP_ERROR_P << "Creating subscription failed!";
         return;
     }
 
@@ -354,8 +356,8 @@ void service_discovery_impl::send_subscription(const std::shared_ptr<subscriptio
                 }
             }
         } else if (its_reliability_type == reliability_type_e::RT_UNKNOWN) {
-            VSOMEIP_WARNING << "sd::" << __func__ << ": couldn't determine reliability type for subscription to [" << hex4(_service) << "."
-                            << hex4(_instance) << "." << hex4(_eventgroup) << "] ";
+            VSOMEIP_WARNING_P << "Couldn't determine reliability type for subscription to [" << hex4(_service) << "." << hex4(_instance)
+                              << "." << hex4(_eventgroup) << "] ";
         }
 
         if (its_data.entry_) {
@@ -530,9 +532,9 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
                     if (its_data.entry_ && its_current_message->add_entry_data(its_data.entry_, its_data.options_)) {
                         its_stopsubscribes[its_address].push_back(its_current_message);
                     } else {
-                        VSOMEIP_WARNING << __func__ << ": Failed to create StopSubscribe entry for: " << hex4(its_service.first) << "."
-                                        << hex4(its_instance.first) << "." << hex4(its_eventgroup.first)
-                                        << " address: " << its_address.to_string();
+                        VSOMEIP_WARNING_P << "Failed to create StopSubscribe entry for: " << hex4(its_service.first) << "."
+                                          << hex4(its_instance.first) << "." << hex4(its_eventgroup.first)
+                                          << " address: " << its_address.to_string();
                     }
                 }
                 its_instance.second.clear();
@@ -544,7 +546,7 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
 
     for (auto its_address : its_stopsubscribes) {
         if (!serialize_and_send(its_address.second, its_address.first)) {
-            VSOMEIP_WARNING << __func__ << ": Failed to send StopSubscribe to address: " << its_address.first.to_string();
+            VSOMEIP_WARNING_P << "Failed to send StopSubscribe to address: " << its_address.first.to_string();
         }
     }
 }
@@ -613,9 +615,9 @@ bool service_discovery_impl::is_reboot(const boost::asio::ip::address& _sender, 
         if (_reboot_flag
             && ((_is_multicast && !std::get<2>(its_received->second)) || (!_is_multicast && !std::get<3>(its_received->second)))) {
             result = true;
-            VSOMEIP_INFO << "sdi::" << __func__ << " Reboot detected, rbt flag: " << _reboot_flag << " Sender: " << _sender.to_string()
-                         << " is multicast: " << _is_multicast << " multicast old reboot flag: " << std::get<2>(its_received->second)
-                         << " unicast old reboot flag " << std::get<3>(its_received->second);
+            VSOMEIP_INFO_P << "Reboot detected, rbt flag: " << _reboot_flag << " Sender: " << _sender.to_string()
+                           << " is multicast: " << _is_multicast << " multicast old reboot flag: " << std::get<2>(its_received->second)
+                           << " unicast old reboot flag " << std::get<3>(its_received->second);
         } else {
             session_t its_old_session;
             bool its_old_reboot_flag;
@@ -630,9 +632,9 @@ bool service_discovery_impl::is_reboot(const boost::asio::ip::address& _sender, 
 
             if (its_old_reboot_flag && _reboot_flag && its_old_session >= _session) {
                 result = true;
-                VSOMEIP_INFO << "sdi::" << __func__ << " Reboot detected, rbt flag: " << _reboot_flag << " Sender: " << _sender.to_string()
-                             << " is multicast: " << _is_multicast << " old reboot flag: " << its_old_reboot_flag
-                             << " current session: " << _session << " old session: " << its_old_session;
+                VSOMEIP_INFO_P << "Reboot detected, rbt flag: " << _reboot_flag << " Sender: " << _sender.to_string()
+                               << " is multicast: " << _is_multicast << " old reboot flag: " << its_old_reboot_flag
+                               << " current session: " << _session << " old session: " << its_old_session;
             }
         }
 
@@ -705,7 +707,7 @@ void service_discovery_impl::insert_find_entries(std::vector<std::shared_ptr<mes
                             its_data.entry_ = its_entry;
                             add_entry_data(_messages, its_data);
                         } else {
-                            VSOMEIP_ERROR << "Failed to create service entry!";
+                            VSOMEIP_ERROR_P << "Failed to create service entry!";
                         }
                     }
                 }
@@ -748,20 +750,16 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
         if (its_reliable_endpoint) {
             insert_reliable = true;
         } else {
-            VSOMEIP_WARNING << __func__
-                            << ": Cannot create subscription as "
-                               "reliable endpoint is zero: ["
-                            << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
+            VSOMEIP_WARNING_P << "Cannot create subscription as reliable endpoint is zero: [" << hex4(_service) << "." << hex4(_instance)
+                              << "." << hex4(_eventgroup) << "]";
         }
         break;
     case reliability_type_e::RT_UNRELIABLE:
         if (its_unreliable_endpoint) {
             insert_unreliable = true;
         } else {
-            VSOMEIP_WARNING << __func__
-                            << ": Cannot create subscription as "
-                               "unreliable endpoint is zero: ["
-                            << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
+            VSOMEIP_WARNING_P << "Cannot create subscription as unreliable endpoint is zero: [" << hex4(_service) << "." << hex4(_instance)
+                              << "." << hex4(_eventgroup) << "]";
         }
         break;
     case reliability_type_e::RT_BOTH:
@@ -769,11 +767,9 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
             insert_reliable = true;
             insert_unreliable = true;
         } else {
-            VSOMEIP_WARNING << __func__
-                            << ": Cannot create subscription as "
-                               "endpoint is zero: ["
-                            << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]"
-                            << " reliable: " << !!its_reliable_endpoint << " unreliable: " << !!its_unreliable_endpoint;
+            VSOMEIP_WARNING_P << "Cannot create subscription as endpoint is zero: [" << hex4(_service) << "." << hex4(_instance) << "."
+                              << hex4(_eventgroup) << "] reliable: " << !!its_reliable_endpoint
+                              << " unreliable: " << !!its_unreliable_endpoint;
         }
         break;
     default:
@@ -781,11 +777,8 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
     }
 
     if (!insert_reliable && !insert_unreliable && _reliability_type != reliability_type_e::RT_UNKNOWN) {
-        VSOMEIP_WARNING << __func__
-                        << ": Didn't insert subscription as "
-                           "subscription doesn't match reliability type: ["
-                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "] "
-                        << static_cast<uint16_t>(_reliability_type);
+        VSOMEIP_WARNING_P << "Didn't insert subscription as subscription doesn't match reliability type: [" << hex4(_service) << "."
+                          << hex4(_instance) << "." << hex4(_eventgroup) << "] " << static_cast<uint16_t>(_reliability_type);
         return its_data;
     }
     std::shared_ptr<eventgroupentry_impl> its_entry, its_other;
@@ -794,7 +787,7 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
         if (its_port) {
             its_entry = std::make_shared<eventgroupentry_impl>();
             if (!its_entry) {
-                VSOMEIP_ERROR << __func__ << ": Could not create eventgroup entry.";
+                VSOMEIP_ERROR_P << "Could not create eventgroup entry.";
                 return its_data;
             }
 
@@ -825,10 +818,8 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
             auto its_option = create_ip_option(unicast_, its_port, true);
             its_data.options_.push_back(its_option);
         } else {
-            VSOMEIP_WARNING << __func__
-                            << ": Cannot create subscription as "
-                               "local reliable port is zero: ["
-                            << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
+            VSOMEIP_WARNING_P << "Cannot create subscription as local reliable port is zero: [" << hex4(_service) << "." << hex4(_instance)
+                              << "." << hex4(_eventgroup) << "]";
             its_data.entry_ = nullptr;
             its_data.other_ = nullptr;
             return its_data;
@@ -841,7 +832,7 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
             if (!its_entry) {
                 its_entry = std::make_shared<eventgroupentry_impl>();
                 if (!its_entry) {
-                    VSOMEIP_ERROR << __func__ << ": Could not create eventgroup entry.";
+                    VSOMEIP_ERROR_P << "Could not create eventgroup entry.";
                     return its_data;
                 }
 
@@ -875,10 +866,8 @@ entry_data_t service_discovery_impl::create_eventgroup_entry(service_t _service,
             auto its_option = create_ip_option(unicast_, its_port, false);
             its_data.options_.push_back(its_option);
         } else {
-            VSOMEIP_WARNING << __func__
-                            << ": Cannot create subscription as "
-                               " local unreliable port is zero: ["
-                            << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
+            VSOMEIP_WARNING_P << ": Cannot create subscription as local unreliable port is zero: [" << hex4(_service) << "."
+                              << hex4(_instance) << "." << hex4(_eventgroup) << "]";
             its_data.entry_ = nullptr;
             its_data.other_ = nullptr;
             return its_data;
@@ -1174,14 +1163,14 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
             serialize_and_send(its_resubscribes, _sender);
         }
     } else {
-        VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Deserialization error.";
+        VSOMEIP_ERROR_P << "Deserialization error.";
         return;
     }
 }
 
 void service_discovery_impl::start_offer_watchdog() {
     if (offers_watchdog_time_ != std::chrono::milliseconds::zero()) {
-        VSOMEIP_INFO << "sdi::" << __func__ << "start_offer_watchdog";
+        VSOMEIP_INFO_P << "Start_offer_watchdog";
         offers_watchdog_.expires_after(offers_watchdog_time_);
         offers_watchdog_.async_wait([this, faulty_value = offers_received_after_last_resume_.load()](
                                             const boost::system::error_code& error) { check_offer_services(error, faulty_value); });
@@ -1235,8 +1224,8 @@ void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _e
                     if (its_si_found->second.erase((*iter)->get_major_version()) && its_si_found->second.empty()) {
                         suspend_stop_offer_services_.erase(its_si_found);
                     }
-                    VSOMEIP_INFO << "sdi::" << __func__ << " stop offer for service " << hex4(its_service) << "." << hex4(its_instance)
-                                 << "." << hex4(+(*iter)->get_major_version()) << " has been sent to the network during STR";
+                    VSOMEIP_INFO_P << "Stop offer for service " << hex4(its_service) << "." << hex4(its_instance) << "."
+                                   << hex4(+(*iter)->get_major_version()) << " has been sent to the network during STR";
                 }
             }
         }
@@ -1305,7 +1294,7 @@ void service_discovery_impl::process_serviceentry(std::shared_ptr<serviceentry_i
                     break;
                 case option_type_e::UNKNOWN:
                 default:
-                    VSOMEIP_ERROR << __func__ << ": Unsupported service option";
+                    VSOMEIP_ERROR_P << "Unsupported service option";
                     break;
                 }
             }
@@ -1324,7 +1313,7 @@ void service_discovery_impl::process_serviceentry(std::shared_ptr<serviceentry_i
             break;
         case entry_type_e::UNKNOWN:
         default:
-            VSOMEIP_ERROR << __func__ << ": Unsupported service entry type";
+            VSOMEIP_ERROR_P << "Unsupported service entry type";
         }
     } else if (its_type != entry_type_e::FIND_SERVICE && (_sd_ac_state.sd_acceptance_required_ || _sd_ac_state.accept_entries_)) {
         // stop sending find service in repetition phase
@@ -1356,7 +1345,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         && ((_reliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_reliable_address, _reliable_port, true))
             || (_unreliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_unreliable_address, _unreliable_port, false)))) {
 
-        VSOMEIP_WARNING << __func__ << ": Ignoring offer of [" << hex4(_service) << "." << hex4(_instance) << "]";
+        VSOMEIP_WARNING_P << "Ignoring offer of [" << hex4(_service) << "." << hex4(_instance) << "]";
         return;
     }
 
@@ -1367,7 +1356,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
             configuration_->get_reliability_type(_reliable_address, _reliable_port, _unreliable_address, _unreliable_port);
 
     if (offer_type == reliability_type_e::RT_UNKNOWN) {
-        VSOMEIP_WARNING << __func__ << ": Unknown remote offer type [" << hex4(_service) << "." << hex4(_instance) << "]";
+        VSOMEIP_WARNING_P << "Unknown remote offer type [" << hex4(_service) << "." << hex4(_instance) << "]";
         return; // Unknown remote offer type --> no way to access it!
     }
 
@@ -1377,9 +1366,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                                                                                             std::uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.find(its_port_pair) == _sd_ac_state.expired_ports_.end()) {
-                VSOMEIP_WARNING << "service_discovery_impl::process_offerservice_serviceentry"
-                                << ": Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "]"
-                                << " from " << _address.to_string() << ":" << std::dec << _port << " reliable=" << _reliable;
+                VSOMEIP_WARNING_P << "Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "] from "
+                                  << _address.to_string() << ":" << std::dec << _port << " reliable=" << _reliable;
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
                 host_->expire_subscriptions(_address, _port, _reliable);
                 host_->expire_services(_address, _port, _reliable);
@@ -1419,7 +1407,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
 
     if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
                                  _received_via_multicast)) {
-        VSOMEIP_WARNING << __func__ << ": Remote offer type changed [" << hex4(_service) << "." << hex4(_instance) << "]";
+        VSOMEIP_WARNING_P << "Remote offer type changed [" << hex4(_service) << "." << hex4(_instance) << "]";
         // Only update eventgroup reliability type if it was initially unknown
         auto its_eventgroups = host_->get_subscribed_eventgroups(_service, _instance);
         for (auto eg : its_eventgroups) {
@@ -1427,9 +1415,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
             if (its_info) {
                 if (its_info->is_reliability_auto_mode()) {
                     if (offer_type != reliability_type_e::RT_UNKNOWN && offer_type != its_info->get_reliability()) {
-                        VSOMEIP_WARNING << "sd::" << __func__ << ": eventgroup reliability type changed [" << hex4(_service) << "."
-                                        << hex4(_instance) << "." << hex4(eg) << "]"
-                                        << " using reliability type:  " << static_cast<uint16_t>(offer_type);
+                        VSOMEIP_WARNING_P << "Eventgroup reliability type changed [" << hex4(_service) << "." << hex4(_instance) << "."
+                                          << hex4(eg) << "] using reliability type:  " << static_cast<uint16_t>(offer_type);
                         its_info->set_reliability(offer_type);
                     }
                 }
@@ -1672,7 +1659,7 @@ void service_discovery_impl::insert_offer_service(std::vector<std::shared_ptr<me
 
         add_entry_data(_messages, its_data);
     } else {
-        VSOMEIP_ERROR << __func__ << ": Failed to create service entry.";
+        VSOMEIP_ERROR_P << "Failed to create service entry.";
     }
 }
 
@@ -1702,11 +1689,9 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             // --> Create dummy eventgroupinfo to send Nack.
             its_info = std::make_shared<eventgroupinfo>(its_service, its_instance, its_eventgroup, its_major, its_ttl,
                                                         VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS);
-            VSOMEIP_ERROR << __func__
-                          << ": Received a SubscribeEventGroup entry for unknown eventgroup "
-                             " from: "
-                          << its_sender.to_string() << " for: [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                          << hex4(its_eventgroup) << "] session: " << hex4(its_session) << ", ttl: " << its_ttl;
+            VSOMEIP_ERROR_P << "Received a SubscribeEventGroup entry for unknown eventgroup from: " << its_sender.to_string() << " for: ["
+                            << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_eventgroup)
+                            << "] session: " << hex4(its_session) << ", ttl: " << its_ttl;
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1715,16 +1700,15 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             // --> Remove subscription.
             unsubscribe(its_service, its_instance, its_eventgroup, VSOMEIP_ROUTING_CLIENT);
 
-            VSOMEIP_WARNING << __func__ << ": Received a SubscribeEventGroup[N]Ack entry for unknown eventgroup "
-                            << " from: " << its_sender.to_string() << " for: [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                            << hex4(its_eventgroup) << "] session: " << hex4(its_session) << ", ttl: " << its_ttl;
+            VSOMEIP_WARNING_P << "Received a SubscribeEventGroup[N]Ack entry for unknown eventgroup from: " << its_sender.to_string()
+                              << " for: [" << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_eventgroup)
+                              << "] session: " << hex4(its_session) << ", ttl: " << its_ttl;
         }
         return;
     }
 
     if (_entry->get_owning_message()->get_return_code() != return_code) {
-        VSOMEIP_ERROR << __func__ << ": Invalid return code in SOMEIP/SD header " << its_sender.to_string()
-                      << " session: " << hex4(its_session);
+        VSOMEIP_ERROR_P << "Invalid return code in SOMEIP/SD header " << its_sender.to_string() << " session: " << hex4(its_session);
         if (its_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
         }
@@ -1733,16 +1717,16 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
 
     if (its_type == entry_type_e::SUBSCRIBE_EVENTGROUP) {
         if (_is_multicast) {
-            VSOMEIP_ERROR << __func__ << ": Received a SubscribeEventGroup entry on multicast address " << its_sender.to_string()
-                          << " session: " << hex4(its_session);
+            VSOMEIP_ERROR_P << "Received a SubscribeEventGroup entry on multicast address " << its_sender.to_string()
+                            << " session: " << hex4(its_session);
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
             return;
         }
         if (_entry->get_num_options(1) == 0 && _entry->get_num_options(2) == 0) {
-            VSOMEIP_ERROR << __func__ << ": Invalid number of options in SubscribeEventGroup entry " << its_sender.to_string()
-                          << " session: " << hex4(its_session);
+            VSOMEIP_ERROR_P << "Invalid number of options in SubscribeEventGroup entry " << its_sender.to_string()
+                            << " session: " << hex4(its_session);
             if (its_ttl > 0) {
                 // increase number of required acks by one as number required acks
                 // is calculated based on the number of referenced options
@@ -1751,8 +1735,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             return;
         }
         if (_entry->get_owning_message()->get_options_length() < 12) {
-            VSOMEIP_ERROR << __func__ << ": Invalid options length in SOMEIP/SD message " << its_sender.to_string()
-                          << " session: " << hex4(its_session);
+            VSOMEIP_ERROR_P << "Invalid options length in SOMEIP/SD message " << its_sender.to_string()
+                            << " session: " << hex4(its_session);
             if (its_ttl > 0) {
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
             }
@@ -1763,10 +1747,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             // by the + operator on 16 bit or higher machines.
             < static_cast<std::vector<std::shared_ptr<option_impl>>::size_type>((_entry->get_num_options(1))
                                                                                 + (_entry->get_num_options(2)))) {
-            VSOMEIP_ERROR << __func__
-                          << "Fewer options in SOMEIP/SD message than referenced in EventGroup "
-                             "entry or malformed option received "
-                          << its_sender.to_string() << " session: " << hex4(its_session);
+            VSOMEIP_ERROR_P << "Fewer options in SOMEIP/SD message than referenced in EventGroup entry or malformed option received "
+                            << its_sender.to_string() << " session: " << hex4(its_session);
             if (its_ttl > 0) {
                 // set to 0 to ensure an answer containing at least this subscribe_nack is sent out
                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
@@ -1774,10 +1756,10 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             return;
         }
         if (_entry->get_owning_message()->get_someip_length() < _entry->get_owning_message()->get_length() && its_ttl > 0) {
-            VSOMEIP_ERROR << __func__ << ": SOME/IP length field in SubscribeEventGroup message header: [" << std::dec
-                          << _entry->get_owning_message()->get_someip_length()
-                          << "] bytes, is shorter than length of deserialized message: [" << _entry->get_owning_message()->get_length()
-                          << "] bytes. " << its_sender.to_string() << " session: " << hex4(its_session);
+            VSOMEIP_ERROR_P << "SOME/IP length field in SubscribeEventGroup message header: [" << std::dec
+                            << _entry->get_owning_message()->get_someip_length()
+                            << "] bytes, is shorter than length of deserialized message: [" << _entry->get_owning_message()->get_length()
+                            << "] bytes. " << its_sender.to_string() << " session: " << hex4(its_session);
             return;
         }
     }
@@ -1795,10 +1777,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             try {
                 its_option = _options.at(its_index);
             } catch (const std::out_of_range&) {
-                VSOMEIP_ERROR << __func__
-                              << ": Fewer options in SD message than referenced in EventGroup "
-                                 "entry for option run number: "
-                              << i << " " << its_sender.to_string() << " session: " << hex4(its_session);
+                VSOMEIP_ERROR_P << "Fewer options in SD message than referenced in EventGroup entry for option run number: " << i << " "
+                                << its_sender.to_string() << " session: " << hex4(its_session);
                 if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type && its_ttl > 0) {
                     insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                 }
@@ -1828,11 +1808,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            VSOMEIP_ERROR << __func__
-                                          << ": Multiple IPv4 endpoint options of same kind "
-                                             "referenced! "
-                                          << its_sender.to_string() << " session: " << hex4(its_session)
-                                          << " is_first_reliable: " << is_first_reliable;
+                            VSOMEIP_ERROR_P << "Multiple IPv4 endpoint options of same kind referenced! " << its_sender.to_string()
+                                            << " session: " << hex4(its_session) << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
 
@@ -1840,10 +1817,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            VSOMEIP_ERROR << __func__
-                                          << ": Invalid port or IP address in first IPv4 endpoint "
-                                             "option specified! "
-                                          << its_sender.to_string() << " session: " << hex4(its_session);
+                            VSOMEIP_ERROR_P << "Invalid port or IP address in first IPv4 endpoint option specified! "
+                                            << its_sender.to_string() << " session: " << hex4(its_session);
                             return;
                         }
                     } else if (its_second_port == ILLEGAL_PORT) {
@@ -1857,11 +1832,9 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            VSOMEIP_ERROR << __func__
-                                          << ": Multiple IPv4 endpoint options of same kind "
-                                             "referenced! "
-                                          << its_sender.to_string() << " session: " << hex4(its_session) << its_session
-                                          << " is_second_reliable: " << is_second_reliable;
+                            VSOMEIP_ERROR_P << "Multiple IPv4 endpoint options of same kind referenced! " << its_sender.to_string()
+                                            << " session: " << hex4(its_session) << its_session
+                                            << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
 
@@ -1869,16 +1842,16 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            VSOMEIP_ERROR << __func__ << ": Invalid port or IP address in second IPv4 endpoint "
-                                          << "option specified! " << its_sender.to_string() << " session: " << hex4(its_session);
+                            VSOMEIP_ERROR_P << "Invalid port or IP address in second IPv4 endpoint option specified! "
+                                            << its_sender.to_string() << " session: " << hex4(its_session);
                             return;
                         }
                     } else {
                         // TODO: error message, too many endpoint options!
                     }
                 } else {
-                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv4 Endpoint)" << its_sender.to_string()
-                                  << " session: " << hex4(its_session);
+                    VSOMEIP_ERROR_P << "Invalid eventgroup option (IPv4 Endpoint)" << its_sender.to_string()
+                                    << " session: " << hex4(its_session);
                 }
                 break;
             }
@@ -1891,9 +1864,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                         if (its_ttl > 0) {
                             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                         }
-                        VSOMEIP_ERROR << "Invalid layer 4 protocol type in IPv6 endpoint option "
-                                         "specified! "
-                                      << its_sender.to_string() << " session: " << hex4(its_session);
+                        VSOMEIP_ERROR << "Invalid layer 4 protocol type in IPv6 endpoint option specified! " << its_sender.to_string()
+                                      << " session: " << hex4(its_session);
                         return;
                     }
 
@@ -1906,9 +1878,9 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            VSOMEIP_ERROR << __func__ << ": Multiple IPv6 endpoint options of same kind referenced! "
-                                          << its_sender.to_string() << " session: " << hex4(its_session) << its_session
-                                          << " is_first_reliable: " << is_first_reliable;
+                            VSOMEIP_ERROR_P << "Multiple IPv6 endpoint options of same kind referenced! " << its_sender.to_string()
+                                            << " session: " << hex4(its_session) << its_session
+                                            << " is_first_reliable: " << is_first_reliable;
                             return;
                         }
                     } else if (its_second_port == ILLEGAL_PORT) {
@@ -1920,17 +1892,17 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                             if (its_ttl > 0) {
                                 insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                             }
-                            VSOMEIP_ERROR << __func__ << ": Multiple IPv6 endpoint options of same kind referenced! "
-                                          << its_sender.to_string() << " session: " << hex4(its_session) << its_session << its_session
-                                          << " is_second_reliable: " << is_second_reliable;
+                            VSOMEIP_ERROR_P << "Multiple IPv6 endpoint options of same kind referenced! " << its_sender.to_string()
+                                            << " session: " << hex4(its_session) << its_session << its_session
+                                            << " is_second_reliable: " << is_second_reliable;
                             return;
                         }
                     } else {
                         // TODO: error message, too many endpoint options!
                     }
                 } else {
-                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv6 Endpoint) " << its_sender.to_string()
-                                  << " session: " << hex4(its_session);
+                    VSOMEIP_ERROR_P << "Invalid eventgroup option (IPv6 Endpoint) " << its_sender.to_string()
+                                    << " session: " << hex4(its_session);
                 }
                 break;
             }
@@ -1951,13 +1923,13 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                     }
                     // ID: SIP_SD_946, ID: SIP_SD_1144
                     if (its_first_port != ILLEGAL_PORT && its_second_port != ILLEGAL_PORT) {
-                        VSOMEIP_ERROR << __func__ << ": Multiple IPv4 multicast options referenced! " << its_sender.to_string()
-                                      << " session: " << hex4(its_session);
+                        VSOMEIP_ERROR_P << "Multiple IPv4 multicast options referenced! " << its_sender.to_string()
+                                        << " session: " << hex4(its_session);
                         return;
                     }
                 } else {
-                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv4 Multicast) " << its_sender.to_string()
-                                  << " session: " << hex4(its_session);
+                    VSOMEIP_ERROR_P << "Invalid eventgroup option (IPv4 Multicast) " << its_sender.to_string()
+                                    << " session: " << hex4(its_session);
                 }
                 break;
             case option_type_e::IP6_MULTICAST:
@@ -1977,13 +1949,13 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
                     }
                     // ID: SIP_SD_946, ID: SIP_SD_1144
                     if (its_first_port != ILLEGAL_PORT && its_second_port != ILLEGAL_PORT) {
-                        VSOMEIP_ERROR << __func__ << "Multiple IPv6 multicast options referenced! " << its_sender.to_string()
-                                      << " session: " << hex4(its_session);
+                        VSOMEIP_ERROR_P << "Multiple IPv6 multicast options referenced! " << its_sender.to_string()
+                                        << " session: " << hex4(its_session);
                         return;
                     }
                 } else {
-                    VSOMEIP_ERROR << __func__ << ": Invalid eventgroup option (IPv6 Multicast) " << its_sender.to_string()
-                                  << " session: " << hex4(its_session);
+                    VSOMEIP_ERROR_P << "Invalid eventgroup option (IPv6 Multicast) " << its_sender.to_string()
+                                    << " session: " << hex4(its_session);
                 }
                 break;
             case option_type_e::CONFIGURATION: {
@@ -1998,8 +1970,8 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             }
             case option_type_e::UNKNOWN:
             default:
-                VSOMEIP_WARNING << __func__ << ": Unsupported eventgroup option [" << std::hex << static_cast<int>(its_option->get_type())
-                                << "] " << its_sender.to_string() << " session: " << hex4(its_session);
+                VSOMEIP_WARNING_P << "Unsupported eventgroup option [" << std::hex << static_cast<int>(its_option->get_type()) << "] "
+                                  << its_sender.to_string() << " session: " << hex4(its_session);
                 if (its_ttl > 0) {
                     insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, its_clients);
                     return;
@@ -2068,10 +2040,10 @@ void service_discovery_impl::handle_eventgroup_subscription(
     if (reliablility_nack && _ttl > 0) {
         insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
         // TODO: Add sender and session id
-        VSOMEIP_WARNING << __func__ << ": Subscription for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]"
-                        << " not valid: Event configuration (" << static_cast<std::uint32_t>(_info->get_reliability())
-                        << ") does not match the provided endpoint options: " << _first_address.to_string() << ":" << std::dec
-                        << _first_port << " " << _second_address.to_string() << ":" << _second_port;
+        VSOMEIP_WARNING_P << "Subscription for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]"
+                          << " not valid: Event configuration (" << static_cast<std::uint32_t>(_info->get_reliability())
+                          << ") does not match the provided endpoint options: " << _first_address.to_string() << ":" << std::dec
+                          << _first_port << " " << _second_address.to_string() << ":" << _second_port;
         return;
     }
 
@@ -2103,10 +2075,10 @@ void service_discovery_impl::handle_eventgroup_subscription(
         auto its_info =
                 std::make_shared<eventgroupinfo>(_service, _instance, _eventgroup, _major, 0, VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS);
         // TODO: Add session id
-        VSOMEIP_ERROR << __func__ << ": Requested major version:[" << static_cast<uint32_t>(_major) << "] in subscription to service: ["
-                      << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
-                      << "] does not match with services major version:[" << static_cast<uint32_t>(_info->get_major())
-                      << "] subscriber: " << _first_address.to_string() << ":" << std::dec << _first_port;
+        VSOMEIP_ERROR_P << "Requested major version:[" << static_cast<uint32_t>(_major) << "] in subscription to service: ["
+                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                        << "] does not match with services major version:[" << static_cast<uint32_t>(_info->get_major())
+                        << "] subscriber: " << _first_address.to_string() << ":" << std::dec << _first_port;
         if (_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, _clients);
         }
@@ -2311,7 +2283,7 @@ bool service_discovery_impl::serialize_and_send(const std::vector<std::shared_pt
                         increment_session(_address);
                     }
                 } else {
-                    VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Serialization failed!";
+                    VSOMEIP_ERROR_P << "Serialization failed!";
                     its_result = false;
                 }
                 serializer_->reset();
@@ -3129,8 +3101,7 @@ bool service_discovery_impl::update_remote_offer_type(service_t _service, instan
         break;
     case reliability_type_e::RT_UNKNOWN:
     default:
-        VSOMEIP_WARNING << __func__ << ": unknown offer type [" << hex4(_service) << "." << hex4(_instance) << "]"
-                        << static_cast<int>(_offer_type);
+        VSOMEIP_WARNING_P << "Unknown offer type [" << hex4(_service) << "." << hex4(_instance) << "]" << static_cast<int>(_offer_type);
         break;
     }
     return ret;
@@ -3236,8 +3207,7 @@ bool service_discovery_impl::set_offer_multicast_state(service_t _service, insta
         break;
     case reliability_type_e::RT_UNKNOWN:
     default:
-        VSOMEIP_WARNING << __func__ << ": unknown offer type [" << hex4(_service) << "." << hex4(_instance) << "]"
-                        << static_cast<int>(_offer_type);
+        VSOMEIP_WARNING_P << "Unknown offer type [" << hex4(_service) << "." << hex4(_instance) << "]" << static_cast<int>(_offer_type);
         break;
     }
 
@@ -3397,14 +3367,13 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(service_t 
             // fallback: determine how service is offered
             // and update reliability type of eventgroup
             its_reliability = get_remote_offer_type(_service, _instance);
-            VSOMEIP_WARNING << "sd::" << __func__ << ": couldn't determine eventgroup reliability type for [" << hex4(_service) << "."
-                            << hex4(_instance) << "." << hex4(_eventgroup) << "]"
-                            << " using reliability type:  " << hex4(static_cast<uint16_t>(its_reliability));
+            VSOMEIP_WARNING_P << "Couldn't determine eventgroup reliability type for [" << hex4(_service) << "." << hex4(_instance) << "."
+                              << hex4(_eventgroup) << "] using reliability type:  " << hex4(static_cast<uint16_t>(its_reliability));
             its_info->set_reliability(its_reliability);
         }
     } else {
-        VSOMEIP_WARNING << "sd::" << __func__ << ": couldn't lock eventgroupinfo [" << hex4(_service) << "." << hex4(_instance) << "."
-                        << hex4(_eventgroup) << "]";
+        VSOMEIP_WARNING_P << "Couldn't lock eventgroupinfo [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                          << "]";
         auto its_eg_info = host_->find_eventgroup(_service, _instance, _eventgroup);
         if (its_eg_info) {
             _subscription->set_eventgroupinfo(its_eg_info);
@@ -3413,8 +3382,8 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(service_t 
     }
 
     if (its_reliability == reliability_type_e::RT_UNKNOWN) {
-        VSOMEIP_WARNING << "sd::" << __func__ << ": eventgroup reliability type is unknown [" << hex4(_service) << "." << hex4(_instance)
-                        << "." << hex4(_eventgroup) << "]";
+        VSOMEIP_WARNING_P << "Eventgroup reliability type is unknown [" << hex4(_service) << "." << hex4(_instance) << "."
+                          << hex4(_eventgroup) << "]";
     }
     return its_reliability;
 }
@@ -3428,13 +3397,13 @@ void service_discovery_impl::deserialize_data(const byte_t* _data, const length_
 
 void service_discovery_impl::check_stopped_services_on_suspend(const boost::system::error_code& error) {
     if (error && error.value() != boost::asio::error::operation_aborted) {
-        VSOMEIP_ERROR << "sdi::" << __func__ << ": Suspend stop offer watchdog error " << error.message();
+        VSOMEIP_ERROR_P << "Suspend stop offer watchdog error " << error.message();
     } else {
         std::scoped_lock lock{suspend_stop_offer_mutex_};
         for (const auto& [its_si, majors] : suspend_stop_offer_services_) {
             for (const auto& major : majors) {
-                VSOMEIP_ERROR << "sdi::" << __func__ << " stop offer not sent for [" << hex4(its_si.service()) << "."
-                              << hex4(its_si.instance()) << "." << hex4(+major) << "]";
+                VSOMEIP_ERROR_P << "Stop offer not sent for [" << hex4(its_si.service()) << "." << hex4(its_si.instance()) << "."
+                                << hex4(+major) << "]";
             }
         }
         suspend_stop_offer_services_.clear();
@@ -3443,7 +3412,7 @@ void service_discovery_impl::check_stopped_services_on_suspend(const boost::syst
 
 void service_discovery_impl::check_offer_services(const boost::system::error_code& error, uint32_t _faulty_value) {
     if (error && error.value() != boost::asio::error::operation_aborted) {
-        VSOMEIP_ERROR << "sdi::" << __func__ << ": Suspend offer watchdog error " << error.message();
+        VSOMEIP_ERROR_P << "Suspend offer watchdog error " << error.message();
     } else if (!error) { // and there are offers being made
         if (_faulty_value == offers_received_) {
             VSOMEIP_TERMINATE("No offer was received after resume");

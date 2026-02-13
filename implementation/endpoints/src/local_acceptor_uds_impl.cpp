@@ -14,6 +14,7 @@
 #include <vsomeip/internal/logger.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
+#define VSOMEIP_LOG_PREFIX "laui"
 namespace vsomeip_v3 {
 local_acceptor_uds_impl::local_acceptor_uds_impl(boost::asio::io_context& _io, endpoint _own_endpoint,
                                                  std::shared_ptr<configuration> _configuration) :
@@ -27,26 +28,25 @@ void local_acceptor_uds_impl::init(boost::system::error_code& _ec, std::optional
     if (_native_fd) {
         acceptor_->assign(own_endpoint_.protocol(), *_native_fd, _ec);
         if (_ec) {
-            VSOMEIP_ERROR << "laui::" << __func__ << ": could not assign() acceptor " << own_endpoint_.path()
-                          << " , with fd: " << *_native_fd << " due to err " << _ec.message() << ", mem: " << this;
+            VSOMEIP_ERROR_P << "Could not assign() acceptor " << own_endpoint_.path() << " , with fd: " << *_native_fd << " due to err "
+                            << _ec.message() << ", mem: " << this;
             return;
         }
     } else {
         acceptor_->open(own_endpoint_.protocol(), _ec);
         if (_ec) {
-            VSOMEIP_ERROR << "laui::" << __func__ << ": could not open() acceptor " << own_endpoint_.path() << " due to err "
-                          << _ec.message() << ", mem: " << this;
+            VSOMEIP_ERROR_P << "Could not open() acceptor " << own_endpoint_.path() << " due to err " << _ec.message() << ", mem: " << this;
             return;
         }
     }
 
     auto close = [this](char const* _method, boost::system::error_code const& _error_code) {
-        VSOMEIP_ERROR << "laui::init: Error encountered when calling: " << _method << ". Error: " << _error_code.message()
-                      << ", for socket: " << own_endpoint_.path() << ", mem: " << this;
+        VSOMEIP_ERROR_P << "Error encountered when calling: " << _method << ". Error: " << _error_code.message()
+                        << ", for socket: " << own_endpoint_.path() << ", mem: " << this;
         boost::system::error_code ec;
         acceptor_->close(ec);
         if (ec) {
-            VSOMEIP_ERROR << "laui::init::close: Could not close socket for " << own_endpoint_.path() << ", mem: " << this;
+            VSOMEIP_ERROR_P << "Could not close socket for " << own_endpoint_.path() << ", mem: " << this;
         }
     };
     acceptor_->set_reuse_address(_ec);
@@ -56,8 +56,7 @@ void local_acceptor_uds_impl::init(boost::system::error_code& _ec, std::optional
     }
 
     if (!acceptor_->unlink(own_endpoint_.path().c_str())) {
-        VSOMEIP_ERROR << "laui::" << __func__ << ": unlink(" << own_endpoint_.path() << ") failed due to errno " << errno
-                      << ", mem: " << this;
+        VSOMEIP_ERROR_P << "unlink(" << own_endpoint_.path() << ") failed due to errno " << errno << ", mem: " << this;
     }
 
     acceptor_->bind(own_endpoint_, _ec);
@@ -74,7 +73,7 @@ void local_acceptor_uds_impl::init(boost::system::error_code& _ec, std::optional
 
 #ifndef __QNX__
     if (chmod(own_endpoint_.path().c_str(), configuration_->get_permissions_uds()) == -1) {
-        VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno) << ", mem: " << this;
+        VSOMEIP_ERROR_P << "chmod: " << strerror(errno) << ", mem: " << this;
     }
 #endif
 }
@@ -82,14 +81,14 @@ void local_acceptor_uds_impl::init(boost::system::error_code& _ec, std::optional
 void local_acceptor_uds_impl::close(boost::system::error_code& _ec) {
     std::scoped_lock const lock{mtx_};
     if (acceptor_->is_open()) {
-        VSOMEIP_INFO << "laui::" << __func__ << ": Closing the acceptor: " << own_endpoint_.path() << ", mem: " << this;
+        VSOMEIP_INFO_P << "Closing the acceptor: " << own_endpoint_.path() << ", mem: " << this;
         acceptor_->close(_ec);
     }
 }
 void local_acceptor_uds_impl::cancel(boost::system::error_code& _ec) {
     std::scoped_lock const lock{mtx_};
     if (acceptor_->is_open()) {
-        VSOMEIP_INFO << "laui::" << __func__ << ": Cancel operations for the acceptor: " << own_endpoint_.path() << ", mem: " << this;
+        VSOMEIP_INFO_P << "Cancel operations for the acceptor: " << own_endpoint_.path() << ", mem: " << this;
         acceptor_->cancel(_ec);
     }
 }
@@ -122,8 +121,7 @@ void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, c
     boost::system::error_code ec;
     auto remote = _socket->remote_endpoint(ec);
     if (ec) {
-        VSOMEIP_WARNING << "laui::" << __func__ << ": could not read remote endpoint, "
-                        << "error: " << ec.message() << ", mem: " << this;
+        VSOMEIP_WARNING_P << "Could not read remote endpoint, error: " << ec.message() << ", mem: " << this;
         // invoke handler only without the lock (avoids the need of a recursive mutex)
         lock.unlock();
         _handler(ec, nullptr);

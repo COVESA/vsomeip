@@ -42,6 +42,7 @@
 #include "../../security/include/policy_manager_impl.hpp"
 #include "../../security/include/security.hpp"
 
+#define VSOMEIP_LOG_PREFIX "ci"
 namespace vsomeip_v3 {
 namespace cfg {
 
@@ -351,7 +352,7 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     }
 
     for (auto f : its_failed) {
-        VSOMEIP_WARNING << __func__ << ": Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
+        VSOMEIP_WARNING_P << "Reading of configuration file \"" << f << "\" failed. Configuration may be incomplete";
     }
 
     policy_manager_->set_is_policy_extension_loaded(_client_host, true);
@@ -380,9 +381,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
                                                bool _magic_cookies_enabled) {
     bool ret = false;
     if (!is_loaded_) {
-        VSOMEIP_ERROR << __func__
-                      << " shall only be called after normal"
-                         "configuration has been parsed";
+        VSOMEIP_ERROR_P << "Shall only be called after normal configuration has been parsed";
     } else {
         auto its_service = std::make_shared<service>();
         its_service->service_ = _service;
@@ -427,9 +426,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t
     (void)_magic_cookies_enabled;
     bool ret = false;
     if (!is_loaded_) {
-        VSOMEIP_ERROR << __func__
-                      << " shall only be called after normal"
-                         "configuration has been parsed";
+        VSOMEIP_ERROR_P << "Shall only be called after normal configuration has been parsed";
     } else {
         std::scoped_lock its_lock(services_mutex_);
         const auto search = services_.find(service_instance_t{_service, _instance});
@@ -574,9 +571,7 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
             std::string its_key(i->first);
             if (its_key == "console") {
                 if (is_configured_[ET_LOGGING_CONSOLE]) {
-                    _warnings.insert("Multiple definitions for logging.console."
-                                     " Ignoring definition from "
-                                     + _element.name_);
+                    _warnings.insert("Multiple definitions for logging.console. Ignoring definition from " + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
 #ifndef ANDROID
@@ -588,9 +583,7 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
                 }
             } else if (its_key == "file") {
                 if (is_configured_[ET_LOGGING_FILE]) {
-                    _warnings.insert("Multiple definitions for logging.file."
-                                     " Ignoring definition from "
-                                     + _element.name_);
+                    _warnings.insert("Multiple definitions for logging.file. Ignoring definition from " + _element.name_);
                 } else {
                     for (auto j : i->second) {
                         std::string its_sub_key(j.first);
@@ -606,9 +599,7 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
 #ifdef USE_DLT
             } else if (its_key == "dlt") {
                 if (is_configured_[ET_LOGGING_DLT]) {
-                    _warnings.insert("Multiple definitions for logging.dlt."
-                                     " Ignoring definition from "
-                                     + _element.name_);
+                    _warnings.insert("Multiple definitions for logging.dlt. Ignoring definition from " + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
                     has_dlt_log_ = (its_value == "true");
@@ -617,9 +608,7 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
 #endif
             } else if (its_key == "level") {
                 if (is_configured_[ET_LOGGING_LEVEL]) {
-                    _warnings.insert("Multiple definitions for logging.level."
-                                     " Ignoring definition from "
-                                     + _element.name_);
+                    _warnings.insert("Multiple definitions for logging.level. Ignoring definition from " + _element.name_);
                 } else {
                     std::string its_value(i->second.data());
                     std::scoped_lock lock(mutex_loglevel_);
@@ -701,8 +690,7 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
     try {
         auto its_routing = _element.tree_.get_child("routing");
         if (is_configured_[ET_ROUTING]) {
-            VSOMEIP_WARNING << "Multiple definitions of routing."
-                            << " Ignoring definition from " << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions of routing. Ignoring definition from " << _element.name_;
         } else {
             routing_.is_enabled_ = its_routing.get_optional<bool>("enabled").get_value_or(routing_.is_enabled_);
 
@@ -989,9 +977,8 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
                 if (!is_configured_client_id(its_id)) {
                     client_identifiers_.insert(its_id);
                 } else {
-                    VSOMEIP_ERROR << "Multiple applications are configured to use"
-                                  << " client identifier " << std::hex << its_id << ". Ignoring the configuration for application "
-                                  << its_name;
+                    VSOMEIP_ERROR << "Multiple applications are configured to use client identifier " << hex4(its_id)
+                                  << ". Ignoring the configuration for application " << its_name;
                     its_id = VSOMEIP_CLIENT_UNSET;
                 }
             }
@@ -1026,16 +1013,14 @@ std::map<plugin_type_e, std::set<std::string>> configuration_impl::load_plugins(
 
             if (its_inner_key == "name") {
                 if (its_configured[ET_PLUGIN_NAME]) {
-                    VSOMEIP_WARNING << "Multiple definitions of plugins.name."
-                                    << " Ignoring definition from " << its_inner_value;
+                    VSOMEIP_WARNING << "Multiple definitions of plugins.name. Ignoring definition from " << its_inner_value;
                 } else {
                     its_name = its_inner_value;
                     its_configured[ET_PLUGIN_NAME] = true;
                 }
             } else if (its_inner_key == "type") {
                 if (its_configured[ET_PLUGIN_TYPE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of plugins.type."
-                                    << " Ignoring definition from " << its_inner_value;
+                    VSOMEIP_WARNING << "Multiple definitions of plugins.type. Ignoring definition from " << its_inner_value;
                 } else {
                     its_type = its_inner_value;
                     its_configured[ET_PLUGIN_TYPE] = true;
@@ -1104,16 +1089,14 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
             std::string its_value(i->second.data());
             if (its_key == "enable") {
                 if (is_configured_[ET_TRACING_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of tracing.enable."
-                                    << " Ignoring definition from " << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of tracing.enable. Ignoring definition from " << _element.name_;
                 } else {
                     trace_->is_enabled_ = (its_value == "true");
                     is_configured_[ET_TRACING_ENABLE] = true;
                 }
             } else if (its_key == "sd_enable") {
                 if (is_configured_[ET_TRACING_SD_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of tracing.sd_enable."
-                                    << " Ignoring definition from " << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of tracing.sd_enable. Ignoring definition from " << _element.name_;
                 } else {
                     trace_->is_sd_enabled_ = (its_value == "true");
                     is_configured_[ET_TRACING_SD_ENABLE] = true;
@@ -1455,7 +1438,7 @@ void configuration_impl::print_suppress_events(void) const {
     VSOMEIP_INFO << "Suppress Event logs size: " << suppress_events_.size();
 
     for (const auto& its_log : suppress_events_) {
-        VSOMEIP_INFO << "+[" << hex4(its_log.service) << "." << hex4(its_log.instance) << "." << its_log.event << "]";
+        VSOMEIP_INFO << "+[" << hex4(its_log.service) << "." << hex4(its_log.instance) << "." << hex4(its_log.event) << "]";
     }
 }
 
@@ -1463,9 +1446,7 @@ void configuration_impl::load_unicast_address(const configuration_element& _elem
     try {
         std::string its_value = _element.tree_.get<std::string>("unicast");
         if (is_configured_[ET_UNICAST]) {
-            VSOMEIP_WARNING << "Multiple definitions for unicast."
-                               "Ignoring definition from "
-                            << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions for unicast.Ignoring definition from " << _element.name_;
         } else {
             unicast_ = boost::asio::ip::make_address(its_value);
             is_configured_[ET_UNICAST] = true;
@@ -1480,9 +1461,7 @@ void configuration_impl::load_netmask(const configuration_element& _element) {
         auto its_value = _element.tree_.get_optional<std::string>("netmask");
         if (its_value) {
             if (is_configured_[ET_NETMASK]) {
-                VSOMEIP_WARNING << "Multiple definitions for netmask/prefix."
-                                   "Ignoring netmask definition from "
-                                << _element.name_;
+                VSOMEIP_WARNING << "Multiple definitions for netmask/prefix. Ignoring netmask definition from " << _element.name_;
             } else {
                 netmask_ = boost::asio::ip::make_address(*its_value);
                 is_configured_[ET_NETMASK] = true;
@@ -1492,9 +1471,7 @@ void configuration_impl::load_netmask(const configuration_element& _element) {
         its_value = _element.tree_.get_optional<std::string>("prefix");
         if (its_value) {
             if (is_configured_[ET_NETMASK]) {
-                VSOMEIP_WARNING << "Multiple definitions for prefix/netmask."
-                                   "Ignoring prefix definition from "
-                                << _element.name_;
+                VSOMEIP_WARNING << "Multiple definitions for prefix/netmask. Ignoring prefix definition from " << _element.name_;
             } else {
                 std::stringstream its_converter;
                 its_converter << *its_value;
@@ -1517,9 +1494,7 @@ void configuration_impl::load_device(const configuration_element& _element) {
     try {
         std::string its_value = _element.tree_.get<std::string>("device");
         if (is_configured_[ET_DEVICE]) {
-            VSOMEIP_WARNING << "Multiple definitions for device."
-                               "Ignoring definition from "
-                            << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions for device. Ignoring definition from " << _element.name_;
         } else {
             device_ = its_value;
             is_configured_[ET_DEVICE] = true;
@@ -1533,9 +1508,7 @@ void configuration_impl::load_network(const configuration_element& _element) {
     try {
         std::string its_value(_element.tree_.get<std::string>("network"));
         if (is_configured_[ET_NETWORK]) {
-            VSOMEIP_WARNING << "Multiple definitions for network."
-                               "Ignoring definition from "
-                            << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions for network. Ignoring definition from " << _element.name_;
         } else {
             network_ = its_value;
             is_configured_[ET_NETWORK] = true;
@@ -1549,9 +1522,7 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
     try {
         std::string its_value = _element.tree_.get<std::string>("diagnosis");
         if (is_configured_[ET_DIAGNOSIS]) {
-            VSOMEIP_WARNING << "Multiple definitions for diagnosis."
-                               "Ignoring definition from "
-                            << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions for diagnosis. Ignoring definition from " << _element.name_;
         } else {
             std::stringstream its_converter;
 
@@ -1565,9 +1536,7 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
         }
         std::string its_mask = _element.tree_.get<std::string>("diagnosis_mask");
         if (is_configured_[ET_DIAGNOSIS_MASK]) {
-            VSOMEIP_WARNING << "Multiple definitions for diagnosis_mask."
-                               "Ignoring definition from "
-                            << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions for diagnosis_mask.Ignoring definition from " << _element.name_;
         } else {
             std::stringstream its_converter;
 
@@ -1581,9 +1550,8 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
         }
         if (is_configured_[ET_DIAGNOSIS] && is_configured_[ET_DIAGNOSIS_MASK]
             && (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<std::uint16_t>(diagnosis_ << 8)) {
-            VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! "
-                               "Client IDs will start at 0x"
-                            << std::hex << (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
+            VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x" << std::hex
+                            << (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
                             << static_cast<std::uint16_t>(diagnosis_ << 8);
         }
     } catch (...) {
@@ -1597,9 +1565,7 @@ void configuration_impl::load_shutdown_timeout(const configuration_element& _ele
         if (_element.tree_.get_child_optional(shutdown_timeout)) {
             std::string its_value = _element.tree_.get<std::string>("shutdown_timeout");
             if (is_configured_[ET_SHUTDOWN_TIMEOUT]) {
-                VSOMEIP_WARNING << "Multiple definitions for shutdown_timeout."
-                                   "Ignoring definition from "
-                                << _element.name_;
+                VSOMEIP_WARNING << "Multiple definitions for shutdown_timeout. Ignoring definition from " << _element.name_;
             } else {
                 std::stringstream its_converter;
 
@@ -1626,27 +1592,21 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
             std::stringstream its_converter;
             if (its_key == "enable") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.enabled."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.enabled. Ignoring definition from " << _element.name_;
                 } else {
                     is_sd_enabled_ = (its_value == "true");
                     is_configured_[ET_SERVICE_DISCOVERY_ENABLE] = true;
                 }
             } else if (its_key == "multicast") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_MULTICAST]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.multicast."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.multicast. Ignoring definition from " << _element.name_;
                 } else {
                     sd_multicast_ = its_value;
                     is_configured_[ET_SERVICE_DISCOVERY_MULTICAST] = true;
                 }
             } else if (its_key == "port") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_PORT]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.port."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.port. Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << its_value;
                     its_converter >> sd_port_;
@@ -1658,17 +1618,14 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "protocol") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_PROTOCOL]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.protocol."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.protocol. Ignoring definition from " << _element.name_;
                 } else {
                     sd_protocol_ = its_value;
                     is_configured_[ET_SERVICE_DISCOVERY_PROTOCOL] = true;
                 }
             } else if (its_key == "initial_delay_min") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MIN]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_delay_min."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_delay_min. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1677,8 +1634,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "initial_delay_max") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_INITIAL_DELAY_MAX]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_delay_max."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_delay_max. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1687,8 +1643,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "repetitions_base_delay") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_REPETITION_BASE_DELAY]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.repetition_base_delay."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.repetition_base_delay. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1697,8 +1652,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "repetitions_max") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_REPETITION_MAX]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.repetition_max."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.repetition_max. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     int tmp;
@@ -1710,9 +1664,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "ttl") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_TTL]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl. Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << its_value;
                     its_converter >> sd_ttl_;
@@ -1725,8 +1677,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "cyclic_offer_delay") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.cyclic_offer_delay."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.cyclic_offer_delay. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1735,8 +1686,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "request_response_delay") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.request_response_delay. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1745,9 +1695,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "find_initial_debounce_reps") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS]) {
-                    VSOMEIP_WARNING << "Multiple definitions for "
-                                       "service_discovery.find_initial_debounce_reps."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_initial_debounce_reps. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     int tmp;
@@ -1756,18 +1704,14 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     if (tmp == static_cast<std::uint8_t>(tmp)) {
                         sd_find_initial_debounce_reps_ = static_cast<std::uint8_t>(tmp);
                     } else {
-                        VSOMEIP_WARNING << "Invalid value for "
-                                           "service_discovery.find_initial_debounce_reps: "
-                                        << tmp;
+                        VSOMEIP_WARNING << "Invalid value for service_discovery.find_initial_debounce_reps: " << tmp;
                         sd_find_initial_debounce_reps_ = std::numeric_limits<std::uint8_t>::max();
                     }
                     is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS] = true;
                 }
             } else if (its_key == "find_initial_debounce_time") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_TIME]) {
-                    VSOMEIP_WARNING << "Multiple definitions for "
-                                       "service_discovery.find_initial_debounce_time."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_initial_debounce_time. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1776,8 +1720,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "offer_debounce_time") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_OFFER_DEBOUNCE_TIME]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.offer_debounce."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.offer_debounce_time. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1786,8 +1729,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "find_debounce_time") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_FIND_DEBOUNCE_TIME]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_debounce."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.find_debounce_time. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1796,8 +1738,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "ttl_factor_offers") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_OFFERS]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_offers."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_offers. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     load_ttl_factors(i->second, &ttl_factors_offers_);
@@ -1805,9 +1746,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "ttl_factor_subscriptions") {
                 if (is_configured_[ET_SERVICE_DISCOVERY_TTL_FACTOR_SUBSCRIPTIONS]) {
-                    VSOMEIP_WARNING << "Multiple definitions for "
-                                       "service_discovery.ttl_factor_subscriptions."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.ttl_factor_subscriptions. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     load_ttl_factors(i->second, &ttl_factors_subscriptions_);
@@ -1815,8 +1754,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "max_remote_subscribers") {
                 if (is_configured_[ET_MAX_REMOTE_SUBSCRIBERS]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.max_remote_subscribers."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.max_remote_subscribers. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     int tmp;
@@ -1833,8 +1771,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "initial_state") {
                 if (is_configured_[ET_INITIAL_ROUTING_STATE]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_state."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.initial_state. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     if (its_value == "suspended") {
@@ -1845,10 +1782,8 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "wait_route_netlink_notification") {
                 if (is_configured_[ET_WAIT_ROUTE_NETLINK_NOTFICATION]) {
-                    VSOMEIP_WARNING << "Multiple definitions for "
-                                       "service_discovery.wait_route_netlink_notification."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.wait_route_netlink_notification."
+                                    << " Ignoring definition from " << _element.name_;
                 } else {
                     sd_wait_route_netlink_notification_ = (its_value == "true");
                     is_configured_[ET_WAIT_ROUTE_NETLINK_NOTFICATION] = true;
@@ -1858,9 +1793,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "stop_offer_watchdog_time") {
                 if (is_configured_[ET_STOP_OFFER_WATCHDOG]) {
-                    VSOMEIP_WARNING << "Multiple definitions for "
-                                       "service_discovery.stop_offer_watchdog."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.stop_offer_watchdog. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -1869,8 +1802,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                 }
             } else if (its_key == "offers_watchdog") {
                 if (is_configured_[ET_OFFER_WATCHDOG]) {
-                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.offers_watchdog."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions for service_discovery.offers_watchdog. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << its_value;
@@ -2000,7 +1932,7 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
 
         const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
         if (search != services_.end()) {
-            VSOMEIP_WARNING << "Multiple configurations for service [" << std::hex << its_service->service_ << "." << its_service->instance_
+            VSOMEIP_WARNING << "Multiple configurations for service [" << hex4(its_service->service_) << "." << hex4(its_service->instance_)
                             << "]";
             is_loaded = false;
         }
@@ -2359,18 +2291,14 @@ void configuration_impl::load_watchdog(const configuration_element& _element) {
             std::stringstream its_converter;
             if (its_key == "enable") {
                 if (is_configured_[ET_WATCHDOG_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of watchdog.enable."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of watchdog.enable. Ignoring definition from " << _element.name_;
                 } else {
                     watchdog_->is_enabeled_ = (its_value == "true");
                     is_configured_[ET_WATCHDOG_ENABLE] = true;
                 }
             } else if (its_key == "timeout") {
                 if (is_configured_[ET_WATCHDOG_TIMEOUT]) {
-                    VSOMEIP_WARNING << "Multiple definitions of watchdog.timeout."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of watchdog.timeout. Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << std::dec << its_value;
                     its_converter >> watchdog_->timeout_in_ms_;
@@ -2378,8 +2306,7 @@ void configuration_impl::load_watchdog(const configuration_element& _element) {
                 }
             } else if (its_key == "allowed_missing_pongs") {
                 if (is_configured_[ET_WATCHDOG_ALLOWED_MISSING_PONGS]) {
-                    VSOMEIP_WARNING << "Multiple definitions of watchdog.allowed_missing_pongs."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions of watchdog.allowed_missing_pongs. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     its_converter << std::dec << its_value;
@@ -2403,8 +2330,7 @@ void configuration_impl::load_local_clients_keepalive(const configuration_elemen
 
             if (its_key == "enable") {
                 if (is_configured_[ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of local-clients-keepalive.enable."
-                                       " Ignoring definition from "
+                    VSOMEIP_WARNING << "Multiple definitions of local-clients-keepalive.enable. Ignoring definition from "
                                     << _element.name_;
                 } else {
                     local_clients_keepalive_->is_enabled_ = (its_value == "true");
@@ -2412,9 +2338,7 @@ void configuration_impl::load_local_clients_keepalive(const configuration_elemen
                 }
             } else if (its_key == "time") {
                 if (is_configured_[ET_LOCAL_CLIENTS_KEEPALIVE_TIME]) {
-                    VSOMEIP_WARNING << "Multiple definitions of local-clients-keepalive.time."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of local-clients-keepalive.time. Ignoring definition from " << _element.name_;
                 } else {
                     std::uint32_t time_in_ms;
                     its_converter << std::dec << its_value;
@@ -2444,9 +2368,7 @@ void configuration_impl::load_dispatch_defaults(const configuration_element& _el
 
             if (its_key == its_default_max_dispatch_time_key) {
                 if (is_configured_[ET_DEFAULT_MAX_DISPATCH_TIME]) {
-                    VSOMEIP_WARNING << "Multiple definitions of dispatching.max_dispatch_time."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of dispatching.max_dispatch_time. Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << std::dec << its_value;
                     its_converter >> default_max_dispatch_time_;
@@ -2454,9 +2376,7 @@ void configuration_impl::load_dispatch_defaults(const configuration_element& _el
                 }
             } else if (its_key == its_default_max_dispatchers_key) {
                 if (is_configured_[ET_DEFAULT_MAX_DISPATCHERS]) {
-                    VSOMEIP_WARNING << "Multiple definitions of dispatching.max_dispatchers."
-                                       " Ignoring definition from "
-                                    << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions of dispatching.max_dispatchers. Ignoring definition from " << _element.name_;
                 } else {
                     its_converter << std::dec << its_value;
                     its_converter >> default_max_dispatchers_;
@@ -2473,9 +2393,7 @@ void configuration_impl::load_request_debounce_time(const configuration_element&
     try {
         std::string its_value = _element.tree_.get<std::string>("request_debounce_time");
         if (is_configured_[ET_REQUEST_DEBOUNCE_TIME]) {
-            VSOMEIP_WARNING << "Multiple definitions for request_debounce_time."
-                               "Ignoring definition from "
-                            << _element.name_;
+            VSOMEIP_WARNING << "Multiple definitions for request_debounce_time. Ignoring definition from " << _element.name_;
         } else {
             std::stringstream its_converter;
             its_converter << std::dec << its_value;
@@ -2508,7 +2426,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
                         max_unreliable_message_size_ = its_size;
                     }
                 } catch (const std::exception& e) {
-                    VSOMEIP_ERROR << __func__ << ": " << s << " " << e.what();
+                    VSOMEIP_ERROR_P << s << " " << e.what();
                 }
             }
         }
@@ -2519,7 +2437,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
             try {
                 buffer_shrink_threshold_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
             } catch (const std::exception& e) {
-                VSOMEIP_ERROR << __func__ << ": " << buffer_shrink_threshold << " " << e.what();
+                VSOMEIP_ERROR_P << buffer_shrink_threshold << " " << e.what();
             }
         }
         if (_element.tree_.get_child_optional(payload_sizes)) {
@@ -2549,7 +2467,7 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
                         // add 16 Byte for the SOME/IP header
                         its_message_size = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10) + 16);
                     } catch (const std::exception& e) {
-                        VSOMEIP_ERROR << __func__ << ":" << e.what();
+                        VSOMEIP_ERROR_P << e.what();
                     }
 
                     if (its_port == ILLEGAL_PORT || its_message_size == 0) {
@@ -2564,23 +2482,21 @@ void configuration_impl::load_payload_sizes(const configuration_element& _elemen
             }
             if (max_local_message_size_ != 0 && max_configured_message_size_ != 0
                 && max_configured_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " is configured smaller than the biggest payloadsize"
-                                << " for external communication. " << max_local_payload_size << " will be increased to "
-                                << max_configured_message_size_ - 16 << " to ensure "
-                                << "local message distribution.";
+                VSOMEIP_WARNING << max_local_payload_size << " is configured smaller than the biggest payloadsize for external"
+                                << " communication. " << max_local_payload_size << " will be increased to "
+                                << max_configured_message_size_ - 16 << " to ensure local message distribution.";
                 max_local_message_size_ = max_configured_message_size_;
             }
             if (max_local_message_size_ != 0 && max_reliable_message_size_ != 0 && max_reliable_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured"
-                                << " smaller than " << max_reliable_payload_size << " (" << max_reliable_message_size_ - 16 << "). "
-                                << max_local_payload_size << " will be increased to " << max_reliable_message_size_ - 16 << " to ensure "
-                                << "local message distribution.";
+                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
+                                << max_reliable_payload_size << " (" << max_reliable_message_size_ - 16 << "). " << max_local_payload_size
+                                << " will be increased to " << max_reliable_message_size_ - 16 << " to ensure local message distribution.";
                 max_local_message_size_ = max_reliable_message_size_;
             }
             if (max_local_message_size_ != 0 && max_unreliable_message_size_ != 0
                 && max_unreliable_message_size_ > max_local_message_size_) {
-                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured"
-                                << " smaller than " << max_unreliable_payload_size << " (" << max_unreliable_message_size_ - 16 << "). "
+                VSOMEIP_WARNING << max_local_payload_size << " (" << max_local_message_size_ - 16 << ") is configured smaller than "
+                                << max_unreliable_payload_size << " (" << max_unreliable_message_size_ - 16 << "). "
                                 << max_local_payload_size << " will be increased to " << max_unreliable_message_size_ - 16 << " to ensure "
                                 << "local message distribution.";
                 max_local_message_size_ = max_unreliable_message_size_;
@@ -2622,8 +2538,8 @@ void configuration_impl::load_security(const configuration_element& _element) {
             auto its_audit_mode = its_security->get_child_optional("check_credentials");
             if (its_audit_mode) {
                 if (is_configured_[ET_SECURITY_AUDIT_MODE]) {
-                    VSOMEIP_WARNING << "Multiple definitions for security audit mode ("
-                                    << "(check_credentials). Ignoring definition from " << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for security audit mode (check_credentials). Ignoring definition from "
+                                    << _element.name_;
                 } else {
                     is_security_audit_ = (its_audit_mode->data() != "true");
                     is_configured_[ET_SECURITY_AUDIT_MODE] = true;
@@ -2633,8 +2549,8 @@ void configuration_impl::load_security(const configuration_element& _element) {
             auto its_remote_access = its_security->get_child_optional("allow_remote_clients");
             if (its_remote_access) {
                 if (is_configured_[ET_SECURITY_REMOTE_ACCESS]) {
-                    VSOMEIP_WARNING << "Multiple definitions for security audit mode ("
-                                    << "(check_credentials). Ignoring definition from " << _element.name_;
+                    VSOMEIP_WARNING << "Multiple definitions for security audit mode (check_credentials). Ignoring definition from "
+                                    << _element.name_;
                 } else {
                     is_remote_access_allowed_ = (its_remote_access->data() == "true");
                     is_configured_[ET_SECURITY_REMOTE_ACCESS] = true;
@@ -2951,7 +2867,6 @@ bool configuration_impl::get_client_port(service_t _service, instance_t _instanc
 
     // Configured ports do exist, but they are all in use
     VSOMEIP_ERROR << "Cannot find free client port for communication to service [" << hex4(_service) << "." << hex4(_instance) << "."
-                  << std::dec << _remote_port << "." << std::boolalpha << _reliable << hex4(_service) << "." << hex4(_instance) << "."
                   << std::dec << _remote_port << "." << std::boolalpha << _reliable << "]";
 
     return false;
@@ -3317,9 +3232,8 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
             if (_used_client_ports[_reliable].find(*it) == _used_client_ports[_reliable].end()) {
                 _port = *it;
                 its_client->last_used_specific_client_port_[_reliable] = *it;
-                VSOMEIP_INFO << "configuration_impl:find_specific_port #1:"
-                             << " service: " << std::hex << _service << " instance: " << _instance << " reliable: " << std::dec << _reliable
-                             << " return specific port: " << static_cast<uint32_t>(_port);
+                VSOMEIP_INFO_P << "#1: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << std::dec
+                               << _reliable << " return specific port: " << static_cast<uint32_t>(_port);
                 return true;
             }
             ++it;
@@ -3331,9 +3245,8 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
                 if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
                     _port = its_port;
                     its_client->last_used_specific_client_port_[_reliable] = its_port;
-                    VSOMEIP_INFO << "configuration_impl:find_specific_port #2:"
-                                 << " service: " << std::hex << _service << " instance: " << _instance << " reliable: " << std::dec
-                                 << _reliable << " return specific port: " << static_cast<uint32_t>(_port);
+                    VSOMEIP_INFO_P << "#2: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << std::dec
+                                   << _reliable << " return specific port: " << static_cast<uint32_t>(_port);
                     return true;
                 }
             }
@@ -3777,7 +3690,7 @@ void configuration_impl::load_endpoint_queue_sizes(const configuration_element& 
                 try {
                     endpoint_queue_limit_external_ = static_cast<configuration::endpoint_queue_limit_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
-                    VSOMEIP_ERROR << __func__ << ": " << endpoint_queue_limit_external << " " << e.what();
+                    VSOMEIP_ERROR_P << endpoint_queue_limit_external << " " << e.what();
                 }
             }
         }
@@ -3792,7 +3705,7 @@ void configuration_impl::load_endpoint_queue_sizes(const configuration_element& 
                 try {
                     endpoint_queue_limit_local_ = static_cast<configuration::endpoint_queue_limit_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
-                    VSOMEIP_ERROR << __func__ << ": " << endpoint_queue_limit_local << " " << e.what();
+                    VSOMEIP_ERROR_P << endpoint_queue_limit_local << " " << e.what();
                 }
             }
         }
@@ -3827,7 +3740,7 @@ void configuration_impl::load_endpoint_queue_sizes(const configuration_element& 
                             std::string s(j.second.get_child(queue_size_limit).data());
                             its_queue_size_limit = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
                         } catch (const std::exception& e) {
-                            VSOMEIP_ERROR << __func__ << ":" << e.what();
+                            VSOMEIP_ERROR_P << e.what();
                         }
 
                         if (its_port == ILLEGAL_PORT || its_queue_size_limit == 0) {
@@ -4123,9 +4036,8 @@ void configuration_impl::load_acceptance_data(const boost::property_tree::ptree&
                         find_sd_acceptance_rule->second.first.insert(p);
                     }
                 } else {
-                    VSOMEIP_WARNING << "Detected inconsistent acceptance rules. Multiple entries "
-                                       "share the IP address but define different [semi-] secure "
-                                       "ports";
+                    VSOMEIP_WARNING << "Detected inconsistent acceptance rules. Multiple entries share the IP address but define different "
+                                    << "[semi-] secure ports";
                 }
             } else {
                 sd_acceptance_rules_[its_address] = std::make_pair(its_paths, its_ports);
@@ -4261,10 +4173,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                             // Ensure this by subtracting the rest
                             auto its_rest = std::uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
-                                VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple "
-                                                   "of 16. Corrected "
-                                                << std::dec << its_max_segment_length << " to " << std::dec
-                                                << its_max_segment_length - its_rest;
+                                VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected " << std::dec
+                                                << its_max_segment_length << " to " << std::dec << its_max_segment_length - its_rest;
 
                                 its_max_segment_length = std::uint16_t(its_max_segment_length - its_rest);
                             }
@@ -4295,8 +4205,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                         _service->tp_client_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << hex4(_service->service_) << "."
-                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]:"
-                                        << " using (" << std::dec << its_entry->second.first << ", " << its_entry->second.second << ")";
+                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << std::dec
+                                        << its_entry->second.first << ", " << its_entry->second.second << ")";
                     }
                 } else {
                     const auto its_entry = _service->tp_service_config_.find(its_method);
@@ -4304,13 +4214,12 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                         _service->tp_service_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << hex4(_service->service_) << "."
-                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]:"
-                                        << " using (" << std::dec << its_entry->second.first << ", " << its_entry->second.second << ")";
+                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << std::dec
+                                        << its_entry->second.first << ", " << its_entry->second.second << ")";
                     }
                 }
             } else {
-                VSOMEIP_ERROR << "SOME/IP-TP configuration contains invalid entry. No valid method "
-                                 "specified!";
+                VSOMEIP_ERROR << "SOME/IP-TP configuration contains invalid entry. No valid method specified!";
             }
         }
     } catch (...) {
@@ -4329,7 +4238,7 @@ void configuration_impl::load_udp_receive_buffer_size(const configuration_elemen
                 try {
                     udp_receive_buffer_size_ = std::stoi(its_data.c_str(), nullptr, 10);
                 } catch (const std::exception& e) {
-                    VSOMEIP_ERROR << __func__ << ": " << its_buffer_size << " " << e.what();
+                    VSOMEIP_ERROR_P << its_buffer_size << " " << e.what();
                 }
                 is_configured_[ET_UDP_RECEIVE_BUFFER_SIZE] = true;
             }
@@ -4425,7 +4334,7 @@ void configuration_impl::load_network_options(const configuration_element& _elem
             try {
                 param = static_cast<uint32_t>(std::stoul(i->second.data().c_str(), nullptr, 10));
             } catch (const std::exception& e) {
-                VSOMEIP_ERROR << __func__ << ": could not stoul '" << i->second.data() << "' due to " << e.what();
+                VSOMEIP_ERROR_P << "Could not stoul '" << i->second.data() << "' due to " << e.what();
                 continue;
             }
 
@@ -4499,7 +4408,7 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
                 try {
                     tcp_restart_aborts_max_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
-                    VSOMEIP_ERROR << __func__ << ": " << tcp_restart_aborts_max << " " << e.what();
+                    VSOMEIP_ERROR_P << tcp_restart_aborts_max << " " << e.what();
                 }
             }
         }
@@ -4513,7 +4422,7 @@ void configuration_impl::load_tcp_restart_settings(const configuration_element& 
                 try {
                     tcp_connect_time_max_ = static_cast<std::uint32_t>(std::stoul(s.c_str(), NULL, 10));
                 } catch (const std::exception& e) {
-                    VSOMEIP_ERROR << __func__ << ": " << tcp_connect_time_max << " " << e.what();
+                    VSOMEIP_ERROR_P << tcp_connect_time_max << " " << e.what();
                 }
             }
         }
@@ -4615,13 +4524,12 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
                     if (!rules_active) {
                         sd_acceptance_rules_active_.insert(_address);
                     }
-                    VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
-                                 << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges " << found_reliability->second.first
-                                 << " " << found_reliability->second.second;
+                    VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]:" << (_reliable ? "tcp" : "udp")
+                                 << ": using default ranges " << found_reliability->second.first << " " << found_reliability->second.second;
                 } else {
-                    VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
-                                 << ":" << (_reliable ? "tcp" : "udp") << ": using configured ranges " << found_reliability->second.first
-                                 << " " << found_reliability->second.second;
+                    VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]:" << (_reliable ? "tcp" : "udp")
+                                 << ": using configured ranges " << found_reliability->second.first << " "
+                                 << found_reliability->second.second;
                 }
             } else {
                 found_reliability->second.first.erase(its_optional_client);
@@ -4656,8 +4564,8 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
             }
 
             const auto found_reliability_inner = found_address->second.second.find(_reliable);
-            VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]"
-                         << ":" << (_reliable ? "tcp" : "udp") << ": using default ranges " << found_reliability_inner->second.first << " "
+            VSOMEIP_INFO << "ipsec:acceptance:" << _address << "[" << _path << "]:" << (_reliable ? "tcp" : "udp")
+                         << ": using default ranges " << found_reliability_inner->second.first << " "
                          << found_reliability_inner->second.second;
         }
     } else if (_enable) {

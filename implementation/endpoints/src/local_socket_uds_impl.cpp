@@ -14,6 +14,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#define VSOMEIP_LOG_PREFIX "lsui"
+
 namespace {
 std::string to_string(vsomeip_v3::local_socket_uds_impl::endpoint _own_endpoint, vsomeip_v3::local_socket_uds_impl::endpoint _peer_endpoint,
                       vsomeip_v3::local_socket_uds_impl const* _address, vsomeip_v3::socket_role_e _role) {
@@ -36,16 +38,16 @@ local_socket_uds_impl::local_socket_uds_impl(boost::asio::io_context& _io, endpo
                           _role) { }
 
 void local_socket_uds_impl::stop([[maybe_unused]] bool _force) {
-    VSOMEIP_INFO << "lsui::" << __func__ << ": " << name_;
+    VSOMEIP_INFO_P << name_;
     std::scoped_lock const lock{socket_mtx_};
     if (socket_->is_open()) {
         boost::system::error_code ec;
         socket_->close(ec);
         if (ec) {
-            VSOMEIP_ERROR << "lsui::close: " << ec.message() << ", " << name_;
+            VSOMEIP_ERROR_P << ec.message() << ", " << name_;
         }
     } else {
-        VSOMEIP_WARNING << "lsui::" << __func__ << ": socket was not open, " << name_;
+        VSOMEIP_WARNING_P << "Socket was not open, " << name_;
     }
 }
 
@@ -64,7 +66,7 @@ void local_socket_uds_impl::prepare_connect([[maybe_unused]] configuration const
     boost::system::error_code ec;
     socket_->set_reuse_address(ec);
     if (ec) {
-        VSOMEIP_WARNING << "lsui::" << __func__ << ": could not setsockopt(SO_REUSEADDR), " << ec.message() << ", " << name_;
+        VSOMEIP_WARNING_P << "Could not setsockopt(SO_REUSEADDR), " << ec.message() << ", " << name_;
     }
 }
 
@@ -106,7 +108,7 @@ std::string const& local_socket_uds_impl::to_string() const {
 bool local_socket_uds_impl::update(vsomeip_sec_client_t& _client, [[maybe_unused]] configuration const& _configuration) {
     std::scoped_lock const lock{socket_mtx_};
     if (!socket_->get_peer_credentials(_client)) {
-        VSOMEIP_ERROR << "lsui::" << __func__ << ": could not getsockopt(SO_PEERCRED), errno " << errno;
+        VSOMEIP_ERROR_P << "Could not getsockopt(SO_PEERCRED), errno " << errno;
         return false;
     }
     return true;

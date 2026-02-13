@@ -43,7 +43,7 @@ TEST(someip_offer_test, send_offer_service_sd_message) {
 
         for (bool keep_receiving = true; keep_receiving;) {
             std::size_t bytes_transferred = udp_socket.receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), 0, ec);
-            ASSERT_FALSE(ec) << __func__ << " error: " << ec.message();
+            ASSERT_FALSE(ec) << "Error: " << ec.message();
 
             vsomeip::deserializer its_deserializer(&receive_buffer[0], bytes_transferred, 0);
             vsomeip::service_t its_service = vsomeip::bithelper::read_uint16_be(&receive_buffer[VSOMEIP_SERVICE_POS_MIN]);

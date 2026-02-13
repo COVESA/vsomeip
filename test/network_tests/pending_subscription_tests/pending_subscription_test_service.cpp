@@ -23,6 +23,9 @@
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
+#include "../implementation/utility/include/utility.hpp"
+
+#define VSOMEIP_LOG_PREFIX "t_service"
 
 class pending_subscription_test_service {
 public:
@@ -162,7 +165,7 @@ public:
                                     const std::function<void(const bool)>& _cbk) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_WARNING << __func__ << " " << std::hex << _client << " subscribed." << _subscribed;
+        VSOMEIP_WARNING_P << vsomeip_v3::hex4(_client) << " subscribed." << _subscribed;
         if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE) {
             async_subscription_handler_ = _cbk;
             static int was_called = 0;
@@ -243,7 +246,7 @@ public:
         (void)_uid;
         (void)_gid;
         bool ret(false);
-        VSOMEIP_WARNING << __func__ << " " << std::hex << _client << " subscribed. " << _subscribed;
+        VSOMEIP_WARNING_P << vsomeip_v3::hex4(_client) << " subscribed. " << _subscribed;
         if (testmode_ == pending_subscription_test::test_mode_e::SUBSCRIBE) {
             static int was_called = 0;
             was_called++;

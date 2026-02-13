@@ -14,6 +14,8 @@
 #include <limits>
 #include <iostream>
 
+#define VSOMEIP_LOG_PREFIX "lrb"
+
 namespace vsomeip_v3 {
 
 void next_message_result::set_message(uint8_t const* _data, uint32_t _size) {
@@ -40,7 +42,7 @@ bool local_receive_buffer::next_message(next_message_result& _result) {
         memcpy(&length, &mem_[start_] + protocol::COMMAND_POSITION_SIZE, sizeof(length));
         // MESSAGE_SIZE_UNLIMITED  is numerical limit of uin32_t therefore the subsequent check suffices
         if (length > max_message_length_) {
-            VSOMEIP_ERROR << __func__ << " message length: " << length << " exceeded allowed max message size";
+            VSOMEIP_ERROR_P << "Message length: " << length << " exceeded allowed max message size";
             _result.set_error();
             return false;
         }
@@ -71,7 +73,7 @@ bool local_receive_buffer::next_message(next_message_result& _result) {
             }
             return true;
         }
-        VSOMEIP_ERROR << __func__ << " message size: " << size << " exceeded numerical limits";
+        VSOMEIP_ERROR_P << "Message size: " << size << " exceeded numerical limits";
         _result.set_error();
         return false;
     }
@@ -112,7 +114,7 @@ void local_receive_buffer::shrink() {
 
 [[nodiscard]] bool local_receive_buffer::add_capacity(size_t _capacity) {
     if (_capacity > std::numeric_limits<size_t>::max() - mem_.size()) {
-        VSOMEIP_ERROR << "lrb::" << __func__ << ": Insufficient memory to consume the remaining: " << _capacity << " bytes";
+        VSOMEIP_ERROR_P << "Insufficient memory to consume the remaining: " << _capacity << " bytes";
         return false;
     }
     size_t const new_capa = _capacity + mem_.size();

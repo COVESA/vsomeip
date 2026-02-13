@@ -11,6 +11,9 @@
 
 #include <vsomeip/internal/logger.hpp>
 namespace vsomeip_v3 {
+
+#define VSOMEIP_LOG_PREFIX "rcsm"
+
 static constexpr char const* to_string(routing_client_state_e _state) {
     switch (_state) {
     case routing_client_state_e::ST_REGISTERED:
@@ -61,7 +64,7 @@ void routing_client_state_machine::target_running() {
 [[nodiscard]] bool routing_client_state_machine::start_assignment() {
     std::scoped_lock lock{mtx_};
     if (!shall_run_ || state_ != routing_client_state_e::ST_DEREGISTERED) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
         return false;
     }
     change_state_unlocked(routing_client_state_e::ST_ASSIGNING);
@@ -71,7 +74,7 @@ void routing_client_state_machine::target_running() {
 [[nodiscard]] bool routing_client_state_machine::assigned(client_t _client) {
     std::scoped_lock lock{mtx_};
     if (state_ != routing_client_state_e::ST_ASSIGNING) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
         return false;
     }
 
@@ -86,7 +89,7 @@ void routing_client_state_machine::target_running() {
 
     std::scoped_lock lock{mtx_};
     if (!shall_run_ || state_ != routing_client_state_e::ST_ASSIGNED) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
         return false;
     }
     change_state_unlocked(routing_client_state_e::ST_REGISTERING);
@@ -105,7 +108,7 @@ void routing_client_state_machine::target_running() {
 [[nodiscard]] bool routing_client_state_machine::registered() {
     std::scoped_lock lock{mtx_};
     if (state_ != routing_client_state_e::ST_REGISTERING) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
         return false;
     }
     change_state_unlocked(routing_client_state_e::ST_REGISTERED);
@@ -132,7 +135,7 @@ void routing_client_state_machine::target_running() {
 [[nodiscard]] bool routing_client_state_machine::start_deregister() {
     std::scoped_lock lock{mtx_};
     if (state_ != routing_client_state_e::ST_REGISTERED) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
         return false;
     }
     change_state_unlocked(routing_client_state_e::ST_DEREGISTERING);
@@ -150,7 +153,7 @@ void routing_client_state_machine::deregistered() {
         return true;
     }
     if (state_ != routing_client_state_e::ST_DEREGISTERING) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
         return false;
     }
     bool const result =
@@ -161,10 +164,10 @@ void routing_client_state_machine::deregistered() {
 void routing_client_state_machine::registration_timed_out() {
     std::unique_lock lock{mtx_};
     if (state_ != routing_client_state_e::ST_REGISTERING) {
-        VSOMEIP_WARNING << "rcsm::" << __func__ << ": Unexpected state: " << state_;
+        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
         return;
     }
-    VSOMEIP_ERROR << "rcsm::" << __func__ << ": Registration timed out after " << configuration_.register_timeout_.count() << "ms";
+    VSOMEIP_ERROR_P << "Registration timed out after " << configuration_.register_timeout_.count() << "ms";
     deregister_unlocked(std::move(lock));
 }
 
@@ -191,7 +194,7 @@ void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mut
 }
 
 void routing_client_state_machine::change_state_unlocked(routing_client_state_e _state) {
-    VSOMEIP_INFO << "rcsm::" << __func__ << ": client " << hex4(client_) << ", state " << state_ << " -> " << _state;
+    VSOMEIP_INFO_P << "Client 0x" << hex4(client_) << ", state " << state_ << " -> " << _state;
     state_ = _state;
     if (is_value(state_).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_DEREGISTERED)) {
         cv_.notify_one();

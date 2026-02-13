@@ -14,6 +14,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 
+#define VSOMEIP_LOG_PREFIX "lati"
 namespace vsomeip_v3 {
 local_acceptor_tcp_impl::local_acceptor_tcp_impl(boost::asio::io_context& _io, std::shared_ptr<configuration> _configuration) :
     io_(_io), acceptor_(abstract_socket_factory::get()->create_tcp_acceptor(_io)), configuration_(std::move(_configuration)) { }
@@ -25,8 +26,8 @@ void local_acceptor_tcp_impl::init(boost::asio::ip::tcp::endpoint _local_ep, boo
     if (!acceptor_->is_open()) {
         acceptor_->open(local_ep_.protocol(), _ec);
         if (_ec) {
-            VSOMEIP_ERROR << "lati::init: Error encountered when calling: open. Error: " << _ec.message() << " for socket: " << local_ep_
-                          << ", mem: " << this;
+            VSOMEIP_ERROR_P << "Error encountered when calling: open. Error: " << _ec.message() << " for socket: " << local_ep_
+                            << ", mem: " << this;
             return;
         }
     }
@@ -34,33 +35,32 @@ void local_acceptor_tcp_impl::init(boost::asio::ip::tcp::endpoint _local_ep, boo
 #ifndef _WIN32
     acceptor_->set_option(boost::asio::socket_base::reuse_address(true), _ec);
     if (_ec) {
-        VSOMEIP_ERROR << "lati::" << __func__ << ": could not setsockopt(SO_REUSEADDR), " << _ec.message() << ", " << local_ep_
-                      << ", mem: " << this;
+        VSOMEIP_ERROR_P << "Could not setsockopt(SO_REUSEADDR), " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
         return;
     }
 #endif
 
 #if defined(__linux__) || defined(ANDROID)
     if (!acceptor_->set_native_option_free_bind()) {
-        VSOMEIP_ERROR << "lati::" << __func__ << ": could not setsockopt(IP_FREEBIND), errno " << errno << ", mem: " << this;
+        VSOMEIP_ERROR_P << "Could not setsockopt(IP_FREEBIND), errno " << errno << ", mem: " << this;
     }
 #endif
 
     acceptor_->bind(local_ep_, _ec);
     if (_ec) {
-        VSOMEIP_INFO << "lati::" << __func__ << ": could not bind, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
+        VSOMEIP_INFO_P << "Could not bind, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
         // we do not close the socket, as this is an expected situation
         return;
     }
 
     acceptor_->listen(boost::asio::socket_base::max_listen_connections, _ec);
     if (_ec) {
-        VSOMEIP_INFO << "lati::" << __func__ << ": could not listen, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
+        VSOMEIP_INFO_P << "Could not listen, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
         // if listen fails, we better also "revert" bind
         boost::system::error_code ec;
         acceptor_->close(ec);
         if (ec) {
-            VSOMEIP_ERROR << "lati::" << __func__ << ": could not close socket, " << ec.message() << ", " << local_ep_ << ", mem: " << this;
+            VSOMEIP_ERROR_P << "Could not close socket, " << ec.message() << ", " << local_ep_ << ", mem: " << this;
         }
     }
 }
@@ -68,14 +68,14 @@ void local_acceptor_tcp_impl::init(boost::asio::ip::tcp::endpoint _local_ep, boo
 void local_acceptor_tcp_impl::close(boost::system::error_code& _ec) {
     std::scoped_lock const lock{mtx_};
     if (acceptor_->is_open()) {
-        VSOMEIP_INFO << "lati::" << __func__ << ": Closing the acceptor: " << local_ep_ << ", mem: " << this;
+        VSOMEIP_INFO_P << "Closing the acceptor: " << local_ep_ << ", mem: " << this;
         acceptor_->close(_ec);
     }
 }
 void local_acceptor_tcp_impl::cancel(boost::system::error_code& _ec) {
     std::scoped_lock const lock{mtx_};
     if (acceptor_->is_open()) {
-        VSOMEIP_INFO << "lati::" << __func__ << ": Cancel operations for the acceptor: " << local_ep_ << ", mem: " << this;
+        VSOMEIP_INFO_P << "Cancel operations for the acceptor: " << local_ep_ << ", mem: " << this;
         acceptor_->cancel(_ec);
     }
 }
@@ -102,8 +102,7 @@ void local_acceptor_tcp_impl::accept_cbk(boost::system::error_code const& _ec, c
     boost::system::error_code ec;
     auto remote = _socket->remote_endpoint(ec);
     if (ec) {
-        VSOMEIP_WARNING << "lati::" << __func__ << ": could not read remote endpoint, "
-                        << "error: " << ec.message();
+        VSOMEIP_WARNING_P << "Could not read remote endpoint, error: " << ec.message();
         // invoke handler only without the lock (avoids the need of a recursive mutex)
         lock.unlock();
         _handler(ec, nullptr);

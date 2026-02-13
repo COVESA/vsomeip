@@ -21,6 +21,7 @@
 #include <Winsock2.h>
 #endif
 
+#define VSOMEIP_LOG_PREFIX "tp"
 namespace vsomeip_v3 {
 namespace tp {
 
@@ -29,7 +30,7 @@ tp_split_messages_t tp::tp_split_message(const std::uint8_t* const _data, std::u
     tp_split_messages_t split_messages;
 
     if (_size < VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
-        VSOMEIP_ERROR << __func__ << " called with size: " << std::dec << _size;
+        VSOMEIP_ERROR_P << "Called with size: " << std::dec << _size;
         return split_messages;
     }
 

@@ -40,6 +40,8 @@
 #include "../../tracing/include/connector_impl.hpp"
 #include "../../utility/include/utility.hpp"
 
+#define VSOMEIP_LOG_PREFIX "app"
+
 namespace vsomeip_v3 {
 
 #ifdef ANDROID
@@ -70,7 +72,7 @@ application_impl::~application_impl() {
             if (its_configuration_plugin) {
                 bool its_removed = its_configuration_plugin->remove_configuration(name_);
                 if (!its_removed) {
-                    VSOMEIP_WARNING << __func__ << ": Unable to remove configuration entry stored for " << name_;
+                    VSOMEIP_WARNING_P << "Unable to remove configuration entry stored for " << name_;
                 }
             }
         }
@@ -151,7 +153,7 @@ bool application_impl::init() {
                 VSOMEIP_INFO << "Using external security implementation!";
                 auto its_result = configuration_->get_security()->initialize();
                 if (VSOMEIP_SEC_POLICY_OK != its_result)
-                    VSOMEIP_ERROR << "Intializing external security implementation failed (" << std::dec << its_result << ')';
+                    VSOMEIP_ERROR << "Initializing external security implementation failed (" << std::dec << its_result << ')';
             }
         } else {
             VSOMEIP_INFO << "Using internal security implementation!";
@@ -216,17 +218,15 @@ bool application_impl::init() {
 
         has_session_handling_ = its_configuration->has_session_handling(name_);
         if (!has_session_handling_)
-            VSOMEIP_INFO << "application: " << name_ << " has session handling switched off!";
+            VSOMEIP_INFO << "Application: " << name_ << " has session handling switched off!";
 
         std::string its_routing_host = its_configuration->get_routing_host_name();
         if (its_routing_host != "") {
             is_routing_manager_host_ = (its_routing_host == name_);
             if (is_routing_manager_host_ && !utility::is_routing_manager(configuration_->get_network())) {
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-                VSOMEIP_ERROR << "application: " << name_
-                              << " configured as "
-                                 "routing but other routing manager present. Won't "
-                                 "instantiate routing";
+                VSOMEIP_ERROR << "Application: " << name_
+                              << " configured as routing but other routing manager present. Won't instantiate routing";
                 is_routing_manager_host_ = false;
                 return false;
 #else
@@ -294,7 +294,7 @@ bool application_impl::init() {
             for (auto its_library : its_app_plugin_info->second) {
                 auto its_application_plugin = plugin_manager_->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
                 if (its_application_plugin) {
-                    VSOMEIP_INFO << "Client 0x" << std::hex << get_client() << " Loading plug-in library: " << its_library << " succeeded!";
+                    VSOMEIP_INFO << "Client 0x" << hex4(get_client()) << " Loading plug-in library: " << its_library << " succeeded!";
                     std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
                             ->on_application_state_change(name_, application_plugin_state_e::STATE_INITIALIZED);
                 }
@@ -305,7 +305,7 @@ bool application_impl::init() {
         std::exit(EXIT_FAILURE);
     }
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << " end of init, application \"" << name_ << "\" (" << hex4(client_) << ")";
+    VSOMEIP_INFO_P << "End of init, application \"" << name_ << "\" (" << hex4(client_) << ")";
 
     return is_initialized_;
 }
@@ -401,9 +401,7 @@ void application_impl::start() {
                         }
                         break;
                     } catch (const std::exception& e) {
-                        VSOMEIP_ERROR << "application_impl::start() "
-                                         "caught exception: "
-                                      << e.what();
+                        VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
                     }
                 }
 
@@ -461,8 +459,8 @@ void application_impl::start() {
         }
     }
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")"
-                 << "; Join Dispatcher threads for app(" << name_ << ", " << hex4(client_) << ")";
+    VSOMEIP_INFO_P << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")"
+                   << "; Join Dispatcher threads for app(" << name_ << ", " << hex4(client_) << ")";
 
     try {
         std::unique_lock its_lock_start_stop{dispatcher_mutex_};
@@ -495,11 +493,10 @@ void application_impl::start() {
             }
         }
     } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": stopping dispatchers, "
-                      << " catched exception: " << e.what();
+        VSOMEIP_ERROR_P << "Stopping dispatchers, caught exception: " << e.what();
     }
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": Join IO threads for app(" << name_ << ", " << hex4(client_) << ")";
+    VSOMEIP_INFO_P << "Join IO threads for app(" << name_ << ", " << hex4(client_) << ")";
     try {
         std::unique_lock its_lock_start_stop{start_stop_mutex_};
         auto its_threads = io_threads_;
@@ -511,8 +508,7 @@ void application_impl::start() {
             }
         }
     } catch (const std::exception& e) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": joining threads, "
-                      << " catched exception: " << e.what();
+        VSOMEIP_ERROR_P << "Joining threads, caught exception: " << e.what();
     }
 
     {
@@ -533,11 +529,10 @@ void application_impl::start() {
 void application_impl::stop() {
     std::scoped_lock its_lock_start_stop{start_stop_mutex_};
 
-    VSOMEIP_INFO << "application_impl::" << __func__ << ": Stopping vsomeip application \"" << name_ << "\" (" << hex4(client_) << ").";
+    VSOMEIP_INFO_P << "Stopping vsomeip application \"" << name_ << "\" (" << hex4(client_) << ").";
 
     if (stopping_) {
-        VSOMEIP_WARNING << "application_impl::" << __func__
-                        << ": Trying to stop an application that is already stopped, stopping_ = " << stopping_;
+        VSOMEIP_WARNING_P << "Trying to stop an application that is already stopped, stopping_ = " << stopping_;
         return;
     }
 
@@ -836,8 +831,8 @@ void application_impl::send(std::shared_ptr<message> _message) {
     // likely that the user created a message (with `runtime::create_message`) and forgot to set the type
     // fail here in an obvious way, instead of down-the-line in some client-lookup code
     if (_message->get_message_type() == message_type_e::MT_UNKNOWN) {
-        VSOMEIP_ERROR << "application_impl::" << __func__ << ": message [" << hex4(_message->get_service()) << "."
-                      << hex4(_message->get_instance()) << "." << hex4(_message->get_method()) << "] has unknown type, cannot send!";
+        VSOMEIP_ERROR_P << "Message [" << hex4(_message->get_service()) << "." << hex4(_message->get_instance()) << "."
+                        << hex4(_message->get_method()) << "] has unknown type, cannot send!";
         return;
     }
 
@@ -846,11 +841,10 @@ void application_impl::send(std::shared_ptr<message> _message) {
         && (client_side_logging_filter_.empty()
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), ANY_INSTANCE)))
             || (1 == client_side_logging_filter_.count(std::make_tuple(_message->get_service(), _message->get_instance()))))) {
-        VSOMEIP_INFO << "application_impl::send: (" << hex4(client_) << "): [" << hex4(_message->get_service()) << "."
-                     << hex4(_message->get_instance()) << "." << hex4(_message->get_method()) << ":"
-                     << hex4(is_request ? session_ : _message->get_session()) << ":"
-                     << hex4(is_request ? client_.load() : _message->get_client()) << "] "
-                     << "type=" << static_cast<std::uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
+        VSOMEIP_INFO_P << "(" << hex4(client_) << "): [" << hex4(_message->get_service()) << "." << hex4(_message->get_instance()) << "."
+                       << hex4(_message->get_method()) << ":" << hex4(is_request ? session_ : _message->get_session()) << ":"
+                       << hex4(is_request ? client_.load() : _message->get_client()) << "] "
+                       << "type=" << static_cast<std::uint32_t>(_message->get_message_type()) << " thread=" << std::this_thread::get_id();
     }
     if (routing_) {
         // in case of requests set the request-id (client-id|session-id)
@@ -1074,8 +1068,7 @@ void application_impl::register_subscription_handler(service_t _service, instanc
 void application_impl::register_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                      const subscription_handler_sec_t& _handler) {
 
-    VSOMEIP_INFO << __func__ << ": (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                 << hex4(_eventgroup) << "]";
+    VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
@@ -1310,10 +1303,8 @@ void application_impl::register_subscription_status_handler(service_t _service, 
     if (_handler) {
         subscription_status_handlers_[_service][_instance][_eventgroup][_event] = std::make_pair(_handler, _is_selective);
     } else {
-        VSOMEIP_WARNING << "application_impl::register_subscription_status_handler: "
-                           "_handler is null, for unregistration please use "
-                           "application_impl::unregister_subscription_status_handler ["
-                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
+        VSOMEIP_WARNING_P << "_handler is null, for unregistration please use application_impl::unregister_subscription_status_handler ["
+                          << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
     }
 }
 
@@ -1361,8 +1352,8 @@ void application_impl::offer_event(service_t _service, instance_t _instance, eve
 
             configuration_->get_event_update_properties(_service, _instance, _notifier, _cycle, _change_resets_cycle, _update_on_change);
 
-            VSOMEIP_INFO << __func__ << ": Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
-                         << "] uses configured cycle time " << std::dec << _cycle.count() << "ms";
+            VSOMEIP_INFO_P << "Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
+                           << "] uses configured cycle time " << std::dec << _cycle.count() << "ms";
         }
 
         routing_->register_event(client_, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle, _change_resets_cycle,
@@ -1482,7 +1473,7 @@ std::shared_ptr<policy_manager> application_impl::get_policy_manager() const {
 #ifndef VSOMEIP_DISABLE_SECURITY
     return configuration_->get_policy_manager();
 #else
-    VSOMEIP_WARNING << __func__ << ": manager is not available when security is disabled.";
+    VSOMEIP_WARNING_P << "Manager is not available when security is disabled.";
     return {};
 #endif
 }
@@ -1702,8 +1693,8 @@ void application_impl::on_message(std::shared_ptr<message>&& _message) {
 
     if (_message->get_message_type() == message_type_e::MT_NOTIFICATION) {
         if (!check_for_active_subscription(its_service, its_instance, static_cast<event_t>(its_method))) {
-            VSOMEIP_INFO << "application_impl::on_message [" << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_method)
-                         << "]: blocked as the subscription is already inactive.";
+            VSOMEIP_INFO_P << "[" << hex4(its_service) << "." << hex4(its_instance) << "." << hex4(its_method)
+                           << "]: blocked as the subscription is already inactive.";
             return;
         }
     }
@@ -1901,7 +1892,7 @@ void application_impl::reschedule_availability_handler(const std::shared_ptr<syn
             }
             return;
         }
-        VSOMEIP_WARNING << __func__ << ": An unknown availability handler returned!";
+        VSOMEIP_WARNING_P << "An unknown availability handler returned!";
     }
 }
 
@@ -1933,14 +1924,11 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
 
                                 dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
                             } else {
-                                VSOMEIP_INFO << "Won't start new dispatcher "
-                                                "thread as Client="
-                                             << std::hex << get_client() << " is shutting down";
+                                VSOMEIP_INFO << "Won't start new dispatcher thread as Client=" << hex4(get_client()) << " is shutting down";
                             }
                         } else {
-                            VSOMEIP_ERROR << "Maximum number of dispatchers exceeded. Configuration: "
-                                          << " Max dispatchers: " << std::dec << max_dispatchers_ << " Max dispatch time: " << std::dec
-                                          << max_dispatch_time_;
+                            VSOMEIP_ERROR << "Maximum number of dispatchers exceeded. Configuration: Max dispatchers: " << std::dec
+                                          << max_dispatchers_ << " Max dispatch time: " << std::dec << max_dispatch_time_;
                         }
                         dispatcher_mutex_.unlock();
                         break;
@@ -1974,7 +1962,7 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
         try {
             _handler->handler_();
         } catch (const std::exception& e) {
-            VSOMEIP_ERROR << "application_impl::invoke_handler caught exception: " << e.what();
+            VSOMEIP_ERROR_P << "Caught exception: " << e.what();
             print_blocking_call(its_sync_handler);
         }
     }
@@ -2110,7 +2098,7 @@ void application_impl::set_routing_state(routing_state_e _routing_state) {
     auto rtmgr = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
 
     if (!rtmgr) {
-        VSOMEIP_WARNING << __func__ << ": set " << static_cast<int>(_routing_state) << ", not supported (nullptr)";
+        VSOMEIP_WARNING_P << "Set " << static_cast<int>(_routing_state) << ", not supported (nullptr)";
     } else {
         rtmgr->set_routing_state(_routing_state);
     }
@@ -2447,8 +2435,7 @@ void application_impl::register_async_subscription_handler(service_t _service, i
 void application_impl::register_async_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                            async_subscription_handler_sec_t _handler) {
 
-    VSOMEIP_INFO << __func__ << ": (" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                 << hex4(_eventgroup) << "]";
+    VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
     subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
@@ -2563,11 +2550,9 @@ bool application_impl::update_service_configuration(service_t _service, instance
                                                     bool _magic_cookies_enabled, bool _offer) {
     bool ret = false;
     if (!is_routing_manager_host_) {
-        VSOMEIP_ERROR << __func__
-                      << " is only intended to be called by "
-                         "application acting as routing manager host";
+        VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
     } else if (!routing_) {
-        VSOMEIP_ERROR << __func__ << " routing is zero";
+        VSOMEIP_ERROR_P << "Routing is zero";
     } else {
         auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
         if (rm_impl) {
@@ -2591,11 +2576,9 @@ void application_impl::update_security_policy_configuration(uint32_t _uid, uint3
     (void)_handler;
 #else
     if (!is_routing()) {
-        VSOMEIP_ERROR << __func__
-                      << " is only intended to be called by "
-                         "application acting as routing manager host";
+        VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
     } else if (!routing_) {
-        VSOMEIP_ERROR << __func__ << " routing is zero";
+        VSOMEIP_ERROR_P << "Routing is zero";
     } else {
         auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
         if (rm_impl) {
@@ -2612,11 +2595,9 @@ void application_impl::remove_security_policy_configuration(uint32_t _uid, uint3
     (void)_handler;
 #else
     if (!is_routing()) {
-        VSOMEIP_ERROR << __func__
-                      << " is only intended to be called by "
-                         "application acting as routing manager host";
+        VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
     } else if (!routing_) {
-        VSOMEIP_ERROR << __func__ << " routing is zero";
+        VSOMEIP_ERROR_P << "Routing is zero";
     } else {
         auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
         if (rm_impl) {

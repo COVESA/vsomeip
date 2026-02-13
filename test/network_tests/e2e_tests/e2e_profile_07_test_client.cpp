@@ -11,6 +11,8 @@
 #include <vsomeip/internal/logger.hpp>
 #include "common/test_main.hpp"
 
+#define VSOMEIP_LOG_PREFIX "t_client"
+
 std::vector<std::vector<vsomeip::byte_t>> responses_;
 std::vector<std::vector<vsomeip::byte_t>> events_;
 
@@ -23,7 +25,7 @@ e2e_profile_07_test_client::e2e_profile_07_test_client() :
 bool e2e_profile_07_test_client::init() {
 
     if (!app_->init()) {
-        ADD_FAILURE() << __func__ << ": Cannot initialize application";
+        ADD_FAILURE() << "Cannot initialize application";
         return false;
     }
 
@@ -41,13 +43,13 @@ bool e2e_profile_07_test_client::init() {
 
 void e2e_profile_07_test_client::start() {
 
-    VSOMEIP_INFO << __func__ << ": Starting...";
+    VSOMEIP_INFO_P << "Starting...";
     app_->start();
 }
 
 void e2e_profile_07_test_client::stop() {
 
-    VSOMEIP_INFO << __func__ << ": Stopping...";
+    VSOMEIP_INFO_P << "Stopping...";
     shutdown_service();
     app_->clear_all_handler();
     app_->stop();
@@ -66,8 +68,8 @@ void e2e_profile_07_test_client::on_state(vsomeip::state_type_e _state) {
 
 void e2e_profile_07_test_client::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
 
-    VSOMEIP_INFO << __func__ << ": Client " << std::hex << std::setfill('0') << std::setw(4) << app_->get_client() << " : Service ["
-                 << _service << "." << _instance << "] is " << (_is_available ? "available." : "NOT available.");
+    VSOMEIP_INFO_P << "Client " << std::hex << std::setfill('0') << std::setw(4) << app_->get_client() << " : Service [" << _service << "."
+                   << _instance << "] is " << (_is_available ? "available." : "NOT available.");
 
     // check that correct service / instance ID gets available
     if (_is_available) {
@@ -92,9 +94,9 @@ void e2e_profile_07_test_client::on_availability(vsomeip::service_t _service, vs
 
 void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::message>& _message) {
 
-    VSOMEIP_INFO << __func__ << ": Received a message from Service [" << std::hex << std::setfill('0') << std::setw(4)
-                 << _message->get_service() << "." << _message->get_instance() << "] to Client/Session [" << _message->get_client() << "/"
-                 << _message->get_session() << "]";
+    VSOMEIP_INFO_P << "Received a message from Service [" << std::hex << std::setfill('0') << std::setw(4) << _message->get_service() << "."
+                   << _message->get_instance() << "] to Client/Session [" << _message->get_client() << "/" << _message->get_session()
+                   << "]";
 
     EXPECT_EQ(PROFILE_07_SERVICE, _message->get_service());
     EXPECT_EQ(PROFILE_07_INSTANCE, _message->get_instance());
@@ -118,8 +120,8 @@ void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::messa
 
         // check CRC / payload calculated by sender for event 0x8001 against expected payload
         // check for calculated CRC status OK for the calculated CRC / payload sent by service
-        VSOMEIP_INFO << __func__ << ": Event 0x" << std::hex << std::setfill('0') << std::setw(4) << PROFILE_07_EVENT
-                     << " -> IS_VALID_CRC = " << std::boolalpha << _message->is_valid_crc();
+        VSOMEIP_INFO_P << "Event 0x" << std::hex << std::setfill('0') << std::setw(4) << PROFILE_07_EVENT
+                       << " -> IS_VALID_CRC = " << std::boolalpha << _message->is_valid_crc();
         EXPECT_EQ(true, _message->is_valid_crc());
 
         // check if payload is as expected as well (including CRC / counter / data ID nibble)
@@ -133,8 +135,8 @@ void e2e_profile_07_test_client::on_message(const std::shared_ptr<vsomeip::messa
 
     received_++;
     if (received_ == PROFILE_07_NUM_MESSAGES * 2) {
-        VSOMEIP_WARNING << __func__ << ": Client" << std::hex << std::setfill('0') << std::setw(4) << app_->get_client()
-                        << " received all messages ~> going down!";
+        VSOMEIP_WARNING_P << "Client" << std::hex << std::setfill('0') << std::setw(4) << app_->get_client()
+                          << " received all messages ~> going down!";
     }
 }
 

@@ -32,6 +32,8 @@
 
 #endif
 
+#define VSOMEIP_LOG_PREFIX "connector_impl"
+
 namespace vsomeip_v3 {
 namespace trace {
 
@@ -249,8 +251,7 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
                                                     static_cast<void*>(const_cast<byte_t*>(_data)));
                     }
                 } catch (const std::exception& e) {
-                    VSOMEIP_INFO << "connector_impl::trace: "
-                                 << "Exception caught when trying to log a trace with DLT. " << e.what();
+                    VSOMEIP_INFO_P << "Exception caught when trying to log a trace with DLT. " << e.what();
                 }
             } else {
                 // This should never happen!

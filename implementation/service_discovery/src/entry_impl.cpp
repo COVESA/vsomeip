@@ -103,8 +103,7 @@ void entry_impl::assign_option(const std::shared_ptr<option_impl>& _option) {
             std::sort(options_[1].begin(), options_[1].end());
             num_options_[1]++;
         } else {
-            VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of "
-                               "endpoint options reached!";
+            VSOMEIP_WARNING << "Option is not referenced by entries array, maximum number of endpoint options reached!";
         }
     } else {
         VSOMEIP_ERROR << "Option could not be found.";

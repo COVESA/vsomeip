@@ -21,6 +21,8 @@
 
 namespace vsomeip_v3 {
 
+#define VSOMEIP_LOG_PREFIX "rmb"
+
 routing_manager_base::routing_manager_base(routing_manager_host* _host) :
     host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), tc_(trace::connector_impl::get()) {
     const std::size_t its_max = configuration_->get_io_thread_count(host_->get_name());
@@ -88,14 +90,14 @@ void routing_manager_base::log_network_state(bool _tcp, bool _only_external) con
 
     std::ifstream file(filename);
     if (!file.is_open()) {
-        VSOMEIP_ERROR << __func__ << ": could not open " << filename << " for reading";
+        VSOMEIP_ERROR_P << "Could not open " << filename << " for reading";
         return;
     }
 
     std::string line;
     // skip header line
     if (!std::getline(file, line)) {
-        VSOMEIP_ERROR << __func__ << ": failed to read header from " << filename;
+        VSOMEIP_ERROR_P << "Failed to read header from " << filename;
         return;
     }
 
@@ -111,7 +113,7 @@ void routing_manager_base::log_network_state(bool _tcp, bool _only_external) con
                          << (external_addr.is_v4() ? htonl(external_addr.to_v4().to_uint()) : 0);
     std::string external_addr_hex = external_addr_stream.str();
 
-    VSOMEIP_INFO << __func__ << ": " << (_tcp ? "TCP" : "UDP") << " connections";
+    VSOMEIP_INFO_P << (_tcp ? "TCP" : "UDP") << " connections";
     VSOMEIP_INFO << "idx, local_addr, remote_addr, state, tx_queue, rx_queue, timer_active, tm_when, retrnsmt, uid, unanswered";
     while (std::getline(file, line)) {
         std::istringstream iss(line);
@@ -121,7 +123,7 @@ void routing_manager_base::log_network_state(bool _tcp, bool _only_external) con
         // NOTE: there are more fields (especially in /proc/net/udp), but we do not care about these
         if (!(iss >> idx >> local_addr >> remote_addr >> state >> tx_queue >> rx_queue >> timer_active >> tm_when >> retrnsmt >> uid
               >> unanswered)) {
-            VSOMEIP_ERROR << __func__ << ": failed to parse line: " << line;
+            VSOMEIP_ERROR_P << "Failed to parse line: " << line;
             continue;
         }
 
@@ -178,9 +180,9 @@ bool routing_manager_base::offer_service(client_t _client, service_t _service, i
         } else if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
             its_info->set_ttl(DEFAULT_TTL);
         } else {
-            VSOMEIP_ERROR << "rmb::" << __func__ << ": Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "."
-                          << hex4(_instance) << ":" << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << "."
-                          << its_info->get_minor() << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
+            VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+                            << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+                            << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
             return false;
         }
     } else {
@@ -218,8 +220,7 @@ void routing_manager_base::stop_offer_service(client_t _client, service_t _servi
     }
     for (auto& e : events) {
         if (e.second->is_set()) {
-            VSOMEIP_INFO << "rmb::" << __func__ << ": Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "."
-                         << hex4(e.first) << "]";
+            VSOMEIP_INFO_P << "Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(e.first) << "]";
         }
         e.second->unset_payload();
         e.second->clear_subscribers();
@@ -234,9 +235,9 @@ void routing_manager_base::request_service(client_t _client, service_t _service,
             && (_minor <= its_info->get_minor() || DEFAULT_MINOR == its_info->get_minor() || _minor == ANY_MINOR)) {
             its_info->add_client(_client);
         } else {
-            VSOMEIP_ERROR << "rmb::" << __func__ << ": Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "."
-                          << hex4(_instance) << ":" << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << "."
-                          << its_info->get_minor() << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
+            VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+                            << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+                            << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
         }
     }
 }
@@ -302,9 +303,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                 }
                 transfer_subscriptions_from_any_event = true;
             } else {
-                VSOMEIP_ERROR << "rmb::" << __func__
-                              << ": Event registration update failed. "
-                                 "Specified arguments do not match existing registration.";
+                VSOMEIP_ERROR_P << ": Event registration update failed. Specified arguments do not match existing registration.";
             }
         } else {
             // the found event was a placeholder for caching.
@@ -312,8 +311,8 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
             if (_type != event_type_e::ET_FIELD) {
                 // don't cache payload for non-fields
                 if (its_event->is_set()) {
-                    VSOMEIP_INFO << "rmb::" << __func__ << ": Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "."
-                                 << hex4(its_event->get_event()) << "]";
+                    VSOMEIP_INFO_P << "Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "."
+                                   << hex4(its_event->get_event()) << "]";
                 }
                 its_event->unset_payload(true);
             }
@@ -377,9 +376,8 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                     its_debounce_parameters << "(" << std::dec << i.first << ", " << std::hex << (int)i.second << ") ";
                 its_debounce_parameters << "], interval=" << std::dec << its_debounce->interval_ << ")";
 
-                VSOMEIP_WARNING << "Using debounce configuration for "
-                                << " SOME/IP event " << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier) << "."
-                                << " Debounce parameters: " << its_debounce_parameters.str();
+                VSOMEIP_WARNING << "Using debounce configuration for SOME/IP event " << hex4(_service) << "." << hex4(_instance) << "."
+                                << hex4(_notifier) << ". Debounce parameters: " << its_debounce_parameters.str();
 
                 _epsilon_change_func = [its_debounce](const std::shared_ptr<payload>& _old, const std::shared_ptr<payload>& _new) {
                     bool is_changed(false), is_elapsed(false);
@@ -599,9 +597,9 @@ bool routing_manager_base::is_response_allowed(client_t _sender, service_t _serv
         security_mode_text = ", but will be allowed due to audit mode is active!";
     }
 
-    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << get_client() << " : routing_manager_base::is_response_allowed: "
-                    << "received a response from client 0x" << _sender << " which does not offer service/instance/method " << _service
-                    << "/" << _instance << "/" << _method << security_mode_text;
+    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_base::is_response_allowed: "
+                    << "received a response from client 0x" << hex4(_sender) << " which does not offer service/instance/method "
+                    << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(_method) << security_mode_text;
 
     return !configuration_->is_security_audit();
 }
@@ -616,10 +614,10 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
         for (const auto& e : its_eventgroup->get_events()) {
             if (VSOMEIP_SEC_OK
                 != configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, e->get_event())) {
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << _client
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client)
                                 << " : routing_manager_base::is_subscribe_to_any_event_allowed: "
-                                << "subscribes to service/instance/event " << _service << "/" << _instance << "/" << e->get_event()
-                                << " which violates the security policy!";
+                                << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
+                                << hex4(e->get_event()) << " which violates the security policy!";
                 is_allowed = false;
                 break;
             }
@@ -682,8 +680,8 @@ void routing_manager_base::notify(service_t _service, instance_t _instance, even
     if (its_event) {
         its_event->set_payload(_payload, _force);
     } else {
-        VSOMEIP_WARNING << "rmb::" << __func__ << ": Attempt to update the undefined event/field [" << hex4(_service) << "."
-                        << hex4(_instance) << "." << hex4(_event) << "]";
+        VSOMEIP_WARNING_P << "Attempt to update the undefined event/field [" << hex4(_service) << "." << hex4(_instance) << "."
+                          << hex4(_event) << "]";
     }
 }
 
@@ -716,8 +714,8 @@ void routing_manager_base::notify_one(service_t _service, instance_t _instance, 
             }
         }
     } else {
-        VSOMEIP_WARNING << "rmb::" << __func__ << ": Attempt to update the undefined event/field [" << hex4(_service) << "."
-                        << hex4(_instance) << "." << hex4(_event) << "]";
+        VSOMEIP_WARNING_P << "Attempt to update the undefined event/field [" << hex4(_service) << "." << hex4(_instance) << "."
+                          << hex4(_event) << "]";
     }
 }
 
@@ -738,8 +736,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 
     for (const auto& e : its_events) {
         if (e->is_set()) {
-            VSOMEIP_INFO << "rmb::" << __func__ << ": Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "."
-                         << hex4(e->get_event()) << "]";
+            VSOMEIP_INFO_P << "Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(e->get_event()) << "]";
         }
         e->unset_payload(true);
     }
@@ -763,8 +760,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 
     for (const auto& e : its_events) {
         if (e->is_set()) {
-            VSOMEIP_INFO << "rmb::" << __func__ << ": unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "."
-                         << hex4(e->get_event()) << "]";
+            VSOMEIP_INFO_P << "Unsetting payload for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(e->get_event()) << "]";
         }
         e->unset_payload(true);
     }
@@ -794,11 +790,11 @@ bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _mess
     if (utility::is_request(_message->get_message_type())) {
         _message->set_client(_client);
         if (!host_->is_routing() && !is_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
-            VSOMEIP_WARNING << "rmb{this=" << this << "}::send{_client=" << _client << " _message=" << hex4(_message->get_service()) << "."
-                            << hex4(_message->get_method()) << "." << static_cast<int>(_message->get_message_type()) << "."
-                            << static_cast<int>(_message->get_return_code()) << " _force=" << _force
-                            << "}: Service not available. instance=" << hex4(_message->get_instance())
-                            << " version=" << hex4(_message->get_interface_version());
+            VSOMEIP_WARNING_P << "this=" << this << "}::send{_client=" << _client << " _message=" << hex4(_message->get_service()) << "."
+                              << hex4(_message->get_method()) << "." << static_cast<int>(_message->get_message_type()) << "."
+                              << static_cast<int>(_message->get_return_code()) << " _force=" << _force
+                              << "}: Service not available. instance=" << hex4(_message->get_instance())
+                              << " version=" << hex4(_message->get_interface_version());
             if (!_force) {
                 return is_sent;
             }
@@ -813,7 +809,7 @@ bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _mess
         its_serializer->reset();
         put_serializer(its_serializer);
     } else {
-        VSOMEIP_ERROR << "rmb::" << __func__ << ": Failed to serialize message. Check message size!";
+        VSOMEIP_ERROR_P << "Failed to serialize message. Check message size!";
     }
     return is_sent;
 }
@@ -1078,10 +1074,9 @@ std::shared_ptr<eventgroupinfo> routing_manager_base::find_eventgroup(service_t 
                     try {
                         its_info->set_multicast(boost::asio::ip::make_address(its_multicast_address), its_multicast_port);
                     } catch (...) {
-                        VSOMEIP_ERROR << "rmb::" << __func__ << ": Eventgroup [" << hex4(_service) << "." << hex4(_instance) << "."
-                                      << hex4(_eventgroup) << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
-                                      << "] is configured as multicast, but no valid "
-                                         "multicast address is configured!";
+                        VSOMEIP_ERROR_P << "Eventgroup [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                                        << "] is configured as multicast, but no valid multicast address is configured!";
                     }
                 }
 
@@ -1134,7 +1129,7 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
             } else if (_fallback) {
                 send_local(_fallback, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
             } else {
-                VSOMEIP_WARNING << "rmb::" << __func__ << ": No target connection. Dropping the message to client: 0x" << hex4(its_client);
+                VSOMEIP_WARNING_P << "No target connection. Dropping the message to client: 0x" << hex4(its_client);
             }
         }
     }
@@ -1182,11 +1177,9 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
         if (its_event) {
             is_inserted = its_event->add_subscriber(_eventgroup, _filter, _client, host_->is_routing());
         } else {
-            VSOMEIP_WARNING << "rmb::" << __func__ << ": (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                            << hex4(_eventgroup) << "." << hex4(_event) << "]"
-                            << " received subscription for unknown (unrequested / "
-                            << "unoffered) event. Creating placeholder event holding "
-                            << "subscription until event is requested/offered.";
+            VSOMEIP_WARNING_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                              << "." << hex4(_event) << "] received subscription for unknown (unrequested /unoffered) event. Creating"
+                              << " placeholder event holding subscription until event is requested/offered.";
             is_inserted = create_placeholder_event_and_subscribe(_service, _instance, _eventgroup, _event, _filter, _client);
         }
     } else { // subscribe to all events of the eventgroup
@@ -1205,11 +1198,9 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
             create_place_holder = true;
         }
         if (create_place_holder) {
-            VSOMEIP_WARNING << "rmb::" << __func__ << ": (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                            << hex4(_eventgroup) << "." << hex4(_event) << "]"
-                            << " received subscription for unknown (unrequested / "
-                            << "unoffered) eventgroup. Creating placeholder event holding "
-                            << "subscription until event is requested/offered.";
+            VSOMEIP_WARNING_P << ":(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
+                              << "." << hex4(_event) << "] received subscription for unknown (unrequested /unoffered) eventgroup. Creating"
+                              << " placeholder event holding subscription until event is requested/offered.";
             is_inserted = create_placeholder_event_and_subscribe(_service, _instance, _eventgroup, _event, _filter, _client);
         }
     }
@@ -1220,9 +1211,9 @@ std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
     std::unique_lock<std::mutex> its_lock(serializer_mutex_);
     while (serializers_.empty()) {
-        VSOMEIP_INFO << "rmb::" << __func__ << ": Client " << hex4(get_client()) << " has no available serializer. Waiting...";
+        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " has no available serializer. Waiting...";
         serializer_condition_.wait(its_lock, [this] { return !serializers_.empty(); });
-        VSOMEIP_INFO << "rmb::" << __func__ << ": Client " << hex4(get_client()) << " now checking for available serializer.";
+        VSOMEIP_INFO_P << ": Client 0x" << hex4(get_client()) << " now checking for available serializer.";
     }
 
     auto its_serializer = serializers_.front();
@@ -1242,9 +1233,9 @@ std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 
     std::unique_lock<std::mutex> its_lock(deserializer_mutex_);
     while (deserializers_.empty()) {
-        VSOMEIP_INFO << "rmb::" << __func__ << std::hex << ": Client 0x" << get_client() << "~> all in use!";
+        VSOMEIP_INFO_P << ": Client 0x" << hex4(get_client()) << "~> all in use!";
         deserializer_condition_.wait(its_lock, [this] { return !deserializers_.empty(); });
-        VSOMEIP_INFO << "rmb::" << __func__ << std::hex << ": Client 0x" << get_client() << "~> wait finished!";
+        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << "~> wait finished!";
     }
 
     auto its_deserializer = deserializers_.front();

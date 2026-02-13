@@ -7,6 +7,8 @@
 #include "debounce_frequency_test_service.hpp"
 #include "common/test_main.hpp"
 
+#define VSOMEIP_LOG_PREFIX "t_service"
+
 uint64_t elapsedMilliseconds(const std::chrono::time_point<std::chrono::system_clock>& _start_time) {
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - _start_time).count();
     return elapsed >= 0 ? static_cast<uint64_t>(elapsed) : 0ULL;
@@ -19,7 +21,7 @@ void test_service::on_start(const std::shared_ptr<vsomeip::message> /*&_message*
 }
 
 void test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/) {
-    VSOMEIP_INFO << "service: " << __func__ << ": Received a STOP command.";
+    VSOMEIP_INFO_P << "service: Received a STOP command.";
 }
 
 test_service::test_service(const char* app_name_) : vsomeip_utilities::base_vsip_app(app_name_) {
@@ -39,7 +41,7 @@ void test_service::send_messages() {
     std::unique_lock<std::mutex> lk(mutex);
     if (condition_wait_start.wait_for(lk, std::chrono::seconds(4), [this] { return received_message; })) {
 
-        VSOMEIP_INFO << "service: " << __func__ << ": Starting test ";
+        VSOMEIP_INFO_P << "service: Starting test ";
         start_time = std::chrono::system_clock::now();
         uint8_t i = 0;
         while (elapsedMilliseconds(start_time) < 3000) {

@@ -8,6 +8,8 @@
 
 #include "debounce_filter_test_service.hpp"
 
+#define VSOMEIP_LOG_PREFIX "t_service"
+
 debounce_test_service::debounce_test_service() :
     is_running_(true), runner_(std::bind(&debounce_test_service::run, this)),
     app_(vsomeip::runtime::get()->create_application("debounce_test_service")) { }
@@ -53,12 +55,12 @@ void debounce_test_service::wait() {
 }
 
 void debounce_test_service::on_start(const std::shared_ptr<vsomeip::message>&) {
-    VSOMEIP_INFO << __func__ << ": Starting test";
+    VSOMEIP_INFO_P << "Starting test";
     run_condition_.notify_one();
 }
 
 void debounce_test_service::on_stop(const std::shared_ptr<vsomeip::message>&) {
-    VSOMEIP_INFO << __func__ << ": Received a STOP command.";
+    VSOMEIP_INFO_P << "Received a STOP command.";
     is_running_ = false;
     stop();
 }

@@ -12,6 +12,8 @@
 #include <boost/system/error_code.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#define VSOMEIP_LOG_PREFIX "timer"
+
 namespace vsomeip_v3 {
 
 timer::timer([[maybe_unused]] hidden _h, std::unique_ptr<abstract_timer> _timer, std::chrono::milliseconds _interval, task_t _task) :
@@ -91,7 +93,7 @@ void timer::start_unlocked() {
             }
         });
     } catch (std::exception const& _e) {
-        VSOMEIP_ERROR << "timer::" << __func__ << ": ERROR: can not start timer due to: " << _e.what();
+        VSOMEIP_ERROR_P << ": Can not start timer due to: " << _e.what();
     }
 }
 
@@ -101,7 +103,7 @@ void timer::handle(boost::system::error_code const& _ec) {
     }
     std::unique_lock lock{mtx_};
     if (state_ != state_e::STARTED) {
-        VSOMEIP_DEBUG << "timer::" << __func__ << ": not executing the task: " << this;
+        VSOMEIP_DEBUG_P << "Not executing the task: " << this;
         return;
     }
     state_ = state_e::IN_TASK;

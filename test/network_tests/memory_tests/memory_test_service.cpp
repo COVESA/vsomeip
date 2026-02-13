@@ -9,6 +9,8 @@
 
 #include "memory_test_service.hpp"
 
+#define VSOMEIP_LOG_PREFIX "t_service"
+
 void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
     while (!stop_checking_) {
         std::this_thread::sleep_for(MEMORY_CHECKER_INTERVAL);
@@ -61,7 +63,7 @@ void memory_test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_me
         std::unique_lock<std::mutex> lk(stop_mutex);
         condition_wait_stop.notify_one();
     }
-    VSOMEIP_INFO << "service: " << __func__ << ": Received a STOP command.";
+    VSOMEIP_INFO_P << "Received a STOP command.";
 }
 
 void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {

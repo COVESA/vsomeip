@@ -28,6 +28,8 @@
 
 namespace ip = boost::asio::ip;
 
+#define VSOMEIP_LOG_PREFIX "usei"
+
 namespace vsomeip_v3 {
 
 udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
@@ -42,11 +44,11 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardne
     static std::atomic<unsigned> instance_count = 0;
     instance_name_ = "usei#" + std::to_string(++instance_count) + "::";
 
-    VSOMEIP_INFO << instance_name_ << __func__;
+    VSOMEIP_INFO_P << instance_name_;
 }
 
 udp_server_endpoint_impl::~udp_server_endpoint_impl() {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": lifecycle_idx=" << lifecycle_idx_.load();
 }
 
 bool udp_server_endpoint_impl::is_local() const {
@@ -54,11 +56,10 @@ bool udp_server_endpoint_impl::is_local() const {
 }
 
 void udp_server_endpoint_impl::init(const endpoint_type& _local, boost::system::error_code& _error) {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": " << _local.address() << ":" << _local.port()
-                 << ", lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": " << _local.address() << ":" << _local.port() << ", lifecycle_idx=" << lifecycle_idx_.load();
     std::scoped_lock its_lock(sync_);
     init_unlocked(_local, _error);
-    VSOMEIP_INFO << instance_name_ << __func__ << ": lifecycle_idx=" << lifecycle_idx_.load() << ", " << _error.message();
+    VSOMEIP_INFO_P << instance_name_ << ": lifecycle_idx=" << lifecycle_idx_.load() << ", " << _error.message();
 }
 
 void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost::system::error_code& _error) {
@@ -66,11 +67,11 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
 
     if (unicast_socket_) {
         if (local_ == _local) {
-            VSOMEIP_WARNING << instance_name_ << __func__ << ": already initialized, lifecycle_idx=" << lifecycle_idx_.load();
+            VSOMEIP_WARNING_P << instance_name_ << ": Already initialized, lifecycle_idx=" << lifecycle_idx_.load();
             return;
         }
 
-        VSOMEIP_WARNING << instance_name_ << __func__ << ": reset unicast socket, lifecycle_idx=" << lifecycle_idx_.load();
+        VSOMEIP_WARNING_P << instance_name_ << ": Reset unicast socket, lifecycle_idx=" << lifecycle_idx_.load();
         unicast_socket_.reset();
     }
 
@@ -83,14 +84,14 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     unicast_socket_ = socket_factory->create_udp_socket(io_);
     if (!unicast_socket_) {
         _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to create socket";
+        VSOMEIP_ERROR_P << instance_name_ << ": Failed to create socket";
         return;
     }
 
     if (!unicast_socket_->is_open()) {
         unicast_socket_->open(_local.protocol(), _error);
         if (_error) {
-            VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to open socket, " << _error.message();
+            VSOMEIP_ERROR_P << instance_name_ << ": Failed to open socket, " << _error.message();
             unicast_socket_.reset();
             return;
         }
@@ -99,7 +100,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     boost::asio::socket_base::reuse_address opt_reuse_address(true);
     unicast_socket_->set_option(opt_reuse_address, _error);
     if (_error) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to reuse address, " << _error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": Failed to reuse address, " << _error.message();
         unicast_socket_.reset();
         return;
     }
@@ -110,7 +111,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     if (!its_device.empty()) {
         unicast_socket_->set_option(udp_bind_to_device{its_device}, _error);
         if (_error) {
-            VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind to device \"" << its_device << "\", " << _error.message();
+            VSOMEIP_ERROR_P << instance_name_ << ": Failed to bind to device \"" << its_device << "\", " << _error.message();
             // Non-fatal error
             _error.clear();
         }
@@ -119,7 +120,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
 
     unicast_socket_->bind(_local, _error);
     if (_error) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind, " << _error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": Failed to bind, " << _error.message();
         unicast_socket_.reset();
         return;
     }
@@ -129,7 +130,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         boost::asio::ip::multicast::outbound_interface option(_local.address().to_v4());
         unicast_socket_->set_option(option, _error);
         if (_error) {
-            VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure IPv4 outbound interface, " << _error.message();
+            VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure IPv4 outbound interface, " << _error.message();
             unicast_socket_.reset();
             return;
         }
@@ -139,7 +140,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
         boost::asio::ip::multicast::outbound_interface option(static_cast<unsigned int>(_local.address().to_v6().scope_id()));
         unicast_socket_->set_option(option, _error);
         if (_error) {
-            VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure IPv6 outbound interface, " << _error.message();
+            VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure IPv6 outbound interface, " << _error.message();
             unicast_socket_.reset();
             return;
         }
@@ -148,7 +149,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     boost::asio::socket_base::broadcast option(true);
     unicast_socket_->set_option(option, _error);
     if (_error) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure broadcast option, " << _error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure broadcast option, " << _error.message();
         unicast_socket_.reset();
         return;
     }
@@ -157,7 +158,7 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     unicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(static_cast<int>(its_udp_recv_buffer_size)), _error);
 
     if (_error) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure receive buffer size, " << _error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure receive buffer size, " << _error.message();
         // Non-fatal error
         _error.clear();
     }
@@ -171,8 +172,8 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
     if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
         unicast_socket_->set_option(udp_receive_buffer_force{its_udp_recv_buffer_size}, _error);
         if (_error) {
-            VSOMEIP_INFO << instance_name_ << __func__ << ": failed to force receive buffer size " << its_udp_recv_buffer_size << ", "
-                         << _error.message();
+            VSOMEIP_INFO_P << instance_name_ << ": Failed to force receive buffer size " << its_udp_recv_buffer_size << ", "
+                           << _error.message();
             // Non-fatal error
             _error.clear();
         }
@@ -194,23 +195,23 @@ void udp_server_endpoint_impl::init_unlocked(const endpoint_type& _local, boost:
 void udp_server_endpoint_impl::receive() { }
 
 void udp_server_endpoint_impl::start() {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": lifecycle_idx=" << lifecycle_idx_.load();
     std::scoped_lock its_lock(sync_);
     start_unlocked();
-    VSOMEIP_INFO << instance_name_ << __func__ << ": done, lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": Done, lifecycle_idx=" << lifecycle_idx_.load();
 }
 
 void udp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": lifecycle_idx=" << lifecycle_idx_.load();
     std::scoped_lock its_lock(sync_);
     stop_unlocked();
-    VSOMEIP_INFO << instance_name_ << __func__ << ": done, lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": Done, lifecycle_idx=" << lifecycle_idx_.load();
 }
 
 void udp_server_endpoint_impl::restart(bool _force) {
     std::ignore = _force;
 
-    VSOMEIP_INFO << instance_name_ << __func__ << ": lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": lifecycle_idx=" << lifecycle_idx_.load();
     std::scoped_lock its_lock(sync_);
 
     stop_unlocked();
@@ -221,38 +222,37 @@ void udp_server_endpoint_impl::restart(bool _force) {
     if (!its_error) {
         start_unlocked();
     } else {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": init failure " << its_error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": Init failure " << its_error.message();
     }
 
-    VSOMEIP_INFO << instance_name_ << __func__ << ": done, lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": Done, lifecycle_idx=" << lifecycle_idx_.load();
 }
 
 void udp_server_endpoint_impl::start_unlocked() {
     // The caller must hold the lock
 
     if (!is_stopped_) {
-        VSOMEIP_INFO << instance_name_ << __func__ << ": already started";
+        VSOMEIP_INFO_P << instance_name_ << ": Already started";
         return;
     }
 
     lifecycle_idx_ += 1;
 
     if (!unicast_socket_ || !unicast_socket_->is_open()) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": init not called or not successful";
+        VSOMEIP_ERROR_P << instance_name_ << ": Init not called or not successful";
         return;
     }
 
     is_stopped_ = false;
 
-    VSOMEIP_INFO << instance_name_ << __func__ << ": start unicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
+    VSOMEIP_INFO_P << instance_name_ << ": Start unicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
     receive_unicast_unlocked(nullptr);
 
-    VSOMEIP_INFO << instance_name_ << __func__ << ": join " << joined_.size() << " groups";
-
+    VSOMEIP_INFO_P << instance_name_ << ": Join " << joined_.size() << " groups";
     auto its_endpoint_host = endpoint_host_.lock();
     if (its_endpoint_host) {
         for (const auto& [its_address, its_joined] : joined_) {
-            VSOMEIP_INFO << instance_name_ << __func__ << ": rejoin " << its_address << ", was joined " << its_joined;
+            VSOMEIP_INFO_P << instance_name_ << ": Rejoin " << its_address << ", was joined " << its_joined;
             multicast_option_t its_join_option{shared_from_this(), true, boost::asio::ip::make_address(its_address)};
             its_endpoint_host->add_multicast_option(its_join_option);
         }
@@ -263,7 +263,7 @@ void udp_server_endpoint_impl::stop_unlocked() {
     // The caller must hold the lock
 
     if (is_stopped_) {
-        VSOMEIP_INFO << instance_name_ << __func__ << ": already stopped";
+        VSOMEIP_INFO_P << instance_name_ << ": Already stopped";
         return;
     }
 
@@ -301,14 +301,13 @@ void udp_server_endpoint_impl::receive_unicast_unlocked(std::shared_ptr<message_
                     }
 
                     if (!repeat) {
-                        VSOMEIP_WARNING << self->instance_name_ << __func__ << ": stop data handler, lifecycle_idx=" << lifecycle_idx
-                                        << " vs " << self->lifecycle_idx_.load() << ", " << _error.message()
-                                        << ", stopped=" << self->is_stopped_;
+                        VSOMEIP_WARNING_P << self->instance_name_ << ": Stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
+                                          << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
                     }
                 });
     } else {
-        VSOMEIP_WARNING << instance_name_ << __func__ << ": stop data handler, stopped=" << is_stopped_
-                        << ", lifecycle_idx=" << lifecycle_idx_.load();
+        VSOMEIP_WARNING_P << instance_name_ << ": Stop data handler, stopped=" << is_stopped_
+                          << ", lifecycle_idx=" << lifecycle_idx_.load();
     }
 }
 
@@ -346,14 +345,13 @@ void udp_server_endpoint_impl::receive_multicast_unlocked(std::shared_ptr<messag
                     }
 
                     if (!repeat) {
-                        VSOMEIP_WARNING << self->instance_name_ << __func__ << ": stop data handler, lifecycle_idx=" << lifecycle_idx
-                                        << " vs " << self->lifecycle_idx_.load() << ", " << _error.message()
-                                        << ", stopped=" << self->is_stopped_;
+                        VSOMEIP_WARNING_P << self->instance_name_ << ": Stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
+                                          << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
                     }
                 });
     } else {
-        VSOMEIP_WARNING << instance_name_ << __func__ << ": stop data handler, stopped=" << is_stopped_
-                        << ", lifecycle_idx=" << lifecycle_idx_.load();
+        VSOMEIP_WARNING_P << instance_name_ << ": Stop data handler, stopped=" << is_stopped_
+                          << ", lifecycle_idx=" << lifecycle_idx_.load();
     }
 }
 
@@ -401,7 +399,7 @@ bool udp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
     if (unicast_socket_) {
         result = send_queued_unlocked(_it);
     } else {
-        VSOMEIP_WARNING << instance_name_ << __func__ << ": skipped, no socket!";
+        VSOMEIP_WARNING_P << instance_name_ << ": Skipped, no socket!";
     }
     return result;
 }
@@ -487,7 +485,7 @@ bool udp_server_endpoint_impl::is_joined_unlocked(const std::string& _address, b
 }
 
 void udp_server_endpoint_impl::join(const std::string& _address) {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": " << _address;
+    VSOMEIP_INFO_P << instance_name_ << ": " << _address;
     std::scoped_lock its_lock(sync_);
     join_unlocked(_address);
 }
@@ -506,12 +504,12 @@ void udp_server_endpoint_impl::join_unlocked(const std::string& _address) {
             }
         }
     } catch (const std::exception& e) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": exception " << e.what();
+        VSOMEIP_ERROR_P << instance_name_ << ": Exception " << e.what();
     }
 }
 
 void udp_server_endpoint_impl::leave(const std::string& _address) {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": " << _address;
+    VSOMEIP_INFO_P << instance_name_ << ": " << _address;
     std::scoped_lock its_lock(sync_);
     leave_unlocked(_address);
 }
@@ -530,7 +528,7 @@ void udp_server_endpoint_impl::leave_unlocked(const std::string& _address) {
             }
         }
     } catch (const std::exception& e) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": exception " << e.what();
+        VSOMEIP_ERROR_P << instance_name_ << ": Exception " << e.what();
     }
 }
 
@@ -566,7 +564,7 @@ void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_co
     // The caller shall not hold the lock
 
     if (_error) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": " << _error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": " << _error.message();
     } else {
         on_message_received_unlocked(_error, _bytes, false, unicast_remote_, _unicast_recv_buffer);
     }
@@ -579,7 +577,7 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
     // The caller shall not hold the lock
 
     if (_error) {
-        VSOMEIP_ERROR << instance_name_ << __func__ << ": " << _error.message();
+        VSOMEIP_ERROR_P << instance_name_ << ": " << _error.message();
     } else {
         bool own_message = false;
         bool own_subnet = false;
@@ -595,7 +593,7 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
         if (!own_message) {
             if (own_subnet) {
                 if (_destination == local_.address()) {
-                    VSOMEIP_ERROR << instance_name_ << __func__ << ": unexpected multicast address " << _destination.to_string();
+                    VSOMEIP_ERROR_P << instance_name_ << ": Unexpected multicast address " << _destination.to_string();
                 }
 
                 on_message_received_unlocked(_error, _bytes, true, _sender, _multicast_recv_buffer);
@@ -617,9 +615,9 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
     // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
     // IPv6 or adding security means)"
     if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
-        VSOMEIP_ERROR << "usei::" << __func__ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
-                      << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
-                      << get_local_port() << " from " << _remote.address() << ":" << _remote.port() << ". Message will be dropped";
+        VSOMEIP_ERROR_P << instance_name_ << ": Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE ("
+                        << VSOMEIP_MAX_UDP_MESSAGE_SIZE << ") bytes with " << _bytes << " bytes in " << local_.address() << ":"
+                        << get_local_port() << " from " << _remote.address() << ":" << _remote.port() << ". Message will be dropped";
         return;
     }
     if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
@@ -639,13 +637,13 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
             do {
                 uint64_t read_message_size = utility::get_message_size(&_buffer[i], remaining_bytes);
                 if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR << instance_name_ << __func__ << ": message size exceeds allowed maximum!";
+                    VSOMEIP_ERROR_P << instance_name_ << ": Message size exceeds allowed maximum!";
                     return;
                 }
                 auto current_message_size = static_cast<uint32_t>(read_message_size);
                 if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE && current_message_size <= remaining_bytes) {
                     if (remaining_bytes - current_message_size > remaining_bytes) {
-                        VSOMEIP_ERROR << instance_name_ << __func__ << ": buffer underflow!";
+                        VSOMEIP_ERROR_P << instance_name_ << ": Buffer underflow!";
                         return;
                     }
 
@@ -656,28 +654,27 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                             || (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
                                 && get_local_port() == configuration_->get_sd_port()))) {
                         if (_buffer[i + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": wrong protocol version: 0x" << std::hex << std::setfill('0')
-                                          << std::setw(2) << static_cast<uint32_t>(_buffer[i + VSOMEIP_PROTOCOL_VERSION_POS])
-                                          << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
-                                          << std::dec << its_remote_port;
+                            VSOMEIP_ERROR_P << instance_name_ << ": Wrong protocol version: 0x" << std::hex << std::setfill('0')
+                                            << std::setw(2) << static_cast<uint32_t>(_buffer[i + VSOMEIP_PROTOCOL_VERSION_POS])
+                                            << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
+                                            << std::dec << its_remote_port;
                             // ensure to send back a message w/ wrong protocol version
                             its_host->on_message(&_buffer[i], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, _is_multicast, VSOMEIP_ROUTING_CLIENT,
                                                  nullptr, its_remote_address, its_remote_port);
                         } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": invalid message type: 0x" << std::hex << std::setfill('0')
-                                          << std::setw(2) << static_cast<uint32_t>(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
-                                          << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
-                                          << std::dec << its_remote_port;
-                        } else if (!utility::is_valid_return_code(static_cast<return_code_e>(_buffer[i + VSOMEIP_RETURN_CODE_POS]))) {
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": invalid return code: 0x" << std::hex << std::setfill('0')
-                                          << std::setw(2) << static_cast<uint32_t>(_buffer[i + VSOMEIP_RETURN_CODE_POS])
-                                          << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
-                                          << std::dec << its_remote_port;
-                        } else if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
-                                   && get_local_port() == configuration_->get_sd_port()) {
-                            VSOMEIP_WARNING << instance_name_ << __func__ << ": not a SD message,"
+                            VSOMEIP_ERROR_P << instance_name_ << ": Invalid message type: 0x" << std::hex << std::setfill('0')
+                                            << std::setw(2) << static_cast<uint32_t>(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
                                             << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
                                             << std::dec << its_remote_port;
+                        } else if (!utility::is_valid_return_code(static_cast<return_code_e>(_buffer[i + VSOMEIP_RETURN_CODE_POS]))) {
+                            VSOMEIP_ERROR_P << instance_name_ << ": Invalid return code: 0x" << std::hex << std::setfill('0')
+                                            << std::setw(2) << static_cast<uint32_t>(_buffer[i + VSOMEIP_RETURN_CODE_POS])
+                                            << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
+                                            << std::dec << its_remote_port;
+                        } else if (tp::tp::tp_flag_is_set(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
+                                   && get_local_port() == configuration_->get_sd_port()) {
+                            VSOMEIP_WARNING_P << instance_name_ << ": Not a SD message, local: " << get_address_port_local_unlocked()
+                                              << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                         } else {
                             // Nothing to do, else clang-tidy complains
                         }
@@ -700,10 +697,10 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
 
                         if (its_instance != ANY_INSTANCE) {
                             if (!tp_segmentation_enabled(its_service, its_instance, its_method)) {
-                                VSOMEIP_WARNING << instance_name_ << __func__ << ": SomeIP/TP message for service: 0x" << std::hex
-                                                << its_service << " method: 0x" << its_method << " which is not configured for TP:"
-                                                << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address
-                                                << ":" << std::dec << its_remote_port;
+                                VSOMEIP_WARNING_P << instance_name_ << ": SomeIP/TP message for service: 0x" << std::hex << its_service
+                                                  << " method: 0x" << its_method << " which is not configured for TP:"
+                                                  << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address
+                                                  << ":" << std::dec << its_remote_port;
                                 return;
                             }
                         }
@@ -726,21 +723,21 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                                                  its_remote_address, its_remote_port);
                         } else {
                             // ignore messages for service discovery with shorter SomeIP length
-                            VSOMEIP_ERROR << instance_name_ << __func__ << ": unreliable SomeIP SD message with too short length field"
-                                          << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
-                                          << std::dec << its_remote_port;
+                            VSOMEIP_ERROR_P << instance_name_ << ": Unreliable SomeIP SD message with too short length field local: "
+                                            << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":" << std::dec
+                                            << its_remote_port;
                         }
                     }
                     i += current_message_size;
                 } else {
-                    VSOMEIP_ERROR << instance_name_ << __func__
-                                  << ": unreliable SomeIP message with bad length field local: " << get_address_port_local_unlocked()
-                                  << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
+                    VSOMEIP_ERROR_P << instance_name_
+                                    << ": Unreliable SomeIP message with bad length field local: " << get_address_port_local_unlocked()
+                                    << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                     if (remaining_bytes > VSOMEIP_SERVICE_POS_MAX) {
                         service_t its_service = bithelper::read_uint16_be(&_buffer[VSOMEIP_SERVICE_POS_MIN]);
                         if (its_service != VSOMEIP_SD_SERVICE) {
                             if (read_message_size == 0) {
-                                VSOMEIP_ERROR << instance_name_ << __func__ << ": unreliable SomeIP message with SomeIP message length 0!";
+                                VSOMEIP_ERROR_P << instance_name_ << ": Unreliable SomeIP message with SomeIP message length 0!";
 
                             } else {
                                 auto its_endpoint_host = endpoint_host_.lock();
@@ -777,7 +774,7 @@ bool udp_server_endpoint_impl::is_same_subnet_unlocked(const boost::asio::ip::ad
 void udp_server_endpoint_impl::print_status() {
     std::scoped_lock its_lock(mutex_, sync_);
 
-    VSOMEIP_ERROR << instance_name_ << __func__ << ": " << std::dec << local_.port() << " number targets: " << std::dec << targets_.size();
+    VSOMEIP_ERROR_P << instance_name_ << ": " << std::dec << local_.port() << " number targets: " << std::dec << targets_.size();
 
     for (const auto& c : targets_) {
         std::size_t its_data_size(0);
@@ -785,8 +782,8 @@ void udp_server_endpoint_impl::print_status() {
         its_queue_size = c.second.queue_.size();
         its_data_size = c.second.queue_size_;
 
-        VSOMEIP_INFO << instance_name_ << __func__ << ": client: " << c.first.address().to_string() << ":" << std::dec << c.first.port()
-                     << " queue: " << std::dec << its_queue_size << " data: " << std::dec << its_data_size;
+        VSOMEIP_INFO_P << instance_name_ << ": Client: " << c.first.address().to_string() << ":" << std::dec << c.first.port()
+                       << " queue: " << std::dec << its_queue_size << " data: " << std::dec << its_data_size;
     }
 }
 
@@ -865,13 +862,13 @@ bool udp_server_endpoint_impl::tp_segmentation_enabled(service_t _service, insta
 
 void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::address& _address, bool _is_join,
                                                     boost::system::error_code& _error) {
-    VSOMEIP_INFO << instance_name_ << __func__ << ": " << (_is_join ? "join " : "leave ") << _address
-                 << ", lifecycle_idx=" << lifecycle_idx_.load() << ", stopped=" << is_stopped_;
+    VSOMEIP_INFO_P << instance_name_ << ": " << (_is_join ? "join " : "leave ") << _address << ", lifecycle_idx=" << lifecycle_idx_.load()
+                   << ", stopped=" << is_stopped_;
 
     std::unique_lock its_lock(sync_);
 
     if (is_stopped_) {
-        VSOMEIP_INFO << instance_name_ << __func__ << ": ignored because server is stopping";
+        VSOMEIP_INFO_P << instance_name_ << ": Ignored because server is stopping";
         return;
     }
 
@@ -881,7 +878,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         // We can skip the join operation, but we don't skip the leave operation
         // because if the network interface is down when this operation is executed,
         // it returns an error and we do not know in which state is the join.
-        VSOMEIP_INFO << instance_name_ << __func__ << ": operation already done, skipped";
+        VSOMEIP_INFO_P << instance_name_ << ": Operation already done, skipped";
         return;
     }
 
@@ -895,7 +892,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             auto socket_factory = abstract_socket_factory::get();
             multicast_socket_ = socket_factory->create_udp_socket(io_);
             if (!multicast_socket_) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to create socket";
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to create socket";
                 _error = boost::asio::error::make_error_code(boost::asio::error::no_memory);
                 return;
             }
@@ -903,7 +900,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             if (!multicast_socket_->is_open()) {
                 multicast_socket_->open(local_.protocol(), _error);
                 if (_error) {
-                    VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to open socket, " << _error.message();
+                    VSOMEIP_ERROR_P << instance_name_ << ": Failed to open socket, " << _error.message();
                     multicast_socket_.reset();
                     return;
                 }
@@ -911,7 +908,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
             multicast_socket_->set_option(ip::udp::socket::reuse_address(true), _error);
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure reuse address, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure reuse address, " << _error.message();
                 multicast_socket_.reset();
                 return;
             }
@@ -928,7 +925,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
                 multicast_socket_->set_option(udp_packet_info_ip6{}, its_pktinfo_error);
             }
             if (its_pktinfo_error) {
-                VSOMEIP_ERROR << "usei::" << __func__ << ": failed setting the packet_info option: " << its_pktinfo_error.message();
+                VSOMEIP_ERROR_P << ": Failed setting the packet_info option: " << its_pktinfo_error.message();
             }
 #endif
 
@@ -942,7 +939,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
             multicast_socket_->bind(*multicast_local_, _error);
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to bind, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to bind, " << _error.message();
                 multicast_socket_.reset();
                 return;
             }
@@ -953,7 +950,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
             multicast_socket_->set_option(boost::asio::socket_base::receive_buffer_size(its_udp_recv_buffer_size), _error);
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure received buffer size, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure received buffer size, " << _error.message();
                 // Non-fatal error
                 _error.clear();
             }
@@ -965,13 +962,13 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 
             multicast_socket_->set_option(udp_receive_timeout{timeout}, _error);
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure SO_RCVTIMEO, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure SO_RCVTIMEO, " << _error.message();
                 // Non-fatal error
                 _error.clear();
             }
             multicast_socket_->set_option(udp_send_timeout{timeout}, _error);
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to configure SO_SNDTIMEO, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to configure SO_SNDTIMEO, " << _error.message();
                 // Non-fatal error
                 _error.clear();
             }
@@ -979,7 +976,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             boost::asio::socket_base::receive_buffer_size its_option;
             multicast_socket_->get_option(its_option, _error);
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": failed to get received buffer size, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Failed to get received buffer size, " << _error.message();
                 multicast_socket_.reset();
                 return;
             }
@@ -989,14 +986,14 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             if (its_option.value() < 0 || its_option.value() < its_udp_recv_buffer_size) {
                 multicast_socket_->set_option(udp_receive_buffer_force{its_udp_recv_buffer_size}, _error);
                 if (_error) {
-                    VSOMEIP_INFO << instance_name_ << __func__ << ": failed to force received buffer size, " << _error.message();
+                    VSOMEIP_INFO << instance_name_ << ": Failed to force received buffer size, " << _error.message();
                     // Non-fatal error
                     _error.clear();
                 }
             }
 #endif
 
-            VSOMEIP_INFO << instance_name_ << __func__ << ": start multicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
+            VSOMEIP_INFO_P << instance_name_ << ": Start multicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
             receive_multicast_unlocked(nullptr);
         }
 
@@ -1018,10 +1015,9 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         if (!_error) {
             joined_[_address.to_string()] = true;
             join_status_[_address.to_string()] = true;
-            VSOMEIP_INFO << instance_name_ << __func__ << ": join successful";
+            VSOMEIP_INFO_P << instance_name_ << ": Join successful";
         } else {
-            VSOMEIP_ERROR << instance_name_ << __func__ << ": join failure, " << _error.message()
-                          << ", could happen during restart operation";
+            VSOMEIP_ERROR_P << instance_name_ << ": Join failure, " << _error.message() << ", could happen during restart operation";
             // Non-fatal error, that must be reported to endpoint_manager_impl
             // so it can repeat the operation. It could occur after a restart,
             // and Linux didn't have time to clean the previous memberships.
@@ -1035,13 +1031,13 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             multicast_socket_->set_option(its_leave_option, _error);
 
             if (_error) {
-                VSOMEIP_ERROR << instance_name_ << __func__ << ": leave failure, " << _error.message();
+                VSOMEIP_ERROR_P << instance_name_ << ": Leave failure, " << _error.message();
             } else {
-                VSOMEIP_INFO << instance_name_ << __func__ << ": leave successful";
+                VSOMEIP_INFO_P << instance_name_ << ": Leave successful";
             }
 
             if (joined_.empty()) {
-                VSOMEIP_INFO << instance_name_ << __func__ << ": stop multicast";
+                VSOMEIP_INFO_P << instance_name_ << ": Stop multicast";
                 multicast_socket_.reset();
             }
         }
@@ -1085,7 +1081,7 @@ void udp_server_endpoint_impl::wait_until_sent() {
         }
 
         if (is_sending) {
-            VSOMEIP_WARNING << "usei::" << __func__ << ": waiting[" << retry_count << "] to complete send";
+            VSOMEIP_WARNING_P << ": Waiting [" << retry_count << "] to complete send";
 
             its_lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_UDP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
@@ -1095,7 +1091,7 @@ void udp_server_endpoint_impl::wait_until_sent() {
         }
         ++retry_count;
         if (retry_count > VSOMEIP_UDP_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR << "usei::" << __func__ << ": max retries reached to send! will lose data";
+            VSOMEIP_ERROR_P << ": Max retries reached to send! Will lose data";
             break;
         }
     }

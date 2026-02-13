@@ -167,7 +167,7 @@ TEST(someip_restart_routing_test, request_response_over_restart) {
         routing_restart_test_client test_client{static_cast<std::uint32_t>(std::stoul(getenv("VSOMEIP_APPLICATION_ID"), NULL, 10))};
         test_client.run();
     } catch (const std::exception& e) {
-        ADD_FAILURE() << __func__ << ":" << e.what();
+        ADD_FAILURE() << e.what();
     }
 }
 

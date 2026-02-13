@@ -30,6 +30,8 @@
 #include "../include/utility.hpp"
 #include "../../configuration/include/configuration.hpp"
 
+#define VSOMEIP_LOG_PREFIX "util"
+
 static std::string base_path() {
     static std::string* path = []() {
         std::string* p;
@@ -138,7 +140,7 @@ bool utility::is_routing_manager(const std::string& _network) {
 
                         if (!process_active) {
                             // Process doesn't exist, remove stale lock file and try again
-                            VSOMEIP_DEBUG << __func__ << ": Removing stale lock file (PID " << pid << " no longer exists)";
+                            VSOMEIP_DEBUG_P << "Removing stale lock file (PID " << pid << " no longer exists)";
                             CloseHandle(existing_file);
                             if (DeleteFileW(its_lockfile.c_str()) != 0) {
                                 r.first->second.lock_handle_ =
@@ -146,7 +148,7 @@ bool utility::is_routing_manager(const std::string& _network) {
                             }
                         } else {
                             // Process still active - cannot become HOST
-                            VSOMEIP_DEBUG << __func__ << ": Another process (" << pid << ") is already routing manager";
+                            VSOMEIP_DEBUG_P << "Another process (" << pid << ") is already routing manager";
                             CloseHandle(existing_file);
                             r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
                         }
@@ -160,12 +162,12 @@ bool utility::is_routing_manager(const std::string& _network) {
                     }
                 } else {
                     // Cannot open existing file - might be in use
-                    VSOMEIP_ERROR << __func__ << ": Cannot access existing lock file";
+                    VSOMEIP_ERROR_P << "Cannot access existing lock file";
                     r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
                 }
             } else {
                 // Other error creating file
-                VSOMEIP_ERROR << __func__ << ": CreateFileW failed: " << std::hex << error;
+                VSOMEIP_ERROR_P << "CreateFileW failed: " << std::hex << error;
                 r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
             }
         }
@@ -180,7 +182,7 @@ bool utility::is_routing_manager(const std::string& _network) {
             r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
         }
     } else {
-        VSOMEIP_ERROR << __func__ << ": Could not get temp folder: " << std::hex << GetLastError();
+        VSOMEIP_ERROR_P << "Could not get temp folder: " << std::hex << GetLastError();
         r.first->second.lock_handle_ = INVALID_HANDLE_VALUE;
     }
 
@@ -197,7 +199,7 @@ bool utility::is_routing_manager(const std::string& _network) {
         its_lock_data.l_pid = getpid();
         its_lock_ctrl = fcntl(r.first->second.lock_fd_, F_SETLK, &its_lock_data);
     } else {
-        VSOMEIP_ERROR << __func__ << ": Could not open " << its_lockfile << ": errno " << errno;
+        VSOMEIP_ERROR_P << "Could not open " << its_lockfile << ": errno " << errno;
     }
 
     return (its_lock_ctrl != -1);
@@ -215,7 +217,7 @@ void utility::remove_lockfile(const std::string& _network) {
 #ifdef _WIN32
     if (r->second.lock_handle_ != INVALID_HANDLE_VALUE) {
         if (CloseHandle(r->second.lock_handle_) == 0) {
-            VSOMEIP_ERROR << __func__ << ": CloseHandle failed." << std::hex << GetLastError();
+            VSOMEIP_ERROR_P << "CloseHandle failed." << std::hex << GetLastError();
         }
         wchar_t its_tmp_folder[MAX_PATH];
         if (GetTempPathW(MAX_PATH, its_tmp_folder)) {
@@ -223,10 +225,10 @@ void utility::remove_lockfile(const std::string& _network) {
             std::string its_network(_network + ".lck");
             its_lockfile.append(its_network.begin(), its_network.end());
             if (DeleteFileW(its_lockfile.c_str()) == 0) {
-                VSOMEIP_ERROR << __func__ << ": DeleteFileW failed: " << std::hex << GetLastError();
+                VSOMEIP_ERROR_P << "DeleteFileW failed: " << std::hex << GetLastError();
             }
         } else {
-            VSOMEIP_ERROR << __func__ << ": Could not get temp folder." << std::hex << GetLastError();
+            VSOMEIP_ERROR_P << "Could not get temp folder." << std::hex << GetLastError();
         }
     }
 #else
@@ -235,11 +237,11 @@ void utility::remove_lockfile(const std::string& _network) {
 
     if (r->second.lock_fd_ != -1) {
         if (close(r->second.lock_fd_) == -1) {
-            VSOMEIP_ERROR << __func__ << ": Could not close lock_fd_: errno " << errno;
+            VSOMEIP_ERROR_P << "Could not close lock_fd_: errno " << errno;
         }
     }
     if (remove(its_lockfile.c_str()) == -1) {
-        VSOMEIP_ERROR << __func__ << ": Could not remove " << its_lockfile << ": errno " << errno;
+        VSOMEIP_ERROR_P << "Could not remove " << its_lockfile << ": errno " << errno;
     }
 #endif
     data.erase(_network);
@@ -328,11 +330,8 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
                                               + 1u) //  and add one to the result
                    & its_client_mask); // set the diagnosis address bits to zero again
         if (increase_count++ == its_max_num_clients) {
-            VSOMEIP_ERROR << __func__
-                          << " no free client IDs left! "
-                             "Max amount of possible concurrent active vsomeip "
-                             "applications reached ("
-                          << std::dec << r->second.used_clients_.size() << ").";
+            VSOMEIP_ERROR_P << "No free client IDs left! Max amount of possible concurrent active vsomeip "
+                            << "applications reached (" << std::dec << r->second.used_clients_.size() << ").";
             return VSOMEIP_CLIENT_UNSET;
         }
     } while (r->second.used_clients_.find(r->second.next_client_) != r->second.used_clients_.end()
@@ -391,7 +390,7 @@ void utility::set_thread_niceness(int _nice) noexcept {
 #if defined(__linux__)
     errno = 0;
     if ((nice(_nice) == -1) && (errno < 0)) {
-        VSOMEIP_WARNING << "failed to set niceness for thread " << std::this_thread::get_id() << ", errno: " << errno;
+        VSOMEIP_WARNING << "Failed to set niceness for thread " << std::this_thread::get_id() << ", errno: " << errno;
         return;
     }
 #else

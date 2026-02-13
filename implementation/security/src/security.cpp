@@ -22,6 +22,8 @@
 #include <dlfcn.h>
 #endif
 
+#define VSOMEIP_LOG_PREFIX "sec"
+
 template<class T_>
 std::function<T_> security_load_function(void* _library, std::string const& _name) {
     void* its_function;
@@ -31,7 +33,7 @@ std::function<T_> security_load_function(void* _library, std::string const& _nam
     its_function = dlsym(_library, _name.c_str());
 #endif
     if (!its_function) {
-        VSOMEIP_ERROR << __func__ << ": security library misses \"" << _name << "\" function.";
+        VSOMEIP_ERROR_P << "Security library misses \"" << _name << "\" function.";
         return nullptr;
     }
 

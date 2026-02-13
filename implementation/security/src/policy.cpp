@@ -12,6 +12,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/policy.hpp"
+#include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
@@ -96,7 +97,7 @@ bool policy::deserialize(const byte_t*& _data, uint32_t& _size) {
             return false;
 
         if (its_service == 0x0000 || its_service == 0xffff) {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x" << std::hex << its_service << " is not allowed!";
+            VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x" << hex4(its_service) << " is not allowed!";
             return false;
         }
 
@@ -128,7 +129,7 @@ bool policy::deserialize(const byte_t*& _data, uint32_t& _size) {
             return false;
 
         if (its_service == 0x0000 || its_service == 0xFFFF) {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x" << std::hex << its_service << " is not allowed!";
+            VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x" << hex4(its_service) << " is not allowed!";
             return false;
         }
 
@@ -412,13 +413,13 @@ void policy::print() const {
 
     for (auto its_credential : credentials_) {
         auto its_uid_interval = its_credential.first;
-        if (its_uid_interval.lower() == std::numeric_limits<uid_t>::max()) {
+        if (its_uid_interval.lower() == (std::numeric_limits<uid_t>::max)()) {
             VSOMEIP_INFO << "policy::print Security configuration: UID: any";
         } else {
             VSOMEIP_INFO << "policy::print Security configuration: UID: " << std::dec << its_uid_interval.lower();
         }
         for (auto its_gid_interval : its_credential.second) {
-            if (its_gid_interval.lower() == std::numeric_limits<gid_t>::max()) {
+            if (its_gid_interval.lower() == (std::numeric_limits<gid_t>::max)()) {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: any";
             } else {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: " << std::dec << its_gid_interval.lower();
@@ -428,24 +429,24 @@ void policy::print() const {
 
     VSOMEIP_INFO << "policy::print Security configuration: REQUESTS POLICY SIZE: " << std::dec << requests_.size();
     for (auto its_request : requests_) {
-        VSOMEIP_INFO << "policy::print ALLOWED REQUESTS Services:" << std::hex << its_request.first;
+        VSOMEIP_INFO << "policy::print ALLOWED REQUESTS Services:" << its_request.first;
         for (auto its_instance : its_request.second) {
             VSOMEIP_INFO << "policy::print     Instances: ";
-            VSOMEIP_INFO << "policy::print          first: 0x" << std::hex << its_instance.first.lower() << " last: 0x"
-                         << its_instance.first.upper();
+            VSOMEIP_INFO << "policy::print          first: 0x" << hex4(its_instance.first.lower()) << " last: 0x"
+                         << hex4(its_instance.first.upper());
             VSOMEIP_INFO << "policy::print     Methods: ";
             for (auto its_method : its_instance.second) {
-                VSOMEIP_INFO << "policy::print          first: 0x" << std::hex << its_method.lower() << " last: 0x" << its_method.upper();
+                VSOMEIP_INFO << "policy::print          first: 0x" << hex4(its_method.lower()) << " last: 0x" << hex4(its_method.upper());
             }
         }
     }
 
     VSOMEIP_INFO << "policy::print Security configuration: OFFER POLICY SIZE: " << std::dec << offers_.size();
     for (auto its_offer : offers_) {
-        VSOMEIP_INFO << "policy::print ALLOWED OFFERS Services:" << std::hex << its_offer.first;
+        VSOMEIP_INFO << "policy::print ALLOWED OFFERS Services:" << its_offer.first;
         for (auto its_instance : its_offer.second) {
             VSOMEIP_INFO << "policy::print     Instances: ";
-            VSOMEIP_INFO << "policy::print          first: 0x" << std::hex << its_instance.lower() << " last: 0x" << its_instance.upper();
+            VSOMEIP_INFO << "policy::print          first: 0x" << hex4(its_instance.lower()) << " last: 0x" << hex4(its_instance.upper());
         }
     }
 }

@@ -25,6 +25,8 @@
 #include "../../utility/include/utility.hpp"
 #include "../../service_discovery/include/defines.hpp"
 
+#define VSOMEIP_LOG_PREFIX "sei"
+
 namespace vsomeip_v3 {
 
 template<typename Protocol>
@@ -343,8 +345,8 @@ server_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
             }
         }
     }
-    VSOMEIP_ERROR << "sei::send_intern: Dropping to big message (" << _size
-                  << " Bytes). Maximum allowed message size is: " << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
+    VSOMEIP_ERROR_P << "Dropping to big message (" << _size
+                    << " Bytes). Maximum allowed message size is: " << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
     return endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
 }
 
@@ -372,8 +374,8 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         size_t its_error_queue_size{_endpoint_data.queue_size_};
         recalculate_queue_size(_endpoint_data);
 
-        VSOMEIP_WARNING << __func__ << ": Detected possible queue size underflow (" << std::dec << its_error_queue_size
-                        << "). Recalculating it (" << std::dec << _endpoint_data.queue_size_ << ")";
+        VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << std::dec << its_error_queue_size << "). Recalculating it ("
+                          << std::dec << _endpoint_data.queue_size_ << ")";
     }
 
     if (_endpoint_data.queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
@@ -395,10 +397,9 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
-        VSOMEIP_ERROR << "sei::send_intern: queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_
-                      << ") reached. Dropping message (" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method)
-                      << "." << hex4(its_session) << "]"
-                      << " queue_size: " << std::dec << _endpoint_data.queue_size_ << " data size: " << _size;
+        VSOMEIP_ERROR_P << "Queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
+                        << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
+                        << " queue_size: " << std::dec << _endpoint_data.queue_size_ << " data size: " << _size;
         return false;
     }
     return true;
@@ -417,8 +418,8 @@ bool server_endpoint_impl<Protocol>::queue_train(target_data_iterator_type _it, 
         must_erase = send_queued(_it);
     } else if (get_local_port() == this->configuration_->get_sd_port()
                && is_reliable() == (this->configuration_->get_sd_protocol() == "tcp")) {
-        VSOMEIP_WARNING << "sei::" << __func__ << " sd endpoint is currently sending " << its_data.is_sending_
-                        << " queue size: " << its_data.queue_size_ << " target address: " << _it->first;
+        VSOMEIP_WARNING_P << "SD endpoint is currently sending " << its_data.is_sending_ << " queue size: " << its_data.queue_size_
+                          << " target address: " << _it->first;
     }
 
     return must_erase;
@@ -517,7 +518,7 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
     if (!its_buffer) {
         // Pointer not initialized.
         its_buffer = std::make_shared<message_buffer_t>();
-        VSOMEIP_WARNING << __func__ << ": prevented nullptr de-reference by initializing queue buffer";
+        VSOMEIP_WARNING_P << "Prevented nullptr de-reference by initializing queue buffer";
     }
 
     service_t its_service(0);
@@ -532,10 +533,10 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
             its_data.queue_.pop_front();
         } else {
             parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
-            VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: " << its_data.queue_size_
-                            << " payload_size: " << payload_size << " payload: (" << hex4(its_client) << "): [" << hex4(its_service) << "."
-                            << hex4(its_method) << "." << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "."
-                            << hex4(its_session) << "]";
+            VSOMEIP_WARNING_P << "Prevented queue_size underflow. queue_size: " << its_data.queue_size_ << " payload_size: " << payload_size
+                              << " payload: (" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "."
+                              << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                              << "]";
             its_data.queue_.pop_front();
             recalculate_queue_size(its_data);
         }
@@ -549,10 +550,10 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
         parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
-        VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                        << get_remote_information(it) << " " << its_data.queue_.size() << " " << its_data.queue_size_ << " ("
-                        << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
-                        << " endpoint -> " << this;
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
+                          << get_remote_information(it) << " " << its_data.queue_.size() << " " << its_data.queue_size_ << " ("
+                          << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                          << "]  endpoint -> " << this;
         cancel_dispatch_timer(it);
         targets_.erase(it);
     }

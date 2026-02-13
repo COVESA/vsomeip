@@ -20,6 +20,8 @@
 #include <chrono>
 #include <thread>
 
+#define VSOMEIP_LOG_PREFIX "lsti"
+
 namespace {
 std::string to_string(boost::asio::ip::tcp::endpoint _own, boost::asio::ip::tcp::endpoint _peer,
                       vsomeip_v3::local_socket_tcp_impl const* _address, vsomeip_v3::socket_role_e _role) {
@@ -42,13 +44,12 @@ local_socket_tcp_impl::local_socket_tcp_impl(boost::asio::io_context& _io, boost
 
 local_socket_tcp_impl::~local_socket_tcp_impl() {
     if (socket_->is_open()) {
-        VSOMEIP_ERROR << "lsti::" << __func__ << ": socket was not closed before cleaning it up. This can cause boost to block on close"
-                      << name_;
+        VSOMEIP_ERROR_P << "Socket was not closed before cleaning it up. This can cause boost to block on close " << name_;
         local_socket_tcp_impl::stop(true);
     }
 }
 void local_socket_tcp_impl::stop(bool _force) {
-    VSOMEIP_INFO << "lsti::" << __func__ << ": " << name_ << ", force: " << (_force ? "true" : "false");
+    VSOMEIP_INFO_P << name_ << ", force: " << (_force ? "true" : "false");
 #if defined(__linux__) || defined(__QNX__)
     boost::system::error_code its_error;
     io_control_operation<std::size_t> send_buffer_size_cmd(TIOCOUTQ);
@@ -64,20 +65,17 @@ void local_socket_tcp_impl::stop(bool _force) {
         }
 
         if (its_error) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": fail to read send_buffer_size  "
-                            << "(" << its_error.value() << "): " << its_error.message() << ", " << name_;
+            VSOMEIP_WARNING_P << "Fail to read send_buffer_size (" << its_error.value() << "): " << its_error.message() << ", " << name_;
             break;
         }
 
         const auto send_buffer_size = send_buffer_size_cmd.get();
         if (send_buffer_size > 0) {
             if (_force) {
-                VSOMEIP_WARNING << "lsti::" << __func__ << ": forced stop on socket, not waiting to send remaining " << send_buffer_size
-                                << " bytes, " << name_;
+                VSOMEIP_WARNING_P << "Forced stop on socket, not waiting to send remaining " << send_buffer_size << " bytes, " << name_;
                 break;
             } else {
-                VSOMEIP_WARNING << "lsti::" << __func__ << ": waiting[" << retry_count << "] on close to send " << send_buffer_size
-                                << " bytes, " << name_;
+                VSOMEIP_WARNING_P << "Waiting [" << retry_count << "] on close to send " << send_buffer_size << " bytes, " << name_;
                 std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
             }
         } else {
@@ -85,8 +83,7 @@ void local_socket_tcp_impl::stop(bool _force) {
         }
         ++retry_count;
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR << "lsti::" << __func__ << ": max retries reached to send! will drop " << send_buffer_size << " bytes on close, "
-                          << name_;
+            VSOMEIP_ERROR_P << "Max retries reached to send! will drop " << send_buffer_size << " bytes on close, " << name_;
             break;
         }
     }
@@ -96,10 +93,10 @@ void local_socket_tcp_impl::stop(bool _force) {
         boost::system::error_code ec;
         socket_->close(ec);
         if (ec) {
-            VSOMEIP_ERROR << "lsti::close: " << ec.message() << ", " << name_;
+            VSOMEIP_ERROR_P << ec.message() << ", " << name_;
         }
     } else {
-        VSOMEIP_WARNING << "lsti::" << __func__ << ": socket was not open, " << name_;
+        VSOMEIP_WARNING_P << "Socket was not open, " << name_;
     }
 }
 
@@ -141,7 +138,7 @@ void local_socket_tcp_impl::async_receive(boost::asio::mutable_buffer _buffer, r
                     // necessary, because local connections are TCP RST'd, and in order to guarantee no
                     // loss of data, there is (active!) waiting for TCP ACKs - which relies on speedy delivery of TCP ACKs
                     if (!self->socket_->set_quick_ack()) {
-                        VSOMEIP_WARNING << "ltsei::receive_cbk: could not setsockopt(TCP_QUICKACK), errno " << errno;
+                        VSOMEIP_WARNING_P << "Could not setsockopt(TCP_QUICKACK), errno " << errno;
                     }
                 }
             }
@@ -202,16 +199,16 @@ void local_socket_tcp_impl::set_socket_options(configuration const& _configurati
     // 2) handle by default what needs to happen at suspend/shutdown
     socket_->set_option(boost::asio::socket_base::linger(true, 0), ec);
     if (ec) {
-        VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(SO_LINGER), " << ec.message() << ", " << name_;
+        VSOMEIP_WARNING_P << "Could not setsockopt(SO_LINGER), " << ec.message() << ", " << name_;
     }
     socket_->set_option(boost::asio::socket_base::reuse_address(true), ec);
     if (ec) {
-        VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(SO_REUSEADDR), " << ec.message() << ", " << name_;
+        VSOMEIP_WARNING_P << "Could not setsockopt(SO_REUSEADDR), " << ec.message() << ", " << name_;
     }
     // Nagle algorithm off
     socket_->set_option(boost::asio::ip::tcp::no_delay(true), ec);
     if (ec) {
-        VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(SO_TCP_NODELAY), " << ec.message() << ", " << name_;
+        VSOMEIP_WARNING_P << "Could not setsockopt(SO_TCP_NODELAY), " << ec.message() << ", " << name_;
     }
 
     // connection in the same host (and not across a host and guest or similar)
@@ -220,33 +217,33 @@ void local_socket_tcp_impl::set_socket_options(configuration const& _configurati
         // disable keep alive
         socket_->set_option(boost::asio::socket_base::keep_alive(false), ec);
         if (ec) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(SO_KEEPALIVE) to false, " << ec.message() << ", " << name_;
+            VSOMEIP_WARNING_P << "Could not setsockopt(SO_KEEPALIVE) to false, " << ec.message() << ", " << name_;
         }
     } else {
         // enable keep alive
         socket_->set_option(boost::asio::socket_base::keep_alive(true), ec);
         if (ec) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(SO_KEEPALIVE) to true, " << ec.message() << ", " << name_;
+            VSOMEIP_WARNING_P << "Could not setsockopt(SO_KEEPALIVE) to true, " << ec.message() << ", " << name_;
         }
 
 #if defined(__linux__) || defined(ANDROID)
         // set a user timeout
         // along the keep alives, this ensures connection closes if endpoint is unreachable
         if (!socket_->set_user_timeout(_configuration.get_local_tcp_user_timeout())) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(TCP_USER_TIMEOUT), errno " << errno << ", " << name_;
+            VSOMEIP_WARNING_P << "Could not setsockopt(TCP_USER_TIMEOUT), errno " << errno << ", " << name_;
         }
 
         // override kernel settings
         // unfortunate, but there are plenty of custom keep-alive settings, and need to
         // enforce some sanity here
         if (!socket_->set_keepidle(_configuration.get_local_tcp_keepidle())) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(TCP_KEEPIDLE), errno " << errno << ", " << name_;
+            VSOMEIP_WARNING_P << "Could not setsockopt(TCP_KEEPIDLE), errno " << errno << ", " << name_;
         }
         if (!socket_->set_keepintvl(_configuration.get_local_tcp_keepintvl())) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(TCP_KEEPINTVL), errno " << errno << ", " << name_;
+            VSOMEIP_WARNING_P << "Could not setsockopt(TCP_KEEPINTVL), errno " << errno << ", " << name_;
         }
         if (!socket_->set_keepcnt(_configuration.get_local_tcp_keepcnt())) {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": could not setsockopt(TCP_KEEPCNT), errno " << errno << ", " << name_;
+            VSOMEIP_WARNING_P << "Could not setsockopt(TCP_KEEPCNT), errno " << errno << ", " << name_;
         }
 #endif
     }
@@ -259,15 +256,14 @@ size_t local_socket_tcp_impl::get_send_buffer_size(boost::system::error_code& _e
         if (socket_ && socket_->is_open()) {
             socket_->io_control(send_buffer_size_cmd, _ec);
         } else {
-            VSOMEIP_WARNING << "lsti::" << __func__ << ": socket is not open, " << name_;
+            VSOMEIP_WARNING_P << "Socket is not open, " << name_;
             _ec = boost::asio::error::not_connected;
             return 0;
         }
     }
 
     if (_ec) {
-        VSOMEIP_WARNING << "lsti::" << __func__ << ": fail to read send_buffer_size  "
-                        << "(" << _ec.value() << "): " << _ec.message() << ", " << name_;
+        VSOMEIP_WARNING_P << "Fail to read send_buffer_size (" << _ec.value() << "): " << _ec.message() << ", " << name_;
         return 0;
     }
     return send_buffer_size_cmd.get();

@@ -26,6 +26,7 @@
 
 #include <iomanip>
 
+#define VSOMEIP_LOG_PREFIX "ls"
 namespace vsomeip_v3 {
 
 local_server::local_server(boost::asio::io_context& _io, std::shared_ptr<local_acceptor> _acceptor,
@@ -39,7 +40,7 @@ local_server::~local_server() = default;
 void local_server::start() {
     std::scoped_lock const lock{mtx_};
     if (state_ == state_e::STARTED) {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Rejecting the attempt to start the server when it is already started";
+        VSOMEIP_WARNING_P << "Rejecting the attempt to start the server when it is already started";
         return;
     }
     state_ = state_e::STARTED;
@@ -50,7 +51,7 @@ void local_server::start() {
 void local_server::stop() {
     std::scoped_lock const lock{mtx_};
     if (state_ == state_e::STOPPED) {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Rejecting the attempt to stop the server when it is already stopped";
+        VSOMEIP_WARNING_P << "Rejecting the attempt to stop the server when it is already stopped";
         return;
     }
     state_ = state_e::STOPPED;
@@ -58,7 +59,7 @@ void local_server::stop() {
     boost::system::error_code ec;
     acceptor_->close(ec);
     if (ec) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": Error encountered: " << ec.message() << ", self: " << this;
+        VSOMEIP_ERROR_P << "Error encountered: " << ec.message() << ", self: " << this;
     }
     if (debounce_) {
         debounce_->stop();
@@ -68,7 +69,7 @@ void local_server::stop() {
 void local_server::halt() {
     std::scoped_lock const lock{mtx_};
     if (is_value(state_).any_of(state_e::HALTED, state_e::STOPPED)) {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Rejecting the attempt to stop the server when it is already stopped";
+        VSOMEIP_WARNING_P << "Rejecting the attempt to stop the server when it is already stopped";
         return;
     }
     state_ = state_e::HALTED;
@@ -76,7 +77,7 @@ void local_server::halt() {
     boost::system::error_code ec;
     acceptor_->cancel(ec);
     if (ec) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": Error encountered: " << ec.message() << ", self: " << this;
+        VSOMEIP_ERROR_P << "Error encountered: " << ec.message() << ", self: " << this;
     }
 }
 
@@ -93,8 +94,7 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
     if (!_ec) {
         std::scoped_lock const lock{mtx_};
         if (_lc_count != lc_count_) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from former lifecycle: " << _lc_count
-                            << ", current lc: " << lc_count_;
+            VSOMEIP_WARNING_P << "Dropping connection from former lifecycle: " << _lc_count << ", current lc: " << lc_count_;
             _socket->stop(true);
             return;
         }
@@ -104,11 +104,10 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
         return;
     }
     if (_ec != boost::asio::error::operation_aborted) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": received error: " << _ec.message() << ", self: " << this;
+        VSOMEIP_ERROR_P << "Received error: " << _ec.message() << ", self: " << this;
         if (_ec == boost::asio::error::bad_descriptor) {
             auto log_problem = [mem = this] {
-                VSOMEIP_FATAL << "ls::async_accept: Bad descriptors can not be dealt with. Lingering in a very bad state"
-                              << ", self: " << mem;
+                VSOMEIP_FATAL_P << "async_accept: Bad descriptors can not be dealt with. Lingering in a very bad state, self: " << mem;
                 return true;
             };
             log_problem();
@@ -124,27 +123,27 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
                     if (auto self = weak_self.lock(); self) {
                         std::scoped_lock const inner_lock{self->mtx_};
                         if (_lc == self->lc_count_) {
-                            VSOMEIP_INFO << "ls::" << __func__ << ": Retrying to accept connections, after debounce, self: " << self.get();
+                            VSOMEIP_INFO_P << "Retrying to accept connections, after debounce, self: " << self.get();
                             self->start_unlock(_lc);
                         } else {
-                            VSOMEIP_WARNING << "ls::" << __func__ << ": Stopping current retry from the lifecycle: " << _lc
-                                            << ", current lc: " << self->lc_count_ << ", self: " << self.get();
+                            VSOMEIP_WARNING_P << "Stopping current retry from the lifecycle: " << _lc << ", current lc: " << self->lc_count_
+                                              << ", self: " << self.get();
                         }
                     }
                     return false;
                 });
             }
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Will try to accept again in 1000ms, self: " << this;
+            VSOMEIP_WARNING_P << "Will try to accept again in 1000ms, self: " << this;
             debounce_->start();
             return;
         }
         std::scoped_lock const lock{mtx_};
         if (_lc_count == lc_count_) {
-            VSOMEIP_INFO << "ls::" << __func__ << ": Retrying to accept connections, self: " << this;
+            VSOMEIP_INFO_P << "Retrying to accept connections, self: " << this;
             start_unlock(lc_count_);
         } else {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Stopping current retry from the lifecycle: " << _lc_count
-                            << ", current lc: " << lc_count_ << ", self: " << this;
+            VSOMEIP_WARNING_P << "Stopping current retry from the lifecycle: " << _lc_count << ", current lc: " << lc_count_
+                              << ", self: " << this;
         }
     }
 }
@@ -154,8 +153,8 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
     std::unique_lock lock{mtx_};
     if (_lc_count == lc_count_) {
         if (_expected_id != own_client_id_ && _expected_id != VSOMEIP_CLIENT_UNSET) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": connection refused due to wrong client id, expected: " << hex4(_expected_id)
-                            << ", actual: " << hex4(own_client_id_) << ", from client: " << _client;
+            VSOMEIP_WARNING_P << "Connection refused due to wrong client id, expected: " << hex4(_expected_id)
+                              << ", actual: " << hex4(own_client_id_) << ", from client: " << hex4(_client);
             // This should not happen for the router, as the router for tcp needs to be configured, an no other
             // application should be able to claim this ip+port
             _socket->stop(true);
@@ -172,7 +171,7 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                                                        local_endpoint_params{_client, rh->get_client(), std::move(_socket)},
                                                        std::move(_buffer));
             if (!ep) {
-                VSOMEIP_ERROR << "ls::" << __func__ << ": endpoint creation failed for client: " << hex4(_client) << ", self: " << this;
+                VSOMEIP_ERROR_P << "endpoint creation failed for client: " << hex4(_client) << ", self: " << this;
                 // socket is closed already in the create_server_ep on failure
                 // clean-up id
                 utility::release_client_id(configuration_->get_network(), _client);
@@ -198,14 +197,13 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             lock.unlock();
             connection_handler_(ep);
         } else {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << hex4(_client)
-                            << ", from former lifecycle: " << _lc_count << ", current lc: " << lc_count_
-                            << ", as routing host is no longer available self: " << this;
+            VSOMEIP_WARNING_P << "Dropping connection from: " << hex4(_client) << ", from former lifecycle: " << _lc_count
+                              << ", current lc: " << lc_count_ << ", as routing host is no longer available self: " << this;
             _socket->stop(true);
         }
     } else {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << hex4(_client) << ", from former lifecycle: " << _lc_count
-                        << ", current lc: " << lc_count_ << ", self: " << this;
+        VSOMEIP_WARNING_P << "Dropping connection from: " << hex4(_client) << ", from former lifecycle: " << _lc_count
+                          << ", current lc: " << lc_count_ << ", self: " << this;
         _socket->stop(true);
     }
 }
@@ -235,15 +233,14 @@ void local_server::tmp_connection::async_receive() {
 
 void local_server::tmp_connection::receive_cbk(boost::system::error_code const& _ec, size_t _bytes) {
     if (_ec) {
-        VSOMEIP_WARNING << "ls::" << __func__ << ": Error encountered: " << _ec.message()
-                        << ", dropping connection: " << socket_->to_string();
+        VSOMEIP_WARNING_P << "Error encountered: " << _ec.message() << ", dropping connection: " << socket_->to_string();
         socket_->stop(true);
         return;
     }
     next_message_result result;
     if (!receive_buffer_->bump_end(_bytes)) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": inconsistent buffer handling, trying add the read of: " << _bytes
-                      << " bytes to the buffer: " << *receive_buffer_ << ", dropping connection: " << socket_->to_string();
+        VSOMEIP_ERROR_P << "Inconsistent buffer handling, trying add the read of: " << _bytes
+                        << " bytes to the buffer: " << *receive_buffer_ << ", dropping connection: " << socket_->to_string();
         socket_->stop(true);
         return;
     }
@@ -252,8 +249,8 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
             auto client_id = assign_client(result.message_data_, result.message_size_);
 
             std::stringstream ss;
-            ss << "ls::" << __func__ << ": Assigned client ID " << hex4(client_id) << " to \""
-               << utility::get_client_name(configuration_, client_id) << "\" (\"" << client_host_ << "\")";
+            VSOMEIP_INFO_P << "Assigned client ID 0x" << hex4(client_id) << " to \"" << utility::get_client_name(configuration_, client_id)
+                           << "\" (\"" << client_host_ << "\")";
 
             // check if is uds socket
             if (socket_->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
@@ -275,15 +272,15 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
                 return;
             }
         } else {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: 0x" << std::hex << std::setfill('0') << std::setw(2)
-                          << static_cast<int>(result.message_data_[protocol::COMMAND_POSITION_ID]) << " received. Breaking connection > "
-                          << socket_->to_string();
+            VSOMEIP_ERROR_P << "Unexpected command: 0x" << std::hex << std::setfill('0') << std::setw(2)
+                            << static_cast<int>(result.message_data_[protocol::COMMAND_POSITION_ID]) << " received. Breaking connection > "
+                            << socket_->to_string();
             socket_->stop(true);
             return;
         }
     }
     if (result.error_) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": Unable to handle message length. Breaking connection > " << socket_->to_string();
+        VSOMEIP_ERROR_P << "Unable to handle message length. Breaking connection > " << socket_->to_string();
         socket_->stop(true);
         return;
     }
@@ -299,8 +296,7 @@ client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint3
 
     command.deserialize(its_data, ec);
     if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": assign client command deserialization failed (" << std::dec << static_cast<int>(ec)
-                      << ")";
+        VSOMEIP_ERROR_P << "Assign client command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
         return VSOMEIP_CLIENT_UNSET;
     }
 
@@ -314,7 +310,7 @@ client_t local_server::tmp_connection::read_config_command(uint8_t const* _data,
 
     command.deserialize(its_data, ec);
     if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": config command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
+        VSOMEIP_ERROR_P << "Config command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
         return VSOMEIP_CLIENT_UNSET;
     }
     if (command.contains("expected_id")) {
@@ -324,7 +320,7 @@ client_t local_server::tmp_connection::read_config_command(uint8_t const* _data,
         }
     }
     if (!command.contains("hostname")) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": config command did not contain hostname";
+        VSOMEIP_ERROR_P << "Config command did not contain hostname";
         return VSOMEIP_CLIENT_UNSET;
     }
     client_host_ = command.at("hostname");
@@ -340,18 +336,17 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
     protocol::error_e ec;
     command.serialize(buffer, ec);
     if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR << "ls::" << __func__ << ": assign client ack command serialization failed (" << std::dec << static_cast<int>(ec)
-                      << ")";
+        VSOMEIP_ERROR_P << "Assign client ack command serialization failed (" << std::dec << static_cast<int>(ec) << ")";
         return;
     }
 
-    VSOMEIP_DEBUG << "ls::send_client_id: dispatching client id: " << hex4(_client);
+    VSOMEIP_DEBUG_P << "Dispatching Client id 0x" << hex4(_client);
     socket_->async_send(std::move(buffer), [self = shared_from_this(), this, _client](auto const& _ec, size_t, auto) {
         if (!_ec) {
             hand_over(_client);
             return;
         }
-        VSOMEIP_WARNING << "ls::send_client_id: Received error: " << _ec.message();
+        VSOMEIP_WARNING_P << "Received error: " << _ec.message();
         // notice that after this call the last shared_ptr should be cleaned and the tmp_connection is cleared.
     });
 }

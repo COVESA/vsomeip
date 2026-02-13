@@ -10,6 +10,8 @@
 
 #include "common/test_main.hpp"
 
+#define VSOMEIP_LOG_PREFIX "t_service"
+
 static bool is_remote_test = false;
 static bool remote_client_allowed = true;
 
@@ -27,7 +29,7 @@ bool e2e_profile_04_test_service::init() {
     std::scoped_lock its_lock(mutex_);
 
     if (!app_->init()) {
-        ADD_FAILURE() << __func__ << ": Cannot initialize application.";
+        ADD_FAILURE() << "Cannot initialize application.";
         return false;
     }
 
@@ -60,13 +62,13 @@ bool e2e_profile_04_test_service::init() {
 
 void e2e_profile_04_test_service::start() {
 
-    VSOMEIP_INFO << __func__ << ": Starting...";
+    VSOMEIP_INFO_P << "Starting...";
     app_->start();
 }
 
 void e2e_profile_04_test_service::stop() {
 
-    VSOMEIP_INFO << __func__ << ": Stopping...";
+    VSOMEIP_INFO_P << "Stopping...";
     app_->clear_all_handler();
     app_->stop();
 }
@@ -90,8 +92,8 @@ void e2e_profile_04_test_service::stop_offer() {
 
 void e2e_profile_04_test_service::on_state(vsomeip::state_type_e _state) {
 
-    VSOMEIP_INFO << __func__ << ": Application " << app_->get_name() << " is "
-                 << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
+    VSOMEIP_INFO_P << "Application " << app_->get_name() << " is "
+                   << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
         if (!is_registered_) {
@@ -137,14 +139,14 @@ void e2e_profile_04_test_service::on_message(const std::shared_ptr<vsomeip::mess
 
     received_++;
     if (received_ == PROFILE_O4_NUM_MESSAGES) {
-        VSOMEIP_INFO << __func__ << ": Received all messages!";
+        VSOMEIP_INFO_P << "Received all messages!";
     }
 }
 
 void e2e_profile_04_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request) {
 
     (void)_request;
-    VSOMEIP_INFO << __func__ << ": Shutdown method was called, going down now.";
+    VSOMEIP_INFO_P << "Shutdown method was called, going down now.";
     stop();
 }
 

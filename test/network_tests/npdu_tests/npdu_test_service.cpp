@@ -15,6 +15,8 @@
 #include "../../implementation/configuration/include/configuration_plugin.hpp"
 #include "../../implementation/plugin/include/plugin_manager_impl.hpp"
 
+#define VSOMEIP_LOG_PREFIX "t_service"
+
 // this environment variable is set to create 4 service binaries of
 // which each of them offers a service.
 // Based on this number the service id, instance id and method ids are
@@ -155,8 +157,8 @@ template<int method_idx>
 void npdu_test_service::on_message(const std::shared_ptr<vsomeip::message>& _request) {
     number_of_received_messages_++;
     check_times<method_idx>();
-    VSOMEIP_DEBUG << __func__ << " 0x" << std::hex << std::setfill('0') << std::setw(4) << method_ids_[method_idx]
-                  << " payload size: " << std::dec << _request->get_payload()->get_length();
+    VSOMEIP_DEBUG_P << "0x" << std::hex << std::setfill('0') << std::setw(4) << method_ids_[method_idx] << " payload size: " << std::dec
+                    << _request->get_payload()->get_length();
     if (_request->get_message_type() != vsomeip::message_type_e::MT_REQUEST_NO_RETURN) {
         std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_request);
         app_->send(its_response);

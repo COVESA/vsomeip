@@ -23,6 +23,8 @@
 #include <sstream>
 #include <iomanip>
 
+#define VSOMEIP_LOG_PREFIX "le"
+
 namespace vsomeip_v3 {
 
 char const* local_endpoint::to_string(local_endpoint::state_e _state) {
@@ -71,7 +73,7 @@ local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context c
 local_endpoint::~local_endpoint() {
     if (state_ != state_e::STOPPED) {
         // should have been stopped gracefully before
-        VSOMEIP_ERROR << "le::" << __func__ << ": Enforcing stop on object clean-up, socket: " << socket_->to_string();
+        VSOMEIP_ERROR_P << "Enforcing stop on object clean-up, socket: " << socket_->to_string();
         // stop is a virtual function, explain sonarQube that we would really like to call it from this very class.
         local_endpoint::stop(true);
     }
@@ -90,7 +92,7 @@ void local_endpoint::start() {
                 std::unique_lock inner_lock{mutex_};
                 // ensure that we weren't stopped in between
                 if (state_ != state_e::CONNECTED) {
-                    VSOMEIP_INFO << "le::start::post: Not starting to process due to state: " << status_unlock();
+                    VSOMEIP_INFO_P << "post: Not starting to process due to state: " << status_unlock();
                     return;
                 }
                 if (!process(0, inner_lock)) {
@@ -102,7 +104,7 @@ void local_endpoint::start() {
             }
         });
     } else {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Unexpected state when trying to start: " << status_unlock();
+        VSOMEIP_ERROR_P << "Unexpected state when trying to start: " << status_unlock();
     }
 }
 
@@ -145,8 +147,8 @@ void local_endpoint::escalate_internal(std::unique_lock<std::mutex>& _lock) {
 bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     std::scoped_lock const lock{mutex_};
     if (std::numeric_limits<size_t>::max() - _size < send_queue_.size()) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message type: " << protocol::read_command_id(_data, _size)
-                      << " and size: " << _size << ", to avoid buffer overflow, " << status_unlock();
+        VSOMEIP_ERROR_P << "Dropping message type: " << protocol::read_command_id(_data, _size) << " and size: " << _size
+                        << ", to avoid buffer overflow, " << status_unlock();
         return false;
     }
     // Note: _size + send_queue_.size() could oveflow,
@@ -157,15 +159,13 @@ bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     // 2. send_queue_.size() starts with 0 -> queue_limit_ is not smaller then send_queue_.size() after n = 0
     // 1. + 2. => the next line can never cause trouble
     if (queue_limit_ != QUEUE_SIZE_UNLIMITED && queue_limit_ - send_queue_.size() < _size) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message of type: " << protocol::read_command_id(_data, _size)
-                      << ", because the queue limit (" << queue_limit_ << ") would be exceeded with the message size: " << _size << ", "
-                      << status_unlock();
+        VSOMEIP_ERROR_P << "Dropping message of type: " << protocol::read_command_id(_data, _size) << ", because the queue limit ("
+                        << queue_limit_ << ") would be exceeded with the message size: " << _size << ", " << status_unlock();
         return false;
     }
     if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && max_message_size_ < _size) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": Dropping message of type: " << protocol::read_command_id(_data, _size)
-                      << " because the message size (" << _size << ") exceeded the limit (" << max_message_size_ << "), "
-                      << status_unlock();
+        VSOMEIP_ERROR_P << "Dropping message of type: " << protocol::read_command_id(_data, _size) << " because the message size (" << _size
+                        << ") exceeded the limit (" << max_message_size_ << "), " << status_unlock();
         return false;
     }
     send_queue_.insert(send_queue_.end(), _data, _data + _size);
@@ -185,7 +185,7 @@ void local_endpoint::connect_unlock() {
     boost::system::error_code ec;
     socket_->prepare_connect(*config, ec);
     if (ec) {
-        VSOMEIP_WARNING << "le::" << __func__ << " handling error: " << ec.message() << ", " << socket_->to_string();
+        VSOMEIP_WARNING_P << "Handling error: " << ec.message() << ", " << socket_->to_string();
         // post to ensure same call semantics as if enqueued as a reaction. This avoids unlocking the mutex (as connect_cbk needs to be able
         // to call escalate)
         boost::asio::post(io_, [weak_self = weak_from_this(), ec] {
@@ -227,10 +227,10 @@ void local_endpoint::stop_internal(std::unique_lock<std::mutex>& lock, bool _due
     while (true) {
         if (is_sending_) {
             if (_due_to_error) {
-                VSOMEIP_WARNING << "le::" << __func__ << ": stop due to error, will lose data, " << status_unlock();
+                VSOMEIP_WARNING_P << "Stop due to error, will lose data, " << status_unlock();
                 break;
             } else {
-                VSOMEIP_WARNING << "le::" << __func__ << ": waiting[" << retry_count << "] to complete send, " << status_unlock();
+                VSOMEIP_WARNING_P << "Waiting [" << retry_count << "] to complete send, " << status_unlock();
 
                 lock.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
@@ -241,7 +241,7 @@ void local_endpoint::stop_internal(std::unique_lock<std::mutex>& lock, bool _due
         }
         ++retry_count;
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR << "le::" << __func__ << ": max retries reached to send! will lose data, " << status_unlock();
+            VSOMEIP_ERROR_P << "Max retries reached to send! will lose data, " << status_unlock();
             break;
         }
     }
@@ -254,7 +254,7 @@ void local_endpoint::set_state_unlocked(state_e _state) {
     if (state_ == _state) {
         return;
     }
-    VSOMEIP_INFO << "le::" << __func__ << ": change state: " << state_ << " -> " << _state << ", " << status_unlock();
+    VSOMEIP_INFO_P << "change state: " << state_ << " -> " << _state << ", " << status_unlock();
     state_ = _state;
 }
 
@@ -273,7 +273,7 @@ void local_endpoint::send_unlock() {
         send_buffer_unlock();
     } else if (state_ == state_e::STOPPED || state_ == state_e::FAILED) {
         // any `send` in this state is "interesting", so log it
-        VSOMEIP_WARNING << "le::" << __func__ << ": cannot send, " << status_unlock();
+        VSOMEIP_WARNING_P << "Cannot send, " << status_unlock();
     }
 }
 
@@ -325,12 +325,12 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
         return;
     }
     if (_ec == boost::asio::error::operation_aborted) {
-        VSOMEIP_WARNING << "le::" << __func__ << ": socket stopped, state: " << state_;
+        VSOMEIP_WARNING_P << "Socket stopped, state: " << state_;
         socket_->stop(true);
         set_state_unlocked(state_e::STOPPED);
         return;
     }
-    VSOMEIP_WARNING << "le::" << __func__ << ": error: " << _ec.message() << ", " << status_unlock();
+    VSOMEIP_WARNING_P << "Error: " << _ec.message() << ", " << status_unlock();
     socket_->stop(true);
     if (max_connection_attempts_ == MAX_RECONNECTS_UNLIMITED || max_connection_attempts_ >= ++reconnect_counter_) {
         set_state_unlocked(state_e::INIT);
@@ -346,7 +346,7 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
         }
         connect_debounce_->start();
     } else {
-        VSOMEIP_WARNING << "le::" << __func__ << ": escalating the error: " << _ec.message() << ", " << status_unlock();
+        VSOMEIP_WARNING_P << "Escalating the error: " << _ec.message() << ", " << status_unlock();
         escalate_internal(lock);
     }
 }
@@ -357,7 +357,7 @@ std::string local_endpoint::status() const {
 }
 std::string local_endpoint::status_unlock() const {
     std::stringstream s;
-    s << "client: " << hex4(peer_) << ", connection : " << socket_->to_string() << ", send_queue: " << send_queue_.size()
+    s << "Client: " << hex4(peer_) << ", connection : " << socket_->to_string() << ", send_queue: " << send_queue_.size()
       << ", receive_buffer: " << *receive_buffer_ << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
     return s.str();
 }
@@ -368,28 +368,27 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         if (state_ == state_e::CONNECTED) {
             send_buffer_unlock();
         } else {
-            VSOMEIP_WARNING << "le::" << __func__ << ": unexpected state " << status_unlock();
+            VSOMEIP_WARNING_P << "Unexpected state " << status_unlock();
         }
 
         return;
     }
     if (_send_buffer.size() > 0) {
-        VSOMEIP_ERROR << "le::" << __func__ << " error: " << _ec.message() << ", " << _send_buffer.size() << " bytes are dropped, "
-                      << status();
+        VSOMEIP_ERROR_P << "Error: " << _ec.message() << ", " << _send_buffer.size() << " bytes are dropped, " << status();
     }
 
     if (_ec != boost::asio::error::operation_aborted) {
-        VSOMEIP_WARNING << "le::" << __func__ << " escalating the error: " << _ec.message() << ", " << status();
+        VSOMEIP_WARNING_P << "Escalating the error: " << _ec.message() << ", " << status();
         escalate();
         return;
     }
-    VSOMEIP_WARNING << "le::" << __func__ << " not dealing with the error: " << _ec.message() << ", " << status();
+    VSOMEIP_WARNING_P << "Not dealing with the error: " << _ec.message() << ", " << status();
 }
 
 [[nodiscard]] bool local_endpoint::process(size_t _new_bytes, std::unique_lock<std::mutex>& _lock) {
     if (_new_bytes > 0 && !receive_buffer_->bump_end(_new_bytes)) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": inconsistent buffer handling, trying add the read of: " << _new_bytes
-                      << " bytes, escalating on " << status_unlock();
+        VSOMEIP_ERROR_P << "Inconsistent buffer handling, trying add the read of: " << _new_bytes << " bytes, escalating on "
+                        << status_unlock();
         return false;
     }
     next_message_result result;
@@ -422,7 +421,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         }
     }
     if (result.error_) {
-        VSOMEIP_ERROR << "le::" << __func__ << ": received parsing error, socket > " << status_unlock();
+        VSOMEIP_ERROR_P << "Received parsing error, socket > " << status_unlock();
         return false;
     }
     receive_buffer_->shift_front();
@@ -433,7 +432,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
 void local_endpoint::assignment_timeout() {
     std::unique_lock lock{mutex_};
     if (own_ == VSOMEIP_CLIENT_UNSET) {
-        VSOMEIP_ERROR << "le::" << __func__;
+        VSOMEIP_ERROR_P << " ";
         escalate_internal(lock);
         return;
     }
@@ -441,7 +440,7 @@ void local_endpoint::assignment_timeout() {
 
 void local_endpoint::receive_cbk(boost::system::error_code const& _ec, size_t _bytes) {
     if (_ec) {
-        VSOMEIP_WARNING << "le::" << __func__ << " escalating the error: " << _ec.message() << " socket > " << status();
+        VSOMEIP_WARNING_P << "Escalating the error: " << _ec.message() << " socket > " << status();
         if (_ec != boost::asio::error::operation_aborted) {
             escalate();
         }
@@ -462,25 +461,21 @@ bool local_endpoint::is_allowed() {
         return end();
     }
     if (!socket_->update(sec_client_, *config)) {
-        VSOMEIP_WARNING << "le::" << __func__ << ": escalating after a failed sec_client update, socket > " << status_unlock();
+        VSOMEIP_WARNING_P << "Escalating after a failed sec_client update, socket > " << status_unlock();
         return end();
     }
     if (config->is_security_enabled()) {
         if (!config->check_routing_credentials(peer_, &sec_client_)) {
-            VSOMEIP_WARNING << "le::" << __func__
-                            << ": vSomeIP Security: Rejecting new connection with routing "
-                               "manager client ID 0x"
-                            << std::hex << peer_ << " uid/gid= " << std::dec << sec_client_.user << "/" << sec_client_.group
-                            << " because passed credentials do not match with routing manager "
-                               "credentials! "
-                            << status_unlock();
+            VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << hex4(peer_)
+                              << " uid/gid= " << std::dec << sec_client_.user << "/" << sec_client_.group
+                              << " because passed credentials do not match with routing manager credentials! " << status_unlock();
             return end();
         }
 
         if (!config->get_policy_manager()->check_credentials(peer_, &sec_client_)) {
-            VSOMEIP_WARNING << "le::" << __func__ << ": vSomeIP Security: Client 0x" << std::hex << own_
-                            << " received client credentials from client 0x" << peer_
-                            << " which violates the security policy : uid/gid=" << std::dec << sec_client_.user << "/" << sec_client_.group;
+            VSOMEIP_WARNING_P << "vSomeIP Security: Client 0x" << hex4(own_) << " received client credentials from client 0x" << hex4(peer_)
+                              << " which violates the security policy : uid/gid=" << std::dec << sec_client_.user << "/"
+                              << sec_client_.group;
             return end();
         }
     } else {
@@ -499,14 +494,14 @@ void local_endpoint::flush_queue() {
     while (true) {
         size_t send_buffer_size = socket_->get_send_buffer_size(its_error);
         if (its_error) {
-            VSOMEIP_WARNING << "le::" << __func__ << ": fail to read send_buffer_size  "
-                            << "(" << its_error.value() << "): " << its_error.message() << ", " << status_unlock();
+            VSOMEIP_WARNING_P << "Fail to read send_buffer_size (" << its_error.value() << "): " << its_error.message() << ", "
+                              << status_unlock();
             break;
         }
 
         if (is_sending_ || !send_queue_.empty() || send_buffer_size > 0) {
-            VSOMEIP_WARNING << "le::" << __func__ << ": waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
-                            << " and send_buffer_size: " << send_buffer_size;
+            VSOMEIP_WARNING_P << "Waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
+                              << " and send_buffer_size: " << send_buffer_size;
             lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
             lock.lock();
@@ -515,8 +510,8 @@ void local_endpoint::flush_queue() {
             break;
         }
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR << "le::" << __func__ << ": max retries reached to send! will drop remaining data on close, " << status_unlock()
-                          << " and send_buffer_size: " << send_buffer_size;
+            VSOMEIP_ERROR_P << "Max retries reached to send! Will drop remaining data on close, " << status_unlock()
+                            << " and send_buffer_size: " << send_buffer_size;
             ;
             break;
         }
@@ -539,7 +534,7 @@ void local_endpoint::register_error_handler(const error_handler_t& _error) {
 }
 
 void local_endpoint::print_status() {
-    VSOMEIP_INFO << "le::" << __func__ << ": " << status();
+    VSOMEIP_INFO_P << status();
 }
 
 size_t local_endpoint::get_queue_size() const {
