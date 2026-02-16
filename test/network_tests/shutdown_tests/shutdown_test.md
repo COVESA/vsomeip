@@ -30,8 +30,17 @@ Shutdown_test has 2 test cases:
 
 ## Executions
 
-### Different scenarios for local communication covered in TCP and UDS:
+### Different scenarios for local communication covered in TCP and UDS
 
 1. Routingmanagerd (Host), Client and Service
 2. Client (Host) and Service
 3. Service (Host) and Client
+
+### Different scenarios for Boardnet communication covered in TCP and UDS
+
+#### Client send last 5 messages
+
+1. Master: Client (Host) | Slave: Service (Host)
+2. Master: Routingmanagerd (Host), Client (Proxy) | Slave: Service (Host)
+3. Master: Service (Host) | Slave: Client (Host)
+4. Master: Routingmanagerd (Host), Service (Proxy) | Slave: Client (Host)

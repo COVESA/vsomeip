@@ -1,0 +1,54 @@
+{
+    "unicast":"@TEST_IP_MASTER@",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "applications":
+    [
+        {
+            "name":"shutdown_test_service",
+            "id":"0x1277"
+        }
+    ],
+    "services":
+    [
+        {
+            "service":"0x1236",
+            "instance":"0x01",
+            "reliable":
+            {
+                "port":"30509"
+            }
+        }
+    ],
+    "routing" :
+    {
+        "host": {
+            "name": "routingmanagerd",
+            "unicast": "@TEST_IP_MASTER@",
+            "port": "8998"
+        },
+        "guests": {
+            "unicast": "@TEST_IP_MASTER@",
+            "ports": [
+                {
+                    "first": "9000",
+                    "last": "65535"
+                }
+            ]
+        }
+    },
+    "service-discovery":
+    {
+        "enable":"true",
+        "multicast":"224.244.224.245",
+        "port":"30490",
+        "protocol":"udp"
+    }
+}

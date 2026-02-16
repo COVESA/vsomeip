@@ -9,45 +9,42 @@ if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
     exit 1
 fi
 
+
 FAIL=0
 
-if [[ $# -gt 0 && ($1 != "TCP" && $1 != "UDP" && $1 != "UDS") || ($2 != "CLIENT" && $2 != "SERVICE") ]]
+if [[ $# -gt 1 && ($1 != "TCP" && $1 != "UDP" && $1 != "UDS") || ($2 != "CLIENT" && $2 != "SERVICE") ]]
 then
     echo "The only allowed parameter to this script is TCP, UDP or UDS and CLIENT or SERVICE"
     echo "Like $0 TCP CLIENT"
     exit 1
 fi
 
+# Start the routingmanagerd and service
 if [[ $# -gt 0 && $1 == "TCP" ]]; then
-    export VSOMEIP_CONFIGURATION=shutdown_test_local_tcp.json
+    export VSOMEIP_CONFIGURATION=shutdown_test_service_with_routing_tcp.json
 else
-    export VSOMEIP_CONFIGURATION=shutdown_test_local_uds.json
+    export VSOMEIP_CONFIGURATION=shutdown_test_service_with_routing_udp.json
 fi
 
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
 routingmanagerd &
 PID_VSOMEIPD=$!
 
+export VSOMEIP_APPLICATION_NAME=shutdown_test_service
 if [[ $2 == "CLIENT" ]]; then
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_service
     ./shutdown_test_service_receive &
     SERVICE_PID=$!
-
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_client
-    ./shutdown_test_client_send $1 &
-    CLIENT_PID=$!
 else
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_service
     ./shutdown_test_service_send $1 &
     SERVICE_PID=$!
-
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_client
-    ./shutdown_test_client_receive $1 &
-    CLIENT_PID=$!
 fi
 
-wait $SERVICE_PID || ((FAIL+=1))
+CLIENT_PID=0
+exec_slave "./shutdown_test_external_client_start.sh $1 $2"
+CLIENT_PID=$!
+
 wait $CLIENT_PID || ((FAIL+=1))
+wait $SERVICE_PID || ((FAIL+=1))
 
 kill $PID_VSOMEIPD
 wait $PID_VSOMEIPD

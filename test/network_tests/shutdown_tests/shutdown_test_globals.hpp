@@ -11,7 +11,7 @@
 namespace shutdown_test {
 constexpr std::uint32_t SHUTDOWN_SIZE_UDS = 1024 * 256;
 constexpr std::uint32_t SHUTDOWN_SIZE_UDP = 1024;
-constexpr std::uint32_t SHUTDOWN_SIZE_TCP = 1024 * 768;
+constexpr std::uint32_t SHUTDOWN_SIZE_TCP = 1024 * 256;
 constexpr std::uint32_t SHUTDOWN_NUMBER_MESSAGES = 5;
 constexpr vsomeip::byte_t DATA_SERVICE_TO_CLIENT = 0xAA;
 constexpr vsomeip::byte_t DATA_CLIENT_TO_SERVICE = 0xFF;
