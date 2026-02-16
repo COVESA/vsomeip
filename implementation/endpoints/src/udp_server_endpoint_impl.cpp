@@ -18,7 +18,6 @@
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"
 #include "../include/udp_server_endpoint_impl.hpp"
-#include "../include/udp_server_endpoint_impl_receive_op.hpp"
 #include "../include/abstract_socket_factory.hpp"
 #include "../../configuration/include/configuration.hpp"
 #include "../../routing/include/routing_host.hpp"
@@ -314,32 +313,31 @@ void udp_server_endpoint_impl::receive_unicast_unlocked(std::shared_ptr<message_
 //
 // receive_multicast_unlocked is called with sync_ being hold
 //
-void udp_server_endpoint_impl::receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer) {
+void udp_server_endpoint_impl::receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer,
+                                                          std::shared_ptr<endpoint_type> _multicast_sender) {
     // The caller must hold the lock
 
     if (!_multicast_recv_buffer) {
         _multicast_recv_buffer = std::make_shared<message_buffer_t>(VSOMEIP_UDP_BUFFER_SIZE, 0);
     }
+    if (!_multicast_sender) {
+        _multicast_sender = std::make_shared<endpoint_type>();
+    }
 
     if (multicast_socket_ && multicast_socket_->is_open()) {
-        auto its_storage = std::make_shared<udp_endpoint_receive_op::storage>(
-                multicast_socket_,
-                std::bind(&udp_server_endpoint_impl::on_multicast_received,
-                          std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this()), std::placeholders::_1,
-                          std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5),
-                _multicast_recv_buffer, is_v4_, boost::asio::ip::address(), std::numeric_limits<std::size_t>::min());
-        multicast_socket_->async_wait(
-                socket_type::wait_read,
-                [self = shared_ptr(), its_storage, lifecycle_idx = lifecycle_idx_.load()](const boost::system::error_code& _error) {
+        multicast_socket_->async_receive_from(
+                boost::asio::buffer(_multicast_recv_buffer->data(), _multicast_recv_buffer->size()), *_multicast_sender,
+                [self = shared_ptr(), _multicast_recv_buffer, _multicast_sender,
+                 lifecycle_idx = lifecycle_idx_.load()](const boost::system::error_code& _error, std::size_t _bytes) {
                     bool repeat = false;
 
                     if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
                         && _error != boost::asio::error::connection_reset && _error != boost::asio::error::operation_aborted) {
-                        udp_endpoint_receive_op::storage::receive_cb(its_storage, _error);
+                        self->on_multicast_received(_error, _bytes, *_multicast_recv_buffer, *_multicast_sender);
 
                         std::scoped_lock its_lock(self->sync_);
                         if (lifecycle_idx == self->lifecycle_idx_.load()) {
-                            self->receive_multicast_unlocked(its_storage->multicast_recv_buffer_);
+                            self->receive_multicast_unlocked(_multicast_recv_buffer, _multicast_sender);
                             repeat = true;
                         }
                     }
@@ -571,9 +569,8 @@ void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_co
 }
 
 void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes,
-                                                     const boost::asio::ip::udp::endpoint& _sender,
-                                                     const boost::asio::ip::address& _destination,
-                                                     const message_buffer_t& _multicast_recv_buffer) {
+                                                     const message_buffer_t& _multicast_recv_buffer,
+                                                     const endpoint_type& _multicast_sender) {
     // The caller shall not hold the lock
 
     if (_error) {
@@ -585,18 +582,14 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
 
         {
             std::scoped_lock its_lock(sync_);
-            own_message = _sender.address() == local_.address();
-            own_subnet = is_same_subnet_unlocked(_sender.address());
+            own_message = _multicast_sender.address() == local_.address();
+            own_subnet = is_same_subnet_unlocked(_multicast_sender.address());
             own_callback = receive_own_multicast_messages_ ? on_sent_multicast_received_ : nullptr;
         }
 
         if (!own_message) {
             if (own_subnet) {
-                if (_destination == local_.address()) {
-                    VSOMEIP_ERROR_P << instance_name_ << ": Unexpected multicast address " << _destination.to_string();
-                }
-
-                on_message_received_unlocked(_error, _bytes, true, _sender, _multicast_recv_buffer);
+                on_message_received_unlocked(_error, _bytes, true, _multicast_sender, _multicast_recv_buffer);
             }
         } else if (own_callback) {
             own_callback(_multicast_recv_buffer.data(), static_cast<uint32_t>(_bytes), boost::asio::ip::address());
@@ -641,7 +634,7 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                     return;
                 }
                 auto current_message_size = static_cast<uint32_t>(read_message_size);
-                if (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE && current_message_size <= remaining_bytes) {
+                if (current_message_size >= VSOMEIP_FULL_HEADER_SIZE && current_message_size <= remaining_bytes) {
                     if (remaining_bytes - current_message_size > remaining_bytes) {
                         VSOMEIP_ERROR_P << instance_name_ << ": Buffer underflow!";
                         return;
@@ -734,7 +727,7 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                                     << ": Unreliable SomeIP message with bad length field local: " << get_address_port_local_unlocked()
                                     << " remote: " << its_remote_address << ":" << std::dec << its_remote_port;
                     if (remaining_bytes > VSOMEIP_SERVICE_POS_MAX) {
-                        service_t its_service = bithelper::read_uint16_be(&_buffer[VSOMEIP_SERVICE_POS_MIN]);
+                        service_t its_service = bithelper::read_uint16_be(&_buffer[i + VSOMEIP_SERVICE_POS_MIN]);
                         if (its_service != VSOMEIP_SD_SERVICE) {
                             if (read_message_size == 0) {
                                 VSOMEIP_ERROR_P << instance_name_ << ": Unreliable SomeIP message with SomeIP message length 0!";
@@ -994,7 +987,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
 #endif
 
             VSOMEIP_INFO_P << instance_name_ << ": Start multicast data handler, lifecycle_idx=" << lifecycle_idx_.load();
-            receive_multicast_unlocked(nullptr);
+            receive_multicast_unlocked(nullptr, nullptr);
         }
 
         boost::asio::ip::multicast::join_group its_join_option;

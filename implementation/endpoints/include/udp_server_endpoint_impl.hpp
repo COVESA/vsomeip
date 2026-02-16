@@ -90,7 +90,8 @@ private:
     void leave_unlocked(const std::string& _address);
     void set_broadcast();
     void receive_unicast_unlocked(std::shared_ptr<message_buffer_t> _unicast_recv_buffer);
-    void receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer);
+    void receive_multicast_unlocked(std::shared_ptr<message_buffer_t> _multicast_recv_buffer,
+                                    std::shared_ptr<endpoint_type> _multicast_sender);
     bool is_joined_unlocked(const std::string& _address) const;
     bool is_joined_unlocked(const std::string& _address, bool& _received) const;
     std::string get_remote_information(const target_data_iterator_type _it) const override;
@@ -101,8 +102,8 @@ private:
 
     void on_unicast_received(const boost::system::error_code& _error, std::size_t _bytes, const message_buffer_t& _unicast_recv_buffer);
 
-    void on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes, const boost::asio::ip::udp::endpoint& _sender,
-                               const boost::asio::ip::address& _destination, const message_buffer_t& _multicast_recv_buffer);
+    void on_multicast_received(const boost::system::error_code& _error, std::size_t _bytes, const message_buffer_t& _multicast_recv_buffer,
+                               const endpoint_type& _multicast_sender);
 
     void on_message_received_unlocked(const boost::system::error_code& _error, std::size_t _bytes, bool _is_multicast,
                                       const endpoint_type& _remote, const message_buffer_t& _buffer);
@@ -119,6 +120,7 @@ private:
 
     std::shared_ptr<udp_socket> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
+
     std::atomic<unsigned> lifecycle_idx_;
     std::map<std::string, bool, std::less<>> joined_;
     std::map<std::string, bool, std::less<>> join_status_;
