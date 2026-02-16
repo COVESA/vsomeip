@@ -47,7 +47,7 @@ wait $CLIENT_PID || ((FAIL+=1))
 wait $SERVICE_PID || ((FAIL+=1))
 
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || ((FAIL+=1))
 
 # Check if client and server both exited successfully
 exit $FAIL

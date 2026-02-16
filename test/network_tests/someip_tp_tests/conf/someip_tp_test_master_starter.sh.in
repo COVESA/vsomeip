@@ -39,7 +39,7 @@ wait $PID_SERVICE || FAIL=$(($FAIL+1))
 
 # Kill the daemon after the service ends
 kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 # Check if everything went well
 exit $FAIL
