@@ -389,6 +389,6 @@ int main(int argc, char** argv) {
         reliability_type = vsomeip::reliability_type_e::RT_BOTH;
     }
 
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(30));
 }
 #endif

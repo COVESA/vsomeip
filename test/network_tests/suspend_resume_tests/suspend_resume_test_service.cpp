@@ -293,6 +293,6 @@ TEST(suspend_resume_test, fast) {
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
     daemon_pid__ = atoi(argv[1]);
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(120));
 }
 #endif

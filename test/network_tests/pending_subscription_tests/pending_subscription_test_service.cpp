@@ -365,6 +365,6 @@ int main(int argc, char** argv) {
         its_testmode = pending_subscription_test::test_mode_e::REQUEST_TO_SD;
     }
 
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(30));
 }
 #endif

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <functional>
@@ -32,12 +33,14 @@
  *
  * @param _argc argc
  * @param _argv argv
+ * @param _timeout timeout in seconds (if 0, uses default of `timeout_detector`)
+ * @param _abort_on_failure whether or not to make gtest abort on failure (default: true)
  * @param _setup function that does setup before test execution
  * @param _tearDown function that does cleaning after test execution
  * @return ret code
  */
-inline int test_main(int _argc, char** _argv, std::function<void()> _setup = std::function<void()>(),
-                     std::function<void()> _tearDown = std::function<void()>()) {
+inline int test_main(int _argc, char** _argv, std::chrono::seconds _timeout = std::chrono::seconds(0), bool _abort_on_failure = true,
+                     std::function<void()> _setup = std::function<void()>(), std::function<void()> _tearDown = std::function<void()>()) {
 
     // setup new directory
     // .. if the caller did not already
@@ -68,9 +71,17 @@ inline int test_main(int _argc, char** _argv, std::function<void()> _setup = std
     }
 
     // setup timeout
-    timeout_detector timeout;
+    if (_timeout.count() > 0) {
+        timeout_detector timeout(static_cast<uint32_t>(_timeout.count()));
+    } else {
+        timeout_detector timeout;
+    }
 #endif
 
+    if (_abort_on_failure) {
+        // make gtest abort on failure
+        ::testing::GTEST_FLAG(throw_on_failure) = true;
+    }
     // setup gtest
     ::testing::InitGoogleTest(&_argc, _argv);
 
@@ -93,4 +104,23 @@ inline int test_main(int _argc, char** _argv, std::function<void()> _setup = std
     }
 
     return ret;
+}
+
+/**
+ * @brief Template for test main (convenience overload without timeout parameter)
+ *
+ * This is a wrapper that calls the full test_main with timeout=0.
+ * See the full version above for complete documentation.
+ *
+ * @param _argc argc
+ * @param _argv argv
+ * @param _abort_on_failure whether or not to make gtest abort on failure
+ * @param _setup function that does setup before test execution
+ * @param _tearDown function that does cleaning after test execution
+ * @return ret code
+ */
+inline int test_main(int _argc, char** _argv, bool _abort_on_failure, std::function<void()> _setup = std::function<void()>(),
+                     std::function<void()> _tearDown = std::function<void()>()) {
+
+    return test_main(_argc, _argv, std::chrono::seconds(0), _abort_on_failure, _setup, _tearDown);
 }

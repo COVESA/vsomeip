@@ -109,6 +109,6 @@ TEST(someip_shutdown_test, receive_message__send_reply_and_wait_for_shutdown) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(30), true);
 }
 #endif
