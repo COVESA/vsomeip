@@ -226,7 +226,7 @@ void local_endpoint::stop_internal(std::unique_lock<std::mutex>& lock, bool _due
     uint32_t retry_count(0);
     while (true) {
         if (is_sending_) {
-            if (_due_to_error) {
+            if (_due_to_error || state_ == state_e::FAILED) {
                 VSOMEIP_WARNING_P << "Stop due to error, will lose data, " << status_unlock();
                 break;
             } else {
