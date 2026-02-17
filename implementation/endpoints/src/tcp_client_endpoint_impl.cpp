@@ -112,7 +112,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
 
 void tcp_client_endpoint_impl::connect() {
     start_connecting_timer();
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock{socket_mutex_};
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
 
@@ -459,7 +459,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
             << static_cast<int>( (_recv_buffer)[i] << " ";
     VSOMEIP_INFO << msg.str();
 #endif
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock{socket_mutex_};
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
     if (its_host) {
         std::uint32_t its_missing_capacity(0);

@@ -250,7 +250,7 @@ void local_tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boo
     if (!_error) {
         boost::system::error_code its_error;
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            std::unique_lock its_socket_lock{_connection->get_socket_lock()};
             auto& new_connection_socket = _connection->get_socket();
 
             endpoint_type remote = new_connection_socket.remote_endpoint(its_error);
@@ -966,7 +966,7 @@ void local_tcp_server_endpoint_impl::print_status() {
 
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            std::unique_lock c_s_lock{c.second->get_socket_lock()};
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
 

@@ -47,7 +47,7 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock{socket_mutex_};
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
