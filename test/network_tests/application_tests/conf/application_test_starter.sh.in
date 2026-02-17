@@ -12,20 +12,12 @@ fi
 FAIL=0
 
 export VSOMEIP_CONFIGURATION=application_test_no_dispatch_threads.json
-./application_test
-
-if [ $? -ne 0 ]
-then
-    ((FAIL+=1))
-fi
+export VSOMEIP_APPLICATION_NAME=app1
+./application_test || ((FAIL+=1))
 
 export VSOMEIP_CONFIGURATION=application_test.json
-./application_test
-
-if [ $? -ne 0 ]
-then
-    ((FAIL+=1))
-fi
+export VSOMEIP_APPLICATION_NAME=app2
+./application_test || ((FAIL+=1))
 
 cat <<End-of-message
 *******************************************************************************
@@ -35,25 +27,21 @@ cat <<End-of-message
 *******************************************************************************
 End-of-message
 export VSOMEIP_CONFIGURATION=application_test_no_dispatch_threads_daemon.json
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
 routingmanagerd &
 DAEMON_PID=$!
-./application_test
-if [ $? -ne 0 ]
-then
-    ((FAIL+=1))
-fi
+export VSOMEIP_APPLICATION_NAME=app3
+./application_test || ((FAIL+=1))
 
 kill $DAEMON_PID
 wait $DAEMON_PID || FAIL=$(($FAIL+1))
 
 export VSOMEIP_CONFIGURATION=application_test_daemon.json
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
 routingmanagerd &
 DAEMON_PID=$!
-./application_test
-if [ $? -ne 0 ]
-then
-    ((FAIL+=1))
-fi
+export VSOMEIP_APPLICATION_NAME=app4
+./application_test || ((FAIL+=1))
 
 kill $DAEMON_PID
 wait $DAEMON_PID || FAIL=$(($FAIL+1))
