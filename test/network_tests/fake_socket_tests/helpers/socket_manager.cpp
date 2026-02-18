@@ -365,6 +365,12 @@ void socket_manager::clear_command_record(std::string const& _client, std::strin
     return connection->wait_for_command(_id, _waiting, _timeout);
 }
 
+[[nodiscard]] bool socket_manager::wait_for_last_command(std::string const& _client, std::string const& _server, socket_role _waiting,
+                                                         protocol::id_e _id, std::chrono::milliseconds _timeout) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->wait_for_last_command(_id, _waiting, _timeout);
+}
+
 [[nodiscard]] bool socket_manager::wait_for_connection_drop(std::string const& _client, std::string const& _server,
                                                             std::chrono::milliseconds _timeout) {
     auto connection = get_or_create_connection(_client, _server);

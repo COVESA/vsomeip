@@ -172,9 +172,11 @@ void app::on_message(const std::shared_ptr<vsomeip::message>& _message) {
 }
 
 void app::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::availability_state_e _state) {
-    auto const avail = service_availability{_service, _instance, _state};
-    TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed: " << avail;
-    availability_record_.record(avail);
+    if (_service != vsomeip::ANY_SERVICE && _instance != vsomeip::ANY_INSTANCE) {
+        auto const avail = service_availability{_service, _instance, _state};
+        TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed: " << avail;
+        availability_record_.record(avail);
+    }
 }
 
 void app::on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,

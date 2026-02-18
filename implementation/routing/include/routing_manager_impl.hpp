@@ -11,6 +11,7 @@
 #include <vector>
 #include <list>
 #include <unordered_set>
+#include <unordered_map>
 #include <boost/functional/hash.hpp>
 
 #include <boost/asio/ip/address.hpp>
@@ -222,6 +223,11 @@ public:
 
     bool is_external_routing_ready() const;
 
+    bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance);
+
+    void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
+                                 instance_t _instance = ANY_INSTANCE);
+
 private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
@@ -333,6 +339,9 @@ private:
 
     bool has_subscribed_eventgroup(service_t _service, instance_t _instance) const;
 
+    void remove_pending_requests_unlocked(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
+                                          instance_t _instance = ANY_INSTANCE);
+
     void try_to_send_before_stop();
 
     /// Whether the `_client` is valid for the given message `_type`.
@@ -371,11 +380,15 @@ private:
 
     std::atomic<routing_state_e> routing_state_;
 
-    std::mutex pending_offers_mutex_;
+    std::mutex pending_commands_mutex_;
     // map to store pending offers.
     // 1st client id in tuple: client id of new offering application
     // 2nd client id in tuple: client id of previously/stored offering application
     std::map<service_t, std::map<instance_t, std::tuple<major_version_t, minor_version_t, client_t, client_t>>> pending_offers_;
+    // map to store pending requests
+    // 1st client id corresponds to the id of the offering application
+    // 2nd set of client id corresponds to the ids of the requesting applications
+    std::unordered_map<service_instance_t, std::tuple<client_t, std::set<client_t>>> pending_requests_;
 
     std::mutex remote_subscription_state_mutex_;
     std::map<std::tuple<service_t, instance_t, eventgroup_t, client_t>, subscription_state_e> remote_subscription_state_;

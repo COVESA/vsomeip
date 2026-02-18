@@ -42,5 +42,6 @@ struct msg_statistic_t {
     length_t avg_length_;
 };
 
+enum class pending_request_removal_type_e : std::uint8_t { OFFERING_ONLY = 0x00, REQUESTING_ONLY = 0x01, BOTH = 0x02 };
 }
 // namespace vsomeip_v3

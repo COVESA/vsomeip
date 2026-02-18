@@ -486,6 +486,8 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
                           << std::dec << int(_major) << "." << _minor << "] for remote service --> ignore";
         erase_offer_command(_service, _instance);
     }
+
+    remove_pending_requests(pending_request_removal_type_e::OFFERING_ONLY, _client, _service, _instance);
 }
 
 void routing_manager_impl::request_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
@@ -542,6 +544,7 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
     }
     routing_manager_base::release_service(_client, _service, _instance);
     remove_requested_service(_client, _service, _instance, ANY_MAJOR, ANY_MINOR);
+    remove_pending_requests(pending_request_removal_type_e::REQUESTING_ONLY, _client, _service, _instance);
 
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
     if (its_info && !its_info->is_local()) {
@@ -2854,7 +2857,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     // check if previous offering application is still alive
                     bool already_pinged(false);
                     {
-                        std::scoped_lock its_lock_inner{pending_offers_mutex_};
+                        std::scoped_lock its_lock_inner{pending_commands_mutex_};
                         auto found_service2 = pending_offers_.find(_service);
                         if (found_service2 != pending_offers_.end()) {
                             auto found_instance2 = found_service2->second.find(_instance);
@@ -2877,7 +2880,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                         // find out endpoint of previously offering application
                         auto its_old_endpoint = find_routing_endpoint(its_stored_client);
                         if (its_old_endpoint) {
-                            std::scoped_lock its_lock_inner{pending_offers_mutex_};
+                            std::scoped_lock its_lock_inner{pending_commands_mutex_};
                             if (stub_ && stub_->send_ping(its_stored_client)) {
                                 pending_offers_[_service][_instance] = std::make_tuple(_major, _minor, _client, its_stored_client);
                                 VSOMEIP_WARNING << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
@@ -2924,31 +2927,124 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
     return true;
 }
 
-void routing_manager_impl::on_pong(client_t _client) {
-    std::scoped_lock its_lock{pending_offers_mutex_};
-    if (pending_offers_.size() == 0) {
-        return;
+bool routing_manager_impl::handle_service_rerequest(client_t _client, service_t _service, instance_t _instance) {
+
+    bool already_pinged = false;
+    client_t offering_client{VSOMEIP_CLIENT_UNSET};
+
+    {
+        std::scoped_lock local_services_lock{local_services_mutex_};
+        if (auto found_service = local_services_.find(_service); found_service != local_services_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                const auto& [major, minor, client] = found_instance->second;
+                offering_client = client;
+            }
+        }
     }
-    for (auto service_iter = pending_offers_.begin(); service_iter != pending_offers_.end();) {
-        for (auto instance_iter = service_iter->second.begin(); instance_iter != service_iter->second.end();) {
-            auto [major, minor, new_client, old_client] = instance_iter->second;
-            if (old_client == _client) {
-                // received pong from an application were another application wants
-                // to offer its service, delete the other applications offer as
-                // the current offering application is still alive
-                VSOMEIP_ERROR << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "." << hex4(instance_iter->first)
-                              << ":" << std::dec << std::uint32_t(major) << "." << minor
-                              << "] was rejected as application: " << hex4(_client) << " is still alive";
-                instance_iter = service_iter->second.erase(instance_iter);
+
+    // Service is not being offered -> process the request anyway
+    if (offering_client == VSOMEIP_CLIENT_UNSET) {
+        return true;
+    }
+
+    {
+        std::scoped_lock pending_requests_lock{pending_commands_mutex_};
+        auto its_key = service_instance_t{_service, _instance};
+        if (auto found_pending = pending_requests_.find(its_key); found_pending != pending_requests_.end()) {
+            auto& [pending_offering_client, requesting_clients] = found_pending->second;
+
+            if (pending_offering_client == offering_client) {
+                already_pinged = true;
+                requesting_clients.insert(_client);
             } else {
-                ++instance_iter;
+                VSOMEIP_WARNING_P << "Offering client mismatch, currently offering client 0x" << hex4(offering_client)
+                                  << " previously pinged client 0x" << hex4(pending_offering_client);
             }
         }
 
-        if (service_iter->second.size() == 0) {
-            service_iter = pending_offers_.erase(service_iter);
+        if (!already_pinged) {
+            // find out endpoint of previously offering application
+            auto its_old_endpoint = find_routing_endpoint(offering_client);
+            if (its_old_endpoint) {
+                if (stub_ && stub_->send_ping(offering_client)) {
+                    // Add to pending requests
+                    pending_requests_[its_key] = std::make_tuple(offering_client, std::set<client_t>{_client});
+                    VSOMEIP_WARNING << "REQUEST(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "] pending.";
+                    return false;
+                }
+            }
         } else {
-            ++service_iter;
+            VSOMEIP_INFO_P << "Offering client: " << hex4(offering_client) << " already pinged for service: [" << hex4(_service) << "."
+                           << hex4(_instance) << "]";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void routing_manager_impl::on_pong(client_t _client) {
+
+    {
+        std::scoped_lock its_lock{pending_commands_mutex_};
+        for (auto service_iter = pending_offers_.begin(); service_iter != pending_offers_.end();) {
+            for (auto instance_iter = service_iter->second.begin(); instance_iter != service_iter->second.end();) {
+                auto [major, minor, new_client, old_client] = instance_iter->second;
+                if (old_client == _client) {
+                    // received pong from an application were another application wants
+                    // to offer its service, delete the other applications offer as
+                    // the current offering application is still alive
+                    VSOMEIP_ERROR << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "."
+                                  << hex4(instance_iter->first) << ":" << std::uint32_t(major) << "." << minor
+                                  << "] was rejected as application: " << hex4(_client) << " is still alive";
+                    instance_iter = service_iter->second.erase(instance_iter);
+                } else {
+                    ++instance_iter;
+                }
+            }
+
+            if (service_iter->second.size() == 0) {
+                service_iter = pending_offers_.erase(service_iter);
+            } else {
+                ++service_iter;
+            }
+        }
+
+        for (auto iter = pending_requests_.begin(); iter != pending_requests_.end();) {
+            const auto& its_key = iter->first;
+            auto service_id = its_key.service();
+            auto instance_id = its_key.instance();
+            auto [offering_client, requesting_clients] = iter->second;
+
+            if (offering_client == _client) {
+                // received pong from an application were another application wants
+                // to request its service, processing the request
+
+                protocol::service its_request(service_id, instance_id, ANY_MAJOR, ANY_MINOR);
+                std::set<protocol::service> requests;
+                requests.insert(its_request);
+
+                for (auto client_id : requesting_clients) {
+                    request_service(client_id, service_id, instance_id, ANY_MAJOR, ANY_MINOR);
+
+                    if (client_id != get_client()) {
+                        if (stub_) {
+                            if (configuration_->is_security_enabled()) {
+                                stub_->handle_credentials(client_id, requests);
+                            }
+                            stub_->handle_requests(client_id, requests);
+                        }
+                    }
+
+                    VSOMEIP_INFO << "REQUEST(" << hex4(client_id) << "): [" << hex4(service_id) << "." << hex4(instance_id)
+                                 << "] processed";
+                }
+
+                iter = pending_requests_.erase(iter);
+            } else {
+                ++iter;
+            }
         }
     }
 }
@@ -2965,7 +3061,8 @@ void routing_manager_impl::handle_client_error(client_t _client) {
 
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t, minor_version_t>> its_offers;
     {
-        std::scoped_lock its_lock{pending_offers_mutex_};
+        std::scoped_lock its_lock{pending_commands_mutex_};
+        remove_pending_requests_unlocked(pending_request_removal_type_e::BOTH, _client);
         if (pending_offers_.size() == 0) {
             return;
         }
@@ -4175,6 +4272,59 @@ const char* routing_manager_impl::routing_state_tostring(routing_state_e _state)
         return "RS_UNKNOWN";
     default:
         return "Unknown State";
+    }
+}
+
+void routing_manager_impl::remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service,
+                                                   instance_t _instance) {
+    std::scoped_lock its_lock{pending_commands_mutex_};
+    remove_pending_requests_unlocked(_removal_type, _client, _service, _instance);
+}
+
+void routing_manager_impl::remove_pending_requests_unlocked(pending_request_removal_type_e _removal_type, client_t _client,
+                                                            service_t _service, instance_t _instance) {
+    bool _remove_offering =
+            (_removal_type == pending_request_removal_type_e::OFFERING_ONLY || _removal_type == pending_request_removal_type_e::BOTH);
+    bool _remove_requesting =
+            (_removal_type == pending_request_removal_type_e::REQUESTING_ONLY || _removal_type == pending_request_removal_type_e::BOTH);
+
+    for (auto iter = pending_requests_.begin(); iter != pending_requests_.end();) {
+        const auto& its_key = iter->first;
+        auto its_service = its_key.service();
+        auto its_instance = its_key.instance();
+
+        // Skip if we're filtering by service and this isn't the one
+        if (_service != ANY_SERVICE && its_service != _service) {
+            ++iter;
+            continue;
+        }
+
+        // Skip if we're filtering by instance and this isn't the one
+        if (_instance != ANY_INSTANCE && its_instance != _instance) {
+            ++iter;
+            continue;
+        }
+
+        auto& [offering_client, requesting_clients] = iter->second;
+
+        bool should_erase = false;
+
+        // Check if the client is the offering client and we should remove it
+        if (_remove_offering && offering_client == _client) {
+            // Remove the entire entry since the offering client is gone
+            should_erase = true;
+        } else if (_remove_requesting && requesting_clients.erase(_client)) {
+            // If no more requesting clients, remove the entry
+            if (requesting_clients.empty()) {
+                should_erase = true;
+            }
+        }
+
+        if (should_erase) {
+            iter = pending_requests_.erase(iter);
+        } else {
+            ++iter;
+        }
     }
 }
 

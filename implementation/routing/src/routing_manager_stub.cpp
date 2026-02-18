@@ -218,11 +218,11 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
     case protocol::id_e::DEREGISTER_APPLICATION_ID: {
         protocol::deregister_application_command its_command;
         its_command.deserialize(its_buffer, its_error);
-        if (its_error == protocol::error_e::ERROR_OK)
+        if (its_error == protocol::error_e::ERROR_OK) {
             update_registration(its_command.get_client(), registration_type_e::DEREGISTER, _remote_address, _remote_port);
-        else
+        } else {
             VSOMEIP_ERROR_P << "Deserializing register application failed (" << std::dec << static_cast<int>(its_error) << ")";
-
+        }
         break;
     }
 
@@ -492,6 +492,13 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             std::set<protocol::service> its_allowed_requests;
             for (const auto& r : its_requests) {
                 if (VSOMEIP_SEC_OK == configuration_->get_security()->is_client_allowed_to_request(_sec_client, r.service_, r.instance_)) {
+                    if (has_client_requested(its_client, r.service_, r.instance_)) {
+                        VSOMEIP_WARNING_P << " Client 0x" << hex4(its_client) << " has already requested service [" << hex4(r.service_)
+                                          << "." << hex4(r.instance_) << "]";
+                        if (!host_->handle_service_rerequest(its_client, r.service_, r.instance_)) {
+                            continue;
+                        }
+                    }
                     host_->request_service(its_client, r.service_, r.instance_, r.major_, r.minor_);
                     its_allowed_requests.insert(r);
                 } else {
@@ -503,6 +510,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
             if (configuration_->is_security_enabled()) {
                 handle_credentials(its_client, its_allowed_requests);
             }
+
             handle_requests(its_client, its_allowed_requests);
         } else
             VSOMEIP_ERROR_P << "Request service deserialization failed (" << std::dec << static_cast<int>(its_error) << ")";
@@ -695,6 +703,8 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
     }
 
     its_lock.unlock();
+
+    host_->remove_pending_requests(pending_request_removal_type_e::BOTH, _client);
 
     for (const auto& s : services_to_report) {
         host_->on_stop_offer_service(_client, std::get<0>(s), std::get<1>(s), std::get<2>(s), std::get<3>(s));
@@ -1079,6 +1089,21 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
     }
 }
 
+bool routing_manager_stub::has_client_requested(client_t _client, service_t _service, instance_t _instance) const {
+    std::scoped_lock its_lock(routing_info_mutex_);
+    if (auto found_client = service_requests_.find(_client); found_client != service_requests_.end()) {
+        auto found_service = found_client->second.find(_service);
+        if (found_service != found_client->second.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const {
     std::scoped_lock its_guard{routing_info_mutex_};
     for (const auto& a : routing_info_) {
@@ -1300,6 +1325,7 @@ void routing_manager_stub::on_pong(client_t _client) {
             VSOMEIP_ERROR_P << "Received PONG from unregistered application: " << hex4(_client);
         }
     }
+
     remove_from_pinged_clients(_client);
     host_->on_pong(_client);
 }

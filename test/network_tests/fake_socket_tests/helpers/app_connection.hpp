@@ -89,6 +89,12 @@ public:
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
 
     /**
+     * waits for at most _timeout milliseconds for _id to be received as the last message by the receiving socket
+     **/
+    [[nodiscard]] bool wait_for_last_command(protocol::id_e _id, socket_role _waiting,
+                                             std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
+
+    /**
      * disconnects the two sockets
      **/
     [[nodiscard]] bool disconnect(std::optional<boost::system::error_code> _client_error,

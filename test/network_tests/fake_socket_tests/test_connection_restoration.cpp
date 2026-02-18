@@ -25,6 +25,7 @@ static std::string const routingmanager_name_{"routingmanagerd"};
 static std::string const server_name_{"server"};
 static std::string const server_name_two_{"server_two"}; // without a fixed-id in config
 static std::string const client_name_{"client"};
+static std::string const client_name_two_{"client_two"}; // without a fixed-id in config
 
 struct test_client_helper : public base_fake_socket_fixture {
     test_client_helper() {
@@ -1082,6 +1083,237 @@ TEST_F(test_client_helper, test_subscription_for_ghost_service) {
     );
     inject_command(client_name_, server_name_, subscription_payload);
     ASSERT_TRUE(wait_for_command(client_name_, server_name_, protocol::id_e::SUBSCRIBE_NACK_ID, socket_role::client));
+}
+
+TEST_F(test_client_helper, availability_callback_is_only_called_once_on_stop) {
+    /**
+     * Regression test for the following scenario:
+     * 0. router, server and client are started
+     * 1. client subscribes the service
+     * 2. stop the server
+     * 3. verify that the client only received 1 ON_AVAILABLE and 1 ON_UNAVAILABLE
+     **/
+
+    std::vector<service_availability> expected_availabilities = {service_availability::available(service_instance_),
+                                                                 service_availability::unavailable(service_instance_)};
+
+    std::vector<service_availability> unexpected_availabilities = {service_availability::available(service_instance_),
+                                                                   service_availability::unavailable(service_instance_),
+                                                                   service_availability::available(service_instance_)};
+
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(subscribe_to_field());
+
+    stop_client(server_name_);
+
+    // Wait for some time to ensure that the availabilities are not checked too early
+    ASSERT_FALSE(client_->availability_record_.wait_for(
+            [&unexpected_availabilities](const auto& record) { return record == unexpected_availabilities; },
+            std::chrono::milliseconds(300)))
+            << client_->availability_record_;
+
+    ASSERT_TRUE(client_->availability_record_.wait_for([&expected_availabilities](const auto& record) {
+        return record == expected_availabilities;
+    })) << client_->availability_record_;
+}
+
+TEST_F(test_client_helper, availability_callback_is_only_called_once_on_connection_break) {
+    /**
+     * Regression test for the following scenario:
+     * 0. router, server and client are started
+     * 1. client subscribes the service
+     * 2. first break the connection client -> server
+     * 3. then break the connection daemon -> server
+     * small delay between 2. and 3. to ensure that the client REQUESTS the service again before the daemon is able to handle 3.
+     * 4. verify that the client only received 1 ON_AVAILABLE and 1 ON_UNAVAILABLE
+     **/
+
+    std::vector<service_availability> expected_availabilities = {service_availability::available(service_instance_),
+                                                                 service_availability::unavailable(service_instance_)};
+
+    std::vector<service_availability> unexpected_availabilities = {service_availability::available(service_instance_),
+                                                                   service_availability::unavailable(service_instance_),
+                                                                   service_availability::available(service_instance_)};
+
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(subscribe_to_field());
+
+    // Delay processing of messages from daemon->server to simulate a situation where the connection
+    // is broken but the daemon does not know it yet, this further ensures that the availability is not sent due to test timings
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true, socket_role::server));
+
+    // ensure to former service request is recorded
+    clear_command_record(client_name_, routingmanager_name_);
+
+    // Break client -> server connection first
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, server_name_, std::nullopt));
+
+    // Wait for the client to re-request the service:
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::REQUEST_SERVICE_ID, socket_role::server));
+
+    // Break daemon -> server connection later
+    ASSERT_TRUE(disconnect(server_name_, std::nullopt, routingmanager_name_, boost::asio::error::eof));
+
+    // Wait for some time to ensure that the availabilities are not checked too early
+    ASSERT_FALSE(client_->availability_record_.wait_for(
+            [&unexpected_availabilities](const auto& record) { return record == unexpected_availabilities; },
+            std::chrono::milliseconds(300)))
+            << client_->availability_record_;
+
+    ASSERT_TRUE(client_->availability_record_.wait_for([&expected_availabilities](const auto& record) {
+        return record == expected_availabilities;
+    })) << client_->availability_record_;
+}
+
+TEST_F(test_client_helper, service_re_request_is_answered) {
+    /**
+     * 0. router, server and client are started
+     * 1. client subscribes the service
+     * 2. break the client -> server connection to trigger a re-request of the service
+     * 3. await the router->server connection to be re-established
+     * 4. verify that the re-request was processed and the client received the availability
+     **/
+
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(subscribe_to_field());
+
+    // Clear previous received availabilities to wait for a new one after the re-request
+    VSOMEIP_INFO << "Clearing availabilities";
+    client_->availability_record_.clear();
+
+    // Break client->server connection to simulate a re-request from the client
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, server_name_, std::nullopt));
+
+    ASSERT_TRUE(await_connection(server_name_, routingmanager_name_));
+
+    // As the server will come back online it is expected that the service becomes available again
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+}
+
+TEST_F(test_client_helper, service_re_request_does_not_block_new_request) {
+    /**
+     * 0. router, server and client are started
+     * 1. start a new server that will offer a different service
+     * 2. delay message processing on one of the servers to simulate it being offline
+     * 3. client re-requests original service and requests new service
+     * 4. verify that the client received the availability only for the new requested service
+     **/
+
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+
+    create_app(server_name_two_);
+    auto* another_server = start_client(server_name_two_);
+    another_server->offer(service_instance_two_);
+
+    // Delay processing of messages from daemon->server to simulate a situation where one of the servers is offline
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true, socket_role::server));
+
+    client_->request_service(service_instance_);
+    client_->request_service(service_instance_two_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_)));
+
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false, socket_role::server));
+}
+
+TEST_F(test_client_helper, client_does_not_receive_availability_for_unrequested_service) {
+    /**
+     * 0. router, server and client are started
+     * 1. delay message processing on one of the servers to simulate it being temporarily offline
+     * 2. break the client -> server connection to trigger a re-request of the service
+     * 3. stop client application
+     * 4. start new client application, with same client id
+     * 5. verify that the new client does not receive the availability for the service requested by the previous client
+     **/
+
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(subscribe_to_field());
+
+    // Delay processing of messages from daemon->server to simulate a situation where the server is offline
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true, socket_role::server));
+
+    // Clear previous received availabilities to wait for a new one after the re-request
+    VSOMEIP_INFO << "Clearing availabilities";
+    client_->availability_record_.clear();
+
+    // Break client->server connection to simulate a re-request from the client
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, server_name_, std::nullopt));
+
+    ASSERT_TRUE(wait_for_last_command(client_name_, routingmanager_name_, socket_role::server, protocol::id_e::REQUEST_SERVICE_ID));
+
+    stop_client(client_name_);
+
+    create_app(client_name_);
+    auto new_client_ = start_client(client_name_);
+    ASSERT_NE(new_client_, nullptr);
+    ASSERT_TRUE(new_client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Re-enable delayed daemon->server communication. The daemon can now process the PONG from server,
+    // and attempt to send availability for the previously re-requested service.
+    // This tests that the new client (with the same client ID) will not be updated.
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false, socket_role::server));
+
+    // Ensure that the new client does not receive the availability for an unrequested service
+    ASSERT_FALSE(new_client_->availability_record_.wait_for_last(service_availability::available(service_instance_),
+                                                                 std::chrono::milliseconds(200)));
+}
+
+TEST_F(test_client_helper, both_clients_receive_availability_for_re_requested_services) {
+    /**
+     * 0. router, server and client are started
+     * 1. client subscribes the service
+     * 2. start second client application, that requests and subscribes to same service
+     * 3. delay message processing on one of the servers to simulate it being temporarily offline
+     * 4. break both client -> server connections to trigger a re-request of the service
+     * 5. verify that both clients receive the availability for the service
+     **/
+
+    start_apps();
+    request_service();
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(subscribe_to_field());
+
+    // Start second client application
+    create_app(client_name_two_);
+    auto new_client_ = start_client(client_name_two_);
+    ASSERT_NE(new_client_, nullptr);
+    ASSERT_TRUE(new_client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Second client application requests and subscribes the service
+    new_client_->request_service(service_instance_);
+    ASSERT_TRUE(new_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    new_client_->subscribe_field(offered_field_);
+    ASSERT_TRUE(new_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+
+    // Delay processing of messages from daemon->server to simulate a situation where the server is offline
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true, socket_role::server));
+
+    // Break both client->server connections
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::eof, server_name_, std::nullopt));
+    ASSERT_TRUE(disconnect(client_name_two_, boost::asio::error::eof, server_name_, std::nullopt));
+
+    // Clear previous received availabilities to wait for a new one after the re-request
+    client_->availability_record_.clear();
+    new_client_->availability_record_.clear();
+
+    ASSERT_TRUE(wait_for_last_command(client_name_, routingmanager_name_, socket_role::server, protocol::id_e::REQUEST_SERVICE_ID));
+
+    // Re-enable delayed daemon->server communication.
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false, socket_role::server));
+
+    // Ensure that both clients receive the availability
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(new_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 }
 
 TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {

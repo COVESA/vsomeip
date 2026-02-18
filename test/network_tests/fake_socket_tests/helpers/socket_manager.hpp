@@ -157,6 +157,13 @@ public:
                                         std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
+     * Waits for _id to be the last received message in the _client -> _server connection for _timeout amount of time.
+     * @return false, if the _id was not received within time.
+     **/
+    [[nodiscard]] bool wait_for_last_command(std::string const& _client, std::string const& _server, socket_role _waiting,
+                                             protocol::id_e _id, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+
+    /**
      * Waits for the _client -> _server connection to be dropped.
      * If there is no record of this connection it first awaited to have this connection established,
      * If there is currently a connection it is waited until one socket disconnects,

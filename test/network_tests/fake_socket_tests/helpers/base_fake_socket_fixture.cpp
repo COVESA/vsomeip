@@ -141,6 +141,13 @@ void base_fake_socket_fixture::clear_command_record(std::string const& _client, 
                                                               socket_role _waiting, std::chrono::milliseconds _timeout) {
     return socket_manager_->wait_for_command(_client, _server, _id, _waiting, _timeout);
 }
+
+[[nodiscard]] bool base_fake_socket_fixture::wait_for_last_command(std::string const& _client, std::string const& _server,
+                                                                   socket_role _waiting, protocol::id_e _id,
+                                                                   std::chrono::milliseconds _timeout) {
+    return socket_manager_->wait_for_last_command(_client, _server, _waiting, _id, _timeout);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::wait_for_connection_drop(std::string const& _client, std::string const& _server,
                                                                       std::chrono::milliseconds _timeout) {
     return socket_manager_->wait_for_connection_drop(_client, _server, _timeout);

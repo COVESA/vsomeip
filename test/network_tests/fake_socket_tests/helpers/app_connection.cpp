@@ -135,6 +135,19 @@ bool app_connection::wait_for_connection(std::chrono::milliseconds _timeout) con
     return false;
 }
 
+[[nodiscard]] bool app_connection::wait_for_last_command(protocol::id_e _id, socket_role _waiting,
+                                                         std::chrono::milliseconds _timeout) const {
+    auto [client, server] = promoted();
+    if (socket_role::client == _waiting && client) {
+        return client->received_command_record_.wait_for_last(_id, _timeout);
+    }
+    if (socket_role::server == _waiting && server) {
+        return server->received_command_record_.wait_for_last(_id, _timeout);
+    }
+    LOCAL_LOG << "No connection to await a command on";
+    return false;
+}
+
 [[nodiscard]] bool app_connection::disconnect(std::optional<boost::system::error_code> _client_error,
                                               std::optional<boost::system::error_code> _server_error, socket_role _side_to_disconnect) {
     auto [from, to] = promoted();

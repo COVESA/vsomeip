@@ -118,6 +118,11 @@ public:
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
 
     virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const = 0;
+
+    virtual bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance) = 0;
+
+    virtual void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
+                                         instance_t _instance = ANY_INSTANCE) = 0;
 };
 
 } // namespace vsomeip_v3
