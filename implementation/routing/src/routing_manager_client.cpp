@@ -103,6 +103,7 @@ routing_manager_client::~routing_manager_client() { }
 
 void routing_manager_client::init() {
     routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
+    ep_mgr_->init(shared_from_this());
     sender_debounce_ = timer::create(io_, std::chrono::milliseconds(100), [this, weak_self = weak_from_this()] {
         if (auto self = weak_self.lock(); self) {
             debounce_restart_sender_done();
@@ -130,7 +131,7 @@ void routing_manager_client::start() {
         // NOTE: order matters, `create_local_server` must done first
         // with TCP, following `create_local_client` will use whatever port is established there
         if (!configuration_->is_local_routing() && !receiver_) {
-            receiver_ = ep_mgr_->create_local_server(shared_from_this());
+            receiver_ = ep_mgr_->create_local_server();
         }
     }
     std::unique_lock<std::recursive_mutex> lock{sender_mutex_};
@@ -1797,7 +1798,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string>& _c
             } else {
                 // TODO this might end up looping forever, if the network is assumed
                 // to be down. How to break out of this loop in case of "stop" ?
-                receiver_ = ep_mgr_->create_local_server(shared_from_this());
+                receiver_ = ep_mgr_->create_local_server();
             }
         } else {
             // But the actual reconnect
@@ -2133,7 +2134,7 @@ bool routing_manager_client::send_pending_commands() {
 
 void routing_manager_client::init_receiver([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock) {
     if (!receiver_) {
-        receiver_ = ep_mgr_->create_local_server(shared_from_this());
+        receiver_ = ep_mgr_->create_local_server();
     } else {
         std::uint16_t its_port = receiver_->get_local_port();
         if (its_port != ILLEGAL_PORT)

@@ -33,6 +33,11 @@ endpoint_manager_base::endpoint_manager_base(routing_manager_base* const _rm, bo
     is_local_routing_ = configuration_->is_local_routing();
 }
 
+void endpoint_manager_base::init(std::shared_ptr<routing_host> const& _local_message_handler) {
+    std::scoped_lock its_lock(mtx_);
+    local_message_handler_ = _local_message_handler;
+}
+
 std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client(client_t _client) {
     std::scoped_lock its_lock(mtx_);
     return create_local_client_unlocked(_client);
@@ -134,7 +139,7 @@ std::unordered_set<client_t> endpoint_manager_base::get_connected_clients() cons
     return clients;
 }
 
-std::shared_ptr<local_server> endpoint_manager_base::create_local_server(const std::shared_ptr<routing_host>& _routing_host) {
+std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << get_client_id();
     const client_t its_client = get_client_id();
@@ -175,12 +180,7 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server(const s
                 its_tmp->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
                 if (!its_error) {
                     VSOMEIP_INFO_P << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
-
-                    if (rm_->is_routing_manager()) {
-                        local_port_ = port_t(configuration_->get_routing_host_port() + 1);
-                    } else {
-                        local_port_ = port_t(its_port + 1);
-                    }
+                    local_port_ = port_t(its_port + 1);
                     VSOMEIP_INFO_P << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
 
                     rm_->set_sec_client_port(local_port_);
@@ -212,7 +212,7 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server(const s
 
     if (its_acceptor) {
         return std::make_shared<local_server>(
-                io_, std::move(its_acceptor), configuration_, _routing_host,
+                io_, std::move(its_acceptor), configuration_, local_message_handler_,
                 [weak_self = weak_from_this()](auto _ep) {
                     if (auto self = weak_self.lock(); self) {
                         self->add_local_server_endpoint(std::move(_ep));
@@ -270,7 +270,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
 #if defined(__linux__) || defined(__QNX__)
     if (is_local_routing_) {
         its_endpoint = local_endpoint::create_client_ep(
-                local_endpoint_context{io_, configuration_, rm_->weak_from_this()},
+                local_endpoint_context{io_, configuration_, local_message_handler_},
                 local_endpoint_params{_client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(),
                                       std::make_shared<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(""),
                                                                               boost::asio::local::stream_protocol::endpoint(its_path.str()),
@@ -290,7 +290,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
                 its_local_address = configuration_->get_routing_guest_address();
 
                 its_endpoint = local_endpoint::create_client_ep(
-                        local_endpoint_context{io_, configuration_, rm_->weak_from_this()},
+                        local_endpoint_context{io_, configuration_, local_message_handler_},
                         local_endpoint_params{
                                 _client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(),
 

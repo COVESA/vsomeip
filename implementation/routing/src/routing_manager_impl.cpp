@@ -150,6 +150,7 @@ void routing_manager_impl::init() {
 
     if (configuration_->is_routing_enabled()) {
         stub_ = std::make_shared<routing_manager_stub>(this, configuration_);
+        ep_mgr_impl_->init(stub_);
         stub_->init();
     } else {
         VSOMEIP_INFO << "Internal message routing disabled!";
@@ -685,8 +686,13 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
 
             if (subscriber_is_rm_host) {
                 subscription_data_t subscription = {_service, _instance, _eventgroup, _major, _event, _filter, *_sec_client};
-                std::scoped_lock ist_lock(pending_subscription_mutex_);
-                pending_subscriptions_.insert(subscription);
+                {
+                    std::scoped_lock ist_lock(pending_subscription_mutex_);
+                    pending_subscriptions_.insert(subscription);
+                }
+                if (is_available(_service, _instance, _major)) {
+                    send_pending_subscriptions(_service, _instance, _major);
+                }
             }
         } else {
             VSOMEIP_ERROR << "SOME/IP eventgroups require SD to be enabled!";
@@ -2996,9 +3002,16 @@ std::shared_ptr<endpoint_manager_impl> routing_manager_impl::get_endpoint_manage
 
 void routing_manager_impl::send_subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                           major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) {
-    auto endpoint = find_routing_endpoint(find_local_client(_service, _instance));
+    // this function is only ever called from routing_manager_base for pending subscriptions implying that _client == get_client()
+    // but in order for the offering service to understand that this is not for the boardnet it needs to find a local client
+    // -> create a local client
+    auto const offering_client = find_local_client(_service, _instance);
+    auto endpoint = find_or_create_local_client(offering_client);
     if (endpoint && stub_) {
         stub_->send_subscribe(endpoint, _client, _service, _instance, _eventgroup, _major, _event, _filter, PENDING_SUBSCRIPTION_ID);
+    } else {
+        VSOMEIP_WARNING << "rmi::" << __func__ << ": Could not find/create endpoint for client: 0x" << hex4(offering_client)
+                        << " offering service: " << hex4(_service);
     }
 }
 

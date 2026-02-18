@@ -99,6 +99,14 @@ struct service_state {
     [[nodiscard]] bool operator!=(service_state const& rhs) const { return !(*this == rhs); }
 };
 
+struct interface {
+    explicit interface(vsomeip::service_t _service, vsomeip::instance_t _instance = 0x1) : instance_(_service, _instance) { }
+
+    service_instance instance_;
+    event_ids event_one_{instance_, 0x8001, 0x1};
+    event_ids field_two_{instance_, 0x8002, 0x1};
+};
+
 std::ostream& operator<<(std::ostream& o, service_instance const& s);
 std::ostream& operator<<(std::ostream& o, service_availability const& s);
 std::ostream& operator<<(std::ostream& o, client_session const& c);

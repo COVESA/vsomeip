@@ -30,7 +30,9 @@ public:
                           const std::shared_ptr<configuration>& _configuration);
     virtual ~endpoint_manager_base() = default;
 
-    std::shared_ptr<local_server> create_local_server(const std::shared_ptr<routing_host>& _routing_host);
+    void init(std::shared_ptr<routing_host> const& _local_message_handler);
+
+    std::shared_ptr<local_server> create_local_server();
 
     std::shared_ptr<local_endpoint> create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client);
@@ -77,6 +79,7 @@ protected:
 
 private:
     mutable std::mutex mtx_;
+    std::weak_ptr<routing_host> local_message_handler_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_client_endpoints_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_server_endpoints_;
 

@@ -58,6 +58,11 @@ public:
     bool is_router() const;
 
     /**
+     * Forwards the request to offer the contained service, instance, event and field.
+     **/
+    void offer(interface const& _interface);
+
+    /**
      * Forwards the request to the vsomeip::application::offer_service()
      */
     void offer(service_instance _si);
@@ -86,6 +91,11 @@ public:
      * Forwards the request to the vsomeip::application::send()
      */
     void send_request(request const& _req);
+
+    /**
+     * Forwards the request for the service and instance and subscribes to all events and fields that are part of the interface
+     **/
+    void subscribe(interface const& _interface);
 
     /**
      * 1. registers a subscription handler to record subscription events with @see
@@ -154,6 +164,11 @@ public:
      * Forwards the event payload to the vsomeip::application::notify()
      */
     void send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload);
+
+    /**
+     * Forwards the field payload to the vsomeip::application::notify() using the field identifier in the interface
+     */
+    void send_field(interface const& _interface, std::vector<unsigned char> const& _payload);
 
     /**
      * Wait for message (payloads!) to reach given state

@@ -3,13 +3,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "helpers/app.hpp"
 #include "helpers/attribute_recorder.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
-#include "helpers/app.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/fake_tcp_socket_handle.hpp"
+#include "helpers/message_checker.hpp"
 #include "helpers/service_state.hpp"
+
+#include "sample_interfaces.hpp"
 
 #include <boost/asio/error.hpp>
 #include <vsomeip/vsomeip.hpp>
@@ -90,6 +93,8 @@ struct test_client_helper : public base_fake_socket_fixture {
     message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?
                                           service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
                                           field_payload_};
+    message_checker const field_checker_{std::nullopt, service_instance_, offered_field_.event_id_,
+                                         vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
 
     vsomeip_v3::method_t method_{0x1111};
     request request_{service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
@@ -258,6 +263,103 @@ TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {
     };
     bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
     EXPECT_TRUE(is_any) << *record_;
+}
+TEST_F(test_client_helper, router_consumes_field_before_service_tries_to_offer_field_is_updated_before_registration) {
+    GTEST_SKIP() << "Provokes a race in application_impl regarding the usage of sec_client_";
+
+    start_router();
+    routingmanagerd_->subscribe_field(offered_field_);
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    server_->offer(service_instance_);
+    server_->offer_field(offered_field_);
+    send_field_message();
+
+    ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
+}
+TEST_F(test_client_helper, router_consumes_field_before_service_tries_to_offer_field_is_updated_after_registration) {
+    GTEST_SKIP() << "Provokes a race in application_impl regarding the usage of sec_client_";
+
+    start_router();
+    routingmanagerd_->subscribe_field(offered_field_);
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    server_->offer(service_instance_);
+    server_->offer_field(offered_field_);
+    ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    send_field_message();
+    EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
+}
+TEST_F(test_client_helper, router_consumes_field_after_service_tries_to_offer_before_registration) {
+    GTEST_SKIP() << "Provokes a race in application_impl regarding the usage of sec_client_";
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    server_->offer(service_instance_);
+    server_->offer_field(offered_field_);
+    send_field_message();
+
+    start_router();
+
+    routingmanagerd_->subscribe_field(offered_field_);
+    ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
+}
+TEST_F(test_client_helper, router_consumes_field_after_service_tries_to_offer_after_registration) {
+
+    start_apps();
+    send_field_message();
+
+    // ensure that everything is fully set up...
+    ASSERT_TRUE(subscribe_to_field());
+    ASSERT_TRUE(client_->message_record_.wait_for(field_checker_));
+
+    // ... before subscribing from the router itself
+    routingmanagerd_->subscribe_field(offered_field_);
+    ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
+}
+
+TEST_F(test_client_helper, mutual_offerings_and_consumptions_with_router) {
+    // helper structs
+    auto beef_payload = std::vector<unsigned char>{0xf, 0xe, 0xe, 0xd};
+    auto beef_checker = message_checker{std::nullopt, interfaces::beef.instance_, interfaces::beef.field_two_.event_id_,
+                                        vsomeip::message_type_e::MT_NOTIFICATION, beef_payload};
+
+    auto cafe_payload = std::vector<unsigned char>{0xf, 0xa, 0xd, 0xe};
+    auto cafe_checker = message_checker{std::nullopt, interfaces::cafe.instance_, interfaces::cafe.field_two_.event_id_,
+                                        vsomeip::message_type_e::MT_NOTIFICATION, cafe_payload};
+
+    // offering setup
+    start_router();
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // only offer now, otherwise the routing_manager will encounter
+    // data race in the sec_client usage :/
+    routingmanagerd_->offer(interfaces::beef);
+    routingmanagerd_->send_field(interfaces::beef, beef_payload);
+    server_->offer(interfaces::cafe);
+    server_->send_field(interfaces::cafe, cafe_payload);
+
+    // ensure setup is fully operational
+    client_ = start_client(client_name_);
+    ASSERT_NE(client_, nullptr);
+    ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    client_->subscribe(interfaces::cafe);
+    client_->subscribe(interfaces::beef);
+    ASSERT_TRUE(client_->message_record_.wait_for(cafe_checker));
+    ASSERT_TRUE(client_->message_record_.wait_for(beef_checker));
+
+    // do the actual subscription and ensure subscription is working
+    routingmanagerd_->subscribe(interfaces::cafe);
+    server_->subscribe(interfaces::beef);
+    EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(cafe_checker));
+    EXPECT_TRUE(server_->message_record_.wait_for(beef_checker));
 }
 
 TEST_F(test_client_helper, ensure_unavail_after_stop_offer) {

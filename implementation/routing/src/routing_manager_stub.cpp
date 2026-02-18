@@ -1368,8 +1368,7 @@ void routing_manager_stub::create_local_receiver() {
         return;
     }
 #endif
-    local_receiver_ =
-            std::static_pointer_cast<endpoint_manager_base>(host_->get_endpoint_manager())->create_local_server(shared_from_this());
+    local_receiver_ = std::static_pointer_cast<endpoint_manager_base>(host_->get_endpoint_manager())->create_local_server();
 
     if (local_receiver_) {
         local_receiver_->set_id(get_client());
@@ -1734,7 +1733,7 @@ bool routing_manager_stub::send_provided_event_resend_request(client_t _client, 
         its_command.serialize(its_buffer, its_error);
 
         if (its_error == protocol::error_e::ERROR_OK) {
-            send_local(its_endpoint, its_buffer);
+            return send_local(its_endpoint, its_buffer);
         }
     } else {
         VSOMEIP_WARNING_P << "Couldn't send provided event resend request to local client: 0x" << hex4(_client);

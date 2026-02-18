@@ -47,6 +47,11 @@ void app::stop() {
 bool app::is_router() const {
     return app_ && app_->is_routing();
 }
+void app::offer(interface const& _interface) {
+    offer(_interface.instance_);
+    offer_event(_interface.event_one_);
+    offer_field(_interface.field_two_);
+}
 
 void app::offer(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _si;
@@ -61,6 +66,12 @@ void app::offer_event(event_ids const& _ei) {
 void app::offer_field(event_ids const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _ei;
     offer(_ei, vsomeip::event_type_e::ET_FIELD);
+}
+
+void app::subscribe(interface const& _interface) {
+    request_service(_interface.instance_);
+    subscribe_event(_interface.event_one_);
+    subscribe_field(_interface.field_two_);
 }
 
 void app::subscribe_event(event_ids const& _ei) {
@@ -109,6 +120,10 @@ void app::answer_request(request const& _r, std::function<std::vector<unsigned c
 void app::request_service(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _si;
     app_->request_service(_si.service_, _si.instance_);
+}
+
+void app::send_field(interface const& _interface, std::vector<unsigned char> const& _payload) {
+    send_event(_interface.field_two_, _payload);
 }
 
 void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload) {
