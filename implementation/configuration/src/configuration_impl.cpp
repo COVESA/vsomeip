@@ -1627,8 +1627,12 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     its_converter << its_value;
                     its_converter >> sd_port_;
                     if (!sd_port_) {
+                        VSOMEIP_INFO << "cfg::load_service_discovery no port configured (value=" << its_value
+                                     << "), falling back to default " << VSOMEIP_SD_DEFAULT_PORT;
                         sd_port_ = VSOMEIP_SD_DEFAULT_PORT;
                     } else {
+                        VSOMEIP_INFO << "cfg::load_service_discovery using configured SD port " << sd_port_
+                                     << " from " << _element.name_;
                         is_configured_[ET_SERVICE_DISCOVERY_PORT] = true;
                     }
                 }

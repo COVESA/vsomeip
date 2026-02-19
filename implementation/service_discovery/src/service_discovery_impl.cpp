@@ -82,6 +82,10 @@ void service_discovery_impl::init() {
     reliable_ = (configuration_->get_sd_protocol() == "tcp");
     max_message_size_ = (reliable_ ? VSOMEIP_MAX_TCP_SD_PAYLOAD : VSOMEIP_MAX_UDP_SD_PAYLOAD);
 
+    VSOMEIP_INFO << "sd::init using " << (reliable_ ? "TCP" : "UDP")
+                 << " service-discovery port " << port_ << " unicast " << unicast_.to_string()
+                 << " multicast " << sd_multicast_;
+
     ttl_ = configuration_->get_sd_ttl();
 
     // generate random initial delay based on initial delay min and max
@@ -140,6 +144,14 @@ void service_discovery_impl::start() {
         if (!endpoint_) {
             VSOMEIP_ERROR << "Couldn't start service discovery";
             return;
+        }
+
+        // Log which local socket ended up being used for SD (multicast/broadcast sends)
+        auto udp_ep = std::dynamic_pointer_cast<udp_server_endpoint_impl>(endpoint_);
+        if (udp_ep) {
+            VSOMEIP_INFO << "sd::start bound SD UDP socket to "
+                         << unicast_.to_string() << ":" << udp_ep->get_local_port()
+                         << " (configured port=" << port_ << ")";
         }
     }
     {
@@ -2305,6 +2317,9 @@ bool service_discovery_impl::send(const std::vector<std::shared_ptr<message_impl
             m->set_reboot_flag(its_session.second);
             if (host_->send(VSOMEIP_SD_CLIENT, m, true)) {
                 increment_session(unicast_);
+                VSOMEIP_INFO << "sd::serialize_and_send(local) sent SD message via default route from "
+                             << unicast_.to_string() << ":" << port_
+                             << " (reliable=" << std::boolalpha << reliable_ << ")";
             }
         } else {
             its_result = false;
@@ -2328,6 +2343,10 @@ bool service_discovery_impl::serialize_and_send(const std::vector<std::shared_pt
                     if (host_->send_via_sd(endpoint_definition::get(_address, port_, reliable_, m->get_service(), m->get_instance()),
                                            serializer_->get_data(), serializer_->get_size(), port_)) {
                         increment_session(_address);
+                        VSOMEIP_INFO << "sd::serialize_and_send(to " << _address.to_string() << ")" << " sent from "
+                                     << unicast_.to_string() << ":" << port_ << " to "
+                                     << _address.to_string() << ":" << port_ << " (reliable="
+                                     << std::boolalpha << reliable_ << ")";
                     }
                 } else {
                     VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Serialization failed!";

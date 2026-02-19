@@ -241,6 +241,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
                         its_tmp->enable_magic_cookies();
                     }
                     its_server_endpoint = its_tmp;
+                    VSOMEIP_INFO << "emi::create_server_endpoint TCP bound to "
+                                 << its_unicast.to_string() << ":" << _port;
                 }
             }
         } else {
@@ -250,6 +252,8 @@ std::shared_ptr<endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t
                 its_tmp->init(its_unreliable, its_error);
                 if (!its_error) {
                     its_server_endpoint = its_tmp;
+                    VSOMEIP_INFO << "emi::create_server_endpoint UDP bound to "
+                                 << its_unicast.to_string() << ":" << _port;
                 }
             }
         }
