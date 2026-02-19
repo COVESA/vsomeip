@@ -181,7 +181,7 @@ bool routing_manager_base::offer_service(client_t _client, service_t _service, i
             its_info->set_ttl(DEFAULT_TTL);
         } else {
             VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                            << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+                            << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
                             << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
             return false;
         }
@@ -236,7 +236,7 @@ void routing_manager_base::request_service(client_t _client, service_t _service,
             its_info->add_client(_client);
         } else {
             VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                            << std::dec << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+                            << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
                             << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
         }
     }
@@ -373,8 +373,8 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                 std::stringstream its_debounce_parameters;
                 its_debounce_parameters << "(on_change=" << (its_debounce->on_change_ ? "true" : "false") << ", ignore=[ ";
                 for (auto i : its_debounce->ignore_)
-                    its_debounce_parameters << "(" << std::dec << i.first << ", " << std::hex << (int)i.second << ") ";
-                its_debounce_parameters << "], interval=" << std::dec << its_debounce->interval_ << ")";
+                    its_debounce_parameters << "(" << i.first << ", " << std::hex << (int)i.second << ") ";
+                its_debounce_parameters << "], interval=" << its_debounce->interval_ << ")";
 
                 VSOMEIP_WARNING << "Using debounce configuration for SOME/IP event " << hex4(_service) << "." << hex4(_instance) << "."
                                 << hex4(_notifier) << ". Debounce parameters: " << its_debounce_parameters.str();

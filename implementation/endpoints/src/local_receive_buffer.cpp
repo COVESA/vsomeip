@@ -132,7 +132,7 @@ void local_receive_buffer::shrink() {
 }
 
 std::ostream& operator<<(std::ostream& _out, local_receive_buffer const& _buffer) {
-    return _out << std::dec << "{mem_size: " << _buffer.mem_.size() << ", first_used: " << _buffer.start_ << ", last_used: " << _buffer.end_
+    return _out << "{mem_size: " << _buffer.mem_.size() << ", first_used: " << _buffer.start_ << ", last_used: " << _buffer.end_
                 << ", shrink: [" << _buffer.shrink_ct_ << ", " << _buffer.buffer_shrink_threshold_ << "]}";
 }
 }

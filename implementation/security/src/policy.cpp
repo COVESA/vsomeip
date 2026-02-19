@@ -416,18 +416,18 @@ void policy::print() const {
         if (its_uid_interval.lower() == (std::numeric_limits<uid_t>::max)()) {
             VSOMEIP_INFO << "policy::print Security configuration: UID: any";
         } else {
-            VSOMEIP_INFO << "policy::print Security configuration: UID: " << std::dec << its_uid_interval.lower();
+            VSOMEIP_INFO << "policy::print Security configuration: UID: " << its_uid_interval.lower();
         }
         for (auto its_gid_interval : its_credential.second) {
             if (its_gid_interval.lower() == (std::numeric_limits<gid_t>::max)()) {
                 VSOMEIP_INFO << "    policy::print Security configuration: GID: any";
             } else {
-                VSOMEIP_INFO << "    policy::print Security configuration: GID: " << std::dec << its_gid_interval.lower();
+                VSOMEIP_INFO << "    policy::print Security configuration: GID: " << its_gid_interval.lower();
             }
         }
     }
 
-    VSOMEIP_INFO << "policy::print Security configuration: REQUESTS POLICY SIZE: " << std::dec << requests_.size();
+    VSOMEIP_INFO << "policy::print Security configuration: REQUESTS POLICY SIZE: " << requests_.size();
     for (auto its_request : requests_) {
         VSOMEIP_INFO << "policy::print ALLOWED REQUESTS Services:" << its_request.first;
         for (auto its_instance : its_request.second) {
@@ -441,7 +441,7 @@ void policy::print() const {
         }
     }
 
-    VSOMEIP_INFO << "policy::print Security configuration: OFFER POLICY SIZE: " << std::dec << offers_.size();
+    VSOMEIP_INFO << "policy::print Security configuration: OFFER POLICY SIZE: " << offers_.size();
     for (auto its_offer : offers_) {
         VSOMEIP_INFO << "policy::print ALLOWED OFFERS Services:" << its_offer.first;
         for (auto its_instance : its_offer.second) {

@@ -159,7 +159,7 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
 
             } else {
                 its_acceptor = tmp;
-                VSOMEIP_INFO_P << "Listening @ " << its_path.str();
+                VSOMEIP_INFO << "Listening @ " << its_path.str();
             }
         } catch (const std::exception& e) {
             VSOMEIP_ERROR_P << "Caught exception: " << e.what();
@@ -179,9 +179,9 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
                 boost::system::error_code its_error;
                 its_tmp->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
                 if (!its_error) {
-                    VSOMEIP_INFO_P << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
+                    VSOMEIP_INFO << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
                     local_port_ = port_t(its_port + 1);
-                    VSOMEIP_INFO_P << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
+                    VSOMEIP_INFO << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
 
                     rm_->set_sec_client_port(local_port_);
 
@@ -252,7 +252,7 @@ void endpoint_manager_base::log_client_states() const {
     size_t its_max(std::min(size_t(10), its_client_queue_sizes.size()));
     its_log << std::setfill('0');
     for (size_t i = 0; i < its_max; i++) {
-        its_log << hex4(its_client_queue_sizes[i].first) << ":" << std::dec << its_client_queue_sizes[i].second;
+        its_log << hex4(its_client_queue_sizes[i].first) << ":" << its_client_queue_sizes[i].second;
         if (i < its_max - 1)
             its_log << ", ";
     }
@@ -298,9 +298,9 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
                                                                         boost::asio::ip::tcp::endpoint(its_remote_address, its_remote_port),
                                                                         socket_role_e::CLIENT)});
 
-                VSOMEIP_INFO << "Client [" << hex4(get_client_id()) << "] @ " << its_local_address.to_string() << ":" << std::dec
-                             << local_port_ << " is connecting to [" << hex4(_client) << "] @ " << its_remote_address.to_string() << ":"
-                             << std::dec << its_remote_port << " endpoint > " << its_endpoint;
+                VSOMEIP_INFO << "Client [" << hex4(get_client_id()) << "] @ " << its_local_address.to_string() << ":" << local_port_
+                             << " is connecting to [" << hex4(_client) << "] @ " << its_remote_address.to_string() << ":" << its_remote_port
+                             << " endpoint > " << its_endpoint;
 
             } catch (...) { }
         } else {
@@ -382,7 +382,7 @@ bool endpoint_manager_base::get_local_server_port(port_t& _port, const std::set<
     auto its_port_ranges = configuration_->get_routing_guest_ports(its_uid, its_gid);
 
     if (its_port_ranges.empty()) {
-        VSOMEIP_WARNING_P << "No configured port ranges for uid/gid=" << std::dec << its_uid << '/' << its_gid;
+        VSOMEIP_WARNING_P << "No configured port ranges for uid/gid=" << its_uid << '/' << its_gid;
     }
 
     for (const auto& [begin, end] : its_port_ranges) {

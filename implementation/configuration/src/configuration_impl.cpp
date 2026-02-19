@@ -367,8 +367,8 @@ void configuration_impl::lazy_load_security(const std::string& _client_host) {
     gid_t gid = 0;
 #endif
 
-    VSOMEIP_INFO << "vSomeIP Security: Loaded security policies for host: " << _client_host << " at UID/GID: " << std::dec << uid << "/"
-                 << gid << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
+    VSOMEIP_INFO << "vSomeIP Security: Loaded security policies for host: " << _client_host << " at UID/GID: " << uid << "/" << gid
+                 << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms";
 }
 #endif // !VSOMEIP_DISABLE_SECURITY
 
@@ -1550,9 +1550,9 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
         }
         if (is_configured_[ET_DIAGNOSIS] && is_configured_[ET_DIAGNOSIS_MASK]
             && (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) != static_cast<std::uint16_t>(diagnosis_ << 8)) {
-            VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x" << std::hex
-                            << (static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
-                            << static_cast<std::uint16_t>(diagnosis_ << 8);
+            VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x"
+                            << hex4(static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
+                            << hex4(static_cast<std::uint16_t>(diagnosis_ << 8));
         }
     } catch (...) {
         // intentionally left empty
@@ -1670,7 +1670,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     its_converter >> sd_ttl_;
                     // We do _not_ accept 0 as this would mean "STOP OFFER"
                     if (sd_ttl_ == 0) {
-                        VSOMEIP_WARNING << "TTL=0 is not allowed. Using default (" << std::dec << VSOMEIP_SD_DEFAULT_TTL << ")";
+                        VSOMEIP_WARNING << "TTL=0 is not allowed. Using default (" << VSOMEIP_SD_DEFAULT_TTL << ")";
                         sd_ttl_ = VSOMEIP_SD_DEFAULT_TTL;
                     } else
                         is_configured_[ET_SERVICE_DISCOVERY_TTL] = true;
@@ -1763,7 +1763,7 @@ void configuration_impl::load_service_discovery(const configuration_element& _el
                     max_remote_subscribers_ = (tmp > std::numeric_limits<std::uint8_t>::max()) ? std::numeric_limits<std::uint8_t>::max()
                                                                                                : static_cast<std::uint8_t>(tmp);
                     if (max_remote_subscribers_ == 0) {
-                        VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default (" << std::dec
+                        VSOMEIP_WARNING << "max_remote_subscribers_ = 0 is not allowed. Using default ("
                                         << VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS << ")";
                         max_remote_subscribers_ = VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS;
                     }
@@ -2273,7 +2273,7 @@ std::pair<uint16_t, uint16_t> configuration_impl::load_client_port_range(const b
     }
 
     if (its_last_port < its_first_port) {
-        VSOMEIP_WARNING << "Port range invalid: first: " << std::dec << its_first_port << " last: " << its_last_port;
+        VSOMEIP_WARNING << "Port range invalid: first: " << its_first_port << " last: " << its_last_port;
         its_port_range = std::make_pair(ILLEGAL_PORT, ILLEGAL_PORT);
     } else {
         its_port_range = std::make_pair(its_first_port, its_last_port);
@@ -2639,7 +2639,7 @@ void configuration_impl::load_partition(const boost::property_tree::ptree& _tree
             its_partition_id++;
 
             std::stringstream its_log;
-            its_log << "P" << std::dec << static_cast<int>(its_partition_id) << " [";
+            its_log << "P" << static_cast<int>(its_partition_id) << " [";
 
             for (const auto& p : its_partition_members) {
                 for (const auto& m : p.second) {
@@ -2867,7 +2867,7 @@ bool configuration_impl::get_client_port(service_t _service, instance_t _instanc
 
     // Configured ports do exist, but they are all in use
     VSOMEIP_ERROR << "Cannot find free client port for communication to service [" << hex4(_service) << "." << hex4(_instance) << "."
-                  << std::dec << _remote_port << "." << std::boolalpha << _reliable << "]";
+                  << _remote_port << "." << std::boolalpha << _reliable << "]";
 
     return false;
 }
@@ -3232,8 +3232,8 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
             if (_used_client_ports[_reliable].find(*it) == _used_client_ports[_reliable].end()) {
                 _port = *it;
                 its_client->last_used_specific_client_port_[_reliable] = *it;
-                VSOMEIP_INFO_P << "#1: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << std::dec
-                               << _reliable << " return specific port: " << static_cast<uint32_t>(_port);
+                VSOMEIP_INFO_P << "#1: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << _reliable
+                               << " return specific port: " << static_cast<uint32_t>(_port);
                 return true;
             }
             ++it;
@@ -3245,8 +3245,8 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
                 if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
                     _port = its_port;
                     its_client->last_used_specific_client_port_[_reliable] = its_port;
-                    VSOMEIP_INFO_P << "#2: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << std::dec
-                                   << _reliable << " return specific port: " << static_cast<uint32_t>(_port);
+                    VSOMEIP_INFO_P << "#2: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << _reliable
+                                   << " return specific port: " << static_cast<uint32_t>(_port);
                     return true;
                 }
             }
@@ -4173,8 +4173,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                             // Ensure this by subtracting the rest
                             auto its_rest = std::uint16_t(its_max_segment_length % 16);
                             if (its_rest != 0) {
-                                VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected " << std::dec
-                                                << its_max_segment_length << " to " << std::dec << its_max_segment_length - its_rest;
+                                VSOMEIP_WARNING << "SOMEIP/TP: max-segment-length must be multiple of 16. Corrected "
+                                                << its_max_segment_length << " to " << its_max_segment_length - its_rest;
 
                                 its_max_segment_length = std::uint16_t(its_max_segment_length - its_rest);
                             }
@@ -4205,8 +4205,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                         _service->tp_client_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << hex4(_service->service_) << "."
-                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << std::dec
-                                        << its_entry->second.first << ", " << its_entry->second.second << ")";
+                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << its_entry->second.first
+                                        << ", " << its_entry->second.second << ")";
                     }
                 } else {
                     const auto its_entry = _service->tp_service_config_.find(its_method);
@@ -4214,8 +4214,8 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                         _service->tp_service_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
                         VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << hex4(_service->service_) << "."
-                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << std::dec
-                                        << its_entry->second.first << ", " << its_entry->second.second << ")";
+                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << its_entry->second.first
+                                        << ", " << its_entry->second.second << ")";
                     }
                 }
             } else {

@@ -78,7 +78,7 @@ void routing_client_state_machine::target_running() {
         return false;
     }
 
-    VSOMEIP_INFO << "rcsm::" << __func__ << ": former client id: 0x" << hex4(former_client_) << ", new 0x" << hex4(_client);
+    VSOMEIP_INFO_P << "Former client id: 0x" << hex4(former_client_) << ", new 0x" << hex4(_client);
     former_client_ = client_;
     client_ = _client;
     change_state_unlocked(routing_client_state_e::ST_ASSIGNED);

@@ -113,7 +113,7 @@ void debounce_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
     std::stringstream s;
     s << "RECV: ";
     for (uint32_t i = 0; i < _message->get_payload()->get_length(); i++) {
-        s << std::hex << std::setfill('0') << std::setw(3) << static_cast<int>(_message->get_payload()->get_data()[i]) << " ";
+        s << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(_message->get_payload()->get_data()[i]) << " ";
     }
 
     if (DEBOUNCE_SERVICE == _message->get_service() && DEBOUNCE_EVENT == _message->get_method()) {

@@ -249,19 +249,19 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
             auto client_id = assign_client(result.message_data_, result.message_size_);
 
             std::stringstream ss;
-            VSOMEIP_INFO_P << "Assigned client ID 0x" << hex4(client_id) << " to \"" << utility::get_client_name(configuration_, client_id)
-                           << "\" (\"" << client_host_ << "\")";
+            ss << "Assigned client ID 0x" << hex4(client_id) << " to \"" << utility::get_client_name(configuration_, client_id) << "\" (\""
+               << client_host_ << "\")";
 
             // check if is uds socket
             if (socket_->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
-                ss << " @ " << socket_->peer_endpoint().address() << ":" << std::dec << socket_->peer_endpoint().port();
+                ss << " @ " << socket_->peer_endpoint().address() << ":" << socket_->peer_endpoint().port();
             } else {
                 vsomeip_sec_client_t sec_client{};
                 socket_->update(sec_client, *configuration_);
                 ss << " @ " << sec_client.user << "/" << sec_client.group;
             }
 
-            VSOMEIP_INFO << ss.str();
+            VSOMEIP_INFO_P << ss.str();
 
             send_client_id(client_id);
             return;
@@ -272,9 +272,8 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
                 return;
             }
         } else {
-            VSOMEIP_ERROR_P << "Unexpected command: 0x" << std::hex << std::setfill('0') << std::setw(2)
-                            << static_cast<int>(result.message_data_[protocol::COMMAND_POSITION_ID]) << " received. Breaking connection > "
-                            << socket_->to_string();
+            VSOMEIP_ERROR_P << "Unexpected command: 0x" << hex2(result.message_data_[protocol::COMMAND_POSITION_ID])
+                            << " received. Breaking connection > " << socket_->to_string();
             socket_->stop(true);
             return;
         }
@@ -296,7 +295,7 @@ client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint3
 
     command.deserialize(its_data, ec);
     if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR_P << "Assign client command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
+        VSOMEIP_ERROR_P << "Assign client command deserialization failed (" << static_cast<int>(ec) << ")";
         return VSOMEIP_CLIENT_UNSET;
     }
 
@@ -310,7 +309,7 @@ client_t local_server::tmp_connection::read_config_command(uint8_t const* _data,
 
     command.deserialize(its_data, ec);
     if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR_P << "Config command deserialization failed (" << std::dec << static_cast<int>(ec) << ")";
+        VSOMEIP_ERROR_P << "Config command deserialization failed (" << static_cast<int>(ec) << ")";
         return VSOMEIP_CLIENT_UNSET;
     }
     if (command.contains("expected_id")) {
@@ -336,7 +335,7 @@ void local_server::tmp_connection::send_client_id(client_t _client) {
     protocol::error_e ec;
     command.serialize(buffer, ec);
     if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR_P << "Assign client ack command serialization failed (" << std::dec << static_cast<int>(ec) << ")";
+        VSOMEIP_ERROR_P << "Assign client ack command serialization failed (" << static_cast<int>(ec) << ")";
         return;
     }
 

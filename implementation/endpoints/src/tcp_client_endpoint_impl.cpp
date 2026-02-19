@@ -90,8 +90,8 @@ void tcp_client_endpoint_impl::restart(bool _force) {
                 const client_t its_client = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_CLIENT_POS_MIN]);
                 const session_t its_session = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SESSION_POS_MIN]);
                 VSOMEIP_WARNING_P << "Dropping message: remote:" << self->get_address_port_remote() << " (" << hex4(its_client) << "): ["
-                                  << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]  size: " << std::dec
-                                  << q.first->size();
+                                  << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
+                                  << "]  size: " << q.first->size();
             }
             self->queue_.clear();
             self->queue_size_ = 0;
@@ -194,11 +194,11 @@ void tcp_client_endpoint_impl::connect() {
                     // set new client port depending on service / instance / remote port
                     if (!its_host->on_bind_error(shared_from_this(), remote_address_, remote_port_, local_port)) {
                         VSOMEIP_WARNING_P << "Failed to set new local port for tce: local: " << local_.address().to_string() << ":"
-                                          << std::dec << local_.port() << " remote:" << get_address_port_remote() << " endpoint: " << this;
+                                          << local_.port() << " remote:" << get_address_port_remote() << " endpoint: " << this;
                     } else {
                         local_.port(local_port);
-                        VSOMEIP_INFO_P << "Using new local port for tce: local: " << local_.address().to_string() << ":" << std::dec
-                                       << local_.port() << " remote:" << get_address_port_remote();
+                        VSOMEIP_INFO_P << "Using new local port for tce: local: " << local_.address().to_string() << ":" << local_.port()
+                                       << " remote:" << get_address_port_remote();
                     }
                 }
                 std::size_t operations_cancelled;
@@ -366,8 +366,8 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::sy
                                                                  const std::chrono::steady_clock::time_point _start) {
 
     if (_error) {
-        VSOMEIP_ERROR_P << _error.message() << "(" << std::dec << _error.value() << ") bytes transferred: " << std::dec
-                        << _bytes_transferred << " bytes to sent: " << std::dec << _bytes_to_send << " "
+        VSOMEIP_ERROR_P << _error.message() << "(" << _error.value() << ") bytes transferred: " << _bytes_transferred
+                        << " bytes to sent: " << _bytes_to_send << " "
                         << "remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
                         << hex4(_method) << "." << hex4(_session) << "]";
         return 0;
@@ -377,15 +377,15 @@ std::size_t tcp_client_endpoint_impl::write_completion_condition(const boost::sy
     const std::chrono::milliseconds passed = std::chrono::duration_cast<std::chrono::milliseconds>(now - _start);
     if (passed > send_timeout_warning_) {
         if (passed > send_timeout_) {
-            VSOMEIP_ERROR_P << _error.message() << "(" << std::dec << _error.value() << ") took longer than " << std::dec
-                            << send_timeout_.count() << "ms bytes transferred: " << std::dec << _bytes_transferred
-                            << " bytes to sent: " << std::dec << _bytes_to_send << " remote:" << get_address_port_remote() << " ("
-                            << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_method) << "." << hex4(_session) << "]";
+            VSOMEIP_ERROR_P << _error.message() << "(" << _error.value() << ") took longer than " << send_timeout_.count()
+                            << "ms bytes transferred: " << _bytes_transferred << " bytes to sent: " << _bytes_to_send
+                            << " remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
+                            << hex4(_method) << "." << hex4(_session) << "]";
         } else {
-            VSOMEIP_WARNING_P << _error.message() << "(" << std::dec << _error.value() << ") took longer than " << std::dec
-                              << send_timeout_warning_.count() << "ms bytes transferred: " << std::dec << _bytes_transferred
-                              << " bytes to sent: " << std::dec << _bytes_to_send << " remote:" << get_address_port_remote() << " ("
-                              << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_method) << "." << hex4(_session) << "]";
+            VSOMEIP_WARNING_P << _error.message() << "(" << _error.value() << ") took longer than " << send_timeout_warning_.count()
+                              << "ms bytes transferred: " << _bytes_transferred << " bytes to sent: " << _bytes_to_send
+                              << " remote:" << get_address_port_remote() << " (" << hex4(_client) << "): [" << hex4(_service) << "."
+                              << hex4(_method) << "." << hex4(_session) << "]";
         }
     }
     return _bytes_to_send - _bytes_transferred;
@@ -498,8 +498,8 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                             return;
                         } else if ((*recv_buffer_)[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS] != VSOMEIP_PROTOCOL_VERSION) {
                             invalid_parameter_detected = true;
-                            VSOMEIP_ERROR_P << "Wrong protocol version: 0x" << std::hex << std::setfill('0') << std::setw(2)
-                                            << std::uint32_t((*recv_buffer_)[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS])
+                            VSOMEIP_ERROR_P << "Wrong protocol version: 0x"
+                                            << hex2((*recv_buffer_)[its_iteration_gap + VSOMEIP_PROTOCOL_VERSION_POS])
                                             << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                             // ensure to send back a message w/ wrong protocol version
                             its_lock.unlock();
@@ -509,14 +509,14 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         } else if (!utility::is_valid_message_type(
                                            static_cast<message_type_e>((*recv_buffer_)[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS]))) {
                             invalid_parameter_detected = true;
-                            VSOMEIP_ERROR_P << "Invalid message type: 0x" << std::hex << std::setfill('0') << std::setw(2)
-                                            << std::uint32_t((*recv_buffer_)[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])
+                            VSOMEIP_ERROR_P << "Invalid message type: 0x"
+                                            << hex2((*recv_buffer_)[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS])
                                             << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                         } else if (!utility::is_valid_return_code(
                                            static_cast<return_code_e>((*recv_buffer_)[its_iteration_gap + VSOMEIP_RETURN_CODE_POS]))) {
                             invalid_parameter_detected = true;
-                            VSOMEIP_ERROR_P << "Invalid return code: 0x" << std::hex << std::setfill('0') << std::setw(2)
-                                            << std::uint32_t((*recv_buffer_)[its_iteration_gap + VSOMEIP_RETURN_CODE_POS])
+                            VSOMEIP_ERROR_P << "Invalid return code: 0x"
+                                            << hex2((*recv_buffer_)[its_iteration_gap + VSOMEIP_RETURN_CODE_POS])
                                             << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                         }
 
@@ -534,13 +534,13 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         _recv_buffer->resize(recv_buffer_size_initial_, 0x0);
                         _recv_buffer->shrink_to_fit();
                         if (use_magic_cookies_) {
-                            VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << std::dec
-                                          << current_message_size << "). Magic Cookies are enabled: "
+                            VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << current_message_size
+                                          << "). Magic Cookies are enabled: "
                                           << "Resetting receiver. local: " << get_address_port_local()
                                           << " remote: " << get_address_port_remote();
                         } else {
-                            VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << std::dec
-                                          << current_message_size << ") Magic cookies are disabled. Restarting connection. "
+                            VSOMEIP_ERROR << "Received a TCP message which exceeds maximum message size (" << current_message_size
+                                          << ") Magic cookies are disabled. Restarting connection. "
                                           << "local: " << get_address_port_local() << " remote: " << get_address_port_remote();
 
                             its_lock.unlock();
@@ -565,7 +565,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                         << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
                                         << ". Didn't find magic cookie in broken data, trying to resync.";
                     } else {
-                        VSOMEIP_ERROR_P << "c<" << this << ">rcb: recv_buffer_size is: " << std::dec << _recv_buffer_size
+                        VSOMEIP_ERROR_P << "c<" << this << ">rcb: recv_buffer_size is: " << _recv_buffer_size
                                         << " but couldn't read out message_size. recv_buffer_capacity: " << _recv_buffer->capacity()
                                         << " its_iteration_gap: " << its_iteration_gap << " local: " << get_address_port_local()
                                         << " remote: " << get_address_port_remote()
@@ -596,7 +596,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                 self->receive(_recv_buffer, _recv_buffer_size, its_missing_capacity);
             });
         } else {
-            VSOMEIP_WARNING_P << _error.message() << "(" << std::dec << _error.value() << ") local: " << get_address_port_local()
+            VSOMEIP_WARNING_P << _error.message() << "(" << _error.value() << ") local: " << get_address_port_local()
                               << " remote: " << get_address_port_remote();
             if (_error == boost::asio::error::eof || _error == boost::asio::error::timed_out || _error == boost::asio::error::bad_descriptor
                 || _error == boost::asio::error::connection_reset) {
@@ -668,15 +668,15 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(const std::exception
 
     std::stringstream its_message;
     its_message << "Catched exception" << _e.what() << " local: " << get_address_port_local() << " remote: " << get_address_port_remote()
-                << " shutting down connection. Start of buffer: " << std::hex << std::setfill('0');
+                << " shutting down connection. Start of buffer: ";
 
     for (std::size_t i = 0; i < _recv_buffer_size && i < 16; i++) {
-        its_message << std::setw(2) << static_cast<int>((*_recv_buffer)[i]) << " ";
+        its_message << hex2((*_recv_buffer)[i]) << " ";
     }
 
     its_message << " Last 16 Bytes captured: ";
     for (int i = 15; _recv_buffer_size > 15 && i >= 0; i--) {
-        its_message << std::setw(2) << static_cast<int>(((*_recv_buffer)[static_cast<size_t>(i)])) << " ";
+        its_message << hex2((*_recv_buffer)[static_cast<size_t>(i)]) << " ";
     }
     VSOMEIP_ERROR_P << its_message.str();
     _recv_buffer->clear();
@@ -713,8 +713,8 @@ void tcp_client_endpoint_impl::print_status() {
         its_receive_buffer_capacity = recv_buffer_->capacity();
     }
 
-    VSOMEIP_INFO_P << local << " -> " << get_address_port_remote() << " queue: " << std::dec << its_queue_size << " data: " << std::dec
-                   << its_data_size << " recv_buffer: " << std::dec << its_receive_buffer_capacity;
+    VSOMEIP_INFO_P << local << " -> " << get_address_port_remote() << " queue: " << its_queue_size << " data: " << its_data_size
+                   << " recv_buffer: " << its_receive_buffer_capacity;
 }
 
 std::string tcp_client_endpoint_impl::get_remote_information() const {
@@ -771,10 +771,9 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                 its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
                 its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
             }
-            VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                              << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
-                              << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
-                              << "]";
+            VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information() << " "
+                              << queue_.size() << " " << queue_size_ << " (" << hex4(its_client) << "): [" << hex4(its_service) << "."
+                              << hex4(its_method) << "." << hex4(its_session) << "]";
         }
     }
 }

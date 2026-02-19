@@ -3,11 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifdef VSOMEIP_DEBUGGING
-#include <iomanip>
-#include <sstream>
-#endif
-
 #include <vsomeip/internal/serializable.hpp>
 
 #include "../include/serializer.hpp"
@@ -106,15 +101,5 @@ void serializer::reset() {
         shrink_count_ = 0;
     }
 }
-
-#ifdef VSOMEIP_DEBUGGING
-void serializer::show() {
-    std::stringstream its_data;
-    its_data << "SERIALIZED: " << std::hex << std::setfill('0');
-    for (const byte_t& e : data_)
-        its_data << std::setw(2) << static_cast<int>(e);
-    VSOMEIP_INFO << its_data.str();
-}
-#endif
 
 } // namespace vsomeip_v3

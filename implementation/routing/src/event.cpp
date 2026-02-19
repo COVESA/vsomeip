@@ -335,7 +335,7 @@ void event::notify_one_unlocked(client_t _client, const std::shared_ptr<endpoint
             routing_->send_to(_client, _target, update_);
         } else {
             VSOMEIP_INFO_P << "Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
-                           << hex4(get_instance()) << "." << hex4(get_event()) << " failed. Event payload not (yet) set!";
+                           << " failed. Event payload not (yet) set!";
             pending_.insert(_target);
         }
     } else {
@@ -438,12 +438,11 @@ bool event::add_subscriber(eventgroup_t _eventgroup, const std::shared_ptr<debou
             VSOMEIP_WARNING << "Using client [" << hex4(_client) << "] specific filter configuration for SOME/IP event "
                             << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event()) << ".";
             std::stringstream its_filter_parameters;
-            its_filter_parameters << "(on_change=" << std::boolalpha << _filter->on_change_ << ", interval=" << std::dec
-                                  << _filter->interval_ << ", on_change_resets_interval=" << std::boolalpha
-                                  << _filter->on_change_resets_interval_ << ", ignore=[ ";
+            its_filter_parameters << "(on_change=" << std::boolalpha << _filter->on_change_ << ", interval=" << _filter->interval_
+                                  << ", on_change_resets_interval=" << std::boolalpha << _filter->on_change_resets_interval_
+                                  << ", ignore=[ ";
             for (auto i : _filter->ignore_)
-                its_filter_parameters << "(" << std::dec << i.first << ", " << std::hex << std::setfill('0') << std::setw(2)
-                                      << static_cast<int>(i.second) << ") ";
+                its_filter_parameters << "(" << i.first << ", " << hex2(i.second) << ") ";
             its_filter_parameters << "], send_current_value_after_=" << std::boolalpha << _filter->send_current_value_after_ << ")";
 
             VSOMEIP_INFO << "Filter parameters: " << its_filter_parameters.str();

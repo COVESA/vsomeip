@@ -53,9 +53,6 @@ public:
 
     VSOMEIP_EXPORT void reset();
 
-#ifdef VSOMEIP_DEBUGGING
-    VSOMEIP_EXPORT void show() const;
-#endif
 protected:
     std::vector<byte_t> data_;
     std::vector<byte_t>::iterator position_;

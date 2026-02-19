@@ -4,6 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "../../../e2e_protection/include/buffer/buffer.hpp"
+#include "../../../utility/include/utility.hpp"
 #include <iomanip>
 
 namespace vsomeip_v3 {
@@ -13,7 +14,7 @@ std::ostream& operator<<(std::ostream& _os, const e2e_buffer& _buffer) {
         if (isupper(b)) {
             _os << b;
         } else {
-            _os << "[" << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)b << std::dec << "]";
+            _os << "[" << hex2(b) << "]";
         }
     }
     return _os;

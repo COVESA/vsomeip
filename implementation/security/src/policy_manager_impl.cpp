@@ -34,7 +34,7 @@ void read_data(const std::string& _in, T_& _out) {
     if (_in.size() > 2 && _in[0] == '0' && (_in[1] == 'x' || _in[1] == 'X'))
         its_converter << std::hex << _in;
     else
-        its_converter << std::dec << _in;
+        its_converter << _in;
 
     its_converter >> _out;
 }
@@ -108,7 +108,7 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
                 if (!check_credentials_) {
                     security_mode_text = " but will be allowed due to audit mode is active!";
                 }
-                VSOMEIP_INFO << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << std::dec << its_uid << "/" << its_gid
+                VSOMEIP_INFO << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_uid << "/" << its_gid
                              << " : Check credentials failed as existing credentials would be overwritten" << security_mode_text;
                 return !check_credentials_;
             }
@@ -121,7 +121,7 @@ bool policy_manager_impl::check_credentials(client_t _client, const vsomeip_sec_
     if (!check_credentials_) {
         security_mode_text = " but will be allowed due to audit mode is active!";
     }
-    VSOMEIP_INFO << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << std::dec << its_uid << "/" << its_gid
+    VSOMEIP_INFO << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_uid << "/" << its_gid
                  << " : Check credentials failed" << security_mode_text;
 
     return !check_credentials_;
@@ -206,7 +206,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
         if (!check_credentials_) {
             security_mode_text = " but will be allowed due to audit mode is active!";
         }
-        VSOMEIP_INFO << "vSomeIP Security: uid/gid " << std::dec << its_uid << "/" << its_gid << " is not valid."
+        VSOMEIP_INFO << "vSomeIP Security: uid/gid " << its_uid << "/" << its_gid << " is not valid."
                      << "Therefore it isn't allowed to communicate to service/instance " << _service << "/" << _instance
                      << security_mode_text;
 
@@ -282,7 +282,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
         security_mode_text = " but will be allowed due to audit mode is active!";
     }
 
-    VSOMEIP_INFO << "vSomeIP Security: UID/GID=" << std::dec << its_uid << "/" << its_gid
+    VSOMEIP_INFO << "vSomeIP Security: UID/GID=" << its_uid << "/" << its_gid
                  << " : Isn't allowed to communicate with service/instance/(method / event) " << hex4(_service) << "/" << hex4(_instance)
                  << "/" << _method << security_mode_text;
 
@@ -316,7 +316,7 @@ bool policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t* _sec_clie
         if (!check_credentials_) {
             security_mode_text = " but will be allowed due to audit mode is active!";
         }
-        VSOMEIP_INFO << "vSomeIP Security: uid/gid " << std::dec << its_uid << "/" << its_gid << " is not valid."
+        VSOMEIP_INFO << "vSomeIP Security: uid/gid " << its_uid << "/" << its_gid << " is not valid."
                      << "Therefore it isn't allowed to offer service/instance " << _service << "/" << _instance << security_mode_text;
 
         return !check_credentials_;
@@ -352,7 +352,7 @@ bool policy_manager_impl::is_offer_allowed(const vsomeip_sec_client_t* _sec_clie
         security_mode_text = " but will be allowed due to audit mode is active!";
     }
 
-    VSOMEIP_INFO << "vSomeIP Security: UID/GID=" << std::dec << its_uid << "/" << its_gid << " isn't allowed to offer service/instance "
+    VSOMEIP_INFO << "vSomeIP Security: UID/GID=" << its_uid << "/" << its_gid << " isn't allowed to offer service/instance "
                  << hex4(_service) << "/" << hex4(_instance) << security_mode_text;
 
     return !check_credentials_;
@@ -487,8 +487,7 @@ void policy_manager_impl::add_security_credentials(uid_t _uid, gid_t _gid, const
     // credentials policy with same credentials was found
     if (!was_found) {
         any_client_policies_.push_back(_policy);
-        VSOMEIP_INFO_P << "Added security credentials at client: 0x" << hex4(_client) << std::dec << " with UID: " << _uid
-                       << " GID: " << _gid;
+        VSOMEIP_INFO_P << "Added security credentials at client: 0x" << hex4(_client) << " with UID: " << _uid << " GID: " << _gid;
     }
 }
 
@@ -530,10 +529,10 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
         return true;
     } else {
         if (!check_whitelist_) {
-            VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << std::dec << _uid
+            VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << _uid
                          << " is not allowed, but will be allowed due to whitelist audit mode is active!";
         } else {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << std::dec << _uid << " is not allowed! -> ignore update";
+            VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << _uid << " is not allowed! -> ignore update";
         }
         return !check_whitelist_;
     }
@@ -548,10 +547,10 @@ bool policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
     }
 
     if (!check_whitelist_) {
-        VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: " << std::dec << _uid
+        VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: " << _uid
                      << " is not allowed, but will be allowed due to whitelist audit mode is active!";
     } else {
-        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: " << std::dec << _uid << " is not allowed! -> ignore removal";
+        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: " << _uid << " is not allowed! -> ignore removal";
     }
     return !check_whitelist_;
 }
@@ -1190,9 +1189,8 @@ bool policy_manager_impl::store_client_to_sec_client_mapping(client_t _client, c
                 uid_t its_new_uid = _sec_client->user;
                 gid_t its_new_gid = _sec_client->group;
 
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << std::dec << its_new_uid << "/"
-                                << its_new_gid << " : Overwriting existing credentials UID/GID=" << std::dec << its_old_uid << "/"
-                                << its_old_gid;
+                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_new_uid << "/" << its_new_gid
+                                << " : Overwriting existing credentials UID/GID=" << its_old_uid << "/" << its_old_gid;
 
                 found_client->second = *_sec_client;
                 return true;

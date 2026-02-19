@@ -66,9 +66,6 @@
 #ifdef _WIN32
 #define VSOMEIP_INTERNAL_BASE_PORT              51234
 #endif
-#if defined(_WIN32) || defined(__QNX__)
-#define __func__ __FUNCTION__
-#endif
 
 #define VSOMEIP_UNICAST_ADDRESS                 "@VSOMEIP_UNICAST_ADDRESS@"
 #define VSOMEIP_NETMASK                         "255.255.255.0"

@@ -5,10 +5,6 @@
 
 #include <cstring>
 
-#ifdef VSOMEIP_DEBUGGING
-#include <iomanip>
-#include <sstream>
-#endif
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/message_impl.hpp"
@@ -213,19 +209,5 @@ void deserializer::reset() {
         shrink_count_ = 0;
     }
 }
-
-#ifdef VSOMEIP_DEBUGGING
-void deserializer::show() const {
-    std::stringstream its_message;
-    its_message << "("
-            << std::hex << std::setfill('0') << std::setw(2)
-            << static_cast<int>(*position_ << ", "
-            << std:: dec << remaining_ << ") "
-            << std::hex << std::setfill('0');
-    for (int i = 0; i < data_.size(); ++i)
-        its_message << std::setw(2) << static_cast<int>(data_[i]) << " ";
-    VSOMEIP_INFO << its_message;
-}
-#endif
 
 } // namespace vsomeip_v3

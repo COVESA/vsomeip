@@ -230,7 +230,8 @@ void service_discovery_impl::request_service(service_t _service, instance_t _ins
         }
     }
     if (state_changed) {
-        VSOMEIP_INFO << "REQUEST SD: [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << _major << "." << _minor << "]";
+        VSOMEIP_INFO << "REQUEST SD: [" << hex4(_service) << "." << hex4(_instance) << ":" << static_cast<int>(_major) << "." << _minor
+                     << "]";
     }
 }
 
@@ -1386,7 +1387,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.find(its_port_pair) == _sd_ac_state.expired_ports_.end()) {
                 VSOMEIP_WARNING_P << "Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "] from "
-                                  << _address.to_string() << ":" << std::dec << _port << " reliable=" << _reliable;
+                                  << _address.to_string() << ":" << _port << " reliable=" << _reliable;
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
                 host_->expire_subscriptions(_address, _port, _reliable);
                 host_->expire_services(_address, _port, _reliable);
@@ -1775,7 +1776,7 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
             return;
         }
         if (_entry->get_owning_message()->get_someip_length() < _entry->get_owning_message()->get_length() && its_ttl > 0) {
-            VSOMEIP_ERROR_P << "SOME/IP length field in SubscribeEventGroup message header: [" << std::dec
+            VSOMEIP_ERROR_P << "SOME/IP length field in SubscribeEventGroup message header: ["
                             << _entry->get_owning_message()->get_someip_length()
                             << "] bytes, is shorter than length of deserialized message: [" << _entry->get_owning_message()->get_length()
                             << "] bytes. " << its_sender.to_string() << " session: " << hex4(its_session);
@@ -2061,8 +2062,8 @@ void service_discovery_impl::handle_eventgroup_subscription(
         // TODO: Add sender and session id
         VSOMEIP_WARNING_P << "Subscription for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]"
                           << " not valid: Event configuration (" << static_cast<std::uint32_t>(_info->get_reliability())
-                          << ") does not match the provided endpoint options: " << _first_address.to_string() << ":" << std::dec
-                          << _first_port << " " << _second_address.to_string() << ":" << _second_port;
+                          << ") does not match the provided endpoint options: " << _first_address.to_string() << ":" << _first_port << " "
+                          << _second_address.to_string() << ":" << _second_port;
         return;
     }
 
@@ -2097,7 +2098,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
         VSOMEIP_ERROR_P << "Requested major version:[" << static_cast<uint32_t>(_major) << "] in subscription to service: ["
                         << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
                         << "] does not match with services major version:[" << static_cast<uint32_t>(_info->get_major())
-                        << "] subscriber: " << _first_address.to_string() << ":" << std::dec << _first_port;
+                        << "] subscriber: " << _first_address.to_string() << ":" << _first_port;
         if (_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, _clients);
         }
@@ -3048,7 +3049,7 @@ void service_discovery_impl::on_last_msg_received_timer_expired(const boost::sys
 
     if (!_error) {
         // We didn't receive a multicast message within 110% of the cyclic_offer_delay_
-        VSOMEIP_WARNING << "Didn't receive a multicast SD message for " << std::dec << last_msg_received_timer_timeout_.count() << "ms.";
+        VSOMEIP_WARNING << "Didn't receive a multicast SD message for " << last_msg_received_timer_timeout_.count() << "ms.";
 
         // Rejoin multicast group
         if (endpoint_ && !reliable_) {

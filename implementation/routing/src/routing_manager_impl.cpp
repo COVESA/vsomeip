@@ -370,8 +370,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     // only queue commands if method was NOT called via erase_offer_command()
     if (_must_queue) {
         if (!insert_offer_command(_service, _instance, uint8_t(protocol::id_e::OFFER_SERVICE_ID), _client, _major, _minor)) {
-            VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << int(_major)
-                           << "." << _minor << "] (" << std::boolalpha << _must_queue << ")"
+            VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
+                           << _minor << "] (" << std::boolalpha << _must_queue << ")"
                            << " not offering service, because insert_offer_command returned false!";
             return false;
         }
@@ -391,8 +391,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
 
     if (!handle_local_offer_service(_client, _service, _instance, _major, _minor)) {
         erase_offer_command(_service, _instance);
-        VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << int(_major)
-                       << "." << _minor << "] (" << std::boolalpha << _must_queue << ")"
+        VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
+                       << "] (" << std::boolalpha << _must_queue << ")"
                        << " not offering, returned from handle_local_offer_service!";
         return false;
     }
@@ -404,8 +404,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         } else {
             std::scoped_lock its_lock_inner(pending_sd_offers_mutex_);
             pending_sd_offers_.emplace(_service, _instance);
-            VSOMEIP_INFO_P << "Added service 0x" << hex4(_service) << " to pending_sd_offers_.size = " << std::dec
-                           << pending_sd_offers_.size();
+            VSOMEIP_INFO_P << "Added service 0x" << hex4(_service) << " to pending_sd_offers_.size = " << pending_sd_offers_.size();
         }
     }
 
@@ -435,8 +434,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
     erase_offer_command(_service, _instance);
 
-    VSOMEIP_INFO << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << int(_major) << "."
-                 << _minor << "] (" << std::boolalpha << _must_queue << ")";
+    VSOMEIP_INFO << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
+                 << "] (" << std::boolalpha << _must_queue << ")";
     return true;
 }
 
@@ -448,13 +447,13 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
 void routing_manager_impl::stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                               minor_version_t _minor, bool _must_queue) {
 
-    VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << int(_major)
-                 << "." << _minor << "] (" << std::boolalpha << _must_queue << ")";
+    VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
+                 << _minor << "] (" << std::boolalpha << _must_queue << ")";
 
     if (_must_queue) {
         if (!insert_offer_command(_service, _instance, uint8_t(protocol::id_e::STOP_OFFER_SERVICE_ID), _client, _major, _minor)) {
-            VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << int(_major)
-                           << "." << _minor << "] (" << std::boolalpha << _must_queue << ")"
+            VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
+                           << _minor << "] (" << std::boolalpha << _must_queue << ")"
                            << " STOP-OFFER NOT INSERTED!";
             return;
         }
@@ -471,8 +470,8 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end();) {
                 if (it->first == _service && it->second == _instance) {
                     it = pending_sd_offers_.erase(it);
-                    VSOMEIP_INFO_P << "Removed service 0x" << hex4(_service) << " from pending_sd_offers_.size = " << std::dec
-                                   << pending_sd_offers_.size();
+                    VSOMEIP_INFO_P << "Removed service 0x" << hex4(_service)
+                                   << " from pending_sd_offers_.size = " << pending_sd_offers_.size();
                     break;
                 } else {
                     ++it;
@@ -483,7 +482,7 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
         on_stop_offer_service(_client, _service, _instance, _major, _minor);
     } else {
         VSOMEIP_WARNING_P << "Received STOP_OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                          << std::dec << int(_major) << "." << _minor << "] for remote service --> ignore";
+                          << int(_major) << "." << _minor << "] for remote service --> ignore";
         erase_offer_command(_service, _instance);
     }
 
@@ -493,8 +492,8 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
 void routing_manager_impl::request_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                            minor_version_t _minor) {
 
-    VSOMEIP_INFO << "REQUEST(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec << int(_major)
-                 << "." << _minor << "]";
+    VSOMEIP_INFO << "REQUEST(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
+                 << "]";
 
     routing_manager_base::request_service(_client, _service, _instance, _major, _minor);
 
@@ -507,7 +506,7 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
                 discovery_->request_service(_service, _instance, _major, _minor, DEFAULT_TTL);
             } else {
                 VSOMEIP_INFO << "Avoid trigger SD find-service message for local service/instance/major/minor: " << hex4(_service) << "/"
-                             << hex4(_instance) << std::dec << "/" << static_cast<int>(_major) << "/" << _minor;
+                             << hex4(_instance) << "/" << static_cast<int>(_major) << "/" << _minor;
             }
         }
     } else {
@@ -564,15 +563,15 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
 
             // Flush client endpoints before clearing them
             if (auto its_reliable_endpoint = its_info->get_endpoint(true)) {
-                VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing reliable client endpoint queues for service [" << std::hex
-                             << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
-                             << std::setw(4) << _client << " (remote: " << its_reliable_endpoint->get_remote_information() << ")";
+                VSOMEIP_INFO_P << "Flushing reliable client endpoint queues for service [" << hex4(_service) << "." << hex4(_instance)
+                               << "] from client " << hex4(_client) << " (remote: " << its_reliable_endpoint->get_remote_information()
+                               << ")";
                 its_reliable_endpoint->flush_queue();
             }
             if (auto its_unreliable_endpoint = its_info->get_endpoint(false)) {
-                VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing unreliable client endpoint queues for service [" << std::hex
-                             << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
-                             << std::setw(4) << _client << " (remote: " << its_unreliable_endpoint->get_remote_information() << ")";
+                VSOMEIP_INFO_P << "Flushing unreliable client endpoint queues for service [" << hex4(_service) << "." << hex4(_instance)
+                               << "] from client 0x" << hex4(_client) << " (remote: " << its_unreliable_endpoint->get_remote_information()
+                               << ")";
                 its_unreliable_endpoint->flush_queue();
             }
 
@@ -627,7 +626,7 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
     }
 
     VSOMEIP_INFO << "SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":"
-                 << hex4(_event) << ":" << std::dec << static_cast<int>(_major) << "]";
+                 << hex4(_event) << ":" << static_cast<int>(_major) << "]";
     const client_t its_local_client = find_local_client(_service, _instance);
     if (get_client() == its_local_client) {
         auto self = shared_from_this();
@@ -649,7 +648,7 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                     }
 
                     VSOMEIP_INFO << "SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                                 << hex4(_eventgroup) << ":" << hex4(_event) << ":" << std::dec << static_cast<uint16_t>(_major) << "] "
+                                 << hex4(_eventgroup) << ":" << hex4(_event) << ":" << static_cast<uint16_t>(_major) << "] "
                                  << (_subscription_accepted ? " accepted" : "not accepted");
                 });
     } else {
@@ -767,8 +766,8 @@ bool routing_manager_impl::send(client_t _client, std::shared_ptr<message> _mess
     if (utility::is_request(_message->get_message_type())) {
         if (stub_ && !stub_->is_remotely_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
             VSOMEIP_WARNING_P << "[Client=" << hex4(_client) << " _message=" << hex4(_message->get_service()) << "."
-                              << hex4(_message->get_method()) << "." << std::setw(2) << static_cast<int>(_message->get_message_type())
-                              << "." << std::setw(2) << static_cast<int>(_message->get_return_code()) << " _force=" << _force
+                              << hex4(_message->get_method()) << "." << hex2(static_cast<uint8_t>(_message->get_message_type())) << "."
+                              << hex2(static_cast<uint8_t>(_message->get_return_code())) << " _force=" << _force
                               << "]: Remote service not available. instance=" << hex4(_message->get_instance())
                               << " version=" << _message->get_interface_version();
             if (!_force) {
@@ -1230,8 +1229,8 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
         if (discovery_ && its_info) {
             discovery_->stop_offer_service(its_info, true);
             its_info->set_endpoint(nullptr, _reliable);
-            VSOMEIP_INFO_P << "Sending StopOffer to [" << hex4(_service) << "." << hex4(_instance) << "." << std::dec << _port
-                           << "] with reliability (" << std::boolalpha << _reliable << ')';
+            VSOMEIP_INFO_P << "Sending StopOffer to [" << hex4(_service) << "." << hex4(_instance) << "." << _port << "] with reliability ("
+                           << std::boolalpha << _reliable << ')';
         }
     } else {
         // service is still partly offered
@@ -1260,7 +1259,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
     bool is_forwarded(true);
     // message is at least 16-bytes, see also PRS_SOMEIP_00910
     if (_size < VSOMEIP_FULL_HEADER_SIZE) {
-        VSOMEIP_ERROR << "Dropped message with invalid size " << _size;
+        VSOMEIP_ERROR_P << "Dropped message with invalid size " << _size;
         return;
     }
 
@@ -1276,22 +1275,20 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
 
     // ignore messages with invalid message type
     if (!utility::is_valid_message_type(its_message_type)) {
-        VSOMEIP_ERROR << "Dropped message with invalid message type 0x" << std::hex << std::setfill('0') << std::setw(2)
-                      << static_cast<int>(its_message_type);
+        VSOMEIP_ERROR_P << "Dropped message with invalid message type 0x" << hex2(static_cast<uint8_t>(its_message_type));
         return;
     }
     // ignore messages with.. unknown remote address? how is this even possible?!
     if (_remote_address.is_unspecified()) {
-        VSOMEIP_ERROR << "Dropped message with invalid remote address from: " << _remote_address.to_string() << ":" << std::dec
-                      << _remote_port;
+        VSOMEIP_ERROR_P << "Dropped message with invalid remote address from: " << _remote_address.to_string() << ":" << _remote_port;
         return;
     }
 
     // Log messages which could cause routing issues.
     if (!is_valid_client_id(its_client, its_message_type)) {
-        VSOMEIP_ERROR << "rmi::" << __func__ << ": Invalid client id. message=" << hex4(its_service) << "." << hex4(its_method) << "."
-                      << std::setw(2) << static_cast<int>(its_message_type) << "." << std::setw(2) << static_cast<int>(its_return_code)
-                      << " client=" << hex4(its_client) << " source=" << _remote_address << ":" << std::dec << _remote_port;
+        VSOMEIP_ERROR_P << "Invalid client id. message=" << hex4(its_service) << "." << hex4(its_method) << "."
+                        << hex2(static_cast<uint8_t>(its_message_type)) << "." << hex2(static_cast<uint8_t>(its_return_code))
+                        << " client=0x" << hex4(its_client) << " source=" << _remote_address << ":" << _remote_port;
     }
 
     if (its_service == VSOMEIP_SD_SERVICE) {
@@ -1325,10 +1322,10 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
         }
 
         if (its_instance == 0xFFFF) {
-            VSOMEIP_ERROR << "Dropped message with no matching instanceId, [" << hex4(its_service) << '.' << hex4(its_instance) << "."
-                          << hex4(its_method) << "." << hex4(its_client) << "." << hex4(its_session)
-                          << "] from: " << _remote_address.to_string() << ":" << std::dec << _remote_port
-                          << ", multicast: " << std::boolalpha << _is_multicast;
+            VSOMEIP_ERROR_P << "Dropped message with no matching instanceId, [" << hex4(its_service) << '.' << hex4(its_instance) << "."
+                            << hex4(its_method) << "." << hex4(its_client) << "." << hex4(its_session)
+                            << "] from: " << _remote_address.to_string() << ":" << _remote_port << ", multicast: " << std::boolalpha
+                            << _is_multicast;
             return;
         }
 
@@ -1440,8 +1437,8 @@ void routing_manager_impl::on_notification(client_t _client, service_t _service,
 void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
 
-    VSOMEIP_DEBUG << "rmi::ON_STOP_OFFER_SERVICE (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                  << std::dec << static_cast<int>(_major) << "." << _minor << "]";
+    VSOMEIP_INFO << "rmi::ON_STOP_OFFER_SERVICE (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+                 << static_cast<int>(_major) << "." << _minor << "]";
     {
         std::scoped_lock its_lock{local_services_mutex_};
         auto found_service = local_services_.find(_service);
@@ -1451,9 +1448,9 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
                 auto [stored_major, stored_minor, stored_client] = found_instance->second;
                 if (stored_major != _major || stored_minor != _minor || stored_client != _client) {
                     VSOMEIP_WARNING_P << "Trying to delete service not matching exactly the one offered previously: [" << hex4(_service)
-                                      << "." << hex4(_instance) << "." << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
+                                      << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor
                                       << "] by application: " << hex4(_client) << ". Stored: [" << hex4(_service) << "." << hex4(_instance)
-                                      << "." << std::dec << static_cast<std::uint32_t>(stored_major) << "." << stored_minor
+                                      << "." << static_cast<std::uint32_t>(stored_major) << "." << stored_minor
                                       << "] by application: " << hex4(stored_client);
                 }
                 if (stored_client == _client) {
@@ -1481,17 +1478,15 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint = its_info->get_endpoint(false);
 
         if (its_reliable_endpoint) {
-            VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing reliable server endpoint queues for service [" << std::hex
-                         << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
-                         << std::setw(4) << _client << " (local port: " << std::dec << its_reliable_endpoint->get_local_port()
-                         << ", remote information: " << its_reliable_endpoint->get_remote_information() << ")";
+            VSOMEIP_INFO_P << "Flushing reliable server endpoint queues for service [" << hex4(_service) << "." << hex4(_instance)
+                           << "] from client 0x" << hex4(_client) << " (local port: " << its_reliable_endpoint->get_local_port()
+                           << ", remote information: " << its_reliable_endpoint->get_remote_information() << ")";
             its_reliable_endpoint->flush_queue();
         }
         if (its_unreliable_endpoint) {
-            VSOMEIP_INFO << "rmi::" << __func__ << ": Flushing unreliable server endpoint queues for service [" << std::hex
-                         << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "] from client "
-                         << std::setw(4) << _client << " (local port: " << std::dec << its_unreliable_endpoint->get_local_port()
-                         << ", remote information: " << its_unreliable_endpoint->get_remote_information() << ")";
+            VSOMEIP_INFO_P << "Flushing unreliable server endpoint queues for service [" << hex4(_service) << "." << hex4(_instance)
+                           << "] from client 0x" << hex4(_client) << " (local port: " << its_unreliable_endpoint->get_local_port()
+                           << ", remote information: " << its_unreliable_endpoint->get_remote_information() << ")";
             its_unreliable_endpoint->flush_queue();
         }
 
@@ -1919,8 +1914,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
             }
 
             if (ILLEGAL_PORT == its_reliable_port && ILLEGAL_PORT == its_unreliable_port) {
-                VSOMEIP_INFO_P << "Port configuration missing for [" << hex4(_service) << "." << hex4(_instance)
-                               << "]. Service is internal.";
+                VSOMEIP_INFO << "Port configuration missing for [" << hex4(_service) << "." << hex4(_instance) << "]. Service is internal.";
             }
         }
     } else {
@@ -1994,11 +1988,10 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
         // We received a service info for a service which is already offered locally
         VSOMEIP_ERROR_P << "Rejecting routing info. Remote: "
                         << ((_reliable_port != ILLEGAL_PORT) ? _reliable_address.to_string() : _unreliable_address.to_string())
-                        << " is trying to offer [" << hex4(_service) << "." << hex4(_instance) << "." << std::dec
-                        << static_cast<std::uint32_t>(_major) << "." << _minor << "] on port "
-                        << ((_reliable_port != ILLEGAL_PORT) ? _reliable_port : _unreliable_port) << " offered previously on this node: ["
-                        << hex4(_service) << "." << hex4(_instance) << "." << std::dec << static_cast<std::uint32_t>(its_info->get_major())
-                        << "." << its_info->get_minor() << "]";
+                        << " is trying to offer [" << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major)
+                        << "." << _minor << "] on port " << ((_reliable_port != ILLEGAL_PORT) ? _reliable_port : _unreliable_port)
+                        << " offered previously on this node: [" << hex4(_service) << "." << hex4(_instance) << "."
+                        << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor() << "]";
         return;
     } else {
         its_info->set_ttl(_ttl);
@@ -2276,8 +2269,7 @@ void routing_manager_impl::expire_services(const boost::asio::ip::address& _addr
     for (auto& [service, instances] : its_expired_offers) {
         for (auto& instance : instances) {
             VSOMEIP_INFO_P << "for address: " << _address << " : delete service/instance " << hex4(service) << "." << hex4(instance)
-                           << " port [" << std::dec << _range.start_ << "," << _range.end_ << "] reliability=" << std::boolalpha
-                           << _reliable;
+                           << " port [" << _range.start_ << "," << _range.end_ << "] reliability=" << std::boolalpha << _reliable;
             del_routing_info(service, instance, true, true, true);
         }
     }
@@ -2421,11 +2413,11 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
             if (its_reliable && its_unreliable)
                 its_warning << "[";
             if (its_reliable)
-                its_warning << its_reliable->get_address().to_string() << ":" << std::dec << its_reliable->get_port();
+                its_warning << its_reliable->get_address().to_string() << ":" << its_reliable->get_port();
             if (its_reliable && its_unreliable)
                 its_warning << ", ";
             if (its_unreliable)
-                its_warning << its_unreliable->get_address().to_string() << ":" << std::dec << its_unreliable->get_port();
+                its_warning << its_unreliable->get_address().to_string() << ":" << its_unreliable->get_port();
             if (its_reliable && its_unreliable)
                 its_warning << "]";
             VSOMEIP_WARNING_P << its_warning.str();
@@ -2517,7 +2509,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
                 discovery_->update_remote_subscription(its_subscription);
 
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                             << hex4(_eventgroup) << "] from " << its_subscription->get_subscriber()->get_address() << ":" << std::dec
+                             << hex4(_eventgroup) << "] from " << its_subscription->get_subscriber()->get_address() << ":"
                              << its_subscription->get_subscriber()->get_port()
                              << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable")
                              << " was accepted. id=" << hex4(_id);
@@ -2588,7 +2580,7 @@ void routing_manager_impl::on_subscribe_nack(client_t _client, service_t _servic
             if (discovery_) {
                 discovery_->update_remote_subscription(its_subscription);
                 VSOMEIP_INFO << "REMOTE SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                             << hex4(_eventgroup) << "] from " << its_subscription->get_subscriber()->get_address() << ":" << std::dec
+                             << hex4(_eventgroup) << "] from " << its_subscription->get_subscriber()->get_address() << ":"
                              << its_subscription->get_subscriber()->get_port()
                              << (its_subscription->get_subscriber()->is_reliable() ? " reliable" : " unreliable")
                              << " was not accepted. id=" << hex4(_id);
@@ -2609,8 +2601,8 @@ return_code_e routing_manager_impl::check_error(const byte_t* _data, length_t /*
 
         uint8_t its_protocol_version = _data[VSOMEIP_PROTOCOL_VERSION_POS];
         if (its_protocol_version != VSOMEIP_PROTOCOL_VERSION) {
-            VSOMEIP_WARNING_P << "Received a message with unsupported protocol version 0x" << std::hex << std::setfill('0') << std::setw(2)
-                              << static_cast<int>(its_protocol_version) << " for service 0x" << hex4(its_service);
+            VSOMEIP_WARNING_P << "Received a message with unsupported protocol version 0x" << hex2(its_protocol_version)
+                              << " for service 0x" << hex4(its_service);
             return return_code_e::E_WRONG_PROTOCOL_VERSION;
         }
         if (_instance == 0xFFFF) {
@@ -2622,16 +2614,16 @@ return_code_e routing_manager_impl::check_error(const byte_t* _data, length_t /*
         auto its_info = find_service(its_service, _instance);
         if (its_info) {
             if (its_version != its_info->get_major()) {
-                VSOMEIP_WARNING_P << "Received a message with unsupported interface version 0x" << std::hex << std::setfill('0')
-                                  << std::setw(2) << static_cast<int>(its_version) << " for service 0x" << hex4(its_service);
+                VSOMEIP_WARNING_P << "Received a message with unsupported interface version 0x" << hex2(its_version) << " for service 0x"
+                                  << hex4(its_service);
                 return return_code_e::E_WRONG_INTERFACE_VERSION;
             }
         }
         uint8_t its_return_code = _data[VSOMEIP_RETURN_CODE_POS];
         if (its_return_code != static_cast<byte_t>(return_code_e::E_OK)) {
             // Request calls must to have return code E_OK set!
-            VSOMEIP_WARNING_P << "Received a message with unsupported return code 0x" << std::hex << std::setfill('0') << std::setw(2)
-                              << static_cast<int>(its_return_code) << " set for service 0x" << hex4(its_service);
+            VSOMEIP_WARNING_P << "Received a message with unsupported return code 0x" << hex2(its_return_code) << " set for service 0x"
+                              << hex4(its_service);
             return return_code_e::E_NOT_OK;
         }
     }
@@ -2771,8 +2763,8 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
                         }
                     }
                 } else {
-                    VSOMEIP_ERROR_P << "Unknown expired subscription " << std::dec << its_id << " for eventgroup [" << hex4(its_service)
-                                    << "." << hex4(its_instance) << "." << hex4(its_eventgroup) << "]";
+                    VSOMEIP_ERROR_P << "Unknown expired subscription " << its_id << " for eventgroup [" << hex4(its_service) << "."
+                                    << hex4(its_instance) << "." << hex4(its_eventgroup) << "]";
                 }
                 send_expired_subscription(its_offering_client, its_service, its_instance, its_eventgroup, clients, subscription->get_id());
             }
@@ -2780,12 +2772,12 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
             if (subscription->get_unreliable()) {
                 VSOMEIP_INFO << (_force ? "Removed" : "Expired") << " subscription [" << hex4(its_service) << "." << hex4(its_instance)
                              << "." << hex4(its_eventgroup) << "] unreliable from " << subscription->get_unreliable()->get_address() << ":"
-                             << std::dec << subscription->get_unreliable()->get_port();
+                             << subscription->get_unreliable()->get_port();
             }
             if (subscription->get_reliable()) {
                 VSOMEIP_INFO << (_force ? "Removed" : "Expired") << " subscription [" << hex4(its_service) << "." << hex4(its_instance)
                              << "." << hex4(its_eventgroup) << "] reliable from " << subscription->get_reliable()->get_address() << ":"
-                             << std::dec << subscription->get_reliable()->get_port();
+                             << subscription->get_reliable()->get_port();
             }
         }
     }
@@ -2806,7 +2798,7 @@ void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const
         {
             std::scoped_lock its_lock(last_resume_mutex_);
             if (last_resume_ != std::chrono::steady_clock::time_point::min()) {
-                its_last_resume << " | " << std::dec
+                its_last_resume << " | "
                                 << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - last_resume_).count()
                                 << "s";
             }
@@ -2850,8 +2842,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                 const client_t its_stored_client(std::get<2>(found_instance->second));
                 if (its_stored_major == _major && its_stored_minor == _minor && its_stored_client == _client) {
                     VSOMEIP_WARNING_P << "Application: " << hex4(_client) << " is offering: [" << hex4(_service) << "." << hex4(_instance)
-                                      << "." << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
-                                      << "] offered previously by itself.";
+                                      << "." << static_cast<std::uint32_t>(_major) << "." << _minor << "] offered previously by itself.";
                     return false;
                 } else if (its_stored_major == _major && its_stored_minor == _minor && its_stored_client != _client) {
                     // check if previous offering application is still alive
@@ -2867,9 +2858,9 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                                 } else {
                                     VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client)
                                                     << " is trying to offer [" << hex4(_service) << "." << hex4(_instance) << "."
-                                                    << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
+                                                    << static_cast<std::uint32_t>(_major) << "." << _minor
                                                     << "] current pending offer by application: " << hex4(its_stored_client) << ": ["
-                                                    << hex4(_service) << "." << hex4(_instance) << "." << std::dec
+                                                    << hex4(_service) << "." << hex4(_instance) << "."
                                                     << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor << "]";
                                     return false;
                                 }
@@ -2884,31 +2875,30 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                             if (stub_ && stub_->send_ping(its_stored_client)) {
                                 pending_offers_[_service][_instance] = std::make_tuple(_major, _minor, _client, its_stored_client);
                                 VSOMEIP_WARNING << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                                                << std::dec << int(_major) << "." << std::dec << _minor
+                                                << int(_major) << "." << _minor
                                                 << "] is now pending. Waiting for pong from application: " << hex4(its_stored_client);
                                 return false;
                             }
                         } else if (its_stored_client == host_->get_client()) {
                             VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
-                                            << hex4(_service) << "." << hex4(_instance) << "." << std::dec
-                                            << static_cast<std::uint32_t>(_major) << "." << _minor
-                                            << "] offered previously by routing manager stub itself with application: "
+                                            << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "."
+                                            << _minor << "] offered previously by routing manager stub itself with application: "
                                             << hex4(its_stored_client) << ": [" << hex4(_service) << "." << hex4(_instance) << "."
-                                            << std::dec << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor
+                                            << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor
                                             << "] which is still alive";
                             return false;
                         }
                     } else {
-                        VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec
-                                       << int(_major) << "." << std::dec << _minor << "] client already pinged!";
+                        VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major)
+                                       << "." << _minor << "] client already pinged!";
                         return false;
                     }
                 } else {
                     VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
-                                    << hex4(_service) << "." << hex4(_instance) << "." << std::dec << static_cast<std::uint32_t>(_major)
-                                    << "." << _minor << "] offered previously by application: " << hex4(its_stored_client) << ": ["
-                                    << hex4(_service) << "." << hex4(_instance) << "." << std::dec
-                                    << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor << "]";
+                                    << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "."
+                                    << _minor << "] offered previously by application: " << hex4(its_stored_client) << ": ["
+                                    << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(its_stored_major)
+                                    << "." << its_stored_minor << "]";
                     return false;
                 }
             }
@@ -2919,7 +2909,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
             local_services_[_service][_instance] = std::make_tuple(_major, _minor, _client);
         } else {
             VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer [" << hex4(_service)
-                            << "." << hex4(_instance) << "." << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor << "]"
+                            << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor << "]"
                             << "] already offered remotely";
             return false;
         }
@@ -3072,7 +3062,7 @@ void routing_manager_impl::handle_client_error(client_t _client) {
                 auto [major, minor, new_client, old_client] = instance_iter->second;
                 if (old_client == _client) {
                     VSOMEIP_WARNING << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "."
-                                    << hex4(instance_iter->first) << ":" << std::dec << std::uint32_t(major) << "." << minor
+                                    << hex4(instance_iter->first) << ":" << std::uint32_t(major) << "." << minor
                                     << "] is not pending anymore as application: " << hex4(old_client) << " is dead. Offering again!";
                     its_offers.push_front(std::make_tuple(new_client, service_iter->first, instance_iter->first, major, minor));
                     instance_iter = service_iter->second.erase(instance_iter);
@@ -3817,13 +3807,12 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
     clock_gettime(CLOCK_MONOTONIC, &monots);
 
     VSOMEIP_INFO << "memory usage: "
-                 << "VmSize " << std::dec << its_size * its_pagesize << " kB, "
-                 << "VmRSS " << std::dec << its_rsssize * its_pagesize << " kB, "
-                 << "shared pages " << std::dec << its_sharedpages * its_pagesize << " kB, "
-                 << "text " << std::dec << its_text * its_pagesize << " kB, "
-                 << "data " << std::dec << its_data * its_pagesize << " kB "
-                 << "| monotonic time: " << std::dec << monots.tv_sec << "." << std::dec << monots.tv_nsec << " cpu time: " << std::dec
-                 << cputs.tv_sec << "." << std::dec << cputs.tv_nsec;
+                 << "VmSize " << its_size * its_pagesize << " kB, "
+                 << "VmRSS " << its_rsssize * its_pagesize << " kB, "
+                 << "shared pages " << its_sharedpages * its_pagesize << " kB, "
+                 << "text " << its_text * its_pagesize << " kB, "
+                 << "data " << its_data * its_pagesize << " kB "
+                 << "| monotonic time: " << monots.tv_sec << "." << monots.tv_nsec << " cpu time: " << cputs.tv_sec << "." << cputs.tv_nsec;
 #endif
 
     {
@@ -3913,7 +3902,7 @@ void routing_manager_impl::send_subscription(const client_t _offering_client, co
 
                                            VSOMEIP_INFO << "SUBSCRIBE(" << hex4(its_client) << "): [" << hex4(_service) << "."
                                                         << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(ANY_EVENT) << ":"
-                                                        << std::dec << static_cast<uint16_t>(_major) << "] "
+                                                        << static_cast<uint16_t>(_major) << "] "
                                                         << (_is_accepted ? " accepted" : "not accepted");
 
                                        } catch (const std::exception& e) {
@@ -4160,13 +4149,13 @@ void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code co
                             its_subscribed = static_cast<std::uint16_t>(its_event->get_subscribers().size());
                         }
                     }
-                    its_log << hex4(service) << "." << hex4(instance) << "." << hex4(method) << ": #=" << std::dec << stats.counter_
-                            << " L=" << stats.avg_length_ << " S=" << std::dec << its_subscribed << ", ";
+                    its_log << hex4(service) << "." << hex4(instance) << "." << hex4(method) << ": #=" << stats.counter_
+                            << " L=" << stats.avg_length_ << " S=" << its_subscribed << ", ";
                 }
             }
 
             if (ignored_statistics_counter_) {
-                its_log << std::dec << " #ignored: " << ignored_statistics_counter_;
+                its_log << " #ignored: " << ignored_statistics_counter_;
             }
 
             message_statistics_.clear();
@@ -4236,7 +4225,7 @@ void routing_manager_impl::remove_subscriptions(port_t _local_port, const boost:
 
                     VSOMEIP_INFO_P << "Removing subscription to [" << hex4(its_info->get_service()) << "." << hex4(its_info->get_instance())
                                    << "." << hex4(its_info->get_eventgroup()) << "] from target " << its_definition->get_address() << ":"
-                                   << std::dec << its_definition->get_port() << " reliable=true";
+                                   << its_definition->get_port() << " reliable=true";
 
                     on_remote_unsubscribe(its_subscription);
                 }

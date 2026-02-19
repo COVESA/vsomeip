@@ -153,7 +153,7 @@ bool application_impl::init() {
                 VSOMEIP_INFO << "Using external security implementation!";
                 auto its_result = configuration_->get_security()->initialize();
                 if (VSOMEIP_SEC_POLICY_OK != its_result)
-                    VSOMEIP_ERROR << "Initializing external security implementation failed (" << std::dec << its_result << ')';
+                    VSOMEIP_ERROR << "Initializing external security implementation failed (" << its_result << ')';
             }
         } else {
             VSOMEIP_INFO << "Using internal security implementation!";
@@ -259,7 +259,7 @@ bool application_impl::init() {
         std::shared_ptr<cfg::trace> its_trace_configuration = its_configuration->get_trace();
         its_connector->configure(its_trace_configuration);
 
-        VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed") << ", " << hex4(client_) << ") is initialized (" << std::dec
+        VSOMEIP_INFO << "Application(" << (name_ != "" ? name_ : "unnamed") << ", " << hex4(client_) << ") is initialized ("
                      << max_dispatchers_ << ", " << max_dispatch_time_ << ").";
 
         is_initialized_ = true;
@@ -345,8 +345,7 @@ void application_impl::start() {
             io_.restart();
         }
 
-        VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << hex4(client_) << ") using " << std::dec << io_thread_count
-                     << " threads"
+        VSOMEIP_INFO << "Starting vsomeip application \"" << name_ << "\" (" << hex4(client_) << ") using " << io_thread_count << " threads"
 #if defined(__linux__) || defined(__QNX__)
                      << " I/O nice " << io_thread_nice_level
 #endif
@@ -376,8 +375,8 @@ void application_impl::start() {
                 utility::set_thread_niceness(io_thread_nice_level);
 #endif
 
-                VSOMEIP_INFO << "Started thread " << hex4(client_) << "_io" << std::setw(2) << i + 1 << ", application '" << name_
-                             << "', id " << std::hex << std::this_thread::get_id()
+                VSOMEIP_INFO << "Started thread " << hex4(client_) << "_io" << hex2(static_cast<uint8_t>(i + 1)) << ", application '"
+                             << name_ << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                              << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -496,7 +495,7 @@ void application_impl::start() {
         VSOMEIP_ERROR_P << "Stopping dispatchers, caught exception: " << e.what();
     }
 
-    VSOMEIP_INFO_P << "Join IO threads for app(" << name_ << ", " << hex4(client_) << ")";
+    VSOMEIP_INFO << "Join IO threads for app(" << name_ << ", " << hex4(client_) << ")";
     try {
         std::unique_lock its_lock_start_stop{start_stop_mutex_};
         auto its_threads = io_threads_;
@@ -1353,7 +1352,7 @@ void application_impl::offer_event(service_t _service, instance_t _instance, eve
             configuration_->get_event_update_properties(_service, _instance, _notifier, _cycle, _change_resets_cycle, _update_on_change);
 
             VSOMEIP_INFO_P << "Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
-                           << "] uses configured cycle time " << std::dec << _cycle.count() << "ms";
+                           << "] uses configured cycle time " << _cycle.count() << "ms";
         }
 
         routing_->register_event(client_, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle, _change_resets_cycle,
@@ -1927,8 +1926,8 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
                                 VSOMEIP_INFO << "Won't start new dispatcher thread as Client=" << hex4(get_client()) << " is shutting down";
                             }
                         } else {
-                            VSOMEIP_ERROR << "Maximum number of dispatchers exceeded. Configuration: Max dispatchers: " << std::dec
-                                          << max_dispatchers_ << " Max dispatch time: " << std::dec << max_dispatch_time_;
+                            VSOMEIP_ERROR << "Maximum number of dispatchers exceeded. Configuration: Max dispatchers: " << max_dispatchers_
+                                          << " Max dispatch time: " << max_dispatch_time_;
                         }
                         dispatcher_mutex_.unlock();
                         break;

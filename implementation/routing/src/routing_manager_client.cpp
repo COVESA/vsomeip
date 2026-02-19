@@ -682,8 +682,7 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
                 its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
             } else {
                 VSOMEIP_ERROR_P << "No target available to send subscription. Client=0x" << hex4(_client) << " service=" << hex4(_service)
-                                << "." << hex4(_instance) << "." << std::setw(2) << static_cast<std::uint16_t>(_major)
-                                << " event=" << hex4(_event);
+                                << "." << hex4(_instance) << "." << hex2(_major) << " event=" << hex4(_event);
                 // if we can not create a connection with this client -> there should be something wrong with the routing info,
                 // but we assume the service is offered -> this is an error and we should handle it
                 handle_client_error(its_target_client);
@@ -855,7 +854,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
                                << " thread=" << std::hex << std::this_thread::get_id();
             }
         } else {
-            VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << ": message too short to log: " << std::dec << _size;
+            VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << ": message too short to log: " << _size;
         }
     }
     if (_size > VSOMEIP_MESSAGE_TYPE_POS) {
@@ -1286,7 +1285,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                                  << hex4(its_instance) << "." << hex4(its_eventgroup) << ":" << hex4(its_event) << ":"
                                                  << static_cast<uint16_t>(its_major) << "] "
                                                  << (_subscription_accepted ? "accepted." : "not accepted.")
-                                                 << " id=" << hex4(its_pending_id) << std::dec << " subscribers=" << its_count;
+                                                 << " id=" << hex4(its_pending_id) << " subscribers=" << its_count;
                                 });
                     } else {
                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event, its_pending_id);
@@ -1347,7 +1346,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
 
                                     VSOMEIP_INFO << "SUBSCRIBE(" << hex4(its_client) << "): [" << hex4(its_service) << "."
                                                  << hex4(its_instance) << "." << hex4(its_eventgroup) << ":" << hex4(its_event) << ":"
-                                                 << std::dec << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
+                                                 << static_cast<uint16_t>(its_major) << "] " << std::boolalpha
                                                  << (its_pending_id != PENDING_SUBSCRIPTION_ID)
                                                  << (_subscription_accepted ? " accepted" : "not accepted");
                                 });
@@ -1356,8 +1355,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                     }
                 }
                 VSOMEIP_INFO << "SUBSCRIBE(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                             << hex4(its_eventgroup) << ":" << hex4(its_event) << ":" << std::dec << static_cast<uint16_t>(its_major)
-                             << "] " << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID);
+                             << hex4(its_eventgroup) << ":" << hex4(its_event) << ":" << static_cast<uint16_t>(its_major) << "] "
+                             << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID);
             } else {
                 VSOMEIP_ERROR_P << "Subscribe command deserialization failed (" << static_cast<int>(its_error) << ")";
             }
@@ -1393,7 +1392,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                 }
                 VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
                              << hex4(its_eventgroup) << "." << hex4(its_event) << "] id=" << hex4(its_pending_id)
-                             << " subscribers=" << std::dec << its_remote_subscriber_count;
+                             << " subscribers=" << its_remote_subscriber_count;
             } else
                 VSOMEIP_ERROR_P << "Unsubscribe command deserialization failed (" << static_cast<int>(its_error) << ")";
             break;
@@ -1427,7 +1426,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                 }
                 VSOMEIP_INFO << "EXPIRED SUBSCRIPTION(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance)
                              << "." << hex4(its_eventgroup) << "." << hex4(its_event) << "] " << std::boolalpha
-                             << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " " << std::dec << its_remote_subscriber_count;
+                             << (its_pending_id != PENDING_SUBSCRIPTION_ID) << " " << its_remote_subscriber_count;
             } else
                 VSOMEIP_ERROR_P << "Expire deserialization failed (" << static_cast<int>(its_error) << ")";
             break;
@@ -1599,7 +1598,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
             protocol::error_e its_command_error;
             its_command.deserialize(its_buffer, its_command_error);
             if (its_command_error != protocol::error_e::ERROR_OK) {
-                VSOMEIP_ERROR_P << "Config command deserialization failed (" << std::dec << static_cast<int>(its_command_error) << ")";
+                VSOMEIP_ERROR_P << "Config command deserialization failed (" << static_cast<int>(its_command_error) << ")";
                 break;
             }
             if (its_command.contains("hostname")) {
@@ -1694,7 +1693,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 if (client_t old_client = get_guest_by_address(its_address, its_port);
                     old_client != VSOMEIP_CLIENT_UNSET && old_client != its_client) {
                     VSOMEIP_INFO_P << "Old client 0x" << hex4(old_client) << " removed due to new client 0x" << hex4(its_client) << " @ "
-                                   << std::dec << its_address.to_string() + ":" << its_port;
+                                   << its_address.to_string() + ":" << its_port;
 
                     // also removes guest
                     remove_local(old_client, true);
@@ -1717,7 +1716,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 { send_pending_subscriptions(its_service, its_instance, its_major); }
                 host_->on_availability(its_service, its_instance, availability_state_e::AS_AVAILABLE, its_major, its_minor);
                 VSOMEIP_INFO << "ON_AVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
-                             << std::dec << int(its_major) << "." << std::dec << its_minor << "]";
+                             << int(its_major) << "." << its_minor << "]";
             }
             break;
         }
@@ -1744,7 +1743,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 on_stop_offer_service(its_service, its_instance, its_major, its_minor);
                 host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
                 VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
-                             << std::dec << static_cast<int>(its_major) << "." << std::dec << its_minor << "]";
+                             << static_cast<int>(its_major) << "." << its_minor << "]";
             }
             break;
         }
@@ -1833,7 +1832,7 @@ void routing_manager_client::register_application() {
         auto its_routing_address(its_configuration->get_routing_host_address());
         auto its_routing_port(its_configuration->get_routing_host_port());
         VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " Registering to routing manager @ " << its_routing_address.to_string()
-                       << ":" << std::dec << its_routing_port;
+                       << ":" << its_routing_port;
     }
 
     protocol::register_application_command its_command;

@@ -47,8 +47,7 @@ endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm, bo
 
     local_port_ = port_t(_configuration->get_routing_host_port() + 1);
     if (!is_local_routing_) {
-        VSOMEIP_INFO_P << "Connecting to other clients from " << configuration_->get_routing_host_address().to_string() << ":" << std::dec
-                       << local_port_;
+        VSOMEIP_INFO << "Connecting to other clients from " << configuration_->get_routing_host_address().to_string() << ":" << local_port_;
     }
 }
 
@@ -143,7 +142,7 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                         *_reliable_known = true;
                     } else {
                         VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                        << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
+                                        << static_cast<std::uint32_t>(_major) << "." << _minor
                                         << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
                                         << " new: " << _reliable_address.to_string() << ":" << _reliable_port;
                     }
@@ -157,7 +156,7 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                         *_unreliable_known = true;
                     } else {
                         VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                        << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
+                                        << static_cast<std::uint32_t>(_major) << "." << _minor
                                         << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
                                         << " new: " << _unreliable_address.to_string() << ":" << _unreliable_port;
                     }
@@ -563,11 +562,11 @@ bool endpoint_manager_impl::supports_selective(service_t _service, instance_t _i
 void endpoint_manager_impl::print_status() const {
     {
         std::scoped_lock const its_lock{routing_endpoint_mtx_};
-        VSOMEIP_INFO << "status local routing endpoints: " << std::dec << routing_endpoints_.size();
+        VSOMEIP_INFO << "status local routing endpoints: " << routing_endpoints_.size();
         for (const auto& [_, ep] : routing_endpoints_) {
             ep->print_status();
         }
-        VSOMEIP_INFO << "status pending local routing endpoints: " << std::dec << pending_routing_endpoints_.size();
+        VSOMEIP_INFO << "status pending local routing endpoints: " << pending_routing_endpoints_.size();
     }
     // local client endpoints
     endpoint_manager_base::print_status();
@@ -594,7 +593,7 @@ void endpoint_manager_impl::print_status() const {
                 }
             }
         }
-        VSOMEIP_INFO << "status end remote client endpoints: " << std::dec << num_remote_client_endpoints;
+        VSOMEIP_INFO << "status end remote client endpoints: " << num_remote_client_endpoints;
 
         VSOMEIP_INFO << "status start server endpoints:";
         std::uint32_t num_server_endpoints(1);
@@ -606,7 +605,7 @@ void endpoint_manager_impl::print_status() const {
                 num_server_endpoints++;
             }
         }
-        VSOMEIP_INFO << "status end server endpoints:" << std::dec << num_server_endpoints;
+        VSOMEIP_INFO << "status end server endpoints:" << num_server_endpoints;
     }
 }
 
@@ -665,7 +664,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
         {
             if (is_local_routing_) {
                 try {
-                    VSOMEIP_INFO_P << "Routing root @ " << its_endpoint_path;
+                    VSOMEIP_INFO << "Routing root @ " << its_endpoint_path;
 
                     auto its_acceptor = std::make_shared<local_acceptor_uds_impl>(
                             io_, boost::asio::local::stream_protocol::endpoint(its_endpoint_path), configuration_);
@@ -690,7 +689,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 #else
         try {
             port_t its_port = VSOMEIP_INTERNAL_BASE_PORT;
-            VSOMEIP_INFO_P << "Routing root @ " << std::dec << its_port;
+            VSOMEIP_INFO << "Routing root @ " << its_port;
             auto const its_address = boost::asio::ip::tcp::v4();
             auto its_acceptor = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
 
@@ -716,7 +715,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
             auto its_address = configuration_->get_routing_host_address();
             auto its_port = configuration_->get_routing_host_port();
 
-            VSOMEIP_INFO_P << "Routing root @ " << its_address.to_string() << ":" << std::dec << its_port;
+            VSOMEIP_INFO << "Routing root @ " << its_address.to_string() << ":" << its_port;
 
             auto its_acceptor = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
             if (its_acceptor) {
@@ -1076,8 +1075,8 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
                 if (found_service_info) {
                     found_service_info->set_endpoint(its_endpoint, _reliable);
                 }
-                VSOMEIP_INFO_P << its_endpoint_def->get_address().to_string() << ":" << std::dec << its_endpoint_def->get_port()
-                               << " reliable: " << _reliable << " using local port: " << std::dec << its_local_port;
+                VSOMEIP_INFO_P << its_endpoint_def->get_address().to_string() << ":" << its_endpoint_def->get_port()
+                               << " reliable: " << _reliable << " using local port: " << its_local_port;
             }
         }
     }
@@ -1141,9 +1140,8 @@ void endpoint_manager_impl::log_client_states() const {
     // NOTE: limit is important, do *NOT* want an arbitrarily big string!
     size_t its_max(std::min(size_t(5), its_client_queue_sizes.size()));
     for (size_t i = 0; i < its_max; i++) {
-        its_log << std::hex << std::setfill('0') << std::setw(4) << std::get<0>(its_client_queue_sizes[i].first).to_string() << ":"
-                << std::dec << std::get<1>(its_client_queue_sizes[i].first) << "("
-                << (std::get<2>(its_client_queue_sizes[i].first) ? "tcp" : "udp") << "):" << std::dec << its_client_queue_sizes[i].second;
+        its_log << std::get<0>(its_client_queue_sizes[i].first).to_string() << ":" << std::get<1>(its_client_queue_sizes[i].first) << "("
+                << (std::get<2>(its_client_queue_sizes[i].first) ? "tcp" : "udp") << "):" << its_client_queue_sizes[i].second;
         if (i < its_max - 1)
             its_log << ", ";
     }
@@ -1178,8 +1176,8 @@ void endpoint_manager_impl::log_server_states() const {
     // NOTE: limit is important, do *NOT* want an arbitrarily big string!
     size_t its_max(std::min(size_t(5), its_client_queue_sizes.size()));
     for (size_t i = 0; i < its_max; i++) {
-        its_log << std::dec << its_client_queue_sizes[i].first.first << "(" << (its_client_queue_sizes[i].first.second ? "tcp" : "udp")
-                << "):" << std::dec << its_client_queue_sizes[i].second;
+        its_log << its_client_queue_sizes[i].first.first << "(" << (its_client_queue_sizes[i].first.second ? "tcp" : "udp")
+                << "):" << its_client_queue_sizes[i].second;
         if (i < its_max - 1)
             its_log << ", ";
     }
@@ -1476,8 +1474,7 @@ std::string endpoint_manager_impl::get_client_host() const {
 }
 
 void endpoint_manager_impl::flush_boardnet_endpoint_queues() const {
-    VSOMEIP_INFO << "emi::" << __func__ << ": Start endpoints flush for client " << std::hex << std::setfill('0') << std::setw(4)
-                 << get_client();
+    VSOMEIP_INFO_P << "Start endpoints flush for client 0x" << hex4(get_client());
     auto client_eps = [this] {
         std::scoped_lock its_lock(endpoint_mutex_);
         return client_endpoints_;
@@ -1504,7 +1501,6 @@ void endpoint_manager_impl::flush_boardnet_endpoint_queues() const {
         }
     }
 
-    VSOMEIP_INFO << "emi::" << __func__ << ": Finished endpoints flush for client " << std::hex << std::setfill('0') << std::setw(4)
-                 << get_client();
+    VSOMEIP_INFO_P << "Finished endpoints flush for client 0x" << hex4(get_client());
 }
 } // namespace vsomeip_v3

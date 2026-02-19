@@ -17,6 +17,7 @@
 #include "../include/defines.hpp"
 #include "../../configuration/include/trace.hpp"
 #include "../../utility/include/bithelper.hpp"
+#include "../../utility/include/utility.hpp"
 
 #if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
 #include <utils/Log.h>
@@ -263,7 +264,7 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
             ss << its_channel.first << ":";
 #endif
             for (int i = 0; i < _header_size; i++) {
-                ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_header[i]);
+                ss << ' ' << hex2(_header[i]);
             }
 
             if (ftype.second) {
@@ -272,7 +273,7 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
             }
 
             for (int i = 0; i < its_data_size; i++) {
-                ss << ' ' << std::setfill('0') << std::setw(2) << std::hex << int(_data[i]);
+                ss << ' ' << hex2(_data[i]);
             }
 #if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
             std::string app = runtime::get_property("LogApplication");

@@ -507,8 +507,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         return;
     } else if (_error == boost::asio::error::broken_pipe) {
 
-        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                          << get_remote_information() << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information()
+                          << " endpoint > " << this << " socket state > " << to_string(state_.load());
 
         if (!ensure_connected(_error)) {
             return;
@@ -532,10 +532,10 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
                     its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
                     its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
                 }
-                VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                                  << get_remote_information() << " " << std::dec << queue_.size() << " " << std::dec << queue_size_ << " ("
-                                  << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
-                                  << "] endpoint > " << this << " socket state > " << to_string(state_.load());
+                VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information()
+                                  << " " << queue_.size() << " " << queue_size_ << " (" << hex4(its_client) << "): [" << hex4(its_service)
+                                  << "." << hex4(its_method) << "." << hex4(its_session) << "] endpoint > " << this << " socket state > "
+                                  << to_string(state_.load());
             }
         }
         if (!stopping) {
@@ -547,8 +547,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission || _error == boost::asio::error::not_socket) {
 
-        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                          << get_remote_information() << " endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information()
+                          << " endpoint > " << this << " socket state > " << to_string(state_.load());
 
         if (!ensure_connected(_error)) {
             return;
@@ -564,9 +564,8 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::operation_aborted) {
 
-        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value()
-                          << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                          << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << "), remote: " << get_remote_information()
+                          << ", endpoint > " << this << " socket state > " << to_string(state_.load());
 
         if (!ensure_connected(_error)) {
             return;
@@ -585,10 +584,10 @@ void client_endpoint_impl<Protocol>::send_cbk(boost::system::error_code const& _
             its_client = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_CLIENT_POS_MIN]);
             its_session = bithelper::read_uint16_be(&(*_sent_msg)[VSOMEIP_SESSION_POS_MIN]);
         }
-        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value()
-                          << "), remote: " << get_remote_information() << " " << queue_.size() << " " << queue_size_ << " ("
-                          << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
-                          << "] endpoint > " << this << " socket state > " << to_string(state_.load());
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << "), remote: " << get_remote_information()
+                          << " " << queue_.size() << " " << queue_size_ << " (" << hex4(its_client) << "): [" << hex4(its_service) << "."
+                          << hex4(its_method) << "." << hex4(its_session) << "] endpoint > " << this << " socket state > "
+                          << to_string(state_.load());
         print_status();
     }
 
@@ -757,7 +756,7 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
             }
         }
     }
-    VSOMEIP_ERROR_P << "Dropping to big message (" << std::dec << _size
+    VSOMEIP_ERROR_P << "Dropping to big message (" << _size
                     << " Bytes). Maximum allowed message size is: " << endpoint_impl<Protocol>::max_message_size_ << " Bytes.";
     return endpoint_impl<Protocol>::cms_ret_e::MSG_TOO_BIG;
 }
@@ -784,9 +783,9 @@ bool client_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
-        VSOMEIP_ERROR_P << "Queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
+        VSOMEIP_ERROR_P << "Queue size limit (" << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
                         << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "] "
-                        << "queue_size: " << std::dec << queue_size_ << " data size: " << _size;
+                        << "queue_size: " << queue_size_ << " data size: " << _size;
         return false;
     }
     return true;

@@ -117,13 +117,15 @@ public:
     }
 
     static void set_thread_niceness(int _nice) noexcept;
-    class Hex4 {
+    class Hex {
     public:
-        explicit constexpr Hex4(std::uint16_t _v) noexcept : value_(_v) { }
-        std::uint16_t get() const { return value_; }
+        constexpr Hex(uint32_t _v, uint16_t _width) noexcept : value_(_v), width_(_width) { }
+        uint32_t get() const { return value_; }
+        uint16_t get_width() const { return width_; }
 
     private:
-        std::uint16_t value_;
+        uint32_t value_;
+        uint16_t width_;
     };
 
 private:
@@ -146,15 +148,23 @@ private:
     static std::map<std::string, data_t>& get_utility_data();
 };
 
-inline utility::Hex4 hex4(std::uint16_t _v) {
-    return utility::Hex4(_v);
+inline utility::Hex hex2(uint8_t _v) {
+    return utility::Hex(_v, 2);
 }
 
-inline std::ostream& operator<<(std::ostream& os, utility::Hex4 v) {
+inline utility::Hex hex4(uint16_t _v) {
+    return utility::Hex(_v, 4);
+}
+
+inline utility::Hex hex8(uint32_t _v) {
+    return utility::Hex(_v, 8);
+}
+
+inline std::ostream& operator<<(std::ostream& os, utility::Hex v) {
     auto flags = os.flags();
     auto fill = os.fill();
 
-    os << std::hex << std::setfill('0') << std::setw(4) << v.get();
+    os << std::hex << std::setfill('0') << std::setw(v.get_width()) << v.get();
     os.flags(flags);
     os.fill(fill);
     return os;

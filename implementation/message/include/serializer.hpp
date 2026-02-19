@@ -35,9 +35,6 @@ public:
 
     virtual void reset();
 
-#ifdef VSOMEIP_DEBUGGING
-    virtual void show();
-#endif
 private:
 #ifdef _WIN32
 #pragma warning(push)

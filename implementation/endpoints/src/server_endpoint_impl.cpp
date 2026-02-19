@@ -374,8 +374,8 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
         size_t its_error_queue_size{_endpoint_data.queue_size_};
         recalculate_queue_size(_endpoint_data);
 
-        VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << std::dec << its_error_queue_size << "). Recalculating it ("
-                          << std::dec << _endpoint_data.queue_size_ << ")";
+        VSOMEIP_WARNING_P << "Detected possible queue size underflow (" << its_error_queue_size << "). Recalculating it ("
+                          << _endpoint_data.queue_size_ << ")";
     }
 
     if (_endpoint_data.queue_size_ + _size > endpoint_impl<Protocol>::queue_limit_
@@ -397,9 +397,9 @@ bool server_endpoint_impl<Protocol>::check_queue_limit(const uint8_t* _data, std
             its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
             its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
         }
-        VSOMEIP_ERROR_P << "Queue size limit (" << std::dec << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
+        VSOMEIP_ERROR_P << "Queue size limit (" << endpoint_impl<Protocol>::queue_limit_ << ") reached. Dropping message ("
                         << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]"
-                        << " queue_size: " << std::dec << _endpoint_data.queue_size_ << " data size: " << _size;
+                        << " queue_size: " << _endpoint_data.queue_size_ << " data size: " << _size;
         return false;
     }
     return true;
@@ -550,10 +550,9 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
         parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
-        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << std::dec << _error.value() << ") "
-                          << get_remote_information(it) << " " << its_data.queue_.size() << " " << its_data.queue_size_ << " ("
-                          << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session)
-                          << "]  endpoint -> " << this;
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information(it) << " "
+                          << its_data.queue_.size() << " " << its_data.queue_size_ << " (" << hex4(its_client) << "): ["
+                          << hex4(its_service) << "." << hex4(its_method) << "." << hex4(its_session) << "]  endpoint -> " << this;
         cancel_dispatch_timer(it);
         targets_.erase(it);
     }

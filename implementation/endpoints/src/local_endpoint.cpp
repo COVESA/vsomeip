@@ -467,15 +467,14 @@ bool local_endpoint::is_allowed() {
     if (config->is_security_enabled()) {
         if (!config->check_routing_credentials(peer_, &sec_client_)) {
             VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << hex4(peer_)
-                              << " uid/gid= " << std::dec << sec_client_.user << "/" << sec_client_.group
+                              << " uid/gid= " << sec_client_.user << "/" << sec_client_.group
                               << " because passed credentials do not match with routing manager credentials! " << status_unlock();
             return end();
         }
 
         if (!config->get_policy_manager()->check_credentials(peer_, &sec_client_)) {
             VSOMEIP_WARNING_P << "vSomeIP Security: Client 0x" << hex4(own_) << " received client credentials from client 0x" << hex4(peer_)
-                              << " which violates the security policy : uid/gid=" << std::dec << sec_client_.user << "/"
-                              << sec_client_.group;
+                              << " which violates the security policy : uid/gid=" << sec_client_.user << "/" << sec_client_.group;
             return end();
         }
     } else {

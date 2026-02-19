@@ -297,7 +297,7 @@ bool eventgroupinfo::is_remote_subscription_limit_reached(const std::shared_ptr<
         auto find_address = remote_subscribers_count_.find(its_address);
         if (find_address != remote_subscribers_count_.end()) {
             if (find_address->second >= max_remote_subscribers_) {
-                VSOMEIP_WARNING << "Remote subscriber limit [" << std::dec << static_cast<uint32_t>(max_remote_subscribers_) << "] to ["
+                VSOMEIP_WARNING << "Remote subscriber limit [" << static_cast<uint32_t>(max_remote_subscribers_) << "] to ["
                                 << hex4(service_) << "." << hex4(instance_) << "." << hex4(eventgroup_) << "]"
                                 << " reached for remote address: " << its_address.to_string() << " rejecting subscription!";
                 return true;

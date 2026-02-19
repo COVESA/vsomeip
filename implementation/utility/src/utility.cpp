@@ -331,7 +331,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
                    & its_client_mask); // set the diagnosis address bits to zero again
         if (increase_count++ == its_max_num_clients) {
             VSOMEIP_ERROR_P << "No free client IDs left! Max amount of possible concurrent active vsomeip "
-                            << "applications reached (" << std::dec << r->second.used_clients_.size() << ").";
+                            << "applications reached (" << r->second.used_clients_.size() << ").";
             return VSOMEIP_CLIENT_UNSET;
         }
     } while (r->second.used_clients_.find(r->second.next_client_) != r->second.used_clients_.end()
