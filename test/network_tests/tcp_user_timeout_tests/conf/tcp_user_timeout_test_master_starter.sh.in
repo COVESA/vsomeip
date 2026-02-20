@@ -1,0 +1,93 @@
+#!/bin/bash -x
+
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+# Whether the test failed.
+FAIL=0
+
+# File to be created by the script when the socket queue is filled
+SOCKET_QUEUE_FILLED_FILE="$(pwd)/socket_queue_filled.flag"
+
+# File to be created by the client when its connection times out
+TIMEOUT_FILE="$(pwd)/connection_timeout.flag"
+
+# File to be created by the client when it finishes its execution
+SHUTDOWN_FILE="$(pwd)/shutdown_test.flag"
+
+# Remove any existing file before checking
+rm -f *.flag
+
+# Start the service.
+export VSOMEIP_APPLICATION_NAME="service-app"
+export VSOMEIP_CONFIGURATION=tcp_user_timeout_test_service.json
+./tcp_user_timeout_test_service &
+echo "Started the service app."
+
+# Start the client.
+export VSOMEIP_APPLICATION_NAME="client-app"
+export VSOMEIP_CONFIGURATION=tcp_user_timeout_test_client.json
+./tcp_user_timeout_test_client &
+echo "Started the client app."
+
+# Store the size of the vsomeip host socket queue
+SEND_Q=""
+
+echo "Starting the monitoring of the network state."
+
+# Continuously monitor the size of the socket queue
+# Netstat will print information about the tcp connections, namely their socket queue.
+# The awk command identifies which is the connection between vsomeip host and client,
+# and retrieves its socket queue size, in order to pause the tcp communications when
+# the queue has some packets in it
+while true; do
+    SEND_Q=$(netstat -tnp 2>/dev/null | awk -v la="127.0.0.1:31492" -v fa="127.0.0.2:31493" '$4 == la && $5 == fa { print $3 }')
+
+    # When queue has some bytes in it, pause the other container
+    if ((SEND_Q > 1000))
+    then
+        echo "Send queue with more than 1000 bytes.";
+        break;
+    else
+        sleep 0.01;
+    fi
+done
+
+# Create file to notify service that the socket queue is filled and stop notify
+touch $SOCKET_QUEUE_FILLED_FILE
+
+echo "Suspending tcp communication."
+
+# Tc command to interrupt all communication to slave container
+tc qdisc add dev lo root handle 1: prio
+tc filter add dev lo parent 1: protocol all u32 \
+        match u32 0 0 \
+        action drop
+
+# When the timeout file is created, restore communication
+while true; do
+    if [ -f "$TIMEOUT_FILE" ]; then
+        echo "Server client connection timeout detected, resuming the sending of ACKs."
+        break
+    fi
+    sleep 0.3;
+done
+
+# Remove the tc command
+tc qdisc del dev lo root
+
+# Wait until all applications are finished
+for job in $(jobs -p)
+do
+    wait $job || ((FAIL+=1))
+done
+
+# Return the result of the test.
+exit $FAIL
