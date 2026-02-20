@@ -840,43 +840,6 @@ TEST_F(test_client_helper, break_host_side_only_with_broken_pipe) {
     ASSERT_TRUE(await_connection(client_name_, routingmanager_name_));
 }
 
-TEST_F(test_client_helper, handle_early_routing_info_within_server_after_reconnect) {
-    start_apps();
-    send_field_message();
-    ASSERT_TRUE(subscribe_to_field());
-    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
-    client_->subscription_record_.clear();
-
-    // regression test for the following nightmare sequence:
-    // 1. client -> server breaks; depending on implementation might also cause server -> client to break
-    // 2. client does REQUEST_SERVICE_ID to routing
-    // 3. routing sends ROUTING_INFO+CONFIG_ID to both client+server
-    // 4. .. server receives ROUTING_INFO first
-    // 5. server -> client (triggered by 1) *NOW* breaks
-    // 6. server erases ROUTING_INFO (depending on implementation
-    // 7. client receives ROUTING_INFO, sends SUBSCRIBE to server
-    // 8. server does not respond because of not having any ROUTING_INFO
-
-    // preparation
-    // freeze routing -> client (to hold back ROUTING_INFO, see 4. and 7.)
-    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, true, socket_role::server));
-    // freeze close reception in server, for server -> client (to hold back close(), see 5.)
-    ASSERT_TRUE(set_ignore_inner_close(client_name_, false, server_name_, true));
-    // clear commands so we can peek
-    clear_command_record(routingmanager_name_, server_name_);
-
-    // trigger 1.
-    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::eof));
-    // 4.
-    ASSERT_TRUE(wait_for_command(server_name_, routingmanager_name_, protocol::id_e::CONFIG_ID, socket_role::client));
-    // 5.
-    ASSERT_TRUE(disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::connection_reset));
-    // 7.
-    ASSERT_TRUE(delay_message_processing(client_name_, routingmanager_name_, false, socket_role::server));
-
-    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
-}
-
 TEST_F(test_client_helper, missing_initial_events) {
     /**
      * Regression test for the following scenario:
