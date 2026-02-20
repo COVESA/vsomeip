@@ -40,9 +40,9 @@ private:
         return -1;
     }
 
-    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type _type, boost::system::error_code& _ec) override {
+    virtual void open(boost::asio::ip::tcp::endpoint::protocol_type, boost::system::error_code& _ec) override {
         _ec = boost::system::error_code();
-        state_->open(_type);
+        state_->open();
     }
 
     virtual void bind(boost::asio::ip::tcp::endpoint const& _ep, boost::system::error_code& _ec) override {
@@ -179,7 +179,6 @@ private:
     }
 
     virtual void open(boost::asio::ip::tcp::endpoint::protocol_type, boost::system::error_code& _ec) override {
-
         _ec = boost::system::error_code();
         state_->open();
     }

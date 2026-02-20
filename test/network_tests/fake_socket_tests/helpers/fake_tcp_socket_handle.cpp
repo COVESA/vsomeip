@@ -6,6 +6,7 @@
 #include "fake_tcp_socket_handle.hpp"
 #include "socket_manager.hpp"
 #include "fake_tcp_socket.hpp"
+#include "fake_uds_socket.hpp"
 #include "test_logging.hpp"
 
 #include <thread>
@@ -13,7 +14,7 @@
 
 namespace vsomeip_v3::testing {
 
-char const* to_string(socket_role role) {
+static char const* to_string(socket_role role) {
     switch (role) {
     case socket_role::client:
         return "client";
@@ -23,9 +24,20 @@ char const* to_string(socket_role role) {
         return "unspecified";
     }
 }
+static char const* to_string(socket_type _type) {
+    switch (_type) {
+    case socket_type::tcp:
+        return "tcp";
+    case socket_type::uds:
+        return "uds";
+    default:
+        return "unspecified";
+    }
+}
 
 std::ostream& operator<<(std::ostream& o, socket_id const& _id) {
-    return o << "{fd: " << _id.fd_ << ", role: " << to_string(_id.role_) << ", app: " << _id.app_name_ << "}";
+    return o << "{fd: " << _id.fd_ << ", type: " << to_string(_id.type_) << ", role: " << to_string(_id.role_) << ", app: " << _id.app_name_
+             << "}";
 }
 
 fake_tcp_socket_handle::fake_tcp_socket_handle(boost::asio::io_context& _io) : io_(_io) { }
@@ -42,9 +54,10 @@ fake_tcp_socket_handle::~fake_tcp_socket_handle() {
     sm->remove(socket_id_.fd_);
 }
 
-void fake_tcp_socket_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm) {
+void fake_tcp_socket_handle::init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _sm) {
     auto const lock = std::scoped_lock(mtx_);
     socket_id_.fd_ = _fd;
+    socket_id_.type_ = _type;
     socket_manager_ = _sm;
 }
 
@@ -54,7 +67,7 @@ void fake_tcp_socket_handle::cancel() {
         auto const lock = std::scoped_lock(mtx_);
         auto remote = connected_socket_.lock();
         connected_socket_ = {};
-        protocol_type_ = std::nullopt;
+        is_open_ = false;
         if (receptor_) {
             TEST_LOG << "[fake-socket] posting operation_aborted on: " << socket_id_;
             boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::operation_aborted, 0); });
@@ -74,12 +87,12 @@ void fake_tcp_socket_handle::cancel() {
 
 [[nodiscard]] bool fake_tcp_socket_handle::is_open() {
     auto const lock = std::scoped_lock(mtx_);
-    return static_cast<bool>(protocol_type_);
+    return is_open_;
 }
 
-void fake_tcp_socket_handle::open(boost::asio::ip::tcp::endpoint::protocol_type _type) {
+void fake_tcp_socket_handle::open() {
     auto const lock = std::scoped_lock(mtx_);
-    protocol_type_ = _type;
+    is_open_ = true;
 }
 
 void fake_tcp_socket_handle::close() {
@@ -120,6 +133,11 @@ boost::asio::ip::tcp::endpoint fake_tcp_socket_handle::local_endpoint() {
 boost::asio::ip::tcp::endpoint fake_tcp_socket_handle::remote_endpoint() {
     auto const lock = std::scoped_lock(mtx_);
     return remote_ep_;
+}
+
+uds_endpoint fake_tcp_socket_handle::remote_uds_endpoint() {
+    auto const lock = std::scoped_lock(mtx_);
+    return remote_uds_ep_;
 }
 
 void fake_tcp_socket_handle::disconnect(std::optional<boost::system::error_code> _ec) {
@@ -203,6 +221,20 @@ void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, 
     boost::asio::post(
             io_, [handler = std::move(_handler)] { handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable)); });
 }
+void fake_tcp_socket_handle::connect(uds_endpoint const& _ep, connect_handler _handler) {
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+
+    if (sm) {
+        sm->connect(_ep, *this,
+                    [this, h = std::move(_handler)](auto ec) { boost::asio::post(io_, [handler = std::move(h), ec] { handler(ec); }); });
+        return;
+    }
+    boost::asio::post(
+            io_, [handler = std::move(_handler)] { handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable)); });
+}
 
 void fake_tcp_socket_handle::clear_handler() {
     rw_handler callback{}; // This is needed to avoid lock order inversion with the close on dtor
@@ -227,12 +259,14 @@ void fake_tcp_socket_handle::clear_handler() {
 
     connected_socket_ = _connecting.weak_from_this();
     remote_ep_ = _connecting.local_ep_;
-    protocol_type_ = _connecting.protocol_type_;
+    remote_uds_ep_ = _connecting.local_uds_ep_;
+    is_open_ = true;
     socket_id_.role_ = socket_role::server;
     local_ep_ = boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), socket_id_.fd_);
 
     _connecting.connected_socket_ = weak_from_this();
     _connecting.remote_ep_ = local_ep_;
+    _connecting.remote_uds_ep_ = local_uds_ep_;
     _connecting.socket_id_.role_ = socket_role::client;
 
     TEST_LOG << "[fake-socket] Established connection: " << _connecting.socket_id_ << " -> " << socket_id_;
@@ -416,12 +450,16 @@ fake_tcp_acceptor_handle::~fake_tcp_acceptor_handle() {
     if (!sm) {
         return;
     }
-    sm->remove_acceptor(fd_, endpoint_);
+    if (type_ == socket_type::tcp) {
+        sm->remove_acceptor(fd_, endpoint_);
+    } else {
+        sm->remove_acceptor(fd_, uds_ep_);
+    }
 }
 
-void fake_tcp_acceptor_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm) {
-    auto const lock = std::scoped_lock(mtx_);
+void fake_tcp_acceptor_handle::init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _sm) {
     fd_ = _fd;
+    type_ = _type;
     socket_manager_ = _sm;
 }
 
@@ -437,6 +475,22 @@ void fake_tcp_acceptor_handle::init(fd_t _fd, std::weak_ptr<socket_manager> _sm)
     if (result) {
         auto const lock = std::scoped_lock(mtx_);
         endpoint_ = _ep;
+    }
+    return result;
+}
+
+[[nodiscard]] bool fake_tcp_acceptor_handle::bind(uds_endpoint const& _ep) {
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+    if (!sm) {
+        return false;
+    }
+    auto result = sm->bind_acceptor(_ep, weak_from_this());
+    if (result) {
+        auto const lock = std::scoped_lock(mtx_);
+        uds_ep_ = _ep;
     }
     return result;
 }
@@ -482,6 +536,20 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
         return;
     }
 
+    accept(fake_socket->state_, std::move(_handler));
+}
+
+void fake_tcp_acceptor_handle::async_accept(uds_socket& _socket, connect_handler _handler) {
+    auto* fake_socket = dynamic_cast<fake_uds_socket*>(&_socket);
+    if (!fake_socket) {
+        boost::asio::post(io_, [handler = std::move(_handler)] {
+            handler(boost::asio::error::make_error_code(boost::asio::error::invalid_argument));
+        });
+        return;
+    }
+    accept(fake_socket->state_, std::move(_handler));
+}
+void fake_tcp_acceptor_handle::accept(std::shared_ptr<fake_tcp_socket_handle> _accepting, connect_handler _handler) {
     connect_handler handler{};
     {
         auto lock = std::scoped_lock(mtx_);
@@ -490,8 +558,8 @@ void fake_tcp_acceptor_handle::async_accept(tcp_socket& _socket, connect_handler
             connection_ = std::nullopt;
         }
 
-        TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", is awaiting connections with fd: " << fake_socket->state_->fd();
-        connection_ = connection{fake_socket->state_, std::move(_handler)};
+        TEST_LOG << "[fake-acceptor] fd: " << fd_ << ", is awaiting connections with fd: " << _accepting->fd();
+        connection_ = connection{_accepting, std::move(_handler)};
         if (auto const sm = socket_manager_.lock(); sm) {
             sm->awaiting();
         }

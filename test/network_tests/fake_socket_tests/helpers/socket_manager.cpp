@@ -66,13 +66,13 @@ void socket_manager::clear_handler(std::string const& app) {
     }
 }
 
-void socket_manager::add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io) {
+void socket_manager::add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io, socket_type _type) {
     if (auto const state = _state.lock(); state) {
         auto fd = next_fd_++;
         if (next_fd_.load() < fd) {
             throw std::runtime_error("Exhausted fake file descriptors");
         }
-        state->init(fd, weak_from_this());
+        state->init(fd, _type, weak_from_this());
         auto app_name = [&]() -> std::string {
             auto const lock = std::scoped_lock(mtx_);
             fd_to_handle_[fd] = _state;
@@ -91,13 +91,13 @@ void socket_manager::remove(fd_t fd) {
     fd_to_handle_.erase(fd);
 }
 
-void socket_manager::add_acceptor(std::weak_ptr<fake_tcp_acceptor_handle> _state, boost::asio::io_context* _io) {
+void socket_manager::add_acceptor(std::weak_ptr<fake_tcp_acceptor_handle> _state, boost::asio::io_context* _io, socket_type _type) {
     if (auto const state = _state.lock(); state) {
         auto fd = next_fd_++;
         if (next_fd_.load() < fd) {
             throw std::runtime_error("Exhausted fake file descriptors");
         }
-        state->init(fd, weak_from_this());
+        state->init(fd, _type, weak_from_this());
         auto app_name = [&]() -> std::string {
             auto const lock = std::scoped_lock(mtx_);
             fd_to_acceptor_states_[fd] = _state;
@@ -177,6 +177,11 @@ void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _e
     fd_to_acceptor_states_.erase(_fd);
     ep_to_acceptor_states_.erase(_ep);
 }
+void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
+    auto const lock = std::scoped_lock(mtx_);
+    fd_to_acceptor_states_.erase(_fd);
+    uds_to_acceptor_states_.erase(_ep);
+}
 
 [[nodiscard]] bool socket_manager::bind_acceptor(boost::asio::ip::tcp::endpoint const& _ep,
                                                  std::weak_ptr<fake_tcp_acceptor_handle> _state) {
@@ -187,10 +192,77 @@ void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _e
     ep_to_acceptor_states_[_ep] = _state;
     return true;
 }
+[[nodiscard]] bool socket_manager::bind_acceptor(uds_endpoint const& _ep, std::weak_ptr<fake_tcp_acceptor_handle> _state) {
+    auto const lock = std::scoped_lock(mtx_);
+    if (auto const it = uds_to_acceptor_states_.find(_ep); it != uds_to_acceptor_states_.end()) {
+        return false;
+    }
+    uds_to_acceptor_states_[_ep] = _state;
+    return true;
+}
 
 [[nodiscard]] bool socket_manager::bind_socket(fake_tcp_socket_handle const& _handle) {
     auto const lock = std::scoped_lock(mtx_);
     return fail_on_bind_.count(_handle.get_app_name()) == 0;
+}
+void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
+    // while the acceptor is only assigned when we find the "right" acceptor, scoped_acc will be set
+    // as soon as a weak_ptr is promoted to guarantee that the d'tor is only called without locking the mutex
+    std::shared_ptr<fake_tcp_acceptor_handle> acceptor, scoped_ac;
+    [&]() {
+        auto const lock = std::scoped_lock(mtx_);
+        auto const it = uds_to_acceptor_states_.find(_ep);
+        if (it == uds_to_acceptor_states_.end()) {
+            _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
+            return;
+        }
+        scoped_ac = it->second.lock();
+        if (!scoped_ac) {
+            _handler(boost::asio::error::make_error_code(boost::asio::error::host_unreachable));
+            return;
+        }
+        auto acc_name = scoped_ac->get_app_name();
+        if (auto const it = app_to_next_connection_errors_.find(acc_name); it != app_to_next_connection_errors_.end()) {
+            if (auto& err = it->second; !err.empty()) {
+                _handler(*err.begin());
+                err.erase(err.begin());
+                return;
+            }
+        }
+        if (auto const it = app_name_to_ignore_connections_count_.find(acc_name); it != app_name_to_ignore_connections_count_.end()) {
+            if (it->second != 0) {
+                --(it->second);
+                // ignore the handler
+                return;
+            }
+        }
+        if (connections_to_ignore_.count(acc_name) > 0) {
+            return;
+        }
+        acceptor = scoped_ac;
+    }();
+    if (!acceptor) {
+        return;
+    }
+
+    auto accepting = acceptor->connect(_connecting, std::move(_handler));
+    if (!accepting) {
+        // handler has been moved out
+        return;
+    }
+    auto c_name = _connecting.get_app_name();
+    auto s_name = accepting->get_app_name();
+    if (!c_name.empty() && !s_name.empty()) {
+        auto cn = connection_name(c_name, s_name);
+        auto connection = get_or_create_connection(c_name, s_name);
+        connection->set_sockets(_connecting.weak_from_this(), accepting);
+
+        auto const lock = std::scoped_lock(mtx_);
+        LOCAL_LOG << "added: " << cn << " to the known connections";
+    } else {
+        LOCAL_LOG << "Error: socket encountered without set app name! "
+                  << "c_name: " << c_name << ", s_name: " << s_name;
+    }
 }
 
 void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
@@ -282,6 +354,8 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
     std::vector<std::shared_ptr<fake_tcp_acceptor_handle>> handles_to_hold;
     auto lock = std::unique_lock(mtx_);
     return connectable_cv_.wait_for(lock, _timeout, [&, this] {
+        // tcp endpoints should be sufficient
+        // Potential point of problem in mixed mode
         for (auto const& ep_ac : ep_to_acceptor_states_) {
             if (auto const acceptor = ep_ac.second.lock()) {
                 handles_to_hold.push_back(acceptor);

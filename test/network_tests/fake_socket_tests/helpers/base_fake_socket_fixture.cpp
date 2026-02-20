@@ -36,7 +36,7 @@ base_fake_socket_fixture::~base_fake_socket_fixture() {
 }
 
 void base_fake_socket_fixture::use_configuration(std::string const& file_name) {
-    ::setenv("VSOMEIP_CONFIGURATION", file_name.c_str(), 0);
+    ::setenv("VSOMEIP_CONFIGURATION", file_name.c_str(), 1);
 }
 
 void base_fake_socket_fixture::create_app(std::string const& _name) {

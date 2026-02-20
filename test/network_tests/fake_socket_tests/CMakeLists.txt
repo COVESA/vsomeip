@@ -8,6 +8,7 @@ project(test_with_fake_sockets LANGUAGES CXX)
 # Configure necessary files into the build directory.
 set(configuration_files
     multiple_client_one_process.json
+    multiple_client_one_process_uds.json
 )
 configure_files("${configuration_files}")
 
@@ -24,6 +25,7 @@ add_executable(${PROJECT_NAME}
     main.cpp
     test_connection_restoration.cpp
     test_debounce.cpp
+    test_uds_communication.cpp
 )
 
 targets_link_default_libraries("${PROJECT_NAME}")

@@ -5,11 +5,16 @@
 
 #pragma once
 
-#include "../../../implementation/endpoints/include/tcp_socket.hpp"
 #include "attribute_recorder.hpp"
 #include "command_message.hpp"
 #include "vsomeip_command_handler.hpp"
+
+#include "../../../implementation/endpoints/include/tcp_socket.hpp"
+#include "../../../implementation/endpoints/include/uds_socket.hpp"
+
 #include <boost/asio.hpp>
+#include <boost/asio/local/stream_protocol.hpp>
+
 #include <optional>
 #include <memory>
 
@@ -20,10 +25,13 @@ namespace vsomeip_v3::testing {
  **/
 using fd_t = unsigned short;
 
+using uds_endpoint = boost::asio::local::stream_protocol::endpoint;
 enum class socket_role { unspecified, client, server };
+enum class socket_type { uds, tcp };
 struct socket_id {
     fd_t fd_{};
     socket_role role_{socket_role::unspecified};
+    socket_type type_{socket_type::tcp};
     std::string app_name_{};
 };
 
@@ -44,7 +52,7 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
     fake_tcp_socket_handle& operator=(fake_tcp_socket_handle const&) = delete;
     ~fake_tcp_socket_handle();
 
-    void init(fd_t fd, std::weak_ptr<socket_manager> _socket_manager);
+    void init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _socket_manager);
 
     /**
      * calls close, used by the fake_tcp_socket.
@@ -69,11 +77,13 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      **/
     boost::asio::ip::tcp::endpoint remote_endpoint();
 
+    uds_endpoint remote_uds_endpoint();
+
     /**
      * sets the protocol type
      * Used by the fake_tcp_socket.
      **/
-    void open(boost::asio::ip::tcp::endpoint::protocol_type _type);
+    void open();
 
     /**
      * 1. removes the weak reference to the connected socket (any subsequent call
@@ -99,6 +109,13 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      * Used by the fake_tcp_socket.
      **/
     void connect(boost::asio::ip::tcp::endpoint const& _ep, connect_handler _handler);
+
+    /**
+     * Tries to connect a remote endpoint. Fowards the request to the
+     * socket_manager::connect().
+     * Used by the fake_uds_socket.
+     **/
+    void connect(uds_endpoint const& _ep, connect_handler _handler);
 
     /**
      * Tries to write to a connected handle. If no handle is connected injects
@@ -212,16 +229,18 @@ private:
     bool ignore_inner_close_{false};
     bool ignore_nothing_to_read_from_{false};
     bool delay_processing_{false};
+    bool is_open_{false};
     socket_id socket_id_;
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
-    std::optional<boost::asio::ip::tcp::endpoint::protocol_type> protocol_type_;
     std::weak_ptr<fake_tcp_socket_handle> connected_socket_;
     std::vector<unsigned char> input_data_;
     std::optional<Receptor> receptor_;
     std::optional<boost::system::error_code> stashed_ec_;
     boost::asio::ip::tcp::endpoint local_ep_;
     boost::asio::ip::tcp::endpoint remote_ep_;
+    uds_endpoint local_uds_ep_;
+    uds_endpoint remote_uds_ep_;
     std::optional<std::chrono::milliseconds> block_on_close_time_;
     mutable std::mutex mtx_;
     vsomeip_command_handler command_handler_;
@@ -240,13 +259,19 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
     fake_tcp_acceptor_handle& operator=(fake_tcp_acceptor_handle const&) = delete;
     ~fake_tcp_acceptor_handle();
 
-    void init(fd_t fd, std::weak_ptr<socket_manager> _socket_manager);
+    void init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _socket_manager);
 
     /**
      * Sets the local_endpoint
      * Used by the fake_tcp_acceptor.
      **/
     [[nodiscard]] bool bind(boost::asio::ip::tcp::endpoint const& _ep);
+
+    /**
+     * sets the local_endpoint
+     * Used by the fake_uds_socket.
+     **/
+    [[nodiscard]] bool bind(uds_endpoint const& _ep);
 
     /**
      * Sets the is_open attribute to true.
@@ -279,6 +304,16 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
     void async_accept(tcp_socket& _socket, connect_handler _handler);
 
     /**
+     * Tries to cast the passed in uds_socket into a fake_uds_socket. If not
+     * successful injects an error into the passed in handler.
+     * Else stores a weak reference to the contained fake_uds_socket_handle
+     * to be used in the next @see fake_tcp_acceptor_handle::connect() call.
+     *
+     * Used by the fake_tcp_acceptor.
+     **/
+    void async_accept(uds_socket& _socket, connect_handler _handler);
+
+    /**
      * Tries to connect the passed in handle to the stored handle received
      * by the last async_accept call.
      * @see fake_tcp_socket_handle::add_connection().
@@ -307,6 +342,8 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
     std::string get_app_name() const;
 
 private:
+    void accept(std::shared_ptr<fake_tcp_socket_handle> _accepting, connect_handler _handler);
+
     struct connection {
         std::weak_ptr<fake_tcp_socket_handle> socket_;
         connect_handler handler_;
@@ -314,10 +351,12 @@ private:
     mutable std::mutex mtx_;
     bool is_open_{false};
     fd_t fd_{0};
+    socket_type type_{socket_type::tcp};
     std::optional<connection> connection_;
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
     std::string app_name_;
     boost::asio::ip::tcp::endpoint endpoint_;
+    uds_endpoint uds_ep_;
 };
 }

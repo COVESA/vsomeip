@@ -1,0 +1,34 @@
+{
+    "unicast":"127.0.0.1",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true",
+        "version" :
+        {
+            "interval": 0
+        }
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "applications" :
+    [
+        {
+            "name" : "server",
+            "id" : "0x3489",
+            "max_dispatch_time" : "1000"
+        },
+        {
+            "name" : "client",
+            "id" : "0x3490",
+            "max_dispatch_time" : "1000"
+        },
+    ],
+    "routing" : "routingmanagerd",
+    "service-discovery" :
+    {
+        "enable": "true"
+    }
+}

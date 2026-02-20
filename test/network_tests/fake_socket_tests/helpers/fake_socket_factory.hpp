@@ -10,6 +10,7 @@
 
 #include "fake_netlink_connector.hpp"
 #include "fake_tcp_socket.hpp"
+#include "fake_uds_socket.hpp"
 #include "socket_manager.hpp"
 
 namespace vsomeip_v3::testing {
@@ -36,7 +37,7 @@ private:
     std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override {
         if (auto sm = socket_manager_.lock()) {
             auto state = std::make_shared<fake_tcp_socket_handle>(_io);
-            sm->add_socket(state, &_io);
+            sm->add_socket(state, &_io, socket_type::tcp);
             return std::make_unique<fake_tcp_socket>(state);
         }
         return nullptr;
@@ -44,7 +45,7 @@ private:
     std::unique_ptr<tcp_acceptor> create_tcp_acceptor(boost::asio::io_context& _io) override {
         if (auto sm = socket_manager_.lock()) {
             auto state = std::make_shared<fake_tcp_acceptor_handle>(_io);
-            sm->add_acceptor(state, &_io);
+            sm->add_acceptor(state, &_io, socket_type::tcp);
             return std::make_unique<fake_tcp_acceptor>(state);
         }
         return nullptr;
@@ -57,8 +58,22 @@ private:
         return std::make_unique<asio_timer>(_io);
     }
 #if defined(__linux__) || defined(__QNX__)
-    std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context&) override { return nullptr; }
-    std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context&) override { return nullptr; }
+    std::unique_ptr<uds_socket> create_uds_socket(boost::asio::io_context& _io) override {
+        if (auto sm = socket_manager_.lock()) {
+            auto state = std::make_shared<fake_tcp_socket_handle>(_io);
+            sm->add_socket(state, &_io, socket_type::uds);
+            return std::make_unique<fake_uds_socket>(state);
+        }
+        return nullptr;
+    }
+    std::unique_ptr<uds_acceptor> create_uds_acceptor(boost::asio::io_context& _io) override {
+        if (auto sm = socket_manager_.lock()) {
+            auto state = std::make_shared<fake_tcp_acceptor_handle>(_io);
+            sm->add_acceptor(state, &_io, socket_type::uds);
+            return std::make_unique<fake_uds_acceptor>(state);
+        }
+        return nullptr;
+    }
 #endif
 
     std::weak_ptr<socket_manager> socket_manager_;

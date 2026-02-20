@@ -186,7 +186,7 @@ public:
     /**
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
      **/
-    void add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io);
+    void add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io, socket_type _type);
 
     /**
      * removes the fd from the internal map of fds.
@@ -196,7 +196,7 @@ public:
     /**
      * associates a fake_tcp_acceptor_handle to a io_context and therefore to an app_name.
      **/
-    void add_acceptor(std::weak_ptr<fake_tcp_acceptor_handle> _state, boost::asio::io_context* _io);
+    void add_acceptor(std::weak_ptr<fake_tcp_acceptor_handle> _state, boost::asio::io_context* _io, socket_type _type);
 
     /**
      * removes the fd from the internal map of fds.
@@ -204,10 +204,21 @@ public:
     void remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _ep);
 
     /**
+     * removes the fd from the internal map of fds.
+     **/
+    void remove_acceptor(fd_t _fd, uds_endpoint _ep);
+
+    /**
      * associates the fake_tcp_acceptor_handle to the endpoint. This allows fake_tcp_socket_handles
      * to try to connect to the acceptor.
      **/
     [[nodiscard]] bool bind_acceptor(boost::asio::ip::tcp::endpoint const& _ep, std::weak_ptr<fake_tcp_acceptor_handle> _state);
+
+    /**
+     * associates the fake_tcp_acceptor_handle to the endpoint. This allows fake_tcp_socket_handles
+     * to try to connect to the acceptor.
+     **/
+    [[nodiscard]] bool bind_acceptor(uds_endpoint const& _ep, std::weak_ptr<fake_tcp_acceptor_handle> _state);
 
     /**
      **/
@@ -217,7 +228,13 @@ public:
      * Searches for a fake_tcp_acceptor_handle @see socket_manager::bind_acceptor(),
      * and forwards the connect request from the passed in handle.
      **/
-    void connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _state, connect_handler _handler);
+    void connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler);
+
+    /**
+     * Searches for a fake_tcp_acceptor_handle @see socket_manager::bind_acceptor(),
+     * and forwards the connect request from the passed in handle.
+     **/
+    void connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler);
 
     /**
      * Helper to let the socket_manager know that some acceptor started to wait for connections.
@@ -263,6 +280,7 @@ private:
     std::map<fd_t, std::weak_ptr<fake_tcp_socket_handle>> fd_to_handle_;
     std::map<fd_t, std::weak_ptr<fake_tcp_acceptor_handle>> fd_to_acceptor_states_;
     std::map<boost::asio::ip::tcp::endpoint, std::weak_ptr<fake_tcp_acceptor_handle>> ep_to_acceptor_states_;
+    std::map<uds_endpoint, std::weak_ptr<fake_tcp_acceptor_handle>> uds_to_acceptor_states_;
     std::map<std::string, boost::asio::io_context*> name_to_context_;
     std::map<boost::asio::io_context*, std::string> context_to_name_;
     std::map<boost::asio::io_context*, std::vector<fd_t>> context_to_fd_;
