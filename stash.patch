@@ -1,0 +1,862 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 770ef56b..9e00c7e5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -90,7 +90,9 @@ endif()
+     # instead of static initialization so mutexes can be hooked to enable PI as needed
+     add_definitions(-D_GTHREAD_USE_MUTEX_INIT_FUNC -D_GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC)
+ endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+-
++if  (MINGW)
++    set(DL_LIBRARY "-liphlpapi -lws2_32 -lmswsock")
++endif (MINGW)
+ if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+     set(DL_LIBRARY "")
+     set(EXPORTSYMBOLS "")
+@@ -279,6 +281,15 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+ elseif(ANDROID_CI_BUILD)
+     set( USE_RT "")
+     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CI_BUILD -Wno-format-security -Wno-conversion -Wno-error -Wno-inconsistent-missing-override")
++elseif(MINGW)
++    message(STATUS ">>> Using MinGW (mingw-w64) toolchain")
++    if (CMAKE_SIZEOF_VOID_P EQUAL 8)
++        message(STATUS ">>> Confirmed: MinGW-w64 (64-bit)")
++    else()
++        message(STATUS ">>> MinGW (32-bit)")
++    endif()
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_EXPORTS -DVSOMEIP_DLL -DUDP_EXPORTS -DBUILD_SHARED_LIBS=ON -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON -D_GLIBCXX_USE_CXX11_ABI=1 -liphlpapi -lws2_32 -lmswsock ")
++    set(USE_RT "")
+ else()
+     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+     set(USE_RT "rt")
+@@ -295,12 +306,19 @@ if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
+     add_library(${VSOMEIP_NAME}-cfg SHARED ${${VSOMEIP_NAME}-cfg_SRC})
+     set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+     target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
+-    if (MSVC)
++    if(MSVC)
+         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+-    endif()
+-
++    elseif(MINGW)
++        message(STATUS ">>> Using MinGW (mingw-w64) toolchain")
++        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
++            message(STATUS ">>> Confirmed: MinGW-w64 (64-bit)")
++        else()
++            message(STATUS ">>> MinGW (32-bit)")
++        endif()
++        target_compile_definitions(${VSOMEIP_NAME}-cfg PUBLIC _GLIBCXX_USE_CXX11_ABI=1)
++    endif(MSVC)  # End of MINGW condition
+     target_link_libraries(${VSOMEIP_NAME}-cfg ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+-endif ()
++endif()
+ 
+ ################################################################################
+ # Base library
+@@ -370,7 +388,15 @@ target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_17)
+ set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+ if (MSVC)
+     set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+-endif ()
++    elseif(MINGW)
++        message(STATUS ">>> Using MinGW (mingw-w64) toolchain")
++        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
++            message(STATUS ">>> Confirmed: MinGW-w64 (64-bit)")
++        else()
++            message(STATUS ">>> MinGW (32-bit)")
++        endif()
++        target_compile_definitions(${VSOMEIP_NAME}-sd PUBLIC _GLIBCXX_USE_CXX11_ABI=1)
++endif(MSVC)  # End of MINGW condition
+ 
+ target_link_libraries(${VSOMEIP_NAME}-sd ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+ 
+@@ -388,7 +414,15 @@ target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_17)
+ set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+ if (MSVC)
+     set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
+-endif ()
++elseif(MINGW)
++        message(STATUS ">>> Using MinGW (mingw-w64) toolchain")
++        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
++            message(STATUS ">>> Confirmed: MinGW-w64 (64-bit)")
++        else()
++            message(STATUS ">>> MinGW (32-bit)")
++        endif()
++        target_compile_definitions(${VSOMEIP_NAME}-e2e PUBLIC _GLIBCXX_USE_CXX11_ABI=1)
++endif(MSVC)  # End of MINGW condition
+ 
+ target_link_libraries(${VSOMEIP_NAME}-e2e ${VSOMEIP_NAME} ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+ 
+@@ -453,10 +487,10 @@ set (VSOMEIP_LOCAL_TCP_PORT_MAX_WAIT_TIME ${LOCAL_TCP_PORT_WAIT_TIME})
+ endif ()
+ endif ()
+ 
+-set(DEFAULT_CONFIGURATION_FOLDER "/etc/vsomeip" CACHE PATH "Default configuration folder")
++set(DEFAULT_CONFIGURATION_FOLDER "/config" CACHE PATH "Default configuration folder")
+ message(STATUS "Default configuration folder: ${DEFAULT_CONFIGURATION_FOLDER}")
+ 
+-set(DEFAULT_CONFIGURATION_FILE "/etc/vsomeip.json" CACHE FILEPATH "Default configuration file")
++set(DEFAULT_CONFIGURATION_FILE "/config/vsomeip.json" CACHE FILEPATH "Default configuration file")
+ message(STATUS "Default configuration file: ${DEFAULT_CONFIGURATION_FILE}")
+ 
+ message("Predefined base path: ${VSOMEIP_BASE_PATH}")
+@@ -598,7 +632,7 @@ endif()
+ 
+ ##############################################################################
+ # build routing manager daemon and hello world examples (Non-Windows only)
+-if (NOT MSVC)
++if (NOT MSVC AND NOT MINGW)
+ add_subdirectory( examples/routingmanagerd )
+ add_subdirectory( examples/hello_world )
+ endif()
+diff --git a/CMakePresets.json b/CMakePresets.json
+deleted file mode 100644
+index e08b4896..00000000
+--- a/CMakePresets.json
++++ /dev/null
+@@ -1,78 +0,0 @@
+-{
+-	"version": 3,
+-	"cmakeMinimumRequired": {
+-		"major": 3,
+-		"minor": 13
+-	},
+-	"configurePresets": [
+-		{
+-			"name": "ci-network-tests",
+-			"displayName": "Network tests (CI)",
+-			"description": "Preset for network tests on CI",
+-			"generator": "Ninja",
+-			"binaryDir": "/home/build",
+-			"cacheVariables": {
+-				"DISABLE_DLT": {
+-				    "type": "BOOL",
+-				    "value": "ON"
+-				},
+-				"CMAKE_CXX_FLAGS_INIT": {
+-					"type": "STRING",
+-					"value": "--coverage -Wno-error=tsan -fprofile-update=atomic"
+-				},
+-				"TEST_IP_SLAVE_SECOND": {
+-					"type": "STRING",
+-					"value": "$penv{IP_SLAVE_2ND}"
+-				},
+-				"TEST_GID": {
+-					"type": "STRING",
+-					"value": "0"
+-				},
+-				"TEST_UID": {
+-					"type": "STRING",
+-					"value": "0"
+-				}
+-			},
+-			"environment": {
+-				"GTEST_ROOT": "/usr/src/googletest"
+-			}
+-		}
+-	],
+-	"buildPresets": [
+-		{
+-			"name": "ci-network-tests",
+-			"displayName": "Network tests (CI)",
+-			"description": "Preset for network tests on CI",
+-			"configurePreset": "ci-network-tests",
+-			"targets": "build_network_tests"
+-		}
+-	],
+-	"testPresets": [
+-		{
+-			"name": "ci-network-tests",
+-			"displayName": "Network tests (CI)",
+-			"description": "Preset for network tests on CI",
+-			"environment": {
+-				"LD_LIBRARY_PATH": "/home/build",
+-				"LXC_TEST_MASTER_IP": "master",
+-				"LXC_TEST_SLAVE_IP": "slave",
+-				"TSAN_OPTIONS": "suppressions=${sourceDir}/test/tsan-suppressions.txt",
+-				"USE_LXC_TEST": "1"
+-			},
+-			"configurePreset": "ci-network-tests",
+-			"output": {
+-				"maxFailedTestOutputSize": 1e6,
+-				"maxPassedTestOutputSize": 1e6,
+-				"outputOnFailure": true
+-			},
+-			"execution": {
+-				"timeout": 150
+-			},
+-			"filter": {
+-				"exclude": {
+-					"name": "^unit_"
+-				}
+-			}
+-		}
+-	]
+-}
+diff --git a/implementation/endpoints/include/buffer.hpp b/implementation/endpoints/include/buffer.hpp
+index 159801a1..64aba94a 100644
+--- a/implementation/endpoints/include/buffer.hpp
++++ b/implementation/endpoints/include/buffer.hpp
+@@ -18,7 +18,8 @@
+ #include <vsomeip/primitive_types.hpp>
+ 
+ #if defined(_WIN32) && !defined(_MSVC_LANG)
+-#define DEFAULT_NANOSECONDS_MAX 1000000000
++using namespace std::chrono_literals;
++constexpr std::chrono::nanoseconds DEFAULT_NANOSECONDS_MAX = 1s;
+ #else
+ #define DEFAULT_NANOSECONDS_MAX std::chrono::nanoseconds::max()
+ #endif
+diff --git a/implementation/endpoints/include/udp_server_endpoint_impl.hpp b/implementation/endpoints/include/udp_server_endpoint_impl.hpp
+index 9670a7af..9ceabd84 100644
+--- a/implementation/endpoints/include/udp_server_endpoint_impl.hpp
++++ b/implementation/endpoints/include/udp_server_endpoint_impl.hpp
+@@ -20,7 +20,7 @@ using on_unicast_sent_cbk_t = std::function<void(const byte_t*, length_t, const
+ // callback type to own multicast messages received
+ using on_sent_multicast_received_cbk_t = std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
+ 
+-class udp_server_endpoint_impl : public udp_server_endpoint_base_impl {
++class UDP_API udp_server_endpoint_impl : public udp_server_endpoint_base_impl {
+ 
+ public:
+     udp_server_endpoint_impl() = delete;
+diff --git a/implementation/logger/include/logger_impl.hpp b/implementation/logger/include/logger_impl.hpp
+index 168b4968..6930ac52 100644
+--- a/implementation/logger/include/logger_impl.hpp
++++ b/implementation/logger/include/logger_impl.hpp
+@@ -27,7 +27,7 @@ namespace logger {
+ class logger_impl {
+ public:
+     logger_impl();
+-    VSOMEIP_IMPORT_EXPORT static void init(const std::shared_ptr<configuration>& _configuration);
++    VSOMEIP_API static void init(const std::shared_ptr<configuration>& _configuration);
+     static logger_impl* get();
+ 
+     // Note: struct must be trivially copyable and thus cannot contain the log file name.
+diff --git a/implementation/message/include/message_base_impl.hpp b/implementation/message/include/message_base_impl.hpp
+index ccd4f5cf..285a8329 100644
+--- a/implementation/message/include/message_base_impl.hpp
++++ b/implementation/message/include/message_base_impl.hpp
+@@ -13,51 +13,51 @@
+ 
+ namespace vsomeip_v3 {
+ 
+-class message_base_impl : virtual public message_base {
++class VSOMEIP_API message_base_impl : virtual public message_base {
+ public:
+-    VSOMEIP_EXPORT message_base_impl();
+-    VSOMEIP_EXPORT virtual ~message_base_impl();
++    message_base_impl();
++    virtual ~message_base_impl();
+ 
+-    VSOMEIP_EXPORT message_t get_message() const;
+-    VSOMEIP_EXPORT void set_message(message_t _message);
++    message_t get_message() const;
++    void set_message(message_t _message);
+ 
+-    VSOMEIP_EXPORT service_t get_service() const;
+-    VSOMEIP_EXPORT void set_service(service_t _service);
++    service_t get_service() const;
++    void set_service(service_t _service);
+ 
+-    VSOMEIP_EXPORT instance_t get_instance() const;
+-    VSOMEIP_EXPORT void set_instance(instance_t _instance);
++    instance_t get_instance() const;
++    void set_instance(instance_t _instance);
+ 
+-    VSOMEIP_EXPORT method_t get_method() const;
+-    VSOMEIP_EXPORT void set_method(method_t _method);
++    method_t get_method() const;
++    void set_method(method_t _method);
+ 
+-    VSOMEIP_EXPORT request_t get_request() const;
++    request_t get_request() const;
+ 
+-    VSOMEIP_EXPORT client_t get_client() const;
+-    VSOMEIP_EXPORT void set_client(client_t _client);
++    client_t get_client() const;
++    void set_client(client_t _client);
+ 
+-    VSOMEIP_EXPORT session_t get_session() const;
+-    VSOMEIP_EXPORT void set_session(session_t _session);
++    session_t get_session() const;
++    void set_session(session_t _session);
+ 
+-    VSOMEIP_EXPORT protocol_version_t get_protocol_version() const;
+-    VSOMEIP_EXPORT void set_protocol_version(protocol_version_t _protocol_version);
++    protocol_version_t get_protocol_version() const;
++    void set_protocol_version(protocol_version_t _protocol_version);
+ 
+-    VSOMEIP_EXPORT interface_version_t get_interface_version() const;
+-    VSOMEIP_EXPORT void set_interface_version(interface_version_t _interface_version);
++    interface_version_t get_interface_version() const;
++    void set_interface_version(interface_version_t _interface_version);
+ 
+-    VSOMEIP_EXPORT message_type_e get_message_type() const;
+-    VSOMEIP_EXPORT void set_message_type(message_type_e _type);
++    message_type_e get_message_type() const;
++    void set_message_type(message_type_e _type);
+ 
+-    VSOMEIP_EXPORT return_code_e get_return_code() const;
+-    VSOMEIP_EXPORT void set_return_code(return_code_e _code);
++    return_code_e get_return_code() const;
++    void set_return_code(return_code_e _code);
+ 
+-    VSOMEIP_EXPORT bool is_reliable() const;
+-    VSOMEIP_EXPORT void set_reliable(bool _is_reliable);
++    bool is_reliable() const;
++    void set_reliable(bool _is_reliable);
+ 
+-    VSOMEIP_EXPORT bool is_initial() const;
+-    VSOMEIP_EXPORT void set_initial(bool _is_initial);
++    bool is_initial() const;
++    void set_initial(bool _is_initial);
+ 
+-    VSOMEIP_EXPORT message* get_owner() const;
+-    VSOMEIP_EXPORT void set_owner(message* _owner);
++    message* get_owner() const;
++    void set_owner(message* _owner);
+ 
+ protected: // members
+     message_header_impl header_;
+diff --git a/implementation/message/include/message_impl.hpp b/implementation/message/include/message_impl.hpp
+index 49475656..edcae87a 100644
+--- a/implementation/message/include/message_impl.hpp
++++ b/implementation/message/include/message_impl.hpp
+@@ -27,33 +27,33 @@ namespace vsomeip_v3 {
+ 
+ class payload;
+ 
+-class message_impl : virtual public message, virtual public message_base_impl {
++class VSOMEIP_API message_impl : virtual public message, virtual public message_base_impl {
+ public:
+-    VSOMEIP_EXPORT message_impl();
+-    VSOMEIP_EXPORT virtual ~message_impl();
++    message_impl();
++    virtual ~message_impl();
+ 
+-    VSOMEIP_EXPORT length_t get_length() const;
+-    VSOMEIP_EXPORT void set_length(length_t _length);
++    length_t get_length() const;
++    void set_length(length_t _length);
+ 
+-    VSOMEIP_EXPORT std::shared_ptr<payload> get_payload() const;
+-    VSOMEIP_EXPORT void set_payload(std::shared_ptr<payload> _payload);
++    std::shared_ptr<payload> get_payload() const;
++    void set_payload(std::shared_ptr<payload> _payload);
+ 
+-    VSOMEIP_EXPORT bool serialize(serializer* _to) const;
+-    VSOMEIP_EXPORT bool deserialize(deserializer* _from);
++    bool serialize(serializer* _to) const;
++    bool deserialize(deserializer* _from);
+ 
+-    VSOMEIP_EXPORT uint8_t get_check_result() const;
+-    VSOMEIP_EXPORT void set_check_result(uint8_t _check_result);
+-    VSOMEIP_EXPORT bool is_valid_crc() const;
++    uint8_t get_check_result() const;
++    void set_check_result(uint8_t _check_result);
++    bool is_valid_crc() const;
+ 
+-    VSOMEIP_EXPORT uid_t get_uid() const;
++    uid_t get_uid() const;
+ 
+-    VSOMEIP_EXPORT gid_t get_gid() const;
++    gid_t get_gid() const;
+ 
+-    VSOMEIP_EXPORT vsomeip_sec_client_t get_sec_client() const;
+-    VSOMEIP_EXPORT void set_sec_client(const vsomeip_sec_client_t& _sec_client);
++    vsomeip_sec_client_t get_sec_client() const;
++    void set_sec_client(const vsomeip_sec_client_t& _sec_client);
+ 
+-    VSOMEIP_EXPORT std::string get_env() const;
+-    VSOMEIP_EXPORT void set_env(const std::string& _env);
++    std::string get_env() const;
++    void set_env(const std::string& _env);
+ 
+ protected: // members
+     std::shared_ptr<payload> payload_;
+diff --git a/implementation/message/include/serializer.hpp b/implementation/message/include/serializer.hpp
+index f62a1201..5cfb5f4a 100644
+--- a/implementation/message/include/serializer.hpp
++++ b/implementation/message/include/serializer.hpp
+@@ -15,7 +15,7 @@ namespace vsomeip_v3 {
+ 
+ class serializable;
+ 
+-class VSOMEIP_IMPORT_EXPORT serializer {
++class VSOMEIP_API serializer {
+ public:
+     serializer(std::uint32_t _buffer_shrink_threshold);
+     virtual ~serializer();
+diff --git a/implementation/plugin/include/plugin_manager_impl.hpp b/implementation/plugin/include/plugin_manager_impl.hpp
+index 2638fea8..2ec603a8 100644
+--- a/implementation/plugin/include/plugin_manager_impl.hpp
++++ b/implementation/plugin/include/plugin_manager_impl.hpp
+@@ -19,23 +19,23 @@
+ 
+ namespace vsomeip_v3 {
+ 
+-class plugin_manager_impl : public plugin_manager {
++class VSOMEIP_API plugin_manager_impl : public plugin_manager {
+ public:
+-    VSOMEIP_EXPORT static std::shared_ptr<plugin_manager_impl> get();
++    static std::shared_ptr<plugin_manager_impl> get();
+ 
+     plugin_manager_impl();
+ 
+     ~plugin_manager_impl();
+ 
+-    VSOMEIP_EXPORT std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string& _name);
++    std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string& _name);
+ 
+-    VSOMEIP_EXPORT std::shared_ptr<plugin> load_plugin(const std::string& _library, plugin_type_e _type, const uint32_t _version);
++    std::shared_ptr<plugin> load_plugin(const std::string& _library, plugin_type_e _type, const uint32_t _version);
+ 
+-    VSOMEIP_EXPORT bool unload_plugin(plugin_type_e _type);
++    bool unload_plugin(plugin_type_e _type);
+ 
+-    VSOMEIP_EXPORT void* load_library(const std::string& _path);
+-    VSOMEIP_EXPORT void* load_symbol(void* _handle, const std::string& _symbol);
+-    VSOMEIP_EXPORT void unload_library(void* _handle);
++    void* load_library(const std::string& _path);
++    void* load_symbol(void* _handle, const std::string& _symbol);
++    void unload_library(void* _handle);
+ 
+ private:
+     void add_plugin(const std::shared_ptr<plugin>& _plugin, const std::string& _name);
+diff --git a/implementation/plugin/src/plugin_manager_impl.cpp b/implementation/plugin/src/plugin_manager_impl.cpp
+index 0ef3c7fd..7e737da2 100644
+--- a/implementation/plugin/src/plugin_manager_impl.cpp
++++ b/implementation/plugin/src/plugin_manager_impl.cpp
+@@ -121,7 +121,7 @@ void* plugin_manager_impl::load_symbol(void* _handle, const std::string& _symbol
+     void* symbol = nullptr;
+     if (_handle) {
+ #ifdef _WIN32
+-        symbol = GetProcAddress(reinterpret_cast<HMODULE>(_handle), _symbol_name.c_str());
++        symbol = (void*)GetProcAddress(reinterpret_cast<HMODULE>(_handle), _symbol_name.c_str());
+ #else
+         symbol = dlsym(_handle, _symbol_name.c_str());
+ #endif
+diff --git a/implementation/security/include/policy_manager_impl.hpp b/implementation/security/include/policy_manager_impl.hpp
+index e57eeba8..50e67382 100644
+--- a/implementation/security/include/policy_manager_impl.hpp
++++ b/implementation/security/include/policy_manager_impl.hpp
+@@ -25,7 +25,7 @@ namespace vsomeip_v3 {
+ 
+ struct configuration_element;
+ 
+-class VSOMEIP_IMPORT_EXPORT policy_manager_impl
++class VSOMEIP_API policy_manager_impl
+ #ifndef VSOMEIP_DISABLE_SECURITY
+     : public policy_manager
+ #endif // !VSOMEIP_DISABLE_SECURITY
+diff --git a/implementation/security/include/security.hpp b/implementation/security/include/security.hpp
+index b086ed28..cb3d457c 100644
+--- a/implementation/security/include/security.hpp
++++ b/implementation/security/include/security.hpp
+@@ -16,7 +16,7 @@
+ 
+ namespace vsomeip_v3 {
+ 
+-class VSOMEIP_IMPORT_EXPORT security {
++class VSOMEIP_API security {
+ public:
+     security(std::shared_ptr<policy_manager_impl> _policy_manager);
+     bool load();
+diff --git a/implementation/security/src/security.cpp b/implementation/security/src/security.cpp
+index 3d2f3e42..7552ac64 100644
+--- a/implementation/security/src/security.cpp
++++ b/implementation/security/src/security.cpp
+@@ -26,7 +26,7 @@ template<class T_>
+ std::function<T_> security_load_function(void* _library, std::string const& _name) {
+     void* its_function;
+ #ifdef _WIN32
+-    its_function = GetProcAddress(reinterpret_cast<HMODULE>(_library), _name.c_str());
++    its_function = (void*)GetProcAddress(reinterpret_cast<HMODULE>(_library), _name.c_str());
+ #else
+     its_function = dlsym(_library, _name.c_str());
+ #endif
+diff --git a/implementation/utility/include/utility.hpp b/implementation/utility/include/utility.hpp
+index 71267d7a..a592e6d1 100644
+--- a/implementation/utility/include/utility.hpp
++++ b/implementation/utility/include/utility.hpp
+@@ -74,8 +74,8 @@ public:
+     static bool is_routing_manager(const std::string& _network);
+     static void remove_lockfile(const std::string& _network);
+     static bool exists(const std::string& _path);
+-    static bool VSOMEIP_IMPORT_EXPORT is_file(const std::string& _path);
+-    static bool VSOMEIP_IMPORT_EXPORT is_folder(const std::string& _path);
++    static bool VSOMEIP_API is_file(const std::string& _path);
++    static bool VSOMEIP_API is_folder(const std::string& _path);
+ 
+     static std::string get_base_path(const std::string& _network);
+ 
+diff --git a/interface/vsomeip/export.hpp b/interface/vsomeip/export.hpp
+index cafc40ab..6b0fe7ba 100644
+--- a/interface/vsomeip/export.hpp
++++ b/interface/vsomeip/export.hpp
+@@ -3,6 +3,36 @@
+ // License, v. 2.0. If a copy of the MPL was not distributed with this
+ // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
++#pragma once
++
++#if defined(_WIN32) || defined(__CYGWIN__)
++  #if defined(VSOMEIP_DLL)  // Building/using a DLL on Windows
++    #if defined(VSOMEIP_EXPORTS)  // While building the vsomeip3 DLL itself
++      #define VSOMEIP_API __declspec(dllexport)
++    #else                    // While consuming the DLL
++      #define VSOMEIP_API __declspec(dllimport)
++    #endif
++  #else
++    #define VSOMEIP_API
++  #endif
++#else
++  #define VSOMEIP_API
++#endif
++
++#ifdef _WIN32
++  #if defined(VSOMEIP_DLL)  // Building/using a DLL on Windows
++    #if defined(UDP_EXPORTS)  // While building the vsomeip3 DLL itself
++      #define UDP_API __declspec(dllexport)
++    #else                    // While consuming the DLL
++      #define UDP_API __declspec(dllimport)
++    #endif
++  #else
++    #define UDP_API
++  #endif
++#else
++  #define UDP_API
++#endif
++
+ #ifndef VSOMEIP_V3_EXPORT_HPP_
+ #define VSOMEIP_V3_EXPORT_HPP_
+ 
+diff --git a/interface/vsomeip/internal/logger.hpp b/interface/vsomeip/internal/logger.hpp
+index 1e22e959..2832b31a 100644
+--- a/interface/vsomeip/internal/logger.hpp
++++ b/interface/vsomeip/internal/logger.hpp
+@@ -30,8 +30,8 @@ enum class VSOMEIP_IMPORT_EXPORT level_e : std::uint8_t {
+ 
+ class message : public std::ostream {
+ public:
+-    VSOMEIP_IMPORT_EXPORT explicit message(level_e _level);
+-    VSOMEIP_IMPORT_EXPORT ~message() override;
++    VSOMEIP_API explicit message(level_e _level);
++    VSOMEIP_API ~message() override;
+ 
+ private:
+     std::string_view timestamp() const;
+diff --git a/interface/vsomeip/internal/plugin_manager.hpp b/interface/vsomeip/internal/plugin_manager.hpp
+index 55f83fc9..1954457b 100644
+--- a/interface/vsomeip/internal/plugin_manager.hpp
++++ b/interface/vsomeip/internal/plugin_manager.hpp
+@@ -14,15 +14,15 @@
+ 
+ namespace vsomeip_v3 {
+ 
+-class plugin_manager {
++class VSOMEIP_API plugin_manager {
+ public:
+-    VSOMEIP_EXPORT virtual ~plugin_manager(){};
+-    VSOMEIP_EXPORT static std::shared_ptr<plugin_manager> get();
+-    VSOMEIP_EXPORT virtual std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string& _name) = 0;
+-    VSOMEIP_EXPORT virtual void* load_library(const std::string& _path) = 0;
+-    VSOMEIP_EXPORT virtual void* load_symbol(void* _handle, const std::string& _symbol) = 0;
+-    VSOMEIP_EXPORT virtual void unload_library(void* _handle) = 0;
+-    VSOMEIP_EXPORT virtual bool unload_plugin(plugin_type_e _type) = 0;
++    virtual ~plugin_manager(){};
++    static std::shared_ptr<plugin_manager> get();
++    virtual std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string& _name) = 0;
++    virtual void* load_library(const std::string& _path) = 0;
++    virtual void* load_symbol(void* _handle, const std::string& _symbol) = 0;
++    virtual void unload_library(void* _handle) = 0;
++    virtual bool unload_plugin(plugin_type_e _type) = 0;
+ };
+ 
+ } // namespace vsomeip_v3
+diff --git a/interface/vsomeip/internal/policy_manager.hpp b/interface/vsomeip/internal/policy_manager.hpp
+index c22e5e0b..a02c554e 100644
+--- a/interface/vsomeip/internal/policy_manager.hpp
++++ b/interface/vsomeip/internal/policy_manager.hpp
+@@ -16,7 +16,7 @@ namespace vsomeip_v3 {
+ 
+ struct policy;
+ 
+-class VSOMEIP_IMPORT_EXPORT policy_manager {
++class VSOMEIP_API policy_manager {
+ public:
+     virtual ~policy_manager() { }
+     virtual std::shared_ptr<policy> create_policy() const = 0;
+diff --git a/interface/vsomeip/message.hpp b/interface/vsomeip/message.hpp
+index 8fd6cd31..5d940569 100644
+--- a/interface/vsomeip/message.hpp
++++ b/interface/vsomeip/message.hpp
+@@ -32,7 +32,7 @@ class payload;
+  * are represented by message objects.
+  */
+ 
+-class message : virtual public message_base {
++class VSOMEIP_API message : virtual public message_base {
+ public:
+     virtual ~message() { }
+ 
+diff --git a/interface/vsomeip/message_base.hpp b/interface/vsomeip/message_base.hpp
+index 9dafb028..8312b42d 100644
+--- a/interface/vsomeip/message_base.hpp
++++ b/interface/vsomeip/message_base.hpp
+@@ -31,9 +31,9 @@ namespace vsomeip_v3 {
+  * the message classes within ::vsomeip and vsomeip::sd that add the
+  * payload representations for regular and Service Discovery messages.
+  */
+-class message_base : public serializable, public deserializable {
++class VSOMEIP_API message_base : public serializable, public deserializable {
+ public:
+-    VSOMEIP_EXPORT virtual ~message_base(){};
++    virtual ~message_base(){};
+ 
+     /**
+      * \brief Returns the message identifier.
+@@ -41,7 +41,7 @@ public:
+      * The method returns the message identifier that consists of
+      * service identifier and method identifier.
+      */
+-    VSOMEIP_EXPORT virtual message_t get_message() const = 0;
++    virtual message_t get_message() const = 0;
+     /**
+      * \brief Set the message identifier.
+      *
+@@ -50,17 +50,17 @@ public:
+      *
+      * \param _message The new message identifier.
+      */
+-    VSOMEIP_EXPORT virtual void set_message(message_t _message) = 0;
++    virtual void set_message(message_t _message) = 0;
+ 
+     /**
+      * \brief Returns the service identifier from the message header.
+      */
+-    VSOMEIP_EXPORT virtual service_t get_service() const = 0;
++    virtual service_t get_service() const = 0;
+ 
+     /**
+      * \brief Set the service identifier in the message header.
+      */
+-    VSOMEIP_EXPORT virtual void set_service(service_t _service) = 0;
++    virtual void set_service(service_t _service) = 0;
+ 
+     /**
+      * \brief Returns the instance identifier.
+@@ -69,7 +69,7 @@ public:
+      * either derived from the incoming message (local) or from the port
+      * that was used to send a message (external).
+      */
+-    VSOMEIP_EXPORT virtual instance_t get_instance() const = 0;
++    virtual instance_t get_instance() const = 0;
+ 
+     /**
+      * \brief Set the instance identifier in the message header.
+@@ -81,22 +81,22 @@ public:
+      * Therefore, before sending a message, a user application must set the
+      * instance identifier.
+      */
+-    VSOMEIP_EXPORT virtual void set_instance(instance_t _instance) = 0;
++    virtual void set_instance(instance_t _instance) = 0;
+ 
+     /**
+      * \brief Get the method/event identifier from the message header.
+      */
+-    VSOMEIP_EXPORT virtual method_t get_method() const = 0;
++    virtual method_t get_method() const = 0;
+ 
+     /**
+      * \brief Set the method/event identifier in the message header.
+      */
+-    VSOMEIP_EXPORT virtual void set_method(method_t _method) = 0;
++    virtual void set_method(method_t _method) = 0;
+ 
+     /**
+      * \brief Get the payload length from the message header.
+      */
+-    VSOMEIP_EXPORT virtual length_t get_length() const = 0;
++    virtual length_t get_length() const = 0;
+ 
+     /**
+      * \brief Get the request identifier from the message header.
+@@ -105,12 +105,12 @@ public:
+      * session identifier. As it does really make sense to set it as
+      * a whole, setting is not supported.
+      */
+-    VSOMEIP_EXPORT virtual request_t get_request() const = 0;
++    virtual request_t get_request() const = 0;
+ 
+     /**
+      * \brief Get the client identifier in the message header.
+      */
+-    VSOMEIP_EXPORT virtual client_t get_client() const = 0;
++    virtual client_t get_client() const = 0;
+ 
+     /**
+      * \brief Set the client identifier in the message header.
+@@ -118,12 +118,12 @@ public:
+      * For requests this is automatically done by @ref application::send.
+      * For notications this is not needed.
+      */
+-    VSOMEIP_EXPORT virtual void set_client(client_t _client) = 0;
++    virtual void set_client(client_t _client) = 0;
+ 
+     /**
+      * \brief Get the session identifier from the message header.
+      */
+-    VSOMEIP_EXPORT virtual session_t get_session() const = 0;
++    virtual session_t get_session() const = 0;
+ 
+     /**
+      * \brief Set the session identifier in the message header.
+@@ -131,7 +131,7 @@ public:
+      * For requests this is automatically done by @ref application::send
+      * For notifications it is not needed to set the session identifier.
+      */
+-    VSOMEIP_EXPORT virtual void set_session(session_t _session) = 0;
++    virtual void set_session(session_t _session) = 0;
+ 
+     /**
+      * \brief Get the protocol version from the message header.
+@@ -139,57 +139,57 @@ public:
+      * As the protocol version is a fixed value for a vsomeip implementation,
+      * it cannot be set.
+      */
+-    VSOMEIP_EXPORT virtual protocol_version_t get_protocol_version() const = 0;
++    virtual protocol_version_t get_protocol_version() const = 0;
+ 
+     /**
+      * \brief Get the interface version from the message header.
+      */
+-    VSOMEIP_EXPORT virtual interface_version_t get_interface_version() const = 0;
++    virtual interface_version_t get_interface_version() const = 0;
+ 
+     /**
+      * \brief Set the interface version in the message header.
+      */
+-    VSOMEIP_EXPORT virtual void set_interface_version(interface_version_t _version) = 0;
++    virtual void set_interface_version(interface_version_t _version) = 0;
+ 
+     /**
+      * \brief Get the message type from the message header.
+      */
+-    VSOMEIP_EXPORT virtual message_type_e get_message_type() const = 0;
++    virtual message_type_e get_message_type() const = 0;
+ 
+     /**
+      * \brief Set the message type in the message header.
+      */
+-    VSOMEIP_EXPORT virtual void set_message_type(message_type_e _type) = 0;
++    virtual void set_message_type(message_type_e _type) = 0;
+ 
+     /**
+      * \brief Get the return code from the message header.
+      */
+-    VSOMEIP_EXPORT virtual return_code_e get_return_code() const = 0;
++    virtual return_code_e get_return_code() const = 0;
+ 
+     /**
+      * \brief Set the return code in the message header.
+      */
+-    VSOMEIP_EXPORT virtual void set_return_code(return_code_e _code) = 0;
++    virtual void set_return_code(return_code_e _code) = 0;
+ 
+     /**
+      * \brief Return the transport mode that was/will be used to send the message.
+      */
+-    VSOMEIP_EXPORT virtual bool is_reliable() const = 0;
++    virtual bool is_reliable() const = 0;
+ 
+     /**
+      * \brief Set the transport mode that will be used to send the message.
+      */
+-    VSOMEIP_EXPORT virtual void set_reliable(bool _is_reliable) = 0;
++    virtual void set_reliable(bool _is_reliable) = 0;
+ 
+     /**
+      * \brief Return whether or not the message is an initial event.
+      */
+-    VSOMEIP_EXPORT virtual bool is_initial() const = 0;
++    virtual bool is_initial() const = 0;
+ 
+     /**
+      * \brief Set whether or not the message is an initial event.
+      */
+-    VSOMEIP_EXPORT virtual void set_initial(bool _is_initial) = 0;
++    virtual void set_initial(bool _is_initial) = 0;
+ };
+ 
+ } // namespace vsomeip_v3
+diff --git a/interface/vsomeip/plugin.hpp b/interface/vsomeip/plugin.hpp
+index e0bfa888..d75feda1 100644
+--- a/interface/vsomeip/plugin.hpp
++++ b/interface/vsomeip/plugin.hpp
+@@ -2,6 +2,7 @@
+ // This Source Code Form is subject to the terms of the Mozilla Public
+ // License, v. 2.0. If a copy of the MPL was not distributed with this
+ // file, You can obtain one at http://mozilla.org/MPL/2.0/.
++#pragma once
+ 
+ #ifndef VSOMEIP_V3_PLUGIN_HPP_
+ #define VSOMEIP_V3_PLUGIN_HPP_
+@@ -11,14 +12,23 @@
+ #include <string>
+ #include <cstdint>
+ 
+-#if _WIN32
+-#if VSOMEIP_DLL_COMPILATION_PLUGIN
+-#define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllexport)
+-#else
+-#define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllimport)
+-#endif
+-#else
+-#define VSOMEIP_IMPORT_EXPORT_PLUGIN
++#if defined(_WIN32) || defined(__CYGWIN__)
++    #if defined(VSOMEIP_DLL)
++        #if defined(VSOMEIP_EXPORTS)  // While building the vsomeip3 DLL itself
++            #if VSOMEIP_DLL_COMPILATION_PLUGIN
++                #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllexport)
++            #else
++                #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllimport)
++            #endif
++        #else                               // While consuming the DLL
++            #if VSOMEIP_DLL_COMPILATION_PLUGIN
++                #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllimport)
++            #endif
++        #define VSOMEIP_IMPORT_EXPORT_PLUGIN
++        #endif
++    #else
++        #define VSOMEIP_IMPORT_EXPORT_PLUGIN
++    #endif
+ #endif
+ 
+ #define VSOMEIP_PLUGIN_INIT_SYMBOL "vsomeip_plugin_init"
+diff --git a/interface/vsomeip/runtime.hpp b/interface/vsomeip/runtime.hpp
+index a97b4666..e85b5632 100644
+--- a/interface/vsomeip/runtime.hpp
++++ b/interface/vsomeip/runtime.hpp
+@@ -47,7 +47,7 @@ class payload;
+  * contains the main public API of vsomeip.
+  *
+  */
+-class VSOMEIP_IMPORT_EXPORT runtime {
++class VSOMEIP_API runtime {
+ public:
+     static std::string get_property(const std::string& _name);
+     static void set_property(const std::string& _name, const std::string& _value);
+diff --git a/test/network_tests/CMakeLists.txt b/test/network_tests/CMakeLists.txt
+index 2a26dc98..07b5443b 100644
+--- a/test/network_tests/CMakeLists.txt
++++ b/test/network_tests/CMakeLists.txt
+@@ -199,6 +199,6 @@ add_subdirectory(registration_check_test)
+ add_subdirectory(routing_tests)
+ 
+ # some tests require the routingmanagerd
+-if (NOT MSVC)
++if (NOT MSVC AND NOT MINGW)
+     add_dependencies(build_network_tests routingmanagerd)
+ endif ()

@@ -2,6 +2,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#pragma once
 
 #ifndef VSOMEIP_V3_PLUGIN_HPP_
 #define VSOMEIP_V3_PLUGIN_HPP_
@@ -11,14 +12,23 @@
 #include <string>
 #include <cstdint>
 
-#if _WIN32
-#if VSOMEIP_DLL_COMPILATION_PLUGIN
-#define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllexport)
-#else
-#define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllimport)
-#endif
-#else
-#define VSOMEIP_IMPORT_EXPORT_PLUGIN
+#if defined(_WIN32) || defined(__CYGWIN__)
+    #if defined(VSOMEIP_DLL)
+        #if defined(VSOMEIP_EXPORTS)  // While building the vsomeip3 DLL itself
+            #if VSOMEIP_DLL_COMPILATION_PLUGIN
+                #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllexport)
+            #else
+                #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllimport)
+            #endif
+        #else                               // While consuming the DLL
+            #if VSOMEIP_DLL_COMPILATION_PLUGIN
+                #define VSOMEIP_IMPORT_EXPORT_PLUGIN __declspec(dllimport)
+            #endif
+        #define VSOMEIP_IMPORT_EXPORT_PLUGIN
+        #endif
+    #else
+        #define VSOMEIP_IMPORT_EXPORT_PLUGIN
+    #endif
 #endif
 
 #define VSOMEIP_PLUGIN_INIT_SYMBOL "vsomeip_plugin_init"

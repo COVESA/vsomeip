@@ -27,7 +27,7 @@ namespace logger {
 class logger_impl {
 public:
     logger_impl();
-    VSOMEIP_IMPORT_EXPORT static void init(const std::shared_ptr<configuration>& _configuration);
+    VSOMEIP_API static void init(const std::shared_ptr<configuration>& _configuration);
     static logger_impl* get();
 
     // Note: struct must be trivially copyable and thus cannot contain the log file name.

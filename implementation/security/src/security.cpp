@@ -26,7 +26,7 @@ template<class T_>
 std::function<T_> security_load_function(void* _library, std::string const& _name) {
     void* its_function;
 #ifdef _WIN32
-    its_function = GetProcAddress(reinterpret_cast<HMODULE>(_library), _name.c_str());
+    its_function = (void*)GetProcAddress(reinterpret_cast<HMODULE>(_library), _name.c_str());
 #else
     its_function = dlsym(_library, _name.c_str());
 #endif

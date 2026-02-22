@@ -32,7 +32,7 @@ class payload;
  * are represented by message objects.
  */
 
-class message : virtual public message_base {
+class VSOMEIP_API message : virtual public message_base {
 public:
     virtual ~message() { }
 

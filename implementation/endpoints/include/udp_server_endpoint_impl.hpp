@@ -20,7 +20,7 @@ using on_unicast_sent_cbk_t = std::function<void(const byte_t*, length_t, const 
 // callback type to own multicast messages received
 using on_sent_multicast_received_cbk_t = std::function<void(const byte_t*, length_t, const boost::asio::ip::address&)>;
 
-class udp_server_endpoint_impl : public udp_server_endpoint_base_impl {
+class UDP_API udp_server_endpoint_impl : public udp_server_endpoint_base_impl {
 
 public:
     udp_server_endpoint_impl() = delete;

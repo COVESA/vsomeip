@@ -16,7 +16,7 @@
 
 namespace vsomeip_v3 {
 
-class VSOMEIP_IMPORT_EXPORT security {
+class VSOMEIP_API security {
 public:
     security(std::shared_ptr<policy_manager_impl> _policy_manager);
     bool load();

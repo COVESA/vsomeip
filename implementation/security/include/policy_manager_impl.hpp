@@ -25,7 +25,7 @@ namespace vsomeip_v3 {
 
 struct configuration_element;
 
-class VSOMEIP_IMPORT_EXPORT policy_manager_impl
+class VSOMEIP_API policy_manager_impl
 #ifndef VSOMEIP_DISABLE_SECURITY
     : public policy_manager
 #endif // !VSOMEIP_DISABLE_SECURITY
