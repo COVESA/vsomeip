@@ -11,6 +11,7 @@
 #include "helpers/fake_tcp_socket_handle.hpp"
 #include "helpers/message_checker.hpp"
 #include "helpers/service_state.hpp"
+#include "helpers/availability_checker.hpp"
 
 #include "sample_interfaces.hpp"
 
@@ -101,6 +102,10 @@ struct test_client_helper : public base_fake_socket_fixture {
     request request_{service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message expected_request_{client_session{0x3490 /*client id*/, 1}, service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
     message expected_reply_{client_session{0x3490 /*client id*/, 1}, service_instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
+
+    std::vector<service_instance> service_instances{{0x3344, 0x1}, {0x3345, 0x1}, {0x3346, 0x1}, {0x3347, 0x1},
+                                                    {0x3348, 0x1}, {0x3349, 0x1}, {0x334A, 0x1}, {0x334B, 0x1},
+                                                    {0x334C, 0x1}, {0x334D, 0x1}, {0x334E, 0x1}};
 
     app* routingmanagerd_{};
     app* client_{};
@@ -1382,6 +1387,87 @@ struct test_restart_clients : test_client_helper {
     std::string const client_one_{"client-one"};
     std::string const client_two_{"client-two"};
 };
+
+TEST_F(test_client_helper, offer_and_stop_service_concurrency) {
+
+    // 1. Setup applications (does not start second server just yet)
+    // 2. Offer multiple services on the server (x11 just an arbitrary number)
+    // 3. Request those services on the client, and wait for all availabilities
+    // 4. Starts another server, and offer the same services on it
+    // 5. Simulates a non responding server by disconnecting it from the router
+    // 6. Second server offers the same services
+    // 7. Wait for the client to recognize the availability of the services offered by
+    // second server
+
+    std::vector<availability_checker> availability_checkers_{[this]() {
+        std::vector<availability_checker> checkers;
+        for (const auto& si : service_instances) {
+            checkers.emplace_back(service_instance{si}, vsomeip::availability_state_e::AS_AVAILABLE);
+        }
+        return checkers;
+    }()};
+
+    std::vector<availability_checker> un_availability_checkers_{[this]() {
+        std::vector<availability_checker> checkers;
+        for (const auto& si : service_instances) {
+            checkers.emplace_back(service_instance{si}, vsomeip::availability_state_e::AS_UNAVAILABLE);
+        }
+        return checkers;
+    }()};
+
+    start_apps();
+    create_app(server_name_two_);
+
+    // Following loops are separated purposely.
+    for (auto service : service_instances) {
+        server_->offer(service);
+    }
+
+    for (auto service : service_instances) {
+        client_->request_service(service);
+    }
+
+    for (const auto& checker : availability_checkers_) {
+        ASSERT_TRUE(client_->availability_record_.wait_for(checker));
+    }
+
+    client_->availability_record_.clear();
+
+    auto* another_server = start_client(server_name_two_);
+    ASSERT_NE(another_server, nullptr);
+    ASSERT_TRUE(another_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    ASSERT_TRUE(set_ignore_inner_close(server_name_, false, routingmanager_name_, true));
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true, socket_role::client));
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::eof, routingmanager_name_, boost::asio::error::connection_reset,
+                           socket_role::client));
+
+    for (auto service : service_instances) {
+        another_server->offer(service);
+    }
+
+    // Unfortunately, we need to increase the timeout in the following operations, because the second server might be
+    // waiting for the pong from the first server, which is still deregistering..thus, pong timeout needs to happen
+    // and then the offer can be send once again by the second server.
+
+    // TODO: this should be handled in a more efficient way, new offer/availability is being delayed by the pong timeout of the first
+    // server, which is not ideal, but currently the best we can do to increase the odds of this test to be stable
+
+    // Also, we wait for any because by the time we do the check the new availabily may be already processed, therefore
+    // we cannot simply look for the last availability.
+
+    // Note, the availabilities are not going to receive all at once, means, availabilities will be processed depending on
+    // order of the offer commands
+    for (auto checker : availability_checkers_) {
+        ASSERT_TRUE(client_->availability_record_.wait_for(checker, std::chrono::seconds(6))) << client_->availability_record_;
+    }
+
+    for (const auto& checker : un_availability_checkers_) {
+        // Here the default timeout should be more than enough, as before, we may have waited for some time already for
+        // the availabilities
+        ASSERT_TRUE(client_->availability_record_.wait_for(checker)) << client_->availability_record_;
+    }
+}
 
 TEST_F(test_restart_clients, test_assignment_timeout_recover) {
     start_router();

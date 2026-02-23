@@ -119,6 +119,8 @@ public:
     std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
     void remove_local(client_t _client, bool _remove_due_to_error);
+    void on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
+                                        minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
@@ -317,7 +319,7 @@ private:
 
     bool insert_offer_command(service_t _service, instance_t _instance, uint8_t _command, client_t _client, major_version_t _major,
                               minor_version_t _minor);
-    bool erase_offer_command(service_t _service, instance_t _instance);
+    void erase_offer_command(service_t _service, instance_t _instance);
 
     std::string get_env(client_t _client) const;
     std::string get_env_unlocked(client_t _client) const;
@@ -331,8 +333,6 @@ private:
     void remove_guest(client_t _client);
 
     void send_suspend() const;
-
-    void clear_local_services();
 
     bool is_acl_message_allowed(boardnet_endpoint* _receiver, service_t _service, instance_t _instance,
                                 const boost::asio::ip::address& _remote_address) const;

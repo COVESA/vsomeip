@@ -111,8 +111,6 @@ public:
     virtual void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) = 0;
     virtual void remove_guest(client_t _client) = 0;
 
-    virtual void clear_local_services() = 0;
-
     virtual routing_state_e get_routing_state() = 0;
 
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;

@@ -268,10 +268,13 @@ void routing_manager_impl::stop() {
             }
         }
     }
-    for (const auto& [service, instances] : its_services) {
-        for (const auto& [instance, info] : instances) {
-            auto [major, minor, client] = info;
-            on_stop_offer_service(client, service, instance, major, minor);
+    {
+        std::scoped_lock its_lock{offer_serialization_mutex_};
+        for (const auto& [service, instances] : its_services) {
+            for (const auto& [instance, info] : instances) {
+                auto [major, minor, client] = info;
+                on_stop_offer_service_unlocked(client, service, instance, major, minor);
+            }
         }
     }
 
@@ -309,7 +312,6 @@ void routing_manager_impl::stop() {
 
 bool routing_manager_impl::insert_offer_command(service_t _service, instance_t _instance, uint8_t _command, client_t _client,
                                                 major_version_t _major, minor_version_t _minor) {
-    std::scoped_lock its_lock{offer_serialization_mutex_};
     // flag to indicate whether caller of this function can start directly processing the command
     bool must_process(false);
     auto found_service_instance = offer_commands_.find(std::make_pair(_service, _instance));
@@ -327,8 +329,7 @@ bool routing_manager_impl::insert_offer_command(service_t _service, instance_t _
     return must_process;
 }
 
-bool routing_manager_impl::erase_offer_command(service_t _service, instance_t _instance) {
-    std::scoped_lock its_lock{offer_serialization_mutex_};
+void routing_manager_impl::erase_offer_command(service_t _service, instance_t _instance) {
     auto found_service_instance = offer_commands_.find(std::make_pair(_service, _instance));
     if (found_service_instance != offer_commands_.end()) {
         // erase processed command
@@ -351,7 +352,6 @@ bool routing_manager_impl::erase_offer_command(service_t _service, instance_t _i
             }
         }
     }
-    return true;
 }
 
 bool routing_manager_impl::is_local_client(client_t _client) const {
@@ -366,7 +366,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
 
 bool routing_manager_impl::offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                          minor_version_t _minor, bool _must_queue) {
-
+    std::scoped_lock its_lock{offer_serialization_mutex_};
     // only queue commands if method was NOT called via erase_offer_command()
     if (_must_queue) {
         if (!insert_offer_command(_service, _instance, uint8_t(protocol::id_e::OFFER_SERVICE_ID), _client, _major, _minor)) {
@@ -446,9 +446,7 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
 
 void routing_manager_impl::stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                               minor_version_t _minor, bool _must_queue) {
-
-    VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
-                 << _minor << "] (" << std::boolalpha << _must_queue << ")";
+    std::scoped_lock its_lock{offer_serialization_mutex_};
 
     if (_must_queue) {
         if (!insert_offer_command(_service, _instance, uint8_t(protocol::id_e::STOP_OFFER_SERVICE_ID), _client, _major, _minor)) {
@@ -479,7 +477,9 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
             }
         }
 
-        on_stop_offer_service(_client, _service, _instance, _major, _minor);
+        on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
+        VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec
+                     << int(_major) << "." << _minor << "] (" << std::boolalpha << _must_queue << ")";
     } else {
         VSOMEIP_WARNING_P << "Received STOP_OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                           << int(_major) << "." << _minor << "] for remote service --> ignore";
@@ -1436,8 +1436,14 @@ void routing_manager_impl::on_notification(client_t _client, service_t _service,
 
 void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
+    std::scoped_lock its_lock{offer_serialization_mutex_};
+    on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
+}
 
-    VSOMEIP_INFO << "rmi::ON_STOP_OFFER_SERVICE (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance,
+                                                          major_version_t _major, minor_version_t _minor) {
+
+    VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec
                  << static_cast<int>(_major) << "." << _minor << "]";
     {
         std::scoped_lock its_lock{local_services_mutex_};
@@ -4196,12 +4202,6 @@ void routing_manager_impl::remove_guest(client_t _client) {
 void routing_manager_impl::send_suspend() const {
     if (stub_)
         stub_->send_suspend();
-}
-
-void routing_manager_impl::clear_local_services() {
-
-    std::scoped_lock its_lock{local_services_mutex_};
-    local_services_.clear();
 }
 
 void routing_manager_impl::register_message_acceptance_handler(const message_acceptance_handler_t& _handler) {
