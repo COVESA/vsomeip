@@ -833,7 +833,6 @@ void routing_manager_stub::registration_func(client_t client_id, std::vector<reg
         // endpoint error to avoid writing in an already closed socket
         if (type != registration_type_e::DEREGISTER_ON_ERROR) {
             std::scoped_lock its_guard{routing_info_mutex_};
-            add_connection(client_id, client_id);
             protocol::routing_info_entry its_entry;
             its_entry.set_client(client_id);
             if (type == registration_type_e::REGISTER) {
@@ -866,21 +865,6 @@ void routing_manager_stub::registration_func(client_t client_id, std::vector<reg
 void routing_manager_stub::remove_client_connections(client_t client_id, bool _remove_due_to_error) {
     {
         std::scoped_lock its_guard{routing_info_mutex_};
-        auto find_connections = connection_matrix_.find(client_id);
-        if (find_connections != connection_matrix_.end()) {
-            for (auto its_client : find_connections->second) {
-                if (its_client != client_id && its_client != VSOMEIP_ROUTING_CLIENT && its_client != get_client()) {
-                    protocol::routing_info_entry its_entry;
-                    its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
-                    its_entry.set_client(client_id);
-                    send_client_routing_info(its_client, its_entry);
-                }
-            }
-            remove_source(client_id);
-        }
-        for (const auto& its_connections : connection_matrix_) {
-            remove_connection(its_connections.first, client_id);
-        }
         service_requests_.erase(client_id);
     }
     host_->remove_local(client_id, _remove_due_to_error);
@@ -905,7 +889,7 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
     if (configuration_->is_security_enabled()) {
         distribute_credentials(_client, _service, _instance);
     }
-    inform_requesters(_client, _service, _instance, _major, _minor, protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE, true);
+    inform_requesters(_client, _service, _instance, _major, _minor, protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
 }
 
 void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
@@ -928,14 +912,14 @@ void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _se
                         found_client->second.second.erase(_service);
                     }
                     inform_requesters(_client, _service, _instance, _major, _minor,
-                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE, false);
+                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
                 } else if (_major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR) {
                     found_service->second.erase(_instance);
                     if (0 == found_service->second.size()) {
                         found_client->second.second.erase(_service);
                     }
                     inform_requesters(_client, _service, _instance, _major, _minor,
-                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE, false);
+                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
                 }
             }
         }
@@ -1046,7 +1030,7 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
 }
 
 void routing_manager_stub::inform_requesters(client_t _hoster, service_t _service, instance_t _instance, major_version_t _major,
-                                             minor_version_t _minor, protocol::routing_info_entry_type_e _type, bool _inform_service) {
+                                             minor_version_t _minor, protocol::routing_info_entry_type_e _type) {
 
     boost::asio::ip::address its_address;
     port_t its_port;
@@ -1056,27 +1040,11 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
         if (its_service != its_client.second.end()) {
             if (its_service->second.find(_instance) != its_service->second.end()
                 || its_service->second.find(ANY_INSTANCE) != its_service->second.end()) {
-                if (_inform_service) {
-                    if (_hoster != VSOMEIP_ROUTING_CLIENT && _hoster != host_->get_client()) {
-                        add_connection(_hoster, its_client.first);
-                        protocol::routing_info_entry its_entry;
-                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                        its_entry.set_client(its_client.first);
-                        if (host_->get_guest(its_client.first, its_address, its_port)) {
-                            its_entry.set_address(its_address);
-                            its_entry.set_port(its_port);
-                        }
-                        send_client_routing_info(_hoster, its_entry);
-                        send_client_config_command(its_client.first, _hoster);
-                    }
-                }
                 if (its_client.first != VSOMEIP_ROUTING_CLIENT && its_client.first != get_client()) {
-                    add_connection(its_client.first, _hoster);
                     protocol::routing_info_entry its_entry;
                     its_entry.set_type(_type);
                     its_entry.set_client(_hoster);
-                    if ((_type == protocol::routing_info_entry_type_e::RIE_ADD_CLIENT
-                         || _type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE)
+                    if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
                         && host_->get_guest(_hoster, its_address, its_port)) {
                         its_entry.set_address(its_address);
                         its_entry.set_port(its_port);
@@ -1655,31 +1623,12 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
             // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
             its_clients.insert(VSOMEIP_ROUTING_CLIENT);
             for (const client_t c : its_clients) {
-                if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
-                    add_connection(c, _client);
-
-                    protocol::routing_info_entry its_entry;
-                    its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                    its_entry.set_client(_client);
-                    if (host_->get_guest(_client, its_address, its_port)) {
-                        its_entry.set_address(its_address);
-                        its_entry.set_port(its_port);
-                    }
-                    if (_client == c) {
-                        its_entries.emplace_back(its_entry);
-                    } else {
-                        send_client_routing_info(c, its_entry);
-                        send_client_config_command(_client, c);
-                    }
-                }
                 if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
                     const auto found_client = routing_info_.find(c);
                     if (found_client != routing_info_.end()) {
                         const auto found_service = found_client->second.second.find(request.service_);
                         if (found_service != found_client->second.second.end()) {
                             for (auto instance : found_service->second) {
-                                add_connection(_client, c);
-
                                 protocol::routing_info_entry its_entry;
                                 its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                                 its_entry.set_client(c);
@@ -1702,29 +1651,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                 if (found_service != found_client->second.second.end()) {
                     const auto found_instance = found_service->second.find(request.instance_);
                     if (found_instance != found_service->second.end()) {
-                        if (c != VSOMEIP_ROUTING_CLIENT && c != host_->get_client()) {
-                            add_connection(c, _client);
-
-                            protocol::routing_info_entry its_entry;
-                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                            its_entry.set_client(_client);
-                            if (host_->get_guest(_client, its_address, its_port)) {
-                                its_entry.set_address(its_address);
-                                its_entry.set_port(its_port);
-                            }
-                            if (_client == c) {
-                                its_entries.emplace_back(its_entry);
-                            } else {
-                                // order matters: First send the config_id to ensure that
-                                // in case of lazy_loading the security policy is loaded,
-                                // before the client would try to connect
-                                send_client_config_command(_client, c);
-                                send_client_routing_info(c, its_entry);
-                            }
-                        }
                         if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
-                            add_connection(_client, c);
-
                             protocol::routing_info_entry its_entry;
                             its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                             its_entry.set_client(c);

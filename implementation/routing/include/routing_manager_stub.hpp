@@ -132,7 +132,7 @@ private:
     void distribute_credentials(client_t _hoster, service_t _service, instance_t _instance);
 
     void inform_requesters(client_t _hoster, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                           protocol::routing_info_entry_type_e _entry, bool _inform_service);
+                           protocol::routing_info_entry_type_e _entry);
 
     void broadcast_ping() const;
     void on_ping(client_t _client);
@@ -145,23 +145,6 @@ private:
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const& _error);
     void remove_from_pinged_clients(client_t _client);
-
-    inline bool is_connected(client_t _source, client_t _sink) const {
-
-        auto find_source = connection_matrix_.find(_source);
-        if (find_source != connection_matrix_.end())
-            return (find_source->second.find(_sink) != find_source->second.end());
-
-        return false;
-    }
-    inline void add_connection(client_t _source, client_t _sink) { connection_matrix_[_source].insert(_sink); }
-    inline void remove_connection(client_t _source, client_t _sink) {
-
-        auto find_source = connection_matrix_.find(_source);
-        if (find_source != connection_matrix_.end())
-            find_source->second.erase(_sink);
-    }
-    inline void remove_source(client_t _source) { connection_matrix_.erase(_source); }
 
     void remove_client_connections(client_t _client, bool _remove_due_to_error);
 
@@ -226,7 +209,6 @@ private:
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
 
     std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>> service_requests_;
-    std::map<client_t, std::set<client_t>> connection_matrix_;
 
     std::mutex pending_security_updates_mutex_;
     pending_security_update_id_t pending_security_update_id_;
