@@ -11,6 +11,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"

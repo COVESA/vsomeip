@@ -6,6 +6,7 @@
 #include <atomic>
 #include <iomanip>
 
+#include <boost/asio/bind_executor.hpp>
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/write.hpp>
 
@@ -235,9 +236,9 @@ void tcp_client_endpoint_impl::connect() {
         connect_timepoint_ = std::chrono::steady_clock::now();
         aborted_restart_count_ = 0;
         VSOMEIP_WARNING_P << "Connecting to: local:" << this->get_address_port_local() << " remote: " << this->get_address_port_remote();
-        socket_->async_connect(
-                remote_,
-                strand_.wrap(std::bind(&tcp_client_endpoint_base_impl::cancel_and_connect_cbk, shared_from_this(), std::placeholders::_1)));
+        auto self = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this());
+        socket_->async_connect(remote_,
+                               boost::asio::bind_executor(strand_, [self](const auto& _error) { self->cancel_and_connect_cbk(_error); }));
     } else {
         VSOMEIP_WARNING_P << "Could not connect (" << its_error.value() << "): " << its_error.message();
         std::size_t operations_cancelled;
@@ -296,10 +297,12 @@ void tcp_client_endpoint_impl::receive(message_buffer_ptr_t _recv_buffer, std::s
             // don't start receiving again
             return;
         }
-        socket_->async_receive(boost::asio::buffer(&(*_recv_buffer)[_recv_buffer_size], buffer_size),
-                               strand_.wrap(std::bind(&tcp_client_endpoint_impl::receive_cbk,
-                                                      std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this()),
-                                                      std::placeholders::_1, std::placeholders::_2, _recv_buffer, _recv_buffer_size)));
+        auto self = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(shared_from_this());
+        socket_->async_receive(
+                boost::asio::buffer(&(*_recv_buffer)[_recv_buffer_size], buffer_size),
+                boost::asio::bind_executor(strand_, [self, _recv_buffer, _recv_buffer_size](const auto& _error, auto _bytes) {
+                    self->receive_cbk(_error, _bytes, _recv_buffer, _recv_buffer_size);
+                }));
     }
 }
 
@@ -328,7 +331,8 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
                         return write_completion_condition(ec, size, to_be_send_length, its_service, its_method, its_client, its_session,
                                                           when);
                     },
-                    strand_.wrap(
+                    boost::asio::bind_executor(
+                            strand_,
                             // copy the buffer into the callback to keep the buffer itself alive
                             [this, self = shared_from_this(), buffer = _entry.first](auto ec, auto size) { send_cbk(ec, size, buffer); }));
         } else {

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <thread>
 
+#include <boost/asio/bind_executor.hpp>
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/ip/multicast.hpp>
 
@@ -151,8 +152,8 @@ void udp_client_endpoint_impl::connect() {
         }
 
         state_ = cei_state_e::CONNECTING;
-        socket_->async_connect(
-                remote_, strand_.wrap(std::bind(&udp_client_endpoint_base_impl::connect_cbk, shared_from_this(), std::placeholders::_1)));
+        auto self = std::dynamic_pointer_cast<udp_client_endpoint_impl>(shared_from_this());
+        socket_->async_connect(remote_, boost::asio::bind_executor(strand_, [self](const auto& _error) { self->connect_cbk(_error); }));
     } else {
         VSOMEIP_WARNING_P << "Error opening socket: " << its_error.message() << " remote:" << get_address_port_remote();
         boost::asio::post(strand_, std::bind(&udp_client_endpoint_base_impl::connect_cbk, shared_from_this(), its_error));
@@ -219,10 +220,13 @@ void udp_client_endpoint_impl::receive() {
         return;
     }
     auto its_buffer = std::make_shared<message_buffer_t>(VSOMEIP_UDP_BUFFER_SIZE, 0);
-    socket_->async_receive_from(boost::asio::buffer(*its_buffer), const_cast<endpoint_type&>(remote_),
-                                strand_.wrap(std::bind(&udp_client_endpoint_impl::receive_cbk,
-                                                       std::dynamic_pointer_cast<udp_client_endpoint_impl>(shared_from_this()),
-                                                       std::placeholders::_1, std::placeholders::_2, its_buffer)));
+    auto its_sender_endpoint = std::make_shared<endpoint_type>();
+    auto self = std::dynamic_pointer_cast<udp_client_endpoint_impl>(shared_from_this());
+    socket_->async_receive_from(
+            boost::asio::buffer(*its_buffer), *its_sender_endpoint,
+            boost::asio::bind_executor(strand_, [self, its_buffer, its_sender_endpoint](const auto& _error, auto _bytes) {
+                self->receive_cbk(_error, _bytes, its_buffer);
+            }));
 }
 
 bool udp_client_endpoint_impl::get_remote_address(boost::asio::ip::address& _address) const {
