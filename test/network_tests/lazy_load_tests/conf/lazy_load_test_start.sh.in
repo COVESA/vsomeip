@@ -9,15 +9,14 @@ if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
     exit 1
 fi
 
-# Purpose: This script is needed to start the services with
-# one command. This is necessary as ctest - which is used to run the
-# tests - isn't able to start multiple binaries for one testcase. Therefore
-# the testcase simply executes this script. This script then runs the services
-# and checks that all exit successfully.
+# hack to prevent ASan complaining not being the first to load
+export ASAN_OPTIONS=$ASAN_OPTIONS:verify_asan_link_order=0
+# preload "fake" gethostname lib
+export LD_PRELOAD=$PWD/libgethostname.so
 
 # Initialize error tracking
 FAIL=0
-
+export VSOMEIP_HOSTNAME=master
 export VSOMEIP_CONFIGURATION=/vsomeip/
 export VSOMEIP_APPLICATION_NAME=routingmanagerd
 # start daemon
@@ -35,23 +34,20 @@ PID_CLIENT=$!
 
 export VSOMEIP_CONFIGURATION=/vsomeip/
 export VSOMEIP_APPLICATION_NAME=client-sample-lazy
-
-# start lazy client with linux user id 1 and group id 1 to use the 1_1 folder in extensions
-# + allow user to access directory where descriptors are created
+export VSOMEIP_HOSTNAME=slave
+# allow user to access directory where descriptors are created
 chmod 777 $TEST_TMPDIR
-setpriv --reuid=1 --regid=1 --clear-groups ./lazy_load_test_lazy_client
-PID_LAZY_CLIENT=$!
+# start lazy client with linux user id 1 and group id 1 to use the 1_1 folder in extensions
+setpriv --reuid=1 --regid=1 --clear-groups ./lazy_load_test_lazy_client || FAIL=$(($FAIL+1))
 
-wait $PID_LAZY_CLIENT || FAIL=$(($FAIL+1))
-
-# Terminate the daemon
-kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
+# Check client exit status
+wait $PID_CLIENT || FAIL=$(($FAIL+1))
 
 # Check service exit status
 wait $PID_SERVICE || FAIL=$(($FAIL+1))
 
-# Check client exit status
-wait $PID_CLIENT || FAIL=$(($FAIL+1))
+# Terminate the daemon
+kill $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
 
 exit $FAIL

@@ -78,11 +78,9 @@ void routing_manager_stub::init() {
 
     init_routing_endpoint();
 
-    std::string its_env;
-    char its_hostname[1024];
-    if (gethostname(its_hostname, sizeof(its_hostname)) == 0)
-        its_env = its_hostname;
-    host_->set_client_host(its_env);
+    if (char its_hostname[1024]; gethostname(its_hostname, sizeof(its_hostname)) == 0) {
+        host_->set_client_host(its_hostname);
+    }
 }
 
 void routing_manager_stub::start() {

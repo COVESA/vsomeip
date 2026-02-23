@@ -11,8 +11,9 @@ if (TEST_SECURITY)
     set(configuration_files
         lazy_load_test_start.sh
         vsomeip/lazy_load_test_config.json
-        vsomeip/vsomeip_ext/1_1/vsomeip_security.json
         vsomeip/vsomeip_policy_extensions.json
+        vsomeip/vsomeip_ext/0_0/vsomeip_security.json
+        vsomeip/vsomeip_ext/android/1_1/vsomeip_security.json
     )
     configure_files("${configuration_files}")
 
@@ -28,6 +29,10 @@ if (TEST_SECURITY)
         lazy_load_test_lazy_client.cpp
     )
 
+    add_library(gethostname SHARED
+        gethostname.cpp
+    )
+
     # Add build dependencies and link libraries to executables.
     set(executables
         lazy_load_test_service
@@ -37,6 +42,7 @@ if (TEST_SECURITY)
     targets_link_default_libraries("${executables}")
     targets_add_default_dependencies("${executables}")
 
+    add_dependencies(build_network_tests gethostname)
     # logs won't be generated for this test as there is one application which
     # will run as uid:1 gid:1, which is not allowed to write to the log file
     list(FILTER TEST_ENTRYPOINT EXCLUDE REGEX "^--log-file=") 

@@ -93,8 +93,7 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
     request_debounce_timer_running_(false), client_side_logging_(_client_side_logging),
     client_side_logging_filter_(_client_side_logging_filter) {
 
-    char its_hostname[1024];
-    if (gethostname(its_hostname, sizeof(its_hostname)) == 0) {
+    if (char its_hostname[1024]; gethostname(its_hostname, sizeof(its_hostname)) == 0) {
         set_client_host(its_hostname);
     }
 }
@@ -1061,7 +1060,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                         _sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_message->get_client())
                                                 << " : routing_manager_client::on_message: " << hex4(its_message->get_client())
-                                                << "isn't allowed to send a request to service/instance/method "
+                                                << " isn't allowed to send a request to service/instance/method "
                                                 << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
                                                 << hex4(its_message->get_method()) << " ~> Skip message!";
                                 return;

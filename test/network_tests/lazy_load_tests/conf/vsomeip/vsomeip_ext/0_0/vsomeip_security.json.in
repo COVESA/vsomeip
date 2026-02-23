@@ -1,0 +1,40 @@
+{
+    "security" :
+    {
+        "policies" :
+        [
+            {
+                "credentials" : {"uid" : "0", "gid" : "0"},
+                "allow" :
+                {
+                    "offers":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instances" : ["0x5678", "0x02"]
+                        }
+                    ]
+                }
+            },
+            {
+                "credentials" : {"uid" : "0", "gid" : "0"},
+                "allow" :
+                {
+                    "requests":
+                    [
+                        {
+                            "service"  : "0x1234",
+                            "instances" :
+                            [
+                                {
+                                    "ids" : ["0x5678"],
+                                    "methods" : [ {"first" : "0x8421", "last" : "0x8422" }, "0x8001", "0x7777" ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
@@ -116,7 +117,7 @@ private:
     mutable std::shared_mutex is_client_allowed_cache_mutex_;
     mutable std::map<std::pair<uid_t, gid_t>, std::set<std::tuple<service_t, instance_t, method_t>>> is_client_allowed_cache_;
 
-    bool policy_enabled_;
+    std::atomic<bool> policy_enabled_;
     bool check_credentials_;
     bool allow_remote_clients_;
     bool check_whitelist_;
