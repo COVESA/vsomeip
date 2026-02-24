@@ -3464,6 +3464,7 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
 void routing_manager_impl::start_ip_routing() {
 #if defined(_WIN32) || defined(__QNX__)
     if_state_running_ = true;
+    sd_route_set_ = true;
 #endif
 
     if (routing_ready_handler_) {
