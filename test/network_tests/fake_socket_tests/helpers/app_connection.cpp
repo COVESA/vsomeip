@@ -4,7 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "app_connection.hpp"
-#include "fake_tcp_socket_handle.hpp"
+#include "sockets/fake_tcp_socket_handle.hpp"
 #include "test_logging.hpp"
 
 #define LOCAL_LOG TEST_LOG << "[app_connection] "

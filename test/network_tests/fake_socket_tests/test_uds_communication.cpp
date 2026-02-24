@@ -8,7 +8,7 @@
 #include "helpers/base_fake_socket_fixture.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
-#include "helpers/fake_tcp_socket_handle.hpp"
+#include "helpers/sockets/fake_tcp_socket_handle.hpp"
 #include "helpers/message_checker.hpp"
 #include "helpers/service_state.hpp"
 

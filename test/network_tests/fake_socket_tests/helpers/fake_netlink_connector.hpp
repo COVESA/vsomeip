@@ -8,7 +8,6 @@
 #if defined(__linux__)
 #include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
 
-#include "fake_tcp_socket.hpp"
 #include "socket_manager.hpp"
 
 namespace vsomeip_v3::testing {
@@ -29,6 +28,7 @@ private:
             if (auto lock = self.lock(); lock) {
                 if (lock->handler_) {
                     lock->handler_(true /*interface*/, "fake-interface", true /*is avail*/);
+                    lock->handler_(false /*route*/, "fake-interface", true /*is avail*/);
                 }
             }
         });

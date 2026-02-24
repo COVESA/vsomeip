@@ -4,10 +4,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "fake_tcp_socket_handle.hpp"
-#include "socket_manager.hpp"
+#include "../socket_manager.hpp"
 #include "fake_tcp_socket.hpp"
 #include "fake_uds_socket.hpp"
-#include "test_logging.hpp"
+#include "../test_logging.hpp"
 
 #include <thread>
 #include <numeric>
@@ -116,7 +116,7 @@ void fake_tcp_socket_handle::close() {
         return socket_manager_.lock();
     }();
     if (sm) {
-        if (sm->bind_socket(*this)) {
+        if (sm->bind_socket(*this, _ep, socket_id_.fd_)) {
             auto const lock = std::scoped_lock(mtx_);
             local_ep_ = _ep;
             return true;
@@ -257,14 +257,14 @@ void fake_tcp_socket_handle::clear_handler() {
         return false;
     }
 
-    connected_socket_ = _connecting.weak_from_this();
+    connected_socket_ = std::dynamic_pointer_cast<fake_tcp_socket_handle>(_connecting.shared_from_this());
     remote_ep_ = _connecting.local_ep_;
     remote_uds_ep_ = _connecting.local_uds_ep_;
     is_open_ = true;
     socket_id_.role_ = socket_role::server;
     local_ep_ = boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), socket_id_.fd_);
 
-    _connecting.connected_socket_ = weak_from_this();
+    _connecting.connected_socket_ = std::dynamic_pointer_cast<fake_tcp_socket_handle>(shared_from_this());
     _connecting.remote_ep_ = local_ep_;
     _connecting.remote_uds_ep_ = local_uds_ep_;
     _connecting.socket_id_.role_ = socket_role::client;

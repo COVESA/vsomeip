@@ -1,0 +1,85 @@
+{
+    "unicast":"127.0.0.2",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true",
+        "version" :
+        {
+            "interval": 0
+        }
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "applications" :
+    [
+        {
+            "name" : "router_two",
+            "id" : "0x34fe"
+        }
+    ],
+    "services":
+    [
+        {
+            "service":"0x3344",
+            "instance":"0x0001",
+            "unreliable":"30501",
+            "events" :
+            [
+                {
+                    "event" : "0x8002",
+                    "is_field" : "false"
+                },
+                {
+                    "event" : "0x8003",
+                    "is_field" : "true"
+                }
+            ],
+            "eventgroups" :
+            [
+                {
+                    "eventgroup" : "0x1",
+                    "events" : [ "0x8002"]
+                },
+                {
+                    "eventgroup" : "0x6",
+                    "events" : [ "0x8003"]
+                }
+            ]
+        }
+    ],
+    "network" : "ecu_two_vsomeip",
+    "routing" :
+    {
+        "host": {
+            "name": "router_two",
+            "unicast": "127.0.0.2",
+            "port": "8998"
+        },
+        "guests": {
+            "unicast": "127.0.0.2",
+            "ports": [
+                {
+                    "first": "9000",
+                    "last": "65535"
+                }
+            ]
+        }
+    },
+    "service-discovery" :
+    {
+        "enable" : "true",
+        "multicast" : "224.244.224.245",
+        "port" : "30490",
+        "protocol" : "udp",
+        "initial_delay_min" : "10",
+        "initial_delay_max" : "100",
+        "repetitions_base_delay" : "200",
+        "repetitions_max" : "3",
+        "ttl" : "3",
+        "cyclic_offer_delay" : "2000",
+        "request_response_delay" : "1500"
+    }
+}

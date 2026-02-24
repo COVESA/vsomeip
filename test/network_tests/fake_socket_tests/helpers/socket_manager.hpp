@@ -5,7 +5,8 @@
 
 #pragma once
 
-#include "fake_tcp_socket_handle.hpp"
+#include "sockets/fake_tcp_socket_handle.hpp"
+#include "sockets/fake_udp_socket_handle.hpp"
 
 #include <mutex>
 #include <map>
@@ -186,7 +187,7 @@ public:
     /**
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
      **/
-    void add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io, socket_type _type);
+    void add_socket(std::weak_ptr<fake_socket_handle> _state, boost::asio::io_context* _io, socket_type _type);
 
     /**
      * removes the fd from the internal map of fds.
@@ -222,7 +223,9 @@ public:
 
     /**
      **/
-    [[nodiscard]] bool bind_socket(fake_tcp_socket_handle const& _handle);
+    [[nodiscard]] bool bind_socket(fake_tcp_socket_handle const& _handle, boost::asio::ip::tcp::endpoint const& _ep, fd_t _fd);
+
+    [[nodiscard]] bool bind_socket(fake_udp_socket_handle const& _handle, boost::asio::ip::udp::endpoint const& _ep, fd_t _fd);
 
     /**
      * Searches for a fake_tcp_acceptor_handle @see socket_manager::bind_acceptor(),
@@ -269,15 +272,32 @@ public:
      **/
     void close_connection(std::string const& _one, std::string const& _two, socket_role _closing);
 
+    /**
+     * @brief Adds member @param _fd to virtual multicast group @param _multicast.
+     *
+     * @param _multicast Multicast address to be joined.
+     * @param _fd member to join group.
+     */
+    void join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
+
+    /**
+     * @brief Removes member @param _fd from virtual multicast group @param _multicast.
+     *
+     * @param _multicast Multicast address to be leaved.
+     * @param _fd member to leave group.
+     */
+    void leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
+
+    void send_someip(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
     std::shared_ptr<app_connection> get_or_create_connection(std::string const& _client, std::string const& _server);
-
     std::mutex mtx_;
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
     std::atomic<fd_t> next_fd_{1};
-    std::map<fd_t, std::weak_ptr<fake_tcp_socket_handle>> fd_to_handle_;
+    std::map<fd_t, std::weak_ptr<fake_socket_handle>> fd_to_handle_;
     std::map<fd_t, std::weak_ptr<fake_tcp_acceptor_handle>> fd_to_acceptor_states_;
     std::map<boost::asio::ip::tcp::endpoint, std::weak_ptr<fake_tcp_acceptor_handle>> ep_to_acceptor_states_;
     std::map<uds_endpoint, std::weak_ptr<fake_tcp_acceptor_handle>> uds_to_acceptor_states_;
@@ -295,6 +315,9 @@ private:
 
     std::map<std::string, size_t> app_name_to_ignore_connections_count_;
     std::map<std::string, std::vector<boost::system::error_code>> app_to_next_connection_errors_;
+    std::map<boost::asio::ip::address, std::set<fd_t>> multicast_to_fds_;
+    std::map<boost::asio::ip::tcp::endpoint, fd_t> endpoint_tcp_to_fd_;
+    std::map<boost::asio::ip::udp::endpoint, fd_t> endpoint_udp_to_fd_;
     std::set<std::string> connections_to_ignore_;
     std::set<std::string> fail_on_bind_;
     std::set<std::string> ignore_broken_pipe_;

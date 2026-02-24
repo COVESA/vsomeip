@@ -135,7 +135,7 @@ void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _pa
 
 void app::send_request(request const& _req) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _req;
-    auto message = vsomeip::runtime::get()->create_request(true);
+    auto message = vsomeip::runtime::get()->create_request(_req.reliability_);
     message->set_service(_req.service_instance_.service_);
     message->set_instance(_req.service_instance_.instance_);
     message->set_method(_req.method_);
@@ -202,7 +202,7 @@ void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
                                                          std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, vsomeip::reliability_type_e::RT_RELIABLE);
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
 
     app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_);
@@ -217,7 +217,7 @@ void app::subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et) 
                                                          std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, vsomeip::reliability_type_e::RT_RELIABLE);
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
 
     app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, ANY_EVENT);
@@ -232,7 +232,7 @@ void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _e
                                                          std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
-    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, vsomeip::reliability_type_e::RT_RELIABLE);
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing-with-debounce to: " << _ei;
 
     app_->subscribe_with_debounce(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_, filter);

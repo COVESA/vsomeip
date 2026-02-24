@@ -23,7 +23,7 @@ void socket_manager::add(std::string const& app) {
 }
 
 void socket_manager::clear_handler(std::string const& app) {
-    std::vector<std::shared_ptr<fake_tcp_socket_handle>> handle_to_clear;
+    std::vector<std::shared_ptr<fake_socket_handle>> handle_to_clear;
     std::vector<std::shared_ptr<fake_tcp_acceptor_handle>> acceptor_handle_to_clear;
     {
         auto const lock = std::scoped_lock(mtx_);
@@ -66,7 +66,7 @@ void socket_manager::clear_handler(std::string const& app) {
     }
 }
 
-void socket_manager::add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, boost::asio::io_context* _io, socket_type _type) {
+void socket_manager::add_socket(std::weak_ptr<fake_socket_handle> _state, boost::asio::io_context* _io, socket_type _type) {
     if (auto const state = _state.lock(); state) {
         auto fd = next_fd_++;
         if (next_fd_.load() < fd) {
@@ -89,6 +89,25 @@ void socket_manager::add_socket(std::weak_ptr<fake_tcp_socket_handle> _state, bo
 void socket_manager::remove(fd_t fd) {
     auto const lock = std::scoped_lock(mtx_);
     fd_to_handle_.erase(fd);
+
+    for (auto& [address, fds] : multicast_to_fds_) {
+        if (auto it_fds = fds.find(fd); it_fds != fds.end()) {
+            fds.erase(it_fds);
+            if (fds.empty()) {
+                multicast_to_fds_.erase(address);
+            }
+        }
+    }
+
+    auto it_udp = std::find_if(endpoint_udp_to_fd_.begin(), endpoint_udp_to_fd_.end(), [fd](const auto& _fd) { return _fd.second == fd; });
+    if (it_udp != endpoint_udp_to_fd_.end()) {
+        endpoint_udp_to_fd_.erase(it_udp);
+    }
+
+    auto it_tcp = std::find_if(endpoint_tcp_to_fd_.begin(), endpoint_tcp_to_fd_.end(), [fd](const auto& _fd) { return _fd.second == fd; });
+    if (it_tcp != endpoint_tcp_to_fd_.end()) {
+        endpoint_tcp_to_fd_.erase(it_tcp);
+    }
 }
 
 void socket_manager::add_acceptor(std::weak_ptr<fake_tcp_acceptor_handle> _state, boost::asio::io_context* _io, socket_type _type) {
@@ -201,9 +220,24 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
     return true;
 }
 
-[[nodiscard]] bool socket_manager::bind_socket(fake_tcp_socket_handle const& _handle) {
+[[nodiscard]] bool socket_manager::bind_socket(fake_tcp_socket_handle const& _handle, boost::asio::ip::tcp::endpoint const& _ep, fd_t _fd) {
     auto const lock = std::scoped_lock(mtx_);
-    return fail_on_bind_.count(_handle.get_app_name()) == 0;
+    if (fail_on_bind_.count(_handle.get_app_name()) == 0) {
+        endpoint_tcp_to_fd_[_ep] = _fd;
+        return true;
+    }
+
+    return false;
+}
+
+[[nodiscard]] bool socket_manager::bind_socket(fake_udp_socket_handle const& _handle, boost::asio::ip::udp::endpoint const& _ep, fd_t _fd) {
+    auto const lock = std::scoped_lock(mtx_);
+    if (fail_on_bind_.count(_handle.get_app_name()) == 0) {
+        endpoint_udp_to_fd_[_ep] = _fd;
+        return true;
+    }
+
+    return false;
 }
 void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
     // while the acceptor is only assigned when we find the "right" acceptor, scoped_acc will be set
@@ -255,7 +289,7 @@ void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _c
     if (!c_name.empty() && !s_name.empty()) {
         auto cn = connection_name(c_name, s_name);
         auto connection = get_or_create_connection(c_name, s_name);
-        connection->set_sockets(_connecting.weak_from_this(), accepting);
+        connection->set_sockets(std::dynamic_pointer_cast<fake_tcp_socket_handle>(_connecting.shared_from_this()), accepting);
 
         auto const lock = std::scoped_lock(mtx_);
         LOCAL_LOG << "added: " << cn << " to the known connections";
@@ -315,9 +349,7 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
     if (!c_name.empty() && !s_name.empty()) {
         auto cn = connection_name(c_name, s_name);
         auto connection = get_or_create_connection(c_name, s_name);
-        connection->set_sockets(_connecting.weak_from_this(), accepting);
-
-        auto const lock = std::scoped_lock(mtx_);
+        connection->set_sockets(std::dynamic_pointer_cast<fake_tcp_socket_handle>(_connecting.shared_from_this()), accepting);
         LOCAL_LOG << "added: " << cn << " to the known connections";
     } else {
         LOCAL_LOG << "Error: socket encountered without set app name! "
@@ -501,5 +533,69 @@ void socket_manager::set_custom_command_handler(std::string const& _client, std:
 void socket_manager::close_connection(std::string const& _one, std::string const& _two, socket_role _closing) {
     auto connection = _closing == socket_role::server ? get_or_create_connection(_two, _one) : get_or_create_connection(_one, _two);
     connection->notify();
+}
+
+void socket_manager::join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd) {
+    auto const lock = std::scoped_lock(mtx_);
+    if (auto it_address = multicast_to_fds_.find(_multicast); it_address != multicast_to_fds_.end()) {
+        if (auto handle = it_address->second.find(_fd); handle == it_address->second.end()) {
+            it_address->second.insert(_fd);
+        }
+    } else {
+        multicast_to_fds_[_multicast].insert(_fd);
+    }
+}
+
+void socket_manager::leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd) {
+    auto const lock = std::scoped_lock(mtx_);
+    if (auto it_address = multicast_to_fds_.find(_multicast); it_address != multicast_to_fds_.end()) {
+        if (auto handle = it_address->second.find(_fd); handle != it_address->second.end()) {
+            it_address->second.erase(_fd);
+        }
+        if (it_address->second.empty()) {
+            multicast_to_fds_.erase(it_address);
+        }
+    }
+}
+
+void socket_manager::send_someip(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src,
+                                 boost::asio::ip::udp::endpoint _dst) {
+    if (_dst.address().is_multicast()) {
+        LOCAL_LOG << " trying to send multicast message from " << _src << " to " << _dst;
+        std::vector<std::shared_ptr<fake_socket_handle>> multicast_group;
+        {
+            auto lock = std::unique_lock<std::mutex>(mtx_);
+            if (auto it_multicast = multicast_to_fds_.find(_dst.address()); it_multicast != multicast_to_fds_.end()) {
+                for (auto const& fd : it_multicast->second) {
+                    if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
+                        if (auto shared_handle = handle_it->second.lock(); shared_handle) {
+                            multicast_group.push_back(shared_handle);
+                        }
+                    }
+                }
+            }
+        }
+
+        for (auto const& handle : multicast_group) {
+            if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(handle); udp_handle) {
+                udp_handle->consume(_buffer, _src, _dst);
+            }
+        }
+    } else {
+        LOCAL_LOG << " trying to send unicast message from " << _src << " to " << _dst;
+        std::shared_ptr<fake_socket_handle> shared_handle;
+        auto lock = std::unique_lock<std::mutex>(mtx_);
+        fd_t fd{0};
+        if (auto endpoint_it = endpoint_udp_to_fd_.find(_dst); endpoint_it != endpoint_udp_to_fd_.end()) {
+            fd = endpoint_it->second;
+        }
+        if (auto handle = fd_to_handle_.find(fd); handle != fd_to_handle_.end()) {
+            if (shared_handle = handle->second.lock(); shared_handle) {
+                if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(shared_handle); udp_handle) {
+                    udp_handle->consume(_buffer, _src, _dst);
+                }
+            }
+        }
+    }
 }
 }

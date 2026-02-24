@@ -37,6 +37,7 @@ struct event_ids {
     service_instance si_{};
     vsomeip::event_t event_id_{};
     vsomeip::eventgroup_t eventgroup_id_{};
+    vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_RELIABLE};
     [[nodiscard]] bool operator==(event_ids const& rhs) const {
         return si_ == rhs.si_ && event_id_ == rhs.event_id_ && eventgroup_id_ == rhs.eventgroup_id_;
     }
@@ -63,7 +64,7 @@ struct request {
     service_instance service_instance_{};
     vsomeip::method_t method_{};
     vsomeip::message_type_e message_type_{};
-
+    bool reliability_{true};
     std::vector<unsigned char> payload_{};
 
     [[nodiscard]] bool operator==(request const& rhs) const {

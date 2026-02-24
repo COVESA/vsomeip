@@ -4139,9 +4139,9 @@ bool routing_manager_impl::insert_event_statistics(service_t _service, instance_
 
 void routing_manager_impl::statistics_log_timer_cbk(boost::system::error_code const& _error) {
     if (!_error) {
-        static uint32_t its_interval = configuration_->get_statistics_interval();
+        uint32_t its_interval = configuration_->get_statistics_interval();
         its_interval = its_interval >= 1000 ? its_interval : 1000;
-        static uint32_t its_min_freq = configuration_->get_statistics_min_freq();
+        uint32_t its_min_freq = configuration_->get_statistics_min_freq();
         std::stringstream its_log;
         {
             std::scoped_lock its_lock{message_statistics_mutex_};

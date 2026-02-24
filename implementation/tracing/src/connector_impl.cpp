@@ -121,10 +121,12 @@ bool connector_impl::is_enabled() const {
 }
 
 void connector_impl::set_sd_enabled(const bool _sd_enabled) {
+    std::scoped_lock lk{configure_mutex_};
     is_sd_enabled_ = _sd_enabled;
 }
 
 bool connector_impl::is_sd_enabled() const {
+    std::scoped_lock lk{configure_mutex_};
     return is_sd_enabled_;
 }
 
@@ -218,8 +220,11 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
     // Clip
     uint16_t its_data_size = uint16_t(_data_size > USHRT_MAX ? USHRT_MAX : _data_size);
 
-    if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
-        return; // tracing of service discovery messages is disabled!
+    {
+        std::scoped_lock lk{configure_mutex_};
+        if (is_sd_message(_data, its_data_size) && !is_sd_enabled_)
+            return; // tracing of service discovery messages is disabled!
+    }
 
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
 

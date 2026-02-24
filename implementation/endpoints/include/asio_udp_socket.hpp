@@ -26,7 +26,6 @@ private:
     void bind(boost::asio::ip::udp::endpoint const& ep, boost::system::error_code& ec) override { socket_.bind(ep, ec); }
 
     void close(boost::system::error_code& ec) override { socket_.close(ec); }
-    void shutdown(boost::asio::ip::udp::socket::shutdown_type st, boost::system::error_code& ec) override { socket_.shutdown(st, ec); }
 
     bool native_non_blocking() const override { return socket_.native_non_blocking(); }
     void native_non_blocking(bool mode, boost::system::error_code& ec) override { socket_.native_non_blocking(mode, ec); }
@@ -72,9 +71,6 @@ private:
     void async_send(boost::asio::const_buffer const& b, rw_handler handler) override { socket_.async_send(b, std::move(handler)); }
     void async_send_to(boost::asio::const_buffer const& b, boost::asio::ip::udp::endpoint destination, rw_handler handler) override {
         socket_.async_send_to(b, destination, std::move(handler));
-    }
-    void async_wait(boost::asio::ip::udp::socket::wait_type wait, completion_handler handler) override {
-        socket_.async_wait(wait, std::move(handler));
     }
 
     boost::asio::ip::udp::socket socket_;

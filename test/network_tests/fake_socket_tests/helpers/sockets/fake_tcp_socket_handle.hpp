@@ -5,13 +5,12 @@
 
 #pragma once
 
-#include "attribute_recorder.hpp"
-#include "command_message.hpp"
-#include "vsomeip_command_handler.hpp"
-
+#include "fake_socket_handle.hpp"
 #include "../../../implementation/endpoints/include/tcp_socket.hpp"
 #include "../../../implementation/endpoints/include/uds_socket.hpp"
-
+#include "../attribute_recorder.hpp"
+#include "../command_message.hpp"
+#include "../vsomeip_command_handler.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 
@@ -26,14 +25,6 @@ namespace vsomeip_v3::testing {
 using fd_t = unsigned short;
 
 using uds_endpoint = boost::asio::local::stream_protocol::endpoint;
-enum class socket_role { unspecified, client, server };
-enum class socket_type { uds, tcp };
-struct socket_id {
-    fd_t fd_{};
-    socket_role role_{socket_role::unspecified};
-    socket_type type_{socket_type::tcp};
-    std::string app_name_{};
-};
 
 class socket_manager;
 using connect_handler = std::function<void(boost::system::error_code const&)>;
@@ -44,7 +35,7 @@ using connect_handler = std::function<void(boost::system::error_code const&)>;
  * Neither it is expected that any test would have the need to directly access
  * any socket. Instead the socket_managers API should be used.
  **/
-struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_handle> {
+struct fake_tcp_socket_handle : public fake_socket_handle {
     using rw_handler = std::function<void(boost::system::error_code const&, size_t)>;
 
     explicit fake_tcp_socket_handle(boost::asio::io_context& _io);
@@ -52,7 +43,7 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
     fake_tcp_socket_handle& operator=(fake_tcp_socket_handle const&) = delete;
     ~fake_tcp_socket_handle();
 
-    void init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _socket_manager);
+    void init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _socket_manager) override;
 
     /**
      * calls close, used by the fake_tcp_socket.
@@ -189,8 +180,8 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
      **/
     void block_on_close_for(std::optional<std::chrono::milliseconds> _block_time);
 
-    void set_app_name(std::string const& _name);
-    std::string get_app_name() const;
+    void set_app_name(std::string const& _name) override;
+    std::string get_app_name() const override;
 
     /**
      * If called, then the inner_close call is going to be ignored.

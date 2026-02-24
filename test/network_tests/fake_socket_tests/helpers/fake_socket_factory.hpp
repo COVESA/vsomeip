@@ -9,8 +9,9 @@
 #include "../../../implementation/endpoints/include/asio_timer.hpp"
 
 #include "fake_netlink_connector.hpp"
-#include "fake_tcp_socket.hpp"
-#include "fake_uds_socket.hpp"
+#include "sockets/fake_uds_socket.hpp"
+#include "sockets/fake_tcp_socket.hpp"
+#include "sockets/fake_udp_socket.hpp"
 #include "socket_manager.hpp"
 
 namespace vsomeip_v3::testing {
@@ -51,7 +52,14 @@ private:
         return nullptr;
     }
 
-    std::unique_ptr<udp_socket> create_udp_socket(boost::asio::io_context&) override { return nullptr; }
+    std::unique_ptr<udp_socket> create_udp_socket(boost::asio::io_context& _io) override {
+        if (auto sm = socket_manager_.lock()) {
+            auto state = std::make_shared<fake_udp_socket_handle>(_io);
+            sm->add_socket(state, &_io, socket_type::udp);
+            return std::make_unique<fake_udp_socket>(state);
+        }
+        return nullptr;
+    }
 
     std::unique_ptr<abstract_timer> create_timer(boost::asio::io_context& _io) override {
         // do not tinker with timeouts in network tests for now

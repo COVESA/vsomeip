@@ -8,7 +8,7 @@
 #include "helpers/app.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
-#include "helpers/fake_tcp_socket_handle.hpp"
+#include "helpers/sockets/fake_tcp_socket_handle.hpp"
 #include "helpers/service_state.hpp"
 
 #include <boost/asio/error.hpp>

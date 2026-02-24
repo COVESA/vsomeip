@@ -4,7 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "attribute_recorder.hpp"
-#include "fake_tcp_socket_handle.hpp"
+#include "sockets/fake_tcp_socket_handle.hpp"
 #include "service_state.hpp"
 #include "fake_socket_factory.hpp"
 #include "app.hpp"

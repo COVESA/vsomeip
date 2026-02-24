@@ -9,6 +9,8 @@ project(test_with_fake_sockets LANGUAGES CXX)
 set(configuration_files
     multiple_client_one_process.json
     multiple_client_one_process_uds.json
+    ecu_one.json
+    ecu_two.json
 )
 configure_files("${configuration_files}")
 
@@ -18,17 +20,28 @@ add_executable(${PROJECT_NAME}
     helpers/base_fake_socket_fixture.cpp
     helpers/command_message.cpp
     helpers/command_record.cpp
-    helpers/fake_tcp_socket_handle.cpp
     helpers/service_state.cpp
     helpers/socket_manager.cpp
+    helpers/sockets/fake_tcp_socket_handle.cpp
+    helpers/sockets/fake_udp_socket_handle.cpp
     helpers/to_string.cpp
+    helpers/someip_message.cpp
     main.cpp
     test_connection_restoration.cpp
+    test_boardnet.cpp
     test_debounce.cpp
     test_uds_communication.cpp
 )
 
-targets_link_default_libraries("${PROJECT_NAME}")
+target_link_libraries(${PROJECT_NAME}
+    ${VSOMEIP_NAME}-test
+    ${VSOMEIP_NAME}-sd-test
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 targets_add_default_dependencies("${PROJECT_NAME}")
 
 if (WITH_TEST_DISCOVERY)

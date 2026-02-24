@@ -33,7 +33,6 @@ public:
     virtual void open(boost::asio::ip::udp::endpoint::protocol_type, boost::system::error_code&) = 0;
     virtual void bind(boost::asio::ip::udp::endpoint const&, boost::system::error_code&) = 0;
     virtual void close(boost::system::error_code&) = 0;
-    virtual void shutdown(boost::asio::ip::udp::socket::shutdown_type, boost::system::error_code&) = 0;
 
     virtual bool native_non_blocking() const = 0;
     virtual void native_non_blocking(bool, boost::system::error_code&) = 0;
@@ -64,7 +63,6 @@ public:
     virtual void async_receive_from(boost::asio::mutable_buffer, boost::asio::ip::udp::endpoint&, rw_handler) = 0;
     virtual void async_send(boost::asio::const_buffer const&, rw_handler) = 0;
     virtual void async_send_to(boost::asio::const_buffer const&, boost::asio::ip::udp::endpoint, rw_handler) = 0;
-    virtual void async_wait(boost::asio::ip::udp::socket::wait_type, completion_handler) = 0;
 };
 
 }

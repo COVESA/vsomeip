@@ -108,6 +108,39 @@ char const* to_string(vsomeip_v3::protocol::routing_info_entry_type_e e) {
         return "RIE_INVALID";
     }
 }
+
+char const* to_string(vsomeip_v3::sd::entry_type_e _id, ttl_t _ttl) {
+    switch (_id) {
+    case vsomeip_v3::sd::entry_type_e::FIND_SERVICE:
+        return "FIND_SERVICE";
+    case vsomeip_v3::sd::entry_type_e::OFFER_SERVICE:
+        if (_ttl) {
+            return "OFFER_SERVICE";
+        }
+        return "STOP_OFFER_SERVICE";
+    case vsomeip_v3::sd::entry_type_e::REQUEST_SERVICE:
+        return "REQUEST_SERVICE";
+    case vsomeip_v3::sd::entry_type_e::FIND_EVENT_GROUP:
+        return "FIND_EVENT_GROUP";
+    case vsomeip_v3::sd::entry_type_e::PUBLISH_EVENTGROUP:
+        if (_ttl) {
+            return "PUBLISH_EVENTGROUP";
+        }
+        return "STOP_PUBLISH_EVENTGROUP";
+    case vsomeip_v3::sd::entry_type_e::SUBSCRIBE_EVENTGROUP:
+        if (_ttl) {
+            return "SUBSCRIBE_EVENTGROUP";
+        }
+        return "STOP_SUBSCRIBE_EVENTGROUP";
+    case vsomeip_v3::sd::entry_type_e::SUBSCRIBE_EVENTGROUP_ACK:
+        if (_ttl) {
+            return "SUBSCRIBE_EVENTGROUP_ACK";
+        }
+        return "STOP_SUBSCRIBE_EVENTGROUP_ACK";
+    default:
+        return "UNKNOWN_ID";
+    }
+}
 std::string to_string(vsomeip_v3::protocol::service const& service) {
     std::stringstream s;
     s << "service: " << std::hex << std::setfill('0') << std::setw(4) << service.service_;
