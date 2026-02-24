@@ -39,8 +39,9 @@
  * @param _tearDown function that does cleaning after test execution
  * @return ret code
  */
-inline int test_main(int _argc, char** _argv, std::chrono::seconds _timeout = std::chrono::seconds(0), bool _abort_on_failure = true,
-                     std::function<void()> _setup = std::function<void()>(), std::function<void()> _tearDown = std::function<void()>()) {
+[[nodiscard]] inline int test_main(int _argc, char** _argv, std::chrono::seconds _timeout = std::chrono::seconds(0),
+                                   bool _abort_on_failure = true, std::function<void()> _setup = std::function<void()>(),
+                                   std::function<void()> _tearDown = std::function<void()>()) {
 
     // setup new directory
     // .. if the caller did not already

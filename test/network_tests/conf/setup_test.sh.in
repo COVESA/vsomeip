@@ -8,9 +8,9 @@
 
 # relative directory, for lxc execution
 # example "test/network_tests/payload_tests" for a caller in this directory
-RELATIVE_DIR=$(realpath $0) # has to be $0, not $BASH_SOURCE, because we need the caller script
+RELATIVE_DIR=$(realpath $0)                # has to be $0, not $BASH_SOURCE, because we need the caller script
 RELATIVE_DIR="test/${RELATIVE_DIR#*/test}" # prefix removal
-RELATIVE_DIR=$(dirname $RELATIVE_DIR) # suffix removal
+RELATIVE_DIR=$(dirname "$RELATIVE_DIR")    # suffix removal
 
 # add common binaries to path
 # bit of a strong assumption on the directory structure, but this is anyhow just to simplify tests
@@ -23,7 +23,8 @@ export PATH="$PATH:../../../examples/routingmanagerd:../../../examples/wait-unti
 # cleanup background processes
 cleanup() {
     # kill all processes whose parent is this process
-    local pids=$(jobs -pr)
+    pids=$(jobs -pr)
+    local -r pids=$pids
 
     local sig="$1"
     # print nothing if cleanup is triggered by EXIT
@@ -45,6 +46,26 @@ cleanup() {
     fi
 }
 
+# Executes command on the slave and blocks until completion.
+exec_slave_blocking() {
+    COM=$1
+
+    # careful with environment variables, they are also passed (at least with `USE_LXC_TEST`)
+    # must reset `VSOMEIP_BASE_PATH` and allow test to create another directory
+    if [ ! -z "$USE_LXC_TEST" ]; then
+        VSOMEIP_BASE_PATH="" \
+            ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub \
+            -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP \
+            "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/${RELATIVE_DIR}; ${COM}\""
+    elif [ ! -z "$USE_DOCKER" ]; then
+        VSOMEIP_BASE_PATH="" \
+            docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ${COM}"
+    else
+        echo "No USE_LXC_TEST, no USE_DOCKER, cannot execute command on slave" >&2
+        exit 127
+    fi
+}
+
 # execute background command on slave lxc or docker image
 exec_slave() {
     COM=$1
@@ -54,14 +75,12 @@ exec_slave() {
     if [ ! -z "$USE_LXC_TEST" ]; then
         VSOMEIP_BASE_PATH="" \
             ssh -tt -i $SANDBOX_ROOT_DIR/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub \
-                -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP \
-                "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/${RELATIVE_DIR}; ${COM}\"" &
-
+            -o StrictHostKeyChecking=no root@$LXC_TEST_SLAVE_IP \
+            "bash -ci \"set -m; cd \\\$SANDBOX_TARGET_DIR/vsomeip_lib/${RELATIVE_DIR}; ${COM}\"" &
         echo $!
     elif [ ! -z "$USE_DOCKER" ]; then
         VSOMEIP_BASE_PATH="" \
             docker exec $DOCKER_IMAGE sh -c "cd $DOCKER_TESTS && ${COM}" &
-
         echo $!
     else
         echo "No USE_LXC_TEST, no USE_DOCKER, cannot execute command on slave" >&2
@@ -76,13 +95,13 @@ exec_slave() {
 # setup temporary directory
 if [ -z "$VSOMEIP_BASE_PATH" ]; then
     TEST_TMPDIR="$(mktemp -d)"
-    TEST_TMPDIR="$(realpath $TEST_TMPDIR)"
+    TEST_TMPDIR="$(realpath "$TEST_TMPDIR")"
     export VSOMEIP_BASE_PATH="$TEST_TMPDIR"
 fi
 
 # ensure cleanup of processes on exit
 for sig in INT QUIT HUP TERM; do
-  trap "
+    trap "
     cleanup $sig
     trap - $sig EXIT
     kill -s $sig "'"$$"' "$sig"

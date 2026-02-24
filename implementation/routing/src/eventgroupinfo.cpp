@@ -166,6 +166,34 @@ bool eventgroupinfo::is_reliability_auto_mode() const {
     return reliability_auto_mode_;
 }
 
+reliability_type_e eventgroupinfo::get_provider_reliability() const {
+    auto reliability = reliability_type_e::RT_UNKNOWN;
+    std::scoped_lock lock{events_mutex_};
+    for (const auto& event : events_) {
+        if (!event->is_provided()) {
+            continue;
+        }
+        switch (event->get_reliability()) {
+        case reliability_type_e::RT_BOTH:
+            reliability = reliability_type_e::RT_BOTH;
+            break;
+        case reliability_type_e::RT_UNRELIABLE:
+            reliability = (reliability == reliability_type_e::RT_RELIABLE || reliability == reliability_type_e::RT_BOTH)
+                    ? reliability_type_e::RT_BOTH
+                    : reliability_type_e::RT_UNRELIABLE;
+            break;
+        case reliability_type_e::RT_RELIABLE:
+            reliability = (reliability == reliability_type_e::RT_UNRELIABLE || reliability == reliability_type_e::RT_BOTH)
+                    ? reliability_type_e::RT_BOTH
+                    : reliability_type_e::RT_RELIABLE;
+            break;
+        case reliability_type_e::RT_UNKNOWN:
+            break;
+        }
+    }
+    return reliability;
+}
+
 uint32_t eventgroupinfo::get_unreliable_target_count() const {
     uint32_t its_count(0);
 

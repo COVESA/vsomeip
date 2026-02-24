@@ -2034,7 +2034,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
     if (_info) {
         const bool first_port_set(_first_port != ILLEGAL_PORT);
         const bool second_port_set(_second_port != ILLEGAL_PORT);
-        switch (_info->get_reliability()) {
+        switch (_info->get_provider_reliability()) {
         case reliability_type_e::RT_UNRELIABLE:
             if (!(first_port_set && !_is_first_reliable) && !(second_port_set && !_is_second_reliable)) {
                 reliablility_nack = true;
@@ -2054,6 +2054,8 @@ void service_discovery_impl::handle_eventgroup_subscription(
             }
             break;
         default:
+            VSOMEIP_WARNING_P << "Event group has unknown reliability. service=" << hex4(_service) << " instance=" << hex4(_instance)
+                              << " major=" << static_cast<int>(_major) << " eventgroup=" << hex4(_eventgroup) << " source=" << _sender;
             break;
         }
     }

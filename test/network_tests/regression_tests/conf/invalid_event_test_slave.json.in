@@ -1,0 +1,38 @@
+{
+    "unicast" : "@TEST_IP_SLAVE@",
+    "logging" :
+    {
+        "level" : "trace",
+        "console" : "true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "services" :
+    [
+        {
+            "service" : "0x1234",
+            "instance" : "0x0001",
+            "reliable" :
+            {
+                "port":"30510",
+                "enable-magic-cookies":"false"
+            },
+            "events" : [ { "event": "0x0001", "is_reliable": true } ],
+            "eventgroups" :
+            [
+                {
+                    "eventgroup" : "0x0001",
+                    "events" : [ "0x0001" ]
+                }
+            ]
+        }
+    ],
+    "routing": "client-sample",
+    "service-discovery" :
+    {
+        "enable" : "true",
+        "multicast" : "224.244.224.245"
+    }
+}

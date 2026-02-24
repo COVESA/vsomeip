@@ -71,6 +71,11 @@ public:
     VSOMEIP_EXPORT void set_reliability(reliability_type_e _reliability);
     VSOMEIP_EXPORT bool is_reliability_auto_mode() const;
 
+    /// Returns the `reliability_type_e` of events that are provided by this host.
+    ///
+    /// This is used when checking if a subscription should be accepted or not.
+    VSOMEIP_EXPORT reliability_type_e get_provider_reliability() const;
+
     VSOMEIP_EXPORT std::set<std::shared_ptr<remote_subscription>> get_remote_subscriptions() const;
 
     std::shared_ptr<remote_subscription> get_remote_subscription(const remote_subscription_id_t _id);

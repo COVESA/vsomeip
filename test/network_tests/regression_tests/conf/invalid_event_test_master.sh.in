@@ -1,0 +1,49 @@
+#!/bin/bash -x
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+# How many applications failed.
+FAIL=0
+
+# Start the routing host.
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
+export VSOMEIP_CONFIGURATION=invalid_event_test_master.json
+routingmanagerd &
+HOST_PID=$!
+
+# Start the service.
+export VSOMEIP_APPLICATION_NAME=service-sample
+./invalid_event_test_service &
+SERVICE_PID=$!
+
+# Try to subscribe once.
+exec_slave_blocking "./invalid_event_test_slave.sh" || ((FAIL += 1))
+
+# Start the invalid client.
+export VSOMEIP_APPLICATION_NAME=invalid-client-sample
+./invalid_event_test_client --invalid &
+INVALID_CLIENT_PID=$!
+
+# Wait for the invalid client to register the event before subscribing again.
+wait-until-available 5678
+
+# Try to subscribe again.
+exec_slave_blocking "./invalid_event_test_slave.sh" || ((FAIL += 1))
+
+# Stop all remaining apps.
+kill $HOST_PID
+kill -SIGUSR1 $SERVICE_PID
+kill -SIGUSR1 $INVALID_CLIENT_PID
+wait $HOST_PID || ((FAIL += 1))
+wait $SERVICE_PID || ((FAIL += 1))
+wait $INVALID_CLIENT_PID || ((FAIL += 1))
+
+# Return the test results.
+exit $FAIL
