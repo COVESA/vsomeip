@@ -21,6 +21,11 @@
             "max_dispatch_time" : "1000"
         },
         {
+            "name" : "routingmanagerd",
+            "id" : "0x0100",
+            "max_dispatch_time" : "1000"
+        },
+        {
             "name" : "client",
             "id" : "0x3490",
             "max_dispatch_time" : "1000"

@@ -151,6 +151,13 @@ void app::stop_offer(service_instance const& _si) {
     app_->stop_offer_service(_si.service_, _si.instance_);
 }
 
+void app::update_security_policy_configuration(uid_t _uid, gid_t _gid) {
+    auto policy_ = std::make_shared<vsomeip::policy>();
+    auto its_payload = vsomeip::runtime::get()->create_payload();
+    app_->update_security_policy_configuration(_uid, _gid, policy_, its_payload,
+                                               [this](vsomeip_v3::security_update_state_e /*_status*/) {});
+}
+
 void app::on_state(vsomeip::state_type_e _state) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is "
              << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");

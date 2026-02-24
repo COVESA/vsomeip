@@ -129,16 +129,6 @@ void endpoint_manager_base::add_local_server_endpoint_unlocked(client_t _client,
     _connection->start();
     VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _connection->name();
 }
-
-std::unordered_set<client_t> endpoint_manager_base::get_connected_clients() const {
-    std::scoped_lock its_lock(mtx_);
-    std::unordered_set<client_t> clients;
-    for (const auto& [id, _] : local_client_endpoints_) {
-        clients.insert(id);
-    }
-    return clients;
-}
-
 std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << get_client_id();

@@ -1268,6 +1268,15 @@ void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_end
     add_local_routing_endpoint_unlocked(client, _ep);
 }
 
+std::unordered_set<client_t> endpoint_manager_impl::get_connected_clients() const {
+    std::scoped_lock its_lock(routing_endpoint_mtx_);
+    std::unordered_set<client_t> clients;
+    for (const auto& [id, _] : routing_endpoints_) {
+        clients.insert(id);
+    }
+    return clients;
+}
+
 void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep) {
     if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
         VSOMEIP_WARNING_P << "Already existing endpoint found for client 0x" << hex4(_client)

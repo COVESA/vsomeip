@@ -83,7 +83,7 @@ public:
 
     // add join/leave options
     void add_multicast_option(const multicast_option_t& _option);
-
+    std::unordered_set<client_t> get_connected_clients() const;
     void suspend();
     void resume();
 

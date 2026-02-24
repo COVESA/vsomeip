@@ -270,6 +270,18 @@ TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {
     bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
     EXPECT_TRUE(is_any) << *record_;
 }
+TEST_F(test_protocol_messages, update_security_policy_configuration_calls) {
+    /* There was a policy security test that would search for connected clients
+    and send an UPDATE_SECURITY_POLICY_ID command. After a refactor, it was checking the wrong list,
+    and not sending the command.
+    */
+    start_router();
+    start_client_app();
+
+    routingmanagerd_->update_security_policy_configuration(0, 0);
+    ASSERT_TRUE(wait_for_command(client_name_, routingmanager_name_, protocol::id_e::UPDATE_SECURITY_POLICY_ID, socket_role::client,
+                                 std::chrono::milliseconds(1)));
+}
 TEST_F(test_client_helper, router_consumes_field_before_service_tries_to_offer_field_is_updated_before_registration) {
     GTEST_SKIP() << "Provokes a race in application_impl regarding the usage of sec_client_";
 

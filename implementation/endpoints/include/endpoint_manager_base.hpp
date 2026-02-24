@@ -47,8 +47,6 @@ public:
 
     void flush_local_endpoint_queues() const;
 
-    std::unordered_set<client_t> get_connected_clients() const;
-
     // Statistics
     void log_client_states() const;
     void print_status() const;

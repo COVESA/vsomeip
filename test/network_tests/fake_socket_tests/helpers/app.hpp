@@ -7,7 +7,7 @@
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
-
+#include "../../../implementation/security/include/policy.hpp"
 #include "service_state.hpp"
 #include "test_logging.hpp"
 #include "attribute_recorder.hpp"
@@ -96,6 +96,11 @@ public:
      * Forwards the request for the service and instance and subscribes to all events and fields that are part of the interface
      **/
     void subscribe(interface const& _interface);
+
+    /**
+     * Forwards the request to the vsomeip::application::update_security_policy_configuration()
+     */
+    void update_security_policy_configuration(uid_t _uid, gid_t _gid);
 
     /**
      * 1. registers a subscription handler to record subscription events with @see
