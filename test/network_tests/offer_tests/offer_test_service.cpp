@@ -25,7 +25,7 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
 
-static std::string service_number;
+static uint8_t service_number;
 static std::atomic<bool> sigusr1_raised{false};
 
 class offer_test_service {
@@ -35,8 +35,8 @@ public:
         // service with number 1 uses "routingmanagerd" as application name
         // this way the same json file can be reused for all local tests
         // including the ones with routingmanagerd
-        app_(vsomeip::runtime::get()->create_application((service_number == "1") ? "routingmanagerd"
-                                                                                 : "offer_test_service" + service_number)),
+        app_(vsomeip::runtime::get()->create_application((service_number == 1) ? "routingmanagerd"
+                                                                               : "offer_test_service" + std::to_string(service_number))),
         counter_(0), wait_until_registered_(true), shutdown_method_called_(false),
         offer_thread_(std::bind(&offer_test_service::run, this)) {
         if (!app_->init()) {
@@ -70,6 +70,8 @@ public:
         app_->offer_service(service_info_.service_id, service_info_.instance_id);
         // this is not allowed and will be rejected
         app_->offer_service(service_info_.service_id, service_info_.instance_id, 33, 4711);
+        // instance-specific service (for test orchestration)
+        app_->offer_service(0x1000 + service_number, service_number);
     }
 
     void on_state(vsomeip::state_type_e _state) {
@@ -103,7 +105,7 @@ public:
         offer();
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Notifying";
-        while (!shutdown_method_called_ && !sigusr1_raised) {
+        while (!shutdown_method_called_ && !sigusr1_raised.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             inc_counter_and_notify();
         }
@@ -144,7 +146,7 @@ TEST(someip_offer_test, notify_increasing_counter) {
 
 #if defined(__linux__) || defined(__QNX__)
 static void sigusr1_handler(int /*signum*/) {
-    sigusr1_raised = true;
+    sigusr1_raised.store(true);
 }
 
 int main(int argc, char** argv) {
@@ -155,7 +157,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    service_number = std::string(argv[1]);
+    service_number = static_cast<uint8_t>(std::stoi(argv[1]));
     return test_main(argc, argv, std::chrono::seconds(60));
 }
 #endif

@@ -48,6 +48,9 @@ CLIENT_PID_TWO=$!
 export VSOMEIP_APPLICATION_NAME="service-2"
 ./offer_test_service 2 &
 PID_SERVICE_TWO=$!
+# wait for service-2; must at least register
+export VSOMEIP_APPLICATION_NAME="wua"
+wait-until-available 0x1002 || FAIL=$(($FAIL+1))
 
 # Wait until all clients are finished
 # Fail gets incremented if a client exits with a non-zero exit code
