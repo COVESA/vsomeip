@@ -1223,7 +1223,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
             its_command.deserialize(its_buffer, its_error);
             if (its_error == protocol::error_e::ERROR_OK) {
                 send_pong();
-                VSOMEIP_TRACE << "PING(" << hex4(get_client()) << ")";
+                VSOMEIP_INFO << "PING(" << hex4(get_client()) << ")";
             } else {
                 VSOMEIP_ERROR_P << "Ping command deserialization failed (" << static_cast<int>(its_error) << ")";
             }
@@ -1236,7 +1236,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
 
             if (its_error == protocol::error_e::ERROR_OK) {
                 on_pong(its_client);
-                VSOMEIP_TRACE << "PONG(" << hex4(get_client()) << ")";
+                VSOMEIP_INFO << "PONG(" << hex4(get_client()) << ")";
             } else {
                 VSOMEIP_ERROR_P << "Pong command deserialization failed (" << static_cast<int>(its_error) << ")";
             }

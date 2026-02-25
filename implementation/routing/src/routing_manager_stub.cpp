@@ -229,7 +229,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         its_command.deserialize(its_buffer, its_error);
         if (its_error == protocol::error_e::ERROR_OK) {
             on_ping(its_client);
-            VSOMEIP_TRACE << "PING(" << hex4(its_client) << ")";
+            VSOMEIP_INFO << "PING(" << hex4(its_client) << ")";
         } else {
             VSOMEIP_ERROR_P << "Deserializing ping failed (" << static_cast<int>(its_error) << ")";
         }
@@ -241,7 +241,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         its_command.deserialize(its_buffer, its_error);
         if (its_error == protocol::error_e::ERROR_OK) {
             on_pong(its_client);
-            VSOMEIP_TRACE << "PONG(" << hex4(its_client) << ")";
+            VSOMEIP_INFO << "PONG(" << hex4(its_client) << ")";
         } else {
             VSOMEIP_ERROR_P << "Deserializing pong failed (" << static_cast<int>(its_error) << ")";
         }
@@ -879,7 +879,7 @@ void routing_manager_stub::init_routing_endpoint() {
 void routing_manager_stub::on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                             minor_version_t _minor) {
 
-    VSOMEIP_INFO << "ON_OFFER_SERVICE (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+    VSOMEIP_INFO << "ON_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                  << static_cast<int>(_major) << "." << _minor << "]";
 
     std::scoped_lock its_guard{routing_info_mutex_};
@@ -893,7 +893,7 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
 void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
 
-    VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+    VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                  << static_cast<int>(_major) << "." << _minor << "]";
 
     std::scoped_lock its_guard{routing_info_mutex_};

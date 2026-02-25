@@ -1082,8 +1082,6 @@ TEST_F(test_client_helper, availability_callback_is_only_called_once_on_stop) {
                                                                    service_availability::available(service_instance_)};
 
     start_apps();
-    request_service();
-    ASSERT_TRUE(await_service());
     ASSERT_TRUE(subscribe_to_field());
 
     stop_client(server_name_);
@@ -1118,8 +1116,6 @@ TEST_F(test_client_helper, availability_callback_is_only_called_once_on_connecti
                                                                    service_availability::available(service_instance_)};
 
     start_apps();
-    request_service();
-    ASSERT_TRUE(await_service());
     ASSERT_TRUE(subscribe_to_field());
 
     // Delay processing of messages from daemon->server to simulate a situation where the connection
@@ -1159,8 +1155,6 @@ TEST_F(test_client_helper, service_re_request_is_answered) {
      **/
 
     start_apps();
-    request_service();
-    ASSERT_TRUE(await_service());
     ASSERT_TRUE(subscribe_to_field());
 
     // Clear previous received availabilities to wait for a new one after the re-request
@@ -1215,8 +1209,6 @@ TEST_F(test_client_helper, client_does_not_receive_availability_for_unrequested_
      **/
 
     start_apps();
-    request_service();
-    ASSERT_TRUE(await_service());
     ASSERT_TRUE(subscribe_to_field());
 
     // Delay processing of messages from daemon->server to simulate a situation where the server is offline
@@ -1259,8 +1251,6 @@ TEST_F(test_client_helper, both_clients_receive_availability_for_re_requested_se
      **/
 
     start_apps();
-    request_service();
-    ASSERT_TRUE(await_service());
     ASSERT_TRUE(subscribe_to_field());
 
     // Start second client application
