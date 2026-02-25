@@ -27,33 +27,33 @@ namespace vsomeip_v3 {
 
 class payload;
 
-class message_impl : virtual public message, virtual public message_base_impl {
+class VSOMEIP_API message_impl : virtual public message, virtual public message_base_impl {
 public:
-    VSOMEIP_EXPORT message_impl();
-    VSOMEIP_EXPORT virtual ~message_impl();
+    message_impl();
+    virtual ~message_impl();
 
-    VSOMEIP_EXPORT length_t get_length() const;
-    VSOMEIP_EXPORT void set_length(length_t _length);
+    length_t get_length() const;
+    void set_length(length_t _length);
 
-    VSOMEIP_EXPORT std::shared_ptr<payload> get_payload() const;
-    VSOMEIP_EXPORT void set_payload(std::shared_ptr<payload> _payload);
+    std::shared_ptr<payload> get_payload() const;
+    void set_payload(std::shared_ptr<payload> _payload);
 
-    VSOMEIP_EXPORT bool serialize(serializer* _to) const;
-    VSOMEIP_EXPORT bool deserialize(deserializer* _from);
+    bool serialize(serializer* _to) const;
+    bool deserialize(deserializer* _from);
 
-    VSOMEIP_EXPORT uint8_t get_check_result() const;
-    VSOMEIP_EXPORT void set_check_result(uint8_t _check_result);
-    VSOMEIP_EXPORT bool is_valid_crc() const;
+    uint8_t get_check_result() const;
+    void set_check_result(uint8_t _check_result);
+    bool is_valid_crc() const;
 
-    VSOMEIP_EXPORT uid_t get_uid() const;
+    uid_t get_uid() const;
 
-    VSOMEIP_EXPORT gid_t get_gid() const;
+    gid_t get_gid() const;
 
-    VSOMEIP_EXPORT vsomeip_sec_client_t get_sec_client() const;
-    VSOMEIP_EXPORT void set_sec_client(const vsomeip_sec_client_t& _sec_client);
+    vsomeip_sec_client_t get_sec_client() const;
+    void set_sec_client(const vsomeip_sec_client_t& _sec_client);
 
-    VSOMEIP_EXPORT std::string get_env() const;
-    VSOMEIP_EXPORT void set_env(const std::string& _env);
+    std::string get_env() const;
+    void set_env(const std::string& _env);
 
 protected: // members
     std::shared_ptr<payload> payload_;

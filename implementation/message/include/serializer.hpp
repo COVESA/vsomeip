@@ -15,7 +15,7 @@ namespace vsomeip_v3 {
 
 class serializable;
 
-class VSOMEIP_IMPORT_EXPORT serializer {
+class VSOMEIP_API serializer {
 public:
     serializer(std::uint32_t _buffer_shrink_threshold);
     virtual ~serializer();

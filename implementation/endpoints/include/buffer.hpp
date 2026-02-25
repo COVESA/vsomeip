@@ -18,7 +18,8 @@
 #include <vsomeip/primitive_types.hpp>
 
 #if defined(_WIN32) && !defined(_MSVC_LANG)
-#define DEFAULT_NANOSECONDS_MAX 1000000000
+using namespace std::chrono_literals;
+constexpr std::chrono::nanoseconds DEFAULT_NANOSECONDS_MAX = 1s;
 #else
 #define DEFAULT_NANOSECONDS_MAX std::chrono::nanoseconds::max()
 #endif

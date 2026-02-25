@@ -74,8 +74,8 @@ public:
     static bool is_routing_manager(const std::string& _network);
     static void remove_lockfile(const std::string& _network);
     static bool exists(const std::string& _path);
-    static bool VSOMEIP_IMPORT_EXPORT is_file(const std::string& _path);
-    static bool VSOMEIP_IMPORT_EXPORT is_folder(const std::string& _path);
+    static bool VSOMEIP_API is_file(const std::string& _path);
+    static bool VSOMEIP_API is_folder(const std::string& _path);
 
     static std::string get_base_path(const std::string& _network);
 

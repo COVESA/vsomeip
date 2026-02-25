@@ -16,7 +16,7 @@ namespace vsomeip_v3 {
 
 struct policy;
 
-class VSOMEIP_IMPORT_EXPORT policy_manager {
+class VSOMEIP_API policy_manager {
 public:
     virtual ~policy_manager() { }
     virtual std::shared_ptr<policy> create_policy() const = 0;

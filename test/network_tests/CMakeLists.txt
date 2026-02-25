@@ -199,6 +199,6 @@ add_subdirectory(registration_check_test)
 add_subdirectory(routing_tests)
 
 # some tests require the routingmanagerd
-if (NOT MSVC)
+if (NOT MSVC AND NOT MINGW)
     add_dependencies(build_network_tests routingmanagerd)
 endif ()

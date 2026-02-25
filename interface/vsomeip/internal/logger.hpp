@@ -31,8 +31,8 @@ enum class VSOMEIP_IMPORT_EXPORT level_e : std::uint8_t {
 
 class message : public std::ostream {
 public:
-    VSOMEIP_IMPORT_EXPORT explicit message(level_e _level);
-    VSOMEIP_IMPORT_EXPORT ~message() override;
+    VSOMEIP_API explicit message(level_e _level);
+    VSOMEIP_API ~message() override;
 
 private:
     std::string_view timestamp() const;

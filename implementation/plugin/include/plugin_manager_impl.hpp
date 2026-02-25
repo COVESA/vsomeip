@@ -19,23 +19,23 @@
 
 namespace vsomeip_v3 {
 
-class plugin_manager_impl : public plugin_manager {
+class VSOMEIP_API plugin_manager_impl : public plugin_manager {
 public:
-    VSOMEIP_EXPORT static std::shared_ptr<plugin_manager_impl> get();
+    static std::shared_ptr<plugin_manager_impl> get();
 
     plugin_manager_impl();
 
     ~plugin_manager_impl();
 
-    VSOMEIP_EXPORT std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string& _name);
+    std::shared_ptr<plugin> get_plugin(plugin_type_e _type, const std::string& _name);
 
-    VSOMEIP_EXPORT std::shared_ptr<plugin> load_plugin(const std::string& _library, plugin_type_e _type, const uint32_t _version);
+    std::shared_ptr<plugin> load_plugin(const std::string& _library, plugin_type_e _type, const uint32_t _version);
 
-    VSOMEIP_EXPORT bool unload_plugin(plugin_type_e _type);
+    bool unload_plugin(plugin_type_e _type);
 
-    VSOMEIP_EXPORT void* load_library(const std::string& _path);
-    VSOMEIP_EXPORT void* load_symbol(void* _handle, const std::string& _symbol);
-    VSOMEIP_EXPORT void unload_library(void* _handle);
+    void* load_library(const std::string& _path);
+    void* load_symbol(void* _handle, const std::string& _symbol);
+    void unload_library(void* _handle);
 
 private:
     void add_plugin(const std::shared_ptr<plugin>& _plugin, const std::string& _name);
