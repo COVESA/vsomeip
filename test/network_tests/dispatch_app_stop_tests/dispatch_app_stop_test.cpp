@@ -38,14 +38,11 @@ TEST(dispatch_app_stop, deadlock) {
     std::condition_variable finished;
     std::mutex finished_mutex;
     bool done = false;
-
-    std::thread t0([&] {
-        app->start(); /* Blocks */
-    });
+    std::thread t0;
 
     // Register a callback to a dispatcher thread. In this case, we just want to make sure
     // the application can register, before clearing it up.
-    app->register_state_handler([&](vsomeip_v3::state_type_e state) {
+    app->register_state_handler([&app, &t0, &finished, &finished_mutex, &done](vsomeip_v3::state_type_e state) {
         if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
             app->clear_all_handler();
             app->stop();
@@ -53,10 +50,14 @@ TEST(dispatch_app_stop, deadlock) {
             // Wait for the start thread to finish, and notify that we are done to the test thread.
             t0.join(); // NOTE: This operation takes a while, around 1s locally.
             // From here on out, t0 has joined which proves no deadlock. Finish the test.
-            auto lock = std::lock_guard(finished_mutex);
+            auto lock = std::lock_guard<std::mutex>(finished_mutex);
             done = true;
             finished.notify_one();
         }
+    });
+
+    t0 = std::thread([&app] {
+        app->start(); /* Blocks */
     });
 
     // If this wait hangs, it means:
