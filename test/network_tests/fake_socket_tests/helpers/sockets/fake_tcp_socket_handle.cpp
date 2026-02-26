@@ -303,12 +303,8 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
         return;
     }
 
-    boost::asio::post(io_, [handler = std::move(_handler)] {
-        if (!handler) {
-            return;
-        }
-        handler(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), 0);
-    });
+    boost::asio::post(
+            io_, [handler = std::move(_handler)] { handler(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), 0); });
 }
 
 void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) {
@@ -317,6 +313,7 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
         TEST_LOG << "[fake-socket] Injecting on: " << socket_id_ << ", the stashed error: " << stashed_ec_->message();
         boost::asio::post(io_, [ec = *stashed_ec_, handler = std::move(_handler)] { handler(ec, 0); });
         stashed_ec_ = std::nullopt;
+        return;
     }
     if (auto remote = connected_socket_.lock(); !remote && input_data_.size() == 0 && !ignore_nothing_to_read_from_) {
         TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
@@ -397,12 +394,7 @@ void fake_tcp_socket_handle::update_reception() {
         ++it;
     }
     input_data_.erase(input_data_.begin(), input_data_.begin() + static_cast<std::vector<unsigned char>::difference_type>(len));
-    boost::asio::post(io_, [handler = std::move(receptor_->handler_), len] {
-        if (!handler) {
-            return;
-        }
-        handler(boost::system::error_code(), len);
-    });
+    boost::asio::post(io_, [handler = std::move(receptor_->handler_), len] { handler(boost::system::error_code(), len); });
     receptor_ = std::nullopt;
 }
 

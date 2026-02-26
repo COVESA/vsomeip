@@ -382,26 +382,25 @@ void application_impl::start() {
 #endif
                         ;
 
-                while (true) {
-                    try {
-                        io_.run();
+                try {
+                    io_.run();
 
-                        if (!stopping_) {
-                            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io" << std::setw(2)
-                                          << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+                    if (!stopping_) {
+                        VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io" << std::setw(2)
+                                      << i + 1 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
-                                          << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+                                      << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
-                                          << ".";
-                            // something is *very* wrong if the io threads were not stopped intentionally
-                            // e.g., user messed with the internal io_context descriptors
-                            // therefore SIGABRT
-                            VSOMEIP_TERMINATE("io_context exited unexpectedly");
-                        }
-                        break;
-                    } catch (const std::exception& e) {
-                        VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
+                                      << ".";
+                        // something is *very* wrong if the io threads were not stopped intentionally
+                        // e.g., user messed with the internal io_context descriptors
+                        // therefore SIGABRT
+                        VSOMEIP_TERMINATE("io_context exited unexpectedly");
                     }
+
+                } catch (const std::exception& e) {
+                    VSOMEIP_FATAL << "io_context caught exception: " << typeid(e).name() << ", what: " << e.what();
+                    VSOMEIP_TERMINATE("io_context exited due to exception");
                 }
 
                 VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_io" << std::setw(2) << i + 1 << ", application '" << name_
@@ -436,26 +435,25 @@ void application_impl::start() {
     }
 
     utility::set_thread_niceness(io_thread_nice_level);
-    while (true) {
-        try {
-            io_.run();
-            if (!stopping_) {
-                VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00"
-                              << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                              << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-                        ;
-                // something is *very* wrong if the io threads were not stopped intentionally
-                // e.g., user messed with the internal io_context descriptors
-                // therefore SIGABRT
-                VSOMEIP_TERMINATE("io_context exited unexpectedly");
-            }
 
-            break;
-        } catch (const std::exception& e) {
-            VSOMEIP_ERROR << "application_impl::start() caught exception: " << e.what();
+    try {
+        io_.run();
+        if (!stopping_) {
+            VSOMEIP_FATAL << "I/O context has unexpectedly exited for thread " << hex4(client_) << "_io00"
+                          << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                          << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                    ;
+            // something is *very* wrong if the io threads were not stopped intentionally
+            // e.g., user messed with the internal io_context descriptors
+            // therefore SIGABRT
+            VSOMEIP_TERMINATE("io_context exited unexpectedly");
         }
+
+    } catch (const std::exception& e) {
+        VSOMEIP_FATAL << "io_context caught exception: " << typeid(e).name() << ", what: " << e.what();
+        VSOMEIP_TERMINATE("io_context exited due to exception");
     }
 
     VSOMEIP_INFO_P << ": io_.run() end for app(" << name_ << ", " << hex4(client_) << ")"
