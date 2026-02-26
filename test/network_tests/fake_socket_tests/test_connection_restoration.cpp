@@ -744,6 +744,7 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
 
     // simulating a suspend of a server:
     set_ignore_connections(server_name_, true);
+    set_ignore_nothing_to_read_from(client_name_, server_name_, socket_role::server, true);
     ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt));
 
     client_->subscription_record_.clear();
@@ -752,6 +753,7 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_server_suspend_
 
     // resume of the server:
     set_ignore_connections(server_name_, false);
+    set_ignore_nothing_to_read_from(client_name_, server_name_, socket_role::server, false);
     std::ignore = disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::connection_reset);
 
     ASSERT_TRUE(await_connection(client_name_, server_name_));
@@ -773,13 +775,12 @@ TEST_F(test_client_helper, field_updates_are_resend_when_a_broken_routing_connec
     ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 
     // simulating a suspend of a client:
-    set_ignore_connections(client_name_, true);
+    set_ignore_nothing_to_read_from(client_name_, routingmanager_name_, socket_role::client, true);
     ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_, boost::asio::error::timed_out));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(700));
     // resume of the client:
-    set_ignore_connections(client_name_, false);
-    // resume of the client:
+    set_ignore_nothing_to_read_from(client_name_, routingmanager_name_, socket_role::client, false);
     std::ignore = disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, std::nullopt);
 
     // TODO:
