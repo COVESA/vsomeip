@@ -85,6 +85,10 @@ struct test_client_helper : public base_fake_socket_fixture {
 
     void stop_offer() { server_->stop_offer(service_instance_); }
 
+    [[nodiscard]] bool wait_for_last_available(app* _app, service_instance const& _si) {
+        return _app->availability_record_.wait_for_last(service_availability::available(_si));
+    }
+
     service_instance service_instance_{0x3344, 0x1};
     service_instance service_instance_two_{0x3345, 0x1};
     event_ids offered_event_{service_instance_, 0x8002, 0x1};
@@ -1377,6 +1381,90 @@ TEST_F(test_client_helper, subscribe_eventgroup_connection_break) {
         ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
         ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 0; }));
     }
+}
+
+TEST_F(test_client_helper, ensure_the_correct_routing_info_is_kept) {
+
+
+    // 1. Starts router
+    // 2. Starts server and offers service
+    // 3. routingmanagerd requests service and sees it available
+    // 4. Server is suspended and router does not know about it
+    // 5. Server is stopped due to eof
+    // 6. Another server starts and offers another service
+    // 7. Client starts and requests the service_instance_two_
+    // 8. Client requests the service_instance_
+    // 9. Client should see UNAVAILABLE for the first service, but AVAILABLE for the second service
+
+    // 1.
+    start_router();
+
+    // 2.
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    server_->offer(service_instance_);
+
+    // 3.
+    routingmanagerd_->request_service(service_instance_);
+    ASSERT_TRUE(wait_for_last_available(routingmanagerd_, service_instance_));
+
+    // 4.
+    // Ensure that router does not see the server stopping
+    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, routingmanager_name_, true)); // avoid ltsei connection closing
+    ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true)); // avoid DEREGISTER_APPLICATION_ID
+    set_ignore_broken_pipe(routingmanager_name_,
+                           true); // avoid broken pipe errors so that that router does not react to the broken connection
+
+    // 5.
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::eof, routingmanager_name_, std::nullopt));
+    stop_client(server_name_); // stop server
+
+    // 6.
+    // At this point in time, router still believes that the first server exists and nothing has happened
+    // Means, routing info is still there for the "broken server"
+    // note: this new server will have the same ip/port, but different client-id
+    create_app(server_name_two_);
+    auto* another_server = start_client(server_name_two_);
+    ASSERT_NE(another_server, nullptr);
+    ASSERT_TRUE(another_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    another_server->offer(service_instance_two_);
+
+    // 7.
+    client_ = start_client(client_name_);
+    ASSERT_NE(client_, nullptr);
+    ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    client_->request_service(service_instance_two_);
+
+    ASSERT_TRUE(wait_for_last_available(client_, service_instance_two_));
+
+    // 8.
+    client_->request_service(service_instance_);
+
+    // 9.
+    std::vector<service_availability> expected_availabilities = {
+            // Refers to the first request done at 7. (note that only the new server is offering this service)
+            service_availability::available(service_instance_two_),
+
+            // Once the second request for the service instance_ is done, the client will notice another client w/ same ip/port exists
+            // this triggers the error handler because of conflicting ip/port
+            // connection will be removed, and therefore UNAVAILABLE will be sent for the service_instance_two_
+            service_availability::unavailable(service_instance_two_),
+            // router addresses now the client request at 8.
+            // at this point, the router does not know nothing about server_instance_, and all is fine because only
+            // old server was offering it
+            service_availability::available(service_instance_),
+
+            // After the client re-requests (due to handle client error)
+            // Client noticies that old server still exists and therefore clients sees unavailable for the service_instance_
+            // and available for the service_instance_two_
+            service_availability::unavailable(service_instance_),
+            service_availability::available(service_instance_two_),
+    };
+
+    ASSERT_TRUE(client_->availability_record_.wait_for([&expected_availabilities](const auto& record) {
+        return record == expected_availabilities;
+    })) << client_->availability_record_;
 }
 
 struct test_restart_clients : test_client_helper {

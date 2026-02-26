@@ -1694,8 +1694,8 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     VSOMEIP_INFO_P << "Old client 0x" << hex4(old_client) << " removed due to new client 0x" << hex4(its_client) << " @ "
                                    << its_address.to_string() + ":" << its_port;
 
-                    // also removes guest
-                    remove_local(old_client, true);
+                    // trigger error handler to ensure offered services by the old client are re-requested
+                    handle_client_error(old_client);
                 }
 
                 add_guest(its_client, its_address, its_port);
