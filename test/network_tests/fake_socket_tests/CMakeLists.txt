@@ -14,7 +14,7 @@ set(configuration_files
 )
 configure_files("${configuration_files}")
 
-add_executable(${PROJECT_NAME}
+add_library (fake_socket_helpers OBJECT
     helpers/app.cpp
     helpers/app_connection.cpp
     helpers/base_fake_socket_fixture.cpp
@@ -27,13 +27,8 @@ add_executable(${PROJECT_NAME}
     helpers/to_string.cpp
     helpers/someip_message.cpp
     main.cpp
-    test_connection_restoration.cpp
-    test_boardnet.cpp
-    test_debounce.cpp
-    test_uds_communication.cpp
 )
-
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(fake_socket_helpers
     ${VSOMEIP_NAME}-test
     ${VSOMEIP_NAME}-sd-test
     ${Boost_LIBRARIES}
@@ -42,11 +37,22 @@ target_link_libraries(${PROJECT_NAME}
     ${DLT_LIBRARIES}
     vsomeip_utilities
 )
-targets_add_default_dependencies("${PROJECT_NAME}")
 
-if (WITH_TEST_DISCOVERY)
-    include(GoogleTest)
-    gtest_add_tests(TARGET ${PROJECT_NAME} TEST_LIST tests)
-else()
-    add_custom_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
-endif()
+set (TEST_SUITES
+    test_connection_restoration
+    test_boardnet
+    test_debounce
+    test_uds_communication
+)
+
+foreach(TEST_SUITE ${TEST_SUITES})
+    add_executable(${TEST_SUITE} ${TEST_SUITE}.cpp)
+    target_link_libraries(${TEST_SUITE} fake_socket_helpers)
+    targets_add_default_dependencies("${TEST_SUITE}")
+    if (WITH_TEST_DISCOVERY)
+        include(GoogleTest)
+        gtest_add_tests(TARGET ${TEST_SUITE} TEST_LIST tests)
+    else()
+        add_custom_test(NAME ${TEST_SUITE} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${TEST_SUITE})
+    endif()
+endforeach()
