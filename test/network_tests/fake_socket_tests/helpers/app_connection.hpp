@@ -59,6 +59,9 @@ public:
     /**
      * toggles the fake_tcp_socket_handle to (not) report an error if there is no
      * connected socket when async_receive is invoked.
+     * if ignore == true:
+     *      if _role == client or unspecified -> client will ignore the error
+     *      if _role == server or unspecified -> server will ignore the error
      **/
     void set_ignore_nothing_to_read_from(socket_role _role, bool _ignore);
 

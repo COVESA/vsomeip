@@ -132,6 +132,9 @@ public:
      * Ensures that a async_receive will not fail, if the other socket disconnected.
      * This is helpful for simulating suspend sequences.
      * Note: This option is permanent to the connection and needs to be actively reset.
+     * if ignore == true:
+     *      if _role == client or unspecified -> client will ignore the error
+     *      if _role == server or unspecified -> server will ignore the error
      **/
     void set_ignore_nothing_to_read_from(std::string const& _client, std::string const& _server, socket_role _role, bool _ignore);
 

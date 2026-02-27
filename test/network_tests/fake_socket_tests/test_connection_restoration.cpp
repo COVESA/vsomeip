@@ -1415,6 +1415,7 @@ TEST_F(test_client_helper, ensure_the_correct_routing_info_is_kept) {
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, true)); // avoid DEREGISTER_APPLICATION_ID
     set_ignore_broken_pipe(routingmanager_name_,
                            true); // avoid broken pipe errors so that that router does not react to the broken connection
+    set_ignore_nothing_to_read_from(server_name_, routingmanager_name_, socket_role::server, true);
 
     // 5.
     ASSERT_TRUE(disconnect(server_name_, boost::asio::error::eof, routingmanager_name_, std::nullopt));
