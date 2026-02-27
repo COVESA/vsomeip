@@ -178,7 +178,7 @@ void deserializer::set_data(const byte_t* _data, std::size_t _length) {
 
 void deserializer::set_data(const std::vector<byte_t>& _data) {
 
-    data_ = std::move(_data);
+    data_ = _data;
     position_ = data_.begin();
     remaining_ = data_.size();
 }
