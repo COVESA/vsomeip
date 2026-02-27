@@ -114,15 +114,14 @@ void routing_manager_base::log_network_state(bool _tcp, bool _only_external) con
     std::string external_addr_hex = external_addr_stream.str();
 
     VSOMEIP_INFO_P << (_tcp ? "TCP" : "UDP") << " connections";
-    VSOMEIP_INFO << "idx, local_addr, remote_addr, state, tx_queue, rx_queue, timer_active, tm_when, retrnsmt, uid, unanswered";
+    VSOMEIP_INFO << "idx, local_addr, remote_addr, state, tx_queue:rx_queue, timer_active:tm_when, retrnsmt, uid, unanswered, inode";
     while (std::getline(file, line)) {
         std::istringstream iss(line);
-        std::string idx, local_addr, remote_addr, state, tx_queue, rx_queue, timer_active, tm_when, retrnsmt, uid, unanswered;
+        std::string idx, local_addr, remote_addr, state, tx_rx_queue, timer, retrnsmt, uid, unanswered, inode;
 
         // see https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt
         // NOTE: there are more fields (especially in /proc/net/udp), but we do not care about these
-        if (!(iss >> idx >> local_addr >> remote_addr >> state >> tx_queue >> rx_queue >> timer_active >> tm_when >> retrnsmt >> uid
-              >> unanswered)) {
+        if (!(iss >> idx >> local_addr >> remote_addr >> state >> tx_rx_queue >> timer >> retrnsmt >> uid >> unanswered >> inode)) {
             VSOMEIP_ERROR_P << "Failed to parse line: " << line;
             continue;
         }
@@ -153,8 +152,8 @@ void routing_manager_base::log_network_state(bool _tcp, bool _only_external) con
 
         // use the same format as /proc/net/tcp
         // especially with local TCP communication, there will be *MANY* connections, and the hex encoding does make the logs smaller
-        VSOMEIP_INFO << idx << " " << local_addr << " " << remote_addr << " " << state << " " << tx_queue << " " << rx_queue << " "
-                     << timer_active << " " << tm_when << " " << retrnsmt << " " << uid << " " << unanswered;
+        VSOMEIP_INFO << idx << " " << local_addr << " " << remote_addr << " " << state << " " << tx_rx_queue << " " << timer << " "
+                     << retrnsmt << " " << uid << " " << unanswered << " " << inode;
     }
 
 #endif
