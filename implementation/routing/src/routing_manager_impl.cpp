@@ -3464,6 +3464,10 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
 void routing_manager_impl::start_ip_routing() {
 #if defined(_WIN32) || defined(__QNX__)
     if_state_running_ = true;
+    sd_route_set_ = true;
+    // QNX: Process any pending service offers now that routing is ready
+    // (On Linux, this is done via on_net_interface_or_route_state_changed)
+    init_pending_services();
 #endif
 
     if (routing_ready_handler_) {
@@ -3899,7 +3903,7 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
 
     if (EOF
         == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib, &its_data,
-                    &its_dirtypages)) {
+                       &its_dirtypages)) {
         VSOMEIP_ERROR << "memory_log_timer_cbk: error reading: errno " << errno;
     }
     std::fclose(its_file);
