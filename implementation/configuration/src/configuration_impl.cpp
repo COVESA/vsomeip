@@ -47,7 +47,13 @@ namespace cfg {
 
 configuration_impl::configuration_impl(const std::string& _path) :
     default_unicast_{"local"}, is_loaded_{false}, is_logging_loaded_{false}, prefix_{VSOMEIP_PREFIX}, diagnosis_{VSOMEIP_DIAGNOSIS_ADDRESS},
-    diagnosis_mask_{0xFF00}, has_console_log_{true}, has_file_log_{false}, has_dlt_log_{false}, logfile_{"/tmp/vsomeip.log"},
+    diagnosis_mask_{0xFF00}, has_console_log_{true},
+#ifdef __QNX__
+    has_slog2_log_{true},
+#else
+    has_slog2_log_{false},
+#endif
+    has_file_log_{false}, has_dlt_log_{false}, logfile_{"/tmp/vsomeip.log"},
     loglevel_{vsomeip_v3::logger::level_e::LL_INFO}, is_sd_enabled_{VSOMEIP_SD_DEFAULT_ENABLED}, sd_protocol_{VSOMEIP_SD_DEFAULT_PROTOCOL},
     sd_multicast_{VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_{VSOMEIP_SD_DEFAULT_PORT},
     sd_initial_delay_min_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN}, sd_initial_delay_max_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
@@ -98,7 +104,7 @@ configuration_impl::configuration_impl(const std::string& _path) :
 configuration_impl::configuration_impl(const configuration_impl& _other) :
     std::enable_shared_from_this<configuration_impl>(_other), default_unicast_{_other.default_unicast_}, is_loaded_{_other.is_loaded_},
     is_logging_loaded_{_other.is_logging_loaded_}, mandatory_{_other.mandatory_}, has_console_log_{_other.has_console_log_.load()},
-    has_file_log_{_other.has_file_log_.load()}, has_dlt_log_{_other.has_dlt_log_.load()},
+    has_slog2_log_{_other.has_slog2_log_.load()}, has_file_log_{_other.has_file_log_.load()}, has_dlt_log_{_other.has_dlt_log_.load()},
     max_configured_message_size_{_other.max_configured_message_size_}, max_local_message_size_{_other.max_local_message_size_},
     max_reliable_message_size_{_other.max_reliable_message_size_}, max_unreliable_message_size_{_other.max_unreliable_message_size_},
     buffer_shrink_threshold_{_other.buffer_shrink_threshold_}, permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS},
@@ -617,6 +623,15 @@ bool configuration_impl::load_logging(const configuration_element& _element, std
                     is_configured_[ET_LOGGING_DLT] = true;
                 }
 #endif
+            } else if (its_key == "slog2") {
+                if (is_configured_[ET_LOGGING_SLOG2]) {
+                    _warnings.insert("Multiple definitions for logging.slog2."
+                            " Ignoring definition from " + _element.name_);
+                } else {
+                    std::string its_value(i->second.data());
+                    has_slog2_log_ = (its_value == "true");
+                    is_configured_[ET_LOGGING_SLOG2] = true;
+                }
             } else if (its_key == "level") {
                 if (is_configured_[ET_LOGGING_LEVEL]) {
                     _warnings.insert("Multiple definitions for logging.level."
@@ -2801,6 +2816,10 @@ bool configuration_impl::has_console_log() const {
     return has_console_log_;
 }
 
+bool configuration_impl::has_slog2_log() const {
+    return has_slog2_log_;
+}
+
 bool configuration_impl::has_file_log() const {
     return has_file_log_;
 }
@@ -2814,7 +2833,7 @@ const std::string& configuration_impl::get_logfile() const {
 }
 
 vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
-    std::unique_lock<std::mutex> its_lock(mutex_loglevel_);
+    std::unique_lock its_lock(mutex_loglevel_);
     return loglevel_;
 }
 

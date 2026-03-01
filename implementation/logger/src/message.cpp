@@ -11,6 +11,13 @@
 #include <sstream>
 #include <string>
 
+#ifdef __QNX__
+#include <sys/slog2.h>
+extern char * __progname;
+#elif __linux__
+extern char * __progname;
+#endif
+
 #include "../../configuration/include/configuration.hpp"
 
 #if defined(ANDROID) && !defined(ANDROID_CI_BUILD)
@@ -81,12 +88,18 @@ message::message(level_e _level) : std::ostream(&buffer_), level_{_level} {
     // Store logger config locally to avoid repeated access to atomics
     // TODO: Simplify once access to logger config no longer needs to be threadsafe
     auto its_cfg = its_logger->get_configuration();
+    threshold_level_ = its_cfg.loglevel;
     console_enabled_ = its_cfg.console_enabled;
+    slog2_enabled_ = its_cfg.slog2_enabled;
     dlt_enabled_ = its_cfg.dlt_enabled;
     file_enabled_ = its_cfg.file_enabled;
 
     // Check whether this message should be logged at all
-    if ((console_enabled_ || dlt_enabled_ || file_enabled_) && level_ <= its_cfg.loglevel) {
+    if ((console_enabled_ || slog2_enabled_ || dlt_enabled_ || file_enabled_))
+    {
+        // Upstream applies a severity filter here, however we prefer to the filters on the individual log targets where possible (slog2,
+        // logcat if implemented.).  Thus we apply filters in ~message on each log type. This does diverge from upstream, and can result in
+        // more messages being formatted than strictly necessary, but simplifies the integration with slog2.
         buffer_.activate();
         when_ = std::chrono::system_clock::now();
     }
@@ -107,8 +120,8 @@ message::~message() try {
         return;
     }
 
-    if (console_enabled_) {
 #ifndef ANDROID
+    if (console_enabled_ && level_ <= threshold_level_) {
         // std::cout is threadsafe, but output may be interleaved if multiple things are
         // streamed. To avoid a lock, build the full logline first and stream as a
         // single argument. In C++20, could use std::osyncstream and/or std::format to simplify
@@ -116,13 +129,14 @@ message::~message() try {
         // Unfortunately, building the string is a bit awkward - freely concatenating
         // string_views and strings is a C++26 feature.
         const std::string_view ts = timestamp();
-        const std::string_view app = app_name();
+        const std::string_view appn = app_name();
         const std::string_view lvl = level_as_view();
         const std::string_view msg = buffer_as_view();
         std::string output;
-        output.reserve(ts.size() + app.size() + lvl.size() + msg.size() + 1);
+        output.reserve(ts.size() + appn.size() + 1 + lvl.size() + 1 + msg.size() + 1);
         output += ts;
-        output += app;
+        output += " ";
+        output += appn;
         output += lvl;
         output += msg;
         output += '\n';
@@ -167,7 +181,15 @@ message::~message() try {
 #endif // !ANDROID
     }
 
-    if (file_enabled_) {
+#ifdef __QNX__
+    if (slog2_enabled_) {
+        // Apply a severity filter using the pps settings, e.g.
+        // echo buffer_name:n:7 >> /var/pps/slog2/verbose
+        its_logger->log_to_slog2(level_, std::string(buffer_as_view()));
+    }
+#endif
+
+    if (file_enabled_ && level_ <= threshold_level_) {
         // Delegate logging of the message the logger, which ensures that log_to_file() is
         // thread-safe. To keep the API simple, construct the string here, where we have all
         // the information readily available.
