@@ -11,6 +11,7 @@
 #include "helpers/service_state.hpp"
 
 #include <boost/asio/error.hpp>
+#include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
@@ -47,18 +48,20 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
         apps_.erase(_app_name);
     }
 
-    service_instance service_instance_{0x3344, 0x1};
-    event_ids offered_event_{service_instance_, 0x8002, 0x1};
-    event_ids offered_field_{service_instance_, 0x8003, 0x6, vsomeip::reliability_type_e::RT_UNRELIABLE};
-    message first_expected_message_{
-            client_session{0, 1}, service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
-    std::vector<unsigned char> field_payload_{0x42, 0x13};
-    message first_expected_field_message_{client_session{0, 2}, service_instance_, offered_field_.event_id_,
-                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
+    interface boardnet_interface_{0x3344, vsomeip::reliability_type_e::RT_UNRELIABLE};
+    service_instance service_instance_{boardnet_interface_.instance_};
+    event_ids offered_field_{boardnet_interface_.field_two_};
+
+    message first_expected_message_{client_session{0, 1},
+                                    boardnet_interface_.instance_,
+                                    boardnet_interface_.field_two_.event_id_,
+                                    vsomeip::message_type_e::MT_NOTIFICATION,
+                                    {}};
 
     std::string const router_one_name = "router_one";
     std::string const router_two_name_ = "router_two";
-    std::string const ecu_two_c1_name = "ecu_two_c1";
+    std::string const ecu_two_server_name_ = "ecu_two_server";
+    std::string const ecu_one_client_name_ = "ecu_one_client";
 
     std::map<std::string, app*> apps_;
     std::set<std::string> env_vars_;
@@ -74,9 +77,7 @@ TEST_F(test_boardnet_helper, test_boardnet_service_availability) {
     ASSERT_TRUE(router_two && router_two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
     router_one->request_service(service_instance_);
-    router_two->offer(service_instance_);
-    router_two->offer_event(offered_event_);
-    router_two->offer_field(offered_field_);
+    router_two->offer(boardnet_interface_);
 
     ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
@@ -89,17 +90,15 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     auto router_two = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(router_two && router_two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    auto ecu_two_c1 = start_application(ecu_two_c1_name, "ecu_two.json");
+    auto ecu_two_server = start_application(ecu_two_server_name_, "ecu_two.json");
 
     // start 2nd daemon on 127.0.0.1 interface
     auto router_one = start_application(router_one_name, "ecu_one.json");
     ASSERT_TRUE(router_one && router_one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
     router_one->request_service(service_instance_);
-    ecu_two_c1->offer(service_instance_);
-    ecu_two_c1->offer_event(offered_event_);
-    ecu_two_c1->offer_field(offered_field_);
-    ecu_two_c1->send_event(offered_field_, {0x5, 0x3});
+    ecu_two_server->offer(boardnet_interface_);
+    ecu_two_server->send_event(offered_field_, {0x5, 0x3});
 
     ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 
@@ -121,4 +120,90 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     EXPECT_TRUE(router_one->message_record_.wait_for_last(next_expected_message));
 }
 
+struct test_field_routing : test_boardnet_helper { };
+
+TEST_F(test_field_routing, server_router_router_client) {
+    // start 1st daemon and client on 127.0.0.2 interface
+    auto router_two = start_application(router_two_name_, "ecu_two.json");
+    ASSERT_TRUE(router_two && router_two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    auto ecu_two_server = start_application(ecu_two_server_name_, "ecu_two.json");
+
+    // start 2nd daemon on 127.0.0.1 interface
+    auto router_one = start_application(router_one_name, "ecu_one.json");
+    ASSERT_TRUE(router_one && router_one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    auto ecu_one_client = start_application(ecu_one_client_name_, "ecu_one.json");
+
+    ecu_one_client->subscribe(boardnet_interface_);
+    ecu_two_server->offer(boardnet_interface_);
+    ecu_two_server->send_event(offered_field_, {0x5, 0x3});
+
+    ASSERT_TRUE(ecu_one_client->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    auto next_expected_message = first_expected_message_;
+    next_expected_message.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client->message_record_.wait_for_last(next_expected_message));
+}
+TEST_F(test_field_routing, server_router_router) {
+    // start 1st daemon and client on 127.0.0.2 interface
+    auto router_two = start_application(router_two_name_, "ecu_two.json");
+    ASSERT_TRUE(router_two && router_two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    auto ecu_two_server = start_application(ecu_two_server_name_, "ecu_two.json");
+
+    // start 2nd daemon on 127.0.0.1 interface
+    auto router_one = start_application(router_one_name, "ecu_one.json");
+    ASSERT_TRUE(router_one && router_one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    router_one->subscribe(boardnet_interface_);
+    ecu_two_server->offer(boardnet_interface_);
+    ecu_two_server->send_event(offered_field_, {0x5, 0x3});
+
+    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    auto next_expected_message = first_expected_message_;
+    next_expected_message.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(router_one->message_record_.wait_for_last(next_expected_message));
+}
+TEST_F(test_field_routing, router_router_client) {
+    // start 1st daemon and client on 127.0.0.2 interface
+    auto router_two = start_application(router_two_name_, "ecu_two.json");
+    ASSERT_TRUE(router_two && router_two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // start 2nd daemon on 127.0.0.1 interface
+    auto router_one = start_application(router_one_name, "ecu_one.json");
+    ASSERT_TRUE(router_one && router_one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    auto ecu_one_client = start_application(ecu_one_client_name_, "ecu_one.json");
+
+    ecu_one_client->subscribe(boardnet_interface_);
+    router_two->offer(boardnet_interface_);
+    router_two->send_event(offered_field_, {0x5, 0x3});
+
+    ASSERT_TRUE(ecu_one_client->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    auto next_expected_message = first_expected_message_;
+    next_expected_message.payload_ = {0x5, 0x3};
+    next_expected_message.client_session_.session_ += 1; // interesting
+    EXPECT_TRUE(ecu_one_client->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+}
+TEST_F(test_field_routing, router_router) {
+    // start 1st daemon and client on 127.0.0.2 interface
+    auto router_two = start_application(router_two_name_, "ecu_two.json");
+    ASSERT_TRUE(router_two && router_two->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // start 2nd daemon on 127.0.0.1 interface
+    auto router_one = start_application(router_one_name, "ecu_one.json");
+    ASSERT_TRUE(router_one && router_one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    router_one->subscribe(boardnet_interface_);
+    router_two->offer(boardnet_interface_);
+    router_two->send_event(offered_field_, {0x5, 0x3});
+
+    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    auto next_expected_message = first_expected_message_;
+    next_expected_message.payload_ = {0x5, 0x3};
+    next_expected_message.client_session_.session_ += 1; // interesting
+    EXPECT_TRUE(router_one->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+}
 }

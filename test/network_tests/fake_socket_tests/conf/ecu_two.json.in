@@ -29,11 +29,11 @@
             "events" :
             [
                 {
-                    "event" : "0x8002",
+                    "event" : "0x8001",
                     "is_field" : "false"
                 },
                 {
-                    "event" : "0x8003",
+                    "event" : "0x8002",
                     "is_field" : "true"
                 }
             ],
@@ -41,11 +41,7 @@
             [
                 {
                     "eventgroup" : "0x1",
-                    "events" : [ "0x8002"]
-                },
-                {
-                    "eventgroup" : "0x6",
-                    "events" : [ "0x8003"]
+                    "events" : [ "0x8001", "0x8002"]
                 }
             ]
         }

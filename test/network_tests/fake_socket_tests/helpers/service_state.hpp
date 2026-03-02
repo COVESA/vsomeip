@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/vsomeip.hpp>
 
 #include <ostream>
@@ -101,11 +102,18 @@ struct service_state {
 };
 
 struct interface {
-    explicit interface(vsomeip::service_t _service, vsomeip::instance_t _instance = 0x1) : instance_(_service, _instance) { }
+    interface(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::reliability_type_e _reliability) :
+        instance_(_service, _instance), reliability_(_reliability) { }
+
+    explicit interface(vsomeip::service_t _service, vsomeip::instance_t _instance = 0x1) :
+        interface(_service, _instance, vsomeip::reliability_type_e::RT_RELIABLE) { }
+
+    interface(vsomeip::service_t _service, vsomeip::reliability_type_e _reliability) : interface(_service, 1, _reliability) { }
 
     service_instance instance_;
-    event_ids event_one_{instance_, 0x8001, 0x1};
-    event_ids field_two_{instance_, 0x8002, 0x1};
+    vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_RELIABLE};
+    event_ids event_one_{instance_, 0x8001, 0x1, reliability_};
+    event_ids field_two_{instance_, 0x8002, 0x1, reliability_};
 };
 
 std::ostream& operator<<(std::ostream& o, service_instance const& s);
