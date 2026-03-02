@@ -90,4 +90,8 @@ enum class endianess_e {
     le // little-endian
 };
 
+enum class connection_control_request_e : uint8_t { CCR_ACCEPT = 0, CCR_RESET_AND_BLOCK = 1 };
+
+enum class connection_control_response_e : uint8_t { CCR_OK = 0, CCR_ERROR_INVALID_PARAMETER = 255 };
+
 } // namespace vsomeip_v3

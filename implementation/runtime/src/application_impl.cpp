@@ -2101,6 +2101,34 @@ void application_impl::set_routing_state(routing_state_e _routing_state) {
     }
 }
 
+connection_control_response_e application_impl::change_connection_control(connection_control_request_e _control,
+                                                                          const std::string& _guest_address) {
+    if (!is_routing_manager_host_) {
+        VSOMEIP_ERROR_P << "not routing manager host";
+        return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
+    }
+
+    boost::asio::ip::address its_addr;
+    try {
+        its_addr = boost::asio::ip::make_address(_guest_address);
+    } catch (...) {
+        VSOMEIP_ERROR_P << "could not parse address '" << _guest_address << "'";
+        return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
+    }
+
+    if (_control != connection_control_request_e::CCR_ACCEPT && _control != connection_control_request_e::CCR_RESET_AND_BLOCK) {
+        VSOMEIP_ERROR_P << "control parameter was neither CCR_ACCEPT, nor CCR_RESET_AND_BLOCK for address '" << _guest_address << "'";
+        return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
+    }
+
+    VSOMEIP_INFO_P << "changing connection control to '"
+                   << ((_control == connection_control_request_e::CCR_ACCEPT) ? "CCR_ACCEPT" : "CCR_RESET_AND_BLOCK") << "' for address '"
+                   << _guest_address << "'";
+
+    auto its_routing = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
+    return its_routing->change_connection_control(_control, its_addr);
+}
+
 void application_impl::check_send_back_cached_event(service_t _service, instance_t _instance, event_t _event, eventgroup_t _eventgroup,
                                                     bool* _send_back_cached_event, bool* _send_back_cached_eventgroup) {
     std::scoped_lock its_lock{subscriptions_mutex_};

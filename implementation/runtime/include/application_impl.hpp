@@ -145,7 +145,10 @@ public:
 
     VSOMEIP_EXPORT bool are_available(available_t& _available, service_t _service, instance_t _instance, major_version_t _major,
                                       minor_version_t _minor) const;
+
     VSOMEIP_EXPORT void set_routing_state(routing_state_e _routing_state);
+    VSOMEIP_EXPORT connection_control_response_e change_connection_control(connection_control_request_e _control,
+                                                                           const std::string& _guest_address);
 
     VSOMEIP_EXPORT void clear_all_handler();
 

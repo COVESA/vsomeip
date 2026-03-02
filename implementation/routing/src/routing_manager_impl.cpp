@@ -3103,8 +3103,8 @@ void routing_manager_impl::send_subscribe(client_t _client, service_t _service, 
     if (endpoint && stub_) {
         stub_->send_subscribe(endpoint, _client, _service, _instance, _eventgroup, _major, _event, _filter, PENDING_SUBSCRIPTION_ID);
     } else {
-        VSOMEIP_WARNING << "rmi::" << __func__ << ": Could not find/create endpoint for client: 0x" << hex4(offering_client)
-                        << " offering service: " << hex4(_service);
+        VSOMEIP_WARNING_P << "Could not find/create endpoint for client: 0x" << hex4(offering_client)
+                          << " offering service: " << hex4(_service);
     }
 }
 
@@ -3334,6 +3334,17 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             break;
         }
     }
+}
+
+connection_control_response_e routing_manager_impl::change_connection_control(connection_control_request_e _control,
+                                                                              const boost::asio::ip::address& _guest_address) {
+    // to deal with incoming connections
+    if (stub_) {
+        return stub_->change_connection_control(_control, _guest_address);
+    }
+
+    VSOMEIP_ERROR << "rmi::" << __func__ << ": Cannot manage connections for '" << _guest_address << "', no stub";
+    return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
 }
 
 void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_interface, const std::string& _if, bool _available) {

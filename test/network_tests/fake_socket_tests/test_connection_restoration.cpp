@@ -1314,7 +1314,7 @@ TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
     // ensure client only sees first service available
     ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
     EXPECT_FALSE(client_->availability_record_.wait_for_any(service_availability::available(service_instance_two_),
-                                                            std::chrono::milliseconds(300)));
+                                                            std::chrono::milliseconds(100)));
     client_->availability_record_.clear();
 
     // now it becomes tricky
@@ -1329,14 +1329,14 @@ TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
     // ensure client never sees first service becoming unavailable
     // the "sleep" is DISGUSTING! but I have no better idea
     EXPECT_FALSE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_),
-                                                             std::chrono::milliseconds(300)));
+                                                             std::chrono::milliseconds(100)));
 
     // start another server with same address/port (implicit!), but different client-id (using `server_name_two_`), and that offers
     // a second service
 
     // ensure client still did not see this other service
     EXPECT_FALSE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_),
-                                                             std::chrono::milliseconds(300)));
+                                                             std::chrono::milliseconds(100)));
 
     create_app(server_name_two_);
     auto* another_server = start_client(server_name_two_);

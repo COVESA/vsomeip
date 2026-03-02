@@ -65,7 +65,7 @@ public:
      * @param _acceptor Acceptor for incoming connections (TCP or UDS).
      * @param _configuration Configuration for security, limits, and routing info.
      * @param _routing_host Routing manager for client registration.
-     * @param _connection_handler handler to register accepted connections.
+     * @param _connection_handler handler to register accepted connections. This handler is not allowed to call back into the server
      * @param _is_router True if this is the routing manager's server.
      * @param _server_host environment of the server itself. Required to send out the config_id to the client
      *
@@ -93,6 +93,18 @@ public:
      * @note Increments lifecycle counter and disconnects clients, but allows restart.
      */
     void halt();
+
+    /**
+     * @brief prevent connections from given address
+     * @param _address address to block
+     */
+    void block_from(const boost::asio::ip::address& _address);
+
+    /**
+     * @brief Allow connections from given address
+     * @param _address address to unblock
+     */
+    void allow_from(const boost::asio::ip::address& _address);
 
     /**
      * @brief Retrieves the local port number the server is bound to.
@@ -181,6 +193,7 @@ private:
     std::weak_ptr<routing_host> const routing_host_;
     connection_handler const connection_handler_;
     std::string const server_host_;
+    std::vector<boost::asio::ip::address> blocked_addresses_;
 
     std::mutex mutable mtx_;
 };

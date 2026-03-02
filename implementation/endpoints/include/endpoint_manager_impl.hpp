@@ -94,6 +94,11 @@ public:
     void clear_routing_endpoints();
     void flush_routing_endpoint_queues();
 
+    /**
+     * drops all routing_endpoints having a peer address equal to @param _address
+     **/
+    void drop_from(const boost::asio::ip::address& _address);
+
 private:
     std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);

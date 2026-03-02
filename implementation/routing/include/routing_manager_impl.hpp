@@ -179,6 +179,9 @@ public:
     void set_routing_state(routing_state_e _routing_state);
     bool is_suspended() const;
 
+    connection_control_response_e change_connection_control(connection_control_request_e _control,
+                                                            const boost::asio::ip::address& _guest_address);
+
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
         (void)_client;
         (void)_offer_type;

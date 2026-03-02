@@ -1261,6 +1261,34 @@ bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint)
     return false;
 }
 
+void endpoint_manager_impl::drop_from(const boost::asio::ip::address& _address) {
+    std::scoped_lock const its_endpoint_lock{routing_endpoint_mtx_};
+    for (auto const& [client, ep] : routing_endpoints_) {
+        bool const drop = _address == ep->peer_endpoint().address();
+        if (drop) {
+            VSOMEIP_INFO_P << "dropping connection for client: " << hex4(client) << ", " << ep->name();
+            // this is technically not correct, but it should be good enough for now.
+            ep->trigger_error(); // ensure that we do all the clean-up
+        }
+    }
+    // important to have the lock still acquired, because the endpoints error handler
+    // might try to remove something and the pending endpoint should not be promoted due to this.
+    for (auto itr = pending_routing_endpoints_.begin(); itr != pending_routing_endpoints_.end();) {
+        client_t client = itr->first;
+        std::shared_ptr<local_endpoint>& ep = itr->second;
+        bool const drop = ep->peer_endpoint().address() == _address;
+
+        if (drop) {
+            VSOMEIP_INFO_P << "dropping pending connection for client " << hex4(client) << ", " << ep->name();
+            // immediate, data loss is OK
+            ep->stop(true);
+            itr = pending_routing_endpoints_.erase(itr);
+        } else {
+            ++itr;
+        }
+    }
+}
+
 void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep) {
     auto const client = _ep->connected_client();
     std::scoped_lock const its_endpoint_lock{routing_endpoint_mtx_};

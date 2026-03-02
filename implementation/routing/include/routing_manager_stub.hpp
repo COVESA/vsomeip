@@ -18,9 +18,11 @@
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <boost/asio/ip/address.hpp>
 
 #include <vsomeip/handler.hpp>
 #include <vsomeip/vsomeip_sec.h>
+#include <vsomeip/enumeration_types.hpp>
 
 #include "types.hpp"
 #include "../include/routing_host.hpp"
@@ -45,6 +47,9 @@ public:
     void init();
     void start();
     void stop();
+
+    connection_control_response_e change_connection_control(connection_control_request_e _control,
+                                                            const boost::asio::ip::address& _guest_address);
 
     void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
                     const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);

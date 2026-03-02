@@ -1,0 +1,37 @@
+{
+    "unicast":"127.0.0.1",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "applications" :
+    [
+        {
+            "name" : "guest",
+            "id" : "0x34fe"
+        }
+    ],
+    "routing" :
+    {
+        "host": {
+            "name": "routingmanagerd",
+            "unicast": "127.0.0.1",
+            "port": "8998"
+        },
+        "guests": {
+            "unicast": "127.0.0.2",
+            "ports": [
+                {
+                    "first": "9000",
+                    "last": "65535"
+                }
+            ]
+        }
+    }
+}
+

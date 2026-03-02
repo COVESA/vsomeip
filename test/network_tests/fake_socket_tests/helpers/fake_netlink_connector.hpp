@@ -21,20 +21,29 @@ public:
     ~fake_netlink_connector() { stop(); }
 
 private:
-    virtual void register_net_if_changes_handler(const net_if_changed_handler_t& _handler) { handler_ = _handler; }
-    virtual void unregister_net_if_changes_handler() { handler_ = nullptr; }
+    virtual void register_net_if_changes_handler(const net_if_changed_handler_t& _handler) {
+        std::scoped_lock lock(mutex_);
+        handler_ = _handler;
+    }
+    virtual void unregister_net_if_changes_handler() {
+        std::scoped_lock lock(mutex_);
+        handler_ = nullptr;
+    }
     virtual void start() {
-        boost::asio::post(io_, [self = weak_from_this()] {
-            if (auto lock = self.lock(); lock) {
-                if (lock->handler_) {
-                    lock->handler_(true /*interface*/, "fake-interface", true /*is avail*/);
-                    lock->handler_(false /*route*/, "fake-interface", true /*is avail*/);
-                }
+        std::scoped_lock lock(mutex_);
+        boost::asio::post(io_, [handler = handler_] {
+            if (handler) {
+                handler(true /*interface*/, "fake-interface", true /*is avail*/);
+                handler(false /*route*/, "fake-interface", true /*is avail*/);
             }
         });
     }
-    virtual void stop() { handler_ = nullptr; }
+    virtual void stop() {
+        std::scoped_lock lock(mutex_);
+        handler_ = nullptr;
+    }
 
+    std::mutex mutex_;
     boost::asio::io_context& io_;
     net_if_changed_handler_t handler_;
 };

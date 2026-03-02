@@ -153,6 +153,22 @@ void routing_manager_stub::stop() {
     }
 }
 
+connection_control_response_e routing_manager_stub::change_connection_control(connection_control_request_e _control,
+                                                                              const boost::asio::ip::address& _guest_address) {
+    // simple case, remove from blocked list
+    if (_control == connection_control_request_e::CCR_ACCEPT) {
+        root_->allow_from(_guest_address);
+        return connection_control_response_e::CCR_OK;
+    }
+
+    // Due to the single lock in the local_server it is guaranteed that after
+    // returning from the next line, no endpoint is in a transient state into
+    // the endpoint_manager_impl
+    root_->block_from(_guest_address);
+    host_->get_endpoint_manager()->drop_from(_guest_address);
+    return connection_control_response_e::CCR_OK;
+}
+
 void routing_manager_stub::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
                                       client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
                                       const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {

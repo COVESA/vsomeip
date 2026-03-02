@@ -45,6 +45,11 @@ public:
     [[nodiscard]] bool start();
 
     /**
+     * Get underlying vsomeip::application
+     */
+    std::shared_ptr<vsomeip::application> get_application() const { return app_; }
+
+    /**
      * if running has been called:
      * 1. calls vsomeip::clear_all_handlers()
      * 2. calls vsomeip::stop()

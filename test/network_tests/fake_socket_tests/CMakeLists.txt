@@ -11,6 +11,7 @@ set(configuration_files
     multiple_client_one_process_uds.json
     ecu_one.json
     ecu_two.json
+    guest.json
 )
 configure_files("${configuration_files}")
 
@@ -39,6 +40,7 @@ target_link_libraries(fake_socket_helpers
 )
 
 set (TEST_SUITES
+    test_connection_control
     test_connection_restoration
     test_boardnet
     test_debounce

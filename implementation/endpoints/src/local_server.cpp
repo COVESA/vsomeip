@@ -81,6 +81,24 @@ void local_server::halt() {
     }
 }
 
+void local_server::block_from(const boost::asio::ip::address& _address) {
+    std::scoped_lock const lock{mtx_};
+    if (auto itr = std::find(blocked_addresses_.begin(), blocked_addresses_.end(), _address); itr != blocked_addresses_.end()) {
+        VSOMEIP_WARNING_P << "address " << _address.to_string() << " already in blocked list";
+    } else {
+        blocked_addresses_.push_back(_address);
+    }
+}
+
+void local_server::allow_from(const boost::asio::ip::address& _address) {
+    std::scoped_lock const lock{mtx_};
+    if (auto itr = std::find(blocked_addresses_.begin(), blocked_addresses_.end(), _address); itr != blocked_addresses_.end()) {
+        blocked_addresses_.erase(itr);
+    } else {
+        VSOMEIP_WARNING_P << "address " << _address.to_string() << " not in blocked list";
+    }
+}
+
 port_t local_server::get_local_port() const {
     return acceptor_->get_local_port();
 }
@@ -98,6 +116,17 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
             _socket->stop(true);
             return;
         }
+
+        boost::asio::ip::tcp::endpoint const peer_endpoint = _socket->peer_endpoint();
+        if (std::find(blocked_addresses_.begin(), blocked_addresses_.end(), peer_endpoint.address()) != blocked_addresses_.end()) {
+            VSOMEIP_WARNING_P << "connection from client @ " << peer_endpoint.address().to_string() << ":" << peer_endpoint.port()
+                              << " rejected, dropping connection, self: " << this;
+
+            _socket->stop(true);
+            start_unlock(lc_count_);
+            return;
+        }
+
         auto connection = std::make_shared<tmp_connection>(std::move(_socket), is_router_, _lc_count, weak_from_this(), configuration_);
         connection->async_receive();
         start_unlock(lc_count_);
@@ -149,7 +178,6 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
 }
 void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _expected_id, std::shared_ptr<local_socket> _socket,
                                   std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment) {
-
     std::unique_lock lock{mtx_};
     if (_lc_count == lc_count_) {
         if (_expected_id != own_client_id_ && _expected_id != VSOMEIP_CLIENT_UNSET) {
@@ -180,6 +208,15 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                 return;
             }
 
+            if (std::find(blocked_addresses_.begin(), blocked_addresses_.end(), peer_endpoint.address()) != blocked_addresses_.end()) {
+                VSOMEIP_WARNING_P << "connection from client " << hex4(_client) << ", " << ep->name() << ", " << ep->name()
+                                  << " rejected, dropping, self : " << this;
+                utility::release_client_id(configuration_->get_network(), _client);
+                rh->remove_known_client(_client);
+                ep->stop(true);
+                return;
+            }
+
             if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
                 rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
             }
@@ -194,7 +231,9 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                 ep->send(&buffer[0], static_cast<uint32_t>(buffer.size()));
             }
 
-            lock.unlock();
+            // keep the lock acquired to ensure that the endpoint has been transferred.
+            // This is important to ensure that on the block and now drop endpoints
+            // sequence no endpoint is leaked because it was competing for the endpoint mutex
             connection_handler_(ep);
         } else {
             VSOMEIP_WARNING_P << "Dropping connection from: " << hex4(_client) << ", from former lifecycle: " << _lc_count

@@ -158,9 +158,11 @@ void fake_tcp_socket_handle::disconnect(std::optional<boost::system::error_code>
 }
 void fake_tcp_socket_handle::delay_processing(bool _delay) {
     auto const lock = std::scoped_lock(mtx_);
-    TEST_LOG << "[fake-socket] setting delay_processing: " << (_delay ? "true" : "false") << " on: " << socket_id_;
-    delay_processing_ = _delay;
-    update_reception();
+    if (delay_processing_ != _delay) {
+        TEST_LOG << "[fake-socket] setting delay_processing: " << (_delay ? "true" : "false") << " on: " << socket_id_;
+        delay_processing_ = _delay;
+        update_reception();
+    }
 }
 
 void fake_tcp_socket_handle::set_ignore_nothing_to_read_from(bool _ignore) {

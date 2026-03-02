@@ -1102,6 +1102,24 @@ public:
      * \return policy_manager shared pointer
      */
     virtual std::shared_ptr<policy_manager> get_policy_manager() const = 0;
+
+    /**
+     * \brief Change local TCP connection handling
+     *
+     * Change the way local TCP connections between the routing manager and a given guest are handled. If the _control argument is set to
+     * connection_control_request_e::ACCEPT, the routing manager will accept connections from the given guest (normal operation). If
+     * _control is set to connection_control_request_e::RESET_AND_BLOCK, existing connections to the given guest are reset and following
+     * attempts to (re-) connect from the guest are blocked (e.g. to prepare the suspending of the guest).
+     *
+     * \Note: Only(!) applies to local TCP coommunication. If Unix Domain sockets are used to connect to vsomeip applications, this method
+     * has no effect.
+     *
+     * \param _control Sets whether connections are allowed or whether the existing connections will be reset and further connection
+     * attempts will be blocked
+     * \param _guest_address IP address of the guest that shall be controlled (IPv4 or IPv6)
+     */
+    virtual connection_control_response_e change_connection_control(connection_control_request_e _control,
+                                                                    const std::string& _guest_address) = 0;
 };
 
 /** @} */

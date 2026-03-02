@@ -67,8 +67,13 @@ public:
         return record_.empty() ? std::nullopt : std::optional(record_.back());
     }
 
+    bool equals(std::vector<Value> const& record) const {
+        auto lock = std::scoped_lock(mtx_);
+        return record_ == record;
+    }
+
     std::string to_string() const {
-        auto lock = std::unique_lock(mtx_);
+        auto lock = std::scoped_lock(mtx_);
         std::stringstream s;
         s << "[";
         bool first = true;
