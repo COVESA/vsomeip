@@ -5,8 +5,8 @@
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/defines.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/tp.hpp"
 
 #ifdef ANDROID

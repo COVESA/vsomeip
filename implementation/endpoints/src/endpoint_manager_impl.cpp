@@ -5,8 +5,7 @@
 
 #include "../include/endpoint_manager_impl.hpp"
 
-#include <vsomeip/internal/logger.hpp>
-
+#include "logger_ext.hpp"
 #include "../include/local_server.hpp"
 #include "../include/local_acceptor_uds_impl.hpp"
 #include "../include/local_acceptor_tcp_impl.hpp"

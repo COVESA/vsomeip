@@ -12,8 +12,8 @@
 #include <boost/asio/ip/network_v6.hpp>
 
 #include <vsomeip/constants.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"

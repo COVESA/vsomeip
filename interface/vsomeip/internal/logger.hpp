@@ -11,7 +11,6 @@
 #include <streambuf>
 #include <string_view>
 #include <vector>
-#include <thread>
 
 #include <vsomeip/export.hpp>
 
@@ -74,33 +73,3 @@ private:
 
 #define VSOMEIP_LOG_DEFAULT_APPLICATION_ID      "VSIP"
 #define VSOMEIP_LOG_DEFAULT_APPLICATION_NAME    "vSomeIP application|SysInfra|IPC"
-
-#define VSOMEIP_LOG_WITH_PREFIX(level_macro) \
-    level_macro << VSOMEIP_LOG_PREFIX << "::" << __func__ << ": "
-
-#define VSOMEIP_FATAL_P   VSOMEIP_LOG_WITH_PREFIX(VSOMEIP_FATAL)
-#define VSOMEIP_ERROR_P   VSOMEIP_LOG_WITH_PREFIX(VSOMEIP_ERROR)
-#define VSOMEIP_WARNING_P VSOMEIP_LOG_WITH_PREFIX(VSOMEIP_WARNING)
-#define VSOMEIP_INFO_P    VSOMEIP_LOG_WITH_PREFIX(VSOMEIP_INFO)
-#define VSOMEIP_DEBUG_P   VSOMEIP_LOG_WITH_PREFIX(VSOMEIP_DEBUG)
-#define VSOMEIP_TRACE_P   VSOMEIP_LOG_WITH_PREFIX(VSOMEIP_TRACE)
-
-/**
- * @brief Flush DLTs and abort process
- *
- * Write also to stderr - guarantees that _something_ appears, even if the DLT
- * infrastructure is somewhat broken
- */
-#define VSOMEIP_TERMINATE(reason)                             \
-    do {                                                      \
-        auto r = (reason);                                    \
-        VSOMEIP_FATAL << "TERMINATING DUE TO '" << r << "'";  \
-        fprintf(stderr, "TERMINATING DUE TO '%s'", r);        \
-        fflush(stderr);                                       \
-        ; /* no better way to flush DLTs than to wait */      \
-        std::this_thread::sleep_for(std::chrono::seconds(2)); \
-        VSOMEIP_FATAL << "TERMINATING";                       \
-        fprintf(stderr, "TERMINATING");                       \
-        fflush(stderr);                                       \
-        std::abort();                                         \
-    } while (0)

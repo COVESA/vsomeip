@@ -35,21 +35,9 @@ set(TEST_SRCS
     ut_routing_client_state_machine.cpp
 )
 
-# We need to set the source files directly because vsomeip doesn't export the
-# timer for linking.
-set(
-    VSIP_SRCS
-    ../../../implementation/endpoints/src/timer.cpp
-    ../../../implementation/endpoints/src/abstract_socket_factory.cpp
-    ../../../implementation/endpoints/src/asio_socket_factory.cpp
-    ../../../implementation/endpoints/src/netlink_connector.cpp
-    ../../../implementation/routing/src/routing_client_state_machine.cpp
-)
-
 add_executable(
     unit_tests_routing_client_state_machine
     ${TEST_SRCS}
-    ${VSIP_SRCS}
 )
 
 target_link_libraries(

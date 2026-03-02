@@ -7,8 +7,8 @@
 #include <fstream>
 
 #include <vsomeip/runtime.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/routing_manager_base.hpp"
 #include "../../endpoints/include/local_endpoint.hpp"
 #include "../../configuration/include/debounce_filter_impl.hpp"

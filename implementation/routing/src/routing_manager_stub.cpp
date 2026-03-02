@@ -15,8 +15,8 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/runtime.hpp>
 #include <vsomeip/structured_types.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/routing_manager_stub.hpp"
 #include "../include/routing_manager_stub_host.hpp"
 #include "../include/remote_subscription.hpp"

@@ -15,8 +15,8 @@
 #include <boost/asio/ip/udp.hpp>
 
 #include <vsomeip/defines.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/abstract_socket_factory.hpp"
 #include "../include/client_endpoint_impl.hpp"
 #include "../include/boardnet_endpoint_host.hpp"

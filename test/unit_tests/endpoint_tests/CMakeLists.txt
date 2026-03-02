@@ -21,7 +21,6 @@ add_compile_options(-Wno-uninitialized)
 add_executable(
     ${PROJECT_NAME}
     ${TEST_SRCS}
-    ${VSIP_SRCS}
 )
 
 target_link_libraries(

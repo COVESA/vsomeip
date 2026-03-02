@@ -24,8 +24,8 @@
 
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/bithelper.hpp"
 #include "../include/utility.hpp"
 #include "../../configuration/include/configuration.hpp"

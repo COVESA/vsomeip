@@ -21,8 +21,8 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/event.hpp"
 #include "../include/eventgroupinfo.hpp"
 #include "../include/remote_subscription.hpp"

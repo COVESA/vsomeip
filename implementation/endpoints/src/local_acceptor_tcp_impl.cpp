@@ -9,10 +9,9 @@
 #include "../include/local_socket_tcp_impl.hpp"
 
 #include "../../configuration/include/configuration.hpp"
+#include "logger_ext.hpp"
 
 #include <boost/system/error_code.hpp>
-
-#include <vsomeip/internal/logger.hpp>
 
 #define VSOMEIP_LOG_PREFIX "lati"
 namespace vsomeip_v3 {

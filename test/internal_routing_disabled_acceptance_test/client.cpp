@@ -14,8 +14,6 @@
 
 #include "config.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_client"
-
 client::client() : applet{"client"}, counter_event_received{}, counter_method_request{}, counter_method_response{} { }
 
 void client::init() {
@@ -56,8 +54,8 @@ void client::init() {
             [its_me](vsomeip_v3::service_t service, vsomeip_v3::instance_t instance, bool available) {
                 auto me = its_me.lock();
                 if (me) {
-                    VSOMEIP_INFO_P << '(' << std::hex << service << ", " << std::hex << instance << ", " << std::boolalpha << available
-                                   << ")";
+                    VSOMEIP_INFO << '(' << std::hex << service << ", " << std::hex << instance << ", " << std::boolalpha << available
+                                 << ")";
 
                     if (service != config::SERVICE_ID)
                         return;

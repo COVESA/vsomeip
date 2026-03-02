@@ -11,8 +11,6 @@
 
 #include "debounce_filter_test_client.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_client"
-
 static std::vector<std::vector<std::shared_ptr<vsomeip::payload>>> payloads__;
 
 debounce_test_client::debounce_test_client(int64_t _interval) :
@@ -58,12 +56,12 @@ void debounce_test_client::run() {
         }
     }
 
-    VSOMEIP_INFO_P << "Running test.";
+    VSOMEIP_INFO << "Running test.";
     run_test();
 
     unsubscribe_all();
 
-    VSOMEIP_INFO_P << "Stopping the service.";
+    VSOMEIP_INFO << "Stopping the service.";
     stop_service();
 
     // Wait for service to become unavailable before stopping client
@@ -87,14 +85,14 @@ void debounce_test_client::on_availability(vsomeip::service_t _service, vsomeip:
     if (_service == DEBOUNCE_SERVICE && _instance == DEBOUNCE_INSTANCE) {
 
         if (_is_available) {
-            VSOMEIP_INFO_P << "Debounce service becomes available.";
+            VSOMEIP_INFO << "Debounce service becomes available.";
             {
                 std::scoped_lock its_lock(run_mutex_);
                 is_available_ = true;
             }
             run_condition_.notify_one();
         } else {
-            VSOMEIP_INFO_P << "Debounce service becomes unavailable.";
+            VSOMEIP_INFO << "Debounce service becomes unavailable.";
 
             std::scoped_lock its_lock(run_mutex_);
             is_available_ = false;

@@ -7,7 +7,6 @@
 
 #include <boost/asio/ip/address.hpp>
 
-#include <vsomeip/internal/logger.hpp>
 #include <vsomeip/primitive_types.hpp>
 
 #ifdef ANDROID

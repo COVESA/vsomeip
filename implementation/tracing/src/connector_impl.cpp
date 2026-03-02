@@ -4,8 +4,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <vsomeip/constants.hpp>
-#include <vsomeip/internal/logger.hpp>
 #include <vsomeip/runtime.hpp>
+
 #include <chrono>
 #include <ctime>
 #include <fstream>
@@ -13,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "logger_ext.hpp"
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"

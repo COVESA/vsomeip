@@ -8,12 +8,11 @@
 #include "../include/local_socket_tcp_impl.hpp"
 
 #include "../../configuration/include/configuration.hpp"
-
 #include "../../security/include/security.hpp"
+#include "logger_ext.hpp"
 
 #include <vsomeip/vsomeip_sec.h>
 #include <boost/system/error_code.hpp>
-#include <vsomeip/internal/logger.hpp>
 
 #include <boost/asio/buffer.hpp>
 

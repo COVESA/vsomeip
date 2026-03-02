@@ -6,8 +6,6 @@
 #include "hostname_test_globals.hpp"
 #include "common/test_main.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_service"
-
 using namespace hostname_test;
 
 TEST(HostnameTest, ServiceOffersService) {
@@ -36,8 +34,8 @@ TEST(HostnameTest, ServiceOffersService) {
     application->register_subscription_handler(
             SERVICE_ID, INSTANCE_ID, EVENTGROUP_ID,
             [&](vsomeip::client_t _client, std::uint32_t, std::uint32_t, const std::string& _env, bool _subscribed) {
-                VSOMEIP_INFO_P << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : " unsubscribed")
-                               << ", client hostname:" << _env;
+                VSOMEIP_INFO << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : " unsubscribed")
+                             << ", client hostname:" << _env;
                 if (_subscribed) {
                     _client_hostname = _env;
                     is_subscribed_prom.set_value(true);

@@ -8,8 +8,8 @@
 #include "../include/routing_client_state_machine.hpp"
 #include "../../utility/include/is_value.hpp"
 #include "../../utility/include/utility.hpp"
+#include "logger_ext.hpp"
 
-#include <vsomeip/internal/logger.hpp>
 namespace vsomeip_v3 {
 
 #define VSOMEIP_LOG_PREFIX "rcsm"

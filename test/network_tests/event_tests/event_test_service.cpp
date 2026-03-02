@@ -22,8 +22,6 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_service"
-
 class event_test_service {
 public:
     event_test_service(struct event_test::service_info _service_info, bool _use_tcp) :
@@ -136,7 +134,7 @@ public:
     bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_INFO_P << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : "unsubscribed");
+        VSOMEIP_INFO << "Client: 0x" << std::hex << _client << ((_subscribed) ? " subscribed" : "unsubscribed");
         client_subscribed_ = _subscribed;
         return true;
     }

@@ -8,8 +8,6 @@
 #include "client.hpp"
 #include "service_ids.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_client"
-
 client_t::client_t() :
 
     vsomeip_app(vsomeip::runtime::get()->create_application("client-sample")) {
@@ -95,10 +93,10 @@ void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     std::scoped_lock lk(availability_mutex);
 
     if (message->get_payload()->get_data()) {
-        VSOMEIP_INFO_P << static_cast<int>(message->get_payload()->get_data()[0]) << " from 0x" << std::hex << std::setfill('0')
-                       << std::setw(4) << message->get_service();
+        VSOMEIP_INFO << static_cast<int>(message->get_payload()->get_data()[0]) << " from 0x" << std::hex << std::setfill('0')
+                     << std::setw(4) << message->get_service();
     } else {
-        VSOMEIP_WARNING_P << "Empty payload for service from 0x" << std::hex << std::setfill('0') << std::setw(4) << message->get_service();
+        VSOMEIP_WARNING << "Empty payload for service from 0x" << std::hex << std::setfill('0') << std::setw(4) << message->get_service();
     }
 
     for (auto it = pending_requests.begin(); it != pending_requests.end(); ++it) {
@@ -114,8 +112,8 @@ void client_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
 void client_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available) {
     std::scoped_lock lk(availability_mutex);
 
-    VSOMEIP_INFO_P << "Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance << "] is "
-                   << (is_available ? "available." : "NOT available.");
+    VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance << "] is "
+                 << (is_available ? "available." : "NOT available.");
 
     availability_table[service] = is_available;
 

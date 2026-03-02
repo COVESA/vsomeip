@@ -7,9 +7,9 @@
 
 #include "../../protocol/include/protocol.hpp"
 #include "../../configuration/include/configuration.hpp"
+#include "logger_ext.hpp"
 
 #include <cstdint>
-#include <vsomeip/internal/logger.hpp>
 
 #include <limits>
 #include <iostream>

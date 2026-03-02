@@ -3,9 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "../include/security.hpp"
-#include <vsomeip/internal/logger.hpp>
 #include <vsomeip/internal/plugin_manager.hpp>
+
+#include "../include/security.hpp"
+#include "logger_ext.hpp"
+
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"
 #else

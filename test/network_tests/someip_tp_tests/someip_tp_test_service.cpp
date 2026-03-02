@@ -27,8 +27,6 @@
 #include "common/test_main.hpp"
 #include "../../implementation/utility/include/utility.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_service"
-
 class someip_tp_test_service {
 public:
     someip_tp_test_service(struct someip_tp_test::service_info _service_info, someip_tp_test::test_mode_e _testmode) :
@@ -188,7 +186,7 @@ public:
         std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
         its_payload->set_data(its_data);
         app_->notify(service_info_.service_id, service_info_.instance_id, service_info_.event_id, its_payload);
-        VSOMEIP_INFO_P << "Send event";
+        VSOMEIP_INFO << "Send event";
         notify_method_called_.set_value(true);
     }
 
@@ -288,7 +286,7 @@ public:
                                     const std::function<void(const bool)>& _cbk) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_WARNING_P << vsomeip_v3::hex4(_client) << " subscribed." << _subscribed;
+        VSOMEIP_WARNING << vsomeip_v3::hex4(_client) << " subscribed." << _subscribed;
         static int was_called = 0;
         was_called++;
         EXPECT_EQ(1, was_called);

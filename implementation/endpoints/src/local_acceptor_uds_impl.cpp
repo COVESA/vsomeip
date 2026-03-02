@@ -10,8 +10,8 @@
 #include "../include/local_socket_uds_impl.hpp"
 
 #include "../../configuration/include/configuration.hpp"
+#include "logger_ext.hpp"
 
-#include <vsomeip/internal/logger.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
 #define VSOMEIP_LOG_PREFIX "laui"

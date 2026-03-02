@@ -20,8 +20,6 @@
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_service"
-
 class second_address_test_service {
 public:
     second_address_test_service(struct second_address_test::service_info _service_info) :
@@ -189,8 +187,8 @@ private:
     bool subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_DEBUG_P << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
-                        << ((_subscribed) ? " subscribed" : "unsubscribed") << " on service.";
+        VSOMEIP_DEBUG << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
+                      << ((_subscribed) ? " subscribed" : "unsubscribed") << " on service.";
         client_subscribed_ = _subscribed;
         return true;
     }
@@ -198,8 +196,8 @@ private:
     bool selective_subscription_handler(vsomeip::client_t _client, std::uint32_t _uid, std::uint32_t _gid, bool _subscribed) {
         (void)_uid;
         (void)_gid;
-        VSOMEIP_DEBUG_P << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
-                        << ((_subscribed) ? " subscribed" : "unsubscribed") << " on service.";
+        VSOMEIP_DEBUG << "Client 0x" << std::hex << std::setfill('0') << std::setw(4) << _client
+                      << ((_subscribed) ? " subscribed" : "unsubscribed") << " on service.";
         client_subscribed_selective_ = _subscribed;
         client_id_ = _client;
         return true;

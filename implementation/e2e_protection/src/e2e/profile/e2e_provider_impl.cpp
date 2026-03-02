@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <sstream>
 
-#include <vsomeip/internal/logger.hpp>
+#include "logger_ext.hpp"
 
 #include "../../../../e2e_protection/include/e2e/profile/e2e_provider_impl.hpp"
 

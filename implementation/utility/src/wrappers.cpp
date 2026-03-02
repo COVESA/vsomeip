@@ -21,7 +21,7 @@
 #include "../../configuration/include/internal.hpp"
 #endif // ANDROID
 
-#include <vsomeip/internal/logger.hpp> // for VSOMEIP_FATAL
+#include "logger_ext.hpp" // for VSOMEIP_FATAL
 
 void react(int fd, const char* func, int _errno);
 

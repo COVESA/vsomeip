@@ -9,8 +9,6 @@
 #include "service.hpp"
 #include "service_ids.hpp"
 
-#define VSOMEIP_LOG_PREFIX "t_service"
-
 constexpr std::size_t PAYLOAD_SIZE = 1000UL;
 
 service_t::service_t() :
@@ -75,7 +73,7 @@ std::future<bool> service_t::offer() {
     auto future_availability = std::future<bool>(promise_availability.get_future());
     is_offering = true;
 
-    VSOMEIP_INFO_P << " ";
+    VSOMEIP_INFO << " ";
     vsomeip_app->offer_service(SERVICE_ID, INSTANCE_ID, 0, 0);
     vsomeip_app->offer_service(OTHER_SERVICE_ID, OTHER_INSTANCE_ID, 0, 0);
 
@@ -101,7 +99,7 @@ void service_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
     std::scoped_lock lk(availability_mutex);
 
     payload.at(0)++;
-    VSOMEIP_INFO_P << "service_t:: [" << std::hex << message->get_service() << "] " << static_cast<int>(payload.at(0));
+    VSOMEIP_INFO << "service_t:: [" << std::hex << message->get_service() << "] " << static_cast<int>(payload.at(0));
 
     auto vsomeip_payload = vsomeip::runtime::get()->create_payload(payload);
     auto its_response = vsomeip::runtime::get()->create_response(message);
@@ -113,8 +111,8 @@ void service_t::on_message(const std::shared_ptr<vsomeip::message>& message) {
 void service_t::on_availability(vsomeip::service_t service, vsomeip::instance_t instance, bool is_available) {
     std::scoped_lock lk(availability_mutex);
 
-    VSOMEIP_INFO_P << "service_t::Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance << "] is "
-                   << (is_available ? "available." : "NOT available.");
+    VSOMEIP_INFO << "service_t::Service [" << std::setw(4) << std::setfill('0') << std::hex << service << "." << instance << "] is "
+                 << (is_available ? "available." : "NOT available.");
 
     availability_table[service] = is_available;
 

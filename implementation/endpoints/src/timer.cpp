@@ -6,11 +6,11 @@
 #include "../include/timer.hpp"
 #include "../include/abstract_socket_factory.hpp"
 #include "../../utility/include/is_value.hpp"
+#include "logger_ext.hpp"
 
 #include <boost/asio/error.hpp>
 
 #include <boost/system/error_code.hpp>
-#include <vsomeip/internal/logger.hpp>
 
 #define VSOMEIP_LOG_PREFIX "timer"
 

@@ -14,8 +14,8 @@
 #include <vsomeip/message.hpp>
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
-#include <vsomeip/internal/logger.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/event.hpp"
 #include "../include/routing_manager.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"

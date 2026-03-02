@@ -24,10 +24,10 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
-#include <vsomeip/internal/logger.hpp>
 #include <vsomeip/structured_types.hpp>
 #include <vsomeip/internal/plugin_manager.hpp>
 
+#include "logger_ext.hpp"
 #include "../include/client.hpp"
 #include "../include/configuration_impl.hpp"
 #include "../include/event.hpp"
