@@ -90,13 +90,16 @@ void socket_manager::remove(fd_t fd) {
     auto const lock = std::scoped_lock(mtx_);
     fd_to_handle_.erase(fd);
 
-    for (auto& [address, fds] : multicast_to_fds_) {
+    for (auto it = multicast_to_fds_.begin(); it != multicast_to_fds_.end();) {
+        auto& [address, fds] = *it;
         if (auto it_fds = fds.find(fd); it_fds != fds.end()) {
             fds.erase(it_fds);
             if (fds.empty()) {
-                multicast_to_fds_.erase(address);
+                it = multicast_to_fds_.erase(it);
+                continue;
             }
         }
+        ++it;
     }
 
     auto it_udp = std::find_if(endpoint_udp_to_fd_.begin(), endpoint_udp_to_fd_.end(), [fd](const auto& _fd) { return _fd.second == fd; });
