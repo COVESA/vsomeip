@@ -325,9 +325,8 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
         return;
     }
     if (_ec == boost::asio::error::operation_aborted) {
-        VSOMEIP_WARNING_P << "Socket stopped, state: " << state_;
-        socket_->stop(true);
-        set_state_unlocked(state_e::STOPPED);
+        VSOMEIP_WARNING_P << "error: " << _ec.message() << ", socket stopped, state: " << status_unlock();
+        escalate_internal(lock);
         return;
     }
     VSOMEIP_WARNING_P << "Error: " << _ec.message() << ", " << status_unlock();

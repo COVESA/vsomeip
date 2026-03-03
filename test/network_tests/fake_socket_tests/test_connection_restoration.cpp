@@ -806,6 +806,25 @@ TEST_F(test_client_helper, server_times_out_on_first_connect_attemp_with_client)
     EXPECT_TRUE(subscribe_to_event());
 }
 
+TEST_F(test_client_helper, client_receives_an_operation_abort_on_connection_attempt) {
+    /**
+     * 0. client -> router broke.
+     * 1. client tries to reconnect
+     * 2. timeout for connection attempt expires
+     * 3. client retries
+     * 4. clients connect_cbk is invoked with operation_abort from previous stop socket
+     * 5. client should not hang
+     **/
+    start_apps();
+
+    client_->app_state_record_.clear();
+
+    report_on_connect(routingmanager_name_, {boost::asio::error::timed_out, boost::asio::error::operation_aborted});
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, routingmanager_name_, std::nullopt));
+
+    EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+}
+
 TEST_F(test_client_helper, client_ignores_server_connection_attempt_once) {
     start_apps();
 
