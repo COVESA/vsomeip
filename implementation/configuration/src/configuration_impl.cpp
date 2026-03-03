@@ -692,8 +692,6 @@ bool configuration_impl::load_routing(const configuration_element& _element) {
         if (is_configured_[ET_ROUTING]) {
             VSOMEIP_WARNING << "Multiple definitions of routing. Ignoring definition from " << _element.name_;
         } else {
-            routing_.is_enabled_ = its_routing.get_optional<bool>("enabled").get_value_or(routing_.is_enabled_);
-
             bool is_loaded = load_routing_host(its_routing, _element.name_) && load_routing_guests(its_routing);
 
             if (!is_loaded) {
@@ -2882,10 +2880,6 @@ bool configuration_impl::has_enabled_magic_cookies(const std::string& _address, 
         }
     }
     return has_enabled;
-}
-
-bool configuration_impl::is_routing_enabled() const {
-    return routing_.is_enabled_;
 }
 
 const std::string& configuration_impl::get_routing_host_name() const {

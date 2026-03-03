@@ -47,15 +47,12 @@ struct routing_guests_t {
 };
 
 struct routing_t {
-    bool is_enabled_;
-
     routing_host_t host_;
     routing_guests_t guests_;
 
-    routing_t() : is_enabled_(true) { }
+    routing_t() = default;
 
     routing_t& operator=(const routing_t& _other) {
-        is_enabled_ = _other.is_enabled_;
         host_ = _other.host_;
         guests_ = _other.guests_;
 

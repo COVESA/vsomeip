@@ -111,7 +111,6 @@ public:
     VSOMEIP_EXPORT bool get_client_port(service_t _service, instance_t _instance, uint16_t _remote_port, bool _reliable,
                                         std::map<bool, std::set<uint16_t>>& _used_client_ports, uint16_t& _client_port) const;
 
-    VSOMEIP_EXPORT bool is_routing_enabled() const;
     VSOMEIP_EXPORT bool is_local_routing() const;
     VSOMEIP_EXPORT routing_state_e get_initial_routing_state() const;
 

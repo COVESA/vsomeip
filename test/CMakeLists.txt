@@ -175,12 +175,4 @@ if (NOT DISABLE_SECURITY)
     endif()
 endif()
 
-##############################################################################
-# Add internal_routing_disabled_acceptance_test
-##############################################################################
-
-if(NOT ${TESTS_BAT})
-    add_subdirectory(internal_routing_disabled_acceptance_test)
-endif()
-
 configure_file(tsan-suppressions.txt tsan-suppressions.txt COPYONLY)

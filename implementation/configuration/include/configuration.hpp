@@ -85,7 +85,6 @@ public:
     virtual const std::string& get_logfile() const = 0;
     virtual logger::level_e get_loglevel() const = 0;
 
-    virtual bool is_routing_enabled() const = 0;
     virtual const std::string& get_routing_host_name() const = 0;
     virtual const boost::asio::ip::address& get_routing_host_address() const = 0;
     virtual port_t get_routing_host_port() const = 0;
