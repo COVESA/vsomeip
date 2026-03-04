@@ -245,4 +245,8 @@ void app::offer(event_ids const& _ei, vsomeip::event_type_e _et) {
     app_->offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, std::chrono::milliseconds::zero(), false,
                       true, nullptr, vsomeip::reliability_type_e::RT_RELIABLE);
 }
+
+void app::set_routing_state(vsomeip::routing_state_e _state) {
+    app_->set_routing_state(_state);
+}
 }

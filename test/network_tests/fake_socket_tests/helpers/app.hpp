@@ -203,6 +203,11 @@ public:
     }
 
     /**
+     * Sets the routing state of the application
+     */
+    void set_routing_state(vsomeip::routing_state_e _state);
+
+    /**
      * After app::start() has been called this helper can be used to await the registration
      * of the application
      **/
