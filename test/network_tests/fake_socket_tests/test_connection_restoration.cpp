@@ -787,11 +787,6 @@ TEST_F(test_client_helper, field_updates_are_resend_when_a_broken_routing_connec
     set_ignore_nothing_to_read_from(client_name_, routingmanager_name_, socket_role::client, false);
     std::ignore = disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, std::nullopt);
 
-    // TODO:
-    // Because the re-connection needs to timeout before being successful, let's
-    // await the reconnect before continueing with the test.
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
     // because the client will re-subscribe it should receive another event after the subscription
     auto new_message = first_expected_field_message_;
     new_message.client_session_.session_ += 1;
