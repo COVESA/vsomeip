@@ -7,7 +7,7 @@
 
 #include <boost/asio/local/stream_protocol.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/local_server.hpp"
 #include "../include/local_endpoint.hpp"
 #include "../include/local_acceptor_tcp_impl.hpp"

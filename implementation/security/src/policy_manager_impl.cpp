@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/policy_manager_impl.hpp"
 #include "../../configuration/include/configuration_element.hpp"
 #ifdef ANDROID

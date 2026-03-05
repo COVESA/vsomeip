@@ -10,7 +10,7 @@
 #include "../include/local_socket_uds_impl.hpp"
 
 #include "../../configuration/include/configuration.hpp"
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 
 #include <vsomeip/vsomeip_sec.h>
 

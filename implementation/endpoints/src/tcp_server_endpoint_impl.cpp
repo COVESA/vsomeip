@@ -9,7 +9,7 @@
 
 #include <vsomeip/constants.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/routing_host.hpp"

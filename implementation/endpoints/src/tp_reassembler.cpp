@@ -10,7 +10,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/enumeration_types.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/tp.hpp"
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"

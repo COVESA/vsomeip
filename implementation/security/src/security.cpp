@@ -6,7 +6,7 @@
 #include <vsomeip/internal/plugin_manager.hpp>
 
 #include "../include/security.hpp"
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 
 #ifdef ANDROID
 #include "../../configuration/include/internal_android.hpp"

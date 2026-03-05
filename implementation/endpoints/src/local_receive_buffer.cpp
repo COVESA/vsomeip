@@ -7,7 +7,7 @@
 
 #include "../../protocol/include/protocol.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 
 #include <cstdint>
 

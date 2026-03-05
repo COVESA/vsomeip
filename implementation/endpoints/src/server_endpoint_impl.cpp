@@ -17,7 +17,7 @@
 
 #include <vsomeip/defines.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/server_endpoint_impl.hpp"
 #include "../include/endpoint_definition.hpp"
 

@@ -11,7 +11,7 @@
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/ip/multicast.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"
 #include "../../routing/include/routing_host.hpp"

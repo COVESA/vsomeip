@@ -22,7 +22,7 @@
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/event.hpp"
 #include "../include/eventgroupinfo.hpp"
 #include "../include/remote_subscription.hpp"

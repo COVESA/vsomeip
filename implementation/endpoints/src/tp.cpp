@@ -6,7 +6,7 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/defines.hpp>
 
-#include "logger_ext.hpp"
+#include "../../logger/include/logger_ext.hpp"
 #include "../include/tp.hpp"
 
 #ifdef ANDROID
