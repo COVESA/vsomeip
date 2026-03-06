@@ -157,6 +157,23 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
         ASSERT_TRUE(successfully_registered(ecu_one_client_));
     }
 
+    [[nodiscard]] bool await_service(app* _client, std::optional<service_availability> expected_availability = std::nullopt) {
+        if (!expected_availability) {
+            expected_availability = service_availability::available(service_instance_);
+        }
+        return _client->availability_record_.wait_for_last(*expected_availability);
+    }
+
+    [[nodiscard]] bool subscribe_to_event(app* _client) {
+        _client->subscribe_event(offered_event_);
+        return _client->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_));
+    }
+
+    [[nodiscard]] bool subscribe_to_field(app* _client) {
+        _client->subscribe_field(offered_field_);
+        return _client->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_));
+    }
+
     interface boardnet_interface_{0x3344, vsomeip::reliability_type_e::RT_UNRELIABLE};
     service_instance service_instance_{boardnet_interface_.instance_};
     event_ids offered_field_{boardnet_interface_.field_two_};
@@ -190,10 +207,10 @@ TEST_F(test_boardnet_helper, test_boardnet_service_availability) {
     router_one_->request_service(service_instance_);
     router_two_->offer(boardnet_interface_);
 
-    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(router_one_));
 
     router_two_->stop_offer(service_instance_);
-    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+    ASSERT_TRUE(await_service(router_one_, service_availability::unavailable(service_instance_)));
 }
 
 TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
@@ -211,7 +228,7 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     ecu_two_server_->offer(boardnet_interface_);
     ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
 
-    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(router_one_));
 
     router_one_->subscribe_event(offered_field_);
 
@@ -227,7 +244,7 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     TEST_LOG << "Restarting router two";
     start_application(router_two_name_, "ecu_two.json");
 
-    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(router_one_));
     EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message));
 }
 
@@ -252,9 +269,8 @@ TEST_F(test_field_routing, test_routing_with_str_on_server_side) {
     ecu_two_server_->offer(boardnet_interface_);
 
     // 3.
-    ecu_one_client_->subscribe(boardnet_interface_);
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
-    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    ecu_one_client_->request_service(service_instance_);
+    ASSERT_TRUE(subscribe_to_event(ecu_one_client_));
 
     // 4.
     router_two_->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
@@ -263,7 +279,7 @@ TEST_F(test_field_routing, test_routing_with_str_on_server_side) {
     // once we are suspended, ECU two sends STOP OFFERs to the 'boardnet'
     // ECU one, will process these offers, the routing info is removed by the router (ECU one)
     // and therefore, it is expected the router to notify the client about the service unavailability
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+    ASSERT_TRUE(await_service(ecu_one_client_, service_availability::unavailable(service_instance_)));
 
     // 6.
     // This delay is purposely added to simulate a 'suspend'
@@ -276,11 +292,11 @@ TEST_F(test_field_routing, test_routing_with_str_on_server_side) {
     // Note there is no need to re-offer the service
     // Once ECU two is resumed, it will re-offer the 'boardnet' service
     // The service should be automatically available without even to re-request the client side
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(ecu_one_client_));
 
     // 9.
-    // Once the service is available again, the client should auto-subscribe again to the offered field
-    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    // Once the service is available again, the client should auto-subscribe again to the offered event
+    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 }
 
 TEST_F(test_field_routing, test_routing_with_str_on_client_side) {
@@ -302,9 +318,8 @@ TEST_F(test_field_routing, test_routing_with_str_on_client_side) {
     ecu_two_server_->offer(boardnet_interface_);
 
     // 3.
-    ecu_one_client_->subscribe(boardnet_interface_);
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
-    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    ecu_one_client_->request_service(service_instance_);
+    ASSERT_TRUE(subscribe_to_event(ecu_one_client_));
 
     // 4.
     router_one_->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
@@ -312,7 +327,7 @@ TEST_F(test_field_routing, test_routing_with_str_on_client_side) {
     // 5.
     // even though ECU two did not suspend, the client should regardless see the service as unavailable
     // once we are suspended, del_routing_info is called for the 'boardnet' services
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+    ASSERT_TRUE(await_service(ecu_one_client_, service_availability::unavailable(service_instance_)));
 
     // 6.
     // This delay is purposely added to simulate a 'suspend'
@@ -323,11 +338,11 @@ TEST_F(test_field_routing, test_routing_with_str_on_client_side) {
 
     // 8.
     // Boardnet offers by ECU two, will now process normally once resumed and service discovery is started again
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(ecu_one_client_));
 
     // 9.
     // Once the service is available again, the client should now be able to subscribe again
-    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 }
 
 TEST_F(test_field_routing, server_router_router_client) {
@@ -338,7 +353,7 @@ TEST_F(test_field_routing, server_router_router_client) {
     ecu_two_server_->offer(boardnet_interface_);
     ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
 
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(ecu_one_client_));
 
     auto next_expected_message = first_expected_message_;
     next_expected_message.payload_ = {0x5, 0x3};
@@ -360,7 +375,7 @@ TEST_F(test_field_routing, server_router_router) {
     ecu_two_server_->offer(boardnet_interface_);
     ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
 
-    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(router_one_));
 
     auto next_expected_message = first_expected_message_;
     next_expected_message.payload_ = {0x5, 0x3};
@@ -381,7 +396,7 @@ TEST_F(test_field_routing, router_router_client) {
     router_two_->offer(boardnet_interface_);
     router_two_->send_event(offered_field_, {0x5, 0x3});
 
-    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(ecu_one_client_));
 
     auto next_expected_message = first_expected_message_;
     next_expected_message.payload_ = {0x5, 0x3};
@@ -401,7 +416,7 @@ TEST_F(test_field_routing, router_router) {
     router_two_->offer(boardnet_interface_);
     router_two_->send_event(offered_field_, {0x5, 0x3});
 
-    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(await_service(router_one_));
 
     auto next_expected_message = first_expected_message_;
     next_expected_message.payload_ = {0x5, 0x3};
