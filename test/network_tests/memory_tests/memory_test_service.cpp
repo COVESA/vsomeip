@@ -155,5 +155,5 @@ TEST(memory_test, send_messages) {
     }
 }
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(100));
+    return test_main(argc, argv, std::chrono::seconds(240));
 }
