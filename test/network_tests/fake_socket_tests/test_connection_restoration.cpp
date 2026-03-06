@@ -412,6 +412,47 @@ TEST_F(test_client_helper, field_subscription) {
 
     EXPECT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
 }
+TEST_F(test_client_helper, field_subscription_before_field_offering) {
+    start_router();
+    start_client_app();
+    request_service();
+    client_->subscribe_field(offered_field_);
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    server_->offer_event(offered_event_);
+    server_->offer_field(offered_field_);
+    server_->offer(service_instance_);
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+
+    send_field_message();
+
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+}
+
+TEST_F(test_client_helper, field_subscription_between_service_and_field_offering) {
+    start_router();
+    start_client_app();
+    request_service();
+    client_->subscribe_field(offered_field_);
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    server_->offer(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    server_->offer_event(offered_event_);
+    server_->offer_field(offered_field_);
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+
+    send_field_message();
+
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+}
 
 TEST_F(test_client_helper, router_offers_field) {
     start_router();

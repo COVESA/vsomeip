@@ -32,9 +32,10 @@ fake_udp_socket_handle::~fake_udp_socket_handle() {
     sm->remove(socket_id_.fd_);
 }
 
-void fake_udp_socket_handle::init(fd_t _fd, [[maybe_unused]] socket_type _type, std::weak_ptr<socket_manager> _socket_manager) {
+void fake_udp_socket_handle::init(fd_t _fd, socket_type _type, std::weak_ptr<socket_manager> _socket_manager) {
     auto const lock = std::scoped_lock(mtx_);
     socket_id_.fd_ = _fd;
+    socket_id_.type_ = _type;
     socket_manager_ = _socket_manager;
 }
 
@@ -57,7 +58,7 @@ void fake_udp_socket_handle::cancel() {
 }
 
 void fake_udp_socket_handle::clear_handler() {
-    LOCAL_LOG << __func__ << ", fd: " << socket_id_.fd_;
+    LOCAL_LOG << __func__ << ", fd: " << socket_id_;
     cancel();
 }
 
@@ -87,7 +88,7 @@ void fake_udp_socket_handle::close() {
 }
 
 [[nodiscard]] bool fake_udp_socket_handle::bind(boost::asio::ip::udp::endpoint const& _ep) {
-    LOCAL_LOG << "calling bind on: " << socket_id_.fd_ << " with: " << _ep;
+    LOCAL_LOG << "calling bind on: " << socket_id_ << " with: " << _ep;
     auto bsm = [&]() -> std::shared_ptr<socket_manager> {
         auto const lock = std::scoped_lock(mtx_);
         if (!local_ep_) {
@@ -270,7 +271,7 @@ void fake_udp_socket_handle::consume(boost::asio::const_buffer const& _buffer, b
     }
 
     if (someip_message message; parse(input, message) > 0) {
-        LOCAL_LOG << socket_id_.fd_ << " local ep " << *local_ep_ << " received message from " << _src.address() << " data: " << message;
+        LOCAL_LOG << socket_id_ << " @ " << *local_ep_ << " received message from " << _src.address() << " data: " << message;
         control_data data{};
         data.buffer_ = input;
         data.src_ = _src;

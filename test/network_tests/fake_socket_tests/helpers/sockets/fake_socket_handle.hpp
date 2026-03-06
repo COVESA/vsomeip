@@ -24,6 +24,8 @@ struct socket_id {
     std::string app_name_{};
 };
 
+std::ostream& operator<<(std::ostream& o, socket_id const& _id);
+
 class socket_manager;
 
 struct fake_socket_handle : std::enable_shared_from_this<fake_socket_handle> {
