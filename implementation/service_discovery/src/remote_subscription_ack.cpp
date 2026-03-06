@@ -50,7 +50,10 @@ boost::asio::ip::address remote_subscription_ack::get_target_address() const {
 
 bool remote_subscription_ack::is_pending() const {
     for (const auto& its_subscription : subscriptions_) {
-        if (its_subscription->is_pending() && its_subscription->get_answers() != 0) {
+        // check if parent subscription exists, if so use it to check for pending clients, otherwise use the subscription itself to check
+        // for pending clients
+        auto subscription_ = its_subscription->get_parent_or_self();
+        if (subscription_->is_pending() && subscription_->get_answers() != 0) {
             return true;
         }
     }
@@ -69,8 +72,8 @@ bool remote_subscription_ack::has_subscription() const {
     return (0 < subscriptions_.size());
 }
 
-std::unique_lock<std::recursive_mutex> remote_subscription_ack::get_lock() {
-    return std::unique_lock<std::recursive_mutex>(mutex_);
+std::mutex& remote_subscription_ack::get_mutex() {
+    return mutex_;
 }
 
 } // namespace sd

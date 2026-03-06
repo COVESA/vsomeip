@@ -136,6 +136,10 @@ private:
                                  const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
                                  const std::shared_ptr<endpoint_definition>& _target, const std::set<client_t>& _clients);
 
+    void insert_subscription_ack_unlocked(const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
+                                          const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
+                                          const std::shared_ptr<endpoint_definition>& _target, const std::set<client_t>& _clients);
+
     typedef std::set<std::pair<bool, std::uint16_t>> expired_ports_t;
     struct sd_acceptance_state_t {
         explicit sd_acceptance_state_t(expired_ports_t& _expired_ports) :

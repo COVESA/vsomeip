@@ -116,6 +116,10 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     return socket_manager_->delay_message_processing(_client, _server, _delay, _role);
 }
 
+[[nodiscard]] bool base_fake_socket_fixture::delay_boardnet_sending(boost::asio::ip::udp::endpoint const& _ep, bool _delay) {
+    return socket_manager_->delay_boardnet_sending(_ep, _delay);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::set_ignore_inner_close(std::string const& _client, bool _ignore_in_client,
                                                                     std::string const& _server, bool _ignore_in_server) {
     return socket_manager_->set_ignore_inner_close(_client, _ignore_in_client, _server, _ignore_in_server);

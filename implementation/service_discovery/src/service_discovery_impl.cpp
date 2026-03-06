@@ -907,7 +907,14 @@ void service_discovery_impl::insert_subscription_ack(const std::shared_ptr<remot
                                                      const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
                                                      const std::shared_ptr<endpoint_definition>& _target,
                                                      const std::set<client_t>& _clients) {
-    std::unique_lock<std::recursive_mutex> its_lock(_acknowledgement->get_lock());
+    std::scoped_lock its_lock(_acknowledgement->get_mutex());
+    insert_subscription_ack_unlocked(_acknowledgement, _info, _ttl, _target, _clients);
+}
+
+void service_discovery_impl::insert_subscription_ack_unlocked(const std::shared_ptr<remote_subscription_ack>& _acknowledgement,
+                                                              const std::shared_ptr<eventgroupinfo>& _info, ttl_t _ttl,
+                                                              const std::shared_ptr<endpoint_definition>& _target,
+                                                              const std::set<client_t>& _clients) {
     auto its_message = _acknowledgement->get_current_message();
 
     auto its_service = _info->get_service();
@@ -1158,7 +1165,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
         }
 
         {
-            std::unique_lock<std::recursive_mutex> its_lock_inner(its_acknowledgement->get_lock());
+            std::scoped_lock its_lock_inner(its_acknowledgement->get_mutex());
             its_acknowledgement->complete();
             // TODO: Check the following logic...
             if (its_acknowledgement->has_subscription()) {
@@ -2172,11 +2179,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
         if (_ttl == 0) { // --> unsubscribe
             its_subscription->set_ttl(0);
             if (!_is_stop_subscribe_subscribe) {
-                {
-                    std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
-                    pending_remote_subscriptions_[its_subscription] = _acknowledgement;
-                    _acknowledgement->add_subscription(its_subscription);
-                }
+                std::scoped_lock its_lock(_acknowledgement->get_mutex(), pending_remote_subscriptions_mutex_);
+                pending_remote_subscriptions_[its_subscription] = _acknowledgement;
+                _acknowledgement->add_subscription(its_subscription);
                 host_->on_remote_unsubscribe(its_subscription);
             }
             return;
@@ -2188,7 +2193,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
         its_subscription->set_ttl(_ttl * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_));
 
         {
-            std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
+            std::scoped_lock its_lock(_acknowledgement->get_mutex(), pending_remote_subscriptions_mutex_);
             pending_remote_subscriptions_[its_subscription] = _acknowledgement;
             _acknowledgement->add_subscription(its_subscription);
         }
@@ -2901,7 +2906,10 @@ bool service_discovery_impl::get_diagnosis_mode() {
 
 void service_discovery_impl::update_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription) {
 
-    if (!_subscription->is_pending() || 0 == _subscription->get_answers()) {
+    // check if parent subscription exists, if so use it to check for pending clients, otherwise use the subscription itself to check for
+    // pending clients
+    auto subscription_ = _subscription->get_parent_or_self();
+    if (!subscription_->is_pending() || 0 == subscription_->get_answers()) {
         std::shared_ptr<remote_subscription_ack> its_ack;
         {
             std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
@@ -2911,7 +2919,7 @@ void service_discovery_impl::update_remote_subscription(const std::shared_ptr<re
             }
         }
         if (its_ack) {
-            std::unique_lock<std::recursive_mutex> its_lock(its_ack->get_lock());
+            std::scoped_lock its_lock(its_ack->get_mutex());
             update_acknowledgement(its_ack);
         }
     }
@@ -2923,8 +2931,9 @@ void service_discovery_impl::update_acknowledgement(const std::shared_ptr<remote
 
         send_subscription_ack(_acknowledgement);
 
+        const auto its_subscriptions = _acknowledgement->get_subscriptions();
         std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
-        for (const auto& its_subscription : _acknowledgement->get_subscriptions())
+        for (const auto& its_subscription : its_subscriptions)
             pending_remote_subscriptions_.erase(its_subscription);
     }
 }
@@ -3283,9 +3292,21 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
 
     if (do_not_answer) {
         if (its_parent) {
-            std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
-            auto its_parent_ack = pending_remote_subscriptions_[its_parent];
+            // Snapshot the parent ack under pending_remote_subscriptions_mutex_, then
+            // release that lock before calling get_subscriptions() on it.
+            // Holding pending_remote_subscriptions_mutex_ while acquiring another
+            // ack's mutex_ (inside get_subscriptions) would invert the lock order
+            // relative to update_acknowledgement, which holds ack->mutex_ first and
+            // then acquires pending_remote_subscriptions_mutex_.
+            std::shared_ptr<remote_subscription_ack> its_parent_ack;
+            {
+                std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
+                auto it = pending_remote_subscriptions_.find(its_parent);
+                if (it != pending_remote_subscriptions_.end())
+                    its_parent_ack = it->second;
+            }
             if (its_parent_ack) {
+                std::scoped_lock its_parent_lock(its_parent_ack->get_mutex());
                 for (const auto& its_subscription : its_parent_ack->get_subscriptions()) {
                     if (its_subscription != its_parent)
                         its_subscription->set_answers(its_subscription->get_answers() + 1);
@@ -3304,8 +3325,11 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
                     if (its_info) {
                         std::set<client_t> its_acked;
                         std::set<client_t> its_nacked;
-                        for (const auto& its_client : its_subscription->get_clients()) {
-                            if (its_subscription->get_client_state(its_client) == remote_subscription_state_e::SUBSCRIPTION_ACKED) {
+                        // check if parent subscription exists, if so use it to create ack entries for clients of parent subscription,
+                        // otherwise use the subscription itself
+                        auto subscription_ = its_subscription->get_parent_or_self();
+                        for (const auto& its_client : subscription_->get_clients()) {
+                            if (subscription_->get_client_state(its_client) == remote_subscription_state_e::SUBSCRIPTION_ACKED) {
                                 its_acked.insert(its_client);
                             } else {
                                 its_nacked.insert(its_client);
@@ -3313,12 +3337,12 @@ void service_discovery_impl::send_subscription_ack(const std::shared_ptr<remote_
                         }
 
                         if (0 < its_acked.size()) {
-                            insert_subscription_ack(_acknowledgement, its_info, its_subscription->get_ttl(),
-                                                    its_subscription->get_subscriber(), its_acked);
+                            insert_subscription_ack_unlocked(_acknowledgement, its_info, its_subscription->get_ttl(),
+                                                             its_subscription->get_subscriber(), its_acked);
                         }
 
                         if (0 < its_nacked.size()) {
-                            insert_subscription_ack(_acknowledgement, its_info, 0, its_subscription->get_subscriber(), its_nacked);
+                            insert_subscription_ack_unlocked(_acknowledgement, its_info, 0, its_subscription->get_subscriber(), its_nacked);
                         }
                     }
                 }

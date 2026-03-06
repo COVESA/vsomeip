@@ -19,10 +19,98 @@
 
 namespace vsomeip_v3::testing {
 
-std::string const router_one_name = "router_one";
+// Generic handler to block specific ACKs by client_id
+class ack_blocker {
+public:
+    std::map<uint16_t, std::shared_ptr<std::promise<void>>> client_releases_;
+    std::set<uint16_t> blocked_clients_; // Track which clients are currently blocked
+    std::vector<uint16_t> client_order_; // Order of clients to map ACKs to
+    size_t ack_counter_{0};
+    size_t subscribe_counter_{0};
+    std::mutex mtx_;
+    std::condition_variable cv_;
+    std::condition_variable cv_subscribe_;
+
+    // Register a promise to block a specific client
+    void block_client(uint16_t client_id) {
+        std::lock_guard<std::mutex> lock(mtx_);
+        client_releases_[client_id] = std::make_shared<std::promise<void>>();
+        client_order_.push_back(client_id);
+    }
+
+    // Release a specific client
+    void release_client(uint16_t client_id) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        auto it = client_releases_.find(client_id);
+        if (it != client_releases_.end()) {
+            it->second->set_value();
+            client_releases_.erase(it); // Remove after releasing
+        }
+    }
+
+    // Wait until a specific client is blocked
+    bool wait_for_client_blocked(uint16_t client_id, std::chrono::milliseconds timeout = std::chrono::milliseconds(3000)) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        return cv_.wait_for(lock, timeout, [this, client_id]() { return blocked_clients_.find(client_id) != blocked_clients_.end(); });
+    }
+
+    // Wait until N SUBSCRIBE messages have been received (without blocking them)
+    bool wait_for_subscribe_count(size_t count, std::chrono::milliseconds timeout = std::chrono::milliseconds(3000)) {
+        std::unique_lock<std::mutex> lock(mtx_);
+        return cv_subscribe_.wait_for(lock, timeout, [this, count]() { return subscribe_counter_ >= count; });
+    }
+
+    // Handler that will be called for each message
+    bool operator()(command_message const& _cmd) {
+        if (_cmd.id_ != protocol::id_e::SUBSCRIBE_ACK_ID) {
+            return false; // Does not block, continues processing
+        }
+
+        std::unique_lock<std::mutex> lock(mtx_);
+
+        // Map ACK by order: 1st ACK -> client_order_[0], 2nd ACK -> client_order_[1], etc.
+        size_t ack_index = ack_counter_++;
+        uint16_t client_id = 0;
+        if (ack_index < client_order_.size()) {
+            client_id = client_order_[ack_index];
+        }
+
+        if (client_id == 0) {
+            return false; // No mapping for this ACK
+        }
+
+        auto it = client_releases_.find(client_id);
+        if (it == client_releases_.end()) {
+            return false; // No promise for this client
+        }
+
+        auto promise_ptr = it->second;
+        TEST_LOG << "Blocking SUBSCRIBE_ACK #" << (ack_index + 1) << " for client 0x" << std::hex << client_id;
+
+        // Mark as blocked and notify waiters
+        blocked_clients_.insert(client_id);
+        cv_.notify_all();
+
+        // Unlock before waiting on the promise
+        lock.unlock();
+        promise_ptr->get_future().wait();
+
+        // Re-lock to unmark as blocked
+        lock.lock();
+        blocked_clients_.erase(client_id);
+
+        TEST_LOG << "Released SUBSCRIBE_ACK #" << (ack_index + 1) << " for client 0x" << std::hex << client_id;
+
+        return false; // Does not drop the message
+    }
+};
+
+std::string const router_one_name_ = "router_one";
 std::string const router_two_name_ = "router_two";
 std::string const ecu_two_server_name_ = "ecu_two_server";
 std::string const ecu_one_client_name_ = "ecu_one_client";
+std::string const ecu_one_server_name_ = "ecu_one_server";
+std::string const ecu_two_client_name_ = "ecu_two_client";
 
 struct test_boardnet_helper : public base_fake_socket_fixture {
     test_boardnet_helper() { }
@@ -58,7 +146,7 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
     }
 
     void start_all_apps() {
-        router_one = start_application(router_one_name, "ecu_one.json");
+        router_one = start_application(router_one_name_, "ecu_one.json");
         ecu_one_client = start_application(ecu_one_client_name_, "ecu_one.json");
         router_two = start_application(router_two_name_, "ecu_two.json");
         ecu_two_server = start_application(ecu_two_server_name_, "ecu_two.json");
@@ -75,12 +163,14 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
     interface boardnet_interface_{0x3344, vsomeip::reliability_type_e::RT_UNRELIABLE};
     service_instance service_instance_{boardnet_interface_.instance_};
     event_ids offered_field_{boardnet_interface_.field_two_};
+    event_ids offered_event_{boardnet_interface_.event_one_};
 
     message first_expected_message_{client_session{0, 1},
                                     boardnet_interface_.instance_,
                                     boardnet_interface_.field_two_.event_id_,
                                     vsomeip::message_type_e::MT_NOTIFICATION,
                                     {}};
+    boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("127.0.0.2"), 30490};
 
     std::map<std::string, app*> apps_;
     std::set<std::string> env_vars_;
@@ -89,11 +179,13 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
     app* router_two{};
     app* ecu_one_client{};
     app* ecu_two_server{};
+    app* ecu_one_server{};
+    app* ecu_two_client{};
 };
 
 TEST_F(test_boardnet_helper, test_boardnet_service_availability) {
     // start 1st daemon on 127.0.0.1 interface
-    auto router_one = start_application(router_one_name, "ecu_one.json");
+    auto router_one = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one));
 
     // start 2nd daemon on 127.0.0.2 interface
@@ -117,7 +209,7 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     auto ecu_two_server = start_application(ecu_two_server_name_, "ecu_two.json");
 
     // start 2nd daemon on 127.0.0.1 interface
-    auto router_one = start_application(router_one_name, "ecu_one.json");
+    auto router_one = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one));
 
     router_one->request_service(service_instance_);
@@ -265,7 +357,7 @@ TEST_F(test_field_routing, server_router_router) {
     auto ecu_two_server = start_application(ecu_two_server_name_, "ecu_two.json");
 
     // start 2nd daemon on 127.0.0.1 interface
-    auto router_one = start_application(router_one_name, "ecu_one.json");
+    auto router_one = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one));
 
     router_one->subscribe(boardnet_interface_);
@@ -284,7 +376,7 @@ TEST_F(test_field_routing, router_router_client) {
     ASSERT_TRUE(successfully_registered(router_two));
 
     // start 2nd daemon on 127.0.0.1 interface
-    auto router_one = start_application(router_one_name, "ecu_one.json");
+    auto router_one = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one));
     auto ecu_one_client = start_application(ecu_one_client_name_, "ecu_one.json");
 
@@ -305,7 +397,7 @@ TEST_F(test_field_routing, router_router) {
     ASSERT_TRUE(successfully_registered(router_two));
 
     // start 2nd daemon on 127.0.0.1 interface
-    auto router_one = start_application(router_one_name, "ecu_one.json");
+    auto router_one = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one));
 
     router_one->subscribe(boardnet_interface_);
@@ -318,5 +410,102 @@ TEST_F(test_field_routing, router_router) {
     next_expected_message.payload_ = {0x5, 0x3};
     next_expected_message.client_session_.session_ += 1; // interesting
     EXPECT_TRUE(router_one->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+}
+TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
+    /**
+     * When we receive multiple selective event subscriptions simultaneously
+     * for the same Service/Instance/Eventgroup,the first thread adds the
+     * client to the map and uses that map to process the subscription,
+     * but another thread may start processing the next subscription, adding
+     * the client to the map and starting to process with the current state
+     * of the map, causing the ACK subscription not to be sent because the
+     * second subscription, when it started, did not have the client from the
+     * first subscription marked as ACK, leaving one client always in PENDING.
+     * To replicate the issue, it is necessary to ensure that the SUBSCRIBE_ACK
+     * from the previous subscription is processed while the next subscription
+     * is being processed, so that the client map for each subscription does
+     * not yet have the ACK information from the previous client.
+     **/
+
+    // start 2nd daemon(also client) and slave clients on 127.0.0.2 interface
+    auto router_two = start_application(router_two_name_, "ecu_two.json");
+    ASSERT_TRUE(successfully_registered(router_two)) << "Router_two did not register";
+
+    auto ecu_two_client = start_application(ecu_two_client_name_, "ecu_two.json");
+    ASSERT_TRUE(successfully_registered(ecu_two_client)) << "ECU_two_C1 did not register";
+
+    // start 1st daemon and client on 127.0.0.1 interface
+    auto router_one = start_application(router_one_name_, "ecu_one.json");
+    ASSERT_TRUE(successfully_registered(router_one)) << "Router_one did not register";
+
+    auto ecu_one_server = start_application(ecu_one_server_name_, "ecu_one.json");
+    ASSERT_TRUE(successfully_registered(ecu_one_server)) << "ECU_one_C1 did not register";
+
+    router_two->request_service(service_instance_);
+    ecu_two_client->request_service(service_instance_);
+
+    ecu_one_server->offer(service_instance_);
+    ecu_one_server->offer_event(offered_event_);
+
+    // Wait for service availability on all clients
+    ASSERT_TRUE(router_two->availability_record_.wait_for_last(service_availability::available(service_instance_)))
+            << "Router_two did not see service availability";
+    ASSERT_TRUE(ecu_two_client->availability_record_.wait_for_last(service_availability::available(service_instance_)))
+            << "ECU_two_C1 did not see service availability";
+
+    // Get Client IDs from applications
+    const uint16_t router_two_id = router_two->get_client_id();
+
+    // Create the blocker and set up the handler ONCE
+    ack_blocker blocker;
+
+    // Handler for SUBSCRIBE_ACK (ecu_one_server -> router_one)
+    set_custom_command_handler(ecu_one_server_name_, router_one_name_, std::ref(blocker), socket_role::client);
+
+    // Handler for SUBSCRIBE tracking
+    set_custom_command_handler(
+            ecu_one_server_name_, router_one_name_,
+            [&blocker](command_message const& _cmd) {
+                if (_cmd.id_ == protocol::id_e::SUBSCRIBE_ID) {
+                    {
+                        std::lock_guard<std::mutex> lock(blocker.mtx_);
+                        ++blocker.subscribe_counter_;
+                        blocker.cv_subscribe_.notify_all();
+                    }
+                }
+                return false; // Don't block
+            },
+            socket_role::server);
+
+    // Register which clients we want to block
+    blocker.block_client(router_two_id);
+
+    // Subscribe all three clients - ACKs will be blocked automatically
+    router_two->subscribe_selective(offered_event_);
+
+    // Wait for SUBSCRIBE ACK message of router_two to be blocked on ecu_one_server
+    blocker.wait_for_client_blocked(router_two_id);
+
+    ecu_two_client->subscribe_selective(offered_event_);
+
+    // Wait for SUBSCRIBE message of ecu_two_client to be sent to ecu_one_server
+    blocker.wait_for_subscribe_count(2);
+    // Release client 1's SUBSCRIPTION ACK to allow it to proceed
+    blocker.release_client(router_two_id);
+
+    // Block SD messages from ECU TWO to ECU ONE to prevent more subscriptions to be sent
+    ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, true));
+
+    // Wait for subscription confirmations
+    ASSERT_TRUE(router_two->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)))
+            << "Router two subscription confirmation failed";
+
+    ASSERT_TRUE(ecu_two_client->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)))
+            << "ECU two C1 subscription confirmation failed";
+
+    // Unblock SD communication from ECU TWO to ECU ONE
+    ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, false));
+
+    ecu_one_server->stop_offer(service_instance_);
 }
 }

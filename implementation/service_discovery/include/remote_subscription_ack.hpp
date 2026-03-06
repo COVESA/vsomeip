@@ -43,10 +43,10 @@ public:
     void add_subscription(const std::shared_ptr<remote_subscription>& _subscription);
     bool has_subscription() const;
 
-    std::unique_lock<std::recursive_mutex> get_lock();
+    std::mutex& get_mutex();
 
 private:
-    std::recursive_mutex mutex_;
+    mutable std::mutex mutex_;
     std::vector<std::shared_ptr<message_impl>> messages_;
     bool is_complete_;
     bool is_done_;

@@ -50,6 +50,11 @@ public:
     std::shared_ptr<vsomeip::application> get_application() const { return app_; }
 
     /**
+     * Get the client ID of this application
+     */
+    vsomeip::client_t get_client_id() const { return app_->get_client(); }
+
+    /**
      * if running has been called:
      * 1. calls vsomeip::clear_all_handlers()
      * 2. calls vsomeip::stop()
@@ -126,6 +131,15 @@ public:
      * Note: Received events are recorded in the @see message_record_.
      */
     void subscribe_field(event_ids const& _ei);
+
+    /**
+     * 1. registers a subscription handler to record subscription events with @see
+     * subscription_record_.
+     * 2. calls vsomeip::application::subscribe() with specified event_type_e
+     *
+     * Note: Received events are recorded in the @see message_record_.
+     */
+    void subscribe_selective(event_ids const& _ei);
 
     /**
      * 1. registers a subscription handler to record subscription events with @see

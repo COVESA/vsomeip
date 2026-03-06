@@ -291,4 +291,12 @@ void remote_subscription::clear_destiny() {
     this->final_destination_.store(destiny::none, std::memory_order_release);
 }
 
+std::shared_ptr<remote_subscription> remote_subscription::get_parent_or_self() {
+    // check if parent subscription exists, if so return it, otherwise return the subscription itself to be used for checking pending
+    // clients
+    if (std::shared_ptr<remote_subscription> p = parent_.lock()) {
+        return p;
+    }
+    return shared_from_this();
+}
 } // namespace vsomeip_v3

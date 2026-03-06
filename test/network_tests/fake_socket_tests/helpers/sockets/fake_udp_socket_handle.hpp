@@ -103,6 +103,17 @@ struct fake_udp_socket_handle : public fake_socket_handle {
 
     void consume(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
 
+    /**
+     * if _delay == true, will not send messages, but stores them in the internal
+     * buffer only. else, will process and send any delayed messages.
+     **/
+    bool delay_message_processing(bool _delay);
+
+    /**
+     * Processes and sends all delayed messages.
+     **/
+    void process_delayed_messages();
+
 private:
     void update_reception_unlocked();
 
@@ -129,6 +140,8 @@ private:
     std::optional<boost::asio::ip::udp::endpoint> connected_ep_;
     mutable std::mutex mtx_;
     socket_id socket_id_;
+    std::atomic<bool> delay_messages_{false};
+    std::vector<control_data> delayed_messages_;
 };
 
 }

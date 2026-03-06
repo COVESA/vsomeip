@@ -26,7 +26,7 @@ class eventgroupinfo;
 
 const remote_subscription_id_t PENDING_SUBSCRIPTION_ID(0);
 
-class remote_subscription {
+class remote_subscription : public std::enable_shared_from_this<remote_subscription> {
 public:
     VSOMEIP_EXPORT remote_subscription();
     VSOMEIP_EXPORT ~remote_subscription();
@@ -97,6 +97,7 @@ public:
     bool is_forwarded() const;
     void set_forwarded();
     void clear_destiny();
+    std::shared_ptr<remote_subscription> get_parent_or_self();
 
 private:
     std::atomic<remote_subscription_id_t> id_;

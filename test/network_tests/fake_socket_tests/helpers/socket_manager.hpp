@@ -117,6 +117,14 @@ public:
                                                 socket_role _role = socket_role::server);
 
     /**
+     * Finds the UDP socket bound to @param _ep and delays its outgoing message processing.
+     * @param _ep must be the sending endpoint.
+     *
+     * @return false, if no UDP socket matching _ep was found.
+     **/
+    [[nodiscard]] bool delay_boardnet_sending(boost::asio::ip::udp::endpoint const& _ep, bool _delay);
+
+    /**
      * Ensures that a broken connection is not propagated, when the connected socket is closed.
      * The connection is identified by:
      * _client -> _server.
@@ -321,6 +329,8 @@ private:
     std::map<boost::asio::ip::address, std::set<fd_t>> multicast_to_fds_;
     std::map<boost::asio::ip::tcp::endpoint, fd_t> endpoint_tcp_to_fd_;
     std::map<boost::asio::ip::udp::endpoint, fd_t> endpoint_udp_to_fd_;
+    // persisted delay state per sending endpoint; applied immediately if already bound, or on bind otherwise
+    std::map<boost::asio::ip::udp::endpoint, bool> udp_sending_delay_;
     std::set<std::string> connections_to_ignore_;
     std::set<std::string> fail_on_bind_;
     std::set<std::string> ignore_broken_pipe_;

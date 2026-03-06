@@ -18,6 +18,10 @@
         {
             "name" : "router_one",
             "id" : "0x32fe"
+        },
+        {
+            "name" : "ecu_one_server",
+            "id" : "0x1002"
         }
     ],
     "services":
@@ -25,7 +29,22 @@
         {
             "service":"0x3344",
             "instance":"0x0001",
-            "unreliable":"30492"
+            "unreliable":"30501",
+            "events" :
+            [
+                {
+                    "event" : "0x8001",
+                    "is_field" : "false",
+                    "is_reliable" : "false"
+                }
+            ],
+            "eventgroups" :
+            [
+                {
+                    "eventgroup" : "0x1",
+                    "events" : [ "0x8001" ]
+                }
+            ]
         }
     ],
     "clients" :

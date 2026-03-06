@@ -18,6 +18,10 @@
         {
             "name" : "router_two",
             "id" : "0x34fe"
+        },
+        {
+            "name" : "ecu_two_client",
+            "id" : "0x5002"
         }
     ],
     "services":
@@ -44,6 +48,15 @@
                     "events" : [ "0x8001", "0x8002"]
                 }
             ]
+        }
+    ],
+    "clients" :
+    [
+        {
+            "reliable_remote_ports"   : { "first" : "30501", "last" : "30599" },
+            "unreliable_remote_ports" : { "first" : "30501", "last" : "30599" },
+            "reliable_client_ports"   : { "first" : "30491", "last" : "30499" },
+            "unreliable_client_ports" : { "first" : "30491", "last" : "30499" }
         }
     ],
     "network" : "ecu_two_vsomeip",

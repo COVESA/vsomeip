@@ -234,13 +234,30 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
 }
 
 [[nodiscard]] bool socket_manager::bind_socket(fake_udp_socket_handle const& _handle, boost::asio::ip::udp::endpoint const& _ep, fd_t _fd) {
-    auto const lock = std::scoped_lock(mtx_);
-    if (fail_on_bind_.count(_handle.get_app_name()) == 0) {
+    std::shared_ptr<fake_udp_socket_handle> udp_handle;
+    bool pending_delay{false};
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        if (fail_on_bind_.count(_handle.get_app_name()) != 0) {
+            return false;
+        }
         endpoint_udp_to_fd_[_ep] = _fd;
-        return true;
+        if (auto const it = udp_sending_delay_.find(_ep); it != udp_sending_delay_.end()) {
+            pending_delay = it->second;
+            if (auto const h_it = fd_to_handle_.find(_fd); h_it != fd_to_handle_.end()) {
+                udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+            }
+        }
     }
-
-    return false;
+    if (pending_delay && !udp_handle) {
+        LOCAL_LOG << "invalid handler for fd: " << _fd << ", endpoint: " << _ep;
+        return false;
+    }
+    if (udp_handle) {
+        LOCAL_LOG << "applying pending sending delay (" << pending_delay << ") on bind for sender endpoint: " << _ep;
+        udp_handle->delay_message_processing(pending_delay);
+    }
+    return true;
 }
 void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
     // while the acceptor is only assigned when we find the "right" acceptor, scoped_acc will be set
@@ -441,6 +458,29 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
                                                             socket_role _role) {
     auto connection = get_or_create_connection(_client, _server);
     return connection->delay_message_processing(_delay, _role);
+}
+[[nodiscard]] bool socket_manager::delay_boardnet_sending(boost::asio::ip::udp::endpoint const& _ep, bool _delay) {
+    std::shared_ptr<fake_udp_socket_handle> udp_handle;
+    {
+        std::scoped_lock lock(mtx_);
+        udp_sending_delay_[_ep] = _delay;
+        auto const ep_it = endpoint_udp_to_fd_.find(_ep);
+        if (ep_it == endpoint_udp_to_fd_.end()) {
+            LOCAL_LOG << "sender endpoint not bound yet, delay will be applied on bind: " << _ep;
+            return true;
+        }
+        auto const h_it = fd_to_handle_.find(ep_it->second);
+        if (h_it == fd_to_handle_.end()) {
+            return false;
+        }
+        udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+    }
+    if (!udp_handle) {
+        return false;
+    }
+    LOCAL_LOG << "delaying sending on UDP socket (sender endpoint): " << _ep;
+    udp_handle->delay_message_processing(_delay);
+    return true;
 }
 
 [[nodiscard]] bool socket_manager::set_ignore_inner_close(std::string const& _client, bool _ignore_in_client, std::string const& _server,

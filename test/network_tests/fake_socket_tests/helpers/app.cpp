@@ -84,6 +84,12 @@ void app::subscribe_field(event_ids const& _ei) {
     subscribe(_ei, vsomeip::event_type_e::ET_FIELD);
 }
 
+void app::subscribe_selective(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei
+             << " with event_type: vsomeip::event_type_e::ET_SELECTIVE_EVENT";
+    subscribe(_ei, vsomeip::event_type_e::ET_SELECTIVE_EVENT);
+}
+
 void app::subscribe_eventgroup_event(event_ids const& _ei) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
     subscribe_eventgroup(_ei, vsomeip::event_type_e::ET_EVENT);
