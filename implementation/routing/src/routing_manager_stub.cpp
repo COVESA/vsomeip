@@ -35,9 +35,7 @@
 #include "../../protocol/include/offered_services_response_command.hpp"
 #include "../../protocol/include/ping_command.hpp"
 #include "../../protocol/include/pong_command.hpp"
-#include "../../protocol/include/register_application_command.hpp"
 #include "../../protocol/include/register_events_command.hpp"
-#include "../../protocol/include/registered_ack_command.hpp"
 #include "../../protocol/include/release_service_command.hpp"
 #include "../../protocol/include/remove_security_policy_command.hpp"
 #include "../../protocol/include/remove_security_policy_response_command.hpp"
@@ -217,17 +215,6 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
     }
 
     switch (its_id) {
-
-    case protocol::id_e::REGISTER_APPLICATION_ID: {
-        protocol::register_application_command its_command;
-        its_command.deserialize(its_buffer, its_error);
-        if (its_error == protocol::error_e::ERROR_OK)
-            update_registration(its_command.get_client(), registration_type_e::REGISTER, _remote_address, its_command.get_port());
-        else
-            VSOMEIP_ERROR_P << "Deserializing register application failed (" << static_cast<int>(its_error) << ")";
-
-        break;
-    }
 
     case protocol::id_e::DEREGISTER_APPLICATION_ID: {
         protocol::deregister_application_command its_command;
@@ -593,20 +580,6 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, board
         break;
     }
 
-    case protocol::id_e::REGISTERED_ACK_ID: {
-        protocol::registered_ack_command its_command;
-        its_command.deserialize(its_buffer, its_error);
-        if (its_error == protocol::error_e::ERROR_OK) {
-
-            VSOMEIP_INFO << "REGISTERED_ACK(" << hex4(its_command.get_client()) << ")";
-
-            on_register_application_ack(its_command.get_client());
-
-        } else
-            VSOMEIP_ERROR_P << "Registered ack deserialization failed (" << static_cast<int>(its_error) << ")";
-        break;
-    }
-
     case protocol::id_e::OFFERED_SERVICES_REQUEST_ID: {
         protocol::offered_services_request_command its_command;
         its_command.deserialize(its_buffer, its_error);
@@ -673,35 +646,6 @@ void routing_manager_stub::remove_local(client_t _client, bool _remove_due_to_er
     host_->remove_local(_client, _remove_due_to_error);
 }
 
-void routing_manager_stub::on_register_application(client_t _client, bool& continue_registration) {
-    // Find or create a local endpoint.
-    {
-        std::scoped_lock its_lock{routing_info_mutex_};
-        routing_info_[_client].first = 0;
-    }
-#ifndef VSOMEIP_DISABLE_SECURITY
-    if (configuration_->is_local_routing()) {
-        vsomeip_sec_client_t its_sec_client;
-        std::set<std::shared_ptr<policy>> its_policies;
-
-        bool has_mapping = configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
-        if (has_mapping) {
-            if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
-                get_requester_policies(its_sec_client.user, its_sec_client.group, its_policies);
-            }
-
-            if (!its_policies.empty())
-                send_requester_policies({_client}, its_policies);
-        }
-    }
-#endif // !VSOMEIP_DISABLE_SECURITY
-    if (!find_local_routing_endpoint(_client)) {
-        VSOMEIP_WARNING << "Application: " << hex4(_client) << " failed to start. Removing it.";
-        remove_client_connections(_client, true);
-        continue_registration = false;
-    }
-}
-
 void routing_manager_stub::on_deregister_application(client_t _client) {
     std::vector<std::tuple<service_t, instance_t, major_version_t, minor_version_t>> services_to_report;
 
@@ -726,43 +670,6 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 
     its_lock.lock();
     routing_info_.erase(_client);
-}
-
-void routing_manager_stub::on_register_application_ack(client_t _client) {
-
-    // Check if the client has already requested services in case of a re-register
-    auto its_requests = host_->get_requested_services(_client);
-    // Trigger the availability of each previous request
-    for (const auto& r : its_requests) {
-        // Get the client id of the application that offers the service
-        auto service_provider_client = host_->find_local_client(r.service_, r.instance_);
-
-        // Trigger availability only for local serives
-        // Externals will be handled by service discovery, they can be skipped here
-        if (service_provider_client == VSOMEIP_ROUTING_CLIENT || service_provider_client == host_->get_client()) {
-
-            continue;
-        }
-
-        // Get the current service availability state
-        bool service_available = host_->is_available(r.service_, r.instance_, r.major_);
-
-        protocol::routing_info_entry its_entry;
-        its_entry.set_type(service_available ? protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
-                                             : protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
-        its_entry.set_client(service_provider_client);
-
-        // For local tcp
-        boost::asio::ip::address its_address;
-        port_t its_port;
-        if (host_->get_guest(service_provider_client, its_address, its_port)) {
-            its_entry.set_address(its_address);
-            its_entry.set_port(its_port);
-        }
-
-        its_entry.add_service(r);
-        send_client_routing_info(_client, its_entry);
-    }
 }
 
 void routing_manager_stub::on_offered_service_request(client_t _client, offer_type_e _offer_type) {
@@ -803,6 +710,56 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     }
 }
 
+void routing_manager_stub::on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    std::stringstream its_address;
+
+    if (_port > 0 && _port < ILLEGAL_PORT) {
+        its_address << " @ " << _address.to_string() << ":" << _port;
+
+        // remove client (and endpoints!) at same address/port
+        // as address/port are unique and that definitely means the client no longer exists
+        if (client_t old_client = host_->get_guest_by_address(_address, _port);
+            old_client != VSOMEIP_CLIENT_UNSET && old_client != _client) {
+            VSOMEIP_WARNING_P << "Deregistering old client " << hex4(old_client) << " due to new client " << hex4(_client) << " @ "
+                              << _address.to_string() + ":" << _port;
+
+            // we *definitely* need to do this in order - deregister old client, register new client
+            // therefore call the error handler for the old client
+            // NOTE: no danger of deeper recursion, because of `DEREGISTER_ON_ERROR` falling into another branch
+            host_->handle_client_error(old_client);
+        }
+
+        host_->add_guest(_client, _address, _port);
+    }
+
+    VSOMEIP_INFO << "Application/Client " << hex4(_client) << " is registering" << its_address.str();
+
+    // Find or create a local endpoint.
+    {
+        std::scoped_lock its_lock{routing_info_mutex_};
+        routing_info_[_client].first = 0;
+    }
+#ifndef VSOMEIP_DISABLE_SECURITY
+    // distribute updated security config to new clients
+    send_cached_security_policies(_client);
+    if (configuration_->is_local_routing()) {
+        vsomeip_sec_client_t its_sec_client;
+        std::set<std::shared_ptr<policy>> its_policies;
+
+        bool has_mapping = configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
+        if (has_mapping) {
+            if (its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+                get_requester_policies(its_sec_client.user, its_sec_client.group, its_policies);
+            }
+
+            if (!its_policies.empty()) {
+                send_requester_policies({_client}, its_policies);
+            }
+        }
+    }
+#endif // !VSOMEIP_DISABLE_SECURITY
+}
+
 void routing_manager_stub::client_registration_func(void) {
     std::unique_lock<std::mutex> its_lock(client_registration_mutex_);
     while (client_registration_running_) {
@@ -827,20 +784,10 @@ void routing_manager_stub::client_registration_func(void) {
 
 void routing_manager_stub::registration_func(client_t client_id, std::vector<registration_type_e> registration_type) {
     for (auto type : registration_type) {
-        VSOMEIP_INFO << "Application/Client " << hex4(client_id) << " is "
-                     << (type == registration_type_e::REGISTER ? "registering" : "deregistering");
+        VSOMEIP_INFO << "Application/Client " << hex4(client_id) << " is deregistering";
 
-        bool continue_registration = true;
+        on_deregister_application(client_id);
 
-        if (type == registration_type_e::REGISTER) {
-            on_register_application(client_id, continue_registration);
-        } else {
-            on_deregister_application(client_id);
-        }
-
-        if (!continue_registration) {
-            break;
-        }
         // Inform (de)registered client. All others will be informed after
         // the client acknowledged its registered state!
         // Don't inform client if we deregister because of an client
@@ -849,30 +796,12 @@ void routing_manager_stub::registration_func(client_t client_id, std::vector<reg
             std::scoped_lock its_guard{routing_info_mutex_};
             protocol::routing_info_entry its_entry;
             its_entry.set_client(client_id);
-            if (type == registration_type_e::REGISTER) {
-                boost::asio::ip::address its_address;
-                port_t its_port;
-
-                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_CLIENT);
-                if (host_->get_guest(client_id, its_address, its_port)) {
-                    its_entry.set_address(its_address);
-                    its_entry.set_port(its_port);
-                }
-#ifndef VSOMEIP_DISABLE_SECURITY
-                // distribute updated security config to new clients
-                send_cached_security_policies(client_id);
-#endif // !VSOMEIP_DISABLE_SECURITY
-            } else {
-                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
-            }
+            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT);
             send_client_routing_info(client_id, its_entry);
         }
-        if (type != registration_type_e::REGISTER) {
-            // Don't remove client ID to UID maping as same client
-            // could have passed its credentials again
-            remove_client_connections(client_id, type == registration_type_e::DEREGISTER_ON_ERROR);
-            utility::release_client_id(configuration_->get_network(), client_id);
-        }
+
+        remove_client_connections(client_id, type == registration_type_e::DEREGISTER_ON_ERROR);
+        utility::release_client_id(configuration_->get_network(), client_id);
     }
 }
 
@@ -1515,29 +1444,10 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
         its_client << " @ " << _address.to_string() << ":" << _port;
     }
 
-    VSOMEIP_INFO << "Queueing a " << (_type == registration_type_e::REGISTER ? "register" : "deregister")
+    VSOMEIP_INFO << "Queueing a " << (_type == registration_type_e::DEREGISTER ? "deregister" : "deregister on error")
                  << " request for application/client " << its_client.str();
 
-    if (_type != registration_type_e::REGISTER) {
-        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
-    } else {
-        if (_port > 0 && _port < ILLEGAL_PORT) {
-            // remove client (and endpoints!) at same address/port
-            // as address/port are unique and that definitely means the client no longer exists
-            if (client_t old_client = host_->get_guest_by_address(_address, _port);
-                old_client != VSOMEIP_CLIENT_UNSET && old_client != _client) {
-                VSOMEIP_WARNING_P << "Deregistering old client " << hex4(old_client) << " due to new client " << hex4(_client) << " @ "
-                                  << _address.to_string() + ":" << _port;
-
-                // we *definitely* need to do this in order - deregister old client, register new client
-                // therefore schedule another registration event
-                // NOTE: no danger of deeper recursion, because of `DEREGISTER_ON_ERROR` falling into another branch
-                update_registration(old_client, registration_type_e::DEREGISTER_ON_ERROR, _address, _port);
-            }
-
-            host_->add_guest(_client, _address, _port);
-        }
-    }
+    configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
 
     if (_type == registration_type_e::DEREGISTER) {
         host_->remove_guest(_client);
@@ -1569,7 +1479,8 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
             it->second.emplace_back(_type);
         } else {
             VSOMEIP_WARNING_P << "Application/client " << its_client.str() << " already has a "
-                              << (_type == registration_type_e::REGISTER ? "REGISTER" : "DEREGISTER") << " request queued. Ignoring!";
+                              << (_type == registration_type_e::DEREGISTER ? "DEREGISTER" : "DEREGISTER_ON_ERROR")
+                              << " request queued. Ignoring!";
         }
     } else {
         pending_client_registrations_queue_.emplace_back(_client, std::vector<registration_type_e>{_type});

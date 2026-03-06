@@ -206,6 +206,9 @@ public:
     void on_resend_provided_events_response(pending_remote_offer_id_t _id);
     client_t find_local_client(service_t _service, instance_t _instance);
     std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
+
+    void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
+
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                            instance_t _instance, eventgroup_t _eventgroup);
 

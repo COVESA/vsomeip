@@ -627,6 +627,7 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
 }
 
 void routing_manager_base::add_known_client(client_t _client, const std::string& _client_host) {
+
 #if !defined(VSOMEIP_DISABLE_SECURITY) && (defined(__linux__))
     std::scoped_lock lazy_lock(add_known_client_mutex_);
     if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
@@ -645,6 +646,14 @@ void routing_manager_base::add_known_client(client_t _client, const std::string&
 void routing_manager_base::remove_known_client(client_t _client) {
     std::scoped_lock its_lock(known_clients_mutex_);
     known_clients_.erase(_client);
+}
+
+void routing_manager_base::on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    // Default implementation does nothing
+    // This is overridden by routing_manager_impl to delegate to the stub
+    (void)_client;
+    (void)_address;
+    (void)_port;
 }
 
 std::string const& routing_manager_base::get_name() const {

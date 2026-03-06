@@ -12,14 +12,10 @@ char const* to_string(id_e _id) {
         return "ASSIGN_CLIENT_ID";
     case protocol::id_e::ASSIGN_CLIENT_ACK_ID:
         return "ASSIGN_CLIENT_ACK_ID";
-    case protocol::id_e::REGISTER_APPLICATION_ID:
-        return "REGISTER_APPLICATION_ID";
     case protocol::id_e::DEREGISTER_APPLICATION_ID:
         return "DEREGISTER_APPLICATION_ID";
     case protocol::id_e::ROUTING_INFO_ID:
         return "ROUTING_INFO_ID";
-    case protocol::id_e::REGISTERED_ACK_ID:
-        return "REGISTERED_ACK_ID";
     case protocol::id_e::PING_ID:
         return "PING_ID";
     case protocol::id_e::PONG_ID:

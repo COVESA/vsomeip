@@ -154,24 +154,12 @@ TEST_F(test_protocol_messages, ensure_sequence_of_registration_message) {
     start_client_app();
 
     using namespace vsomeip_v3::protocol;
-    // REGISTER_APPLICATION_ID/CONFIG_ID are send in parallel and might appear in different orders in the record
     auto const expected_sequence1 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
             {client_to_router_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
             {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds server
-            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}, // only message currently received over the client
-            {client_to_router_, id_e::REGISTER_APPLICATION_ID}, // 2. registration step -> ask router to connect back
             {router_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the client
-            {router_to_client_, id_e::ROUTING_INFO_ID}, // received by client: application knows that the router is connected
-            {client_to_router_, id_e::REGISTERED_ACK_ID}}; // router knows that it can successfully send message -> registration succeeded.
-    auto const expected_sequence2 = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
-            {client_to_router_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the router
-            {client_to_router_, id_e::ASSIGN_CLIENT_ID}, // needed to be able to create a uds server
-            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}, // only message currently received over the client
-            {router_to_client_, id_e::CONFIG_ID}, // needed to trigger lazy-load of the security policy in the client
-            {client_to_router_, id_e::REGISTER_APPLICATION_ID}, // 2. registration step -> ask router to connect back
-            {router_to_client_, id_e::ROUTING_INFO_ID}, // received by client: application knows that the router is connected
-            {client_to_router_, id_e::REGISTERED_ACK_ID}}; // router knows that it can successfully send message -> registration succeeded.
-    bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
+            {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID}}; // only message currently received over the client
+    bool const is_any = expected_sequence1 == *record_;
     EXPECT_TRUE(is_any) << *record_;
 }
 TEST_F(test_protocol_messages, ensure_sequence_of_routing_info_request) {
@@ -1718,7 +1706,7 @@ TEST_F(test_restart_clients, test_restart_service_availability) {
 TEST_F(test_restart_clients, block_registration_process) {
     start_router();
 
-    std::future<protocol::id_e> fut = drop_command_once(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID);
+    std::future<protocol::id_e> fut = drop_command_once(client_one_, routingmanager_name_, protocol::id_e::ASSIGN_CLIENT_ID);
 
     // start a client
     create_app(client_one_);
@@ -1729,7 +1717,7 @@ TEST_F(test_restart_clients, block_registration_process) {
 
     // sanity check that the right message was dropped
     ASSERT_TRUE(fut.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
-    ASSERT_EQ(fut.get(), protocol::id_e::REGISTER_APPLICATION_ID);
+    ASSERT_EQ(fut.get(), protocol::id_e::ASSIGN_CLIENT_ID);
 
     // and that application eventually registers
     EXPECT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));

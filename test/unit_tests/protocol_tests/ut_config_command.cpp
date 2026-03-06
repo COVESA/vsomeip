@@ -13,7 +13,8 @@ namespace config_command_tests {
 // Tester Note: Expect Little-Endian representation for serialized data.
 const std::vector<std::uint8_t> serialized_config_command = {
         0x31, // config_command
-        0x00, 0x00, // Version.
+        static_cast<std::uint8_t>(vsomeip_v3::protocol::IPC_VERSION & 0xFF), // Version (low byte)
+        static_cast<std::uint8_t>((vsomeip_v3::protocol::IPC_VERSION >> 8) & 0xFF), // Version (high byte)
         0x01, 0x00, // Client.
         0x20, 0x00, 0x00, 0x00, // Size.
         // Configurations.

@@ -22,10 +22,6 @@ static constexpr char const* to_string(routing_client_state_e _state) {
         return "ST_DEREGISTERED";
     case routing_client_state_e::ST_REGISTERING:
         return "ST_REGISTERING";
-    case routing_client_state_e::ST_ASSIGNING:
-        return "ST_ASSIGNING";
-    case routing_client_state_e::ST_ASSIGNED:
-        return "ST_ASSIGNED";
     case routing_client_state_e::ST_DEREGISTERING:
         return "ST_DEREGISTERING";
     default:
@@ -37,13 +33,12 @@ std::ostream& operator<<(std::ostream& _out, routing_client_state_e _state) {
     return _out << to_string(_state);
 }
 
-routing_client_state_machine::routing_client_state_machine(hidden, boost::asio::io_context& _io, configuration const& _configuration,
-                                                           error_handler _handler) :
-    configuration_(_configuration), io_(_io), error_handler_(std::move(_handler)) { }
+routing_client_state_machine::routing_client_state_machine(hidden, configuration const& _configuration, error_handler _handler) :
+    configuration_(_configuration), error_handler_(std::move(_handler)) { }
 
-std::shared_ptr<routing_client_state_machine>
-routing_client_state_machine::create(boost::asio::io_context& _io, configuration const& _configuration, error_handler _handler) {
-    return std::make_shared<routing_client_state_machine>(hidden{}, _io, _configuration, std::move(_handler));
+std::shared_ptr<routing_client_state_machine> routing_client_state_machine::create(configuration const& _configuration,
+                                                                                   error_handler _handler) {
+    return std::make_shared<routing_client_state_machine>(hidden{}, _configuration, std::move(_handler));
 }
 
 routing_client_state_e routing_client_state_machine::state() const {
@@ -61,19 +56,20 @@ void routing_client_state_machine::target_running() {
     shall_run_ = true;
 }
 
-[[nodiscard]] bool routing_client_state_machine::start_assignment() {
+[[nodiscard]] bool routing_client_state_machine::start_registration() {
+
     std::scoped_lock lock{mtx_};
     if (!shall_run_ || state_ != routing_client_state_e::ST_DEREGISTERED) {
         VSOMEIP_WARNING_P << "Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
         return false;
     }
-    change_state_unlocked(routing_client_state_e::ST_ASSIGNING);
+    change_state_unlocked(routing_client_state_e::ST_REGISTERING);
     return true;
 }
 
-[[nodiscard]] bool routing_client_state_machine::assigned(client_t _client) {
+[[nodiscard]] bool routing_client_state_machine::registered(client_t _client) {
     std::scoped_lock lock{mtx_};
-    if (state_ != routing_client_state_e::ST_ASSIGNING) {
+    if (state_ != routing_client_state_e::ST_REGISTERING) {
         VSOMEIP_WARNING_P << "Unexpected state: " << state_;
         return false;
     }
@@ -81,41 +77,8 @@ void routing_client_state_machine::target_running() {
     VSOMEIP_INFO_P << "Former client id: 0x" << hex4(former_client_) << ", new 0x" << hex4(_client);
     former_client_ = client_;
     client_ = _client;
-    change_state_unlocked(routing_client_state_e::ST_ASSIGNED);
-    return true;
-}
 
-[[nodiscard]] bool routing_client_state_machine::start_registration() {
-
-    std::scoped_lock lock{mtx_};
-    if (!shall_run_ || state_ != routing_client_state_e::ST_ASSIGNED) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_ << ", target_running: " << std::boolalpha << shall_run_;
-        return false;
-    }
-    change_state_unlocked(routing_client_state_e::ST_REGISTERING);
-    if (!registration_timebox_) {
-        registration_timebox_ = timer::create(io_, configuration_.register_timeout_, [weak_self = weak_from_this()] {
-            if (auto self = weak_self.lock(); self) {
-                self->registration_timed_out();
-            }
-            return false;
-        });
-    }
-    registration_timebox_->start();
-    return true;
-}
-
-[[nodiscard]] bool routing_client_state_machine::registered() {
-    std::scoped_lock lock{mtx_};
-    if (state_ != routing_client_state_e::ST_REGISTERING) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
-        return false;
-    }
     change_state_unlocked(routing_client_state_e::ST_REGISTERED);
-    if (registration_timebox_) {
-        registration_timebox_->stop();
-    }
-    cv_.notify_one();
     return true;
 }
 
@@ -161,16 +124,6 @@ void routing_client_state_machine::deregistered() {
     return result ? state_ == routing_client_state_e::ST_DEREGISTERED : false;
 }
 
-void routing_client_state_machine::registration_timed_out() {
-    std::unique_lock lock{mtx_};
-    if (state_ != routing_client_state_e::ST_REGISTERING) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
-        return;
-    }
-    VSOMEIP_ERROR_P << "Registration timed out after " << configuration_.register_timeout_.count() << "ms";
-    deregister_unlocked(std::move(lock));
-}
-
 void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock) {
     change_state_unlocked(routing_client_state_e::ST_DEREGISTERED);
     if (client_ != VSOMEIP_CLIENT_UNSET) {
@@ -178,9 +131,6 @@ void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mut
         former_client_ = client_;
     }
     client_ = VSOMEIP_CLIENT_UNSET;
-    if (registration_timebox_) {
-        registration_timebox_->stop();
-    }
 
     if (!shall_run_) {
         return;

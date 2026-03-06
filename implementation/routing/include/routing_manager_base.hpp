@@ -130,6 +130,9 @@ public:
 
     std::string const& get_name() const;
 
+    // Default implementation - overridden by routing_manager_impl to delegate to stub
+    virtual void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port);
+
 protected:
     [[nodiscard]] virtual bool is_local_client(client_t _client) const = 0;
     /**

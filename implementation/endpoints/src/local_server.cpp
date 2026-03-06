@@ -195,6 +195,23 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             // Carful: These calls should happen under the lock to guarantee consistency, and before the endpoint might be removed
             // again from the map
             rh->add_known_client(_client, _environment);
+
+            std::stringstream ss;
+
+            if (is_router_) {
+                ss << "Assigned client ID 0x" << hex4(_client) << " to \"" << utility::get_client_name(configuration_, _client) << "\" (\""
+                   << _environment << "\")";
+
+                // check if is uds socket
+                if (_socket->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
+                    ss << " @ " << _socket->peer_endpoint().address() << ":" << _socket->peer_endpoint().port();
+                } else {
+                    vsomeip_sec_client_t sec_client{};
+                    _socket->update(sec_client, *configuration_);
+                    ss << " @ " << sec_client.user << "/" << sec_client.group;
+                }
+            }
+
             auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_},
                                                        local_endpoint_params{_client, rh->get_client(), std::move(_socket)},
                                                        std::move(_buffer));
@@ -220,15 +237,31 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
                 rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
             }
+
             protocol::config_command config_command;
             config_command.set_client(own_client_id_);
             config_command.insert("hostname", std::string(server_host_));
-            std::vector<byte_t> buffer;
+            std::vector<byte_t> config_buffer;
             protocol::error_e error;
-            config_command.serialize(buffer, error);
+            config_command.serialize(config_buffer, error);
 
             if (error == protocol::error_e::ERROR_OK) {
-                ep->send(&buffer[0], static_cast<uint32_t>(buffer.size()));
+                ep->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
+            }
+
+            if (is_router_) {
+                protocol::assign_client_ack_command assign_ack_command;
+                assign_ack_command.set_client(VSOMEIP_ROUTING_CLIENT);
+                assign_ack_command.set_assigned(_client);
+                std::vector<byte_t> assign_ack_buffer;
+                protocol::error_e ec;
+                assign_ack_command.serialize(assign_ack_buffer, ec);
+
+                if (error == protocol::error_e::ERROR_OK) {
+                    ep->send(&assign_ack_buffer[0], static_cast<uint32_t>(assign_ack_buffer.size()));
+                }
+
+                VSOMEIP_INFO << ss.str();
             }
 
             // keep the lock acquired to ensure that the endpoint has been transferred.
@@ -286,26 +319,16 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
     while (receive_buffer_->next_message(result)) {
         if (result.message_data_[protocol::COMMAND_POSITION_ID] == protocol::id_e::ASSIGN_CLIENT_ID && is_router_) {
             auto client_id = assign_client(result.message_data_, result.message_size_);
-
-            std::stringstream ss;
-            ss << "Assigned client ID 0x" << hex4(client_id) << " to \"" << utility::get_client_name(configuration_, client_id) << "\" (\""
-               << client_host_ << "\")";
-
-            // check if is uds socket
-            if (socket_->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
-                ss << " @ " << socket_->peer_endpoint().address() << ":" << socket_->peer_endpoint().port();
-            } else {
-                vsomeip_sec_client_t sec_client{};
-                socket_->update(sec_client, *configuration_);
-                ss << " @ " << sec_client.user << "/" << sec_client.group;
-            }
-
-            VSOMEIP_INFO_P << ss.str();
-
-            send_client_id(client_id);
+            hand_over(client_id);
             return;
         } else if (result.message_data_[protocol::COMMAND_POSITION_ID] == protocol::id_e::CONFIG_ID) {
-            auto const client = read_config_command(result.message_data_, result.message_size_);
+            bool matches{true};
+            auto const client = read_config_command(result.message_data_, result.message_size_, matches);
+            if (!matches) {
+                VSOMEIP_ERROR_P << "Breaking connection > " << socket_->to_string();
+                socket_->stop(true);
+                return;
+            }
             if (!is_router_) {
                 hand_over(client);
                 return;
@@ -341,14 +364,21 @@ client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint3
     return utility::request_client_id(configuration_, command.get_name(), command.get_client());
 }
 
-client_t local_server::tmp_connection::read_config_command(uint8_t const* _data, uint32_t _message_size) {
+client_t local_server::tmp_connection::read_config_command(uint8_t const* _data, uint32_t _message_size, bool& _version_matches) {
     std::vector<byte_t> its_data(_data, _data + _message_size);
     protocol::config_command command;
     protocol::error_e ec;
 
     command.deserialize(its_data, ec);
     if (ec != protocol::error_e::ERROR_OK) {
+        _version_matches = false;
         VSOMEIP_ERROR_P << "Config command deserialization failed (" << static_cast<int>(ec) << ")";
+        return VSOMEIP_CLIENT_UNSET;
+    }
+    if (command.get_version() != protocol::IPC_VERSION) {
+        _version_matches = false;
+        VSOMEIP_ERROR_P << "Protocol version mismatch detected, expected: " << protocol::IPC_VERSION
+                        << ", received: " << command.get_version();
         return VSOMEIP_CLIENT_UNSET;
     }
     if (command.contains("expected_id")) {
@@ -358,35 +388,12 @@ client_t local_server::tmp_connection::read_config_command(uint8_t const* _data,
         }
     }
     if (!command.contains("hostname")) {
+        _version_matches = false;
         VSOMEIP_ERROR_P << "Config command did not contain hostname";
         return VSOMEIP_CLIENT_UNSET;
     }
     client_host_ = command.at("hostname");
     return command.get_client();
-}
-
-void local_server::tmp_connection::send_client_id(client_t _client) {
-    protocol::assign_client_ack_command command;
-    command.set_client(VSOMEIP_ROUTING_CLIENT);
-    command.set_assigned(_client);
-
-    std::vector<byte_t> buffer;
-    protocol::error_e ec;
-    command.serialize(buffer, ec);
-    if (ec != protocol::error_e::ERROR_OK) {
-        VSOMEIP_ERROR_P << "Assign client ack command serialization failed (" << static_cast<int>(ec) << ")";
-        return;
-    }
-
-    VSOMEIP_DEBUG_P << "Dispatching Client id 0x" << hex4(_client);
-    socket_->async_send(std::move(buffer), [self = shared_from_this(), this, _client](auto const& _ec, size_t, auto) {
-        if (!_ec) {
-            hand_over(_client);
-            return;
-        }
-        VSOMEIP_WARNING_P << "Received error: " << _ec.message();
-        // notice that after this call the last shared_ptr should be cleaned and the tmp_connection is cleared.
-    });
 }
 
 void local_server::tmp_connection::hand_over(client_t _client) {

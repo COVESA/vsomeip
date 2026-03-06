@@ -48,9 +48,7 @@
 #include "../../protocol/include/offered_services_response_command.hpp"
 #include "../../protocol/include/ping_command.hpp"
 #include "../../protocol/include/pong_command.hpp"
-#include "../../protocol/include/register_application_command.hpp"
 #include "../../protocol/include/register_events_command.hpp"
-#include "../../protocol/include/registered_ack_command.hpp"
 #include "../../protocol/include/release_service_command.hpp"
 #include "../../protocol/include/remove_security_policy_command.hpp"
 #include "../../protocol/include/remove_security_policy_response_command.hpp"
@@ -111,9 +109,7 @@ void routing_manager_client::init() {
     });
     if (!state_machine_) {
         state_machine_ = routing_client_state_machine::create(
-                io_,
-                routing_client_state_machine::configuration{std::chrono::seconds(3),
-                                                            std::chrono::milliseconds(configuration_->get_shutdown_timeout())},
+                routing_client_state_machine::configuration{std::chrono::milliseconds(configuration_->get_shutdown_timeout())},
                 [this, weak_self = weak_from_this()] {
                     if (auto self = weak_self.lock(); self) {
                         std::unique_lock<std::recursive_mutex> lock{sender_mutex_};
@@ -1206,6 +1202,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                 its_assigned_client = its_ack_command.get_assigned();
 
             on_client_assign_ack(its_assigned_client);
+
             break;
         }
 
@@ -1630,46 +1627,6 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
     for (const auto& e : its_command.get_entries()) {
         auto its_client = e.get_client();
         switch (e.get_type()) {
-        case protocol::routing_info_entry_type_e::RIE_ADD_CLIENT: {
-            if (its_client == get_client()) {
-#if defined(__linux__) || defined(__QNX__)
-                auto const sec_client = get_sec_client();
-                if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
-                    VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                  << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
-                                  << " to use the client endpoint due to credential check failed!";
-                    deregister_application();
-                    host_->on_state(state_type_e::ST_DEREGISTERED);
-                    return;
-                }
-#endif
-
-                // when changing the state we need to ensure that the debounce timer is not dispatching + altering the request set
-                if (std::unique_lock its_lock(requests_to_debounce_mutex_); state_machine_->registered()) {
-                    if (send_registered_ack()) {
-                        VSOMEIP_INFO << "Application/Client " << hex4(get_client()) << " (" << host_->get_name() << ") is registered.";
-
-                        start_keepalive();
-                        if (!send_pending_commands()) {
-                            VSOMEIP_WARNING_P << "Application/Client 0x" << hex4(get_client()) << " (" << host_->get_name()
-                                              << ") Could not send pending offers";
-                        }
-                        its_lock.unlock();
-                        // inform host about its own registration state changes
-                        host_->on_state(state_type_e::ST_REGISTERED);
-                    } else {
-                        VSOMEIP_ERROR_P << "Failure registering client 0x" << hex4(get_client()) << " (" << host_->get_name() << ")";
-                        // since we are not communicating REGISTERED to the host, neither should the state machine remain in this state
-                        state_machine_->deregistered();
-                    }
-                } else {
-                    VSOMEIP_INFO_P << "Application/client 0x" << hex4(get_client()) << " (" << host_->get_name()
-                                   << ") Could not enter the registered state due to state: " << state_machine_->state();
-                }
-            }
-            break;
-        }
-
         case protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT: {
             if (its_client == get_client()) {
                 its_policy_manager->remove_client_to_sec_client_mapping(its_client);
@@ -1816,8 +1773,7 @@ bool routing_manager_client::is_local_client(client_t _client) const {
     return ep_mgr_->find_local_server_endpoint(_client) != nullptr;
 }
 
-void routing_manager_client::register_application() {
-
+void routing_manager_client::register_application(client_t _client) {
     if (!receiver_) {
         VSOMEIP_ERROR_P << "Cannot register. Local server endpoint does not exist.";
         return;
@@ -1834,27 +1790,30 @@ void routing_manager_client::register_application() {
                        << ":" << its_routing_port;
     }
 
-    protocol::register_application_command its_command;
-    its_command.set_client(get_client());
-    its_command.set_port(receiver_->get_local_port());
+#if defined(__linux__) || defined(__QNX__)
+    auto its_policy_manager = configuration_->get_policy_manager();
+    auto const sec_client = get_sec_client();
+    if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
+        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
+                      << "isn't allowed to use the client endpoint due to credential check failed!";
+        deregister_application();
+        host_->on_state(state_type_e::ST_DEREGISTERED);
+        return;
+    }
+#endif
 
-    std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    // when changing the state we need to ensure that the debounce timer is not dispatching + altering the request set
+    if (std::unique_lock its_lock(requests_to_debounce_mutex_); state_machine_->registered(_client)) {
+        VSOMEIP_INFO << "Application/Client " << hex4(get_client()) << " (" << host_->get_name() << ") is registered.";
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            if (!state_machine_->start_registration()) {
-                VSOMEIP_INFO_P << "Interrupting the application registration for Client 0x" << hex4(get_client());
-                return;
-            }
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
+        start_keepalive();
+        if (!send_pending_commands()) {
+            VSOMEIP_WARNING_P << ": Application/Client 0x" << hex4(get_client()) << " (" << host_->get_name()
+                              << ") could not send pending offers";
         }
-    } else {
-        VSOMEIP_ERROR_P << "Register application command serialization failed(" << static_cast<int>(its_error) << ")";
+        its_lock.unlock();
+        // inform host about its own registration state changes
+        host_->on_state(state_type_e::ST_REGISTERED);
     }
 }
 
@@ -1895,8 +1854,7 @@ void routing_manager_client::send_pong() const {
 
     if (its_error == protocol::error_e::ERROR_OK) {
         if (auto state = state_machine_->state();
-            is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING,
-                                   routing_client_state_e::ST_ASSIGNED, routing_client_state_e::ST_ASSIGNING)) {
+            is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING)) {
             std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
             if (sender_) {
                 sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
@@ -2220,29 +2178,6 @@ void routing_manager_client::clear_remote_subscriber_count(service_t _service, i
     }
 }
 
-bool routing_manager_client::send_registered_ack() {
-
-    protocol::registered_ack_command its_command;
-    its_command.set_client(get_client());
-
-    std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-
-    if (its_error == protocol::error_e::ERROR_OK) {
-
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
-            return true;
-        }
-        VSOMEIP_ERROR_P << "Failed sending registered ack";
-    } else {
-        VSOMEIP_ERROR_P << "Registered ack command serialization failed (" << static_cast<int>(its_error) << ")";
-    }
-
-    return false;
-}
-
 bool routing_manager_client::is_client_known(client_t _client) {
 
     std::scoped_lock its_lock(known_clients_mutex_);
@@ -2485,6 +2420,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
     // order matters:
     // 0. call host (while unlocked to avoid lock inversion)
     host_->set_client(_client);
+
 #ifdef __linux__
     auto its_policy_manager = configuration_->get_policy_manager();
     if (!its_policy_manager)
@@ -2504,12 +2440,7 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
     // interleaving stopping of the receiver within the ::stop method.
     bool is_started{false};
     std::unique_lock its_lock{receiver_mutex_};
-    if (!state_machine_->assigned(_client)) {
-        VSOMEIP_INFO_P << "Not starting the application registration for Client 0x" << hex4(_client);
-        its_lock.unlock();
-        host_->set_client(VSOMEIP_CLIENT_UNSET);
-        return;
-    }
+
     init_receiver(its_lock);
     {
         if (receiver_) {
@@ -2517,11 +2448,12 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
             receiver_->start();
             VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " (" << host_->get_name()
                            << ") successfully connected to routing  ~> registering..";
-            register_application();
+            register_application(_client);
 
             is_started = true;
         }
     }
+
     if (!is_started) {
         VSOMEIP_WARNING_P << ": (" << host_->get_name() << ":" << hex4(_client) << ") Receiver not started. Restarting";
         state_machine_->deregistered();
@@ -2563,7 +2495,7 @@ void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<st
         return;
     }
     start_sender_after_debounce_ = false;
-    if (!state_machine_->start_assignment()) {
+    if (!state_machine_->start_registration()) {
         VSOMEIP_WARNING_P << "(" << hex4(get_client()) << ") Non-Deregistered State Set (" << state_machine_->state() << "). Returning";
         return;
     }

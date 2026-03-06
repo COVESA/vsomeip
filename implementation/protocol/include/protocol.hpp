@@ -17,11 +17,11 @@ typedef uint32_t command_size_t;
 enum class id_e : uint8_t {
     ASSIGN_CLIENT_ID = 0x00,
     ASSIGN_CLIENT_ACK_ID = 0x01,
-    REGISTER_APPLICATION_ID = 0x02,
+    // REGISTER_APPLICATION_ID = 0x02,  (deprecated since 3.7.1)
     DEREGISTER_APPLICATION_ID = 0x03,
     // APPLICATION_LOST_ID = 0x04,
     ROUTING_INFO_ID = 0x05,
-    REGISTERED_ACK_ID = 0x06,
+    // REGISTERED_ACK_ID = 0x06,  (deprecated since 3.7.1)
     PING_ID = 0x07,
     PONG_ID = 0x08,
     OFFER_SERVICE_ID = 0x10,
@@ -67,7 +67,7 @@ enum class error_e : uint8_t {
 };
 
 enum class routing_info_entry_type_e : std::uint8_t {
-    RIE_ADD_CLIENT = 0x00,
+    // RIE_ADD_CLIENT = 0x00,    (deprecated since 3.7.1)
     RIE_DELETE_CLIENT = 0x01,
     RIE_ADD_SERVICE_INSTANCE = 0x02,
     RIE_DELETE_SERVICE_INSTANCE = 0x04,
@@ -93,7 +93,7 @@ struct service {
     }
 };
 
-static const version_t MAX_SUPPORTED_VERSION = 0;
+static constexpr version_t IPC_VERSION = 1;
 
 static const size_t TAG_SIZE = 4;
 static const size_t COMMAND_HEADER_SIZE = 9;

@@ -134,6 +134,12 @@ bool routing_manager_impl::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
     return routing_manager_base::is_subscribe_to_any_event_allowed(_sec_client, _client, _service, _instance, _eventgroup);
 }
 
+void routing_manager_impl::on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    if (stub_) {
+        stub_->on_register_application(_client, _address, _port);
+    }
+}
+
 void routing_manager_impl::add_known_client(client_t _client, const std::string& _client_host) {
     routing_manager_base::add_known_client(_client, _client_host);
 }
@@ -4211,6 +4217,7 @@ void routing_manager_impl::remove_subscriptions(port_t _local_port, const boost:
         }
     }
 }
+
 std::shared_ptr<local_endpoint> routing_manager_impl::find_routing_endpoint(client_t _client) const {
     return ep_mgr_impl_->find_routing_endpoint(_client);
 }

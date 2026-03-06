@@ -28,8 +28,7 @@ namespace vsomeip_v3 {
  * The state machine enforces the following valid state transitions:
  *
  * Normal registration flow:
- *   ST_DEREGISTERED -> ST_ASSIGNING -> ST_ASSIGNED
- *   -> ST_REGISTERING -> ST_REGISTERED
+ *   ST_DEREGISTERED -> ST_REGISTERING -> ST_REGISTERED
  *
  * Graceful deregistration:
  *   ST_REGISTERED -> ST_DEREGISTERING -> ST_DEREGISTERED
@@ -40,10 +39,8 @@ namespace vsomeip_v3 {
 enum class routing_client_state_e : uint8_t {
     ST_REGISTERED = 0x0, ///< Fully registered with routing manager
     ST_DEREGISTERED = 0x1, ///< Not connected or registered
-    ST_REGISTERING = 0x2, ///< Waiting for registration response
-    ST_ASSIGNING = 0x3, ///< Waiting for client ID assignment
-    ST_ASSIGNED = 0x4, ///< Client ID assigned, ready to register
-    ST_DEREGISTERING = 0x5, ///< Graceful deregistration in progress
+    ST_REGISTERING = 0x2, ///< Waiting for client ID assignment
+    ST_DEREGISTERING = 0x3, ///< Graceful deregistration in progress
 };
 
 std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
@@ -71,7 +68,6 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * **Error Handler Invocation:**
  * The error handler is called synchronously (on the io_context thread) when:
  * - An assignment timeout occurs while shall_run_ = true
- * - A registration timeout occurs while shall_run_ = true
  * - deregistered() is called manually while shall_run_ = true
  *
  * The error handler is NOT called when:
@@ -148,8 +144,6 @@ public:
      * @brief Configuration for state machine timeouts.
      */
     struct configuration {
-        /// Timeout for application registration (ST_REGISTERING phase)
-        std::chrono::milliseconds register_timeout_{std::chrono::seconds(3)};
         /// Timeout for awaiting graceful deregistration completion
         std::chrono::milliseconds shutdown_timeout_{std::chrono::seconds(3)};
     };
@@ -162,14 +156,12 @@ public:
      * @param _handler Callback invoked on autonomous deregistration (may be null)
      * @return Shared pointer to the created state machine
      */
-    static std::shared_ptr<routing_client_state_machine> create(boost::asio::io_context& _io, configuration const& _configuration,
-                                                                error_handler _handler);
+    static std::shared_ptr<routing_client_state_machine> create(configuration const& _configuration, error_handler _handler);
 
     /**
      * @brief Constructor (use create() factory method instead).
      */
-    explicit routing_client_state_machine(hidden, boost::asio::io_context& _io, configuration const& _configuration,
-                                          error_handler _handler);
+    explicit routing_client_state_machine(hidden, configuration const& _configuration, error_handler _handler);
 
     /**
      * @brief Get the current state.
@@ -197,48 +189,24 @@ public:
     /**
      * @brief Start the client ID assignment phase.
      *
-     * Valid transition: ST_DEREGISTERED -> ST_ASSIGNING
+     * Valid transition: ST_DEREGISTERED -> ST_REGISTERING
      *
      * @return true if transition succeeded, false if:
      *         - State machine is shut down
      *         - Current state is not ST_DEREGISTERED
      */
-    [[nodiscard]] bool start_assignment();
-
-    /**
-     * @brief Mark the client ID assignment as complete.
-     *
-     * Valid transition: ST_ASSIGNING -> ST_ASSIGNED
-     * Cancels the assignment timeout timer.
-     *
-     * @param client_ assigned client-id, used for logging
-     * @return true if transition succeeded, false if:
-     *         - Current state is not ST_ASSIGNING
-     */
-    [[nodiscard]] bool assigned(client_t _client);
-
-    /**
-     * @brief Start the application registration phase.
-     *
-     * Valid transition: ST_ASSIGNED -> ST_REGISTERING
-     * Starts a registration timeout timer.
-     *
-     * @return true if transition succeeded, false if:
-     *         - State machine is shut down
-     *         - Current state is not ST_ASSIGNED
-     */
     [[nodiscard]] bool start_registration();
 
     /**
-     * @brief Mark the application registration as complete.
+     * @brief Mark the client ID registration as complete.
      *
      * Valid transition: ST_REGISTERING -> ST_REGISTERED
-     * Cancels the registration timeout timer and notifies await_registered().
      *
+     * @param client_ assigned client-id, used for logging
      * @return true if transition succeeded, false if:
      *         - Current state is not ST_REGISTERING
      */
-    [[nodiscard]] bool registered();
+    [[nodiscard]] bool registered(client_t _client);
 
     /**
      * @brief Wait for the state machine to reach ST_REGISTERED.
@@ -291,13 +259,6 @@ public:
 
 private:
     /**
-     * @brief Internal handler for registration timeout.
-     *
-     * Validates state and calls deregister_unlocked().
-     */
-    void registration_timed_out();
-
-    /**
      * @brief Internal method to perform deregistration.
      *
      * Must be called with _acquired_lock holding mtx_.
@@ -341,14 +302,8 @@ private:
     /// Timeout configuration
     configuration const configuration_;
 
-    /// io_context for timer management
-    boost::asio::io_context& io_;
-
     /// Callback for autonomous deregistration
     error_handler error_handler_;
-
-    /// Timer for registration phase timeout
-    std::shared_ptr<timer> registration_timebox_;
 
     /// Client-id for logging
     client_t client_ = VSOMEIP_CLIENT_UNSET;

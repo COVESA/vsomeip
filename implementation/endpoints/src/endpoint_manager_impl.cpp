@@ -1291,8 +1291,13 @@ void endpoint_manager_impl::drop_from(const boost::asio::ip::address& _address) 
 
 void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_endpoint> _ep) {
     auto const client = _ep->connected_client();
-    std::scoped_lock const its_endpoint_lock{routing_endpoint_mtx_};
-    add_local_routing_endpoint_unlocked(client, _ep);
+    {
+        std::scoped_lock const its_endpoint_lock{routing_endpoint_mtx_};
+        add_local_routing_endpoint_unlocked(client, _ep);
+    }
+
+    // _ep->peer_endpoint().port() - 1 because we need to pass the server port
+    rm_->on_register_application(client, _ep->peer_endpoint().address(), _ep->peer_endpoint().port() - 1);
 }
 
 std::unordered_set<client_t> endpoint_manager_impl::get_connected_clients() const {

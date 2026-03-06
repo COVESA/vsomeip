@@ -8,7 +8,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-command::command(id_e _id) : id_(_id), version_(MAX_SUPPORTED_VERSION), client_(0), size_(0) { }
+command::command(id_e _id) : id_(_id), version_(IPC_VERSION), client_(0), size_(0) { }
 
 void command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
 

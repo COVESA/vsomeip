@@ -57,10 +57,6 @@ void config_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _e
     if (_error != error_e::ERROR_OK) {
         return;
     }
-    if (get_version() != 0) {
-        _error = error_e::ERROR_UNKNOWN;
-        return;
-    }
     std::size_t remaining = size_;
     if (_buffer.size() < COMMAND_HEADER_SIZE + remaining) {
         _error = error_e::ERROR_NOT_ENOUGH_BYTES;

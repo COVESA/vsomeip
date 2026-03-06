@@ -83,6 +83,8 @@ public:
 
     void update_registration(client_t _client, registration_type_e _type, const boost::asio::ip::address& _address, port_t _port);
 
+    void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port);
+
     bool send_provided_event_resend_request(client_t _client, pending_remote_offer_id_t _id);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -128,9 +130,7 @@ public:
 private:
     void broadcast(const std::vector<byte_t>& _command) const;
 
-    void on_register_application(client_t _client, bool& continue_registration);
     void on_deregister_application(client_t _client);
-    void on_register_application_ack(client_t _client);
 
     void on_offered_service_request(client_t _client, offer_type_e _offer_type);
 

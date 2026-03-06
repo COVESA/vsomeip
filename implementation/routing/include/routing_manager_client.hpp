@@ -97,7 +97,7 @@ public:
 private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
-    void register_application();
+    void register_application(client_t _client);
     void deregister_application();
 
     void reconnect(const std::map<client_t, std::string>& _clients);
@@ -141,8 +141,6 @@ private:
 
     uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _increment);
     void clear_remote_subscriber_count(service_t _service, instance_t _instance);
-
-    bool send_registered_ack();
 
     bool is_client_known(client_t _client);
 

@@ -60,6 +60,8 @@ public:
 
     MOCK_METHOD(void, send_get_offered_services_info, (client_t _client, offer_type_e _offer_type), (override));
 
+    MOCK_METHOD(void, on_register_application, (client_t _client, const boost::asio::ip::address& _address, port_t _port), (override));
+
     MOCK_METHOD(void, start, (), (override));
     MOCK_METHOD(void, stop, (), (override));
 
