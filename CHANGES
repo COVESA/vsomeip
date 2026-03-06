@@ -1,5 +1,76 @@
 Changes
 =======
+v3.7.0
+- global
+  - remove additions from logger.hpp
+  - try to send data before stop application for Boardnet
+  - introduces an helper to format hex values into 4 digit string
+  - fix TC on android
+  - bump duplicate offer to error
+  - log first SD message kpi
+  - report invalid client ids
+  - macro helper to add prefix+func to vsomeip logging
+  - log clean-up
+  - remove RIE_ADD_CLIENT towards service usage
+  - fix /proc/net/* dump header
+  - drop "internal routing disabled"
+
+- service discovery
+  - log SD request and release
+  - fix event reliability nack
+
+- application
+  - terminate on unexpected io_context exceptions
+  - implement connection control
+
+- endpoints
+  - switch to client/server arch
+  - avoid syscalls directly for abstracted udp sockets
+  - fix ucei end-of-read-loop on error
+  - fix for a "never cleaned up" local_endpoint
+  - refactor message receiving for multicast messages
+  - do not wait if ep broke inbetween
+  - use local_ep for subs from the router
+  - fix get_connected_clients after rearch
+  - avoid hanging le on operation_aborted
+
+- tests
+  - corrects CONFIG_ID command parsing
+  - capture slave coredumps
+  - allow parallel execution
+  - fix race + ensure_sequence_of_* tests
+  - create global test helpers
+  - remove magic sleeps for Boardnet
+  - extend shutdown_test for Boardnet
+  - add timeout and abort on failure features to test_main
+  - test re-registration scenario on VLAN toggle
+  - fix routingmanagerd return codes
+  - make application_test nicer
+  - fix subscribe_notify_one failures on memcheck
+  - tcp user timeout tests
+  - drop handle_early_routing_info_* test
+  - enable fake_socket tests for uds
+  - update lazy_load_test to use different hostnames
+  - fix offer_test_local
+  - add base udp testing mechanism
+  - fix test flakiness
+  - fix dispatch_app_stop_test race
+  - fix flaky field_updates_are_resend*
+  - ensure the router does not notice the broken connection
+  - split the test suite into multiple binaries
+  - add boardnet event handling sanity checks
+  - fix iterator SIGSEGV
+  - fake boardnet test w/ str
+  - fixes flaky test
+
+- routing
+  - fix hangs in restart_sender
+  - add log in rcsm to log client id change
+  - ping server upon client re-request
+  - remove RIE_ADD_CLIENT towards service usage
+  - offer/stop service operations are now fully atomic
+  - ensures that proper routing info is kept
+
 v3.6.4
 - global
   - improve logging
