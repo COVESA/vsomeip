@@ -173,7 +173,11 @@ bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
         its_data.queue_size_ += _size;
 
         if (!its_data.is_sending_) { // no writing in progress
-            return send_queued(its_target_iterator);
+            bool must_erase = send_queued(its_target_iterator);
+            if (must_erase) {
+                targets_.erase(its_target_iterator);
+            }
+            return must_erase;
         }
     }
     return false;
@@ -183,6 +187,7 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
 
     bool must_erase(false);
     connection::ptr its_connection;
+
     {
         std::scoped_lock its_lock(connections_mutex_);
         auto connection_iterator = connections_.find(_it->first);
@@ -196,8 +201,9 @@ bool tcp_server_endpoint_impl::send_queued(const target_data_iterator_type _it) 
                            << static_cast<std::uint16_t>(_it->first.port()) << " dropping outstanding messages ("
                            << _it->second.queue_.size() << ").";
 
-            // Drop outstanding messages.
+            // Drop outstanding messages
             _it->second.queue_.clear();
+            _it->second.queue_size_ = 0;
             must_erase = true;
         }
     }
@@ -988,7 +994,10 @@ void tcp_server_endpoint_impl::flush_queue() {
 
         // STEP 3: Force start sending if idle for all targets
         if (!its_data.is_sending_ && !its_data.queue_.empty()) {
-            send_queued(it);
+            if (send_queued(it)) {
+                it = targets_.erase(it);
+                continue;
+            }
         }
         ++it;
     }
