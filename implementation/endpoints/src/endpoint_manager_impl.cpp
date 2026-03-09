@@ -1323,6 +1323,10 @@ void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
     }
     rm_->register_client_error_handler(_client, _ep);
     routing_endpoints_[_client] = _ep;
+    // _ep->peer_endpoint().port() - 1 because we need to pass the server port
+    if (auto const peer = _ep->peer_endpoint(); peer != boost::asio::ip::tcp::endpoint{}) {
+        rm_->add_guest(_client, peer.address(), peer.port() - 1);
+    }
     _ep->start();
     VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
 }
@@ -1353,6 +1357,9 @@ void endpoint_manager_impl::remove_routing_endpoint(client_t _client, bool _remo
         it->second->stop(_remove_due_to_error);
         VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
                        << it->second->name();
+        if (auto const peer = it->second->peer_endpoint(); peer != boost::asio::ip::tcp::endpoint{}) {
+            rm_->remove_guest(_client);
+        }
         routing_endpoints_.erase(it);
     }
     if (auto const it = pending_routing_endpoints_.find(_client); it != pending_routing_endpoints_.end()) {

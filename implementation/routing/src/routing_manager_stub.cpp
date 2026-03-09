@@ -728,8 +728,6 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
             // NOTE: no danger of deeper recursion, because of `DEREGISTER_ON_ERROR` falling into another branch
             host_->handle_client_error(old_client);
         }
-
-        host_->add_guest(_client, _address, _port);
     }
 
     VSOMEIP_INFO << "Application/Client " << hex4(_client) << " is registering" << its_address.str();
@@ -1450,8 +1448,6 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
     configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
 
     if (_type == registration_type_e::DEREGISTER) {
-        host_->remove_guest(_client);
-
         // It can happen that the client cut's off the connection
         // first (after receiving the deregister ack), invoking the
         // error handler, leading to a second deregistration queuing.
@@ -1468,7 +1464,6 @@ void routing_manager_stub::update_registration(client_t _client, registration_ty
             its_endpoint->register_error_handler(nullptr);
         }
     }
-
     std::scoped_lock its_lock{client_registration_mutex_};
     auto it = std::find_if(pending_client_registrations_queue_.begin(), pending_client_registrations_queue_.end(),
                            [_client](const std::pair<short unsigned int, std::vector<vsomeip_v3::registration_type_e>>& element) {

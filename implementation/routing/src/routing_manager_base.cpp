@@ -979,7 +979,9 @@ void routing_manager_base::remove_local(client_t _client, bool _remove_due_to_er
     }
     ep_mgr_->remove_local(_client, _remove_due_to_error);
     remove_known_client(_client);
-    remove_guest(_client);
+    if (!is_routing_manager()) {
+        remove_guest(_client);
+    }
     {
         std::scoped_lock its_lock(local_services_mutex_);
         // Finally remove all services that are implemented by the client.

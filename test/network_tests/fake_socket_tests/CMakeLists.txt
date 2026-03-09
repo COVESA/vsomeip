@@ -40,6 +40,8 @@ target_link_libraries(fake_socket_helpers
 )
 
 set (TEST_SUITES
+    stress_routing_info_server_reconnects
+    stress_routing_info_server_reoffers
     test_connection_control
     test_connection_restoration
     test_boardnet

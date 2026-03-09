@@ -996,63 +996,6 @@ TEST_F(test_client_helper, handle_late_clean_up_within_server_after_reconnect) {
     EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 }
 
-TEST_F(test_client_helper, connection_break_vs_routing) {
-    /// an absolute nightmare scenario
-    /// 1) server offers, client requests and uses
-    /// 2) server stops offering
-    /// 3) later, client -> server connection breaks
-    /// 4) *MEANWHILE*, server offers again
-    /// ensure that after this nightmare, that client
-    /// - client -> server connection is re-established
-    /// - client sees ON_AVAILABLE last
-
-
-    start_router();
-
-    // obviously this sequence is inherently racy, so do a few loops
-    for (size_t i = 0; i < 100; ++i) {
-        TEST_LOG << "Iteration " << i;
-
-        create_app(server_name_);
-        start_server();
-        send_field_message();
-
-        create_app(client_name_);
-        start_client_app();
-
-        // client requests and uses..
-        ASSERT_TRUE(subscribe_to_field());
-        ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_field_message_));
-
-        client_->message_record_.clear();
-        client_->subscription_record_.clear();
-        client_->availability_record_.clear();
-
-        // server stops offering..
-        server_->stop_offer(service_instance_);
-
-        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
-
-        // client -> server connection breaks..
-        // NOTE: only client is informed, but irrelevant, if anything it adds to the "raciness"!
-        ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt));
-
-        server_->offer(service_instance_);
-        send_field_message();
-
-        // we *MUST* see available/subscribed/connection
-        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
-        ASSERT_TRUE(await_connection(client_name_, server_name_));
-        ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
-
-        // *EXTRA* paranoia - check that client saw ON_AVAILABLE as last notification
-        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
-
-        stop_client(client_name_);
-        stop_client(server_name_);
-    }
-}
-
 TEST_F(test_client_helper, service_is_unavailable_after_clean_up_race) {
     /**
      * Regression test for the following scenario:

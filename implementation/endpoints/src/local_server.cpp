@@ -234,10 +234,6 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                 return;
             }
 
-            if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
-                rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
-            }
-
             protocol::config_command config_command;
             config_command.set_client(own_client_id_);
             config_command.insert("hostname", std::string(server_host_));
