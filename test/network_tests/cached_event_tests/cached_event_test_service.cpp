@@ -62,5 +62,5 @@ TEST(cached_event_test, service_is_offered) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }

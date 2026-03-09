@@ -302,6 +302,6 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }
 #endif

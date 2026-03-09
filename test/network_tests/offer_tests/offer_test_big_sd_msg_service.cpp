@@ -147,6 +147,6 @@ TEST(someip_offer_test_big_sd_msg, notify_increasing_counter) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }
 #endif

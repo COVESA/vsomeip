@@ -91,6 +91,6 @@ int main(int argc, char** argv) {
         exit(1);
     }
     passed_address = argv[1];
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }
 #endif

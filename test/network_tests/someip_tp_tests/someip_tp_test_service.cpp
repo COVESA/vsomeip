@@ -353,6 +353,6 @@ int main(int argc, char** argv) {
         its_testmode = someip_tp_test::test_mode_e::OVERLAP_FRONT_BACK;
     }
 
-    return test_main(argc, argv, std::chrono::seconds(45));
+    return test_main(argc, argv);
 }
 #endif

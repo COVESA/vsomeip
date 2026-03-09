@@ -174,6 +174,6 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(45));
+    return test_main(argc, argv);
 }
 #endif

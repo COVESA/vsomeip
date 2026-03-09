@@ -172,5 +172,5 @@ TEST(someip_restart_routing_test, request_response_over_restart) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }

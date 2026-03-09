@@ -555,6 +555,6 @@ TEST_F(client_id_utility_test, request_released_client_id_after_maximum_client_i
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }
 #endif

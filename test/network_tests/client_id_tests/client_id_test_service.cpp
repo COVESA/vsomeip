@@ -236,6 +236,6 @@ int main(int argc, char** argv) {
         return 1;
     }
     service_number = std::stoi(std::string(argv[1]), nullptr);
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }
 #endif

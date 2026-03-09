@@ -330,5 +330,5 @@ int main(int argc, char** argv) {
     its_payload->set_data({0x24, 0x02, 0x03, 0x04, 0x05, 0x07, 0x07});
     payloads__[debounce_test_id_e::DTI_MASK].push_back(its_payload);
 
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }

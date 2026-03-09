@@ -225,5 +225,5 @@ TEST(someip_magic_cookies_test, send_good_and_bad_messages) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }

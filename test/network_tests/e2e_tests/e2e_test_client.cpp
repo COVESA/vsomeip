@@ -354,5 +354,5 @@ int main(int argc, char** argv) {
         i++;
     }
 
-    return test_main(argc, argv, std::chrono::seconds(20));
+    return test_main(argc, argv);
 }

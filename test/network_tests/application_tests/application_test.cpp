@@ -405,6 +405,6 @@ TEST_F(someip_application_exception_test, catch_exception_in_invoked_handler) { 
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

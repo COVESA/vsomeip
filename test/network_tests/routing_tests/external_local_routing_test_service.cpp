@@ -138,6 +138,6 @@ TEST(someip_external_local_routing_test, receive_ten_messages_over_local_and_ext
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

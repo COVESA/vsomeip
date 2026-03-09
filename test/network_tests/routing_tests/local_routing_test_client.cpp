@@ -112,6 +112,6 @@ TEST(someip_local_routing_test, send_ten_messages_to_service_and_receive_reply) 
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

@@ -191,5 +191,5 @@ TEST(someip_lazy_load_test, lazy_client) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }

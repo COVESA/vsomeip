@@ -265,6 +265,6 @@ int main(int argc, char** argv) {
     }
 
     service_number = std::string(argv[1]);
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }
 #endif

@@ -138,6 +138,6 @@ TEST(someip_restart_routing_test, send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }
 #endif

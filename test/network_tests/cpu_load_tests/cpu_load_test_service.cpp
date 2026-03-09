@@ -165,6 +165,6 @@ TEST(someip_payload_test, DISABLED_send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(10));
+    return test_main(argc, argv);
 }
 #endif

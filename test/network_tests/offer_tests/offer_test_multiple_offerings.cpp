@@ -280,5 +280,5 @@ TEST(offer_test, multiple_offerings_same_service) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }

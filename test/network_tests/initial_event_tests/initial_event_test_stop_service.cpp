@@ -237,6 +237,6 @@ int main(int argc, char** argv) {
         is_master = false;
     }
 
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

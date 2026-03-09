@@ -135,5 +135,5 @@ TEST(someip_npdu_test, offer_routing_manager_functionality) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }

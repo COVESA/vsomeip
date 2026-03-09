@@ -101,5 +101,5 @@ TEST(debounce_test, disable) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }

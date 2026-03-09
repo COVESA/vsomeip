@@ -162,6 +162,6 @@ int main(int argc, char** argv) {
         its_testmode = malicious_data_test::test_mode_e::WRONG_HEADER_FIELDS_UDP;
     }
 
-    return test_main(argc, argv, std::chrono::seconds(20));
+    return test_main(argc, argv);
 }
 #endif

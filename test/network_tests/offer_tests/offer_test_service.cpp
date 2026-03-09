@@ -158,6 +158,6 @@ int main(int argc, char** argv) {
     }
 
     service_number = static_cast<uint8_t>(std::stoi(argv[1]));
-    return test_main(argc, argv, std::chrono::seconds(60));
+    return test_main(argc, argv);
 }
 #endif

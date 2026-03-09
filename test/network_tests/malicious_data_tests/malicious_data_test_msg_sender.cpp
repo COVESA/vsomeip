@@ -1714,6 +1714,6 @@ int main(int argc, char** argv) {
         ::testing::GTEST_FLAG(filter) = "*wrong_header_fields_udp";
     }
 
-    return test_main(argc, argv, std::chrono::seconds(20));
+    return test_main(argc, argv);
 }
 #endif

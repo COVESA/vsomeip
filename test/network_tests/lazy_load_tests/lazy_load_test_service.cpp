@@ -168,6 +168,6 @@ TEST(someip_lazy_load_test, service) {
 
 #ifdef __linux__
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

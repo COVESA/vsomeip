@@ -469,6 +469,6 @@ int main(int argc, char** argv) {
         is_tcp = true;
     }
 
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

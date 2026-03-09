@@ -1642,6 +1642,6 @@ int main(int argc, char** argv) {
         ::testing::GTEST_FLAG(filter) = "*send_request_to_sd_port";
     }
 
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

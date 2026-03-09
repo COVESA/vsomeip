@@ -169,6 +169,6 @@ int main(int argc, char** argv) {
         use_tcp = false;
     }
 
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }
 #endif

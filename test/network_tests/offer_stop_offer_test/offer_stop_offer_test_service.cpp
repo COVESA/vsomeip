@@ -71,5 +71,5 @@ TEST(test_offer_stop_offer, test_offer_stop_offer_service) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(45));
+    return test_main(argc, argv);
 }

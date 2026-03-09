@@ -131,6 +131,6 @@ TEST_F(start_stop_start_test_manager, start_stop_start_with_two_application) {
 
 #if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(30));
+    return test_main(argc, argv);
 }
 #endif

@@ -824,5 +824,5 @@ TEST(configuration_test, version_and_status) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(10));
+    return test_main(argc, argv);
 }

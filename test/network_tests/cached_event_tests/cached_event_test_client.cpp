@@ -115,5 +115,5 @@ TEST(cached_event_test, clients_are_notified) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(15));
+    return test_main(argc, argv);
 }

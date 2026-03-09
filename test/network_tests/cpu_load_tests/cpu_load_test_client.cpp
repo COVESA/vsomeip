@@ -321,6 +321,6 @@ int main(int argc, char** argv) {
         return (EXIT_FAILURE);
     }
 
-    return test_main(argc, argv, std::chrono::seconds(10));
+    return test_main(argc, argv);
 }
 #endif

@@ -133,5 +133,5 @@ int main(int argc, char** argv) {
     expected_clientid = static_cast<uint16_t>(std::stoi(argv[1], nullptr, 16));
     expected_to_register = std::stoi(argv[2]);
 
-    return test_main(argc, argv, std::chrono::seconds(45));
+    return test_main(argc, argv);
 }
