@@ -173,17 +173,17 @@ TEST_F(test_vlan_toggle_registration, basic_vlan_toggle_recovery) {
 }
 
 /**
- * @brief Test that blocking REGISTER_APPLICATION once after VLAN toggle UP still allows recovery.
+ * @brief Test that blocking ASSIGN_CLIENT once after VLAN toggle UP still allows recovery.
  *
  * This test:
  * 1. Starts all applications and verifies they register
  * 2. Simulates VLAN DOWN (network interface disabled)
  * 3. Simulates VLAN UP (network interface re-enabled)
- * 4. Blocks REGISTER_APPLICATION (0x02) command ONCE for each client after reconnection
+ * 4. Blocks ASSIGN_CLIENT (0x00) command ONCE for each client after reconnection
  * 5. Verifies all applications can still recover their registration state
  *
  * The expectation is that vsomeip should retry the registration and eventually succeed
- * even if the first REGISTER_APPLICATION is dropped.
+ * even if the first ASSIGN_CLIENT is dropped.
  */
 TEST_F(test_vlan_toggle_registration, block_register_application_once_after_vlan_toggle) {
     // Step 1: Start all applications and verify initial registration
@@ -210,34 +210,43 @@ TEST_F(test_vlan_toggle_registration, block_register_application_once_after_vlan
     EXPECT_TRUE(client_two_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_DEREGISTERED));
     EXPECT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_DEREGISTERED));
 
-    // Step 3: Setup to block REGISTER_APPLICATION once for each client after VLAN UP
-    TEST_LOG << "[step] Setting up REGISTER_APPLICATION blockers";
+    // Step 3: Setup to block ASSIGN_CLIENT once for each client after VLAN UP
+    TEST_LOG << "[step] Setting up ASSIGN_CLIENT blockers";
 
-    // These atomics will track whether we've blocked the first registration attempt
-    std::atomic<bool> client_one_blocked{false};
-    std::atomic<bool> client_two_blocked{false};
+    // These promises will be set when we block the first registration attempt
+    std::promise<void> client_one_blocked_promise;
+    std::promise<void> client_two_blocked_promise;
+    auto client_one_blocked_future = client_one_blocked_promise.get_future();
+    auto client_two_blocked_future = client_two_blocked_promise.get_future();
 
-    set_custom_command_handler(client_one_name_, routingmanager_name_, [&client_one_blocked](command_message const& _cmd) {
-        if (_cmd.id_ == protocol::id_e::REGISTER_APPLICATION_ID) {
-            bool expected = false;
-            if (client_one_blocked.compare_exchange_strong(expected, true)) {
-                TEST_LOG << "[handler] Blocking first REGISTER_APPLICATION from client-one";
-                return true; // Block this message
-            }
-        }
-        return false; // Allow message through
-    });
+    std::atomic<bool> client_one_already_blocked{false};
+    std::atomic<bool> client_two_already_blocked{false};
 
-    set_custom_command_handler(client_two_name_, routingmanager_name_, [&client_two_blocked](command_message const& _cmd) {
-        if (_cmd.id_ == protocol::id_e::REGISTER_APPLICATION_ID) {
-            bool expected = false;
-            if (client_two_blocked.compare_exchange_strong(expected, true)) {
-                TEST_LOG << "[handler] Blocking first REGISTER_APPLICATION from client-two";
-                return true; // Block this message
-            }
-        }
-        return false; // Allow message through
-    });
+    set_custom_command_handler(client_one_name_, routingmanager_name_,
+                               [&client_one_blocked_promise, &client_one_already_blocked](command_message const& _cmd) {
+                                   if (_cmd.id_ == protocol::id_e::ASSIGN_CLIENT_ID) {
+                                       bool expected = false;
+                                       if (client_one_already_blocked.compare_exchange_strong(expected, true)) {
+                                           TEST_LOG << "[handler] Blocking first ASSIGN_CLIENT from client-one";
+                                           client_one_blocked_promise.set_value();
+                                           return true; // Block this message
+                                       }
+                                   }
+                                   return false; // Allow message through
+                               });
+
+    set_custom_command_handler(client_two_name_, routingmanager_name_,
+                               [&client_two_blocked_promise, &client_two_already_blocked](command_message const& _cmd) {
+                                   if (_cmd.id_ == protocol::id_e::ASSIGN_CLIENT_ID) {
+                                       bool expected = false;
+                                       if (client_two_already_blocked.compare_exchange_strong(expected, true)) {
+                                           TEST_LOG << "[handler] Blocking first ASSIGN_CLIENT from client-two";
+                                           client_two_blocked_promise.set_value();
+                                           return true; // Block this message
+                                       }
+                                   }
+                                   return false; // Allow message through
+                               });
 
     // Step 4: Simulate VLAN UP
     TEST_LOG << "[step] Simulating VLAN UP";
@@ -252,27 +261,24 @@ TEST_F(test_vlan_toggle_registration, block_register_application_once_after_vlan
     ASSERT_TRUE(await_connection(client_two_name_, routingmanager_name_));
     ASSERT_TRUE(await_connection(server_name_, routingmanager_name_));
 
-    // Wait for router connections back to clients
-    ASSERT_TRUE(await_connection(routingmanager_name_, client_name_));
-    ASSERT_TRUE(await_connection(routingmanager_name_, client_one_name_));
-    ASSERT_TRUE(await_connection(routingmanager_name_, client_two_name_));
-    ASSERT_TRUE(await_connection(routingmanager_name_, server_name_));
-
-    // Verify that the first REGISTER_APPLICATION was indeed blocked
-    EXPECT_TRUE(client_one_blocked.load()) << "Expected first REGISTER_APPLICATION from client-one to be blocked";
-    EXPECT_TRUE(client_two_blocked.load()) << "Expected first REGISTER_APPLICATION from client-two to be blocked";
+    // Wait for the blocking to occur
+    EXPECT_EQ(client_one_blocked_future.wait_for(std::chrono::seconds(2)), std::future_status::ready)
+            << "Expected first ASSIGN_CLIENT from client-one to be blocked within timeout";
+    EXPECT_EQ(client_two_blocked_future.wait_for(std::chrono::seconds(2)), std::future_status::ready)
+            << "Expected first ASSIGN_CLIENT from client-two to be blocked within timeout";
 
     // Verify all applications eventually registered
-    EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED))
-            << "Client failed to re-register after VLAN toggle with blocked first REGISTER_APPLICATION";
+    // Note: Longer timeout needed because blocking ASSIGN_CLIENT triggers a 3s assignment timeout + retry.
+    EXPECT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)))
+            << "Client failed to re-register after VLAN toggle with blocked first ASSIGN_CLIENT";
 
-    EXPECT_TRUE(client_one_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED))
-            << "Client-one failed to re-register after VLAN toggle with blocked first REGISTER_APPLICATION";
+    EXPECT_TRUE(client_one_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)))
+            << "Client-one failed to re-register after VLAN toggle with blocked first ASSIGN_CLIENT";
 
-    EXPECT_TRUE(client_two_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED))
-            << "Client-two failed to re-register after VLAN toggle with blocked first REGISTER_APPLICATION";
+    EXPECT_TRUE(client_two_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)))
+            << "Client-two failed to re-register after VLAN toggle with blocked first ASSIGN_CLIENT";
 
-    EXPECT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED))
+    EXPECT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)))
             << "Server failed to re-register after VLAN toggle";
 
     TEST_LOG << "[step] All applications successfully re-registered after VLAN toggle";
@@ -297,15 +303,18 @@ TEST_F(test_vlan_toggle_registration, block_register_application_once_after_vlan
 /**
  * @brief Test using drop_command_once to explicitly block registration once.
  *
- * This test uses the drop_command_once API to block the REGISTER_APPLICATION command exactly once.
+ * This test uses the drop_command_once API to block the ASSIGN_CLIENT command exactly once.
  */
 TEST_F(test_vlan_toggle_registration, block_register_using_drop_command_once) {
     // Start router first
     start_router();
 
-    // For client, we want to block the first REGISTER_APPLICATION
+    // For client, we want to block the first ASSIGN_CLIENT
     // Use drop_command_once to set up the block
     create_app(client_name_);
+
+    // Prepare to drop the first ASSIGN_CLIENT command
+    auto fut = drop_command_once(client_name_, routingmanager_name_, protocol::id_e::ASSIGN_CLIENT_ID);
 
     // Start client but don't wait for registration yet
     auto* client = start_client(client_name_);
@@ -314,16 +323,13 @@ TEST_F(test_vlan_toggle_registration, block_register_using_drop_command_once) {
     // Wait for connection to router
     ASSERT_TRUE(await_connection(client_name_, routingmanager_name_));
 
-    // Prepare to drop the first REGISTER_APPLICATION command
-    auto fut = drop_command_once(client_name_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID);
-
     // Sanity check that the right message was dropped
     ASSERT_TRUE(fut.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
-    EXPECT_EQ(fut.get(), protocol::id_e::REGISTER_APPLICATION_ID);
+    EXPECT_EQ(fut.get(), protocol::id_e::ASSIGN_CLIENT_ID);
 
     // The client should eventually register even if first attempt was dropped
-    EXPECT_TRUE(client->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED))
-            << "Client should recover and register after first REGISTER_APPLICATION was dropped";
+    EXPECT_TRUE(client->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(4)))
+            << "Client should recover and register after first ASSIGN_CLIENT was dropped";
 }
 
 }

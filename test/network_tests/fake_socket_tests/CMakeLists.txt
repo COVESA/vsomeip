@@ -47,6 +47,7 @@ set (TEST_SUITES
     test_boardnet
     test_debounce
     test_uds_communication
+    test_vlan_toggle_registration
 )
 
 foreach(TEST_SUITE ${TEST_SUITES})
@@ -61,4 +62,3 @@ foreach(TEST_SUITE ${TEST_SUITES})
         add_custom_test(NAME ${TEST_SUITE_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${TEST_SUITE_NAME})
     endif()
 endforeach()
-
