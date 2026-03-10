@@ -35,7 +35,7 @@ udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardne
                                                    const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
     server_endpoint_impl<ip::udp>(_boardnet_endpoint_host, _routing_host, _io, _configuration), lifecycle_idx_(0),
-    netmask_(_configuration->get_netmask()), prefix_(_configuration->get_prefix()),
+    multicast_lifecycle_idx_(0), netmask_(_configuration->get_netmask()), prefix_(_configuration->get_prefix()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)), tp_cleanup_timer_(_io) {
     is_supporting_someip_tp_ = true;
     max_message_size_ = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
@@ -236,6 +236,7 @@ void udp_server_endpoint_impl::start_unlocked() {
     }
 
     lifecycle_idx_ += 1;
+    multicast_lifecycle_idx_ += 1;
 
     if (!unicast_socket_ || !unicast_socket_->is_open()) {
         VSOMEIP_ERROR_P << instance_name_ << "Init not called or not successful";
@@ -267,6 +268,7 @@ void udp_server_endpoint_impl::stop_unlocked() {
     }
 
     lifecycle_idx_ += 1;
+    multicast_lifecycle_idx_ += 1;
     is_stopped_ = true;
 
     unicast_socket_.reset();
@@ -300,12 +302,13 @@ void udp_server_endpoint_impl::receive_unicast_unlocked(std::shared_ptr<message_
                     }
 
                     if (!repeat) {
-                        VSOMEIP_WARNING_P << self->instance_name_ << "Stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
+                        VSOMEIP_WARNING_P << self->instance_name_ << "Stop unicast data handler, lifecycle_idx=" << lifecycle_idx << " vs "
                                           << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
                     }
                 });
     } else {
-        VSOMEIP_WARNING_P << instance_name_ << "Stop data handler, stopped=" << is_stopped_ << ", lifecycle_idx=" << lifecycle_idx_.load();
+        VSOMEIP_WARNING_P << instance_name_ << "Stop unicast data handler, stopped=" << is_stopped_
+                          << ", lifecycle_idx=" << lifecycle_idx_.load();
     }
 }
 
@@ -327,27 +330,30 @@ void udp_server_endpoint_impl::receive_multicast_unlocked(std::shared_ptr<messag
         multicast_socket_->async_receive_from(
                 boost::asio::buffer(_multicast_recv_buffer->data(), _multicast_recv_buffer->size()), *_multicast_sender,
                 [self = shared_ptr(), _multicast_recv_buffer, _multicast_sender,
-                 lifecycle_idx = lifecycle_idx_.load()](const boost::system::error_code& _error, std::size_t _bytes) {
+                 lifecycle_idx = multicast_lifecycle_idx_.load()](const boost::system::error_code& _error, std::size_t _bytes) {
                     bool repeat = false;
 
-                    if (lifecycle_idx == self->lifecycle_idx_.load() && _error != boost::asio::error::eof
+                    if (lifecycle_idx == self->multicast_lifecycle_idx_.load() && _error != boost::asio::error::eof
                         && _error != boost::asio::error::connection_reset && _error != boost::asio::error::operation_aborted) {
                         self->on_multicast_received(_error, _bytes, *_multicast_recv_buffer, *_multicast_sender);
 
                         std::scoped_lock its_lock(self->sync_);
-                        if (lifecycle_idx == self->lifecycle_idx_.load()) {
+                        if (lifecycle_idx == self->multicast_lifecycle_idx_.load()) {
                             self->receive_multicast_unlocked(_multicast_recv_buffer, _multicast_sender);
                             repeat = true;
                         }
                     }
 
                     if (!repeat) {
-                        VSOMEIP_WARNING_P << self->instance_name_ << "Stop data handler, lifecycle_idx=" << lifecycle_idx << " vs "
-                                          << self->lifecycle_idx_.load() << ", " << _error.message() << ", stopped=" << self->is_stopped_;
+                        VSOMEIP_WARNING_P << self->instance_name_
+                                          << "Stop multicast data handler, multicast_lifecycle_idx=" << lifecycle_idx << " vs "
+                                          << self->multicast_lifecycle_idx_.load() << ", " << _error.message()
+                                          << ", stopped=" << self->is_stopped_;
                     }
                 });
     } else {
-        VSOMEIP_WARNING_P << instance_name_ << "Stop data handler, stopped=" << is_stopped_ << ", lifecycle_idx=" << lifecycle_idx_.load();
+        VSOMEIP_WARNING_P << instance_name_ << "Stop multicast data handler, stopped=" << is_stopped_
+                          << ", multicast_lifecycle_idx=" << multicast_lifecycle_idx_.load();
     }
 }
 
@@ -819,12 +825,7 @@ bool udp_server_endpoint_impl::is_reliable() const {
 std::string udp_server_endpoint_impl::get_address_port_local_unlocked() const {
     // The caller shall not hold the lock
 
-    std::shared_ptr<udp_socket> unicast_socket;
-
-    {
-        std::scoped_lock its_lock(sync_);
-        unicast_socket = unicast_socket_;
-    }
+    std::scoped_lock its_lock(sync_);
 
     std::string its_address_port;
     its_address_port.reserve(21);
@@ -832,8 +833,8 @@ std::string udp_server_endpoint_impl::get_address_port_local_unlocked() const {
 
     boost::system::error_code ec;
 
-    if (unicast_socket && unicast_socket->is_open()) {
-        endpoint_type its_local_endpoint = unicast_socket->local_endpoint(ec);
+    if (unicast_socket_ && unicast_socket_->is_open()) {
+        endpoint_type its_local_endpoint = unicast_socket_->local_endpoint(ec);
         if (!ec) {
             its_address_port = its_local_endpoint.address().to_string();
             its_address_port += ":";
@@ -851,8 +852,8 @@ bool udp_server_endpoint_impl::tp_segmentation_enabled(service_t _service, insta
 
 void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::address& _address, bool _is_join,
                                                     boost::system::error_code& _error) {
-    VSOMEIP_INFO_P << instance_name_ << (_is_join ? "Join " : "Leave ") << _address << ", lifecycle_idx=" << lifecycle_idx_.load()
-                   << ", stopped=" << is_stopped_;
+    VSOMEIP_INFO_P << instance_name_ << (_is_join ? "Join " : "Leave ") << _address
+                   << ", multicast_lifecycle_idx=" << multicast_lifecycle_idx_.load() << ", stopped=" << is_stopped_;
 
     std::unique_lock its_lock(sync_);
 
@@ -1028,6 +1029,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
             if (joined_.empty()) {
                 VSOMEIP_INFO_P << instance_name_ << "Stop multicast";
                 multicast_socket_.reset();
+                multicast_lifecycle_idx_ += 1;
             }
         }
     }

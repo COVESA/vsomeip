@@ -115,13 +115,14 @@ private:
 private:
     mutable std::mutex sync_;
 
-    std::shared_ptr<udp_socket> unicast_socket_;
+    std::unique_ptr<udp_socket> unicast_socket_;
     endpoint_type unicast_remote_;
 
-    std::shared_ptr<udp_socket> multicast_socket_;
+    std::unique_ptr<udp_socket> multicast_socket_;
     std::unique_ptr<endpoint_type> multicast_local_;
 
-    std::atomic<unsigned> lifecycle_idx_;
+    std::atomic<unsigned> lifecycle_idx_; // for unicast jhandler (and otherwise for usei as a whole)
+    std::atomic<unsigned> multicast_lifecycle_idx_; // for multicast handler
     std::map<std::string, bool, std::less<>> joined_;
     std::map<std::string, bool, std::less<>> join_status_;
 

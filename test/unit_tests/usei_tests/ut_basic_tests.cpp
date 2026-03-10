@@ -25,12 +25,13 @@ struct usei_fixture : public ::testing::Test {
     std::shared_ptr<boost::asio::io_context> context_;
     std::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> work_guard_;
     std::thread mainloop_;
+    std::shared_ptr<vsomeip_v3::cfg::configuration_impl> conf_;
     std::shared_ptr<vsomeip_v3::udp_server_endpoint_impl> server_;
     std::shared_ptr<mock_endpoint_host> endpoint_;
     std::shared_ptr<mock_routing_host> routing_;
     boost::asio::ip::udp::endpoint unicast_parameters_{boost::asio::ip::make_address("127.0.0.1"), 5000};
     boost::asio::ip::udp::endpoint multicast_parameters_{boost::asio::ip::make_address("0.0.0.0"), 5000};
-    boost::asio::ip::udp::endpoint tester_parameters_{boost::asio::ip::make_address("127.0.0.1"), 5002};
+    boost::asio::ip::udp::endpoint tester_parameters_{boost::asio::ip::make_address("127.0.0.2"), 5002};
     int udp_socket_{-1};
 
     void SetUp() override {
@@ -41,10 +42,10 @@ struct usei_fixture : public ::testing::Test {
         mainloop_ = std::thread([this] { context_->run(); });
 
         // VSOMEIP objects
+        conf_ = std::make_shared<vsomeip_v3::cfg::configuration_impl>("usei_fixture.json");
         endpoint_ = std::make_shared<mock_endpoint_host>();
         routing_ = std::make_shared<mock_routing_host>();
-        server_ = std::make_shared<vsomeip_v3::udp_server_endpoint_impl>(
-                endpoint_, routing_, *context_, std::make_shared<vsomeip_v3::cfg::configuration_impl>("usei_fixture.json"));
+        server_ = std::make_shared<vsomeip_v3::udp_server_endpoint_impl>(endpoint_, routing_, *context_, conf_);
 
         // UDP tester socket
         udp_socket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
@@ -290,5 +291,123 @@ TEST_F(usei_fixture, no_overwrite_during_restart_with_multicast) {
     server_->joined_.clear();
     server_->set_multicast_option(multicast_parameters_.address(), false, error);
     producer.join();
+    server_->stop(false);
+}
+
+struct usei_multi_fixture : public usei_fixture {
+    std::thread worker_; // extra thread (in addition to `mainloop_`)
+
+    void SetUp() override {
+        usei_fixture::SetUp();
+
+        conf_->load(""); // to enable logging
+        worker_ = std::thread([this] { context_->run(); });
+    }
+
+    void TearDown() override {
+        auto ctx = context_; // hold context alive
+        usei_fixture::TearDown();
+
+        worker_.join(); // must be after `context_->stop()`
+    }
+};
+
+TEST_F(usei_multi_fixture, multicast_ordering_rejoin) {
+    /// check that multicast messages are read in the correct order
+    /// specifically after there are usei multicast leave/join; we can only break this order if we somehow
+    /// (concurrently) read from the multicast socket
+
+
+    using namespace std::chrono_literals;
+
+    std::mutex mutex;
+    std::function<void(const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len)> on_message_cbk;
+
+    EXPECT_CALL(*routing_, on_message)
+            .WillRepeatedly([&mutex, &on_message_cbk](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len,
+                                                      vsomeip_v3::boardnet_endpoint*, bool, vsomeip_v3::client_t,
+                                                      const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
+                std::unique_lock lock(mutex);
+                if (auto fn = on_message_cbk) {
+                    lock.unlock();
+                    fn(data, len);
+                }
+            });
+
+    boost::system::error_code error;
+    server_->init(unicast_parameters_, error);
+    server_->start();
+    server_->set_multicast_option(multicast_parameters_.address(), true, error);
+
+    // hell of a hack, but need to stop the unicast socket, otherwise messages go to it and not the multicast socket
+    // (note the `__wrap_setsockopt` code..)
+    server_->unicast_socket_.reset();
+
+    std::condition_variable cv;
+    std::vector<std::vector<uint8_t>> received;
+
+    // setup a callback that will rejoin the multicast group
+    // unrealistic, but this hits exactly the "window" where the previous multicast socket read-loop will wrongly use the new socket
+    {
+        std::unique_lock lock(mutex);
+        on_message_cbk = [this, &mutex, &cv, &received](const vsomeip_v3::byte_t*, vsomeip_v3::length_t) {
+            std::unique_lock lock(mutex);
+            boost::system::error_code error;
+            // same as ::leave
+            server_->joined_.clear();
+            server_->set_multicast_option(multicast_parameters_.address(), false, error);
+            // same as ::join
+            server_->set_multicast_option(multicast_parameters_.address(), true, error);
+
+            received.push_back({0x00});
+            cv.notify_one();
+        };
+    }
+
+    // send + wait for message
+    {
+        send(multicast_parameters_,
+             make_bytes(0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00));
+
+        std::unique_lock lock(mutex);
+        std::vector<std::vector<uint8_t>> expected{{0x00}};
+        cv.wait_for(lock, 30s, [&expected, &received] { return expected == received; });
+        ASSERT_EQ(expected, received);
+    }
+
+    // setup new callback
+    {
+        std::unique_lock lock(mutex);
+        received.clear();
+        on_message_cbk = [&mutex, &cv, &received](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len) {
+            static std::atomic<size_t> count{0};
+            size_t c = ++count;
+            VSOMEIP_INFO << "callback #" << c << " - enter";
+            std::unique_lock lock(mutex);
+            received.push_back(std::vector<uint8_t>(data, data + len));
+            cv.notify_one();
+            VSOMEIP_INFO << "callback #" << c << " - exit";
+        };
+    }
+
+    // send + wait for messages
+    {
+        std::vector<std::vector<uint8_t>> expected;
+        for (size_t i = 0; i < 256; ++i) {
+            // does not matter, just has to be >= 16 bytes; note that only last byte varies
+            auto bytes = make_bytes(0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                    static_cast<uint8_t>(i));
+            send(multicast_parameters_, bytes);
+            expected.push_back(
+                    std::vector<uint8_t>(reinterpret_cast<uint8_t*>(&bytes[0]), reinterpret_cast<uint8_t*>(&bytes[0]) + bytes.size()));
+        }
+
+        std::unique_lock lock(mutex);
+        cv.wait_for(lock, 30s, [&expected, &received] { return expected == received; });
+        ASSERT_EQ(expected, received);
+    }
+
+    server_->joined_.clear(); // We don't want to call `leave` method, so we do its job
+    server_->set_multicast_option(multicast_parameters_.address(), false, error);
     server_->stop(false);
 }
