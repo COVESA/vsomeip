@@ -42,16 +42,24 @@ public:
 // Ensures that concurrent calls of insert_subscription does not result in multiple calls to create_placeholder_event_and_subscribe, as this
 // will lead to clients failing to subscribe
 TEST_F(rmb_fixture, double_insert_subscription) {
+
     vsomeip_v3::mock_rmb rmb(&host_);
+    std::mutex subscription_mutex; // same as rmb::subscription_mutex
 
     EXPECT_CALL(rmb,
                 create_placeholder_event_and_subscribe(::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_, ::testing::_))
             .Times(1);
 
     // Used to add concurrency and check if create_placeholder_event_and_subscribe() will be called twice
-    std::thread its_thread(
-            [&]() { (void)rmb.insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter, client_one); });
+    std::thread its_thread([&]() {
+        std::scoped_lock its_lock{subscription_mutex};
+        (void)rmb.insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter, client_one);
+    });
 
-    (void)rmb.insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter, client_two);
+    {
+        std::scoped_lock its_lock{subscription_mutex};
+        (void)rmb.insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter, client_two);
+    }
+
     its_thread.join();
 }

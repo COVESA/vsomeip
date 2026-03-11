@@ -684,6 +684,7 @@ void routing_manager_base::unsubscribe(client_t _client, const vsomeip_sec_clien
 void routing_manager_base::notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
                                   bool _force) {
 
+    std::scoped_lock its_lock{subscription_mutex};
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
         its_event->set_payload(_payload, _force);
@@ -695,6 +696,7 @@ void routing_manager_base::notify(service_t _service, instance_t _instance, even
 
 void routing_manager_base::notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
                                       client_t _client, bool _force) {
+    std::scoped_lock its_lock{subscription_mutex};
     std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
     if (its_event) {
         // Event is valid for service/instance
@@ -1181,7 +1183,6 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
                                                const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client) {
 
     bool is_inserted(false);
-    std::scoped_lock its_lock{subscription_mutex};
     if (_event != ANY_EVENT) { // subscribe to specific event
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event) {

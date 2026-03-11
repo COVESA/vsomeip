@@ -178,6 +178,11 @@ protected:
     bool send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
                     bool _reliable, protocol::id_e _command, uint8_t _status_check) const;
 
+    /**
+     * @brief insert subscription into events/eventgroups
+     *
+     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription ack/nack and initial events
+     */
     bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                              const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
 
@@ -198,6 +203,11 @@ protected:
     void unset_all_eventpayloads(service_t _service, instance_t _instance);
     void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
+    /**
+     * @brief Notify current value for event/eventgroup
+     *
+     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription insertion + subscription ack/nack
+     */
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
@@ -280,13 +290,14 @@ protected:
 
     std::shared_ptr<trace::connector_impl> tc_;
 
+    // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
+    std::mutex subscription_mutex;
+
 private:
     services_t services_;
     mutable std::mutex services_mutex_;
 
     std::mutex add_known_client_mutex_;
-
-    std::mutex subscription_mutex;
 };
 
 } // namespace vsomeip_v3

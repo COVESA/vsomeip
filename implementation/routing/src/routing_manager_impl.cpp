@@ -633,6 +633,7 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
         host_->on_subscription(
                 _service, _instance, _eventgroup, _client, _sec_client, get_env(_client), true,
                 [this, self, _client, _service, _instance, _eventgroup, _major, _event, _filter](const bool _subscription_accepted) {
+                    std::scoped_lock its_lock{subscription_mutex};
                     if (!_subscription_accepted) {
                         stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
                     } else {

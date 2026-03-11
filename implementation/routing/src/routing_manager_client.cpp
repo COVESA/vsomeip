@@ -1250,6 +1250,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                 its_service, its_instance, its_eventgroup, its_client, _sec_client, get_env(its_client), true,
                                 [this, self, its_client, its_service, its_instance, its_eventgroup, its_event, its_filter, its_pending_id,
                                  its_major](const bool _subscription_accepted) {
+                                    std::scoped_lock its_lock{subscription_mutex};
                                     std::uint32_t its_count(0);
                                     if (_subscription_accepted) {
                                         insert_subscription(its_service, its_instance, its_eventgroup, its_event, its_filter,
@@ -1315,6 +1316,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                 its_service, its_instance, its_eventgroup, its_client, _sec_client, its_env, true,
                                 [this, self, its_client, its_filter, its_pending_id, its_env, its_service, its_instance, its_eventgroup,
                                  its_event, its_major](const bool _subscription_accepted) {
+                                    std::scoped_lock its_lock{subscription_mutex};
                                     if (!_subscription_accepted) {
                                         send_subscribe_nack(its_client, its_service, its_instance, its_eventgroup, its_event,
                                                             PENDING_SUBSCRIPTION_ID);
