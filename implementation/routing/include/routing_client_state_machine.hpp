@@ -30,9 +30,6 @@ namespace vsomeip_v3 {
  * Normal registration flow:
  *   ST_DEREGISTERED -> ST_REGISTERING -> ST_REGISTERED
  *
- * Graceful deregistration:
- *   ST_REGISTERED -> ST_DEREGISTERING -> ST_DEREGISTERED
- *
  * Error/timeout recovery:
  *   Any state -> ST_DEREGISTERED (via deregistered())
  */
@@ -40,7 +37,6 @@ enum class routing_client_state_e : uint8_t {
     ST_REGISTERED = 0x0, ///< Fully registered with routing manager
     ST_DEREGISTERED = 0x1, ///< Not connected or registered
     ST_REGISTERING = 0x2, ///< Waiting for client ID assignment
-    ST_DEREGISTERING = 0x3, ///< Graceful deregistration in progress
 };
 
 std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
@@ -61,9 +57,9 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * transition from invalid states will fail and return false.
  *
  * **Timeout Protection:**
- * Assignment and registration phases have configurable timeouts. If a
- * transition doesn't complete within the timeout period, the state machine
- * automatically transitions to ST_DEREGISTERED and invokes the error handler.
+ * The registration phase has a configurable timeout. If it doesn't complete
+ * within the timeout period, the state machine automatically transitions to
+ * ST_DEREGISTERED and invokes the error handler.
  *
  * **Error Handler Invocation:**
  * The error handler is called synchronously (on the io_context thread) when:
@@ -85,36 +81,23 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * **Usage Example:**
  * @code
  * routing_client_state_machine::configuration config;
- * config.register_timeout_ = std::chrono::seconds(3);
+ * config.shutdown_timeout_ = std::chrono::seconds(3);
  *
- * auto sm = routing_client_state_machine::create(io_context, config,
+ * auto sm = routing_client_state_machine::create(config,
  *     [this] { on_registration_error(); });
  *
  * sm->target_running();
  *
- * if (sm->start_connecting()) {
- *     start_connecting();
- * }
- *
- * if (sm->start_assignment()) {
- *     dispatch_assign_client();
- *     await_assign_client_ack();
- *     sm->assigned();
- * }
- *
  * if (sm->start_registration()) {
- *     dispatch_register_app();
- *     await_register_app_response();
- *     sm->registered();
+ *     dispatch_assign_client();
+ *     // on ASSIGN_CLIENT_ACK:
+ *     sm->registered(assigned_client_id);
  * }
  *
- * if (sm->start_deregister()) {
- *     dispatch_deregister();
- *     background([]{
- *          sm->deregistered();
- *     });
- *     sm->await_deregistered();
- * }
+ * // some time later for the shutdown:
+ * sm->target_shutdown()
+ * sm->deregistered();
+ *
  * @endcode
  */
 class routing_client_state_machine : public std::enable_shared_from_this<routing_client_state_machine> {
@@ -144,14 +127,14 @@ public:
      * @brief Configuration for state machine timeouts.
      */
     struct configuration {
-        /// Timeout for awaiting graceful deregistration completion
+        /// Timeout for await_registered() during the shutdown of the application
+        /// this is not the timeout for the registration process during the upstart.
         std::chrono::milliseconds shutdown_timeout_{std::chrono::seconds(3)};
     };
 
     /**
      * @brief Factory method to create a state machine instance.
      *
-     * @param _io The io_context used for timer management
      * @param _configuration Timeout configuration
      * @param _handler Callback invoked on autonomous deregistration (may be null)
      * @return Shared pointer to the created state machine
@@ -222,40 +205,16 @@ public:
     [[nodiscard]] bool await_registered();
 
     /**
-     * @brief Start graceful deregistration.
-     *
-     * Valid transition: ST_REGISTERED -> ST_DEREGISTERING
-     *
-     * @return true if transition succeeded, false if:
-     *         - Current state is not ST_REGISTERED
-     */
-    [[nodiscard]] bool start_deregister();
-
-    /**
      * @brief Mark deregistration as complete.
      *
      * Valid transition: Any state -> ST_DEREGISTERED
      * This is the only transition allowed from any state. It:
      * - Cancels all active timers
      * - Posts error_handler to io_context (asynchronously)
-     * - Notifies await_deregistered()
      *
      * This method is also called internally on timeouts.
      */
     void deregistered();
-
-    /**
-     * @brief Wait for the state machine to reach ST_DEREGISTERED.
-     *
-     * This method blocks until either:
-     * - The state becomes ST_DEREGISTERED, or
-     * - The shutdown timeout expires
-     *
-     * @return true if successfully deregistered, false if:
-     *         - Current state is not ST_DEREGISTERING (not waiting for deregistration)
-     *         - Timeout occurred before deregistration completed
-     */
-    [[nodiscard]] bool await_deregistered();
 
 private:
     /**
@@ -286,8 +245,8 @@ private:
      * @brief Internal method to change state.
      *
      * Must be called with mtx_ held. Logs the state transition and
-     * notifies condition variable for terminal states (ST_REGISTERED,
-     * ST_DEREGISTERED).
+     * notifies the condition variable when reaching ST_REGISTERED or
+     * ST_DEREGISTERED.
      *
      * @param _state The new state to transition to
      */
@@ -296,11 +255,11 @@ private:
     /// Controls whether new transitions are allowed
     bool shall_run_{true};
 
-    /// Current registration state
-    routing_client_state_e state_{routing_client_state_e::ST_DEREGISTERED};
-
     /// Timeout configuration
     configuration const configuration_;
+
+    /// Current registration state
+    routing_client_state_e state_{routing_client_state_e::ST_DEREGISTERED};
 
     /// Callback for autonomous deregistration
     error_handler error_handler_;

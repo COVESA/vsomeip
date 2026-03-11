@@ -88,7 +88,7 @@ public:
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
     void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint);
-    void handle_client_error(client_t _client);
+    void cleanup_client(client_t _client);
 
     void on_offered_services_info(protocol::offered_services_response_command& _command);
 
@@ -98,7 +98,6 @@ private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
     void register_application(client_t _client);
-    void deregister_application();
 
     void reconnect(const std::map<client_t, std::string>& _clients);
 

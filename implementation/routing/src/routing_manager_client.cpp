@@ -39,7 +39,6 @@
 #include "../../protocol/include/assign_client_command.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
 #include "../../protocol/include/config_command.hpp"
-#include "../../protocol/include/deregister_application_command.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
 #include "../../protocol/include/dummy_command.hpp"
 #include "../../protocol/include/expire_command.hpp"
@@ -178,25 +177,12 @@ void routing_manager_client::stop() {
     state_machine_->target_shutdown();
     cancel_keepalive();
     if (state_machine_->await_registered()) {
-        {
-            // the subsequent deregister_application might lead to a "end of file"
-            // error in the sender, which could initiate a reconnection attempt
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->register_error_handler(nullptr);
-            }
-        }
-        // Important to do before deregistration to ensure messages are sent before the application deregisters with the daemon
+        // Ensure pending messages are sent before shutdown
         try_to_send_before_stop();
-        if (state_machine_->start_deregister()) {
-            deregister_application();
-        } else {
-            VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " couldn't initiate deregister application procedure";
-        }
-        if (!state_machine_->await_deregistered()) {
-            VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " couldn't deregister application - timeout";
-        }
     }
+    // Transition to ST_DEREGISTERED so that a subsequent start() finds a clean state.
+    // The error handler is suppressed because shall_run_ = false (target_shutdown was called above).
+    state_machine_->deregistered();
 
     {
         std::scoped_lock its_lock(requests_to_debounce_mutex_);
@@ -226,6 +212,7 @@ void routing_manager_client::stop() {
     }
 
     ep_mgr_->clear_local_endpoints();
+    host_->on_state(state_type_e::ST_DEREGISTERED);
 }
 
 std::shared_ptr<configuration> routing_manager_client::get_configuration() const {
@@ -272,7 +259,7 @@ void routing_manager_client::check_keepalive() {
                 keepalive_timer_.async_wait([this](boost::system::error_code const&) { this->check_keepalive(); });
             } else {
                 VSOMEIP_WARNING_P << "Client 0x" << hex4(get_client()) << " didn't receive keepalive confirmation from HOST.";
-                boost::asio::post(io_, [this] { this->handle_client_error(VSOMEIP_ROUTING_CLIENT); });
+                boost::asio::post(io_, [this] { this->cleanup_client(VSOMEIP_ROUTING_CLIENT); });
             }
         }
     }
@@ -680,7 +667,7 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
                                 << "." << hex4(_instance) << "." << hex2(_major) << " event=" << hex4(_event);
                 // if we can not create a connection with this client -> there should be something wrong with the routing info,
                 // but we assume the service is offered -> this is an error and we should handle it
-                handle_client_error(its_target_client);
+                cleanup_client(its_target_client);
             }
         } else {
             std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
@@ -1627,18 +1614,6 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
     for (const auto& e : its_command.get_entries()) {
         auto its_client = e.get_client();
         switch (e.get_type()) {
-        case protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT: {
-            if (its_client == get_client()) {
-                its_policy_manager->remove_client_to_sec_client_mapping(its_client);
-                VSOMEIP_INFO_P << "Application/Client 0x" << hex4(get_client()) << " (" << host_->get_name() << ") is deregistered.";
-
-                // inform host about its own registration state changes
-                host_->on_state(state_type_e::ST_DEREGISTERED);
-                state_machine_->deregistered();
-            }
-            break;
-        }
-
         case protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE: {
             add_known_client(its_client, "");
             boost::asio::ip::address its_address = e.get_address();
@@ -1652,7 +1627,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                                    << its_address.to_string() + ":" << its_port;
 
                     // trigger error handler to ensure offered services by the old client are re-requested
-                    handle_client_error(old_client);
+                    cleanup_client(old_client);
                 }
 
                 add_guest(its_client, its_address, its_port);
@@ -1796,8 +1771,7 @@ void routing_manager_client::register_application(client_t _client) {
     if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
                       << "isn't allowed to use the client endpoint due to credential check failed!";
-        deregister_application();
-        host_->on_state(state_type_e::ST_DEREGISTERED);
+        state_machine_->deregistered();
         return;
     }
 #endif
@@ -1815,32 +1789,6 @@ void routing_manager_client::register_application(client_t _client) {
         // inform host about its own registration state changes
         host_->on_state(state_type_e::ST_REGISTERED);
     }
-}
-
-void routing_manager_client::deregister_application() {
-
-    protocol::deregister_application_command its_command;
-    its_command.set_client(get_client());
-
-    std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-
-    if (its_error == protocol::error_e::ERROR_OK) {
-        if (auto state = state_machine_->state();
-            is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_DEREGISTERING)) {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
-        } else {
-            VSOMEIP_WARNING_P << "Deregister command for Client 0x" << hex4(get_client())
-                              << " not dispatched due to unexpected state: " << state;
-        }
-    } else
-        VSOMEIP_ERROR_P << "Deregister application command serialization failed(" << static_cast<int>(its_error) << ")";
 }
 
 void routing_manager_client::send_pong() const {
@@ -2236,13 +2184,13 @@ void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_c
 
 void routing_manager_client::register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) {
 
-    _endpoint->register_error_handler(std::bind(&routing_manager_client::handle_client_error, this, _client));
+    _endpoint->register_error_handler(std::bind(&routing_manager_client::cleanup_client, this, _client));
 }
 
-void routing_manager_client::handle_client_error(client_t _client) {
+void routing_manager_client::cleanup_client(client_t _client) {
 
     if (_client != VSOMEIP_ROUTING_CLIENT) {
-        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " handles a client error 0x" << hex4(_client) << " not reconnecting";
+        VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of client 0x" << hex4(_client) << ", not reconnecting";
 
         // First ensure that the connection is dropped, before enforcing a
         // reconnect from the client. Otherwise a client subscribe might
@@ -2256,8 +2204,7 @@ void routing_manager_client::handle_client_error(client_t _client) {
         }
 
     } else {
-        VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " handles a client error 0x" << hex4(_client)
-                       << " with host, will reconnect";
+        VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of host 0x" << hex4(_client) << ", will reconnect";
         std::map<client_t, std::string> its_known_clients;
         {
             std::scoped_lock its_lock(known_clients_mutex_);

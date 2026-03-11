@@ -82,7 +82,7 @@ public:
 
     virtual void on_pong(client_t _client) = 0;
 
-    virtual void handle_client_error(client_t _client) = 0;
+    virtual void cleanup_client(client_t _client) = 0;
 
     virtual std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const = 0;
 

@@ -115,6 +115,11 @@ void npdu_test_client::stop() {
         request_->set_payload(vsomeip::runtime::get()->create_payload());
         request_->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
         app_->send(request_);
+
+        // magic sleep to give time for the last message to be read
+        // in the router, before the clean-up starts the forceful stop
+        // of the "server" connection within the router.
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
     app_->stop();
 }

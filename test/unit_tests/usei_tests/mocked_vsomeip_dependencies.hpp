@@ -252,8 +252,5 @@ struct mock_routing_host : public vsomeip_v3::routing_host {
     MOCK_CONST_METHOD1(get_env, std::string(vsomeip_v3::client_t _client));
     MOCK_METHOD3(remove_subscriptions,
                  void(vsomeip_v3::port_t _local_port, const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port));
-    MOCK_METHOD4(update_registration,
-                 void(vsomeip_v3::client_t _client, vsomeip_v3::registration_type_e _type, const boost::asio::ip::address& _address,
-                      vsomeip_v3::port_t _port));
     MOCK_METHOD0(get_routing_state, vsomeip_v3::routing_state_e());
 };

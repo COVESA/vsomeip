@@ -45,11 +45,8 @@ void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index,
         }
     }
 
-    if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
-
-        std::memcpy(&_buffer[_index], &its_client_size, sizeof(its_client_size));
-        _index += sizeof(its_client_size);
-    }
+    std::memcpy(&_buffer[_index], &its_client_size, sizeof(its_client_size));
+    _index += sizeof(its_client_size);
 
     std::memcpy(&_buffer[_index], &client_, sizeof(client_));
     _index += sizeof(client_);
@@ -67,31 +64,28 @@ void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index,
         _index += sizeof(port_);
     }
 
-    if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
+    its_size = (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
 
-        its_size = (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
+    if (its_size > std::numeric_limits<uint32_t>::max()) {
 
-        if (its_size > std::numeric_limits<uint32_t>::max()) {
+        _error = error_e::ERROR_MALFORMED;
+        return;
+    }
 
-            _error = error_e::ERROR_MALFORMED;
-            return;
-        }
+    its_size32 = static_cast<uint32_t>(its_size);
+    std::memcpy(&_buffer[_index], &its_size32, sizeof(its_size32));
+    _index += sizeof(its_size32);
 
-        its_size32 = static_cast<uint32_t>(its_size);
-        std::memcpy(&_buffer[_index], &its_size32, sizeof(its_size32));
-        _index += sizeof(its_size32);
+    for (const auto& s : services_) {
 
-        for (const auto& s : services_) {
-
-            std::memcpy(&_buffer[_index], &s.service_, sizeof(s.service_));
-            _index += sizeof(s.service_);
-            std::memcpy(&_buffer[_index], &s.instance_, sizeof(s.instance_));
-            _index += sizeof(s.instance_);
-            std::memcpy(&_buffer[_index], &s.major_, sizeof(s.major_));
-            _index += sizeof(s.major_);
-            std::memcpy(&_buffer[_index], &s.minor_, sizeof(s.minor_));
-            _index += sizeof(s.minor_);
-        }
+        std::memcpy(&_buffer[_index], &s.service_, sizeof(s.service_));
+        _index += sizeof(s.service_);
+        std::memcpy(&_buffer[_index], &s.instance_, sizeof(s.instance_));
+        _index += sizeof(s.instance_);
+        std::memcpy(&_buffer[_index], &s.major_, sizeof(s.major_));
+        _index += sizeof(s.major_);
+        std::memcpy(&_buffer[_index], &s.minor_, sizeof(s.minor_));
+        _index += sizeof(s.minor_);
     }
 }
 
@@ -116,12 +110,8 @@ void routing_info_entry::deserialize(const std::vector<byte_t>& _buffer, size_t&
     std::memcpy(&its_size, &_buffer[_index], sizeof(its_size));
     _index += sizeof(its_size);
 
-    if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
-        std::memcpy(&its_client_size, &_buffer[_index], sizeof(its_client_size));
-        _index += sizeof(its_client_size);
-    } else {
-        its_client_size = its_size;
-    }
+    std::memcpy(&its_client_size, &_buffer[_index], sizeof(its_client_size));
+    _index += sizeof(its_client_size);
 
     std::memcpy(&client_, &_buffer[_index], sizeof(client_));
     _index += sizeof(client_);
@@ -154,39 +144,36 @@ void routing_info_entry::deserialize(const std::vector<byte_t>& _buffer, size_t&
         _index += sizeof(port_);
     }
 
-    if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
+    if (_buffer.size() < _index + sizeof(its_size)) {
 
-        if (_buffer.size() < _index + sizeof(its_size)) {
+        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+        return;
+    }
 
-            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
-            return;
-        }
+    std::memcpy(&its_size, &_buffer[_index], sizeof(its_size));
+    _index += sizeof(its_size);
 
-        std::memcpy(&its_size, &_buffer[_index], sizeof(its_size));
-        _index += sizeof(its_size);
+    if (_buffer.size() < _index + its_size) {
 
-        if (_buffer.size() < _index + its_size) {
+        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+        return;
+    }
 
-            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
-            return;
-        }
+    size_t its_n = (its_size / (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
 
-        size_t its_n = (its_size / (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
+    for (size_t i = 0; i < its_n; i++) {
 
-        for (size_t i = 0; i < its_n; i++) {
+        service its_service;
+        std::memcpy(&its_service.service_, &_buffer[_index], sizeof(its_service.service_));
+        _index += sizeof(its_service.service_);
+        std::memcpy(&its_service.instance_, &_buffer[_index], sizeof(its_service.instance_));
+        _index += sizeof(its_service.instance_);
+        its_service.major_ = static_cast<major_version_t>(_buffer[_index]);
+        _index += sizeof(its_service.major_);
+        std::memcpy(&its_service.minor_, &_buffer[_index], sizeof(its_service.minor_));
+        _index += sizeof(its_service.minor_);
 
-            service its_service;
-            std::memcpy(&its_service.service_, &_buffer[_index], sizeof(its_service.service_));
-            _index += sizeof(its_service.service_);
-            std::memcpy(&its_service.instance_, &_buffer[_index], sizeof(its_service.instance_));
-            _index += sizeof(its_service.instance_);
-            its_service.major_ = static_cast<major_version_t>(_buffer[_index]);
-            _index += sizeof(its_service.major_);
-            std::memcpy(&its_service.minor_, &_buffer[_index], sizeof(its_service.minor_));
-            _index += sizeof(its_service.minor_);
-
-            services_.emplace_back(its_service);
-        }
+        services_.emplace_back(its_service);
     }
 }
 
@@ -212,11 +199,9 @@ size_t routing_info_entry::get_size() const {
         }
     }
 
-    if (type_ > routing_info_entry_type_e::RIE_DELETE_CLIENT) {
-        its_size += sizeof(uint32_t); // size of the client info
-        its_size += sizeof(uint32_t); // size of the services array
-        its_size += (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
-    }
+    its_size += sizeof(uint32_t); // size of the client info
+    its_size += sizeof(uint32_t); // size of the services array
+    its_size += (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
 
     return its_size;
 }

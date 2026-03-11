@@ -142,11 +142,7 @@ TEST_F(routing_client_state_machine_test, graceful_deregistration_flow) {
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered(0x1234));
 
-    // ST_REGISTERED -> ST_DEREGISTERING
-    EXPECT_TRUE(sm->start_deregister());
-    EXPECT_EQ(routing_client_state_e::ST_DEREGISTERING, sm->state());
-
-    // ST_DEREGISTERING -> ST_DEREGISTERED
+    // ST_REGISTERED -> ST_DEREGISTERED
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
     EXPECT_TRUE(wait_for_error(initial_count, 100ms));
@@ -215,20 +211,6 @@ TEST_F(routing_client_state_machine_test, cannot_mark_registered_from_non_regist
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
 }
 
-TEST_F(routing_client_state_machine_test, cannot_start_deregister_from_non_registered) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    // From ST_DEREGISTERED
-    EXPECT_FALSE(sm->start_deregister());
-    EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
-
-    // From ST_REGISTERING
-    ASSERT_TRUE(sm->start_registration());
-    EXPECT_FALSE(sm->start_deregister());
-    EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm->state());
-}
-
 // ============================================================================
 // Await Methods Tests
 // ============================================================================
@@ -277,42 +259,6 @@ TEST_F(routing_client_state_machine_test, await_registered_times_out) {
 
     // Don't call registered(0x1234) - should timeout
     EXPECT_FALSE(sm->await_registered());
-}
-
-TEST_F(routing_client_state_machine_test, await_deregistered_succeeds_when_already_deregistered) {
-    auto sm = create_state_machine();
-
-    EXPECT_TRUE(sm->await_deregistered());
-}
-
-TEST_F(routing_client_state_machine_test, await_deregistered_waits_for_deregistration) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
-    ASSERT_TRUE(sm->start_deregister());
-
-    // Start waiting in separate thread
-    std::atomic<bool> await_result{false};
-    std::thread waiter([&sm, &await_result] { await_result = sm->await_deregistered(); });
-
-    // Complete deregistration after a delay
-    std::this_thread::sleep_for(100ms);
-    sm->deregistered();
-
-    waiter.join();
-    EXPECT_TRUE(await_result.load());
-}
-
-TEST_F(routing_client_state_machine_test, await_deregistered_fails_from_wrong_state) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    ASSERT_TRUE(sm->start_registration());
-
-    // Not in ST_DEREGISTERING
-    EXPECT_FALSE(sm->await_deregistered());
 }
 
 // ============================================================================
@@ -390,43 +336,6 @@ TEST_F(routing_client_state_machine_test, error_handler_called_on_manual_deregis
     ASSERT_TRUE(sm->start_registration());
     sm->deregistered();
     EXPECT_TRUE(wait_for_error(initial_count, 200ms));
-}
-
-TEST_F(routing_client_state_machine_test, graceful_deregister_after_registered_calls_handler) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    // Get to registered state
-    ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
-
-    int initial_count = get_error_count();
-
-    // Start graceful deregister but don't shutdown
-    ASSERT_TRUE(sm->start_deregister());
-    sm->deregistered();
-
-    // Handler SHOULD be called (shall_run_ still true)
-    EXPECT_TRUE(wait_for_error(initial_count, 100ms));
-}
-
-TEST_F(routing_client_state_machine_test, graceful_deregister_with_shutdown_no_handler) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
-    ASSERT_TRUE(sm->start_deregister());
-
-    // Shutdown before calling deregistered()
-    sm->target_shutdown();
-
-    int initial_count = get_error_count();
-    sm->deregistered();
-
-    // Handler should NOT be called (graceful shutdown)
-    std::this_thread::sleep_for(50ms);
-    EXPECT_EQ(initial_count, get_error_count());
 }
 
 // ============================================================================

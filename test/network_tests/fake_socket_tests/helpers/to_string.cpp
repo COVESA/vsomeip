@@ -16,8 +16,6 @@ char const* to_string(vsomeip_v3::protocol::id_e _id) {
         return "ASSIGN_CLIENT_ID";
     case protocol::id_e::ASSIGN_CLIENT_ACK_ID:
         return "ASSIGN_CLIENT_ACK_ID";
-    case protocol::id_e::DEREGISTER_APPLICATION_ID:
-        return "DEREGISTER_APPLICATION_ID";
     case protocol::id_e::ROUTING_INFO_ID:
         return "ROUTING_INFO_ID";
     case protocol::id_e::PING_ID:
@@ -90,8 +88,6 @@ char const* to_string(vsomeip_v3::protocol::id_e _id) {
 }
 char const* to_string(vsomeip_v3::protocol::routing_info_entry_type_e e) {
     switch (e) {
-    case protocol::routing_info_entry_type_e::RIE_DELETE_CLIENT:
-        return "RIE_DELETE_CLIENT";
     case protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE:
         return "RIE_ADD_SERVICE_INSTANCE";
     case protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE:

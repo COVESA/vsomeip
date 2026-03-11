@@ -22,8 +22,6 @@ static constexpr char const* to_string(routing_client_state_e _state) {
         return "ST_DEREGISTERED";
     case routing_client_state_e::ST_REGISTERING:
         return "ST_REGISTERING";
-    case routing_client_state_e::ST_DEREGISTERING:
-        return "ST_DEREGISTERING";
     default:
         return "UNKNOWN";
     }
@@ -82,6 +80,11 @@ void routing_client_state_machine::target_running() {
     return true;
 }
 
+void routing_client_state_machine::deregistered() {
+    std::unique_lock lock{mtx_};
+    deregister_unlocked(std::move(lock));
+}
+
 [[nodiscard]] bool routing_client_state_machine::await_registered() {
     std::unique_lock lock{mtx_};
     if (state_ == routing_client_state_e::ST_REGISTERED) {
@@ -93,35 +96,6 @@ void routing_client_state_machine::target_running() {
     bool const result =
             cv_.wait_for(lock, configuration_.shutdown_timeout_, [this] { return state_ != routing_client_state_e::ST_REGISTERING; });
     return result ? state_ == routing_client_state_e::ST_REGISTERED : false;
-}
-
-[[nodiscard]] bool routing_client_state_machine::start_deregister() {
-    std::scoped_lock lock{mtx_};
-    if (state_ != routing_client_state_e::ST_REGISTERED) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
-        return false;
-    }
-    change_state_unlocked(routing_client_state_e::ST_DEREGISTERING);
-    return true;
-}
-
-void routing_client_state_machine::deregistered() {
-    std::unique_lock lock{mtx_};
-    deregister_unlocked(std::move(lock));
-}
-
-[[nodiscard]] bool routing_client_state_machine::await_deregistered() {
-    std::unique_lock lock{mtx_};
-    if (state_ == routing_client_state_e::ST_DEREGISTERED) {
-        return true;
-    }
-    if (state_ != routing_client_state_e::ST_DEREGISTERING) {
-        VSOMEIP_WARNING_P << "Unexpected state: " << state_;
-        return false;
-    }
-    bool const result =
-            cv_.wait_for(lock, configuration_.shutdown_timeout_, [this] { return state_ != routing_client_state_e::ST_DEREGISTERING; });
-    return result ? state_ == routing_client_state_e::ST_DEREGISTERED : false;
 }
 
 void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock) {

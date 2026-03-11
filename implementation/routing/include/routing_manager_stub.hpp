@@ -81,7 +81,7 @@ public:
     void handle_credentials(const client_t _client, std::set<protocol::service>& _requests);
     void handle_requests(const client_t _client, std::set<protocol::service>& _requests);
 
-    void update_registration(client_t _client, registration_type_e _type, const boost::asio::ip::address& _address, port_t _port);
+    void deregister_client(client_t _client);
 
     void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port);
 
@@ -145,8 +145,6 @@ private:
     void start_watchdog();
     void check_watchdog();
 
-    void client_registration_func(void);
-    void registration_func(client_t client_id, std::vector<registration_type_e> registration_type);
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const& _error);
     void remove_from_pinged_clients(client_t _client);
@@ -200,12 +198,7 @@ private:
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
-    std::shared_ptr<std::thread> client_registration_thread_;
-    std::atomic<bool> client_registration_running_;
-    std::mutex client_registration_mutex_;
-    std::condition_variable client_registration_condition_;
 
-    std::deque<std::pair<client_t, std::vector<registration_type_e>>> pending_client_registrations_queue_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> internal_client_ports_;
     const std::uint32_t max_local_message_size_;
     const std::chrono::milliseconds configured_watchdog_timeout_;

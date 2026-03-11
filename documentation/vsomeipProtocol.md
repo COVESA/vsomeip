@@ -60,13 +60,9 @@
 
 `<unused>`
 
-## VSOMEIP_DEREGISTER_APPLICATION (0x03)
+## VSOMEIP_DEREGISTER_APPLICATION (0x03) (Deprecated since 3.7.1)
 
-    Command            03
-    Version            xx xx
-    Client             xx xx
-    Size               00 00 00 00
-
+`<unused>`
 
 ## VSOMEIP_APPLICATION_LOST (0x04)
 

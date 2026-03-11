@@ -23,8 +23,6 @@ class eventgroupinfo;
 
 typedef std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>> eventgroups_t;
 
-enum class registration_type_e : std::uint8_t { DEREGISTER = 0x1, DEREGISTER_ON_ERROR = 0x2 };
-
 enum class remote_subscription_state_e : std::uint8_t {
     SUBSCRIPTION_PENDING = 0x00,
 

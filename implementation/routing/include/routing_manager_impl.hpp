@@ -171,7 +171,7 @@ public:
     std::chrono::steady_clock::time_point expire_subscriptions(bool _force);
 
     void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint);
-    void handle_client_error(client_t _client);
+    void cleanup_client(client_t _client);
     std::shared_ptr<endpoint_manager_impl> get_endpoint_manager() const;
 
     routing_state_e get_routing_state();

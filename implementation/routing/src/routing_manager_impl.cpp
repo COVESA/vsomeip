@@ -3035,13 +3035,13 @@ void routing_manager_impl::on_pong(client_t _client) {
 }
 
 void routing_manager_impl::register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) {
-    _endpoint->register_error_handler(std::bind(&routing_manager_impl::handle_client_error, this, _client));
+    _endpoint->register_error_handler(std::bind(&routing_manager_impl::cleanup_client, this, _client));
 }
 
-void routing_manager_impl::handle_client_error(client_t _client) {
-    VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " handles a client error 0x" << hex4(_client);
+void routing_manager_impl::cleanup_client(client_t _client) {
+    VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of client 0x" << hex4(_client);
 
-    stub_->update_registration(_client, registration_type_e::DEREGISTER_ON_ERROR, boost::asio::ip::address(), 0);
+    stub_->deregister_client(_client);
 
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t, minor_version_t>> its_offers;
     {
