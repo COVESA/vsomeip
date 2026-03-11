@@ -49,8 +49,8 @@ namespace cfg {
 configuration_impl::configuration_impl(const std::string& _path) :
     default_unicast_{"local"}, is_loaded_{false}, is_logging_loaded_{false}, prefix_{VSOMEIP_PREFIX}, diagnosis_{VSOMEIP_DIAGNOSIS_ADDRESS},
     diagnosis_mask_{0xFF00}, has_console_log_{true}, has_file_log_{false}, has_dlt_log_{false}, logfile_{"/tmp/vsomeip.log"},
-    loglevel_{vsomeip_v3::logger::level_e::LL_INFO}, is_sd_enabled_{VSOMEIP_SD_DEFAULT_ENABLED}, sd_protocol_{VSOMEIP_SD_DEFAULT_PROTOCOL},
-    sd_multicast_{VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_{VSOMEIP_SD_DEFAULT_PORT},
+    loglevel_{vsomeip_v3::logger::level_e::LL_INFO}, is_suppress_events_enabled_{false}, is_sd_enabled_{VSOMEIP_SD_DEFAULT_ENABLED},
+    sd_protocol_{VSOMEIP_SD_DEFAULT_PROTOCOL}, sd_multicast_{VSOMEIP_SD_DEFAULT_MULTICAST}, sd_port_{VSOMEIP_SD_DEFAULT_PORT},
     sd_initial_delay_min_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MIN}, sd_initial_delay_max_{VSOMEIP_SD_DEFAULT_INITIAL_DELAY_MAX},
     sd_repetitions_base_delay_{VSOMEIP_SD_DEFAULT_REPETITIONS_BASE_DELAY}, sd_repetitions_max_{VSOMEIP_SD_DEFAULT_REPETITIONS_MAX},
     sd_ttl_{VSOMEIP_SD_DEFAULT_TTL}, sd_cyclic_offer_delay_{VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY},
