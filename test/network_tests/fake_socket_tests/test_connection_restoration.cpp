@@ -13,6 +13,8 @@
 #include "helpers/service_state.hpp"
 #include "helpers/availability_checker.hpp"
 
+#include "../../../implementation/utility/include/utility.hpp"
+
 #include "sample_interfaces.hpp"
 
 #include <boost/asio/error.hpp>
@@ -668,6 +670,57 @@ TEST_F(test_client_helper, outdated_routing_info_will_not_cause_a_wrong_permanen
     // 6. we expect that the established connection is dropped (note that the predicate includes the check that connection has been
     // established)
     EXPECT_TRUE(wait_for_connection_drop(client_name_, new_app_name));
+}
+
+TEST_F(test_protocol_messages, switch_client_id) {
+
+    // This test ensures that when a service is offered by an app that
+    // switched its client id, the applications subscribed to it
+    // are able to receive notifications for it after the client id switch
+    // 1. Service is offered
+    // 2. Client requests service
+    // 3. Service is stopped
+    // 4. A new application is started claiming the former client id of service app
+    // 5. The previous service is started again with a new client id
+    // 6. Ensure that the client is still able to receive notifications
+
+    // Use specific configuration where apps don't have fixed client id
+    use_configuration("switch_client_id.json");
+
+    // 1.
+    start_apps();
+    auto old_server_client_id = server_->get_client();
+
+    // 2.
+    ASSERT_TRUE(subscribe_to_event());
+    send_first_message();
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
+
+    // 3.
+    stop_client(server_name_);
+    client_->subscription_record_.clear();
+    while (utility::get_used_client_ids("vsomeip").size() > 2) {
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+    } // only continue after old server client id is free
+
+    // 4.
+    auto new_app_name = "new_application";
+    create_app(new_app_name);
+    auto new_app = start_client(new_app_name);
+    ASSERT_NE(new_app, nullptr);
+    ASSERT_TRUE(new_app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // 5.
+    create_app(server_name_);
+    start_server();
+    auto new_server_client_id = server_->get_client();
+    // Verify that server client id has switched
+    ASSERT_NE(old_server_client_id, new_server_client_id);
+
+    // 6.
+    ASSERT_TRUE(subscribe_to_event());
+    send_first_message();
+    ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 }
 
 TEST_F(test_client_helper, reproduction_allow_reconnects_on_first_try_between_router_and_client) {

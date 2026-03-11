@@ -43,6 +43,11 @@ void command_record::add(std::string const& _sender_name, command_message _msg) 
     record_.push_back(std::make_pair(_sender_name, std::move(_msg)));
 }
 
+command_message command_record::get_last_msg() {
+    std::scoped_lock lock{mtx_};
+    return record_.back().second;
+}
+
 std::ostream& operator<<(std::ostream& _out, command_record const& _record) {
     std::scoped_lock lock{_record.mtx_};
     return _out << to_string(_record.record_);

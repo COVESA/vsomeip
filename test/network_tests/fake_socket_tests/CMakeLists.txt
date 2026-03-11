@@ -12,6 +12,7 @@ set(configuration_files
     ecu_one.json
     ecu_two.json
     guest.json
+    switch_client_id.json
 )
 configure_files("${configuration_files}")
 

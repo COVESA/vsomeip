@@ -63,6 +63,11 @@ public:
     void stop();
 
     /**
+     * Get the vsomeip app client id
+     */
+    vsomeip::client_t get_client();
+
+    /**
      * Whether application is a router, e.g., is routingmanagerd
      */
     bool is_router() const;

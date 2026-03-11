@@ -36,6 +36,11 @@ public:
     void add(std::string const& _sender_name, command_message _msg);
 
     /**
+     * get the last message received on the recorder
+     **/
+    command_message get_last_msg();
+
+    /**
      * user friendly output
      **/
     friend std::ostream& operator<<(std::ostream& _out, command_record const& _record);

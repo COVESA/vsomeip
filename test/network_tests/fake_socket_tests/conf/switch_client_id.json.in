@@ -1,0 +1,32 @@
+{
+    "unicast":"127.0.0.1",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true"
+    },
+    "diagnosis" : "0x63",
+    "diagnosis_mask" : "0xFFFC",
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "routing" :
+    {
+        "host": {
+            "name": "routingmanagerd",
+            "unicast": "127.0.0.1",
+            "port": "8998"
+        },
+        "guests": {
+            "unicast": "127.0.0.1",
+            "ports": [
+                {
+                    "first": "9000",
+                    "last": "65535"
+                }
+            ]
+        }
+    }
+}
+

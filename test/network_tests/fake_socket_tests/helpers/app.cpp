@@ -44,6 +44,10 @@ void app::stop() {
     app_ = nullptr;
 }
 
+vsomeip::client_t app::get_client() {
+    return app_->get_client();
+};
+
 bool app::is_router() const {
     return app_ && app_->is_routing();
 }
