@@ -330,6 +330,7 @@ file(GLOB ${VSOMEIP_NAME}_SRC
     "implementation/runtime/src/*.cpp"
     "implementation/security/src/*.cpp"
     "implementation/utility/src/*.cpp"
+    "implementation/thread_manager/src/*.cpp"
 )
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 1)
 list(APPEND ${VSOMEIP_NAME}_SRC "implementation/configuration/src/configuration_impl.cpp")

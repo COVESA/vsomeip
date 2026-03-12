@@ -1,0 +1,18 @@
+{
+    "unicast": "127.0.0.1",
+    "network": "dispatch_app",
+    "logging": {
+        "level": "trace",
+        "console": "true"
+    },
+    "tracing": {
+        "enable": "true"
+    },
+    "applications": [
+        {
+            "name": "dispatch_app",
+            "id": "0x1234"
+        }
+    ],
+    "routing": "dispatch_app"
+}

@@ -39,6 +39,7 @@
 #include "../../security/include/security.hpp"
 #include "../../tracing/include/connector_impl.hpp"
 #include "../../utility/include/utility.hpp"
+#include "../../thread_manager/include/thread_manager.hpp"
 
 #define VSOMEIP_LOG_PREFIX "app"
 
@@ -414,8 +415,8 @@ void application_impl::start() {
         }
     }
 
-    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_io00"
-                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_io00, application '" << name_ << "', id " << std::hex
+                 << std::this_thread::get_id()
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -480,10 +481,22 @@ void application_impl::start() {
                 // a reference to a vsomeip::application) are passed as parameters to event/method callbacks.
                 // Many apps use the reference to stop the connection, which under the hood hit the aforementioned case.
                 //
-                // To fix the issue, we detach the dispatcher thread so it can safely outlive the start thread
-                // without needing to be joined (which would deadlock in this scenario).
+                // To fix the issue, we pass the dispatcher thread's ownership to the thread_manager so it can safely outlive the start
+                // thread without needing to be joined (which would deadlock in this scenario). By transfering the ownership to
+                // thread_manager instead of simply detaching, we can also prevents the possibility of leak that would happen if the
+                // dispatcher thread was still alive during teardown.
                 if (its_dispatcher->joinable()) {
-                    its_dispatcher->detach();
+                    auto tm = thread_manager::get();
+                    // If the thread_manager does not exist anymore, it means we called exit from the dispatcher thread and are trying to
+                    // stop an application during teardown (most likely from a global static dtor). In this particular case, since the
+                    // dispatcher thread already called exit(), we can safely assume the thread finished and call detach.
+                    if (tm) {
+                        tm->save_thread(its_dispatcher);
+                    } else {
+                        fprintf(stderr, "Unable to join dispatcher thread: thread_manager already destroyed\n");
+                        fprintf(stderr, "Detaching dispatcher thread (WILL CAUSE LEAKS!)\n");
+                        its_dispatcher->detach();
+                    }
                 }
             } else if (its_dispatcher->joinable()) {
                 its_dispatcher->join();
@@ -515,8 +528,8 @@ void application_impl::start() {
 
     stopping_ = false;
 
-    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_io00"
-                 << ", application '" << name_ << "', id " << std::hex << std::this_thread::get_id()
+    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_io00, application '" << name_ << "', id " << std::hex
+                 << std::this_thread::get_id()
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -1733,8 +1746,7 @@ void application_impl::main_dispatch() {
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
 
-    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_m_dispatch"
-                 << ", application '" << name_ << "', id " << std::hex << its_id
+    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_m_dispatch, application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -1767,8 +1779,7 @@ void application_impl::main_dispatch() {
         }
     }
 
-    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_m_dispatch"
-                 << ", application '" << name_ << "', id " << std::hex << its_id
+    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_m_dispatch, application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -1785,8 +1796,7 @@ void application_impl::dispatch() {
 #endif
     const std::thread::id its_id = std::this_thread::get_id();
 
-    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_dispatch"
-                 << ", application '" << name_ << "', id " << std::hex << its_id
+    VSOMEIP_INFO << "Started thread " << hex4(client_) << "_dispatch, application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -1828,8 +1838,7 @@ void application_impl::dispatch() {
     }
     dispatcher_condition_.notify_all();
 
-    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_dispatch"
-                 << ", application '" << name_ << "', id " << std::hex << its_id
+    VSOMEIP_INFO << "Stopped thread " << hex4(client_) << "_dispatch, application '" << name_ << "', id " << std::hex << its_id
 #if defined(__linux__)
                  << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif

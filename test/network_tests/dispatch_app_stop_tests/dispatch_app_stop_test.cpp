@@ -1,3 +1,8 @@
+// Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -7,8 +12,8 @@
 #include "vsomeip/enumeration_types.hpp"
 #include "vsomeip/runtime.hpp"
 #include <gtest/gtest.h>
-#include <unistd.h>
 #include "common/test_main.hpp"
+#include "tools/tools.h"
 
 using namespace std::chrono_literals;
 
@@ -29,7 +34,11 @@ TEST(dispatch_app_stop, deadlock) {
      * Therefore, emulate this pattern here and ensure an application can call
      * stop and join the start thread.
      */
-    auto app = vsomeip_v3::runtime::get()->create_application("test_application");
+
+    const std::string app_name = "test_application";
+    ASSERT_EQ(create_config(app_name), 0);
+
+    auto app = vsomeip_v3::runtime::get()->create_application(app_name);
     app->init();
 
     // Synchronization primitives to detect when the start thread has completed
