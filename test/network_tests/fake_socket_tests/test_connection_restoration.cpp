@@ -1719,6 +1719,242 @@ TEST_F(test_restart_clients, block_registration_process) {
     EXPECT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 }
 
+/**
+ * Test fixture for concurrent registration scenario.
+ * Two application instances with the same ID start/stop simultaneously.
+ * The scenario tests that the deregister command from the first instance is still
+ * in the routing manager's queue when the register command from a newer instance arrives.
+ */
+struct test_concurrent_registration : base_fake_socket_fixture {
+    test_concurrent_registration() {
+        use_configuration("multiple_client_one_process.json");
+        create_app(routingmanager_name_);
+    }
+
+    void start_router() {
+        routingmanagerd_ = start_client(routingmanager_name_);
+        ASSERT_NE(routingmanagerd_, nullptr);
+        ASSERT_TRUE(await_connectable(routingmanager_name_));
+    }
+
+    // Both instances use the same application name to simulate concurrent registration
+    std::string const routingmanager_name_{"routingmanagerd"};
+    std::string const app_name_{"concurrent_app"};
+
+    service_instance service_{0x1387, 0x1};
+    vsomeip_v3::method_t method_{0x1221};
+    request req_{service_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
+
+    app* routingmanagerd_{};
+};
+
+/**
+ * Test concurrent registration: deregister from first instance is in queue when
+ * register from second instance arrives.
+ *
+ * Scenario:
+ * 1. Start router
+ * 2. Start first instance, wait for registration
+ * 3. First instance offers and requests service
+ * 4. Delay deregister processing to simulate queue buildup
+ * 5. Stop first instance (deregister queued)
+ * 6. Immediately start second instance (register queued after deregister)
+ * 7. Process all queued commands
+ * 8. Verify second instance can offer/request and communicate
+ */
+TEST_F(test_concurrent_registration, deregister_register_queue_ordering) {
+    // 1. Start the routing manager
+    start_router();
+
+    // 2. Start first instance
+    create_app(app_name_);
+    auto* first_instance = start_client(app_name_);
+    ASSERT_NE(first_instance, nullptr);
+    ASSERT_TRUE(first_instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // 3. First instance offers and requests service
+    first_instance->offer(service_);
+    first_instance->request_service(service_);
+    ASSERT_TRUE(first_instance->availability_record_.wait_for_last(service_availability::available(service_)));
+
+    // 4. Hold back the deregister processing in the routing manager
+    // This ensures the deregister command stays in the queue
+    ASSERT_TRUE(delay_message_processing(app_name_, routingmanager_name_, true));
+
+    // 5. Stop first instance - this queues the DEREGISTER_APPLICATION command
+    TEST_LOG << "[step] Stopping first instance (deregister will be queued)";
+    stop_client(app_name_);
+
+    // 6. Immediately start second instance - this queues REGISTER_APPLICATION after DEREGISTER
+    TEST_LOG << "[step] Starting second instance (register queued after deregister)";
+    create_app(app_name_);
+    auto* second_instance = start_client(app_name_);
+    ASSERT_NE(second_instance, nullptr);
+
+    // Wait for the second instance's socket to be established before releasing the delay.
+    // (start_client only waits for io_context assignment, not for the TCP connection)
+    ASSERT_TRUE(await_connection(app_name_, routingmanager_name_));
+
+    // Allow the routing manager to process queued messages (DEREGISTER then REGISTER)
+    ASSERT_TRUE(delay_message_processing(app_name_, routingmanager_name_, false));
+
+    // 7. Second instance should register successfully (new connection has no delay)
+    ASSERT_TRUE(second_instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Second instance offers and requests the service
+    second_instance->offer(service_);
+    second_instance->request_service(service_);
+    EXPECT_TRUE(second_instance->availability_record_.wait_for_last(service_availability::available(service_)));
+}
+
+/**
+ * Test concurrent registration with a client verifying service reachability.
+ *
+ * Scenario similar to above but with an additional client that
+ * verifies the service offered by the second instance is reachable.
+ */
+TEST_F(test_concurrent_registration, deregister_register_service_reachable_by_client) {
+    // Start router
+    start_router();
+
+    // Create and start a client that will request the service
+    std::string const client_name{"client"};
+    create_app(client_name);
+    auto* client = start_client(client_name);
+    ASSERT_NE(client, nullptr);
+    ASSERT_TRUE(client->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Client requests the service
+    client->request_service(service_);
+
+    // Start first instance that offers the service
+    create_app(app_name_);
+    auto* first_instance = start_client(app_name_);
+    ASSERT_NE(first_instance, nullptr);
+    ASSERT_TRUE(first_instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // First instance offers service
+    first_instance->offer(service_);
+    std::vector<uint8_t> payload_v1{0x01, 0x02};
+    first_instance->answer_request(req_, [payload_v1] { return payload_v1; });
+
+    // Wait for client to see the service available
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(service_)));
+
+    // Client sends request and verifies the reply from the first instance
+    client->send_request(req_);
+    ASSERT_TRUE(client->wait_for_messages({payload_v1}));
+
+    client->availability_record_.clear();
+    client->message_record_.clear();
+
+    // Hold back deregister processing
+    ASSERT_TRUE(delay_message_processing(app_name_, routingmanager_name_, true));
+
+    // Stop first instance
+    TEST_LOG << "[step] Stopping first instance";
+    stop_client(app_name_);
+
+    // Immediately start second instance
+    TEST_LOG << "[step] Starting second instance";
+    create_app(app_name_);
+    auto* second_instance = start_client(app_name_);
+    ASSERT_NE(second_instance, nullptr);
+
+    // Wait for the second instance's socket to be established before releasing the delay.
+    ASSERT_TRUE(await_connection(app_name_, routingmanager_name_));
+
+    // Allow the routing manager to process queued messages (DEREGISTER then REGISTER)
+    ASSERT_TRUE(delay_message_processing(app_name_, routingmanager_name_, false));
+
+    // Second instance should register (new connection has no delay)
+    ASSERT_TRUE(second_instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Second instance offers service with different payload
+    second_instance->offer(service_);
+    std::vector<uint8_t> payload_v2{0x03, 0x04};
+    second_instance->answer_request(req_, [payload_v2] { return payload_v2; });
+
+    // Client should see service available again (after potential unavailable)
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(service_)));
+
+    // Verify the second instance is actually serving by checking the v2 payload
+    client->send_request(req_);
+    EXPECT_TRUE(client->wait_for_messages({payload_v2}));
+}
+
+/**
+ * Smoke test: repeated start/stop of the same application name.
+ */
+TEST_F(test_concurrent_registration, repeated_start_stop) {
+    start_router();
+
+    for (size_t iteration = 0; iteration < 10; ++iteration) {
+        TEST_LOG << "[iteration] " << iteration;
+
+        // Start instance
+        create_app(app_name_);
+        auto* instance = start_client(app_name_);
+        ASSERT_NE(instance, nullptr);
+        ASSERT_TRUE(instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+        // Offer and request service
+        instance->offer(service_);
+        instance->request_service(service_);
+        ASSERT_TRUE(instance->availability_record_.wait_for_last(service_availability::available(service_)));
+
+        // Stop instance
+        stop_client(app_name_);
+    }
+    stop_client(routingmanager_name_);
+}
+
+/**
+ * Concurrent registration with deregister/register queuing on alternating iterations.
+ */
+TEST_F(test_concurrent_registration, repeated_concurrent_registration_with_queuing) {
+    start_router();
+
+    for (size_t iteration = 0; iteration < 5; ++iteration) {
+        TEST_LOG << "[iteration] " << iteration;
+
+        // Start instance
+        create_app(app_name_);
+        auto* instance = start_client(app_name_);
+        ASSERT_NE(instance, nullptr);
+        ASSERT_TRUE(instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+        // Offer and request service
+        instance->offer(service_);
+        instance->request_service(service_);
+        ASSERT_TRUE(instance->availability_record_.wait_for_last(service_availability::available(service_)));
+
+        // Hold back deregister to create queue scenario
+        ASSERT_TRUE(delay_message_processing(app_name_, routingmanager_name_, true));
+
+        // Stop instance - deregister is queued
+        stop_client(app_name_);
+
+        // Create next instance before releasing queue - register is queued after deregister
+        create_app(app_name_);
+        auto* next_instance = start_client(app_name_);
+        ASSERT_NE(next_instance, nullptr);
+
+        // Wait for the second instance's socket to be established before releasing the delay.
+        ASSERT_TRUE(await_connection(app_name_, routingmanager_name_));
+
+        // Release queued routing manager messages to process deregister/register in order
+        ASSERT_TRUE(delay_message_processing(app_name_, routingmanager_name_, false));
+
+        // Next instance should register successfully (new connection has no delay)
+        ASSERT_TRUE(next_instance->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+        // Stop this instance normally
+        stop_client(app_name_);
+    }
+    stop_client(routingmanager_name_);
+}
+
 struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };
 
 TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is_restored_with_request_reply) {
