@@ -790,34 +790,6 @@ std::string udp_server_endpoint_impl::get_remote_information(const endpoint_type
     return _remote.address().to_string() + ":" + std::to_string(_remote.port());
 }
 
-std::string udp_server_endpoint_impl::get_remote_information() const {
-    std::stringstream its_info;
-    std::scoped_lock<std::mutex> its_lock(mutex_);
-
-    if (targets_.empty()) {
-        its_info << "no clients";
-    } else {
-        its_info << targets_.size() << " client(s): ";
-        // NOTE: limit is important, do *NOT* want an arbitrarily big string!
-        // libdlt behaves very poorly with arbitrarily-long strings
-        size_t its_max = std::min(size_t(10), targets_.size());
-        size_t count = 0;
-        bool first = true;
-        for (const auto& target : targets_) {
-            if (count >= its_max)
-                break;
-            if (!first)
-                its_info << ", ";
-            its_info << target.first.address().to_string() << ":" << target.first.port();
-            first = false;
-            count++;
-        }
-        if (targets_.size() > its_max)
-            its_info << " ...";
-    }
-    return its_info.str();
-}
-
 bool udp_server_endpoint_impl::is_reliable() const {
     return false;
 }
@@ -1087,64 +1059,4 @@ void udp_server_endpoint_impl::wait_until_sent() {
         }
     }
 }
-
-void udp_server_endpoint_impl::flush_queue() {
-    std::unique_lock its_lock(mutex_);
-
-    // STEP 1: Force all current trains to dispatched_trains_ if not empty
-    for (auto it = targets_.begin(); it != targets_.end();) {
-        auto& its_data = it->second;
-        if (its_data.train_ && its_data.train_->buffer_ && !its_data.train_->buffer_->empty()) {
-            schedule_train(its_data);
-            its_data.train_ = std::make_shared<train>();
-            its_data.train_->departure_ = std::chrono::steady_clock::now();
-        }
-
-        // STEP 2: Move ALL dispatched_trains_ to queue at once for all targets
-        while (!its_data.dispatched_trains_.empty()) {
-            auto its_dispatched = its_data.dispatched_trains_.begin();
-            for (const auto& train_item : its_dispatched->second) {
-                its_data.queue_size_ += train_item->buffer_->size();
-                its_data.queue_.emplace_back(train_item->buffer_, 0);
-            }
-            its_data.dispatched_trains_.erase(its_dispatched);
-        }
-
-        // STEP 3: Force start sending if idle for all targets
-
-        if (!its_data.is_sending_ && !its_data.queue_.empty()) {
-            send_queued(it);
-        }
-        ++it;
-    }
-
-    // STEP 4: Wait for all targets to complete sending
-    uint32_t retry_count(0);
-    while (true) {
-        bool is_sending = false;
-        for (auto const& [_, endpoint_type] : targets_) {
-            is_sending = is_sending || endpoint_type.is_sending_ || !endpoint_type.queue_.empty();
-            if (is_sending) {
-                VSOMEIP_INFO_P << instance_name_ << "is_sending=" << endpoint_type.is_sending_
-                               << " queue_size=" << endpoint_type.queue_.size();
-            }
-        }
-
-        if (is_sending) {
-            VSOMEIP_WARNING_P << instance_name_ << "Waiting[" << retry_count << "] to complete send";
-
-            its_lock.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_UDP_CLOSE_SEND_BUFFER_CHECK_PERIOD));
-            its_lock.lock();
-        } else {
-            break;
-        }
-        ++retry_count;
-        if (retry_count > VSOMEIP_UDP_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR_P << instance_name_ << "Max retries reached to send! Will lose data";
-            break;
-        }
-    }
-}
-
 } // namespace vsomeip_v3

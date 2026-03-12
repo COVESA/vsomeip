@@ -1520,35 +1520,4 @@ client_t endpoint_manager_impl::get_client() const {
 std::string endpoint_manager_impl::get_client_host() const {
     return rm_->get_client_host();
 }
-
-void endpoint_manager_impl::flush_boardnet_endpoint_queues() const {
-    VSOMEIP_INFO_P << "Start endpoints flush for client 0x" << hex4(get_client());
-    auto client_eps = [this] {
-        std::scoped_lock its_lock(endpoint_mutex_);
-        return client_endpoints_;
-    }();
-    // Note: The flushing effectively blocks. Therefore no mutex is allowed to be locked, to avoid stale mates
-    for (const auto& [address, port_map] : client_eps) {
-        for (const auto& [port, reliable_map] : port_map) {
-            for (const auto& [is_reliable, partition_map] : reliable_map) {
-                for (const auto& [partition, endpoint] : partition_map) {
-                    endpoint->flush_queue();
-                }
-            }
-        }
-    }
-
-    auto server_eps = [this] {
-        std::scoped_lock its_lock(endpoint_mutex_);
-        return server_endpoints_;
-    }();
-    // Note: The flushing effectively blocks. Therefore no mutex is allowed to be locked, to avoid stale mates
-    for (const auto& [port, reliable_map] : server_eps) {
-        for (const auto& [is_reliable, endpoint] : reliable_map) {
-            endpoint->flush_queue();
-        }
-    }
-
-    VSOMEIP_INFO_P << "Finished endpoints flush for client 0x" << hex4(get_client());
-}
 } // namespace vsomeip_v3

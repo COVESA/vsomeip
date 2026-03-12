@@ -85,9 +85,6 @@ public:
     virtual bool is_reliable() const = 0;
     virtual std::uint16_t get_local_port() const = 0;
 
-    virtual void flush_queue() = 0;
-    virtual std::string get_remote_information() const = 0;
-
 public:
     void connect_cbk(boost::system::error_code const& _error);
     void send_cbk(const endpoint_type _key, boost::system::error_code const& _error, std::size_t _bytes);
@@ -113,8 +110,6 @@ protected:
     bool check_queue_limit(const uint8_t* _data, std::uint32_t _size, endpoint_data_type& _endpoint_data) const;
     // The caller must hold the `mutex_` lock
     bool queue_train(const target_data_iterator_type _it, const std::shared_ptr<train>& _train);
-    // The caller must hold the `mutex_` lock
-    void schedule_train(endpoint_data_type& _target);
 
     // The caller must hold the `mutex_` lock
     void send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time, const endpoint_type& _target);
@@ -141,6 +136,7 @@ private:
     virtual std::string get_remote_information(const endpoint_type& _remote) const = 0;
     virtual bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const;
 
+    void schedule_train(endpoint_data_type& _target);
     void update_last_departure(endpoint_data_type& _data);
 
     void start_dispatch_timer(target_data_iterator_type _it, const std::chrono::steady_clock::time_point& _now);

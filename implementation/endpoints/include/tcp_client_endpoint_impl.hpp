@@ -40,7 +40,6 @@ public:
     void print_status();
 
     void send_cbk(boost::system::error_code const& _error, std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
-    std::string get_remote_information() const override;
 
 private:
     void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry);
@@ -62,6 +61,7 @@ private:
     std::size_t write_completion_condition(const boost::system::error_code& _error, std::size_t _bytes_transferred,
                                            std::size_t _bytes_to_send, service_t _service, method_t _method, client_t _client,
                                            session_t _session, const std::chrono::steady_clock::time_point _start);
+    std::string get_remote_information() const;
     std::shared_ptr<struct timing> get_timing(const service_t& _service, const instance_t& _instance) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();

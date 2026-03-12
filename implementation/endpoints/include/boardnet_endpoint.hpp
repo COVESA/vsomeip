@@ -43,15 +43,12 @@ public:
     virtual bool is_local() const = 0;
 
     virtual std::uint16_t get_local_port() const = 0;
-    virtual std::string get_remote_information() const = 0;
 
     virtual void print_status() = 0;
     virtual size_t get_queue_size() const = 0;
 
     virtual void set_established(bool _established) = 0;
     virtual void set_connected(bool _connected) = 0;
-
-    virtual void flush_queue() = 0;
 };
 
 } // namespace vsomeip_v3

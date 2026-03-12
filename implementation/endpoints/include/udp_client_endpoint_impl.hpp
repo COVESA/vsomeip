@@ -44,7 +44,6 @@ public:
     bool is_reliable() const;
 
     void send_cbk(boost::system::error_code const& _error, std::size_t _bytes, const message_buffer_ptr_t& _sent_msg);
-    std::string get_remote_information() const override;
 
 private:
     void send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry);
@@ -54,6 +53,7 @@ private:
     void receive();
     std::string get_address_port_remote() const;
     std::string get_address_port_local() const;
+    std::string get_remote_information() const;
     bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const;
     std::uint32_t get_max_allowed_reconnects() const;
     void max_allowed_reconnects_reached();

@@ -87,8 +87,6 @@ public:
     void suspend();
     void resume();
 
-    void flush_boardnet_endpoint_queues() const;
-
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
     void remove_routing_endpoint(client_t _client, bool _remove_due_to_error);
     void clear_routing_endpoints();

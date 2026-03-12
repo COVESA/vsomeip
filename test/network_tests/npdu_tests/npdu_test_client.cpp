@@ -121,6 +121,11 @@ void npdu_test_client::stop() {
         // of the "server" connection within the router.
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
+
+    // magic sleep to give time for the last message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
     app_->stop();
 }
 

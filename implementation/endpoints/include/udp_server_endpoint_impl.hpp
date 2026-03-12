@@ -78,8 +78,6 @@ public:
      * to-be-dispatched train, so beware of dispatching/debouncing delays!
      */
     void wait_until_sent();
-    void flush_queue() override;
-    std::string get_remote_information() const override;
 
 private:
     void start_unlocked();

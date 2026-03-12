@@ -36,7 +36,6 @@ public:
     bool get_remote_address(boost::asio::ip::address& _address) const;
     std::uint16_t get_local_port() const;
     std::uint16_t get_remote_port() const;
-    std::string get_remote_information() const override;
     bool is_reliable() const;
     bool is_local() const;
 
@@ -45,8 +44,6 @@ public:
     void print_status();
 
     size_t get_queue_size() const;
-
-    void flush_queue();
 
 private:
     std::string address_;

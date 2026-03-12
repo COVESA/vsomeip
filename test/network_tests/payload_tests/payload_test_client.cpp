@@ -166,6 +166,9 @@ void payload_test_client::run() {
     blocked_ = false;
 
     stop();
+    // magic sleep to give time for the shutdown message to be sent
+    // TODO: FIXME! REMOVE THIS!
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
     app_->stop();
 }
 

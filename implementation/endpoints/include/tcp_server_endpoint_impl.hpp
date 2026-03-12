@@ -54,9 +54,6 @@ public:
     // TODO: think about a better design!
     void receive();
     void print_status();
-    void flush_queue() override;
-    size_t get_send_buffer_size(const endpoint_type& _remote, boost::system::error_code& _ec);
-    std::string get_remote_information() const override;
 
 private:
     class connection : public std::enable_shared_from_this<connection> {

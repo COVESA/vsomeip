@@ -71,8 +71,6 @@ public:
 
     size_t get_queue_size() const;
 
-    void flush_queue() override;
-
 public:
     void cancel_and_connect_cbk(boost::system::error_code const& _error);
     void connect_cbk(boost::system::error_code const& _error);
@@ -85,7 +83,6 @@ public:
     virtual void connect() = 0;
     virtual void receive() = 0;
     virtual void print_status() = 0;
-    virtual std::string get_remote_information() const = 0;
 
 protected:
     enum class cei_state_e : std::uint8_t { CLOSED, CONNECTING, CONNECTED, ESTABLISHED };
@@ -107,7 +104,6 @@ protected:
     void update_last_departure();
     bool ensure_connected(const boost::system::error_code& _error);
     const char* to_string(cei_state_e state);
-    size_t get_send_buffer_size(boost::system::error_code& _ec);
 
 protected:
     mutable std::mutex socket_mutex_;
@@ -147,6 +143,7 @@ protected:
     boost::asio::io_context::strand strand_;
 
 private:
+    virtual std::string get_remote_information() const = 0;
     virtual bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;
