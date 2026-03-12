@@ -5,6 +5,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 #include <cstring>
+#include <cinttypes>
 
 #include "memory_test_service.hpp"
 
@@ -28,7 +29,8 @@ void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& s
         std::uint64_t its_dirtypages(0);
 
         if (EOF
-            == std::fscanf(its_file, "%lu %lu %lu %lu %lu %lu %lu", &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib,
+            == std::fscanf(its_file, "%" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64,
+                           &its_size, &its_rsssize, &its_sharedpages, &its_text, &its_lib,
                            &its_data, &its_dirtypages)) {
             VSOMEIP_ERROR << "check_memory: error reading: errno " << errno;
         }
