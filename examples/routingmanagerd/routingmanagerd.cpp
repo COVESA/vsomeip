@@ -21,42 +21,6 @@
 
 static std::shared_ptr<vsomeip::application> its_application;
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-static vsomeip::routing_state_e routing_state = vsomeip::routing_state_e::RS_RUNNING;
-static bool stop_application = false;
-static bool stop_sighandler = false;
-static std::condition_variable_any sighandler_condition;
-static std::recursive_mutex sighandler_mutex;
-#endif
-
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-/*
- * Handle signal to stop the daemon
- */
-void routingmanagerd_stop(int _signal) {
-    // Do not log messages in signal handler as this can cause deadlock in boost logger
-    switch (_signal) {
-    case SIGINT:
-    case SIGTERM:
-        stop_application = true;
-        break;
-
-    case SIGUSR1:
-        routing_state = vsomeip::routing_state_e::RS_SUSPENDED;
-        break;
-
-    case SIGUSR2:
-        routing_state = vsomeip::routing_state_e::RS_RESUMED;
-        break;
-
-    default:;
-    };
-
-    std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
-    sighandler_condition.notify_one();
-}
-#endif
-
 /*
  * Create a vsomeip application object and start it.
  */
@@ -82,7 +46,12 @@ int routingmanagerd_process(bool _is_quiet) {
     }
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    std::thread sighandler_thread([]() {
+
+    auto signal_worker_fn = []() {
+#if defined(__linux__) || defined(__QNX__)
+        pthread_setname_np(pthread_self(), "signal_w");
+#endif
+
         // Unblock signals for this thread only
         sigset_t handler_mask;
         sigemptyset(&handler_mask);
@@ -92,26 +61,23 @@ int routingmanagerd_process(bool _is_quiet) {
         sigaddset(&handler_mask, SIGINT);
         sigaddset(&handler_mask, SIGSEGV);
         sigaddset(&handler_mask, SIGABRT);
-        pthread_sigmask(SIG_UNBLOCK, &handler_mask, NULL);
 
-        // Handle the following signals
-        signal(SIGINT, routingmanagerd_stop);
-        signal(SIGTERM, routingmanagerd_stop);
-        signal(SIGUSR1, routingmanagerd_stop);
-        signal(SIGUSR2, routingmanagerd_stop);
+        while (true) {
+            int its_signal = 0;
+            sigwait(&handler_mask, &its_signal);
 
-        while (!stop_sighandler) {
-            std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
-            sighandler_condition.wait(its_lock);
-            if (stop_application) {
+            if (its_signal == SIGTERM || its_signal == SIGINT) {
                 its_application->stop();
                 return;
-            } else if (routing_state == vsomeip::routing_state_e::RS_RESUMED || routing_state == vsomeip::routing_state_e::RS_SUSPENDED) {
-                VSOMEIP_INFO << "Received signal for setting routing_state to: 0x" << std::hex << static_cast<int>(routing_state);
-                its_application->set_routing_state(routing_state);
+            } else if (its_signal == SIGUSR1) {
+                its_application->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+            } else if (its_signal == SIGUSR2) {
+                its_application->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
             }
         }
-    });
+    };
+
+    std::thread sighandler_thread(signal_worker_fn);
 #endif
 
     if (its_application->is_routing()) {
@@ -125,18 +91,12 @@ int routingmanagerd_process(bool _is_quiet) {
             sighandler_thread.detach();
         }
 #endif
-
         its_application.reset();
         return 0;
     }
     VSOMEIP_ERROR << "routingmanagerd has not been configured as routing - abort";
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    {
-        std::unique_lock<std::recursive_mutex> its_lock(sighandler_mutex);
-        stop_sighandler = true;
-        sighandler_condition.notify_one();
-    }
     if (std::this_thread::get_id() != sighandler_thread.get_id()) {
         if (sighandler_thread.joinable()) {
             sighandler_thread.join();
