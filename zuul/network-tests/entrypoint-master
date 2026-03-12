@@ -57,24 +57,32 @@ do
 			update-result-file "$tests_result_file" "$test" 1
 			cp /home/logs/{junit/"$test".xml,failed-junit/}
 		else
-			valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$test")
-			if ((valgrind_errors > 0))
+			update-result-file "$tests_result_file" "$test"
+			if [[ "$VALGRIND_TYPE" ]]
 			then
-				update-result-file "$tests_result_file" "$test" "$valgrind_errors" "$VALGRIND_TYPE"
-				cp /home/logs/{junit/"$test".xml,failed-junit/}
-			else
-				update-result-file "$tests_result_file" "$test"
+				# Keep a global artifact for compatibility and easier inspection.
+				valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$test" > /dev/null
 			fi
 		fi
 
 		# look also inside output, report the individual test failures/successes
-		grep "testcase name" /home/logs/junit/"$test".xml | while read line;
+		grep "testcase name" /home/logs/junit/"$test".xml | while read -r line;
 		do
 			# example: <testcase name="availability_handler_test" classname="availability_handler_test" time="16.9096" status="run">
-			testcase=$(echo $line | sed 's/.*name="//' | sed 's/".*//')
+			testcase=$(echo "$line" | sed 's/.*name="//' | sed 's/".*//')
+			valgrind_errors=0
+			if [[ "$VALGRIND_TYPE" ]]
+			then
+				valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$testcase")
+			fi
+
 			if [[ $line == *'status="fail"'* ]];
 			then
 				update-result-file "$tests_result_file" "$testcase" 1
+				cp /home/logs/{junit/"$test".xml,failed-junit/"$testcase".xml}
+			elif ((valgrind_errors > 0))
+			then
+				update-result-file "$tests_result_file" "$testcase" "$valgrind_errors" "$VALGRIND_TYPE"
 				cp /home/logs/{junit/"$test".xml,failed-junit/"$testcase".xml}
 			else
 				update-result-file "$tests_result_file" "$testcase"

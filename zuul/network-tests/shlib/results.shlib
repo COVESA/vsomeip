@@ -48,17 +48,34 @@ function valgrind-errors
 	local outputs_folder="$1"
 	local test_name="$2"
 	local result=0
+	local test_errors=0
+	local combined_file="$outputs_folder/$test_name.combined.out"
+	local output_file
+	local -a output_files=()
 
-	## write all of the valgrind logs into a single output file, for ease of check
-	cat "$outputs_folder/$test_name".*.out > "$outputs_folder/$test_name".combined.out
+	shopt -s nullglob
+	if [[ "$test_name" == "parallel" ]]
+	then
+		# Parallel mode runs multiple ctest entries together; aggregate all raw outputs.
+		output_files=("$outputs_folder"/*.[0-9]*.out)
+	else
+		output_files=("$outputs_folder/$test_name".[0-9]*.out)
+	fi
+	shopt -u nullglob
 
-	for output_file in "$outputs_folder/$test_name".*.out; do
-		if [[ -f "$output_file" ]]
-		then
-			result=$(($result + $((grep -oP 'ERROR SUMMARY: \K\d+' "$output_file" || echo 0) | sort -n | tail -n1)))
-		fi
+	if ((${#output_files[@]} == 0))
+	then
+		echo 0
+		return 0
+	fi
+
+	cat "${output_files[@]}" > "$combined_file"
+
+	for output_file in "${output_files[@]}"; do
+		test_errors=$(grep -oP 'ERROR SUMMARY: \K\d+' "$output_file" | sort -n | tail -n1)
+		result=$((result + ${test_errors:-0}))
 	done
-	echo $result
+	echo "$result"
 }
 
 function gen-core-backtraces
