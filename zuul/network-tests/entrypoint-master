@@ -47,15 +47,61 @@ PARALLEL_JOBS="$(nproc --all)"
 
 for ((n = 0; n < stress_times[0]; n++))
 do
+	# clear leftovers from a previous run
+	rm -f /home/build/Testing/Temporary/CTestCostData.txt
+
 	# run parallel tests
 	for test in $(ctest --preset ci-network-tests -LE SEQUENTIAL --show-only=json-v1 ${stress_regex:+--tests-regex "$stress_regex"} | jq -r '.tests[].name')
 	do
-		# test does not matter, condition above is just to see if there is _any_ test that can be run in parallel
+		# $test does not matter, condition above is just to see if there is _any_ test that can be run in parallel
 		test="parallel"
-		if ! ctest --preset ci-network-tests -LE SEQUENTIAL -j "${PARALLEL_JOBS}" --output-junit /home/logs/junit/"$test".xml
+
+		RES=0
+		ctest --preset ci-network-tests -LE SEQUENTIAL -j "${PARALLEL_JOBS}" || ((RES=1))
+		cp /home/build/Testing/Temporary/LastTest.log /home/logs/junit/"$test".log
+
+		# `parallel.log` contains output for multiple tests, so split it
+		# should look like this:
+		# ```
+		# 11/193 Testing: configuration_test
+		# 11/193 Test: configuration_test
+		# Command: ...
+		# Directory: ...
+		# Output:
+		# ----------------------------------------------------------
+		# random-test-output
+		# ----------------------------------------------------------
+		# Test Passed.
+		# "configuration_test" end time: ...
+		# "configuration_test" time elapsed: ...
+		# ----------------------------------------------------------
+		# 18/193 Testing: dispatch_app_stop_test
+		# 18/193 Test: dispatch_app_stop_test
+		# Command: ...
+		# Directory: ...
+		# Output:
+		# ----------------------------------------------------------
+		# random-test-output
+		# ----------------------------------------------------------
+		# Test Passed.
+		# "dispatch_app_stop_test" end time: ...
+		# "dispatch_app_stop_test" time elapsed: ...
+		# ----------------------------------------------------------
+		# ```
+		awk '
+			/^[0-9]+\/[0-9]+ Testing:/ {
+				if (testname) close(outfile)
+				gsub(/.*Testing: /, ""); gsub(/$/, "")
+				testname = $0
+				outfile = "/home/logs/junit/" testname ".log"
+			}
+			testname { print > outfile }
+		' /home/logs/junit/"$test".log
+
+		if [ $RES -ne 0 ]
 		then
 			update-result-file "$tests_result_file" "$test" 1
-			cp /home/logs/{junit/"$test".xml,failed-junit/}
+			cp /home/logs/{junit/"$test".log,failed-junit/}
 		else
 			update-result-file "$tests_result_file" "$test"
 			if [[ "$VALGRIND_TYPE" ]]
@@ -66,28 +112,49 @@ do
 		fi
 
 		# look also inside output, report the individual test failures/successes
-		grep "testcase name" /home/logs/junit/"$test".xml | while read -r line;
-		do
-			# example: <testcase name="availability_handler_test" classname="availability_handler_test" time="16.9096" status="run">
-			testcase=$(echo "$line" | sed 's/.*name="//' | sed 's/".*//')
+		# CTestCostData.txt has output of this sort:
+		# availability_handler_test 0 0
+		# .. // other successful tests
+		# unit_tests_endpoint_tests 1 0.595361
+		# ---
+		# restart_routing_test
+		# ... // other failed tests
+		# availability_handler_test
+
+		# format: "testname exec_count cost" for passed tests
+		while read -r testcase; do
 			valgrind_errors=0
 			if [[ "$VALGRIND_TYPE" ]]
 			then
 				valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$testcase")
 			fi
 
-			if [[ $line == *'status="fail"'* ]];
-			then
-				update-result-file "$tests_result_file" "$testcase" 1
-				cp /home/logs/{junit/"$test".xml,failed-junit/"$testcase".xml}
-			elif ((valgrind_errors > 0))
+			if ((valgrind_errors > 0))
 			then
 				update-result-file "$tests_result_file" "$testcase" "$valgrind_errors" "$VALGRIND_TYPE"
-				cp /home/logs/{junit/"$test".xml,failed-junit/"$testcase".xml}
+				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
 			else
 				update-result-file "$tests_result_file" "$testcase"
 			fi
-		done
+		done < <(awk 'NF==3 {print $1}' /home/build/Testing/Temporary/CTestCostData.txt)
+
+		# format: "testname" for failed tests, separated by "---" from passed tests
+		while read -r testcase; do
+			valgrind_errors=0
+			if [[ "$VALGRIND_TYPE" ]]
+			then
+				valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$testcase")
+			fi
+
+			if ((valgrind_errors > 0))
+			then
+				update-result-file "$tests_result_file" "$testcase" "$valgrind_errors" "$VALGRIND_TYPE"
+				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
+			else
+				update-result-file "$tests_result_file" "$testcase" 1
+				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
+			fi
+		done < <(awk 'NF==1 {print $1}' /home/build/Testing/Temporary/CTestCostData.txt | tail -n +2)
 
 		break
 	done
@@ -104,16 +171,20 @@ do
 
 			tcpdump -U -i eth0 -w /home/logs/pcap/"$test".pcap &
 
-			if ! ctest --preset ci-network-tests --output-junit /home/logs/junit/"$test".xml --tests-regex "^$test$" --test-output-size-passed 1073741824 --test-output-size-failed 1073741824
+			RES=0
+			ctest --preset ci-network-tests --tests-regex "^$test$" || ((RES=1))
+			cp /home/build/Testing/Temporary/LastTest.log /home/logs/junit/"$test".log
+
+			if [ $RES -ne 0 ]
 			then
 				update-result-file "$tests_result_file" "$test" 1
-				cp /home/logs/{junit/"$test".xml,failed-junit/}
+				cp /home/logs/{junit/"$test".log,failed-junit/}
 			else
 				valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$test")
 				if ((valgrind_errors > 0))
 				then
 					update-result-file "$tests_result_file" "$test" "$valgrind_errors" "$VALGRIND_TYPE"
-					cp /home/logs/{junit/"$test".xml,failed-junit/}
+					cp /home/logs/{junit/"$test".log,failed-junit/}
 				else
 					update-result-file "$tests_result_file" "$test"
 				fi
@@ -127,11 +198,11 @@ done
 
 (
 	cd /home/logs
-	tar -acvf junit.tgz --transform=s/^junit/network-tests/ junit/*.xml
+	tar -acvf junit.tgz --transform=s/^junit/network-tests/ junit/*.log
 	shopt -s nullglob
-	if [[ "$(echo failed-junit/*.xml)" ]]
+	if [[ "$(echo failed-junit/*.log)" ]]
 	then
-		tar -acvf failed-junit.tgz --transform=s/^failed-junit/network-tests/ failed-junit/*.xml
+		tar -acvf failed-junit.tgz --transform=s/^failed-junit/network-tests/ failed-junit/*.log
 	fi
 )
 
