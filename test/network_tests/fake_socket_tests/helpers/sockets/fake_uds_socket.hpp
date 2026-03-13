@@ -38,10 +38,6 @@ private:
     }
 
     void set_reuse_address(boost::system::error_code& _ec) override { _ec = boost::system::error_code(); }
-    endpoint remote_endpoint(boost::system::error_code& _ec) override {
-        _ec = boost::system::error_code();
-        return state_->remote_uds_endpoint();
-    }
     [[nodiscard]] bool get_peer_credentials([[maybe_unused]] vsomeip_sec_client_t& _client) override {
         // TODO
         return true;
@@ -54,6 +50,7 @@ private:
     void async_write(boost::asio::const_buffer const& _buffer, rw_handler _handler) { state_->write({_buffer}, std::move(_handler)); }
 
     friend struct fake_tcp_acceptor_handle;
+    friend struct fake_uds_acceptor;
     std::shared_ptr<fake_tcp_socket_handle> state_;
 };
 struct fake_uds_acceptor : public uds_acceptor {
@@ -94,7 +91,18 @@ private:
 
     void set_reuse_address(boost::system::error_code& _ec) override { _ec = boost::system::error_code(); }
 
-    void async_accept(uds_socket& _socket, connect_handler _handler) override { state_->async_accept(_socket, std::move(_handler)); }
+    // In the fake, the remote_uds_ep_ is already set on the socket by the time the handler fires
+    // (add_connection() runs synchronously before posting the handler), so reading it from
+    // the socket handle is always valid.
+    void async_accept(uds_socket& _socket, endpoint& _peer_ep, connect_handler _handler) override {
+        auto* socket_impl = dynamic_cast<fake_uds_socket*>(&_socket);
+        state_->async_accept(_socket, [socket_impl, &_peer_ep, h = std::move(_handler)](boost::system::error_code ec) mutable {
+            if (!ec && socket_impl) {
+                _peer_ep = socket_impl->state_->remote_uds_endpoint();
+            }
+            h(ec);
+        });
+    }
     std::shared_ptr<fake_tcp_acceptor_handle> state_;
 };
 }

@@ -97,12 +97,17 @@ void local_acceptor_uds_impl::async_accept(connection_handler _handler) {
     std::scoped_lock const lock{mtx_};
     // tmp_socket is a `shared_ptr` due to the `std::function`  below which requires everything to be copyable
     std::shared_ptr<uds_socket> tmp_socket = abstract_socket_factory::get()->create_uds_socket(io_);
-    socket& socket_ref = *tmp_socket;
-    acceptor_->async_accept(socket_ref, [weak_self = weak_from_this(), h = std::move(_handler), tmp_socket](auto const& _ec) {
-        if (auto self = weak_self.lock(); self) {
-            self->accept_cbk(_ec, std::move(h), tmp_socket);
-        }
-    });
+    // Use the peer-endpoint overload so the remote address is captured by the kernel at accept() time.
+    // If the client disconnects immediately after connecting, calling remote_endpoint() on the socket
+    // in the callback would fail
+    auto tmp_remote_ep = std::make_shared<endpoint>();
+    uds_socket& socket_ref = *tmp_socket;
+    acceptor_->async_accept(socket_ref, *tmp_remote_ep,
+                            [weak_self = weak_from_this(), h = std::move(_handler), tmp_socket, tmp_remote_ep](auto const& _ec) {
+                                if (auto self = weak_self.lock(); self) {
+                                    self->accept_cbk(_ec, std::move(h), tmp_socket, tmp_remote_ep);
+                                }
+                            });
 }
 
 port_t local_acceptor_uds_impl::get_local_port() {
@@ -110,28 +115,16 @@ port_t local_acceptor_uds_impl::get_local_port() {
 }
 
 // NOSONAR(cpp:S5213) - Handler is already std::function from async_accept, making this a template provides no benefit
-void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler,
-                                         std::shared_ptr<socket> _socket) {
+void local_acceptor_uds_impl::accept_cbk(boost::system::error_code const& _ec, connection_handler _handler, std::shared_ptr<socket> _socket,
+                                         std::shared_ptr<endpoint> _remote_ep) {
     if (_ec) {
         _handler(_ec, nullptr);
         return;
     }
-
-    std::unique_lock lock{mtx_};
-    boost::system::error_code ec;
-    auto remote = _socket->remote_endpoint(ec);
-    if (ec) {
-        VSOMEIP_WARNING_P << "Could not read remote endpoint, error: " << ec.message() << ", mem: " << this;
-        // invoke handler only without the lock (avoids the need of a recursive mutex)
-        lock.unlock();
-        _handler(ec, nullptr);
-        return;
-    }
     // transfer ownership of the socket member, subsequent async_accept calls will re-instantiate it
-    lock.unlock();
-    // invoke handler only without the lock (avoids the need of a recursive mutex)
-    _handler(_ec,
-             std::make_shared<local_socket_uds_impl>(io_, std::move(_socket), own_endpoint_, std::move(remote), socket_role_e::SERVER));
+    _handler(
+            _ec,
+            std::make_shared<local_socket_uds_impl>(io_, std::move(_socket), own_endpoint_, std::move(*_remote_ep), socket_role_e::SERVER));
 }
 }
 #endif

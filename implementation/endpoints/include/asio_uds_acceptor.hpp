@@ -39,13 +39,13 @@ private:
         acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _ec);
     }
 
-    void async_accept(uds_socket& _socket, connect_handler _handler) override {
+    void async_accept(uds_socket& _socket, endpoint& _peer_ep, connect_handler _handler) override {
         auto* socket_impl = dynamic_cast<asio_uds_socket*>(&_socket);
         if (!socket_impl) {
             _handler(boost::asio::error::make_error_code(boost::asio::error::invalid_argument));
             return;
         }
-        acceptor_.async_accept(socket_impl->socket_, std::move(_handler));
+        acceptor_.async_accept(socket_impl->socket_, _peer_ep, std::move(_handler));
     }
 
     boost::asio::local::stream_protocol::acceptor acceptor_;

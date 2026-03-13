@@ -7,7 +7,6 @@ project(shutdown_tests LANGUAGES CXX)
 
 # Configure the necessary files into the build folder.
 set(configuration_files
-
     shutdown_test_local_client_host_starter.sh
     shutdown_test_local_service_host_starter.sh
     shutdown_test_local_starter.sh

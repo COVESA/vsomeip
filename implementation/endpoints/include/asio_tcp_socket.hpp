@@ -63,7 +63,6 @@ private:
     [[nodiscard]] bool can_read_fd_flags() override { return fcntl(socket_.native_handle(), F_GETFD) != -1; }
 #endif
     boost::asio::ip::tcp::endpoint local_endpoint(boost::system::error_code& ec) const override { return socket_.local_endpoint(ec); }
-    boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code& ec) const override { return socket_.remote_endpoint(ec); }
     void async_connect(boost::asio::ip::tcp::endpoint const& ep, connect_handler handler) override {
         socket_.async_connect(ep, std::move(handler));
     }
@@ -105,13 +104,13 @@ private:
     }
 #endif
 
-    void async_accept(tcp_socket& socket, connect_handler handler) override {
+    void async_accept(tcp_socket& socket, boost::asio::ip::tcp::endpoint& peer_ep, connect_handler handler) override {
         auto* socket_impl = dynamic_cast<asio_tcp_socket*>(&socket);
         if (!socket_impl) {
             handler(boost::asio::error::make_error_code(boost::asio::error::invalid_argument));
             return;
         }
-        acceptor_.async_accept(socket_impl->socket_, std::move(handler));
+        acceptor_.async_accept(socket_impl->socket_, peer_ep, std::move(handler));
     }
 
     boost::asio::ip::tcp::acceptor acceptor_;

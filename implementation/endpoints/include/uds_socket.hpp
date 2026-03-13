@@ -28,7 +28,6 @@ public:
 
     [[nodiscard]] virtual bool get_peer_credentials(vsomeip_sec_client_t& _client) = 0;
     virtual void set_reuse_address(boost::system::error_code& _ec) = 0;
-    virtual endpoint remote_endpoint(boost::system::error_code& _ec) = 0;
 
     virtual void async_connect(endpoint const& _ep, connect_handler _handler) = 0;
     virtual void async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) = 0;

@@ -36,7 +36,6 @@ private:
         return true;
     }
     void set_reuse_address(boost::system::error_code& _ec) { socket_.set_option(boost::asio::socket_base::reuse_address(true), _ec); }
-    endpoint remote_endpoint(boost::system::error_code& _ec) override { return socket_.remote_endpoint(_ec); }
     void async_connect(endpoint const& _ep, connect_handler _handler) override { socket_.async_connect(_ep, std::move(_handler)); }
     void async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) override {
         socket_.async_receive(_buffer, std::move(_handler));

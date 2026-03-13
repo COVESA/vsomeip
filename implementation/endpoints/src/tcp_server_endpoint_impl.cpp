@@ -115,10 +115,15 @@ void tcp_server_endpoint_impl::start() {
                 connection::create(std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), max_message_size_,
                                    buffer_shrink_threshold_, use_magic_cookies_, io_, send_timeout_);
 
-        acceptor_.async_accept(new_connection->get_socket(),
+        // Use the peer-endpoint overload so the remote address is captured by the kernel
+        // at accept() time.  If the client disconnects immediately after connecting, calling
+        // remote_endpoint() on the socket in the callback would fail (returning an unspecified
+        // address), which would later cause messages to be dropped in on_message.
+        auto its_remote_ep = std::make_shared<endpoint_type>();
+        acceptor_.async_accept(new_connection->get_socket(), *its_remote_ep,
                                std::bind(&tcp_server_endpoint_impl::accept_cbk,
                                          std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), new_connection,
-                                         std::placeholders::_1));
+                                         its_remote_ep, std::placeholders::_1));
     } else {
         VSOMEIP_ERROR_P << instance_name_ << "Start failed, acceptor is closed";
     }
@@ -260,19 +265,17 @@ void tcp_server_endpoint_impl::remove_connection(endpoint_type _endpoint, connec
     }
 }
 
-void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, boost::system::error_code const& _error) {
+void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shared_ptr<endpoint_type> _remote_ep,
+                                          boost::system::error_code const& _error) {
 
     if (!_error) {
+        // Remote endpoint was captured by the kernel at accept() time via the peer-endpoint
+        // overload of async_accept, so it is valid even if the client already disconnected.
         boost::system::error_code its_error;
-        endpoint_type remote;
+        const endpoint_type remote(*_remote_ep);
         {
             std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
             socket_type& new_connection_socket = _connection->get_socket();
-            remote = new_connection_socket.remote_endpoint(its_error);
-            if (its_error) {
-                VSOMEIP_ERROR_P << instance_name_ << "Remote endpoint info failed, " << its_error.message();
-            }
-
             _connection->set_remote_info(remote);
             // Nagle algorithm off
             new_connection_socket.set_option(ip::tcp::no_delay(true), its_error);

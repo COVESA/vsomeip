@@ -32,7 +32,7 @@ public:
 
     virtual void set_reuse_address(boost::system::error_code& _ec) = 0;
 
-    virtual void async_accept(uds_socket& _socket, connect_handler _handler) = 0;
+    virtual void async_accept(uds_socket& _socket, endpoint& _peer_ep, connect_handler _handler) = 0;
 };
 
 }

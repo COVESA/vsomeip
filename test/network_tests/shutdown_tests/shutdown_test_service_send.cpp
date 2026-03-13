@@ -139,6 +139,9 @@ int main(int argc, char** argv) {
             shutdown_test_service::size_buffer_ = shutdown_test::SHUTDOWN_SIZE_UDS;
             shutdown_test_service::is_tcp_ = false;
         }
+        if (std::string("FALSE") == std::string(argv[2])) {
+            shutdown_test_service::size_buffer_ = 0;
+        }
     }
 
     return test_main(argc, argv, std::chrono::seconds(30), true);

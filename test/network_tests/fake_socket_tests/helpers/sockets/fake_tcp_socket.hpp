@@ -68,11 +68,6 @@ private:
         return state_->local_endpoint();
     }
 
-    virtual boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code& _ec) const override {
-        _ec = boost::system::error_code();
-        return state_->remote_endpoint();
-    }
-
     virtual void io_control(io_control_operation<std::size_t>&, boost::system::error_code& _ec) override {
         _ec = boost::system::error_code();
     }
@@ -141,6 +136,7 @@ private:
     virtual void async_write(boost::asio::const_buffer const&, completion_condition, rw_handler) override { }
 
     friend struct fake_tcp_acceptor_handle;
+    friend class fake_tcp_acceptor;
     std::shared_ptr<fake_tcp_socket_handle> state_;
     bool set_no_delay_{false};
     bool set_keep_alive_{false};
@@ -209,7 +205,18 @@ private:
 
     virtual void listen(int, boost::system::error_code& _ec) override { _ec = boost::system::error_code(); }
 
-    virtual void async_accept(tcp_socket& socket, connect_handler handler) override { state_->async_accept(socket, std::move(handler)); }
+    // In the fake, the remote_ep_ is already set on the socket by the time the handler fires
+    // (add_connection() runs synchronously before posting the handler), so reading it from
+    // the socket handle is always valid — there is no real-network disconnect race to guard against.
+    virtual void async_accept(tcp_socket& socket, boost::asio::ip::tcp::endpoint& peer_ep, connect_handler handler) override {
+        auto* socket_impl = dynamic_cast<fake_tcp_socket*>(&socket);
+        state_->async_accept(socket, [socket_impl, &peer_ep, h = std::move(handler)](boost::system::error_code ec) mutable {
+            if (!ec && socket_impl) {
+                peer_ep = socket_impl->state_->remote_endpoint();
+            }
+            h(ec);
+        });
+    }
 
     std::shared_ptr<fake_tcp_acceptor_handle> state_;
 };

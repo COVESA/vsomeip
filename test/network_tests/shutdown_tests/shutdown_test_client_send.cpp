@@ -44,6 +44,11 @@ public:
             app_->send(request_);
         }
 
+        // magic sleep to give time for the last message to be read
+        // in the router, before the clean-up starts the forceful stop
+        // of the "server" connection within the router.
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
         stop();
     }
 
@@ -125,6 +130,9 @@ int main(int argc, char** argv) {
         } else {
             shutdown_test_client::size_buffer_ = shutdown_test::SHUTDOWN_SIZE_UDS;
             shutdown_test_client::is_tcp_ = false;
+        }
+        if (std::string("FALSE") == std::string(argv[2])) {
+            shutdown_test_client::size_buffer_ = 0;
         }
     }
 

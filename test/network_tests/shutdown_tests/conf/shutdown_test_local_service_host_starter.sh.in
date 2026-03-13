@@ -9,6 +9,7 @@ if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
     exit 1
 fi
 
+PAYLOADS=("TRUE" "FALSE")
 FAIL=0
 
 if [[ $# -gt 0 && ($1 != "TCP" && $1 != "UDP" && $1 != "UDS") || ($2 != "CLIENT" && $2 != "SERVICE") ]]
@@ -24,27 +25,35 @@ else
     export VSOMEIP_CONFIGURATION=shutdown_test_local_service_host_uds.json
 fi
 
-if [[ $2 == "CLIENT" ]]; then
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_service
-    ./shutdown_test_service_receive &
-    SERVICE_PID=$!
+for PAYLOAD in "${PAYLOADS[@]}"; do
+    if [[ $PAYLOAD == "TRUE" ]]; then
+        echo "Execute the test with big payload"
+    else
+        echo "Execute the test with NO payload"
+    fi
 
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_client
-    ./shutdown_test_client_send $1 &
-    CLIENT_PID=$!
+    if [[ $2 == "CLIENT" ]]; then
+        export VSOMEIP_APPLICATION_NAME=shutdown_test_service
+        ./shutdown_test_service_receive &
+        SERVICE_PID=$!
 
-else
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_service
-    ./shutdown_test_service_send $1 &
-    SERVICE_PID=$!
+        export VSOMEIP_APPLICATION_NAME=shutdown_test_client
+        ./shutdown_test_client_send $1 $PAYLOAD &
+        CLIENT_PID=$!
 
-    export VSOMEIP_APPLICATION_NAME=shutdown_test_client
-    ./shutdown_test_client_receive $1 &
-    CLIENT_PID=$!
-fi
+    else
+        export VSOMEIP_APPLICATION_NAME=shutdown_test_service
+        ./shutdown_test_service_send $1 $PAYLOAD &
+        SERVICE_PID=$!
 
-wait $SERVICE_PID || ((FAIL+=1))
-wait $CLIENT_PID || ((FAIL+=1))
+        export VSOMEIP_APPLICATION_NAME=shutdown_test_client
+        ./shutdown_test_client_receive $1 &
+        CLIENT_PID=$!
+    fi
+
+    wait $SERVICE_PID || ((FAIL+=1))
+    wait $CLIENT_PID || ((FAIL+=1))
+done
 
 # Check if client and server both exited successfully
 exit $FAIL
