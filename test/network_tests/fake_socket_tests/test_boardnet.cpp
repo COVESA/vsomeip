@@ -184,7 +184,7 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
                                     boardnet_interface_.field_two_.event_id_,
                                     vsomeip::message_type_e::MT_NOTIFICATION,
                                     {}};
-    boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("127.0.0.2"), 30490};
+    boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("160.48.199.99"), 30490};
 
     std::map<std::string, app*> apps_;
     std::set<std::string> env_vars_;
@@ -196,11 +196,9 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
 };
 
 TEST_F(test_boardnet_helper, test_boardnet_service_availability) {
-    // start 1st daemon on 127.0.0.1 interface
     router_one_ = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one_));
 
-    // start 2nd daemon on 127.0.0.2 interface
     router_two_ = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(router_two_));
 
@@ -214,13 +212,11 @@ TEST_F(test_boardnet_helper, test_boardnet_service_availability) {
 }
 
 TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
-    // start 1st daemon and client on 127.0.0.2 interface
     router_two_ = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(router_two_));
 
     ecu_two_server_ = start_application(ecu_two_server_name_, "ecu_two.json");
 
-    // start 2nd daemon on 127.0.0.1 interface
     router_one_ = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one_));
 
@@ -346,7 +342,6 @@ TEST_F(test_field_routing, test_routing_with_str_on_client_side) {
 }
 
 TEST_F(test_field_routing, server_router_router_client) {
-    // start 1st daemon and client on 127.0.0.2 interface
     start_all_apps();
 
     ecu_one_client_->subscribe(boardnet_interface_);
@@ -360,14 +355,12 @@ TEST_F(test_field_routing, server_router_router_client) {
     EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message));
 }
 TEST_F(test_field_routing, server_router_router) {
-    // start 1st daemon and client on 127.0.0.2 interface
     router_two_ = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(router_two_));
 
     ecu_two_server_ = start_application(ecu_two_server_name_, "ecu_two.json");
     ASSERT_TRUE(ecu_two_server_ && ecu_two_server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 
-    // start 2nd daemon on 127.0.0.1 interface
     router_one_ = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one_));
 
@@ -382,11 +375,9 @@ TEST_F(test_field_routing, server_router_router) {
     EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message));
 }
 TEST_F(test_field_routing, router_router_client) {
-    // start 1st daemon and client on 127.0.0.2 interface
     router_two_ = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(router_two_));
 
-    // start 2nd daemon on 127.0.0.1 interface
     router_one_ = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one_));
     ecu_one_client_ = start_application(ecu_one_client_name_, "ecu_one.json");
@@ -404,11 +395,9 @@ TEST_F(test_field_routing, router_router_client) {
     EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
 }
 TEST_F(test_field_routing, router_router) {
-    // start 1st daemon and client on 127.0.0.2 interface
     router_two_ = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(router_two_));
 
-    // start 2nd daemon on 127.0.0.1 interface
     router_one_ = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one_));
 
@@ -550,14 +539,12 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
      * not yet have the ACK information from the previous client.
      **/
 
-    // start 2nd daemon(also client) and slave clients on 127.0.0.2 interface
     router_two_ = start_application(router_two_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(router_two_)) << "Router_two did not register";
 
     auto ecu_two_client = start_application(ecu_two_client_name_, "ecu_two.json");
     ASSERT_TRUE(successfully_registered(ecu_two_client)) << "ECU_two_C1 did not register";
 
-    // start 1st daemon and client on 127.0.0.1 interface
     router_one_ = start_application(router_one_name_, "ecu_one.json");
     ASSERT_TRUE(successfully_registered(router_one_)) << "Router_one did not register";
 
