@@ -64,8 +64,8 @@ namespace vsomeip_v3 {
 #define VSOMEIP_LOG_PREFIX "rms"
 
 routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
-    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), root_(nullptr), local_receiver_(nullptr),
-    configuration_(_configuration), is_socket_activated_(false), max_local_message_size_(configuration_->get_max_message_size_local()),
+    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), root_(nullptr), configuration_(_configuration),
+    is_socket_activated_(false), max_local_message_size_(configuration_->get_max_message_size_local()),
     configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
@@ -89,19 +89,12 @@ void routing_manager_stub::start() {
         root_->start();
     }
 
-    create_local_receiver();
-
     if (configuration_->is_watchdog_enabled()) {
         VSOMEIP_INFO << "Watchdog is enabled : Timeout in ms = " << configuration_->get_watchdog_timeout()
                      << " : Allowed missing pongs = " << configuration_->get_allowed_missing_pongs() << ".";
         start_watchdog();
     } else {
         VSOMEIP_INFO << "Watchdog is disabled!";
-    }
-
-    {
-        std::scoped_lock its_lock{routing_info_mutex_};
-        routing_info_[host_->get_client()].first = 0;
     }
 }
 
@@ -114,11 +107,6 @@ void routing_manager_stub::stop() {
     if (root_ && !is_socket_activated_) {
         root_->stop();
         root_ = nullptr;
-    }
-
-    if (local_receiver_) {
-        local_receiver_->stop();
-        local_receiver_ = nullptr;
     }
 }
 
@@ -637,6 +625,7 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     protocol::offered_services_response_command its_command;
     its_command.set_client(_client);
 
+    std::scoped_lock its_guard{routing_info_mutex_};
     for (const auto& found_client : routing_info_) {
         // skip services which are offered on remote hosts
         if (found_client.first != VSOMEIP_ROUTING_CLIENT) {
@@ -817,7 +806,7 @@ void routing_manager_stub::send_client_routing_info(const client_t _target, std:
     if (auto its_target_endpoint = find_local_routing_endpoint(_target); its_target_endpoint) {
 
         protocol::routing_info_command its_command;
-        its_command.set_client(get_client());
+        its_command.set_client(VSOMEIP_ROUTING_CLIENT);
         its_command.set_entries(std::move(_entries));
 
         std::vector<byte_t> its_buffer;
@@ -896,7 +885,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
         if (its_service != its_client.second.end()) {
             if (its_service->second.find(_instance) != its_service->second.end()
                 || its_service->second.find(ANY_INSTANCE) != its_service->second.end()) {
-                if (its_client.first != VSOMEIP_ROUTING_CLIENT && its_client.first != get_client()) {
+                if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
                     protocol::routing_info_entry its_entry;
                     its_entry.set_type(_type);
                     its_entry.set_client(_hoster);
@@ -931,7 +920,7 @@ bool routing_manager_stub::has_client_requested(client_t _client, service_t _ser
 void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const {
     std::scoped_lock its_guard{routing_info_mutex_};
     for (const auto& a : routing_info_) {
-        if (a.first != VSOMEIP_ROUTING_CLIENT && a.first != host_->get_client()) {
+        if (a.first != VSOMEIP_ROUTING_CLIENT) {
             if (auto its_endpoint = find_local_routing_endpoint(a.first); its_endpoint) {
                 send_local(its_endpoint, _command);
             } else {
@@ -1045,7 +1034,7 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
     if (auto its_target = find_local_routing_endpoint(_client); its_target) {
 
         protocol::subscribe_ack_command its_command;
-        its_command.set_client(get_client());
+        its_command.set_client(VSOMEIP_ROUTING_CLIENT);
         its_command.set_service(_service);
         its_command.set_instance(_instance);
         its_command.set_eventgroup(_eventgroup);
@@ -1069,7 +1058,7 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
     if (auto its_target = find_local_routing_endpoint(_client); its_target) {
 
         protocol::subscribe_nack_command its_command;
-        its_command.set_client(get_client());
+        its_command.set_client(VSOMEIP_ROUTING_CLIENT);
         its_command.set_service(_service);
         its_command.set_instance(_instance);
         its_command.set_eventgroup(_eventgroup);
@@ -1184,7 +1173,7 @@ void routing_manager_stub::check_watchdog() {
         {
             std::scoped_lock its_lock{routing_info_mutex_};
             for (const auto& i : routing_info_) {
-                if (i.first > 0 && i.first != host_->get_client()) {
+                if (i.first > 0) {
                     if (i.second.first > configuration_->get_allowed_missing_pongs()) {
                         VSOMEIP_WARNING << "Lost contact to application " << hex4(i.first);
                         lost.push_back(i.first);
@@ -1201,28 +1190,6 @@ void routing_manager_stub::check_watchdog() {
         std::scoped_lock its_lock{watchdog_timer_mutex_};
         watchdog_timer_.expires_after(std::chrono::milliseconds(configuration_->get_watchdog_timeout() / 2));
         watchdog_timer_.async_wait(its_callback);
-    }
-}
-
-void routing_manager_stub::create_local_receiver() {
-    std::scoped_lock its_lock{local_receiver_mutex_};
-
-    if (auto const sec_client = host_->get_sec_client(); local_receiver_) {
-        return;
-    }
-#ifdef __linux__
-    else if (!configuration_->get_policy_manager()->check_credentials(get_client(), &sec_client)) {
-        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
-                      << " : routing_manager_stub::create_local_receiver: isn't allowed"
-                      << " to create a server endpoint due to credential check failed!";
-        return;
-    }
-#endif
-    local_receiver_ = std::static_pointer_cast<endpoint_manager_base>(host_->get_endpoint_manager())->create_local_server();
-
-    if (local_receiver_) {
-        local_receiver_->set_id(get_client());
-        local_receiver_->start();
     }
 }
 
@@ -1416,7 +1383,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
             // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
             its_clients.insert(VSOMEIP_ROUTING_CLIENT);
             for (const client_t c : its_clients) {
-                if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
+                if (_client != VSOMEIP_ROUTING_CLIENT) {
                     const auto found_client = routing_info_.find(c);
                     if (found_client != routing_info_.end()) {
                         const auto found_service = found_client->second.second.find(request.service_);
@@ -1444,7 +1411,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                 if (found_service != found_client->second.second.end()) {
                     const auto found_instance = found_service->second.find(request.instance_);
                     if (found_instance != found_service->second.end()) {
-                        if (_client != VSOMEIP_ROUTING_CLIENT && _client != host_->get_client()) {
+                        if (_client != VSOMEIP_ROUTING_CLIENT) {
                             protocol::routing_info_entry its_entry;
                             its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                             its_entry.set_client(c);
@@ -1564,7 +1531,7 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
                            << " security policy updates to registering client: " << hex4(_client);
 
             protocol::distribute_security_policies_command its_command;
-            its_command.set_client(get_client());
+            its_command.set_client(VSOMEIP_ROUTING_CLIENT);
             its_command.set_payloads(updated_security_policies_);
 
             std::vector<byte_t> its_buffer;

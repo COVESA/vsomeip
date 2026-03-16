@@ -616,13 +616,6 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
     std::stringstream its_endpoint_path_ss;
     its_endpoint_path_ss << utility::get_base_path(configuration_->get_network()) << VSOMEIP_ROUTING_CLIENT;
     const std::string its_endpoint_path = its_endpoint_path_ss.str();
-    client_t its_routing_host_id = configuration_->get_id(configuration_->get_routing_host_name());
-    if (configuration_->is_security_enabled() && get_client() != its_routing_host_id) {
-        VSOMEIP_ERROR_P << "Client [" << hex4(get_client()) << "] does not match the configured routing manager client identifier ["
-                        << hex4(its_routing_host_id) << "]";
-
-        return false;
-    }
 
     std::shared_ptr<local_acceptor> acceptor;
     if (configuration_->is_local_routing()) {

@@ -26,6 +26,7 @@
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/application_impl.hpp"
 #include "../include/runtime_impl.hpp"
+#include "../include/routing_application.hpp"
 #ifdef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 #include "../../configuration/include/configuration_impl.hpp"
 #else
@@ -247,11 +248,10 @@ bool application_impl::init() {
                 client_ = static_cast<client_t>((configuration_->get_diagnosis_address() << 8) & configuration_->get_diagnosis_mask());
                 utility::request_client_id(configuration_, name_, client_);
             }
-            routing_ = std::make_shared<routing_manager_impl>(this);
-        } else {
-            VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
-            routing_ = std::make_shared<routing_manager_client>(this, client_side_logging_, client_side_logging_filter_);
+            routing_app_ = std::make_unique<routing_application>(io_, configuration_, name_);
         }
+        VSOMEIP_INFO << "Instantiating routing manager [Proxy].";
+        routing_ = std::make_shared<routing_manager_client>(this, client_side_logging_, client_side_logging_filter_);
 
         routing_->init();
 
@@ -361,7 +361,9 @@ void application_impl::start() {
 
             dispatchers_[its_main_dispatcher->get_id()] = its_main_dispatcher;
         }
-
+        if (routing_app_) {
+            routing_app_->start();
+        }
         if (routing_)
             routing_->start();
 
@@ -575,6 +577,9 @@ void application_impl::stop() {
 
         if (routing_) {
             routing_->stop();
+        }
+        if (routing_app_) {
+            routing_app_->stop();
         }
 
         io_.stop();
@@ -2101,41 +2106,20 @@ void application_impl::send_back_cached_eventgroup(service_t _service, instance_
 }
 
 void application_impl::set_routing_state(routing_state_e _routing_state) {
-    auto rtmgr = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-
-    if (!rtmgr) {
+    if (!routing_app_) {
         VSOMEIP_WARNING_P << "Set " << static_cast<int>(_routing_state) << ", not supported (nullptr)";
     } else {
-        rtmgr->set_routing_state(_routing_state);
+        routing_app_->set_routing_state(_routing_state);
     }
 }
 
 connection_control_response_e application_impl::change_connection_control(connection_control_request_e _control,
                                                                           const std::string& _guest_address) {
-    if (!is_routing_manager_host_) {
+    if (!routing_app_) {
         VSOMEIP_ERROR_P << "not routing manager host";
         return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
     }
-
-    boost::asio::ip::address its_addr;
-    try {
-        its_addr = boost::asio::ip::make_address(_guest_address);
-    } catch (...) {
-        VSOMEIP_ERROR_P << "could not parse address '" << _guest_address << "'";
-        return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
-    }
-
-    if (_control != connection_control_request_e::CCR_ACCEPT && _control != connection_control_request_e::CCR_RESET_AND_BLOCK) {
-        VSOMEIP_ERROR_P << "control parameter was neither CCR_ACCEPT, nor CCR_RESET_AND_BLOCK for address '" << _guest_address << "'";
-        return connection_control_response_e::CCR_ERROR_INVALID_PARAMETER;
-    }
-
-    VSOMEIP_INFO_P << "changing connection control to '"
-                   << ((_control == connection_control_request_e::CCR_ACCEPT) ? "CCR_ACCEPT" : "CCR_RESET_AND_BLOCK") << "' for address '"
-                   << _guest_address << "'";
-
-    auto its_routing = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-    return its_routing->change_connection_control(_control, its_addr);
+    return routing_app_->change_connection_control(_control, _guest_address);
 }
 
 void application_impl::check_send_back_cached_event(service_t _service, instance_t _instance, event_t _event, eventgroup_t _eventgroup,
@@ -2349,37 +2333,7 @@ void application_impl::get_offered_services_async(offer_type_e _offer_type, cons
         std::scoped_lock its_lock{offered_services_handler_mutex_};
         offered_services_handler_ = _handler;
     }
-
-    if (!is_routing_manager_host_) {
-        routing_->send_get_offered_services_info(get_client(), _offer_type);
-    } else {
-        std::vector<std::pair<service_t, instance_t>> its_services;
-        auto its_routing_manager_host = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-
-        for (const auto& s : its_routing_manager_host->get_offered_services()) {
-            for (const auto& i : s.second) {
-                auto its_unreliable_endpoint = i.second->get_endpoint(false);
-                auto its_reliable_endpoint = i.second->get_endpoint(true);
-
-                if (_offer_type == offer_type_e::OT_LOCAL) {
-                    if (((its_unreliable_endpoint && (its_unreliable_endpoint->get_local_port() == ILLEGAL_PORT))
-                         && (its_reliable_endpoint && (its_reliable_endpoint->get_local_port() == ILLEGAL_PORT)))
-                        || (!its_reliable_endpoint && !its_unreliable_endpoint)) {
-                        its_services.push_back(std::make_pair(s.first, i.first));
-                    }
-                } else if (_offer_type == offer_type_e::OT_REMOTE) {
-                    if ((its_unreliable_endpoint && its_unreliable_endpoint->get_local_port() != ILLEGAL_PORT)
-                        || (its_reliable_endpoint && its_reliable_endpoint->get_local_port() != ILLEGAL_PORT)) {
-                        its_services.push_back(std::make_pair(s.first, i.first));
-                    }
-                } else if (_offer_type == offer_type_e::OT_ALL) {
-                    its_services.push_back(std::make_pair(s.first, i.first));
-                }
-            }
-        }
-        on_offered_services_info(its_services);
-    }
-    return;
+    routing_->send_get_offered_services_info(get_client(), _offer_type);
 }
 
 void application_impl::on_offered_services_info(std::vector<std::pair<service_t, instance_t>>& _services) {
@@ -2476,42 +2430,23 @@ void application_impl::register_async_subscription_handler(service_t _service, i
 }
 
 void application_impl::register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) {
-    if (is_routing() && routing_) {
-        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        rm_impl->register_sd_acceptance_handler(_handler);
+    if (routing_app_) {
+        routing_app_->register_sd_acceptance_handler(_handler);
     }
 }
 
 void application_impl::register_reboot_notification_handler(const reboot_notification_handler_t& _handler) {
-    if (is_routing() && routing_) {
-        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        rm_impl->register_reboot_notification_handler(_handler);
+    if (routing_app_) {
+        routing_app_->register_reboot_notification_handler(_handler);
     }
 }
 
 void application_impl::set_sd_acceptance_required(const remote_info_t& _remote, const std::string& _path, bool _enable) {
 
-    if (!is_routing()) {
+    if (!routing_app_) {
         return;
     }
-
-    const boost::asio::ip::address its_address(
-            _remote.ip_.is_v4_ ? static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_))
-                               : static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_)));
-
-    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max() && _remote.last_ == 0) {
-        // special case to (de)activate rules per IP
-        configuration_->set_sd_acceptance_rules_active(its_address, _enable);
-        return;
-    }
-
-    port_range_t its_range{_remote.first_, _remote.last_};
-    configuration_->set_sd_acceptance_rule(its_address, its_range, port_type_e::PT_UNKNOWN, _path, _remote.is_reliable_, _enable, true);
-
-    if (_enable && routing_) {
-        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        rm_impl->sd_acceptance_enabled(its_address, its_range, _remote.is_reliable_);
-    }
+    routing_app_->set_sd_acceptance_required(_remote, _path, _enable);
 }
 
 void application_impl::set_sd_acceptance_required(const sd_acceptance_map_type_t& _remotes, bool _enable) {
@@ -2567,35 +2502,24 @@ application::sd_acceptance_map_type_t application_impl::get_sd_acceptance_requir
 }
 
 void application_impl::register_routing_ready_handler(const routing_ready_handler_t& _handler) {
-    if (is_routing() && routing_) {
-        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        rm_impl->register_routing_ready_handler(_handler);
+    if (routing_app_) {
+        routing_app_->register_routing_ready_handler(_handler);
     }
 }
 
 void application_impl::register_routing_state_handler(const routing_state_handler_t& _handler) {
-    if (is_routing() && routing_) {
-        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        rm_impl->register_routing_state_handler(_handler);
+    if (routing_app_) {
+        routing_app_->register_routing_state_handler(_handler);
     }
 }
 
 bool application_impl::update_service_configuration(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
                                                     bool _magic_cookies_enabled, bool _offer) {
     bool ret = false;
-    if (!is_routing_manager_host_) {
+    if (!routing_app_) {
         VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
-    } else if (!routing_) {
-        VSOMEIP_ERROR_P << "Routing is zero";
     } else {
-        auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        if (rm_impl) {
-            if (_offer) {
-                ret = rm_impl->offer_service_remotely(_service, _instance, _port, _reliable, _magic_cookies_enabled);
-            } else {
-                ret = rm_impl->stop_offer_service_remotely(_service, _instance, _port, _reliable, _magic_cookies_enabled);
-            }
-        }
+        ret = routing_app_->update_service_configuration(_service, _instance, _port, _reliable, _magic_cookies_enabled, _offer);
     }
     return ret;
 }
@@ -2609,15 +2533,10 @@ void application_impl::update_security_policy_configuration(uint32_t _uid, uint3
     (void)_payload;
     (void)_handler;
 #else
-    if (!is_routing()) {
+    if (!routing_app_) {
         VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
-    } else if (!routing_) {
-        VSOMEIP_ERROR_P << "Routing is zero";
     } else {
-        auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        if (rm_impl) {
-            rm_impl->update_security_policy_configuration(_uid, _gid, _policy, _payload, _handler);
-        }
+        routing_app_->update_security_policy_configuration(_uid, _gid, _policy, _payload, _handler);
     }
 #endif // VSOMEIP_DISABLE_SECURITY
 }
@@ -2628,15 +2547,10 @@ void application_impl::remove_security_policy_configuration(uint32_t _uid, uint3
     (void)_gid;
     (void)_handler;
 #else
-    if (!is_routing()) {
+    if (!routing_app_) {
         VSOMEIP_ERROR_P << " is only intended to be called by application acting as routing manager host";
-    } else if (!routing_) {
-        VSOMEIP_ERROR_P << "Routing is zero";
     } else {
-        auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        if (rm_impl) {
-            rm_impl->remove_security_policy_configuration(_uid, _gid, _handler);
-        }
+        routing_app_->remove_security_policy_configuration(_uid, _gid, _handler);
     }
 #endif // !VSOMEIP_DISABLE_SECURITY
 }
@@ -2686,9 +2600,8 @@ bool application_impl::is_local_endpoint(const boost::asio::ip::address& _unicas
 }
 
 void application_impl::register_message_acceptance_handler(const message_acceptance_handler_t& _handler) {
-    if (is_routing() && routing_) {
-        const auto rm_impl = std::dynamic_pointer_cast<routing_manager_impl>(routing_);
-        rm_impl->register_message_acceptance_handler(_handler);
+    if (routing_app_) {
+        routing_app_->register_message_acceptance_handler(_handler);
     }
 }
 

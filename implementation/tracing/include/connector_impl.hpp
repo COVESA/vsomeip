@@ -58,7 +58,7 @@ public:
     VSOMEIP_EXPORT void trace(const byte_t* _header, uint16_t _header_size, const byte_t* _data, uint32_t _data_size);
 
 private:
-    bool is_enabled_;
+    std::atomic<bool> is_enabled_;
     bool is_sd_enabled_;
 
     std::map<std::string, std::shared_ptr<channel_impl>> channels_;

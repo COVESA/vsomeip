@@ -176,7 +176,7 @@ protected:
                                  uint8_t _status_check, bool _force, std::shared_ptr<local_endpoint> _fallback = nullptr);
 
     bool send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
-                    bool _reliable, protocol::id_e _command, uint8_t _status_check) const;
+                    bool _reliable, protocol::id_e _command, uint8_t _status_check, client_t _sender) const;
 
     /**
      * @brief insert subscription into events/eventgroups

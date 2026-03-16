@@ -312,6 +312,9 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
                     return config_id;
                 }
             }
+            if (auto routing_name = _config->get_routing_host_name(); !routing_name.empty() && routing_name == _name) {
+                return _client;
+            }
 
             VSOMEIP_WARNING << "Requested client identifier " << hex4(_client) << " is already used by application \""
                             << its_iterator->second << "\".";

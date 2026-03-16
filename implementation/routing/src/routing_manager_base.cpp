@@ -1118,7 +1118,6 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
                                                    bool _reliable, uint8_t _status_check, bool _force,
                                                    std::shared_ptr<local_endpoint> _fallback) {
     bool has_local(false);
-    (void)_client;
     bool has_remote(false);
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
     method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
@@ -1136,9 +1135,10 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
 
             std::shared_ptr<local_endpoint> its_local_target = ep_mgr_->find_local_server_endpoint(its_client);
             if (its_local_target) {
-                send_local(its_local_target, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                send_local(its_local_target, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check,
+                           _client);
             } else if (_fallback) {
-                send_local(_fallback, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                send_local(_fallback, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check, _client);
             } else {
                 VSOMEIP_WARNING_P << "No target connection. Dropping the message to client: 0x" << hex4(its_client);
             }
@@ -1156,12 +1156,13 @@ bool routing_manager_base::send_local_notification(client_t _client, const byte_
 }
 
 bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size,
-                                      instance_t _instance, bool _reliable, protocol::id_e _command, uint8_t _status_check) const {
+                                      instance_t _instance, bool _reliable, protocol::id_e _command, uint8_t _status_check,
+                                      client_t _sender) const {
 
     bool has_sent(false);
 
     protocol::send_command its_command(_command);
-    its_command.set_client(get_client());
+    its_command.set_client(_sender);
     its_command.set_instance(_instance);
     its_command.set_reliable(_reliable);
     its_command.set_status(_status_check);

@@ -225,7 +225,6 @@ void routing_manager_impl::start() {
 #endif
 
     stub_->start();
-    host_->on_state(state_type_e::ST_REGISTERED);
 
 #if defined(__linux__) || defined(__QNX__)
     if (configuration_->log_memory()) {
@@ -256,29 +255,6 @@ void routing_manager_impl::start() {
 }
 
 void routing_manager_impl::stop() {
-    // Ensure to StopOffer all services that are offered by the application hosting the rm
-    local_services_map_t its_services;
-    {
-        std::scoped_lock its_lock{local_services_mutex_};
-        for (const auto& [service, instances] : local_services_) {
-            for (const auto& [instance, info] : instances) {
-                auto [major, minor, client] = info;
-                if (client == get_client()) {
-                    its_services[service][instance] = info;
-                }
-            }
-        }
-    }
-    {
-        std::scoped_lock its_lock{offer_serialization_mutex_};
-        for (const auto& [service, instances] : its_services) {
-            for (const auto& [instance, info] : instances) {
-                auto [major, minor, client] = info;
-                on_stop_offer_service_unlocked(client, service, instance, major, minor);
-            }
-        }
-    }
-
 #if defined(__linux__)
     {
         std::scoped_lock its_lock{memory_log_timer_mutex_};
@@ -294,8 +270,6 @@ void routing_manager_impl::stop() {
         status_log_timer_.cancel();
         statistics_log_timer_.cancel();
     }
-
-    host_->on_state(state_type_e::ST_DEREGISTERED);
 
     if (discovery_)
         discovery_->stop();
@@ -377,18 +351,6 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         }
     }
 
-    // Check if the application hosted by routing manager is allowed to offer
-    // offer_service requests of local proxies are checked in rms::on:message
-    if (_client == get_client()) {
-        auto const sec_client = get_sec_client();
-        if (VSOMEIP_SEC_OK != configuration_->get_security()->is_client_allowed_to_offer(&sec_client, _service, _instance)) {
-            VSOMEIP_WARNING_P << "Security: Client 0x" << hex4(_client) << " isn't allowed to offer the following service/instance "
-                              << _service << "/" << _instance << " ~> Skip offer!";
-            erase_offer_command(_service, _instance);
-            return false;
-        }
-    }
-
     if (!handle_local_offer_service(_client, _service, _instance, _major, _minor)) {
         erase_offer_command(_service, _instance);
         VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
@@ -415,21 +377,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         }
     }
 
-    {
-        {
-            std::scoped_lock ist_lock(pending_subscription_mutex_);
-            for (auto& ps : pending_subscriptions_) {
-                if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
-                    insert_subscription(ps.service_, ps.instance_, ps.eventgroup_, ps.event_, nullptr, get_client());
-                }
-            }
-        }
-
-        send_pending_subscriptions(_service, _instance, _major);
-    }
-
     stub_->on_offer_service(_client, _service, _instance, _major, _minor);
-
     // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed before
     // starting the next one, otherwise, we may have the availability being reported in the wrong order
     on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
@@ -523,23 +471,12 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
             }
         }
     }
-
-    if (_client == get_client()) {
-        protocol::service its_request(_service, _instance, _major, _minor);
-        std::set<protocol::service> requests;
-        requests.insert(its_request);
-
-        stub_->handle_requests(_client, requests);
-    }
 }
 
 void routing_manager_impl::release_service(client_t _client, service_t _service, instance_t _instance) {
 
     VSOMEIP_INFO << "RELEASE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "]";
 
-    if (host_->get_client() == _client) {
-        remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
-    }
     routing_manager_base::release_service(_client, _service, _instance);
     remove_requested_service(_client, _service, _instance, ANY_MAJOR, ANY_MINOR);
     remove_pending_requests(pending_request_removal_type_e::REQUESTING_ONLY, _client, _service, _instance);
@@ -600,8 +537,8 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
     }
 }
 
-void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                                     eventgroup_t _eventgroup, major_version_t _major, event_t _event,
+void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, service_t _service,
+                                     instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                                      const std::shared_ptr<debounce_filter_impl_t>& _filter) {
 
     if (routing_state_ == routing_state_e::RS_SUSPENDED) {
@@ -611,29 +548,7 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
 
     VSOMEIP_INFO << "SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":"
                  << hex4(_event) << ":" << static_cast<int>(_major) << "]";
-    const client_t its_local_client = find_local_client(_service, _instance);
-    if (get_client() == its_local_client) {
-        auto self = shared_from_this();
-        host_->on_subscription(
-                _service, _instance, _eventgroup, _client, _sec_client, get_env(_client), true,
-                [this, self, _client, _service, _instance, _eventgroup, _major, _event, _filter](const bool _subscription_accepted) {
-                    std::scoped_lock its_lock{subscription_mutex};
-                    if (!_subscription_accepted) {
-                        stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
-                    } else {
-                        insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
-
-                        // NOTE: order matters, send ACK _after_ inserting the subscription
-                        stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
-
-                        notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
-                    }
-
-                    VSOMEIP_INFO << "SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                                 << hex4(_eventgroup) << ":" << hex4(_event) << ":" << static_cast<uint16_t>(_major) << "] "
-                                 << (_subscription_accepted ? " accepted" : "not accepted");
-                });
-    } else {
+    {
         if (discovery_) {
             // Note: The calls to insert_subscription & handle_subscription_state must not
             // run concurrently to a call to on_subscribe_ack. Therefore the lock is acquired
@@ -641,8 +556,7 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
             // handle_subscription_state.
             std::unique_lock<std::mutex> its_critical(remote_subscription_state_mutex_);
             bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
-            const bool subscriber_is_rm_host = (get_client() == _client);
-            if (inserted) {
+            if (const client_t its_local_client = find_local_client(_service, _instance); inserted) {
                 if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
                     handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
                     its_critical.unlock();
@@ -653,30 +567,18 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                     // if the subscriber is the rm_host itself: check if service
                     // is available before subscribing via SD otherwise we sent
                     // a StopSubscribe/Subscribe once the first offer is received
-                    if (its_info && (!subscriber_is_rm_host || find_service(_service, _instance))) {
+                    if (its_info && find_service(_service, _instance)) {
                         discovery_->subscribe(_service, _instance, _eventgroup, _major, configured_ttl,
                                               its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT, its_info);
                     }
                 } else {
                     its_critical.unlock();
-                    if (is_available(_service, _instance, _major)) {
-                        stub_->send_subscribe(find_routing_endpoint(its_local_client), _client, _service, _instance, _eventgroup, _major,
-                                              _event, _filter, PENDING_SUBSCRIPTION_ID);
-                    }
+                    VSOMEIP_ERROR_P << "Router received subscription for local service from client: 0x" << hex4(_client) << ": ["
+                                    << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(_event) << ":"
+                                    << static_cast<int>(_major) << "]";
                 }
             } else {
                 its_critical.unlock();
-            }
-
-            if (subscriber_is_rm_host) {
-                subscription_data_t subscription = {_service, _instance, _eventgroup, _major, _event, _filter, *_sec_client};
-                {
-                    std::scoped_lock ist_lock(pending_subscription_mutex_);
-                    pending_subscriptions_.insert(subscription);
-                }
-                if (is_available(_service, _instance, _major)) {
-                    send_pending_subscriptions(_service, _instance, _major);
-                }
             }
         } else {
             VSOMEIP_ERROR << "SOME/IP eventgroups require SD to be enabled!";
@@ -684,8 +586,8 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
     }
 }
 
-void routing_manager_impl::unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                                       eventgroup_t _eventgroup, event_t _event) {
+void routing_manager_impl::unsubscribe(client_t _client, [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, service_t _service,
+                                       instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
 
     VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "."
                  << hex4(_event) << "]";
@@ -707,12 +609,7 @@ void routing_manager_impl::unsubscribe(client_t _client, const vsomeip_sec_clien
     }
 
     if (discovery_) {
-        host_->on_subscription(_service, _instance, _eventgroup, _client, _sec_client, get_env(_client), false,
-                               [](const bool _subscription_accepted) { (void)_subscription_accepted; });
         if (auto its_local_client = find_local_client(_service, _instance); VSOMEIP_ROUTING_CLIENT == its_local_client) {
-            if (get_client() == _client) {
-                remove_pending_subscription(_service, _instance, _eventgroup, _event);
-            }
             if (last_subscriber_removed) {
                 unset_all_eventpayloads(_service, _instance, _eventgroup);
                 {
@@ -725,12 +622,6 @@ void routing_manager_impl::unsubscribe(client_t _client, const vsomeip_sec_clien
             if (its_info && (last_subscriber_removed || its_info->is_selective())) {
 
                 discovery_->unsubscribe(_service, _instance, _eventgroup, its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT);
-            }
-        } else {
-            if (get_client() == _client) {
-                remove_pending_subscription(_service, _instance, _eventgroup, _event);
-                stub_->send_unsubscribe(find_routing_endpoint(its_local_client), _client, _service, _instance, _eventgroup, _event,
-                                        PENDING_SUBSCRIPTION_ID);
             }
         }
 
@@ -761,8 +652,8 @@ bool routing_manager_impl::send(client_t _client, std::shared_ptr<message> _mess
 }
 
 bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
-                                client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check,
-                                bool _sent_from_remote, bool _force) {
+                                [[maybe_unused]] client_t _bound_client, [[maybe_unused]] const vsomeip_sec_client_t* _sec_client,
+                                uint8_t _status_check, [[maybe_unused]] bool _sent_from_remote, bool _force) {
 
     bool is_sent(false);
     if (_size <= VSOMEIP_MESSAGE_TYPE_POS) {
@@ -770,11 +661,10 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
     }
     bool is_request = utility::is_request(_data[VSOMEIP_MESSAGE_TYPE_POS]);
     bool is_notification = utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS]);
-    bool is_response = utility::is_response(_data[VSOMEIP_MESSAGE_TYPE_POS]);
     client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
     service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
     method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-    client_t its_target_client = get_client();
+    client_t its_target_client = VSOMEIP_ROUTING_CLIENT;
 
     bool is_service_discovery = (its_service == sd::service && its_method == sd::method);
 
@@ -786,23 +676,14 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
         its_local_target = find_routing_endpoint(its_client);
         its_target_client = its_client;
     } else if (is_notification && _client && !is_service_discovery) { // Selective notifications!
-        if (_client == get_client()) {
-            deliver_message(_data, _size, _instance, _reliable, _bound_client, _sec_client, _status_check, _sent_from_remote);
-            if (trace::header its_header; its_header.prepare(its_local_target, true, _instance))
-                tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-            return true;
-        }
         its_local_target = find_routing_endpoint(_client);
         its_target_client = _client;
     }
 
     if (its_local_target) {
-        is_sent =
-                send_local(its_local_target, its_target_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
-        if (is_sent
-            && ((is_request && its_client == get_client()) || (is_response && find_local_client(its_service, _instance) == get_client())
-                || (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT))) {
-
+        is_sent = send_local(its_local_target, its_target_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID,
+                             _status_check, VSOMEIP_ROUTING_CLIENT);
+        if (is_sent && (is_notification && find_local_client(its_service, _instance) == VSOMEIP_ROUTING_CLIENT)) {
             trace::header its_header;
             if (its_header.prepare(its_local_target, true, _instance))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
@@ -811,13 +692,7 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
     }
 
     std::shared_ptr<boardnet_endpoint> its_target;
-    // Check whether hosting application should get the message
-    // If not, check routes to external
-    if ((its_client == host_->get_client() && is_response)
-        || (find_local_client(its_service, _instance) == host_->get_client() && is_request)) {
-        // TODO: Find out how to handle session id here
-        is_sent = deliver_message(_data, _size, _instance, _reliable, VSOMEIP_ROUTING_CLIENT, _sec_client, _status_check);
-    } else {
+    {
         e2e_buffer its_buffer;
 
         if (e2e_provider_) {
@@ -861,7 +736,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
             std::shared_ptr<serviceinfo> its_info(find_service(its_service, _instance));
             if (its_info || is_service_discovery) {
                 if (is_notification && !is_service_discovery) {
-                    static_cast<void>(send_local_notification(get_client(), _data, _size, _instance, _reliable, _status_check, _force));
+                    static_cast<void>(
+                            send_local_notification(VSOMEIP_ROUTING_CLIENT, _data, _size, _instance, _reliable, _status_check, _force));
                     method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                     std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method_inner);
                     if (its_event) {
@@ -1076,7 +952,7 @@ void routing_manager_impl::unregister_shadow_event(client_t _client, service_t _
 
 void routing_manager_impl::notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
                                       client_t _client, bool _force) {
-    if (find_routing_endpoint(_client) || get_client() == _client) {
+    if (find_routing_endpoint(_client)) {
         // the router uses the routing connection for everything -> the message might be for us
         routing_manager_base::notify_one(_service, _instance, _event, _payload, _client, _force);
     } else {
@@ -1117,31 +993,9 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance, 
     }
 }
 
-void routing_manager_impl::on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                                           minor_version_t _minor) {
-    // insert subscriptions of routing manager into service discovery
-    // to send SubscribeEventgroup after StopOffer / Offer was received
-    if (_state == availability_state_e::AS_AVAILABLE) {
-        if (discovery_) {
-            const client_t its_local_client = find_local_client(_service, _instance);
-            // remote service
-            if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
-                static const ttl_t configured_ttl(configuration_->get_sd_ttl());
-                std::scoped_lock its_lock{discovery_->get_subscribed_mutex(), pending_subscription_mutex_};
-                for (auto& ps : pending_subscriptions_) {
-                    if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
-                        auto its_info = find_eventgroup(_service, _instance, ps.eventgroup_);
-                        if (its_info) {
-                            discovery_->subscribe(_service, _instance, ps.eventgroup_, _major, configured_ttl,
-                                                  its_info->is_selective() ? get_client() : VSOMEIP_ROUTING_CLIENT, its_info);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    host_->on_availability(_service, _instance, _state, _major, _minor);
-}
+void routing_manager_impl::on_availability([[maybe_unused]] service_t _service, [[maybe_unused]] instance_t _instance,
+                                           [[maybe_unused]] availability_state_e _state, [[maybe_unused]] major_version_t _major,
+                                           [[maybe_unused]] minor_version_t _minor) { }
 
 bool routing_manager_impl::offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
                                                   bool _magic_cookies_enabled) {
@@ -1383,8 +1237,6 @@ bool routing_manager_impl::on_message(service_t _service, instance_t _instance, 
     if (utility::is_notification(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
         is_forwarded = deliver_notification(_service, _instance, _data, _size, _reliable, _bound_client, _sec_client, _check_status,
                                             _is_from_remote);
-    } else if (its_client == host_->get_client()) {
-        deliver_message(_data, _size, _instance, _reliable, _bound_client, _sec_client, _check_status, _is_from_remote);
     } else {
         send(its_client, _data, _size, _instance, _reliable, _bound_client, _sec_client, _check_status, _is_from_remote,
              false); // send to proxy
@@ -1505,123 +1357,6 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
     erase_offer_command(_service, _instance);
 }
 
-bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
-                                           client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check,
-                                           bool _is_from_remote) {
-
-    bool is_delivered(false);
-
-    auto its_deserializer = get_deserializer();
-    its_deserializer->set_data(_data, _size);
-    std::shared_ptr<message_impl> its_message = its_deserializer->deserialize_message();
-    its_deserializer->reset();
-    put_deserializer(its_deserializer);
-
-    if (its_message) {
-        its_message->set_instance(_instance);
-        its_message->set_reliable(_reliable);
-        its_message->set_check_result(_status_check);
-        if (_sec_client)
-            its_message->set_sec_client(*_sec_client);
-        its_message->set_env(get_env(_bound_client));
-
-        if (!_is_from_remote) {
-            if (utility::is_request(its_message->get_message_type())) {
-                if (configuration_->is_security_enabled() && configuration_->is_local_routing()
-                    && its_message->get_client() != _bound_client) {
-                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_impl::deliver_message:"
-                                    << " received a request from client 0x" << hex4(its_message->get_client())
-                                    << " to service/instance/method " << its_message->get_service() << "/" << its_message->get_instance()
-                                    << "/" << its_message->get_method() << " which doesn't match the bound client 0x" << hex4(_bound_client)
-                                    << " ~> Skip message!";
-                    return false;
-                }
-
-                if (VSOMEIP_SEC_OK
-                    != configuration_->get_security()->is_client_allowed_to_access_member(
-                            _sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
-                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_impl::deliver_message: "
-                                    << " isn't allowed to send a request to service/instance/method " << its_message->get_service() << "/"
-                                    << its_message->get_instance() << "/" << its_message->get_method() << " ~> Skip message!";
-                    return false;
-                }
-            } else { // Notification or Response
-                bool is_intern_resp_allowed = (!configuration_->is_security_external()
-                                               && is_response_allowed(_bound_client, its_message->get_service(),
-                                                                      its_message->get_instance(), its_message->get_method()));
-                bool is_offer_ok = (VSOMEIP_SEC_OK
-                                    == configuration_->get_security()->is_client_allowed_to_offer(_sec_client, its_message->get_service(),
-                                                                                                  its_message->get_instance()));
-
-                if (!is_offer_ok) {
-                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                    << " : routing_manager_impl::deliver_message: received a "
-                                    << (utility::is_notification(its_message->get_message_type()) ? "notification" : "response")
-                                    << " from client 0x" << hex4(_bound_client) << " which does not offer service/instance/method "
-                                    << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                    << hex4(its_message->get_method()) << " ~> Skip message!";
-                    return false;
-                }
-
-                if (is_intern_resp_allowed || is_offer_ok) {
-                    const bool is_notification = utility::is_notification(its_message->get_message_type());
-                    auto const sec_client = get_sec_client();
-                    const bool is_access_member_ok =
-                            (VSOMEIP_SEC_OK
-                             == configuration_->get_security()->is_client_allowed_to_access_member(
-                                     &sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method()));
-
-                    if (!is_access_member_ok && is_notification) {
-                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                        << " : routing_manager_impl::deliver_message: isn't allowed to receive a"
-                                        << " notification from service/instance/method " << hex4(its_message->get_service()) << "/"
-                                        << hex4(its_message->get_instance()) << "/" << hex4(its_message->get_method())
-                                        << " respectively from client 0x" << hex4(_bound_client) << " ~> Skip message!";
-                        return false;
-                    }
-                } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                    << " : routing_manager_impl::deliver_message: received a "
-                                    << (utility::is_notification(its_message->get_message_type()) ? "notification" : "response")
-                                    << " from client 0x" << hex4(_bound_client) << " which does not offer service/instance/method "
-                                    << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                    << hex4(its_message->get_method()) << " ~> Skip message!";
-                    return false;
-                }
-            }
-        } else {
-            if (!configuration_->is_remote_access_allowed()) {
-                // if the message is from remote, check if
-                // policy allows remote requests.
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_impl::deliver_message: "
-                                << "Remote clients are not allowed"
-                                << " to communicate with service/instance/method " << hex4(its_message->get_service()) << "/"
-                                << hex4(its_message->get_instance()) << "/" << hex4(its_message->get_method())
-                                << " respectively with client 0x" << hex4(get_client()) << " ~> Skip message!";
-                return false;
-            } else if (utility::is_notification(its_message->get_message_type())) {
-                auto const sec_client = get_sec_client();
-                if (VSOMEIP_SEC_OK
-                    != configuration_->get_security()->is_client_allowed_to_access_member(
-                            &sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
-                    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_impl::deliver_message: "
-                                    << " isn't allowed to receive a notification from service/instance/event "
-                                    << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                    << hex4(its_message->get_method()) << " respectively from remote client"
-                                    << " ~> Skip message!";
-                    return false;
-                }
-            }
-        }
-
-        host_->on_message(std::move(its_message));
-        is_delivered = true;
-    } else {
-        VSOMEIP_ERROR_P << "SomeIP-Header deserialization failed!";
-    }
-    return is_delivered;
-}
-
 bool routing_manager_impl::has_subscribed_eventgroup(service_t _service, instance_t _instance) const {
 
     std::scoped_lock its_lock{eventgroups_mutex_};
@@ -1640,8 +1375,9 @@ bool routing_manager_impl::has_subscribed_eventgroup(service_t _service, instanc
 }
 
 bool routing_manager_impl::deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length,
-                                                bool _reliable, client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
-                                                uint8_t _status_check, bool _is_from_remote) {
+                                                bool _reliable, [[maybe_unused]] client_t _bound_client,
+                                                [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, uint8_t _status_check,
+                                                bool _is_from_remote) {
 
     event_t its_event_id = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     client_t its_client_id = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
@@ -1692,32 +1428,16 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
         auto its_subscribers = its_event->update_and_get_filtered_subscribers(its_payload, _is_from_remote);
         if (its_event->get_type() != event_type_e::ET_SELECTIVE_EVENT) {
             for (const auto its_local_client : its_subscribers) {
-                if (its_local_client == host_->get_client()) {
-                    deliver_message(_data, _length, _instance, _reliable, _bound_client, _sec_client, _status_check, _is_from_remote);
-                } else {
-                    std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_local_client);
-                    if (its_local_target) {
-                        send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
-                                   _status_check);
-                    }
+                if (std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_local_client); its_local_target) {
+                    send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
+                               _status_check, VSOMEIP_ROUTING_CLIENT);
                 }
             }
         } else {
-            // TODO: Check whether it makes more sense to set the client id
-            // for internal selective events. This would create some extra
-            // effort but we could avoid this hack.
-            if (its_client_id == VSOMEIP_ROUTING_CLIENT)
-                its_client_id = get_client();
-
             if (its_subscribers.find(its_client_id) != its_subscribers.end()) {
-                if (its_client_id == host_->get_client()) {
-                    deliver_message(_data, _length, _instance, _reliable, _bound_client, _sec_client, _status_check, _is_from_remote);
-                } else {
-                    std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_client_id);
-                    if (its_local_target) {
-                        send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
-                                   _status_check);
-                    }
+                if (std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_client_id); its_local_target) {
+                    send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
+                               _status_check, VSOMEIP_ROUTING_CLIENT);
                 }
             }
         }
@@ -2110,9 +1830,7 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
                 for (auto& its_event : eventgroup_info->get_events()) {
                     const auto its_subscribers = its_event->get_subscribers();
                     for (const auto its_subscriber : its_subscribers) {
-                        if (its_subscriber != get_client()) {
-                            its_event->remove_subscriber(eventgroup_id, its_subscriber);
-                        }
+                        its_event->remove_subscriber(eventgroup_id, its_subscriber);
                     }
                     its_events.push_back(its_event);
                 }
@@ -2510,17 +2228,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
         }
 
         for (const auto& its_subscriber : subscribed_clients) {
-            if (its_subscriber == get_client()) {
-                if (_event == ANY_EVENT) {
-                    for (const auto& its_event : its_eventgroup->get_events()) {
-                        host_->on_subscription_status(_service, _instance, _eventgroup, its_event->get_event(), 0x0 /*OK*/);
-                    }
-                } else {
-                    host_->on_subscription_status(_service, _instance, _eventgroup, _event, 0x0 /*OK*/);
-                }
-            } else {
-                stub_->send_subscribe_ack(its_subscriber, _service, _instance, _eventgroup, _event);
-            }
+            stub_->send_subscribe_ack(its_subscriber, _service, _instance, _eventgroup, _event);
         }
     }
 }
@@ -2848,14 +2556,6 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                                                 << "] is now pending. Waiting for pong from application: " << hex4(its_stored_client);
                                 return false;
                             }
-                        } else if (its_stored_client == host_->get_client()) {
-                            VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
-                                            << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "."
-                                            << _minor << "] offered previously by routing manager stub itself with application: "
-                                            << hex4(its_stored_client) << ": [" << hex4(_service) << "." << hex4(_instance) << "."
-                                            << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor
-                                            << "] which is still alive";
-                            return false;
                         }
                     } else {
                         VSOMEIP_INFO_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major)
@@ -2944,7 +2644,6 @@ bool routing_manager_impl::handle_service_rerequest(client_t _client, service_t 
 }
 
 void routing_manager_impl::on_pong(client_t _client) {
-
     {
         std::scoped_lock its_lock{pending_commands_mutex_};
         for (auto service_iter = pending_offers_.begin(); service_iter != pending_offers_.end();) {
@@ -2986,14 +2685,10 @@ void routing_manager_impl::on_pong(client_t _client) {
 
                 for (auto client_id : requesting_clients) {
                     request_service(client_id, service_id, instance_id, ANY_MAJOR, ANY_MINOR);
-
-                    if (client_id != get_client()) {
-                        if (configuration_->is_security_enabled()) {
-                            stub_->handle_credentials(client_id, requests);
-                        }
-                        stub_->handle_requests(client_id, requests);
+                    if (configuration_->is_security_enabled()) {
+                        stub_->handle_credentials(client_id, requests);
                     }
-
+                    stub_->handle_requests(client_id, requests);
                     VSOMEIP_INFO << "REQUEST(" << hex4(client_id) << "): [" << hex4(service_id) << "." << hex4(instance_id)
                                  << "] processed";
                 }
@@ -3053,19 +2748,11 @@ std::shared_ptr<endpoint_manager_impl> routing_manager_impl::get_endpoint_manage
     return ep_mgr_impl_;
 }
 
-void routing_manager_impl::send_subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                          major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) {
-    // this function is only ever called from routing_manager_base for pending subscriptions implying that _client == get_client()
-    // but in order for the offering service to understand that this is not for the boardnet it needs to find a local client
-    // -> create a local client
-    auto const offering_client = find_local_client(_service, _instance);
-    auto endpoint = find_or_create_local_client(offering_client);
-    if (endpoint) {
-        stub_->send_subscribe(endpoint, _client, _service, _instance, _eventgroup, _major, _event, _filter, PENDING_SUBSCRIPTION_ID);
-    } else {
-        VSOMEIP_WARNING_P << "Could not find/create endpoint for client: 0x" << hex4(offering_client)
-                          << " offering service: " << hex4(_service);
-    }
+void routing_manager_impl::send_subscribe([[maybe_unused]] client_t _client, [[maybe_unused]] service_t _service,
+                                          [[maybe_unused]] instance_t _instance, [[maybe_unused]] eventgroup_t _eventgroup,
+                                          [[maybe_unused]] major_version_t _major, [[maybe_unused]] event_t _event,
+                                          [[maybe_unused]] const std::shared_ptr<debounce_filter_impl_t>& _filter) {
+    VSOMEIP_ERROR_P << "Should not have been called";
 }
 
 bool routing_manager_impl::is_suspended() const {
@@ -3613,9 +3300,7 @@ void routing_manager_impl::clear_targets_and_pending_sub_from_eventgroups(servic
                 for (auto& its_event : eventgroup_info->get_events()) {
                     const auto its_subscribers = its_event->get_subscribers();
                     for (const auto its_subscriber : its_subscribers) {
-                        if (its_subscriber != get_client()) {
-                            its_event->remove_subscriber(eventgroup_id, its_subscriber);
-                        }
+                        its_event->remove_subscriber(eventgroup_id, its_subscriber);
 
                         client_t its_client = VSOMEIP_ROUTING_CLIENT; // is_specific_endpoint_client(its_subscriber,
                                                                       // _service, _instance);
@@ -3664,13 +3349,7 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _ser
     // full information like eventgroup, field or not etc.
     std::set<eventgroup_t> its_eventgroups({_eventgroup});
 
-    const client_t its_local_client(find_local_client(_service, _instance));
-    if (its_local_client == host_->get_client()) {
-        // received subscription for event of a service instance hosted by
-        // application acting as rm_impl register with own client id and shadow = false
-        register_event(host_->get_client(), _service, _instance, _event, its_eventgroups, event_type_e::ET_UNKNOWN,
-                       reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, false, false, true);
-    } else if (its_local_client != VSOMEIP_ROUTING_CLIENT) {
+    if (const client_t its_local_client(find_local_client(_service, _instance)); its_local_client != VSOMEIP_ROUTING_CLIENT) {
         // received subscription for event of a service instance hosted on
         // this node register with client id of local_client and set shadow to true
         register_event(its_local_client, _service, _instance, _event, its_eventgroups, event_type_e::ET_UNKNOWN,
@@ -3713,11 +3392,7 @@ void routing_manager_impl::handle_subscription_state(client_t _client, service_t
     if (its_state != remote_subscription_state_.end()) {
         if (its_state->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
             // Subscription already acknowledged!
-            if (_client == get_client()) {
-                host_->on_subscription_status(_service, _instance, _eventgroup, _event, 0x0 /*OK*/);
-            } else {
-                stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
-            }
+            stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
         }
     }
 }
@@ -3852,38 +3527,7 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
 void routing_manager_impl::send_subscription(const client_t _offering_client, const service_t _service, const instance_t _instance,
                                              const eventgroup_t _eventgroup, const major_version_t _major,
                                              const std::set<client_t>& _clients, const remote_subscription_id_t _id) {
-    if (host_->get_client() == _offering_client) {
-        auto self = shared_from_this();
-        auto const sec_client = get_sec_client();
-        for (const auto its_client : _clients) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client, &sec_client, get_env(its_client), true,
-                                   [this, self, _service, _instance, _eventgroup, _major, its_client, _id](const bool _is_accepted) {
-                                       try {
-                                           if (!_is_accepted) {
-                                               const auto its_callback =
-                                                       std::bind(&routing_manager_stub_host::on_subscribe_nack,
-                                                                 std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                                                 its_client, _service, _instance, _eventgroup, false, _id);
-                                               boost::asio::post(io_, its_callback);
-                                           } else {
-                                               const auto its_callback =
-                                                       std::bind(&routing_manager_stub_host::on_subscribe_ack,
-                                                                 std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                                                 its_client, _service, _instance, _eventgroup, ANY_EVENT, _id);
-                                               boost::asio::post(io_, its_callback);
-                                           }
-
-                                           VSOMEIP_INFO << "SUBSCRIBE(" << hex4(its_client) << "): [" << hex4(_service) << "."
-                                                        << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(ANY_EVENT) << ":"
-                                                        << static_cast<uint16_t>(_major) << "] "
-                                                        << (_is_accepted ? " accepted" : "not accepted");
-
-                                       } catch (const std::exception& e) {
-                                           VSOMEIP_ERROR_P << e.what();
-                                       }
-                                   });
-        }
-    } else { // service hosted by local client
+    { // service hosted by local client
         for (const auto its_client : _clients) {
             if (!stub_->send_subscribe(find_routing_endpoint(_offering_client), its_client, _service, _instance, _eventgroup, _major,
                                        ANY_EVENT, nullptr, _id)) {
@@ -3974,26 +3618,7 @@ void routing_manager_impl::send_unsubscription(client_t _offering_client, servic
                                                remote_subscription_id_t _id) {
 
     (void)_major; // TODO: Remove completely?
-
-    if (host_->get_client() == _offering_client) {
-        auto self = shared_from_this();
-        auto const sec_client = get_sec_client();
-        for (const auto its_client : _removed) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client, &sec_client, get_env(its_client), false,
-                                   [this, self, _service, _instance, _eventgroup, its_client, _id](const bool _is_accepted) {
-                                       (void)_is_accepted;
-                                       try {
-                                           const auto its_callback =
-                                                   std::bind(&routing_manager_stub_host::on_unsubscribe_ack,
-                                                             std::dynamic_pointer_cast<routing_manager_stub_host>(shared_from_this()),
-                                                             its_client, _service, _instance, _eventgroup, _id);
-                                           boost::asio::post(io_, its_callback);
-                                       } catch (const std::exception& e) {
-                                           VSOMEIP_ERROR_P << e.what();
-                                       }
-                                   });
-        }
-    } else {
+    {
         for (const auto its_client : _removed) {
             if (!stub_->send_unsubscribe(find_routing_endpoint(_offering_client), its_client, _service, _instance, _eventgroup, ANY_EVENT,
                                          _id)) {
@@ -4014,14 +3639,7 @@ void routing_manager_impl::send_expired_subscription(client_t _offering_client, 
                                                      eventgroup_t _eventgroup, const std::set<client_t>& _removed,
                                                      remote_subscription_id_t _id) {
 
-    if (host_->get_client() == _offering_client) {
-        auto self = shared_from_this();
-        auto const sec_client = get_sec_client();
-        for (const auto its_client : _removed) {
-            host_->on_subscription(_service, _instance, _eventgroup, its_client, &sec_client, get_env(its_client), false,
-                                   [](const bool _subscription_accepted) { (void)_subscription_accepted; });
-        }
-    } else {
+    {
         for (const auto its_client : _removed) {
             stub_->send_expired_subscription(find_routing_endpoint(_offering_client), its_client, _service, _instance, _eventgroup,
                                              ANY_EVENT, _id);

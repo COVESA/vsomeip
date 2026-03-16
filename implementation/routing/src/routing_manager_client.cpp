@@ -877,7 +877,8 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
             // notify_one
             its_target = ep_mgr_->find_local_server_endpoint(_client);
             if (its_target) {
-                is_sent = send_local(its_target, get_client(), _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check);
+                is_sent = send_local(its_target, get_client(), _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check,
+                                     get_client());
                 if (is_sent) {
                     trace::header its_header;
                     if (its_header.prepare(its_target, true, _instance))
@@ -916,7 +917,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
         }
         if (send) {
             auto its_client{its_command == protocol::id_e::NOTIFY_ONE_ID ? _client : get_client()};
-            is_sent = send_local(its_target, its_client, _data, _size, _instance, _reliable, its_command, _status_check);
+            is_sent = send_local(its_target, its_client, _data, _size, _instance, _reliable, its_command, _status_check, get_client());
             if (is_sent && !utility::is_notification(VSOMEIP_MESSAGE_TYPE_POS) && !message_to_stub) {
                 trace::header its_header;
                 if (its_header.prepare(its_target, true, _instance))
@@ -2069,7 +2070,7 @@ void routing_manager_client::notify_remote_initially(service_t _service, instanc
                         std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
                         if (sender_) {
                             send_local(sender_, VSOMEIP_ROUTING_CLIENT, its_serializer->get_data(), its_serializer->get_size(), _instance,
-                                       false, protocol::id_e::NOTIFY_ID, 0);
+                                       false, protocol::id_e::NOTIFY_ID, 0, get_client());
                         } else {
                             VSOMEIP_ERROR_P << "Failed due to a missing sender";
                         }

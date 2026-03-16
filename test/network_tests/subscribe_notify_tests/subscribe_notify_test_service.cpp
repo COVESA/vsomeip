@@ -157,10 +157,9 @@ public:
                       << "Client: " << std::setw(4) << _client << (_subscribed ? " subscribed" : " unsubscribed") << ", now have "
                       << std::dec << subscribers_.size() << " subscribers";
         // check if all other services have subscribed:
-        // -1 for placeholder in array
-        // divide by two because we only receive once subscription per remote node
-        // no matter how many clients subscribed to this eventgroup on the remote node
-        if (!notified && subscribers_.size() == (service_infos_.size() - 1) / 2) {
+        // half the services subscribe remote -> + 1 (because the router will subscribe as a placeholder)
+        // while the other half - 1 subscribe locally
+        if (!notified && subscribers_.size() == (service_infos_.size() / 2)) {
             // notify the notify thread to start sending out notifications
             std::scoped_lock its_lock(notify_mutex_);
             wait_for_notify_ = false;
@@ -182,7 +181,8 @@ public:
 
     void on_message(const std::shared_ptr<vsomeip::message>& _message) {
         if (_message->get_message_type() == vsomeip::message_type_e::MT_NOTIFICATION) {
-
+            // another dispatcher might be currently evaluating whether all notifications are received
+            std::unique_lock lock{mutex_};
             other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())]++;
 
             VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] "
@@ -192,6 +192,7 @@ public:
                           << other_services_received_notification_[std::make_pair(_message->get_service(), _message->get_method())] << ")";
 
             if (all_notifications_received()) {
+                lock.unlock();
                 std::scoped_lock its_lock(stop_mutex_);
                 wait_for_stop_ = false;
                 stop_condition_.notify_one();

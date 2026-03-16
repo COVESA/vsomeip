@@ -5,10 +5,14 @@
 
 #pragma once
 
-#include <memory>
+#include <vsomeip/constants.hpp>
+#include <vsomeip/enumeration_types.hpp>
+#include <vsomeip/primitive_types.hpp>
+#include <vsomeip/vsomeip_sec.h>
 
 #include <boost/asio/io_context.hpp>
-#include <vsomeip/vsomeip_sec.h>
+
+#include <memory>
 
 namespace vsomeip_v3 {
 

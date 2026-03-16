@@ -24,6 +24,7 @@
 #include "../implementation/routing/include/routing_manager_impl.hpp"
 #include "../implementation/endpoints/include/tcp_client_endpoint_impl.hpp"
 #include "../implementation/routing/include/routing_manager.hpp"
+#include "../implementation/runtime/include/routing_application.hpp"
 
 using namespace std::chrono_literals;
 
@@ -110,7 +111,7 @@ public:
 
         VSOMEIP_INFO << "Running...";
 
-        vsomeip::routing_manager* its_routing = app_->get_routing_manager();
+        auto* its_routing = app_->routing_app_->routing_.get();
         ASSERT_TRUE(its_routing);
 
         // NOTE: these payloads *NEED* a magic cookie in front to be complete/parseable by the other side
@@ -125,12 +126,11 @@ public:
         // to get around it, we hack deep, deep into the endpoint machinery to reset the timer after each message
         // TODO: FIXME, somehow, because disgusting does not begin to describe how terrible this is
         auto wait_and_reset_timer = [its_routing]() {
-            auto routing = dynamic_cast<vsomeip::routing_manager_impl*>(its_routing);
             for (size_t i = 0; i < 2000; ++i) {
                 // NOTE: scope is intentional, need some care not to hold these internal locks for any amount of time
                 {
-                    std::scoped_lock its_lock{routing->get_endpoint_manager()->endpoint_mutex_};
-                    for (const auto& its_address : routing->get_endpoint_manager()->client_endpoints_) {
+                    std::scoped_lock its_lock{its_routing->get_endpoint_manager()->endpoint_mutex_};
+                    for (const auto& its_address : its_routing->get_endpoint_manager()->client_endpoints_) {
                         for (const auto& its_port : its_address.second) {
                             for (const auto& its_reliability : its_port.second) {
                                 for (const auto& its_partition : its_reliability.second) {
@@ -157,49 +157,50 @@ public:
 
         // Test sequence
         its_good_payload_data[11] = 0x01;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        auto* routing = static_cast<vsomeip::routing_manager*>(its_routing);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x02;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x03;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x04;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x05;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x06;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x07;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x08;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x09;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x0A;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x0B;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x0C;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x0D;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x0E;
-        its_routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_bad_payload_data, sizeof(its_bad_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_good_payload_data[11] = 0x0F;
-        its_routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
+        routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
 
         ASSERT_TRUE(condition_.wait_for(its_lock, 5s, [this] { return received_responses_ == 8 && received_errors_ == 7; }));

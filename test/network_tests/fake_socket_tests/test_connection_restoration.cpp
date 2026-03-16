@@ -280,6 +280,7 @@ TEST_F(test_client_helper, router_consumes_field_before_service_tries_to_offer_f
     GTEST_SKIP() << "Provokes a race in application_impl regarding the usage of sec_client_";
 
     start_router();
+    routingmanagerd_->request_service(service_instance_);
     routingmanagerd_->subscribe_field(offered_field_);
 
     server_ = start_client(server_name_);
@@ -295,6 +296,7 @@ TEST_F(test_client_helper, router_consumes_field_before_service_tries_to_offer_f
     GTEST_SKIP() << "Provokes a race in application_impl regarding the usage of sec_client_";
 
     start_router();
+    routingmanagerd_->request_service(service_instance_);
     routingmanagerd_->subscribe_field(offered_field_);
 
     server_ = start_client(server_name_);
@@ -316,6 +318,7 @@ TEST_F(test_client_helper, router_consumes_field_after_service_tries_to_offer_be
 
     start_router();
 
+    routingmanagerd_->request_service(service_instance_);
     routingmanagerd_->subscribe_field(offered_field_);
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
@@ -330,6 +333,7 @@ TEST_F(test_client_helper, router_consumes_field_after_service_tries_to_offer_af
     ASSERT_TRUE(client_->message_record_.wait_for(field_checker_));
 
     // ... before subscribing from the router itself
+    routingmanagerd_->request_service(service_instance_);
     routingmanagerd_->subscribe_field(offered_field_);
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));

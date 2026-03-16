@@ -37,6 +37,7 @@ namespace vsomeip_v3 {
 
 class runtime;
 class configuration;
+class routing_application;
 class routing_manager;
 class routing_manager_stub;
 class plugin_manager_impl;
@@ -402,6 +403,8 @@ private:
     vsomeip_sec_client_t sec_client_;
 
     bool has_session_handling_;
+
+    std::unique_ptr<routing_application> routing_app_;
 };
 
 } // namespace vsomeip_v3

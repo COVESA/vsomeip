@@ -58,7 +58,12 @@ bool e2e_test_service::init() {
 
     // set value to field which gets filled by e2e protection  with CRC on sending
     // after e2e protection the payload for first event should look like:
-    // {{0xa4, 0xa1, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff}
+    //                  {{0xf9, 0xa0, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff}
+    // crc ----------------^      ^    ^
+    //                            |    |
+    // +1 by protector with send --    |
+    //                                 |
+    // +1 by test with notification ----
     std::shared_ptr<vsomeip::payload> its_payload = vsomeip::runtime::get()->create_payload();
     vsomeip::byte_t its_data[8] = {0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff};
     its_payload->set_data(its_data, 8);

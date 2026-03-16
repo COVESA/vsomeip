@@ -245,8 +245,6 @@ private:
     void stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                             bool _must_queue);
 
-    bool deliver_message(const byte_t* _data, length_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
-                         const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0, bool _is_from_remote = false);
     bool deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length, bool _reliable,
                               client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0,
                               bool _is_from_remote = false);

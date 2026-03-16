@@ -444,7 +444,6 @@ TEST_F(test_field_routing, router_router_client) {
 
     auto next_expected_message = first_expected_message_;
     next_expected_message.payload_ = {0x5, 0x3};
-    next_expected_message.client_session_.session_ += 1; // interesting
     EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
 }
 TEST_F(test_field_routing, router_router) {
@@ -462,7 +461,6 @@ TEST_F(test_field_routing, router_router) {
 
     auto next_expected_message = first_expected_message_;
     next_expected_message.payload_ = {0x5, 0x3};
-    next_expected_message.client_session_.session_ += 1; // interesting
     EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
 }
 

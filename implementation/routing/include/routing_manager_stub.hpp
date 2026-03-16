@@ -74,7 +74,6 @@ public:
     bool contained_in_routing_info(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                    minor_version_t _minor) const;
 
-    void create_local_receiver();
     bool send_ping(client_t _client);
     bool is_registered(client_t _client) const;
     client_t get_client() const;
@@ -188,9 +187,6 @@ private:
     boost::asio::steady_timer watchdog_timer_;
 
     std::shared_ptr<local_server> root_; // Routing manager endpoint
-
-    std::shared_ptr<local_server> local_receiver_;
-    std::mutex local_receiver_mutex_;
 
     std::map<client_t, std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>>>
             routing_info_;
