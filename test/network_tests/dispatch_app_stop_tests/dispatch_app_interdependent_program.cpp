@@ -52,6 +52,10 @@ TEST(dispatch_app_stop, interdependent_program) {
     auto completed_mutex = std::make_shared<std::mutex>();
     auto completed_handlers = std::make_shared<std::atomic<std::size_t>>(0U);
 
+    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
+    auto thread_ctor_mt = std::make_shared<std::mutex>();
+    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+
     const std::string app_0_name = "dispatch_app_interdependent_program_0";
     const std::string app_1_name = "dispatch_app_interdependent_program_1";
     ASSERT_EQ(create_config(app_0_name), 0);
@@ -66,7 +70,8 @@ TEST(dispatch_app_stop, interdependent_program) {
     auto t1 = std::make_shared<std::thread>();
 
     app_0->register_state_handler([app = app_0, t0, its_cv, its_mutex, its_bool, app_0_wait_cv, app_0_waiting, completed_cv,
-                                   completed_handlers, handler_timeout](vsomeip_v3::state_type_e state) {
+                                   completed_handlers, handler_timeout, thread_ctor_cv, thread_ctor_mt,
+                                   thread_ctor_gate](vsomeip_v3::state_type_e state) {
         if (state != vsomeip_v3::state_type_e::ST_REGISTERED) {
             return;
         }
@@ -74,6 +79,10 @@ TEST(dispatch_app_stop, interdependent_program) {
         std::cout << "[TEST] app_0 stopping from dispatcher" << std::endl;
         app->clear_all_handler();
         app->stop();
+
+        std::unique_lock thread_ctor_lock{*thread_ctor_mt};
+        thread_ctor_cv->wait(thread_ctor_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
+        thread_ctor_lock.unlock();
 
         std::cout << "[TEST] app_0 joining T0" << std::endl;
         if (t0->joinable()) {
@@ -92,7 +101,8 @@ TEST(dispatch_app_stop, interdependent_program) {
     });
 
     app_1->register_state_handler([app = app_1, t1, its_cv, its_bool, app_0_wait_cv, app_0_wait_mutex, app_0_waiting, completed_cv,
-                                   completed_handlers, handler_timeout](vsomeip_v3::state_type_e state) {
+                                   completed_handlers, handler_timeout, thread_ctor_cv, thread_ctor_mt,
+                                   thread_ctor_gate](vsomeip_v3::state_type_e state) {
         if (state != vsomeip_v3::state_type_e::ST_REGISTERED) {
             return;
         }
@@ -106,6 +116,10 @@ TEST(dispatch_app_stop, interdependent_program) {
 
         app->clear_all_handler();
         app->stop();
+
+        std::unique_lock thread_ctor_lock{*thread_ctor_mt};
+        thread_ctor_cv->wait(thread_ctor_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
+        thread_ctor_lock.unlock();
 
         std::cout << "[TEST] app_1 joining T1" << std::endl;
         if (t1->joinable()) {
@@ -121,6 +135,8 @@ TEST(dispatch_app_stop, interdependent_program) {
 
     *t0 = std::thread([app = app_0] { app->start(); });
     *t1 = std::thread([app = app_1] { app->start(); });
+    thread_ctor_gate->store(true);
+    thread_ctor_cv->notify_all();
 
     std::unique_lock completed_lock{*completed_mutex};
     EXPECT_TRUE(completed_cv->wait_for(completed_lock, test_timeout, [completed_handlers] { return completed_handlers->load() == 2; }))

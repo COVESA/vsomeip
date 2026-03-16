@@ -3,11 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/>.
 
+#include <atomic>
+#include <array>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
-#include <future>
-#include <array>
 
 #include "vsomeip/application.hpp"
 #include "vsomeip/enumeration_types.hpp"
@@ -52,6 +52,10 @@ TEST(dispatch_app_stop, multiple_global) {
     auto mt = std::make_shared<std::mutex>();
     auto registered = std::make_shared<std::size_t>(0);
 
+    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
+    auto thread_ctor_mt = std::make_shared<std::mutex>();
+    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+
     constexpr std::size_t app_count = 3;
     const std::string app_name_prefix = "dispatch_app_multiple_global";
     std::array<std::string, app_count> app_names{};
@@ -73,12 +77,6 @@ TEST(dispatch_app_stop, multiple_global) {
         ASSERT_EQ(create_config(app_names[i]), 0);
     }
 
-    std::array<std::promise<void>, app_count> its_promises{};
-    std::array<std::shared_future<void>, app_count> its_futures{};
-    for (std::size_t i = 0; i < app_count; ++i) {
-        its_futures[i] = its_promises[i].get_future().share();
-    }
-
     std::array<std::thread, app_names.size()> threads{};
 
     // Create and initialize all applications.
@@ -92,50 +90,50 @@ TEST(dispatch_app_stop, multiple_global) {
     for (std::size_t i = 0; i < apps.size(); ++i) {
         auto app = apps[i];
 
-        app->register_state_handler([app, &threads, i, cv, mt, registered](vsomeip_v3::state_type_e state) {
-            if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
-                std::cout << "[TEST] Stopping application " << i << std::endl;
+        app->register_state_handler(
+                [app, &threads, i, cv, mt, registered, thread_ctor_cv, thread_ctor_mt, thread_ctor_gate](vsomeip_v3::state_type_e state) {
+                    if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
+                        std::cout << "[TEST] Stopping application " << i << std::endl;
 
-                app->clear_all_handler();
-                app->stop();
+                        app->clear_all_handler();
+                        app->stop();
 
-                // Join corresponding start() thread from dispatcher context.
-                // Multiple dispatcher threads may execute this concurrently.
-                std::cout << "[TEST] Joining t" << i << std::endl;
+                        std::unique_lock thread_ctor_lock{*thread_ctor_mt};
+                        thread_ctor_cv->wait(thread_ctor_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
+                        thread_ctor_lock.unlock();
 
-                if (threads[i].joinable()) {
-                    threads[i].join();
-                }
+                        // Join corresponding start() thread from dispatcher context.
+                        // Multiple dispatcher threads may execute this concurrently.
+                        std::cout << "[TEST] Joining t" << i << std::endl;
 
-                // Notify main that this instance completed stop + join.
-                {
-                    std::scoped_lock lock{*mt};
-                    (*registered)++;
-                }
-                cv->notify_one();
+                        if (threads[i].joinable()) {
+                            threads[i].join();
+                        }
 
-                // Keep dispatcher callback alive briefly after signaling.
-                // This enforces overlap with main thread return.
-                std::cout << "[TEST] Sleeping inside dispatcher thread " << i << std::endl;
+                        // Notify main that this instance completed stop + join.
+                        {
+                            std::scoped_lock lock{*mt};
+                            (*registered)++;
+                        }
+                        cv->notify_one();
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        // Keep dispatcher callback alive briefly after signaling.
+                        // This enforces overlap with main thread return.
+                        std::cout << "[TEST] Sleeping inside dispatcher thread " << i << std::endl;
 
-                std::cout << "[TEST] Waking up dispatcher thread " << i << std::endl;
-            }
-        });
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                        std::cout << "[TEST] Waking up dispatcher thread " << i << std::endl;
+                    }
+                });
     }
 
     // Start all applications in separate threads.
     for (std::size_t i = 0; i < apps.size(); ++i) {
-        threads[i] = std::thread([app = apps[i], future = its_futures[i]] {
-            future.wait();
-            app->start();
-        });
+        threads[i] = std::thread([app = apps[i]] { app->start(); });
     }
-
-    for (std::size_t i = 0; i < app_count; ++i) {
-        its_promises[i].set_value();
-    }
+    thread_ctor_gate->store(true);
+    thread_ctor_cv->notify_all();
 
     // Wait until all dispatcher callbacks completed stop + join.
     std::unique_lock lock{*mt};

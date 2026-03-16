@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <gtest/gtest.h>
@@ -46,6 +47,10 @@ TEST(dispatch_app_stop, outlives_global) {
     auto cv = std::make_shared<std::condition_variable>();
     std::mutex mt;
 
+    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
+    auto thread_ctor_mt = std::make_shared<std::mutex>();
+    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+
     const std::string app_name = "dispatch_app_outlives_global";
     ASSERT_EQ(create_config(app_name), 0);
 
@@ -58,7 +63,7 @@ TEST(dispatch_app_stop, outlives_global) {
     // Thread executing app->start(); explicitly joined from dispatcher.
     std::thread t0;
 
-    app->register_state_handler([a = app, &t0, cv](vsomeip_v3::state_type_e state) {
+    app->register_state_handler([a = app, &t0, cv, thread_ctor_cv, thread_ctor_mt, thread_ctor_gate](vsomeip_v3::state_type_e state) {
         if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
             std::cout << "[TEST] Stopping application" << std::endl;
 
@@ -67,6 +72,10 @@ TEST(dispatch_app_stop, outlives_global) {
 
             // Stop application from within the dispatcher thread.
             a->stop();
+
+            // Blocks until t0 constructor properly finishes
+            std::unique_lock lock{*thread_ctor_mt};
+            thread_ctor_cv->wait(lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
 
             // Join the start() thread from dispatcher context. This is a
             // critical part of the test and would expose incorrect internal
@@ -87,7 +96,10 @@ TEST(dispatch_app_stop, outlives_global) {
     });
 
     // Launch application event loop in a dedicated thread.
+    std::cout << "[TEST] Starting t0 thread" << std::endl;
     t0 = std::thread([a = app] { a->start(); });
+    thread_ctor_gate->store(true);
+    thread_ctor_cv->notify_one();
 
     // Wait until the dispatcher has completed stop() and join().
     // Successful return implies no deadlock, crash, or undefined behavior
