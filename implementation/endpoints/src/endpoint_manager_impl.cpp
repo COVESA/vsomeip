@@ -41,6 +41,8 @@ endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm, bo
 #if defined(__linux__) || defined(__QNX__)
         pthread_setname_np(pthread_self(), "m_multicast");
 #endif
+        utility::set_thread_niceness(configuration_->get_io_thread_nice_level(rm_->get_name()));
+
         process_multicast_options();
     }) {
 
