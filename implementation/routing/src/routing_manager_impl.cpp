@@ -511,8 +511,7 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
             }
         }
     } else {
-        if ((_major == its_info->get_major() || DEFAULT_MAJOR == its_info->get_major() || ANY_MAJOR == _major)
-            && (_minor <= its_info->get_minor() || DEFAULT_MINOR == its_info->get_minor() || _minor == ANY_MINOR)) {
+        if (_major == its_info->get_major() || DEFAULT_MAJOR == its_info->get_major() || ANY_MAJOR == _major) {
             if (!its_info->is_local()) {
                 add_requested_service(_client, _service, _instance, _major, _minor);
                 if (discovery_) {
@@ -1993,7 +1992,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
         {
             bool connected(false);
             std::scoped_lock its_lock_inner{requested_services_mutex_};
-            for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major, _minor)) {
+            for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
                 // SWS_SD_00376 establish TCP connection to service
                 // service is marked as available later in on_connect()
                 if (!connected) {
@@ -2028,7 +2027,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 // SWS_SD_00376 establish TCP connection to service
                 // service is marked as available later in on_connect()
                 ep_mgr_impl_->find_or_create_remote_client(_service, _instance, true);
-                for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major, _minor)) {
+                for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
                     its_info->add_client(its_client);
                 }
             }
@@ -2046,7 +2045,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
             {
                 bool connected(false);
                 std::scoped_lock its_lock_inner{requested_services_mutex_};
-                for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major, _minor)) {
+                for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
                     if (!connected) {
                         ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
                         connected = true;
@@ -2073,7 +2072,7 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     }
                 } else {
                     ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
-                    for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major, _minor)) {
+                    for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
                         its_info->add_client(its_client);
                     }
                 }
@@ -3504,15 +3503,13 @@ std::vector<protocol::service> routing_manager_impl::get_requested_services(clie
     return its_requests;
 }
 
-std::set<client_t> routing_manager_impl::get_requesters(service_t _service, instance_t _instance, major_version_t _major,
-                                                        minor_version_t _minor) {
+std::set<client_t> routing_manager_impl::get_requesters(service_t _service, instance_t _instance, major_version_t _major) {
 
     std::scoped_lock ist_lock{requested_services_mutex_};
-    return get_requesters_unlocked(_service, _instance, _major, _minor);
+    return get_requesters_unlocked(_service, _instance, _major);
 }
 
-std::set<client_t> routing_manager_impl::get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major,
-                                                                 minor_version_t _minor) {
+std::set<client_t> routing_manager_impl::get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major) {
 
     std::set<client_t> its_requesters;
 
@@ -3535,12 +3532,10 @@ std::set<client_t> routing_manager_impl::get_requesters_unlocked(service_t _serv
     for (const auto& [major, minors_map] : found_instance->second) {
         if (major == _major || _major == DEFAULT_MAJOR || major == ANY_MAJOR) {
             for (const auto& [minor, clients] : minors_map) {
-                if (minor <= _minor || _minor == DEFAULT_MINOR || minor == ANY_MINOR) {
-                    if (its_requesters.empty()) {
-                        its_requesters = clients;
-                    } else {
-                        its_requesters.insert(clients.cbegin(), clients.cend());
-                    }
+                if (its_requesters.empty()) {
+                    its_requesters = clients;
+                } else {
+                    its_requesters.insert(clients.cbegin(), clients.cend());
                 }
             }
         }

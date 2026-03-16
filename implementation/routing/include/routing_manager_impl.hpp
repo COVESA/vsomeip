@@ -289,8 +289,8 @@ private:
     void add_requested_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     void remove_requested_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                   minor_version_t _minor);
-    std::set<client_t> get_requesters(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
-    std::set<client_t> get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
+    std::set<client_t> get_requesters(service_t _service, instance_t _instance, major_version_t _major);
+    std::set<client_t> get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major);
 
     bool has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     bool has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);

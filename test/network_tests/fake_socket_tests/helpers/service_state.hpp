@@ -18,7 +18,10 @@ namespace vsomeip_v3::testing {
 struct service_instance {
     vsomeip::service_t service_{};
     vsomeip::instance_t instance_{};
+    major_version_t major_{ANY_MAJOR};
+    minor_version_t minor_{ANY_MINOR};
 
+    // Not including major/minor since availability handler only delivers service/instance.
     [[nodiscard]] bool operator==(service_instance const& rhs) const { return service_ == rhs.service_ && instance_ == rhs.instance_; }
     [[nodiscard]] bool operator!=(service_instance const& rhs) const { return !(*this == rhs); }
 };

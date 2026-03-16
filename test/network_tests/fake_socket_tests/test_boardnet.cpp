@@ -244,6 +244,59 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message));
 }
 
+TEST_F(test_boardnet_helper, property_mismatch_regression) {
+    // Regression test for property mismatch issue, where if a two clients request the same service though with different minors, with only
+    // one of them fully matching the offered service, both would get the service availability and be able to manipulate the service
+    // interface. When the client that required the correct minor releases the service, the remaining one would no longer be able to use the
+    // boardnet service.
+    //
+    // 1. start applications (ECU one (Router+Client one + Client two) , ECU two (Router+Server)).
+    // 2. Server offers the service with minor 1.
+    // 3. Client one requests the service with minor 1.
+    // 4. Client two requests and subscribes the service with minor 2 (wrong minor).
+    // 5. Both clients should see the service as available.
+    // 6. Client one releases the service.
+    // 7. Server sends a notification.
+    // 8. Client two receives message.
+
+    // Create router and clients.
+    start_all_apps();
+    // Create second client
+    auto ecu_one_client_two = start_application("ecu_one_client_two", "ecu_one.json");
+    ASSERT_TRUE(successfully_registered(ecu_one_client_two));
+
+    service_instance si_right_minor{service_instance_.service_, service_instance_.instance_, 1, 1};
+    service_instance si_wrong_minor{service_instance_.service_, service_instance_.instance_, 1, 2};
+    event_ids event_right_minor{si_right_minor, 0x8002, 0x1, {vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    event_ids event_wrong_minor{si_wrong_minor, 0x8002, 0x1, {vsomeip::reliability_type_e::RT_UNRELIABLE}};
+
+    // Server offers the service.
+    ecu_two_server_->offer(si_right_minor);
+    ecu_two_server_->offer_field(event_right_minor);
+
+    // Client one requests the service using the right minor version.
+    ecu_one_client_->request_service(si_right_minor);
+    // Client two requests the service using the wrong minor version.
+    ecu_one_client_two->request_service(si_wrong_minor);
+    ecu_one_client_two->subscribe_event(event_wrong_minor);
+
+    // Clients receive availability.
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(si_right_minor)));
+    ASSERT_TRUE(ecu_one_client_two->availability_record_.wait_for_last(service_availability::available(si_wrong_minor)));
+
+    // Client one releases the service.
+    ecu_one_client_->release_service(si_right_minor);
+
+    // Server sends a notification
+    ecu_two_server_->send_event(event_right_minor, {0x5, 0x3});
+    message expected_message{
+            client_session{0, 1}, si_right_minor, event_wrong_minor.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, {}};
+    expected_message.payload_ = {0x5, 0x3};
+
+    // Client two should still be able to receive notification.
+    EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message));
+}
+
 struct test_field_routing : test_boardnet_helper { };
 
 TEST_F(test_field_routing, test_routing_with_str_on_server_side) {

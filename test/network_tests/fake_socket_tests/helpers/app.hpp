@@ -103,6 +103,11 @@ public:
     void request_service(service_instance _si);
 
     /**
+     * Forwards the request to the vsomeip::application::release_service
+     */
+    void release_service(service_instance _si);
+
+    /**
      * Forwards the request to the vsomeip::application::send()
      */
     void send_request(request const& _req);

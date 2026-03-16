@@ -59,7 +59,7 @@ void app::offer(interface const& _interface) {
 
 void app::offer(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _si;
-    app_->offer_service(_si.service_, _si.instance_);
+    app_->offer_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
 }
 
 void app::offer_event(event_ids const& _ei) {
@@ -129,7 +129,12 @@ void app::answer_request(request const& _r, std::function<std::vector<unsigned c
 
 void app::request_service(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _si;
-    app_->request_service(_si.service_, _si.instance_);
+    app_->request_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
+}
+
+void app::release_service(service_instance _si) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is releasing: " << _si;
+    app_->release_service(_si.service_, _si.instance_);
 }
 
 void app::send_field(interface const& _interface, std::vector<unsigned char> const& _payload) {
@@ -148,6 +153,7 @@ void app::send_request(request const& _req) {
     auto message = vsomeip::runtime::get()->create_request(_req.reliability_);
     message->set_service(_req.service_instance_.service_);
     message->set_instance(_req.service_instance_.instance_);
+    message->set_interface_version(_req.service_instance_.major_);
     message->set_method(_req.method_);
     message->set_message_type(_req.message_type_);
     auto its_payload = vsomeip::runtime::get()->create_payload();
@@ -158,7 +164,7 @@ void app::send_request(request const& _req) {
 
 void app::stop_offer(service_instance const& _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is no longer offering: " << _si;
-    app_->stop_offer_service(_si.service_, _si.instance_);
+    app_->stop_offer_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
 }
 
 void app::update_security_policy_configuration(uid_t _uid, gid_t _gid) {
@@ -190,7 +196,7 @@ void app::on_message(const std::shared_ptr<vsomeip::message>& _message) {
 
 void app::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::availability_state_e _state) {
     if (_service != vsomeip::ANY_SERVICE && _instance != vsomeip::ANY_INSTANCE) {
-        auto const avail = service_availability{_service, _instance, _state};
+        auto const avail = service_availability{{_service, _instance}, _state};
         TEST_LOG << "[app] \"" << app_->get_name() << "\" availability changed: " << avail;
         availability_record_.record(avail);
     }
@@ -215,7 +221,7 @@ void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
     app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
 
-    app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_);
+    app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.si_.major_, _ei.event_id_);
 }
 
 void app::subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et) {
@@ -230,7 +236,7 @@ void app::subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et) 
     app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
 
-    app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, ANY_EVENT);
+    app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.si_.major_, ANY_EVENT);
 }
 
 void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& filter) {
@@ -245,7 +251,7 @@ void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _e
     app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing-with-debounce to: " << _ei;
 
-    app_->subscribe_with_debounce(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_, filter);
+    app_->subscribe_with_debounce(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.si_.major_, _ei.event_id_, filter);
 }
 
 void app::offer(event_ids const& _ei, vsomeip::event_type_e _et) {

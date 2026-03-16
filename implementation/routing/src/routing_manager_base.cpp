@@ -230,8 +230,7 @@ void routing_manager_base::request_service(client_t _client, service_t _service,
                                            minor_version_t _minor) {
     auto its_info = find_service(_service, _instance);
     if (its_info) {
-        if ((_major == its_info->get_major() || DEFAULT_MAJOR == its_info->get_major() || ANY_MAJOR == _major)
-            && (_minor <= its_info->get_minor() || DEFAULT_MINOR == its_info->get_minor() || _minor == ANY_MINOR)) {
+        if (_major == its_info->get_major() || DEFAULT_MAJOR == its_info->get_major() || ANY_MAJOR == _major) {
             its_info->add_client(_client);
         } else {
             VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
