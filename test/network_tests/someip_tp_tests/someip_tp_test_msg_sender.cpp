@@ -260,10 +260,12 @@ protected:
     }
 
     void decrease_segment_back(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
-        _seg->resize(_seg->size() - _amount, 0xff);
-        // update length
-        *(reinterpret_cast<vsomeip::length_t*>(&((*_seg)[VSOMEIP_LENGTH_POS_MIN]))) =
-                htonl(static_cast<vsomeip::length_t>(_seg->size() - VSOMEIP_SOMEIP_HEADER_SIZE));
+        if (_amount <= _seg->size()) {
+            _seg->resize(_seg->size() - _amount, 0xff);
+            // update length
+            *(reinterpret_cast<vsomeip::length_t*>(&((*_seg)[VSOMEIP_LENGTH_POS_MIN]))) =
+                    htonl(static_cast<vsomeip::length_t>(_seg->size() - VSOMEIP_SOMEIP_HEADER_SIZE));
+        }
     }
 
     void decrease_segment_front(const vsomeip::message_buffer_ptr_t& _seg, std::uint32_t _amount) {
