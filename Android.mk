@@ -85,6 +85,7 @@ LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/utility)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/plugin)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/protocol)
 LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/security)
+LOCAL_SRC_FILES += $(call all-cpp-files-under,implementation/thread_manager)
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/interface \

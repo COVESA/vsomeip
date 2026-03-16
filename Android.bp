@@ -9,6 +9,7 @@ libvsomeip_srcs = [
    "implementation/plugin/**/*.cpp",
    "implementation/protocol/**/*.cpp",
    "implementation/security/**/*.cpp",
+   "implementation/thread_manager/**/*.cpp",
 ]
 
 libvsomeip_cfg_srcs = [
