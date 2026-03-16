@@ -1,11 +1,12 @@
-FROM ubuntu:jammy
+FROM ubuntu:noble
 SHELL ["/bin/bash", "-xec"]
-RUN export DEBIAN_FRONTEND=noninteractive;\
-    apt-get update;\
-    apt-get dist-upgrade --purge --yes\
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update;\
+    apt-get install --no-install-recommends --yes\
         bind9-dnsutils\
         cmake\
-        g++-12\
+        g++\
         gdb\
         googletest\
         iptables\
@@ -19,21 +20,23 @@ RUN export DEBIAN_FRONTEND=noninteractive;\
         ninja-build\
         openssh-server\
         pkg-config\
+        python3-dev\
         python3-pip\
         python3-scapy\
         tcpdump\
         valgrind\
+        wget\
         socat \
         strace \
         ;\
     apt-get autoremove --purge --yes;\
     apt-get clean;\
-    pip3 install gcovr NetfilterQueue
+    pip3 install --break-system-packages gcovr NetfilterQueue
 
-# Pinned GCC version
-ENV CC=gcc-12
-ENV CXX=g++-12
-ENV GCOV=gcov-12
+# Default GCC-13 from Noble
+ENV CC=gcc
+ENV CXX=g++
+ENV GCOV=gcov
 
 # Build boost
 ARG BOOST_MAJOR
@@ -44,7 +47,7 @@ RUN wget https://archives.boost.io/release/${BOOST_MAJOR}.${BOOST_MINOR}.${BOOST
     tar -zxvf boost_sources.tar.gz;\
     cd boost_${BOOST_MAJOR}_${BOOST_MINOR}_${BOOST_PATCH};\
     ./bootstrap.sh --prefix=/usr;\
-    ./b2 install valgrind=on --with-system --with-log --with-filesystem --with-thread
+    ./b2 install valgrind=on --with-system --with-filesystem
 
 # /etc configurations
 RUN echo 'SendEnv *' > /etc/ssh/ssh_config.d/vsomeip.conf;\

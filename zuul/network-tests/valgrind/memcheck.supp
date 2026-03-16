@@ -53,6 +53,27 @@
    obj:/usr/bin/bash
 }
 {
+   # iproute2 'ip' command (e.g. 'ip link set eth0 down/up') has a known internal
+   # malloc that is never freed before exit. This is in the third-party binary and
+   # not a vsomeip bug.
+   ip_leaks
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   obj:/usr/bin/ip
+}
+{
+   # iproute2 'tc' command (e.g. 'tc filter add') has a known internal malloc that
+   # is never freed before exit. This is in the third-party binary and not a vsomeip bug.
+   tc_leaks
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   obj:/usr/sbin/tc
+}
+{
    xtables_sendto_uninit
    Memcheck:Param
    socketcall.sendto(msg)

@@ -213,7 +213,7 @@ if [ "$ENABLE_COVERAGE" != False ]
 then
 	# Temporarily ignore parse errors to unblock ci
 	run-both gcovr -j 0 --merge-mode-functions=merge-use-line-0 --gcov-executable "$GCOV" --gcov-ignore-parse-errors=suspicious_hits.warn --json /home/logs/coverage/@name@.json --root /home/source /home/build
-	run-both lcov --base-directory /home/source --capture --directory /home/build --gcov-tool "$GCOV" --output-file /home/logs/coverage/@name@.info
+	run-both lcov --base-directory /home/source --capture --directory /home/build --gcov-tool "$GCOV" --ignore-errors mismatch --output-file /home/logs/coverage/@name@.info
 	gcovr -j 0 --add-tracefile=/home/logs/coverage/{master,slave}.json --json /home/logs/coverage.json
 	lcov --add-tracefile=/home/logs/coverage/{master,slave}.info --output-file /home/logs/coverage/merged.info
 	lcov --remove /home/logs/coverage/merged.info '/usr/*' --output-file /home/logs/coverage/filtered.info

@@ -8,6 +8,12 @@
 #include <gtest/gtest.h>
 #include <common/utility.hpp>
 
+// GCC 13+ false-positive in boost/icl/detail/interval_set_algo.hpp triggered
+// during template instantiation of boost::icl::interval_set operations.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
 namespace {
 std::string configuration_file{"/vsomeip/0_0/vsomeip_security.json"};
 
