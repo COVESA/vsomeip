@@ -16,10 +16,7 @@ public:
     mock_routing_host();
     ~mock_routing_host();
 
-    MOCK_METHOD(void, on_message,
-                (const byte_t*, length_t, boardnet_endpoint*, bool, client_t, const vsomeip_sec_client_t*, const boost::asio::ip::address&,
-                 std::uint16_t),
-                (override));
+    MOCK_METHOD(void, on_message, (const byte_t*, length_t, client_t, const vsomeip_sec_client_t*), (override));
     MOCK_METHOD(client_t, get_client, (), (const, override));
     MOCK_METHOD(void, add_known_client, (client_t, const std::string&), (override));
     MOCK_METHOD(void, remove_known_client, (client_t), (override));
@@ -27,6 +24,5 @@ public:
     MOCK_METHOD(void, add_guest, (client_t, const boost::asio::ip::address&, port_t), (override));
     MOCK_METHOD(void, remove_local, (client_t, bool), (override));
     MOCK_METHOD(std::string, get_env, (client_t), (const, override));
-    MOCK_METHOD(void, remove_subscriptions, (port_t, const boost::asio::ip::address&, port_t), (override));
 };
 }

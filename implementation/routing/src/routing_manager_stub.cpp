@@ -126,15 +126,8 @@ connection_control_response_e routing_manager_stub::change_connection_control(co
     return connection_control_response_e::CCR_OK;
 }
 
-void routing_manager_stub::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
-                                      client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
-                                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
-
-    (void)_receiver;
-    (void)_is_multicast;
-    (void)_remote_address;
-    (void)_remote_port;
-
+void routing_manager_stub::on_message(const byte_t* _data, length_t _size, client_t _bound_client,
+                                      const vsomeip_sec_client_t* _sec_client) {
     client_t its_client;
     protocol::id_e its_id;
     std::string its_client_endpoint;
@@ -1953,14 +1946,6 @@ void routing_manager_stub::send_suspend() const {
         broadcast(its_buffer);
     else
         VSOMEIP_ERROR_P << "Suspend command serialization failed (" << int(its_error) << ")";
-}
-
-void routing_manager_stub::remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port) {
-
-    (void)_local_port;
-    (void)_remote_address;
-    (void)_remote_port;
-    // dummy method to implement routing_host interface
 }
 
 bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance, major_version_t _major) const {

@@ -30,9 +30,9 @@ namespace vsomeip_v3 {
 
 template<typename Protocol>
 client_endpoint_impl<Protocol>::client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                                                     const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
-                                                     const endpoint_type& _remote, boost::asio::io_context& _io,
-                                                     const std::shared_ptr<configuration>& _configuration) :
+                                                     const std::shared_ptr<boardnet_routing_host>& _routing_host,
+                                                     const endpoint_type& _local, const endpoint_type& _remote,
+                                                     boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
     endpoint_impl<Protocol>(_boardnet_endpoint_host, _routing_host, _io, _configuration), remote_{_remote}, flush_timer_{_io},
     connect_timer_{_io}, connect_timeout_{VSOMEIP_DEFAULT_CONNECT_TIMEOUT}, state_{cei_state_e::CLOSED}, reconnect_counter_{0},
     connecting_timer_{_io}, connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT}, train_{std::make_shared<train>()},

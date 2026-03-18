@@ -12,7 +12,7 @@
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
-#include "../../routing/include/routing_host.hpp"
+#include "../../routing/include/boardnet_routing_host.hpp"
 #include "../include/tcp_server_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
@@ -24,8 +24,9 @@ namespace ip = boost::asio::ip;
 namespace vsomeip_v3 {
 
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                                                   const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
-                                                   const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies) :
+                                                   const std::shared_ptr<boardnet_routing_host>& _routing_host,
+                                                   boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration,
+                                                   bool _use_magic_cookies) :
     tcp_server_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _io, _configuration), use_magic_cookies_(_use_magic_cookies),
     acceptor_(_io), buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
     // send timeout after 2/3 of configured ttl, warning after 1/3
@@ -539,7 +540,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
     }
 
     std::unique_lock its_lock(socket_mutex_);
-    std::shared_ptr<routing_host> its_host = its_server->routing_host_.lock();
+    std::shared_ptr<boardnet_routing_host> its_host = its_server->routing_host_.lock();
     if (its_host) {
         if (!_error && 0 < _bytes) {
             if (recv_buffer_size_ + _bytes < recv_buffer_size_) {
@@ -597,15 +598,15 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                         }
                         if (!use_magic_cookies_) {
                             its_lock.unlock();
-                            its_host->on_message(&recv_buffer_[its_iteration_gap], current_message_size, its_server.get(), false,
-                                                 VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                            its_host->on_message(&recv_buffer_[its_iteration_gap], current_message_size, its_server.get(), remote_address_,
+                                                 remote_port_, false);
                             its_lock.lock();
                         } else {
                             // Only call on_message without a magic cookie in front of the buffer!
                             if (!is_magic_cookie(its_iteration_gap)) {
                                 its_lock.unlock();
-                                its_host->on_message(&recv_buffer_[its_iteration_gap], current_message_size, its_server.get(), false,
-                                                     VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                                its_host->on_message(&recv_buffer_[its_iteration_gap], current_message_size, its_server.get(),
+                                                     remote_address_, remote_port_, false);
                                 its_lock.lock();
                             }
                         }
@@ -659,8 +660,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
 
                             // ensure to send back a error message w/ wrong protocol version
                             its_lock.unlock();
-                            its_host->on_message(&recv_buffer_[its_iteration_gap], VSOMEIP_SOMEIP_HEADER_SIZE + 8, its_server.get(), false,
-                                                 VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                            its_host->on_message(&recv_buffer_[its_iteration_gap], VSOMEIP_SOMEIP_HEADER_SIZE + 8, its_server.get(),
+                                                 remote_address_, remote_port_, false);
                             its_lock.lock();
                         } else if (!utility::is_valid_message_type(
                                            static_cast<message_type_e>(recv_buffer_[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS]))) {

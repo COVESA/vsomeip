@@ -20,6 +20,7 @@
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/handler.hpp>
 
+#include "boardnet_routing_host.hpp"
 #include "routing_manager_base.hpp"
 #include "routing_manager_stub_host.hpp"
 #include "types.hpp"
@@ -47,7 +48,11 @@ namespace e2e {
 class e2e_provider;
 } // namespace e2e
 
-class routing_manager_impl : public routing_manager_base, public routing_manager_stub_host, public sd::service_discovery_host {
+class routing_manager_impl : public routing_manager_base,
+                             public boardnet_routing_host,
+                             public routing_manager_stub_host,
+                             public sd::service_discovery_host,
+                             public std::enable_shared_from_this<routing_manager_impl> {
 public:
     routing_manager_impl(routing_manager_host* _host);
     ~routing_manager_impl();
@@ -133,10 +138,15 @@ public:
     void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                             remote_subscription_id_t _id);
 
-    void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
-                    const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
+    // as routing_host (no-op!)
+    void on_message(const byte_t* _data, length_t _length, client_t _bound_client, const vsomeip_sec_client_t* _sec_client) override;
+    // as boardnet_routing_host
+    void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, const boost::asio::ip::address& _remote_address,
+                    port_t _remote_port, bool _is_multicast) override;
+    // as routing_manager_stub_host
     bool on_message(service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _reliable, client_t _bound_client,
-                    const vsomeip_sec_client_t* _sec_client, uint8_t _check_status = 0, bool _is_from_remote = false);
+                    const vsomeip_sec_client_t* _sec_client, uint8_t _check_status = 0, bool _is_from_remote = false) override;
+
     void on_notification(client_t _client, service_t _service, instance_t _instance, const byte_t* _data, length_t _size, bool _notify_one);
 
     bool offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable, bool _magic_cookies_enabled);
@@ -223,7 +233,7 @@ public:
 
     void register_message_acceptance_handler(const message_acceptance_handler_t& _handler);
 
-    void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port);
+    void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port) override;
 
     std::vector<protocol::service> get_requested_services(client_t _client) const;
 

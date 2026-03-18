@@ -44,8 +44,8 @@ public:
     using socket_type = std::conditional_t<std::is_same_v<Protocol, boost::asio::ip::tcp>, tcp_socket, udp_socket>;
 
     client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                         const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local, const endpoint_type& _remote,
-                         boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
+                         const std::shared_ptr<boardnet_routing_host>& _routing_host, const endpoint_type& _local,
+                         const endpoint_type& _remote, boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
     virtual ~client_endpoint_impl();
 
     bool send(const uint8_t* _data, uint32_t _size);

@@ -1084,16 +1084,19 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
     return ret;
 }
 
-void routing_manager_impl::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
-                                      client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
-                                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
-    (void)_bound_client;
+void routing_manager_impl::on_message(const byte_t*, length_t, client_t, const vsomeip_sec_client_t*) {
+    VSOMEIP_ERROR_P << "Not supposed to be called";
+}
+
+void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver,
+                                      const boost::asio::ip::address& _remote_address, port_t _remote_port, bool _is_multicast) {
+
     uint8_t its_check_status = e2e::profile_interface::generic_check_status::E2E_OK;
     instance_t its_instance(0x0);
     bool is_forwarded(true);
     // message is at least 16-bytes, see also PRS_SOMEIP_00910
-    if (_size < VSOMEIP_FULL_HEADER_SIZE) {
-        VSOMEIP_ERROR_P << "Dropped message with invalid size " << _size;
+    if (_length < VSOMEIP_FULL_HEADER_SIZE) {
+        VSOMEIP_ERROR_P << "Dropped message with invalid length " << _length;
         return;
     }
 
@@ -1132,7 +1135,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
                 if (!is_acl_message_allowed(_receiver, its_service, ANY_INSTANCE, _remote_address)) {
                     return;
                 }
-                discovery_->on_message(_data, _size, _remote_address, _is_multicast);
+                discovery_->on_message(_data, _length, _remote_address, _is_multicast);
             } else {
                 VSOMEIP_ERROR << "Ignored SD message from unknown port (" << _remote_port << ")";
             }
@@ -1144,11 +1147,11 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
             its_instance = ep_mgr_impl_->find_instance(its_service, _receiver);
         }
 
-        return_code_e return_code = check_error(_data, _size, its_instance);
+        return_code_e return_code = check_error(_data, _length, its_instance);
         if (return_code != return_code_e::E_OK && return_code != return_code_e::E_NOT_OK) {
             // PRS_SOMEIP_00171/PRS_SOMEIP_00189, no error reply for fire-and-forget
             if (!utility::is_request_no_return(_data[VSOMEIP_MESSAGE_TYPE_POS])) {
-                send_error(return_code, _data, _size, its_instance, _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
+                send_error(return_code, _data, _length, its_instance, _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
             }
 
             // ignore request no response message if an error occurred
@@ -1189,7 +1192,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
 #ifndef ANDROID
             if (e2e_provider_->is_checked({its_service, its_method})) {
                 auto its_base = e2e_provider_->get_protection_base({its_service, its_method});
-                e2e_buffer its_buffer(_data + its_base, _data + _size);
+                e2e_buffer its_buffer(_data + its_base, _data + _length);
                 e2e_provider_->check({its_service, its_method}, its_buffer, its_instance, its_check_status);
 
                 if (its_check_status != e2e::profile_interface::generic_check_status::E2E_OK) {
@@ -1206,7 +1209,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
         }
 
         // Common way of message handling
-        is_forwarded = on_message(its_service, its_instance, _data, _size, _receiver->is_reliable(), _bound_client, _sec_client,
+        is_forwarded = on_message(its_service, its_instance, _data, _length, _receiver->is_reliable(), VSOMEIP_ROUTING_CLIENT, nullptr,
                                   its_check_status, true);
     }
 
@@ -1218,7 +1221,7 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, board
                 : _receiver->is_reliable()                     ? trace::protocol_e::tcp
                                                                : trace::protocol_e::udp;
         its_header.prepare(its_remote_address, _remote_port, its_protocol, false, its_instance);
-        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+        tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _length);
     }
 }
 

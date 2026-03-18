@@ -1366,12 +1366,4 @@ void routing_manager_base::remove_guest(client_t _client) {
     guests_.erase(_client);
 }
 
-void routing_manager_base::remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port) {
-
-    (void)_local_port;
-    (void)_remote_address;
-    (void)_remote_port;
-    // dummy method to implement routing_host interface
-}
-
 } // namespace vsomeip_v3

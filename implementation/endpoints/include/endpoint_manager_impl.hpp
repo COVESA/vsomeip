@@ -16,13 +16,13 @@
 
 namespace vsomeip_v3 {
 
-class routing_host;
+class routing_manager_impl;
 class local_server;
 class boardnet_endpoint;
 
 class endpoint_manager_impl : public endpoint_manager_base, public boardnet_endpoint_host {
 public:
-    endpoint_manager_impl(routing_manager_base* const _rm, boost::asio::io_context& _io,
+    endpoint_manager_impl(routing_manager_impl* const _rm, boost::asio::io_context& _io,
                           const std::shared_ptr<configuration>& _configuration);
     ~endpoint_manager_impl();
 
@@ -115,6 +115,8 @@ private:
     void add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);
 
 private:
+    routing_manager_impl* const router_;
+
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services
     std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;

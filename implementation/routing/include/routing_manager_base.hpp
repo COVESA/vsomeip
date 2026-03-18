@@ -41,7 +41,7 @@ class connector_impl;
 class serializer;
 class local_endpoint;
 
-class routing_manager_base : public routing_manager, public routing_host, public std::enable_shared_from_this<routing_manager_base> {
+class routing_manager_base : public routing_manager, public routing_host {
 
 public:
     routing_manager_base(routing_manager_host* _host);
@@ -102,11 +102,6 @@ public:
     virtual bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
                       const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force) = 0;
 
-    // routing host -> will be implemented by routing_manager_impl/_proxy/
-    virtual void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
-                            const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address,
-                            std::uint16_t _remote_port = 0) = 0;
-
     virtual void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
@@ -125,8 +120,6 @@ public:
     client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const;
     void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port);
     void remove_guest(client_t _client);
-
-    void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port);
 
     std::string const& get_name() const;
 

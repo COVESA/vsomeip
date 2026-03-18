@@ -20,7 +20,7 @@
 #include "../include/udp_server_endpoint_impl.hpp"
 #include "../include/abstract_socket_factory.hpp"
 #include "../../configuration/include/configuration.hpp"
-#include "../../routing/include/routing_host.hpp"
+#include "../../routing/include/boardnet_routing_host.hpp"
 #include "../../service_discovery/include/defines.hpp"
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
@@ -32,8 +32,8 @@ namespace ip = boost::asio::ip;
 namespace vsomeip_v3 {
 
 udp_server_endpoint_impl::udp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                                                   const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
-                                                   const std::shared_ptr<configuration>& _configuration) :
+                                                   const std::shared_ptr<boardnet_routing_host>& _routing_host,
+                                                   boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
     server_endpoint_impl<ip::udp>(_boardnet_endpoint_host, _routing_host, _io, _configuration), lifecycle_idx_(0),
     multicast_lifecycle_idx_(0), netmask_(_configuration->get_netmask()), prefix_(_configuration->get_prefix()),
     tp_reassembler_(std::make_shared<tp::tp_reassembler>(_configuration->get_max_message_size_unreliable(), _io)), tp_cleanup_timer_(_io) {
@@ -623,7 +623,7 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
         return;
     }
 
-    std::shared_ptr<routing_host> its_host = routing_host_.lock();
+    std::shared_ptr<boardnet_routing_host> its_host = routing_host_.lock();
 
     if (its_host) {
         if (!_error && 0 < _bytes) {
@@ -656,8 +656,8 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                                             << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
                                             << its_remote_port;
                             // ensure to send back a message w/ wrong protocol version
-                            its_host->on_message(&_buffer[i], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, _is_multicast, VSOMEIP_ROUTING_CLIENT,
-                                                 nullptr, its_remote_address, its_remote_port);
+                            its_host->on_message(&_buffer[i], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, its_remote_address, its_remote_port,
+                                                 _is_multicast);
                         } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
                             VSOMEIP_ERROR_P << instance_name_ << "Invalid message type: 0x" << hex2(_buffer[i + VSOMEIP_MESSAGE_TYPE_POS])
                                             << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
@@ -708,14 +708,14 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                                     set_client_target(to_clients_key(its_service, its_method, its_client), _remote);
                                 }
                             }
-                            its_host->on_message(&res.second[0], static_cast<uint32_t>(res.second.size()), this, _is_multicast,
-                                                 VSOMEIP_ROUTING_CLIENT, nullptr, its_remote_address, its_remote_port);
+                            its_host->on_message(&res.second[0], static_cast<uint32_t>(res.second.size()), this, its_remote_address,
+                                                 its_remote_port, _is_multicast);
                         }
                     } else {
                         if (its_service != VSOMEIP_SD_SERVICE
                             || (current_message_size > VSOMEIP_SOMEIP_HEADER_SIZE && current_message_size >= remaining_bytes)) {
-                            its_host->on_message(&_buffer[i], current_message_size, this, _is_multicast, VSOMEIP_ROUTING_CLIENT, nullptr,
-                                                 its_remote_address, its_remote_port);
+                            its_host->on_message(&_buffer[i], current_message_size, this, its_remote_address, its_remote_port,
+                                                 _is_multicast);
                         } else {
                             // ignore messages for service discovery with shorter SomeIP length
                             VSOMEIP_ERROR_P << instance_name_ << "Unreliable SomeIP SD message with too short length field local: "

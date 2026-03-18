@@ -14,7 +14,7 @@
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/tp.hpp"
-#include "../../routing/include/routing_host.hpp"
+#include "../../routing/include/boardnet_routing_host.hpp"
 #include "../include/udp_client_endpoint_impl.hpp"
 #include "../include/udp_socket.hpp"
 #include "../../utility/include/utility.hpp"
@@ -25,7 +25,7 @@
 namespace vsomeip_v3 {
 
 udp_client_endpoint_impl::udp_client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                                                   const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
+                                                   const std::shared_ptr<boardnet_routing_host>& _routing_host, const endpoint_type& _local,
                                                    const endpoint_type& _remote, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration) :
     udp_client_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
@@ -271,7 +271,7 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         return;
     }
 
-    std::shared_ptr<routing_host> its_host = routing_host_.lock();
+    std::shared_ptr<boardnet_routing_host> its_host = routing_host_.lock();
     if (!_error && 0 < _bytes && its_host) {
         std::size_t remaining_bytes = _bytes;
         std::size_t i = 0;
@@ -299,8 +299,8 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                         VSOMEIP_ERROR_P << "Wrong protocol version: 0x" << hex2((*_recv_buffer)[i + VSOMEIP_PROTOCOL_VERSION_POS])
                                         << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                         // ensure to send back a message w/ wrong protocol version
-                        its_host->on_message(&(*_recv_buffer)[i], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, false, VSOMEIP_ROUTING_CLIENT,
-                                             nullptr, remote_address_, remote_port_);
+                        its_host->on_message(&(*_recv_buffer)[i], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, remote_address_, remote_port_,
+                                             false);
                     } else if (!utility::is_valid_message_type(tp::tp::tp_flag_unset((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS]))) {
                         VSOMEIP_ERROR_P << "Invalid message type: 0x" << hex2((*_recv_buffer)[i + VSOMEIP_MESSAGE_TYPE_POS])
                                         << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
@@ -315,12 +315,11 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                     const auto res =
                             tp_reassembler_->process_tp_message(&(*_recv_buffer)[i], current_message_size, remote_address_, remote_port_);
                     if (res.first) {
-                        its_host->on_message(&res.second[0], static_cast<std::uint32_t>(res.second.size()), this, false,
-                                             VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                        its_host->on_message(&res.second[0], static_cast<std::uint32_t>(res.second.size()), this, remote_address_,
+                                             remote_port_, false);
                     }
                 } else {
-                    its_host->on_message(&(*_recv_buffer)[i], current_message_size, this, false, VSOMEIP_ROUTING_CLIENT, nullptr,
-                                         remote_address_, remote_port_);
+                    its_host->on_message(&(*_recv_buffer)[i], current_message_size, this, remote_address_, remote_port_, false);
                 }
                 remaining_bytes -= current_message_size;
             } else {

@@ -395,7 +395,6 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
     if (!routing) {
         return false;
     }
-    auto const endpoint = socket_->peer_endpoint();
 
     // avoid checking every incoming messages, if a client id was already received
     if (own_ == VSOMEIP_CLIENT_UNSET) {
@@ -407,15 +406,13 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
                 }
             }
             _lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
-            routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
-                                endpoint.port());
+            routing->on_message(result.message_data_, result.message_size_, peer_, &sec_client_);
             _lock.lock(); // because next_message changes internal state -> lock
         }
     } else {
         while (receive_buffer_->next_message(result)) {
             _lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
-            routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
-                                endpoint.port());
+            routing->on_message(result.message_data_, result.message_size_, peer_, &sec_client_);
             _lock.lock(); // because next_message changes internal state -> lock
         }
     }

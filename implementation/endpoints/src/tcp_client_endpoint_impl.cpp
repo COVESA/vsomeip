@@ -16,7 +16,7 @@
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/tcp_socket.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
-#include "../../routing/include/routing_host.hpp"
+#include "../../routing/include/boardnet_routing_host.hpp"
 #include "../include/tcp_client_endpoint_impl.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../utility/include/bithelper.hpp"
@@ -26,7 +26,7 @@
 namespace vsomeip_v3 {
 
 tcp_client_endpoint_impl::tcp_client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                                                   const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
+                                                   const std::shared_ptr<boardnet_routing_host>& _routing_host, const endpoint_type& _local,
                                                    const endpoint_type& _remote, boost::asio::io_context& _io,
                                                    const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies) :
     tcp_client_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _local, _remote, _io, _configuration),
@@ -426,7 +426,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
 
     std::unique_lock<std::mutex> its_lock(socket_mutex_);
 
-    if (std::shared_ptr<routing_host> its_host = routing_host_.lock(); its_host) {
+    if (std::shared_ptr<boardnet_routing_host> its_host = routing_host_.lock(); its_host) {
         std::uint32_t its_missing_capacity(0);
         if (!_error && 0 < _bytes) {
             if (_recv_buffer_size + _bytes > _recv_buffer->size()) {
@@ -463,15 +463,15 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                     if (needs_forwarding) {
                         if (!use_magic_cookies_) {
                             its_lock.unlock();
-                            its_host->on_message(&(*_recv_buffer)[its_iteration_gap], current_message_size, this, false,
-                                                 VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                            its_host->on_message(&(*_recv_buffer)[its_iteration_gap], current_message_size, this, remote_address_,
+                                                 remote_port_, false);
                             its_lock.lock();
                         } else {
                             // Only call on_message without a magic cookie in front of the buffer!
                             if (!is_magic_cookie(_recv_buffer, its_iteration_gap)) {
                                 its_lock.unlock();
-                                its_host->on_message(&(*_recv_buffer)[its_iteration_gap], current_message_size, this, false,
-                                                     VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                                its_host->on_message(&(*_recv_buffer)[its_iteration_gap], current_message_size, this, remote_address_,
+                                                     remote_port_, false);
                                 its_lock.lock();
                             }
                         }
@@ -507,8 +507,8 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                                             << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                             // ensure to send back a message w/ wrong protocol version
                             its_lock.unlock();
-                            its_host->on_message(&(*_recv_buffer)[its_iteration_gap], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, false,
-                                                 VSOMEIP_ROUTING_CLIENT, nullptr, remote_address_, remote_port_);
+                            its_host->on_message(&(*_recv_buffer)[its_iteration_gap], VSOMEIP_SOMEIP_HEADER_SIZE + 8, this, remote_address_,
+                                                 remote_port_, false);
                             its_lock.lock();
                         } else if (!utility::is_valid_message_type(
                                            static_cast<message_type_e>((*recv_buffer_)[its_iteration_gap + VSOMEIP_MESSAGE_TYPE_POS]))) {

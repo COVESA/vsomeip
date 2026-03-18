@@ -25,8 +25,8 @@
 
 template<typename Protocol>
 vsomeip_v3::endpoint_impl<Protocol>::endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _endpoint_host,
-                                                   const std::shared_ptr<routing_host>& _routing_host, boost::asio::io_context& _io,
-                                                   const std::shared_ptr<configuration>& _configuration) :
+                                                   const std::shared_ptr<boardnet_routing_host>& _routing_host,
+                                                   boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
     io_(_io), endpoint_host_(_endpoint_host), routing_host_(_routing_host), sending_blocked_(false), configuration_(_configuration),
     is_supporting_someip_tp_(false) { }
 
@@ -48,7 +48,7 @@ vsomeip_v3::instance_t vsomeip_v3::endpoint_impl<Protocol>::get_instance(service
 
 template<typename Protocol>
 vsomeip_v3::server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _endpoint_host,
-                                                                 const std::shared_ptr<routing_host>& _routing_host,
+                                                                 const std::shared_ptr<boardnet_routing_host>& _routing_host,
                                                                  boost::asio::io_context& _io,
                                                                  const std::shared_ptr<configuration>& _configuration) :
     endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration) { }
@@ -238,19 +238,10 @@ struct mock_endpoint_host : public vsomeip_v3::boardnet_endpoint_host {
     MOCK_METHOD1(add_multicast_option, void(const vsomeip_v3::multicast_option_t& _option));
 };
 
-struct mock_routing_host : public vsomeip_v3::routing_host {
-    MOCK_METHOD8(on_message,
+struct mock_boardnet_routing_host : public vsomeip_v3::boardnet_routing_host {
+    MOCK_METHOD6(on_message,
                  void(const vsomeip_v3::byte_t* _data, vsomeip_v3::length_t _length, vsomeip_v3::boardnet_endpoint* _receiver,
-                      bool _is_multicast, vsomeip_v3::client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
-                      const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port));
-    MOCK_CONST_METHOD0(get_client, vsomeip_v3::client_t());
-    MOCK_METHOD3(add_guest, void(vsomeip_v3::client_t _client, const boost::asio::ip::address& _address, vsomeip_v3::port_t _port));
-    MOCK_METHOD2(add_known_client, void(vsomeip_v3::client_t _client, const std::string& _client_host));
-    MOCK_METHOD1(remove_known_client, void(vsomeip_v3::client_t _client));
-    MOCK_CONST_METHOD2(get_guest_by_address, vsomeip_v3::client_t(const boost::asio::ip::address& _address, vsomeip_v3::port_t _port));
-    MOCK_METHOD2(remove_local, void(vsomeip_v3::client_t _client, bool _remove_due_to_error));
-    MOCK_CONST_METHOD1(get_env, std::string(vsomeip_v3::client_t _client));
+                      const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port, bool _is_multicast));
     MOCK_METHOD3(remove_subscriptions,
                  void(vsomeip_v3::port_t _local_port, const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port));
-    MOCK_METHOD0(get_routing_state, vsomeip_v3::routing_state_e());
 };

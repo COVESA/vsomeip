@@ -35,13 +35,13 @@
 
 namespace vsomeip_v3 {
 
-endpoint_manager_impl::endpoint_manager_impl(routing_manager_base* const _rm, boost::asio::io_context& _io,
+endpoint_manager_impl::endpoint_manager_impl(routing_manager_impl* const _rm, boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration) :
-    endpoint_manager_base(_rm, _io, _configuration), is_processing_options_(true), options_thread_([this]() {
+    endpoint_manager_base(_rm, _io, _configuration), router_(_rm), is_processing_options_(true), options_thread_([this]() {
 #if defined(__linux__) || defined(__QNX__)
         pthread_setname_np(pthread_self(), "m_multicast");
 #endif
-        utility::set_thread_niceness(configuration_->get_io_thread_nice_level(rm_->get_name()));
+        utility::set_thread_niceness(configuration_->get_io_thread_nice_level(router_->get_name()));
 
         process_multicast_options();
     }) {
@@ -64,13 +64,6 @@ endpoint_manager_impl::~endpoint_manager_impl() {
 
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance,
                                                                                        bool _reliable) {
-    const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
-
-    if (!rtmgr) {
-        VSOMEIP_ERROR_P << "Unsupported by routing manager";
-        return nullptr;
-    }
-
     std::shared_ptr<boardnet_endpoint> its_endpoint;
     bool start_endpoint(false);
     {
@@ -81,20 +74,13 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_
             start_endpoint = true;
         }
     }
-    if (start_endpoint && its_endpoint && configuration_->is_someip(_service, _instance) && !rtmgr->is_suspended()) {
+    if (start_endpoint && its_endpoint && configuration_->is_someip(_service, _instance) && !router_->is_suspended()) {
         its_endpoint->start();
     }
     return its_endpoint;
 }
 
 void endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance) {
-    const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
-
-    if (!rtmgr) {
-        VSOMEIP_ERROR_P << "Unsupported by routing manager";
-        return;
-    }
-
     std::shared_ptr<boardnet_endpoint> its_reliable_endpoint;
     std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint;
     bool start_reliable_endpoint(false);
@@ -113,7 +99,7 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
         }
     }
     const bool is_someip{configuration_->is_someip(_service, _instance)};
-    const bool is_suspended{rtmgr->is_suspended()};
+    const bool is_suspended{router_->is_suspended()};
 
     if (start_reliable_endpoint && its_reliable_endpoint && is_someip && !is_suspended) {
         its_reliable_endpoint->start();
@@ -184,8 +170,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     }
 
     if (must_report)
-        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_endpoint);
+        router_->service_endpoint_connected(_service, _instance, its_info->get_major(), its_info->get_minor(), its_endpoint);
 }
 
 void endpoint_manager_impl::add_remote_service_info(service_t _service, instance_t _instance,
@@ -211,10 +196,8 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     }
 
     if (must_report) {
-        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_unreliable);
-        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(_service, _instance, its_info->get_major(),
-                                                                            its_info->get_minor(), its_reliable);
+        router_->service_endpoint_connected(_service, _instance, its_info->get_major(), its_info->get_minor(), its_unreliable);
+        router_->service_endpoint_connected(_service, _instance, its_info->get_major(), its_info->get_minor(), its_reliable);
     }
 }
 
@@ -237,13 +220,6 @@ void endpoint_manager_impl::clear_remote_service_info(service_t _service, instan
 }
 
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint(uint16_t _port, bool _reliable, bool _start) {
-    const routing_manager_impl* const rtmgr{dynamic_cast<routing_manager_impl*>(rm_)};
-
-    if (!rtmgr) {
-        VSOMEIP_ERROR_P << "Unsupported by routing manager";
-        return nullptr;
-    }
-
     std::shared_ptr<boardnet_endpoint> its_server_endpoint;
     boost::system::error_code its_error;
     boost::asio::ip::address its_unicast{configuration_->get_unicast_address()};
@@ -255,7 +231,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
             bool its_magic_cookies_enabled = configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
                     || configuration_->has_enabled_magic_cookies("local", _port);
             auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
-                                                                    rm_->shared_from_this(), io_, configuration_,
+                                                                    router_->shared_from_this(), io_, configuration_,
                                                                     its_magic_cookies_enabled)};
             if (its_tmp) {
                 boost::asio::ip::tcp::endpoint its_reliable(its_unicast, _port);
@@ -266,7 +242,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
             }
         } else {
             auto its_tmp{std::make_shared<udp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
-                                                                    rm_->shared_from_this(), io_, configuration_)};
+                                                                    router_->shared_from_this(), io_, configuration_)};
             if (its_tmp) {
                 boost::asio::ip::udp::endpoint its_unreliable(its_unicast, _port);
                 its_tmp->init(its_unreliable, its_error);
@@ -281,7 +257,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
 
     if (its_server_endpoint) {
         server_endpoints_[_port][_reliable] = its_server_endpoint;
-        if (!rtmgr->is_suspended()) {
+        if (!router_->is_suspended()) {
             its_server_endpoint->start();
         }
     } else {
@@ -855,7 +831,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
         }
     }
     for (const auto& s : services_to_report_) {
-        static_cast<routing_manager_impl*>(rm_)->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_);
+        router_->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_);
     }
     if (services_to_report_.empty()) {
         _endpoint->set_established(true);
@@ -876,12 +852,11 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
                         return;
                     }
                     if (!is_reliable) {
-                        static_cast<routing_manager_impl*>(rm_)->on_availability(its_service.first, its_instance.first,
-                                                                                 availability_state_e::AS_UNAVAILABLE,
-                                                                                 its_info->get_major(), its_info->get_minor());
+                        router_->on_availability(its_service.first, its_instance.first, availability_state_e::AS_UNAVAILABLE,
+                                                 its_info->get_major(), its_info->get_minor());
                     }
-                    static_cast<routing_manager_impl*>(rm_)->service_endpoint_disconnected(
-                            its_service.first, its_instance.first, its_info->get_major(), its_info->get_minor(), _endpoint);
+                    router_->service_endpoint_disconnected(its_service.first, its_instance.first, its_info->get_major(),
+                                                           its_info->get_minor(), _endpoint);
                 }
             }
         }
@@ -925,8 +900,8 @@ void endpoint_manager_impl::on_error(const byte_t* _data, length_t _length, boar
         service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
         its_instance = find_instance(its_service, _receiver);
     }
-    static_cast<routing_manager_impl*>(rm_)->send_error(return_code_e::E_MALFORMED_MESSAGE, _data, _length, its_instance,
-                                                        _receiver->is_reliable(), _receiver, _remote_address, _remote_port);
+    router_->send_error(return_code_e::E_MALFORMED_MESSAGE, _data, _length, its_instance, _receiver->is_reliable(), _receiver,
+                        _remote_address, _remote_port);
 }
 
 void endpoint_manager_impl::get_used_client_ports(const boost::asio::ip::address& _remote_address, port_t _remote_port,
@@ -1088,12 +1063,12 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_client_endpoint
         if (_reliable) {
             bool its_use_magic_cookies = configuration_->has_enabled_magic_cookies(_address.to_string(), _remote_port);
             its_endpoint = std::make_shared<tcp_client_endpoint_impl>(
-                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), rm_->shared_from_this(),
+                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), router_->shared_from_this(),
                     boost::asio::ip::tcp::endpoint(its_unicast, _local_port), boost::asio::ip::tcp::endpoint(_address, _remote_port), io_,
                     configuration_, its_use_magic_cookies);
         } else {
             its_endpoint = std::make_shared<udp_client_endpoint_impl>(
-                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), rm_->shared_from_this(),
+                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), router_->shared_from_this(),
                     boost::asio::ip::udp::endpoint(its_unicast, _local_port), boost::asio::ip::udp::endpoint(_address, _remote_port), io_,
                     configuration_);
         }

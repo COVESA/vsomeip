@@ -25,8 +25,9 @@ class udp_client_endpoint_impl : public udp_client_endpoint_base_impl {
 
 public:
     udp_client_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
-                             const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local, const endpoint_type& _remote,
-                             boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration);
+                             const std::shared_ptr<boardnet_routing_host>& _routing_host, const endpoint_type& _local,
+                             const endpoint_type& _remote, boost::asio::io_context& _io,
+                             const std::shared_ptr<configuration>& _configuration);
     virtual ~udp_client_endpoint_impl();
 
     void start();

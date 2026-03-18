@@ -33,7 +33,7 @@ class offered_services_response_command;
 class update_security_credentials_command;
 }
 
-class routing_manager_client : public routing_manager_base {
+class routing_manager_client : public routing_manager_base, public std::enable_shared_from_this<routing_manager_client> {
 public:
     routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
                            const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter);
@@ -82,8 +82,7 @@ public:
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
 
-    void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
-                    const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
+    void on_message(const byte_t* _data, length_t _length, client_t _bound_client, const vsomeip_sec_client_t* _sec_client) override;
 
     void on_routing_info(const byte_t* _data, uint32_t _size);
 

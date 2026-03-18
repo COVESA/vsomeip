@@ -51,8 +51,8 @@ public:
     connection_control_response_e change_connection_control(connection_control_request_e _control,
                                                             const boost::asio::ip::address& _guest_address);
 
-    void on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast, client_t _bound_client,
-                    const vsomeip_sec_client_t* _sec_client, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
+    virtual void on_message(const byte_t* _data, length_t _length, client_t _bound_client,
+                            const vsomeip_sec_client_t* _sec_client) override;
 
     void on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -116,8 +116,6 @@ public:
     std::string get_env(client_t _client) const override;
 
     void send_suspend() const;
-
-    void remove_subscriptions(port_t _local_port, const boost::asio::ip::address& _remote_address, port_t _remote_port);
 
     /**
      * @brief Checks on the routing_info map if a service is being offered by an external peer.

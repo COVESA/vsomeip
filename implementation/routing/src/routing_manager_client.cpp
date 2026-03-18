@@ -949,15 +949,8 @@ bool routing_manager_client::send_to(const std::shared_ptr<endpoint_definition>&
     return false;
 }
 
-void routing_manager_client::on_message(const byte_t* _data, length_t _size, boardnet_endpoint* _receiver, bool _is_multicast,
-                                        client_t _bound_client, const vsomeip_sec_client_t* _sec_client,
-                                        const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port) {
-
-    (void)_receiver;
-    (void)_is_multicast;
-    (void)_remote_address;
-    (void)_remote_port;
-
+void routing_manager_client::on_message(const byte_t* _data, length_t _size, client_t _bound_client,
+                                        const vsomeip_sec_client_t* _sec_client) {
     protocol::id_e its_id;
     client_t its_client;
     service_t its_service;
@@ -965,7 +958,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
     eventgroup_t its_eventgroup;
     event_t its_event;
     major_version_t its_major;
-    client_t routing_host_id = configuration_->get_id(configuration_->get_routing_host_name());
     client_t its_subscriber;
     remote_subscription_id_t its_pending_id(PENDING_SUBSCRIPTION_ID);
     std::uint32_t its_remote_subscriber_count(0);
@@ -982,19 +974,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
         its_id = its_dummy_command.get_id();
         its_client = its_dummy_command.get_client();
 
-        bool is_from_routing(false);
-        if (configuration_->is_security_enabled()) {
-            if (configuration_->is_local_routing()) {
-                // if security is enabled, client ID of routing must be configured
-                // and credential passing is active. Otherwise bound client is zero by default
-                is_from_routing = (_bound_client == routing_host_id || _bound_client == VSOMEIP_ROUTING_CLIENT);
-            } else {
-                is_from_routing = (_remote_address == configuration_->get_routing_host_address()
-                                   && _remote_port == configuration_->get_routing_host_port());
-            }
-        } else {
-            is_from_routing = (its_client == routing_host_id);
-        }
+        bool is_from_routing = (_bound_client == VSOMEIP_ROUTING_CLIENT);
 
         if (configuration_->is_security_enabled() && configuration_->is_local_routing() && !is_from_routing
             && _bound_client != its_client) {
@@ -1141,9 +1121,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                                                 << " : routing_manager_client::on_message: "
                                                 << " isn't allowed to receive a notification from service/instance/event "
                                                 << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                                << hex4(its_message->get_method())
-                                                << " respectively from remote clients via routing manager with client ID 0x"
-                                                << hex4(routing_host_id) << " ~> Skip message!";
+                                                << hex4(its_message->get_method()) << " ~> Skip message!";
                                 return;
                             }
                             cache_event_payload(its_message);

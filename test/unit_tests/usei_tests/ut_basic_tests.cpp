@@ -28,7 +28,7 @@ struct usei_fixture : public ::testing::Test {
     std::shared_ptr<vsomeip_v3::cfg::configuration_impl> conf_;
     std::shared_ptr<vsomeip_v3::udp_server_endpoint_impl> server_;
     std::shared_ptr<mock_endpoint_host> endpoint_;
-    std::shared_ptr<mock_routing_host> routing_;
+    std::shared_ptr<mock_boardnet_routing_host> routing_;
     boost::asio::ip::udp::endpoint unicast_parameters_{boost::asio::ip::make_address("127.0.0.1"), 5000};
     boost::asio::ip::udp::endpoint multicast_parameters_{boost::asio::ip::make_address("0.0.0.0"), 5000};
     boost::asio::ip::udp::endpoint tester_parameters_{boost::asio::ip::make_address("127.0.0.2"), 5002};
@@ -44,7 +44,7 @@ struct usei_fixture : public ::testing::Test {
         // VSOMEIP objects
         conf_ = std::make_shared<vsomeip_v3::cfg::configuration_impl>("usei_fixture.json");
         endpoint_ = std::make_shared<mock_endpoint_host>();
-        routing_ = std::make_shared<mock_routing_host>();
+        routing_ = std::make_shared<mock_boardnet_routing_host>();
         server_ = std::make_shared<vsomeip_v3::udp_server_endpoint_impl>(endpoint_, routing_, *context_, conf_);
 
         // UDP tester socket
@@ -120,13 +120,11 @@ TEST_F(usei_fixture, basic) {
     bool received{false};
     std::condition_variable event;
 
-    EXPECT_CALL(*routing_, on_message)
-            .WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, vsomeip_v3::boardnet_endpoint*, bool, vsomeip_v3::client_t,
-                          const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
-                std::unique_lock lock(sync);
-                received = true;
-                event.notify_one();
-            });
+    EXPECT_CALL(*routing_, on_message).WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, auto...) {
+        std::unique_lock lock(sync);
+        received = true;
+        event.notify_one();
+    });
 
     boost::system::error_code error;
     server_->init(unicast_parameters_, error);
@@ -153,15 +151,13 @@ TEST_F(usei_fixture, corrupted_data) {
     std::condition_variable event;
 
     EXPECT_CALL(*endpoint_, on_error).Times(AtLeast(MESSAGE_SENT_COUNT / 40));
-    EXPECT_CALL(*routing_, on_message)
-            .WillRepeatedly([&](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, vsomeip_v3::boardnet_endpoint*, bool,
-                                vsomeip_v3::client_t, const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
-                if (len == 16 && data[0] == 0x1A && data[1] == 0x1B && data[2] == 0x1C && data[3] == 0x1D) {
-                    std::unique_lock lock(sync);
-                    received = true;
-                    event.notify_one();
-                }
-            });
+    EXPECT_CALL(*routing_, on_message).WillRepeatedly([&](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, auto...) {
+        if (len == 16 && data[0] == 0x1A && data[1] == 0x1B && data[2] == 0x1C && data[3] == 0x1D) {
+            std::unique_lock lock(sync);
+            received = true;
+            event.notify_one();
+        }
+    });
 
     boost::system::error_code error;
     server_->init(unicast_parameters_, error);
@@ -189,13 +185,11 @@ TEST_F(usei_fixture, basic_multicast) {
     bool received{false};
     std::condition_variable event;
 
-    EXPECT_CALL(*routing_, on_message)
-            .WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, vsomeip_v3::boardnet_endpoint*, bool, vsomeip_v3::client_t,
-                          const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
-                std::unique_lock lock(sync);
-                received = true;
-                event.notify_one();
-            });
+    EXPECT_CALL(*routing_, on_message).WillOnce([&](const vsomeip_v3::byte_t*, vsomeip_v3::length_t, auto...) {
+        std::unique_lock lock(sync);
+        received = true;
+        event.notify_one();
+    });
 
     boost::system::error_code error;
     server_->init(unicast_parameters_, error);
@@ -324,9 +318,7 @@ TEST_F(usei_multi_fixture, multicast_ordering_rejoin) {
     std::function<void(const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len)> on_message_cbk;
 
     EXPECT_CALL(*routing_, on_message)
-            .WillRepeatedly([&mutex, &on_message_cbk](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len,
-                                                      vsomeip_v3::boardnet_endpoint*, bool, vsomeip_v3::client_t,
-                                                      const vsomeip_sec_client_t*, const boost::asio::ip::address&, uint16_t) {
+            .WillRepeatedly([&mutex, &on_message_cbk](const vsomeip_v3::byte_t* data, vsomeip_v3::length_t len, auto...) {
                 std::unique_lock lock(mutex);
                 if (auto fn = on_message_cbk) {
                     lock.unlock();
