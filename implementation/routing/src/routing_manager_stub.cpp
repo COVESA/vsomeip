@@ -1065,7 +1065,7 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
         if (its_error == protocol::error_e::ERROR_OK) {
             send_local(its_target, its_buffer);
         } else
-            VSOMEIP_ERROR_P << "Subscribe ack command serialization failed (" << int(its_error) << ")";
+            VSOMEIP_ERROR_P << "Subscribe nack command serialization failed (" << int(its_error) << ")";
     }
 }
 

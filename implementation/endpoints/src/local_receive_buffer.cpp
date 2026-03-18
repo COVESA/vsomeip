@@ -8,6 +8,7 @@
 #include "../../protocol/include/protocol.hpp"
 #include "../../configuration/include/configuration.hpp"
 #include "../../logger/include/logger_ext.hpp"
+#include "../../utility/include/utility.hpp"
 
 #include <cstdint>
 
@@ -43,6 +44,12 @@ bool local_receive_buffer::next_message(next_message_result& _result) {
         // MESSAGE_SIZE_UNLIMITED  is numerical limit of uin32_t therefore the subsequent check suffices
         if (length > max_message_length_) {
             VSOMEIP_ERROR_P << "Message length: " << length << " exceeded allowed max message size";
+            VSOMEIP_ERROR_P << "Message: " << utility::dump(&mem_[start_], bytes);
+            if (start_ > 0) {
+                auto const previous = start_ > 512 ? start_ - 512 : 0;
+                VSOMEIP_ERROR_P << "Previous Message: " << utility::dump(&mem_[previous], start_ - previous);
+            }
+
             _result.set_error();
             return false;
         }

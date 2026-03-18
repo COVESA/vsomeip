@@ -5,12 +5,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <map>
 #include <memory>
 #include <set>
 #include <vector>
+#include <sstream>
 #include <ostream>
 #include <iomanip>
 
@@ -117,6 +119,7 @@ public:
     }
 
     static void set_thread_niceness(int _nice) noexcept;
+
     class Hex {
     public:
         constexpr Hex(uint32_t _v, uint16_t _width) noexcept : value_(_v), width_(_width) { }
@@ -127,6 +130,8 @@ public:
         uint32_t value_;
         uint16_t width_;
     };
+
+    static std::string dump(const byte_t* _data, size_t _length);
 
 private:
     struct data_t {
@@ -168,6 +173,27 @@ inline std::ostream& operator<<(std::ostream& os, utility::Hex v) {
     os.flags(flags);
     os.fill(fill);
     return os;
+}
+
+/**
+ * @brief Dump the content of a message in hex format to a string, usually for logging
+ *
+ * Does trimming, DLT messages have an upper size which causes headaches
+ */
+inline std::string utility::dump(const byte_t* _data, size_t _length) {
+    // way under 1390, or DLT might blow up; see `DLT_USER_BUF_MAX_SIZE`
+    constexpr size_t max_dump_length = 512; // *2 = 1024
+    std::ostringstream s;
+    size_t show_length = std::min<size_t>(_length, max_dump_length);
+    for (size_t i = 0; i < show_length; ++i) {
+        s << hex2(_data[i]);
+    }
+
+    if (_length > max_dump_length) {
+        s << " (truncated, total length: " << _length << ")";
+    }
+
+    return s.str();
 }
 
 } // namespace vsomeip_v3

@@ -658,19 +658,6 @@ bool service_discovery_impl::is_reboot(const boost::asio::ip::address& _sender, 
     return result;
 }
 
-void service_discovery_impl::log_reboot_message_packet(const byte_t* _data, length_t _length) {
-
-    std::ostringstream its_log;
-    length_t show_length = std::min(_length, std::uint32_t(1000));
-    its_log << "Reboot message packet (" << std::dec << show_length << "/" << _length << " bytes):";
-    its_log << std::hex << std::setfill('0');
-    for (length_t i = 0; i < show_length; ++i) {
-        its_log << ' ' << std::setw(2) << static_cast<std::uint16_t>(_data[i]);
-    }
-
-    VSOMEIP_INFO_P << its_log.str();
-}
-
 bool service_discovery_impl::check_session_id_sequence(const boost::asio::ip::address& _sender, const bool _is_multicast,
                                                        const session_t& _session, session_t& _missing_session) {
 
@@ -1060,10 +1047,8 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
         // Expire all subscriptions / services in case of reboot
         if (is_reboot(_sender, _is_multicast, its_message->get_reboot_flag(), its_message->get_session())) {
             VSOMEIP_INFO << "Reboot detected: IP=" << _sender.to_string();
-            // Used to compare against pcaps to determine whether the message is a bug or a duplicate. If the logged packet is identical to
-            // an old pcap that was already properly received, it would suggest the message was duplicated in the socket queue by the kernel
-            // since the message would have already been erased from buffer_ and would no longer exist in vsomeip.
-            log_reboot_message_packet(_data, _length);
+            VSOMEIP_INFO << "Reboot message: " << utility::dump(_data, _length);
+
             remove_remote_offer_type_by_ip(_sender);
             host_->expire_subscriptions(_sender);
             host_->expire_services(_sender);

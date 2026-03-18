@@ -120,8 +120,6 @@ private:
 
     bool is_reboot(const boost::asio::ip::address& _sender, bool _is_multicast, bool _reboot_flag, session_t _session);
 
-    void log_reboot_message_packet(const byte_t* _data, length_t _length);
-
     bool check_session_id_sequence(const boost::asio::ip::address& _sender, const bool _is_multicast, const session_t& _session,
                                    session_t& _missing_session);
 
