@@ -2008,7 +2008,7 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
     }
 
     if (entry_type_e::SUBSCRIBE_EVENTGROUP == its_type) {
-        handle_eventgroup_subscription(its_service, its_instance, its_eventgroup, its_major, its_ttl, 0, 0, its_first_address,
+        handle_eventgroup_subscription(its_service, its_instance, its_eventgroup, its_major, its_ttl, its_session, its_first_address,
                                        its_first_port, is_first_reliable, its_second_address, its_second_port, is_second_reliable,
                                        _acknowledgement, _is_stop_subscribe_subscribe, _force_initial_events, its_clients, _sd_ac_state,
                                        its_info, _sender);
@@ -2025,16 +2025,21 @@ void service_discovery_impl::process_eventgroupentry(std::shared_ptr<eventgroupe
 }
 
 void service_discovery_impl::handle_eventgroup_subscription(
-        service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, uint8_t _counter,
-        uint16_t _reserved, const boost::asio::ip::address& _first_address, uint16_t _first_port, bool _is_first_reliable,
+        service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major, ttl_t _ttl, session_t _session,
+        const boost::asio::ip::address& _first_address, uint16_t _first_port, bool _is_first_reliable,
         const boost::asio::ip::address& _second_address, uint16_t _second_port, bool _is_second_reliable,
         std::shared_ptr<remote_subscription_ack>& _acknowledgement, bool _is_stop_subscribe_subscribe, bool _force_initial_events,
         const std::set<client_t>& _clients, const sd_acceptance_state_t& _sd_ac_state, const std::shared_ptr<eventgroupinfo>& _info,
         const boost::asio::ip::address& _sender) {
-    (void)_counter;
-    (void)_reserved;
 
     auto its_messages = _acknowledgement->get_messages();
+
+    auto dump_entry = [&_service, &_instance, &_eventgroup, &_session, &_sender]() {
+        std::ostringstream s;
+        s << "SubscribeEventGroup [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ", session "
+          << hex4(_session) << ", sender " << _sender.to_string() << "]";
+        return s.str();
+    };
 
     bool reliablility_nack(false);
     if (_info) {
@@ -2060,17 +2065,15 @@ void service_discovery_impl::handle_eventgroup_subscription(
             }
             break;
         default:
-            VSOMEIP_WARNING_P << "Event group has unknown reliability. service=" << hex4(_service) << " instance=" << hex4(_instance)
-                              << " major=" << static_cast<int>(_major) << " eventgroup=" << hex4(_eventgroup) << " source=" << _sender;
+            VSOMEIP_WARNING_P << "EventGroup has unknown reliability " << dump_entry();
             break;
         }
     }
     if (reliablility_nack && _ttl > 0) {
         insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
-        // TODO: Add sender and session id
-        VSOMEIP_WARNING_P << "Subscription for [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]"
-                          << " not valid: Event configuration (" << static_cast<std::uint32_t>(_info->get_reliability())
-                          << ") does not match the provided endpoint options: " << _first_address.to_string() << ":" << _first_port << " "
+        VSOMEIP_WARNING_P << "SubNack for " << dump_entry() << " due to event reliability "
+                          << static_cast<std::uint32_t>(_info->get_reliability())
+                          << " not matching provided endpoint options: " << _first_address.to_string() << ":" << _first_port << " "
                           << _second_address.to_string() << ":" << _second_port;
         return;
     }
@@ -2079,12 +2082,15 @@ void service_discovery_impl::handle_eventgroup_subscription(
         std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(_service, _instance);
         bool send_nack = false;
         if (!its_info) {
+            VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to unknown service";
             send_nack = true;
         } else {
             if (!its_info->is_accepting_remote_subscriptions()) { // offer not sent to multicast ip
                 auto its_remote_ips = its_info->get_remote_ip_accepting_sub(); // offer not sent to unicast
-                if (its_remote_ips.find(_sender.to_string()) == its_remote_ips.end())
+                if (its_remote_ips.find(_sender.to_string()) == its_remote_ips.end()) {
+                    VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to not-accepting-remote-sub";
                     send_nack = true;
+                }
             }
         }
         if (send_nack) {
@@ -2102,11 +2108,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
         // Create a temporary info object with TTL=0 --> send NACK
         auto its_info =
                 std::make_shared<eventgroupinfo>(_service, _instance, _eventgroup, _major, 0, VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS);
-        // TODO: Add session id
-        VSOMEIP_ERROR_P << "Requested major version:[" << static_cast<uint32_t>(_major) << "] in subscription to service: ["
-                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
-                        << "] does not match with services major version:[" << static_cast<uint32_t>(_info->get_major())
-                        << "] subscriber: " << _first_address.to_string() << ":" << _first_port;
+
+        VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to major-version mismatch, " << static_cast<uint32_t>(_major) << " vs "
+                        << static_cast<uint32_t>(_info->get_major());
         if (_ttl > 0) {
             insert_subscription_ack(_acknowledgement, its_info, 0, nullptr, _clients);
         }
@@ -2120,10 +2124,8 @@ void service_discovery_impl::handle_eventgroup_subscription(
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
                     insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
-                    // TODO: Add sender and session id
-                    VSOMEIP_ERROR << "TCP connection to target1: [" << its_reliable->get_address().to_string() << ":"
-                                  << its_reliable->get_port() << "] not established for subscription to: [" << hex4(_service) << "."
-                                  << hex4(_instance) << "." << hex4(_eventgroup) << "] ";
+                    VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to missing TCP connection to "
+                                    << its_reliable->get_address().to_string() << ":" << its_reliable->get_port();
                     return;
                 }
             } else { // udp unicast
@@ -2138,10 +2140,8 @@ void service_discovery_impl::handle_eventgroup_subscription(
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
                     insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
-                    // TODO: Add sender and session id
-                    VSOMEIP_ERROR << "TCP connection to target2 : [" << its_reliable->get_address().to_string() << ":"
-                                  << its_reliable->get_port() << "] not established for subscription to: [" << hex4(_service) << "."
-                                  << hex4(_instance) << "." << hex4(_eventgroup) << "] ";
+                    VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to missing TCP connection to "
+                                    << its_reliable->get_address().to_string() << ":" << its_reliable->get_port();
                     return;
                 }
             } else { // udp unicast
@@ -2162,6 +2162,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
             insert_nack = true;
         }
         if (insert_nack) {
+            VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to missing SD acceptance";
             insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
             return;
         }

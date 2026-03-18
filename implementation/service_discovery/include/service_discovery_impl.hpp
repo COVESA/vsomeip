@@ -169,7 +169,7 @@ private:
                                  bool _is_multicast, bool _is_stop_subscribe_subscribe, bool _force_initial_events,
                                  const sd_acceptance_state_t& _sd_ac_state);
     void handle_eventgroup_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
-                                        ttl_t _ttl, uint8_t _counter, uint16_t _reserved, const boost::asio::ip::address& _first_address,
+                                        ttl_t _ttl, session_t _session, const boost::asio::ip::address& _first_address,
                                         uint16_t _first_port, bool _is_first_reliable, const boost::asio::ip::address& _second_address,
                                         uint16_t _second_port, bool _is_second_reliable,
                                         std::shared_ptr<remote_subscription_ack>& _acknowledgement, bool _is_stop_subscribe_subscribe,
