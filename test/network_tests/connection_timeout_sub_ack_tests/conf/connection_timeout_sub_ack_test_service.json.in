@@ -1,0 +1,44 @@
+{
+    "unicast": "@TEST_IP_SLAVE@",
+    "logging": {
+        "level": "debug",
+        "console": "true"
+    },
+    "tracing" : {
+        "enable" : "true"
+    },
+    "applications": [
+        {
+            "name": "service-app",
+            "id": "0xaaaa"
+        }
+    ],
+    "services": [
+        {
+            "service": "0x1111",
+            "instance": "0x0001",
+            "reliable": "30506",
+            "events": [
+                {
+                    "event": "0x0001",
+                    "cycle": 200
+                }
+            ],
+            "eventgroups": [
+                {
+                    "eventgroup": "0x0001",
+                    "events": [
+                        "0x0001"
+                    ]
+                }
+            ]
+        }
+    ],
+    "routing": "service-app",
+    "service-discovery": {
+        "enable": "true",
+        "multicast": "224.244.224.245",
+        "port": "30490",
+        "protocol": "udp"
+    }
+}

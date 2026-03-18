@@ -1,0 +1,71 @@
+#!/bin/bash -x
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+# Whether the test failed.
+FAIL=0
+
+# File to signal when the client first subscribes to the service
+CLIENT_SUBSCRIBED_FILE="$(pwd)/client_subscribed.flag"
+
+# File to signal when the service becomes unavailable
+SERVICE_UNAVAILABLE_FILE="$(pwd)/service_unavailable.flag"
+
+# File to signal when the service can shutdown
+SHUTDOWN_FILE="$(pwd)/shutdown_test.flag"
+
+# Remove any existing file before checking
+rm -f *.flag
+
+# Start the client.
+export VSOMEIP_CONFIGURATION=connection_timeout_sub_ack_test_client.json
+export VSOMEIP_APPLICATION_NAME="client-app"
+./connection_timeout_sub_ack_test_client &
+echo "Started the client app."
+
+# Start the service.
+export VSOMEIP_CONFIGURATION=connection_timeout_sub_ack_test_service.json
+export VSOMEIP_APPLICATION_NAME="service-app"
+exec_slave "./connection_timeout_sub_ack_test_service"
+echo "Started the service app."
+
+# Wait for the client to subscribe to the service before stopping communication
+while true; do
+    if [ -f "$CLIENT_SUBSCRIBED_FILE" ]; then
+        echo "Client subscribed to the service, breaking communication..."
+        break
+    fi
+    sleep 0.3;
+done
+
+tc qdisc add dev eth0 root handle 1: prio
+tc filter add dev eth0 parent 1: protocol all u32 \
+        match u32 0 0 \
+        action drop
+
+# After communication stops, wait until client receives the unavailability to restore communication
+while true; do
+    if [ -f "$SERVICE_UNAVAILABLE_FILE" ]; then
+        echo "Service became unavailable, restoring communication..."
+        break
+    fi
+    sleep 0.3;
+done
+
+tc qdisc del dev eth0 root
+
+# After the communication is restored, wait until all applications are finished
+for job in $(jobs -p)
+do
+    wait $job || ((FAIL+=1))
+done
+
+# Return the result of the test.
+exit $FAIL

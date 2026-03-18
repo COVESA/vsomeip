@@ -2180,7 +2180,7 @@ void routing_manager_impl::on_subscribe_ack_with_multicast(service_t _service, i
 
 void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                             event_t _event, remote_subscription_id_t _id) {
-    std::scoped_lock its_lock{remote_subscription_state_mutex_};
+    std::unique_lock its_lock{remote_subscription_state_mutex_, std::defer_lock}; // only lock if received an external subscribe_ack
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         auto its_subscription = its_eventgroup->get_remote_subscription(_id);
@@ -2207,6 +2207,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
                 return;
             }
         } else {
+            its_lock.lock();
             const auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, _client);
             const auto its_state = remote_subscription_state_.find(its_tuple);
             if (its_state != remote_subscription_state_.end()) {
@@ -3612,6 +3613,20 @@ void routing_manager_impl::service_endpoint_disconnected(service_t _service, ins
     (void)_endpoint;
     on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
     stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
+
+    {
+        std::scoped_lock its_lock{remote_subscription_state_mutex_};
+        std::set<std::tuple<service_t, instance_t, eventgroup_t, client_t>> its_invalid_remote_subscription_;
+
+        for (const auto& its_state : remote_subscription_state_) {
+            if (std::get<0>(its_state.first) == _service && std::get<1>(its_state.first) == _instance) {
+                its_invalid_remote_subscription_.insert(its_state.first);
+            }
+        }
+
+        for (const auto& its_key : its_invalid_remote_subscription_)
+            remote_subscription_state_.erase(its_key);
+    }
 
     VSOMEIP_WARNING_P << "Lost connection to remote service: [" << hex4(_service) << "." << hex4(_instance) << "]";
 }

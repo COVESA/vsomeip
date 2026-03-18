@@ -1,0 +1,23 @@
+{
+    "unicast": "@TEST_IP_MASTER@",
+    "logging": {
+        "level": "debug",
+        "console": "true"
+    },
+    "tracing" : {
+        "enable" : "true"
+    },
+    "applications": [
+        {
+            "name": "client-app",
+            "id": "0xbbbb"
+        }
+    ],
+    "routing" : "client-app",
+    "service-discovery": {
+        "enable": "true",
+        "multicast": "224.244.224.245",
+        "port": "30490",
+        "protocol": "udp"
+    }
+}
