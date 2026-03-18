@@ -104,9 +104,11 @@ TEST_F(malicious_data, send_malicious_events) {
             }
         };
 
-        receive = [&]() { udp_socket.async_receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), receive_cbk); };
+        {
+            std::lock_guard<std::mutex> its_lock(socket_mutex);
+            udp_socket.async_receive(boost::asio::buffer(receive_buffer, receive_buffer.capacity()), receive_cbk);
+        };
 
-        receive();
         while (keep_receiving) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -155,6 +157,7 @@ TEST_F(malicious_data, send_malicious_events) {
             std::thread send_offers_thread([&]() {
                 for (size_t i = 0; i < 100; i++) {
                     if (keep_sending) {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                     } else {
                         break;
@@ -481,6 +484,7 @@ TEST_F(malicious_data, send_malicious_events) {
             // call shutdown method
             std::uint8_t shutdown_call[] = {0x33, 0x45, 0x14, 0x04, 0x00, 0x00, 0x00, 0x08, 0x22, 0x22, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00};
             boost::asio::ip::udp::socket::endpoint_type target_service(boost::asio::ip::make_address(std::string(remote_address)), 30001);
+            std::lock_guard<std::mutex> its_lock(socket_mutex);
             udp_socket.send_to(boost::asio::buffer(shutdown_call), target_service);
         } catch (const std::exception& _e) {
             ADD_FAILURE() << "catched exception: " << _e.what();
@@ -519,7 +523,10 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
         std::atomic<bool> client_subscribed(false);
 
         // join the sd multicast group 224.0.24.1
-        udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        {
+            std::lock_guard<std::mutex> its_lock(socket_mutex);
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        }
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -623,6 +630,7 @@ TEST_F(malicious_data, send_wrong_protocol_version) {
             std::thread send_offers_thread([&]() {
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                     } else {
                         break;
@@ -868,7 +876,10 @@ TEST_F(malicious_data, send_wrong_message_type) {
         std::atomic<bool> client_subscribed(false);
 
         // join the sd multicast group 224.0.24.1
-        udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        {
+            std::lock_guard<std::mutex> its_lock(socket_mutex);
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        }
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -972,6 +983,7 @@ TEST_F(malicious_data, send_wrong_message_type) {
             std::thread send_offers_thread([&]() {
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                     } else {
                         break;
@@ -1147,7 +1159,10 @@ TEST_F(malicious_data, send_wrong_return_code) {
         std::atomic<bool> client_subscribed(false);
 
         // join the sd multicast group 224.0.24.1
-        udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        {
+            std::lock_guard<std::mutex> its_lock(socket_mutex);
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        }
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -1251,6 +1266,7 @@ TEST_F(malicious_data, send_wrong_return_code) {
             std::thread send_offers_thread([&]() {
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                     } else {
                         break;
@@ -1430,7 +1446,10 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
         std::atomic<bool> client_subscribed(false);
 
         // join the sd multicast group 224.0.24.1
-        udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        {
+            std::lock_guard<std::mutex> its_lock(socket_mutex);
+            udp_socket.set_option(boost::asio::ip::multicast::join_group(boost::asio::ip::make_address("224.0.24.1").to_v4()));
+        }
 
         while (keep_receiving) {
             boost::system::error_code error;
@@ -1540,6 +1559,7 @@ TEST_F(malicious_data, wrong_header_fields_udp) {
             std::thread send_offers_thread([&]() {
                 for (size_t i = 0; i < 10; i++) {
                     if (keep_sending) {
+                        std::lock_guard<std::mutex> its_lock(socket_mutex);
                         udp_socket.send_to(boost::asio::buffer(its_offer_service_message), target_sd);
                     } else {
                         break;
