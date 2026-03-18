@@ -975,10 +975,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
     std::vector<byte_t> its_buffer(_data, _data + _size);
     protocol::error_e its_error;
 
-    auto its_policy_manager = configuration_->get_policy_manager();
-    if (!its_policy_manager)
-        return;
-
     protocol::dummy_command its_dummy_command;
     its_dummy_command.deserialize(its_buffer, its_error);
 
@@ -1501,8 +1497,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                     uid_t its_uid;
                     gid_t its_gid;
                     if (its_policy->get_uid_gid(its_uid, its_gid)) {
-                        if (is_internal_policy_update || its_policy_manager->is_policy_update_allowed(its_uid, its_policy)) {
-                            its_policy_manager->update_security_policy(its_uid, its_gid, its_policy);
+                        if (is_internal_policy_update
+                            || configuration_->get_policy_manager()->is_policy_update_allowed(its_uid, its_policy)) {
+                            configuration_->get_policy_manager()->update_security_policy(its_uid, its_gid, its_policy);
                             send_update_security_policy_response(its_command.get_update_id());
                         }
                     } else {
@@ -1528,8 +1525,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                     uid_t its_uid(its_command.get_uid());
                     gid_t its_gid(its_command.get_gid());
 
-                    if (its_policy_manager->is_policy_removal_allowed(its_uid)) {
-                        its_policy_manager->remove_security_policy(its_uid, its_gid);
+                    if (configuration_->get_policy_manager()->is_policy_removal_allowed(its_uid)) {
+                        configuration_->get_policy_manager()->remove_security_policy(its_uid, its_gid);
                         send_remove_security_policy_response(its_command.get_update_id());
                     }
                 } else
@@ -1550,8 +1547,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
                         uid_t its_uid;
                         gid_t its_gid;
                         p->get_uid_gid(its_uid, its_gid);
-                        if (its_policy_manager->is_policy_update_allowed(its_uid, p))
-                            its_policy_manager->update_security_policy(its_uid, its_gid, p);
+                        if (configuration_->get_policy_manager()->is_policy_update_allowed(its_uid, p))
+                            configuration_->get_policy_manager()->update_security_policy(its_uid, its_gid, p);
                     }
                 } else
                     VSOMEIP_ERROR_P << "Distribute security policies command deserialization failed (" << static_cast<int>(its_error)
@@ -1600,10 +1597,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, boa
 }
 
 void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size) {
-    auto its_policy_manager = configuration_->get_policy_manager();
-    if (!its_policy_manager)
-        return;
-
     std::vector<byte_t> its_buffer(_data, _data + _size);
     protocol::error_e its_error;
 
@@ -1700,10 +1693,6 @@ void routing_manager_client::on_offered_services_info(protocol::offered_services
 }
 
 void routing_manager_client::reconnect(const std::map<client_t, std::string>& _clients) {
-    auto its_policy_manager = configuration_->get_policy_manager();
-    if (!its_policy_manager)
-        return;
-
     // inform host about its own registration state changes
     host_->on_state(state_type_e::ST_DEREGISTERED);
 
@@ -1769,9 +1758,8 @@ void routing_manager_client::register_application(client_t _client) {
     }
 
 #if defined(__linux__) || defined(__QNX__)
-    auto its_policy_manager = configuration_->get_policy_manager();
     auto const sec_client = get_sec_client();
-    if (!its_policy_manager->check_credentials(get_client(), &sec_client)) {
+    if (!configuration_->get_policy_manager()->check_credentials(get_client(), &sec_client)) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
                       << "isn't allowed to use the client endpoint due to credential check failed!";
         state_machine_->deregistered();
@@ -2339,11 +2327,6 @@ void routing_manager_client::send_remove_security_policy_response(pending_securi
 }
 
 void routing_manager_client::on_update_security_credentials(const protocol::update_security_credentials_command& _command) {
-
-    auto its_policy_manager = configuration_->get_policy_manager();
-    if (!its_policy_manager)
-        return;
-
     for (const auto& c : _command.get_credentials()) {
         std::shared_ptr<policy> its_policy(std::make_shared<policy>());
         boost::icl::interval_set<gid_t> its_gid_set;
@@ -2356,7 +2339,7 @@ void routing_manager_client::on_update_security_credentials(const protocol::upda
         its_policy->allow_who_ = true;
         its_policy->allow_what_ = true;
 
-        its_policy_manager->add_security_credentials(its_uid, its_gid, its_policy, get_client());
+        configuration_->get_policy_manager()->add_security_credentials(its_uid, its_gid, its_policy, get_client());
     }
 }
 #endif
@@ -2372,13 +2355,9 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
     host_->set_client(_client);
 
 #ifdef __linux__
-    auto its_policy_manager = configuration_->get_policy_manager();
-    if (!its_policy_manager)
-        return;
-
     auto const sec_client = get_sec_client();
-    its_policy_manager->store_client_to_sec_client_mapping(_client, &sec_client);
-    its_policy_manager->store_sec_client_to_client_mapping(&sec_client, _client);
+    configuration_->get_policy_manager()->store_client_to_sec_client_mapping(_client, &sec_client);
+    configuration_->get_policy_manager()->store_sec_client_to_client_mapping(&sec_client, _client);
     // TODO why is there no logic to remove this mapping
     // when there was some problem with the registration?
 #endif
