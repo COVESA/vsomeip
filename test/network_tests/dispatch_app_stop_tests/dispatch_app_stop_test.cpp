@@ -35,9 +35,9 @@ TEST(dispatch_app_stop, deadlock) {
      * stop and join the start thread.
      */
 
-    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
-    auto thread_ctor_mt = std::make_shared<std::mutex>();
-    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+    auto thread_assign_cv = std::make_shared<std::condition_variable>();
+    auto thread_assign_mt = std::make_shared<std::mutex>();
+    auto thread_assign_gate = std::make_shared<bool>(false);
 
     const std::string app_name = "test_application";
     ASSERT_EQ(create_config(app_name), 0);
@@ -55,15 +55,15 @@ TEST(dispatch_app_stop, deadlock) {
 
     // Register a callback to a dispatcher thread. In this case, we just want to make sure
     // the application can register, before clearing it up.
-    app->register_state_handler([&app, &t0, &finished, &finished_mutex, &done, thread_ctor_cv, thread_ctor_mt,
-                                 thread_ctor_gate](vsomeip_v3::state_type_e state) {
+    app->register_state_handler([&app, &t0, &finished, &finished_mutex, &done, thread_assign_cv, thread_assign_mt,
+                                 thread_assign_gate](vsomeip_v3::state_type_e state) {
         if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
             app->clear_all_handler();
             app->stop();
 
             // Blocks until t0 constructor properly finishes
-            std::unique_lock thread_lock{*thread_ctor_mt};
-            thread_ctor_cv->wait(thread_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
+            std::unique_lock thread_lock{*thread_assign_mt};
+            thread_assign_cv->wait(thread_lock, [thread_assign_gate] { return *thread_assign_gate; });
 
             // Wait for the start thread to finish, and notify that we are done to the test thread.
             t0.join(); // NOTE: This operation takes a while, around 1s locally.
@@ -78,8 +78,11 @@ TEST(dispatch_app_stop, deadlock) {
     t0 = std::thread([&app] {
         app->start(); /* Blocks */
     });
-    thread_ctor_gate->store(true);
-    thread_ctor_cv->notify_one();
+    {
+        std::scoped_lock thread_assign_lock{*thread_assign_mt};
+        *thread_assign_gate = true;
+    }
+    thread_assign_cv->notify_one();
 
     // If this wait hangs, it means:
     // - The state handler never completed (likely deadlocked)
@@ -90,5 +93,5 @@ TEST(dispatch_app_stop, deadlock) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(10));
+    return test_main(argc, argv);
 }

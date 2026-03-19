@@ -45,9 +45,9 @@ TEST(dispatch_app_stop, multiple_program) {
     auto mt = std::make_shared<std::mutex>();
     auto registered = std::make_shared<std::size_t>(0);
 
-    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
-    auto thread_ctor_mt = std::make_shared<std::mutex>();
-    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+    auto thread_assign_cv = std::make_shared<std::condition_variable>();
+    auto thread_assign_mt = std::make_shared<std::mutex>();
+    auto thread_assign_gate = std::make_shared<bool>(false);
 
     constexpr std::size_t app_count = 3;
     const std::string app_name_prefix = "dispatch_app_multiple_program";
@@ -83,50 +83,54 @@ TEST(dispatch_app_stop, multiple_program) {
     for (std::size_t i = 0; i < apps.size(); ++i) {
         auto app = apps[i];
 
-        app->register_state_handler(
-                [app, &threads, i, cv, mt, registered, thread_ctor_cv, thread_ctor_mt, thread_ctor_gate](vsomeip_v3::state_type_e state) {
-                    if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
-                        std::cout << "[TEST] Stopping application " << i << std::endl;
+        app->register_state_handler([app, &threads, i, cv, mt, registered, thread_assign_cv, thread_assign_mt,
+                                     thread_assign_gate](vsomeip_v3::state_type_e state) {
+            if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
+                std::cout << "[TEST] Stopping application " << i << std::endl;
 
-                        app->clear_all_handler();
-                        app->stop();
+                app->clear_all_handler();
+                app->stop();
 
-                        std::unique_lock thread_ctor_lock{*thread_ctor_mt};
-                        thread_ctor_cv->wait(thread_ctor_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
-                        thread_ctor_lock.unlock();
+                {
+                    std::unique_lock thread_assign_lock{*thread_assign_mt};
+                    thread_assign_cv->wait(thread_assign_lock, [thread_assign_gate] { return *thread_assign_gate; });
+                }
 
-                        // Join corresponding start() thread from dispatcher context.
-                        // Multiple dispatcher threads may perform this concurrently.
-                        std::cout << "[TEST] Joining t" << i << std::endl;
-                        if (threads[i].joinable()) {
-                            threads[i].join();
-                        }
+                // Join corresponding start() thread from dispatcher context.
+                // Multiple dispatcher threads may perform this concurrently.
+                std::cout << "[TEST] Joining t" << i << std::endl;
+                if (threads[i].joinable()) {
+                    threads[i].join();
+                }
 
-                        // Notify main that this instance completed stop + join.
-                        {
-                            std::scoped_lock lock{*mt};
-                            (*registered)++;
-                        }
-                        cv->notify_one();
+                // Notify main that this instance completed stop + join.
+                {
+                    std::scoped_lock lock{*mt};
+                    (*registered)++;
+                }
+                cv->notify_one();
 
-                        // Keep dispatcher callback alive briefly after signaling.
-                        // This ensures overlap between main thread return and
-                        // dispatcher execution across multiple applications.
-                        std::cout << "[TEST] Sleeping inside dispatcher thread " << i << std::endl;
+                // Keep dispatcher callback alive briefly after signaling.
+                // This ensures overlap between main thread return and
+                // dispatcher execution across multiple applications.
+                std::cout << "[TEST] Sleeping inside dispatcher thread " << i << std::endl;
 
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-                        std::cout << "[TEST] Waking up dispatcher thread " << i << std::endl;
-                    }
-                });
+                std::cout << "[TEST] Waking up dispatcher thread " << i << std::endl;
+            }
+        });
     }
 
     // Start all applications in separate threads.
     for (std::size_t i = 0; i < apps.size(); ++i) {
         threads[i] = std::thread([app = apps[i]] { app->start(); });
     }
-    thread_ctor_gate->store(true);
-    thread_ctor_cv->notify_all();
+    {
+        std::scoped_lock thread_assign_lock{*thread_assign_mt};
+        *thread_assign_gate = true;
+    }
+    thread_assign_cv->notify_all();
 
     // Wait until all dispatcher callbacks completed stop + join.
     std::unique_lock lock{*mt};

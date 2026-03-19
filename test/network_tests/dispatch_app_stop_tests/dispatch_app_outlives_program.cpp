@@ -37,9 +37,9 @@ TEST(dispatch_app_stop, outlives_program) {
     auto cv = std::make_shared<std::condition_variable>();
     std::mutex mt;
 
-    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
-    auto thread_ctor_mt = std::make_shared<std::mutex>();
-    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+    auto thread_assign_cv = std::make_shared<std::condition_variable>();
+    auto thread_assign_mt = std::make_shared<std::mutex>();
+    auto thread_assign_gate = std::make_shared<bool>(false);
 
     const std::string app_name = "dispatch_app_outlives_program";
     ASSERT_EQ(create_config(app_name), 0);
@@ -51,7 +51,7 @@ TEST(dispatch_app_stop, outlives_program) {
     // Thread running app->start(); joined explicitly from the dispatcher.
     std::thread t0;
 
-    app->register_state_handler([app, &t0, cv, thread_ctor_cv, thread_ctor_mt, thread_ctor_gate](vsomeip_v3::state_type_e state) {
+    app->register_state_handler([app, &t0, cv, thread_assign_cv, thread_assign_mt, thread_assign_gate](vsomeip_v3::state_type_e state) {
         if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
             std::cout << "[TEST] Stopping application" << std::endl;
 
@@ -62,8 +62,8 @@ TEST(dispatch_app_stop, outlives_program) {
             app->stop();
 
             // Blocks until t0 constructor properly finishes
-            std::unique_lock lock{*thread_ctor_mt};
-            thread_ctor_cv->wait(lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
+            std::unique_lock lock{*thread_assign_mt};
+            thread_assign_cv->wait(lock, [thread_assign_gate] { return *thread_assign_gate; });
 
             // Intentionally join the start() thread from the dispatcher context.
             // This exercises a shutdown path that could deadlock if internal
@@ -90,8 +90,11 @@ TEST(dispatch_app_stop, outlives_program) {
     // Start application event loop in a dedicated thread.
     std::cout << "[TEST] Starting t0 thread" << std::endl;
     t0 = std::thread([a = app] { a->start(); });
-    thread_ctor_gate->store(true);
-    thread_ctor_cv->notify_one();
+    {
+        std::scoped_lock thread_assign_lock{*thread_assign_mt};
+        *thread_assign_gate = true;
+    }
+    thread_assign_cv->notify_one();
 
     // Block until the dispatcher has completed the stop/join sequence.
     // The test is considered successful if we reach this point without

@@ -42,19 +42,19 @@ TEST(dispatch_app_stop, interdependent_program) {
 
     auto its_cv = std::make_shared<std::condition_variable>();
     auto its_mutex = std::make_shared<std::mutex>();
-    auto its_bool = std::make_shared<std::atomic_bool>(false);
+    auto its_bool = std::make_shared<bool>(false);
 
     auto app_0_wait_cv = std::make_shared<std::condition_variable>();
     auto app_0_wait_mutex = std::make_shared<std::mutex>();
-    auto app_0_waiting = std::make_shared<std::atomic_bool>(false);
+    auto app_0_waiting = std::make_shared<bool>(false);
 
     auto completed_cv = std::make_shared<std::condition_variable>();
     auto completed_mutex = std::make_shared<std::mutex>();
-    auto completed_handlers = std::make_shared<std::atomic<std::size_t>>(0U);
+    auto completed_handlers = std::make_shared<uint8_t>(0);
 
-    auto thread_ctor_cv = std::make_shared<std::condition_variable>();
-    auto thread_ctor_mt = std::make_shared<std::mutex>();
-    auto thread_ctor_gate = std::make_shared<std::atomic_bool>(false);
+    auto thread_assign_cv = std::make_shared<std::condition_variable>();
+    auto thread_assign_mt = std::make_shared<std::mutex>();
+    auto thread_assign_gate = std::make_shared<bool>(false);
 
     const std::string app_0_name = "dispatch_app_interdependent_program_0";
     const std::string app_1_name = "dispatch_app_interdependent_program_1";
@@ -69,9 +69,9 @@ TEST(dispatch_app_stop, interdependent_program) {
     auto t0 = std::make_shared<std::thread>();
     auto t1 = std::make_shared<std::thread>();
 
-    app_0->register_state_handler([app = app_0, t0, its_cv, its_mutex, its_bool, app_0_wait_cv, app_0_waiting, completed_cv,
-                                   completed_handlers, handler_timeout, thread_ctor_cv, thread_ctor_mt,
-                                   thread_ctor_gate](vsomeip_v3::state_type_e state) {
+    app_0->register_state_handler([app = app_0, t0, its_cv, its_mutex, its_bool, app_0_wait_cv, app_0_waiting, app_0_wait_mutex,
+                                   completed_cv, completed_mutex, completed_handlers, handler_timeout, thread_assign_cv, thread_assign_mt,
+                                   thread_assign_gate](vsomeip_v3::state_type_e state) {
         if (state != vsomeip_v3::state_type_e::ST_REGISTERED) {
             return;
         }
@@ -80,66 +80,86 @@ TEST(dispatch_app_stop, interdependent_program) {
         app->clear_all_handler();
         app->stop();
 
-        std::unique_lock thread_ctor_lock{*thread_ctor_mt};
-        thread_ctor_cv->wait(thread_ctor_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
-        thread_ctor_lock.unlock();
+        {
+            std::unique_lock thread_assign_lock{*thread_assign_mt};
+            thread_assign_cv->wait(thread_assign_lock, [thread_assign_gate] { return *thread_assign_gate; });
+        }
 
         std::cout << "[TEST] app_0 joining T0" << std::endl;
         if (t0->joinable()) {
             t0->join();
         }
 
-        app_0_waiting->store(true);
+        {
+            std::scoped_lock wait_lock{*app_0_wait_mutex};
+            *app_0_waiting = true;
+        }
         app_0_wait_cv->notify_one();
 
-        std::unique_lock its_lock{*its_mutex};
-        EXPECT_TRUE(its_cv->wait_for(its_lock, handler_timeout, [its_bool] { return its_bool->load(); }))
-                << "app_0 did not receive app_1 shutdown completion";
+        {
+            std::unique_lock its_lock{*its_mutex};
+            EXPECT_TRUE(its_cv->wait_for(its_lock, handler_timeout, [its_bool] { return *its_bool; }))
+                    << "app_0 did not receive app_1 shutdown completion";
+        }
 
-        completed_handlers->fetch_add(1U);
+        {
+            std::scoped_lock completed_lock{*completed_mutex};
+            (*completed_handlers)++;
+        }
         completed_cv->notify_one();
     });
 
-    app_1->register_state_handler([app = app_1, t1, its_cv, its_bool, app_0_wait_cv, app_0_wait_mutex, app_0_waiting, completed_cv,
-                                   completed_handlers, handler_timeout, thread_ctor_cv, thread_ctor_mt,
-                                   thread_ctor_gate](vsomeip_v3::state_type_e state) {
+    app_1->register_state_handler([app = app_1, t1, its_cv, its_bool, its_mutex, app_0_wait_cv, app_0_wait_mutex, app_0_waiting,
+                                   completed_cv, completed_mutex, completed_handlers, handler_timeout, thread_assign_cv, thread_assign_mt,
+                                   thread_assign_gate](vsomeip_v3::state_type_e state) {
         if (state != vsomeip_v3::state_type_e::ST_REGISTERED) {
             return;
         }
 
-        std::unique_lock its_wait_lock{*app_0_wait_mutex};
-        EXPECT_TRUE(app_0_wait_cv->wait_for(its_wait_lock, handler_timeout, [app_0_waiting] { return app_0_waiting->load(); }))
-                << "app_0 did not reach the wait on app_1 shutdown";
-        its_wait_lock.unlock();
+        {
+            std::unique_lock its_wait_lock{*app_0_wait_mutex};
+            EXPECT_TRUE(app_0_wait_cv->wait_for(its_wait_lock, handler_timeout, [app_0_waiting] { return *app_0_waiting; }))
+                    << "app_0 did not reach the wait on app_1 shutdown";
+        }
 
         std::cout << "[TEST] app_1 stopping from dispatcher" << std::endl;
 
         app->clear_all_handler();
         app->stop();
 
-        std::unique_lock thread_ctor_lock{*thread_ctor_mt};
-        thread_ctor_cv->wait(thread_ctor_lock, [thread_ctor_gate] { return thread_ctor_gate->load(); });
-        thread_ctor_lock.unlock();
+        {
+            std::unique_lock thread_assign_lock{*thread_assign_mt};
+            thread_assign_cv->wait(thread_assign_lock, [thread_assign_gate] { return *thread_assign_gate; });
+        }
 
         std::cout << "[TEST] app_1 joining T1" << std::endl;
         if (t1->joinable()) {
             t1->join();
         }
 
-        its_bool->store(true);
+        {
+            std::scoped_lock its_lock{*its_mutex};
+            *its_bool = true;
+        }
         its_cv->notify_one();
 
-        completed_handlers->fetch_add(1U);
+        {
+            std::scoped_lock completed_lock{*completed_mutex};
+            (*completed_handlers)++;
+        }
         completed_cv->notify_one();
     });
 
     *t0 = std::thread([app = app_0] { app->start(); });
     *t1 = std::thread([app = app_1] { app->start(); });
-    thread_ctor_gate->store(true);
-    thread_ctor_cv->notify_all();
+    {
+        std::scoped_lock thread_lock{*thread_assign_mt};
+        *thread_assign_gate = true;
+    }
+    thread_assign_cv->notify_all();
 
     std::unique_lock completed_lock{*completed_mutex};
-    EXPECT_TRUE(completed_cv->wait_for(completed_lock, test_timeout, [completed_handlers] { return completed_handlers->load() == 2; }))
+    EXPECT_TRUE(completed_cv->wait_for(completed_lock, test_timeout, [completed_handlers] { return *completed_handlers == 2; }))
             << "Interdependent dispatcher-driven shutdown did not finish";
 }
 
