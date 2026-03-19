@@ -11,6 +11,8 @@
 #include <vsomeip/enumeration_types.hpp>
 #include <algorithm>
 
+#include "byteorder.hpp"
+
 namespace vsomeip_v3 {
 
 class bithelper {
@@ -116,11 +118,7 @@ public:
 #elif defined(COMPILE_TIME_ENDIAN) && (COMPILE_TIME_ENDIAN == BYTEORDER_BIG_ENDIAN)
     static constexpr endianess_e get_endianness() { return endianess_e::be; }
 #else
-    // Run-time check
-    static endianess_e get_endianness() {
-        uint16_t test{0x0102};
-        return (*reinterpret_cast<uint8_t*>(&test) == 1) ? endianess_e::be : endianess_e::le;
-    }
+    static_assert(false && "Unable to determine endianness at compile time, please check byteorder.hpp for supported platforms");
 #endif
 };
 
