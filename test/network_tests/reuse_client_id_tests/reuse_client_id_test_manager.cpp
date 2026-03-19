@@ -19,7 +19,7 @@
 #include "reuse_client_id_test_globals.hpp"
 
 // 20 is intentionally generous, execution times (especially with valgrind) can be quite long
-#define REGISTRATION_TIMEOUT_MS 20
+#define REGISTRATION_TIMEOUT_S 20
 #define CLIENT_1_IDX 0
 #define CLIENT_2_IDX 1
 #define CLIENT_3_IDX 2
@@ -92,19 +92,19 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
     auto client1 = std::make_unique<process_manager>("./reuse_client_id_test_client 6301 1",
                                                      custom_env("reuse_client_id_test.json", "client1", "0"));
     client1->run();
-    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_1_IDX, REGISTRATION_TIMEOUT_MS));
+    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_1_IDX, REGISTRATION_TIMEOUT_S));
 
     // start client2
     auto client2 = std::make_unique<process_manager>("./reuse_client_id_test_client 6302 1",
                                                      custom_env("reuse_client_id_test.json", "client2", "1"));
     client2->run();
-    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_2_IDX, REGISTRATION_TIMEOUT_MS));
+    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_2_IDX, REGISTRATION_TIMEOUT_S));
 
     // start client3
     auto client3 = std::make_unique<process_manager>("./reuse_client_id_test_client 6303 1",
                                                      custom_env("reuse_client_id_test.json", "client3", "2"));
     client3->run();
-    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_3_IDX, REGISTRATION_TIMEOUT_MS));
+    EXPECT_TRUE(wait_for_registration(shm_data, CLIENT_3_IDX, REGISTRATION_TIMEOUT_S));
 
     // start client4
     // this client won't register due to no available clientIDs (diagnosis_mask limit)
@@ -134,7 +134,7 @@ TEST_F(reuse_client_id_test_manager, reuse_client_id_test) {
     auto client5 = std::make_unique<process_manager>("./reuse_client_id_test_client 6301 1",
                                                      custom_env("reuse_client_id_test.json", "client5", "4"));
     client5->run();
-    wait_for_registration(shm_data, CLIENT_5_IDX, REGISTRATION_TIMEOUT_MS);
+    wait_for_registration(shm_data, CLIENT_5_IDX, REGISTRATION_TIMEOUT_S);
 
     // stop client2
     // make clientID available

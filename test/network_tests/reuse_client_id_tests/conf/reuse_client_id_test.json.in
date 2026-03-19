@@ -4,7 +4,11 @@
   "diagnosis_mask" : "0xFFFC",
   "logging": {
     "level": "trace",
-    "console": "true"
+    "console": "true",
+    "version" :
+    {
+        "interval": 0
+    }
   },
   "tracing" :
   {
