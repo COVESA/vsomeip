@@ -3,9 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "sample_configurations.hpp"
+
+#include "helpers/app.hpp"
 #include "helpers/attribute_recorder.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
-#include "helpers/app.hpp"
+#include "helpers/ecu_setup.hpp"
 #include "helpers/message_checker.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
@@ -174,14 +177,14 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
         return _client->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_));
     }
 
-    interface boardnet_interface_{0x3344, vsomeip::reliability_type_e::RT_UNRELIABLE};
+    interface boardnet_interface_{0x3344};
     service_instance service_instance_{boardnet_interface_.instance_};
-    event_ids offered_field_{boardnet_interface_.field_two_};
-    event_ids offered_event_{boardnet_interface_.event_one_};
+    event_ids offered_field_{boardnet_interface_.fields_[0]};
+    event_ids offered_event_{boardnet_interface_.events_[0]};
 
     message first_expected_message_{client_session{0, 1},
                                     boardnet_interface_.instance_,
-                                    boardnet_interface_.field_two_.event_id_,
+                                    boardnet_interface_.fields_[0].event_id_,
                                     vsomeip::message_type_e::MT_NOTIFICATION,
                                     {}};
     boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("160.48.199.99"), 30490};
@@ -668,5 +671,32 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
     ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, false));
 
     ecu_one_server->stop_offer(service_instance_);
+}
+
+struct guest_offering : public base_fake_socket_fixture {
+    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+};
+
+TEST_F(guest_offering, guests_provide_and_consume_interface) {
+    // add anonymous guest client to both ecus
+    ecu_one_.add_guest({"guest_client", std::nullopt});
+    ecu_two_.add_guest({"guest_server", std::nullopt});
+    // setup both configurations for all apps
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    // ecu_two offers the service on the boardnet
+    auto* server = ecu_two_.apps_["guest_server"];
+    server->offer(interfaces::boardnet::service_3344);
+
+    // ecu_one's dynamic client subscribes to it
+    auto* client = ecu_one_.apps_["guest_client"];
+    client->subscribe(interfaces::boardnet::service_3344);
+
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
 }
 }

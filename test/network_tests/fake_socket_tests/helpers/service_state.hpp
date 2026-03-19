@@ -6,10 +6,12 @@
 #pragma once
 
 #include <vsomeip/enumeration_types.hpp>
+#include <vsomeip/primitive_types.hpp>
 #include <vsomeip/vsomeip.hpp>
 
 #include <ostream>
 #include <utility>
+#include <vector>
 #include <iomanip>
 #include <sstream>
 
@@ -105,18 +107,20 @@ struct service_state {
 };
 
 struct interface {
-    interface(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::reliability_type_e _reliability) :
-        instance_(_service, _instance), reliability_(_reliability) { }
+    struct event_spec {
+        vsomeip::event_t event_id_{};
+        vsomeip::eventgroup_t eventgroup_id_{};
+        vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_UNRELIABLE};
+    };
 
-    explicit interface(vsomeip::service_t _service, vsomeip::instance_t _instance = 0x1) :
-        interface(_service, _instance, vsomeip::reliability_type_e::RT_RELIABLE) { }
-
-    interface(vsomeip::service_t _service, vsomeip::reliability_type_e _reliability) : interface(_service, 1, _reliability) { }
+    explicit interface(vsomeip::service_t service,
+                       std::vector<event_spec> events = {event_spec{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                       std::vector<event_spec> fields = {event_spec{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                       vsomeip::instance_t instance = 0x1);
 
     service_instance instance_;
-    vsomeip::reliability_type_e reliability_{vsomeip::reliability_type_e::RT_RELIABLE};
-    event_ids event_one_{instance_, 0x8001, 0x1, reliability_};
-    event_ids field_two_{instance_, 0x8002, 0x1, reliability_};
+    std::vector<event_ids> events_;
+    std::vector<event_ids> fields_;
 };
 
 std::ostream& operator<<(std::ostream& o, service_instance const& s);

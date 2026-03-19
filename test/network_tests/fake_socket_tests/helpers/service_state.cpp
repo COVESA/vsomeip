@@ -7,6 +7,16 @@
 
 namespace vsomeip_v3::testing {
 
+interface::interface(vsomeip::service_t service, std::vector<event_spec> events, std::vector<event_spec> fields,
+                     vsomeip::instance_t instance) : instance_{service, instance} {
+    for (auto const& e : events) {
+        events_.push_back({instance_, e.event_id_, e.eventgroup_id_, e.reliability_});
+    }
+    for (auto const& f : fields) {
+        fields_.push_back({instance_, f.event_id_, f.eventgroup_id_, f.reliability_});
+    }
+}
+
 static char const* to_string(vsomeip_v3::message_type_e m) {
     switch (m) {
     case vsomeip_v3::message_type_e::MT_REQUEST:

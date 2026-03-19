@@ -218,9 +218,11 @@ struct base_fake_socket_fixture : ::testing::Test {
     void set_custom_command_handler(std::string const& _client, std::string const& _server, vsomeip_command_handler const& _handler,
                                     socket_role _sender = socket_role::unspecified);
 
+protected:
+    std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
+
 private:
     static std::shared_ptr<fake_socket_factory> factory_;
-    std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
     std::map<std::string, std::unique_ptr<app>> name_to_client_;
 };
 }

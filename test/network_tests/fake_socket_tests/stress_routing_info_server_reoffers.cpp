@@ -65,8 +65,8 @@ struct stress_service_reoffered : public base_fake_socket_fixture {
 
     interface interface_{0x3344};
     service_instance service_instance_{interface_.instance_};
-    event_ids offered_field_{interface_.field_two_};
-    event_ids offered_event_{interface_.event_one_};
+    event_ids offered_field_{interface_.fields_[0]};
+    event_ids offered_event_{interface_.events_[0]};
 
     std::vector<unsigned char> field_payload_{0x42, 0x13};
     message first_expected_field_message_{client_session{0, 2}, // todo, why is the session a two here?

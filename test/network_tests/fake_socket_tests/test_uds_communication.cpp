@@ -62,23 +62,23 @@ struct test_uds_communication : public base_fake_socket_fixture {
     }
     [[nodiscard]] bool subscribe_to_event() {
         request_service();
-        cafe_client_->subscribe_event(interfaces::cafe.event_one_);
+        cafe_client_->subscribe_event(interfaces::cafe.events_[0]);
         return cafe_client_->subscription_record_.wait_for_last(
-                event_subscription::successfully_subscribed_to(interfaces::cafe.event_one_));
+                event_subscription::successfully_subscribed_to(interfaces::cafe.events_[0]));
     }
     [[nodiscard]] bool subscribe_to_field() {
         request_service();
-        cafe_client_->subscribe_field(interfaces::cafe.field_two_);
+        cafe_client_->subscribe_field(interfaces::cafe.fields_[0]);
         return cafe_client_->subscription_record_.wait_for_last(
-                event_subscription::successfully_subscribed_to(interfaces::cafe.field_two_));
+                event_subscription::successfully_subscribed_to(interfaces::cafe.fields_[0]));
     }
-    void send_first_message() { cafe_server_->send_event(interfaces::cafe.event_one_, {}); }
-    void send_field_message() { cafe_server_->send_event(interfaces::cafe.field_two_, field_payload_); }
+    void send_first_message() { cafe_server_->send_event(interfaces::cafe.events_[0], {}); }
+    void send_field_message() { cafe_server_->send_event(interfaces::cafe.fields_[0], field_payload_); }
 
     void stop_offer() { cafe_server_->stop_offer(interfaces::cafe.instance_); }
 
     std::vector<unsigned char> field_payload_{0xf, 0xa, 0xd, 0xe};
-    message_checker cafe_checker_ = message_checker{std::nullopt, interfaces::cafe.instance_, interfaces::cafe.field_two_.event_id_,
+    message_checker cafe_checker_ = message_checker{std::nullopt, interfaces::cafe.instance_, interfaces::cafe.fields_[0].event_id_,
                                                     vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
 
     app* routingmanagerd_{};

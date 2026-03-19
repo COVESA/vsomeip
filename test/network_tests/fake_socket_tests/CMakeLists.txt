@@ -22,6 +22,8 @@ add_library (fake_socket_helpers OBJECT
     helpers/base_fake_socket_fixture.cpp
     helpers/command_message.cpp
     helpers/command_record.cpp
+    helpers/ecu_config.cpp
+    helpers/ecu_setup.cpp
     helpers/service_state.cpp
     helpers/socket_manager.cpp
     helpers/sockets/fake_tcp_socket_handle.cpp

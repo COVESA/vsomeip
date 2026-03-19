@@ -8,6 +8,11 @@
 #include "helpers/service_state.hpp"
 
 namespace vsomeip_v3::testing::interfaces {
-static const interface cafe{0xcafe};
-static const interface beef{0xbeef};
+
+inline const interface cafe{0xcafe};
+inline const interface beef{0xbeef};
+
+namespace boardnet {
+inline const interface service_3344{0x3344};
+}
 }

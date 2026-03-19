@@ -52,9 +52,13 @@ bool app::is_router() const {
     return app_ && app_->is_routing();
 }
 void app::offer(interface const& _interface) {
+    for (auto const& event : _interface.events_) {
+        offer_event(event);
+    }
+    for (auto const& field : _interface.fields_) {
+        offer_field(field);
+    }
     offer(_interface.instance_);
-    offer_event(_interface.event_one_);
-    offer_field(_interface.field_two_);
 }
 
 void app::offer(service_instance _si) {
@@ -74,8 +78,13 @@ void app::offer_field(event_ids const& _ei) {
 
 void app::subscribe(interface const& _interface) {
     request_service(_interface.instance_);
-    subscribe_event(_interface.event_one_);
-    subscribe_field(_interface.field_two_);
+
+    for (auto const& event : _interface.events_) {
+        subscribe_event(event);
+    }
+    for (auto const& field : _interface.fields_) {
+        subscribe_field(field);
+    }
 }
 
 void app::subscribe_event(event_ids const& _ei) {
@@ -135,10 +144,6 @@ void app::request_service(service_instance _si) {
 void app::release_service(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is releasing: " << _si;
     app_->release_service(_si.service_, _si.instance_);
-}
-
-void app::send_field(interface const& _interface, std::vector<unsigned char> const& _payload) {
-    send_event(_interface.field_two_, _payload);
 }
 
 void app::send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload) {

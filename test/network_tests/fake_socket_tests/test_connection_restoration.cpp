@@ -342,11 +342,11 @@ TEST_F(test_client_helper, router_consumes_field_after_service_tries_to_offer_af
 TEST_F(test_client_helper, mutual_offerings_and_consumptions_with_router) {
     // helper structs
     auto beef_payload = std::vector<unsigned char>{0xf, 0xe, 0xe, 0xd};
-    auto beef_checker = message_checker{std::nullopt, interfaces::beef.instance_, interfaces::beef.field_two_.event_id_,
+    auto beef_checker = message_checker{std::nullopt, interfaces::beef.instance_, interfaces::beef.fields_[0].event_id_,
                                         vsomeip::message_type_e::MT_NOTIFICATION, beef_payload};
 
     auto cafe_payload = std::vector<unsigned char>{0xf, 0xa, 0xd, 0xe};
-    auto cafe_checker = message_checker{std::nullopt, interfaces::cafe.instance_, interfaces::cafe.field_two_.event_id_,
+    auto cafe_checker = message_checker{std::nullopt, interfaces::cafe.instance_, interfaces::cafe.fields_[0].event_id_,
                                         vsomeip::message_type_e::MT_NOTIFICATION, cafe_payload};
 
     // offering setup
@@ -358,9 +358,9 @@ TEST_F(test_client_helper, mutual_offerings_and_consumptions_with_router) {
     // only offer now, otherwise the routing_manager will encounter
     // data race in the sec_client usage :/
     routingmanagerd_->offer(interfaces::beef);
-    routingmanagerd_->send_field(interfaces::beef, beef_payload);
+    routingmanagerd_->send_event(interfaces::beef.fields_[0], beef_payload);
     server_->offer(interfaces::cafe);
-    server_->send_field(interfaces::cafe, cafe_payload);
+    server_->send_event(interfaces::cafe.fields_[0], cafe_payload);
 
     // ensure setup is fully operational
     client_ = start_client(client_name_);

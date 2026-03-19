@@ -200,11 +200,6 @@ public:
     void send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload);
 
     /**
-     * Forwards the field payload to the vsomeip::application::notify() using the field identifier in the interface
-     */
-    void send_field(interface const& _interface, std::vector<unsigned char> const& _payload);
-
-    /**
      * Wait for message (payloads!) to reach given state
      *
      * It is essentially an advanced wrapper around `message_record_`, which only looks at payloads (and ignores service/method/session/...)
