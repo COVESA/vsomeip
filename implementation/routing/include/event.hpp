@@ -25,13 +25,13 @@ class endpoint;
 class endpoint_definition;
 class message;
 class payload;
-class routing_manager;
+class event_dispatcher;
 
 struct debounce_filter_impl_t;
 
 class event : public std::enable_shared_from_this<event> {
 public:
-    event(routing_manager* _routing, bool _is_shadow = false);
+    event(boost::asio::io_context& _io, event_dispatcher& _dispatcher, bool _is_shadow = false);
 
     service_t get_service() const;
     void set_service(service_t _service);
@@ -138,7 +138,7 @@ private:
     void set_payload_filled(const bool value);
 
 private:
-    routing_manager* routing_;
+    event_dispatcher& dispatcher_;
     mutable std::mutex mutex_;
 
     std::shared_ptr<message> current_;

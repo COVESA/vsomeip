@@ -23,7 +23,6 @@
 #include "../implementation/runtime/include/application_impl.hpp"
 #include "../implementation/routing/include/routing_manager_impl.hpp"
 #include "../implementation/endpoints/include/tcp_client_endpoint_impl.hpp"
-#include "../implementation/routing/include/routing_manager.hpp"
 #include "../implementation/runtime/include/routing_application.hpp"
 
 using namespace std::chrono_literals;
@@ -157,7 +156,7 @@ public:
 
         // Test sequence
         its_good_payload_data[11] = 0x01;
-        auto* routing = static_cast<vsomeip::routing_manager*>(its_routing);
+        auto* routing = static_cast<vsomeip::routing_manager_base*>(its_routing);
         routing->send(0x1343, its_good_payload_data, sizeof(its_good_payload_data), vsomeip_test::TEST_SERVICE_INSTANCE_ID, true);
         wait_and_reset_timer();
         its_bad_payload_data[11] = 0x02;

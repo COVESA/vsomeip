@@ -59,9 +59,6 @@ public:
 
     MOCK_METHOD(void, on_register_application, (client_t _client, const boost::asio::ip::address& _address, port_t _port), (override));
 
-    MOCK_METHOD(void, start, (), (override));
-    MOCK_METHOD(void, stop, (), (override));
-
     MOCK_METHOD(bool, send_to, (client_t _client, const std::shared_ptr<endpoint_definition>& _target, std::shared_ptr<message> _message),
                 (override));
 

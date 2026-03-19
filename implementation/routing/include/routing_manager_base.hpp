@@ -18,13 +18,14 @@
 #include "serviceinfo.hpp"
 #include "routing_host.hpp"
 #include "eventgroupinfo.hpp"
-#include "routing_manager.hpp"
+#include "event_dispatcher.hpp"
 #include "routing_manager_host.hpp"
 
 #include "../../message/include/serializer.hpp"
 #include "../../message/include/deserializer.hpp"
 #include "../../protocol/include/protocol.hpp"
 #include "../../configuration/include/configuration.hpp"
+#include "../../configuration/include/debounce_filter_impl.hpp"
 #include "../../endpoints/include/endpoint_manager_base.hpp"
 
 #if defined(__QNX__)
@@ -41,7 +42,7 @@ class connector_impl;
 class serializer;
 class local_endpoint;
 
-class routing_manager_base : public routing_manager, public routing_host {
+class routing_manager_base : public event_dispatcher, public routing_host {
 
 public:
     routing_manager_base(routing_manager_host* _host);
@@ -99,8 +100,9 @@ public:
 
     virtual bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
 
-    virtual bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
-                      const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force) = 0;
+    virtual bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
+                      client_t _bound_client = VSOMEIP_ROUTING_CLIENT, const vsomeip_sec_client_t* _sec_client = nullptr,
+                      uint8_t _status_check = 0, bool _sent_from_remote = false, bool _force = true) = 0;
 
     virtual void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) = 0;
 
@@ -125,6 +127,12 @@ public:
 
     // Default implementation - overridden by routing_manager_impl to delegate to stub
     virtual void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port);
+
+    virtual bool send_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                         std::shared_ptr<message> _message) = 0;
+
+    virtual bool send_to(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size,
+                         instance_t _instance) = 0;
 
 protected:
     [[nodiscard]] virtual bool is_local_client(client_t _client) const = 0;
@@ -213,6 +221,14 @@ protected:
 
     void add_known_client(client_t _client, const std::string& _client_host);
     void remove_known_client(client_t _client);
+
+    // event_dispatcher iface
+    session_t get_event_session() override;
+
+    bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
+
+    bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                       std::shared_ptr<message> _message) override;
 
 private:
     virtual bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,

@@ -344,7 +344,7 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
             its_event->set_update_cycle(_cycle);
         }
     } else {
-        its_event = std::make_shared<event>(this, _is_shadow);
+        its_event = std::make_shared<event>(io_, *this, _is_shadow);
         its_event->set_service(_service);
         its_event->set_instance(_instance);
         its_event->set_event(_notifier);
@@ -1366,4 +1366,16 @@ void routing_manager_base::remove_guest(client_t _client) {
     guests_.erase(_client);
 }
 
+session_t routing_manager_base::get_event_session() {
+    return get_session(false);
+}
+
+bool routing_manager_base::send_event(client_t _client, std::shared_ptr<message> _message, bool _force) {
+    return send(_client, _message, _force);
+}
+
+bool routing_manager_base::send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                                         std::shared_ptr<message> _message) {
+    return send_to(_client, _target, _message);
+}
 } // namespace vsomeip_v3

@@ -1736,10 +1736,6 @@ void application_impl::on_message(std::shared_ptr<message>&& _message) {
 }
 
 // Interface "service_discovery_host"
-routing_manager* application_impl::get_routing_manager() const {
-    return routing_.get();
-}
-
 void application_impl::main_dispatch() {
     utility::set_thread_niceness(configuration_->get_io_thread_nice_level(name_));
 #if defined(__linux__) || defined(__QNX__)

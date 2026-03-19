@@ -38,7 +38,7 @@ namespace vsomeip_v3 {
 class runtime;
 class configuration;
 class routing_application;
-class routing_manager;
+class routing_manager_client;
 class routing_manager_stub;
 class plugin_manager_impl;
 
@@ -142,8 +142,6 @@ public:
                                                                event_t _event);
 
     // service_discovery_host
-    VSOMEIP_EXPORT routing_manager* get_routing_manager() const;
-
     VSOMEIP_EXPORT bool are_available(available_t& _available, service_t _service, instance_t _instance, major_version_t _major,
                                       minor_version_t _minor) const;
 
@@ -309,7 +307,7 @@ private:
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_;
 
     // Proxy to or the Routing Manager itself
-    std::shared_ptr<routing_manager> routing_;
+    std::shared_ptr<routing_manager_client> routing_;
 
     // vsomeip state (registered / deregistered)
     state_type_e state_;

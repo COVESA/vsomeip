@@ -68,6 +68,7 @@ public:
     void unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                      eventgroup_t _eventgroup, event_t _event);
 
+    using routing_manager_base::send;
     bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
               const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force);
 
@@ -78,7 +79,8 @@ public:
     void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                         const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                         std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow, bool _is_cache_placeholder);
+                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow = false,
+                        bool _is_cache_placeholder = false);
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
 

@@ -17,18 +17,26 @@
 
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/event.hpp"
-#include "../include/routing_manager.hpp"
+#include "../include/types.hpp"
+#include "../include/event_dispatcher.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../message/include/payload_impl.hpp"
 #include "../../utility/include/utility.hpp"
+
+#include "../../configuration/include/debounce_filter_impl.hpp"
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif // ANDROID
 
 #define VSOMEIP_LOG_PREFIX "event"
 
 namespace vsomeip_v3 {
 
-event::event(routing_manager* _routing, bool _is_shadow) :
-    routing_(_routing), current_(runtime::get()->create_notification()), update_(runtime::get()->create_notification()),
-    type_(event_type_e::ET_EVENT), cycle_timer_(_routing->get_io()), cycle_(std::chrono::milliseconds::zero()), change_resets_cycle_(false),
+event::event(boost::asio::io_context& _io, event_dispatcher& _dispatcher, bool _is_shadow) :
+    dispatcher_(_dispatcher), current_(runtime::get()->create_notification()), update_(runtime::get()->create_notification()),
+    type_(event_type_e::ET_EVENT), cycle_timer_(_io), cycle_(std::chrono::milliseconds::zero()), change_resets_cycle_(false),
     is_updating_on_change_(true), is_set_(false), is_provided_(false), is_shadow_(_is_shadow), is_cache_placeholder_(false),
     epsilon_change_func_(std::bind(&event::has_changed, this, std::placeholders::_1, std::placeholders::_2)),
     has_default_epsilon_change_func_(true), reliability_(reliability_type_e::RT_UNKNOWN) { }
@@ -198,7 +206,7 @@ bool event::set_payload_notify_pending(const std::shared_ptr<payload>& _payload)
         // Send pending initial events.
         for (const auto& its_target : pending_) {
             set_session();
-            routing_->send_to(VSOMEIP_ROUTING_CLIENT, its_target, update_);
+            dispatcher_.send_event_to(VSOMEIP_ROUTING_CLIENT, its_target, update_);
         }
         pending_.clear();
 
@@ -309,7 +317,7 @@ void event::notify(bool _force) {
 
     if (is_set_) {
         set_session();
-        routing_->send(VSOMEIP_ROUTING_CLIENT, update_, _force);
+        dispatcher_.send_event(VSOMEIP_ROUTING_CLIENT, update_, _force);
     } else {
         VSOMEIP_INFO_P << "Notifying" << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
                        << " failed. Event payload not (yet) set!";
@@ -332,7 +340,7 @@ void event::notify_one_unlocked(client_t _client, const std::shared_ptr<endpoint
     if (_target) {
         if (is_set_) {
             set_session();
-            routing_->send_to(_client, _target, update_);
+            dispatcher_.send_event_to(_client, _target, update_);
         } else {
             VSOMEIP_INFO_P << "Notifying " << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
                            << " failed. Event payload not (yet) set!";
@@ -354,7 +362,7 @@ void event::notify_one_unlocked(client_t _client, bool _force) {
 
     if (is_set_) {
         set_session();
-        routing_->send(_client, update_, _force);
+        dispatcher_.send_event(_client, update_, _force);
     } else {
         VSOMEIP_INFO_P << "Initial value for [" << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
                        << "] not yet set by the service/client. Client " << hex4(_client) << " will not receive any initial notification!";
@@ -749,7 +757,7 @@ void event::remove_pending(const std::shared_ptr<endpoint_definition>& _target) 
 
 void event::set_session() {
 
-    update_->set_session(routing_->get_session(false));
+    update_->set_session(dispatcher_.get_event_session());
 }
 
 void event::set_payload_filled(const bool value) {
