@@ -194,7 +194,6 @@ private:
     bool is_socket_activated_;
 
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> internal_client_ports_;
-    const std::uint32_t max_local_message_size_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
     boost::asio::steady_timer pinged_clients_timer_;
     std::mutex pinged_clients_mutex_;

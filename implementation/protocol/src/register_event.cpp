@@ -1,5 +1,12 @@
+// Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 #include "../include/register_event.hpp"
 #include <vsomeip/internal/logger.hpp>
+
+#include <cassert>
 
 namespace vsomeip_v3 {
 namespace protocol {
@@ -10,16 +17,14 @@ register_event::register_event(service_t service, instance_t instance, event_t e
     service_(service), instance_(instance), event_(event), event_type_(event_type), is_provided_(is_provided), reliability_(reliability),
     is_cyclic_(is_cyclic), num_eventg_(num_eventg), eventgroups_(eventgroups) { }
 
-void register_event::serialize(std::vector<byte_t>& _buffer, size_t& _offset, error_e& _error) const {
+void register_event::serialize(std::vector<byte_t>& _buffer, size_t& _offset) const {
 
     size_t its_size(_offset + sizeof(service_) + sizeof(instance_) + sizeof(event_) + sizeof(event_type_) + sizeof(is_provided_)
                     + sizeof(reliability_) + sizeof(is_cyclic_) + sizeof(num_eventg_));
 
     // First check: Does the static part of the data fit into the buffer?
-    if (_buffer.size() < its_size) {
-        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
-        return;
-    }
+    (void)its_size;
+    assert(_buffer.size() >= its_size);
 
     std::memcpy(&_buffer[_offset], &service_, sizeof(service_));
     _offset += sizeof(service_);
@@ -39,10 +44,7 @@ void register_event::serialize(std::vector<byte_t>& _buffer, size_t& _offset, er
     _offset += sizeof(num_eventg_);
 
     // Second check: Does the dynamic part of the data fit into the buffer?
-    if (_buffer.size() < _offset + (num_eventg_ * sizeof(eventgroup_t))) {
-        _error = error_e::ERROR_NOT_ENOUGH_BYTES;
-        return;
-    }
+    assert(_buffer.size() >= _offset + (num_eventg_ * sizeof(eventgroup_t)));
 
     for (const auto g : eventgroups_) {
         std::memcpy(&_buffer[_offset], &g, sizeof(g));

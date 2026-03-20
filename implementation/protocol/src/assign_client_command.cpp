@@ -13,15 +13,9 @@ namespace protocol {
 
 assign_client_command::assign_client_command() : command(id_e::ASSIGN_CLIENT_ID) { }
 
-void assign_client_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void assign_client_command::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + name_.length());
-
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     // resize buffer
     _buffer.resize(its_size);
@@ -30,9 +24,7 @@ void assign_client_command::serialize(std::vector<byte_t>& _buffer, error_e& _er
     size_ = static_cast<command_size_t>(name_.length());
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     if (!name_.empty())

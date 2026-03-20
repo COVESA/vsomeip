@@ -14,7 +14,7 @@ class resend_provided_events_command : public command {
 public:
     resend_provided_events_command();
 
-    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer) const;
     void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific

@@ -65,8 +65,8 @@ namespace vsomeip_v3 {
 
 routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
     host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), root_(nullptr), configuration_(_configuration),
-    is_socket_activated_(false), max_local_message_size_(configuration_->get_max_message_size_local()),
-    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
+    is_socket_activated_(false), configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_),
+    pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
 
@@ -640,15 +640,12 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     }
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
-            send_local(its_endpoint, its_buffer);
-        } else {
-            VSOMEIP_ERROR_P << "Failed for client 0x" << hex4(_client) << ", as no routing connection was given";
-        }
+    if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
+        send_local(its_endpoint, its_buffer);
+    } else {
+        VSOMEIP_ERROR_P << "Failed for client 0x" << hex4(_client) << ", as no routing connection was given";
     }
 }
 
@@ -772,17 +769,9 @@ void routing_manager_stub::send_client_credentials(const client_t _target, std::
         its_command.set_credentials(_credentials);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            if (its_buffer.size() <= max_local_message_size_ || VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0) {
-                send_local(its_endpoint, its_buffer);
-            } else
-                VSOMEIP_ERROR_P << "Credentials info exceeds maximum message size: Can't send!";
-
-        } else
-            VSOMEIP_ERROR_P << "Update security credentials command serialization failed (" << static_cast<int>(its_error) << ")";
+        send_local(its_endpoint, its_buffer);
     } else
         VSOMEIP_ERROR_P << "Sending credentials to client [" << hex4(_target) << "] failed";
 }
@@ -803,13 +792,9 @@ void routing_manager_stub::send_client_routing_info(const client_t _target, std:
         its_command.set_entries(std::move(_entries));
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            send_local(its_target_endpoint, its_buffer);
-        } else
-            VSOMEIP_ERROR_P << "Routing info command serialization failed (" << static_cast<int>(its_error) << ")";
+        send_local(its_target_endpoint, its_buffer);
     } else
         VSOMEIP_ERROR_P << "Sending routing info to client [" << hex4(_target) << "] failed";
 }
@@ -823,14 +808,9 @@ void routing_manager_stub::send_client_config_command(const client_t _client, co
         its_command.insert("hostname", get_env(_client));
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            send_local(its_target_endpoint, its_buffer);
-        } else {
-            VSOMEIP_ERROR_P << "Config command serialization failed(" << int(its_error) << ")";
-        }
+        send_local(its_target_endpoint, its_buffer);
     } else {
         VSOMEIP_WARNING_P << "Couldn't send config command to local client: " << hex4(_client);
     }
@@ -942,14 +922,9 @@ bool routing_manager_stub::send_subscribe(const std::shared_ptr<local_endpoint>&
         its_command.set_pending_id(_id);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else
-            VSOMEIP_ERROR_P << "Subscribe command serialization failed (" << int(its_error) << ")";
-
+        has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
         VSOMEIP_WARNING_P << "Couldn't send subscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
                           << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
@@ -974,13 +949,9 @@ bool routing_manager_stub::send_unsubscribe(const std::shared_ptr<local_endpoint
         its_command.set_pending_id(_id);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else
-            VSOMEIP_ERROR_P << "Unsubscribe command serialization failed (" << int(its_error) << ")";
+        has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
         VSOMEIP_WARNING_P << "Couldn't send unsubscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
                           << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
@@ -1006,13 +977,9 @@ bool routing_manager_stub::send_expired_subscription(const std::shared_ptr<local
         its_command.set_pending_id(_id);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else
-            VSOMEIP_ERROR_P << "Unsubscribe command serialization failed (" << int(its_error) << ")";
+        has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
         VSOMEIP_WARNING_P << "Couldn't send expired subscription to local client [" << hex4(_service) << "." << hex4(_instance) << "."
                           << hex4(_eventgroup) << "." << hex4(_event) << "] subscriber: " << hex4(_client);
@@ -1035,13 +1002,9 @@ void routing_manager_stub::send_subscribe_ack(client_t _client, service_t _servi
         its_command.set_event(_event);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            send_local(its_target, its_buffer);
-        } else
-            VSOMEIP_ERROR_P << "Subscribe ack command serialization failed (" << int(its_error) << ")";
+        send_local(its_target, its_buffer);
     }
 }
 
@@ -1059,13 +1022,9 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
         its_command.set_event(_event);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            send_local(its_target, its_buffer);
-        } else
-            VSOMEIP_ERROR_P << "Subscribe nack command serialization failed (" << int(its_error) << ")";
+        send_local(its_target, its_buffer);
     }
 }
 
@@ -1093,13 +1052,9 @@ void routing_manager_stub::broadcast_ping() const {
     protocol::ping_command its_command;
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK)
-        broadcast(its_buffer);
-    else
-        VSOMEIP_ERROR_P << "Ping command serialization failed (" << int(its_error) << ")";
+    broadcast(its_buffer);
 }
 
 void routing_manager_stub::on_ping(client_t _client) {
@@ -1108,14 +1063,9 @@ void routing_manager_stub::on_ping(client_t _client) {
         protocol::pong_command its_command;
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            send_local(its_endpoint, its_buffer);
-        } else {
-            VSOMEIP_ERROR_P << "Pong command serialization failed (" << int(its_error) << ")";
-        }
+        send_local(its_endpoint, its_buffer);
     } else {
         VSOMEIP_WARNING_P << "Couldn't find endpoint for client " << hex4(_client);
     }
@@ -1218,13 +1168,9 @@ bool routing_manager_stub::send_ping(client_t _client) {
             protocol::ping_command its_command;
 
             std::vector<byte_t> its_buffer;
-            protocol::error_e its_error;
-            its_command.serialize(its_buffer, its_error);
+            its_command.serialize(its_buffer);
 
-            if (its_error == protocol::error_e::ERROR_OK)
-                has_sent = send_local(its_endpoint, its_buffer);
-            else
-                VSOMEIP_ERROR_P << "Ping command serialization failed (" << int(its_error) << ")";
+            has_sent = send_local(its_endpoint, its_buffer);
         }
     }
 
@@ -1435,12 +1381,9 @@ bool routing_manager_stub::send_provided_event_resend_request(client_t _client, 
         its_command.set_remote_offer_id(_id);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            return send_local(its_endpoint, its_buffer);
-        }
+        return send_local(its_endpoint, its_buffer);
     } else {
         VSOMEIP_WARNING_P << "Couldn't send provided event resend request to local client: 0x" << hex4(_client);
     }
@@ -1528,14 +1471,9 @@ bool routing_manager_stub::send_cached_security_policies(client_t _client) {
             its_command.set_payloads(updated_security_policies_);
 
             std::vector<byte_t> its_buffer;
-            protocol::error_e its_error;
-            its_command.serialize(its_buffer, its_error);
+            its_command.serialize(its_buffer);
 
-            if (its_error == protocol::error_e::ERROR_OK) {
-                send_local(its_endpoint, its_buffer);
-            }
-
-            VSOMEIP_ERROR_P << "Serializing distribute security policies (" << static_cast<int>(its_error) << ")";
+            send_local(its_endpoint, its_buffer);
         }
     } else
         VSOMEIP_WARNING_P << "Could not send cached security policies to registering client: 0x" << hex4(_client);
@@ -1553,17 +1491,13 @@ bool routing_manager_stub::send_remove_security_policy_request(client_t _client,
     its_command.set_gid(_gid);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
-            return send_local(its_endpoint, its_buffer);
-        } else {
-            VSOMEIP_ERROR_P << "Cannot find local client endpoint for client 0x" << hex4(_client);
-        }
-    } else
-        VSOMEIP_ERROR_P << "Remove security policy command serialization failed (" << static_cast<int>(its_error) << ")";
+    if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
+        return send_local(its_endpoint, its_buffer);
+    } else {
+        VSOMEIP_ERROR_P << "Cannot find local client endpoint for client 0x" << hex4(_client);
+    }
 
     return false;
 }
@@ -1939,13 +1873,9 @@ void routing_manager_stub::send_suspend() const {
     protocol::suspend_command its_command;
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK)
-        broadcast(its_buffer);
-    else
-        VSOMEIP_ERROR_P << "Suspend command serialization failed (" << int(its_error) << ")";
+    broadcast(its_buffer);
 }
 
 bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance, major_version_t _major) const {

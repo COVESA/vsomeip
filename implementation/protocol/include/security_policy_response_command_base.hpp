@@ -23,7 +23,7 @@ class security_policy_response_command_base : public command {
 public:
     security_policy_response_command_base(id_e _id);
 
-    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer) const;
     void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific

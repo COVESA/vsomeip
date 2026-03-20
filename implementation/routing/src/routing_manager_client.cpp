@@ -283,19 +283,13 @@ void routing_manager_client::ping_host() {
     its_command.set_client(get_client());
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
-        VSOMEIP_ERROR_P << "Ping command serialization failed (" << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
     }
 }
 
@@ -343,19 +337,14 @@ bool routing_manager_client::send_offer_service(client_t _client, service_t _ser
     its_offer.set_minor(_minor);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_offer.serialize(its_buffer, its_error);
+    its_offer.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
-            return true;
-        }
-        VSOMEIP_ERROR_P << "Failure offerring service " << hex4(_service) << "." << hex4(_instance) << "." << hex4(_major);
-    } else {
-        VSOMEIP_ERROR_P << "Offer_service serialization failed (" << static_cast<int>(its_error) << ")";
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
+        return true;
     }
 
+    VSOMEIP_ERROR_P << "Failure offering service " << hex4(_service) << "." << hex4(_instance) << "." << hex4(_major);
     return false;
 }
 
@@ -404,18 +393,13 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
         its_command.set_minor(_minor);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
+        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
-            VSOMEIP_ERROR_P << "Stop offer serialization failed (" << static_cast<int>(its_error) << ")";
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
     }
 }
@@ -578,15 +562,12 @@ void routing_manager_client::unregister_event(client_t _client, service_t _servi
         its_command.set_provided(_is_provided);
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
-        if (its_error == protocol::error_e::ERROR_OK) {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
+        its_command.serialize(its_buffer);
+        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
     }
 }
@@ -653,32 +634,27 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     its_command.set_filter(_filter);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        client_t its_target_client = find_local_client(_service, _instance);
-        if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
-            auto its_target = ep_mgr_->find_or_create_local_client(its_target_client);
-            if (its_target) {
-                its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "No target available to send subscription. Client=0x" << hex4(_client) << " service=" << hex4(_service)
-                                << "." << hex4(_instance) << "." << hex2(_major) << " event=" << hex4(_event);
-                // if we can not create a connection with this client -> there should be something wrong with the routing info,
-                // but we assume the service is offered -> this is an error and we should handle it
-                cleanup_client(its_target_client);
-            }
+    client_t its_target_client = find_local_client(_service, _instance);
+    if (its_target_client != VSOMEIP_ROUTING_CLIENT) {
+        auto its_target = ep_mgr_->find_or_create_local_client(its_target_client);
+        if (its_target) {
+            its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
+            VSOMEIP_ERROR_P << "No target available to send subscription. Client=0x" << hex4(_client) << " service=" << hex4(_service)
+                            << "." << hex4(_instance) << "." << hex2(_major) << " event=" << hex4(_event);
+            // if we can not create a connection with this client -> there should be something wrong with the routing info,
+            // but we assume the service is offered -> this is an error and we should handle it
+            cleanup_client(its_target_client);
         }
     } else {
-        VSOMEIP_ERROR_P << "Subscribe command serialization failed (" << static_cast<int>(its_error) << ")";
+        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
+        }
     }
 }
 
@@ -695,29 +671,24 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber, service_t
     its_command.set_pending_id(_id);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-    if (its_error == protocol::error_e::ERROR_OK) {
-        if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
-            auto its_target = ep_mgr_->find_local_server_endpoint(_subscriber);
-            if (its_target) {
-                its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-                return;
-            } else {
-                VSOMEIP_WARNING_P << "No target available to send subscription nack. Client=0x" << hex4(_subscriber)
-                                  << " service=" << hex4(_service) << "." << hex4(_instance) << " event=" << hex4(_event);
-            }
+    its_command.serialize(its_buffer);
+    if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
+        auto its_target = ep_mgr_->find_local_server_endpoint(_subscriber);
+        if (its_target) {
+            its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            return;
+        } else {
+            VSOMEIP_WARNING_P << "No target available to send subscription nack. Client=0x" << hex4(_subscriber)
+                              << " service=" << hex4(_service) << "." << hex4(_instance) << " event=" << hex4(_event);
         }
-        {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
+    }
+    {
+        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
-    } else {
-        VSOMEIP_ERROR_P << "Subscribe nack serialization failed (" << static_cast<int>(its_error) << ")";
     }
 }
 
@@ -734,29 +705,24 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber, service_t 
     its_command.set_pending_id(_id);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-    if (its_error == protocol::error_e::ERROR_OK) {
-        if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
-            auto its_target = ep_mgr_->find_local_server_endpoint(_subscriber);
-            if (its_target) {
-                its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-                return;
-            } else {
-                VSOMEIP_WARNING_P << "No target available to send subscription ack. Client=0x" << hex4(_subscriber)
-                                  << " service=" << hex4(_service) << "." << hex4(_instance) << " event=" << hex4(_event);
-            }
+    its_command.serialize(its_buffer);
+    if (_subscriber != VSOMEIP_ROUTING_CLIENT && _id == PENDING_SUBSCRIPTION_ID) {
+        auto its_target = ep_mgr_->find_local_server_endpoint(_subscriber);
+        if (its_target) {
+            its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            return;
+        } else {
+            VSOMEIP_WARNING_P << "No target available to send subscription ack. Client=0x" << hex4(_subscriber)
+                              << " service=" << hex4(_service) << "." << hex4(_instance) << " event=" << hex4(_event);
         }
-        {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
+    }
+    {
+        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+        } else {
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
-    } else {
-        VSOMEIP_ERROR_P << "Subscribe ack serialization failed (" << static_cast<int>(its_error) << ")";
     }
 }
 
@@ -781,28 +747,21 @@ void routing_manager_client::unsubscribe(client_t _client, const vsomeip_sec_cli
             its_command.set_pending_id(PENDING_SUBSCRIPTION_ID);
 
             std::vector<byte_t> its_buffer;
-            protocol::error_e its_error;
-            its_command.serialize(its_buffer, its_error);
+            its_command.serialize(its_buffer);
 
-            if (its_error == protocol::error_e::ERROR_OK) {
-
-                auto its_target = ep_mgr_->find_local_client(_service, _instance);
-                if (its_target) {
-                    its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-                } else {
-                    if (_client != VSOMEIP_ROUTING_CLIENT) {
-                        VSOMEIP_WARNING_P << "Could not find endpoint for client 0x" << hex4(_client) << ", sending to the router";
-                    }
-                    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-                    if (sender_) {
-                        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-                    } else {
-                        VSOMEIP_ERROR_P << "Failed due to a missing sender";
-                    }
-                }
+            auto its_target = ep_mgr_->find_local_client(_service, _instance);
+            if (its_target) {
+                its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
             } else {
-
-                VSOMEIP_ERROR_P << "Unsubscribe serialization failed (" << static_cast<int>(its_error) << ")";
+                if (_client != VSOMEIP_ROUTING_CLIENT) {
+                    VSOMEIP_WARNING_P << "Could not find endpoint for client 0x" << hex4(_client) << ", sending to the router";
+                }
+                std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+                if (sender_) {
+                    sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+                } else {
+                    VSOMEIP_ERROR_P << "Failed due to a missing sender";
+                }
             }
         }
     }
@@ -867,9 +826,9 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
              * BUT: in case the router subscribed on behalf of a boardnet client it would have used VSOMEIP_ROUTING_CLIENT as an id.
              * But the base class has a dedicated case for this id in which it does not send anything out.
              * Note: the _client == VSOMEIP_ROUTING_CLIENT needs to be read as "broadcast this event".
-             * For these reasons one should neither do an early return here (as the broadcast should also mean: Send it also to the router).
-             * All this is somewhat questionable, but in the course of the sender/receiver -> client/server arch change,
-             * this should not be reworked.
+             * For these reasons one should neither do an early return here (as the broadcast should also mean: Send it also to the
+             *router). All this is somewhat questionable, but in the course of the sender/receiver -> client/server arch change, this
+             *should not be reworked.
              **/
             has_remote_subscribers =
                     send_local_notification(get_client(), _data, _size, _instance, _reliable, _status_check, _force, sender_);
@@ -1766,24 +1725,20 @@ void routing_manager_client::send_pong() const {
     its_command.set_client(get_client());
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        if (auto state = state_machine_->state();
-            is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING)) {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-            if (sender_) {
-                sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "Failed due to a missing sender";
-            }
+    if (auto state = state_machine_->state();
+        is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING)) {
+        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        if (sender_) {
+            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
-            VSOMEIP_WARNING_P << "Pong command for Client 0x" << hex4(get_client()) << get_client()
-                              << " not dispatched due to unexpected state: " << state;
+            VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
-    } else
-        VSOMEIP_ERROR_P << "Pong command serialization failed(" << static_cast<int>(its_error) << ")";
+    } else {
+        VSOMEIP_WARNING_P << "Pong command for Client 0x" << hex4(get_client()) << get_client()
+                          << " not dispatched due to unexpected state: " << state;
+    }
 }
 
 bool routing_manager_client::send_request_services(const std::set<protocol::service>& _requests) {
@@ -1796,17 +1751,12 @@ bool routing_manager_client::send_request_services(const std::set<protocol::serv
     its_command.set_services(_requests);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
-            return true;
-        }
-        VSOMEIP_ERROR_P << "Failed to send requested services";
-    } else {
-        VSOMEIP_ERROR_P << "Request service serialization failed (" << static_cast<int>(its_error) << ")";
+    its_command.serialize(its_buffer);
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
+        return true;
     }
+    VSOMEIP_ERROR_P << "Failed to send requested services";
 
     return false;
 }
@@ -1821,15 +1771,12 @@ void routing_manager_client::send_release_service(client_t _client, service_t _s
     its_command.set_instance(_instance);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
+    its_command.serialize(its_buffer);
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
     }
 }
 
@@ -1851,17 +1798,11 @@ bool routing_manager_client::send_pending_event_registrations(client_t _client) 
         }
 
         std::vector<byte_t> its_buffer;
-        protocol::error_e its_error;
-        its_command.serialize(its_buffer, its_error);
+        its_command.serialize(its_buffer);
 
-        if (its_error == protocol::error_e::ERROR_OK) {
-            std::scoped_lock its_sender_lock{sender_mutex_};
-            if (!(sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size())))) {
-                VSOMEIP_ERROR_P << "Failed to send pending registration to host";
-                sent = false;
-            }
-        } else {
-            VSOMEIP_ERROR_P << "Register event command serialization failed (" << static_cast<int>(its_error) << ")";
+        std::scoped_lock its_sender_lock{sender_mutex_};
+        if (!(sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size())))) {
+            VSOMEIP_ERROR_P << "Failed to send pending registration to host";
             sent = false;
         }
 
@@ -1890,23 +1831,19 @@ void routing_manager_client::send_register_event(client_t _client, service_t _se
     }
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+    }
 
-        if (_is_provided) {
-            VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
-                         << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
-        }
-    } else
-        VSOMEIP_ERROR_P << "Register event command serialization failed (" << static_cast<int>(its_error) << ")";
+    if (_is_provided) {
+        VSOMEIP_INFO << "REGISTER EVENT(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                     << hex4(_notifier) << ":is_provider=" << std::boolalpha << _is_provided << "]";
+    }
 }
 
 void routing_manager_client::on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -2191,18 +2128,14 @@ void routing_manager_client::send_get_offered_services_info(client_t _client, of
     its_command.set_offer_type(_offer_type);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
-    } else
-        VSOMEIP_ERROR_P << "Offered service request command serialization failed (" << static_cast<int>(its_error) << ")";
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+    }
 }
 
 void routing_manager_client::send_unsubscribe_ack(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -2216,18 +2149,14 @@ void routing_manager_client::send_unsubscribe_ack(service_t _service, instance_t
     its_command.set_pending_id(_id);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
-    } else
-        VSOMEIP_ERROR_P << "Unsubscribe ack command serialization failed (" << static_cast<int>(its_error) << ")";
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+    }
 }
 
 void routing_manager_client::resend_provided_event_registrations() {
@@ -2247,18 +2176,14 @@ void routing_manager_client::send_resend_provided_event_response(pending_remote_
     its_command.set_remote_offer_id(_id);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
-    } else
-        VSOMEIP_ERROR_P << "Resend provided event command serialization failed (" << static_cast<int>(its_error) << ")";
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+    }
 }
 
 #ifndef VSOMEIP_DISABLE_SECURITY
@@ -2269,18 +2194,14 @@ void routing_manager_client::send_update_security_policy_response(pending_securi
     its_command.set_update_id(_update_id);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
-    } else
-        VSOMEIP_ERROR_P << "Update security policy response command serialization failed (" << static_cast<int>(its_error) << ")";
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+    }
 }
 
 void routing_manager_client::send_remove_security_policy_response(pending_security_update_id_t _update_id) {
@@ -2290,18 +2211,14 @@ void routing_manager_client::send_remove_security_policy_response(pending_securi
     its_command.set_update_id(_update_id);
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
+    its_command.serialize(its_buffer);
 
-    if (its_error == protocol::error_e::ERROR_OK) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
-        if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "Failed due to a missing sender";
-        }
-    } else
-        VSOMEIP_ERROR_P << "Update security policy response command serialization failed (" << static_cast<int>(its_error) << ")";
+    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    if (sender_) {
+        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+    } else {
+        VSOMEIP_ERROR_P << "Failed due to a missing sender";
+    }
 }
 
 void routing_manager_client::on_update_security_credentials(const protocol::update_security_credentials_command& _command) {

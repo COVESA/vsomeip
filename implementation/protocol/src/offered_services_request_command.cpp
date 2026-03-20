@@ -12,15 +12,9 @@ namespace protocol {
 
 offered_services_request_command::offered_services_request_command() : command(id_e::OFFERED_SERVICES_REQUEST_ID) { }
 
-void offered_services_request_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void offered_services_request_command::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + sizeof(offer_type_));
-
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     // resize buffer
     _buffer.resize(its_size);
@@ -29,9 +23,7 @@ void offered_services_request_command::serialize(std::vector<byte_t>& _buffer, e
     size_ = static_cast<command_size_t>(sizeof(offer_type_));
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     std::memcpy(&_buffer[COMMAND_POSITION_PAYLOAD], &offer_type_, sizeof(offer_type_));

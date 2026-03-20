@@ -75,12 +75,10 @@ void subscribe_command_base::set_pending_id(pending_id_t _pending_id) {
     pending_id_ = _pending_id;
 }
 
-void subscribe_command_base::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void subscribe_command_base::serialize(std::vector<byte_t>& _buffer) const {
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     size_t its_offset(COMMAND_POSITION_PAYLOAD);

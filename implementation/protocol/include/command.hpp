@@ -25,7 +25,7 @@ public:
     inline void set_client(client_t _client) { client_ = _client; }
     inline command_size_t get_size() const { return size_; }
 
-    virtual void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    virtual void serialize(std::vector<byte_t>& _buffer) const;
     virtual void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 protected:

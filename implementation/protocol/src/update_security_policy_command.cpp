@@ -7,6 +7,7 @@
 
 #include "../include/update_security_policy_command.hpp"
 #include "../../security/include/policy.hpp"
+#include "../../logger/include/logger_ext.hpp"
 
 namespace vsomeip_v3 {
 namespace protocol {
@@ -14,23 +15,16 @@ namespace protocol {
 update_security_policy_command::update_security_policy_command(bool _is_internal) :
     command(_is_internal ? id_e::UPDATE_SECURITY_POLICY_INT_ID : id_e::UPDATE_SECURITY_POLICY_ID) { }
 
-void update_security_policy_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void update_security_policy_command::serialize(std::vector<byte_t>& _buffer) const {
 
     std::vector<byte_t> its_policy_data;
     if (policy_) {
-        if (policy_->serialize(its_policy_data)) {
-            _error = error_e::ERROR_UNKNOWN;
-            return;
+        if (!policy_->serialize(its_policy_data)) {
+            VSOMEIP_TERMINATE("Could not serialize policy");
         }
     }
 
     size_t its_size(COMMAND_HEADER_SIZE + sizeof(update_id_) + its_policy_data.size());
-
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     // resize buffer
     _buffer.resize(its_size);
@@ -39,9 +33,7 @@ void update_security_policy_command::serialize(std::vector<byte_t>& _buffer, err
     size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     size_t its_offset(COMMAND_HEADER_SIZE);

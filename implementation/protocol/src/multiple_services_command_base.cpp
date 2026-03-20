@@ -12,17 +12,11 @@ namespace protocol {
 
 multiple_services_command_base::multiple_services_command_base(id_e _id) : command(_id) { }
 
-void multiple_services_command_base::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void multiple_services_command_base::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE
                     + (services_.size()
                        * (sizeof(service::service_) + sizeof(service::instance_) + sizeof(service::major_) + sizeof(service::minor_))));
-
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     // resize buffer
     _buffer.resize(its_size);
@@ -31,9 +25,7 @@ void multiple_services_command_base::serialize(std::vector<byte_t>& _buffer, err
     size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     size_t its_offset(COMMAND_POSITION_PAYLOAD);

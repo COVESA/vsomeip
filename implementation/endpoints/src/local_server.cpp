@@ -238,24 +238,18 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             config_command.set_client(own_client_id_);
             config_command.insert("hostname", std::string(server_host_));
             std::vector<byte_t> config_buffer;
-            protocol::error_e error;
-            config_command.serialize(config_buffer, error);
+            config_command.serialize(config_buffer);
 
-            if (error == protocol::error_e::ERROR_OK) {
-                ep->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
-            }
+            ep->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
 
             if (is_router_) {
                 protocol::assign_client_ack_command assign_ack_command;
                 assign_ack_command.set_client(VSOMEIP_ROUTING_CLIENT);
                 assign_ack_command.set_assigned(_client);
                 std::vector<byte_t> assign_ack_buffer;
-                protocol::error_e ec;
-                assign_ack_command.serialize(assign_ack_buffer, ec);
+                assign_ack_command.serialize(assign_ack_buffer);
 
-                if (error == protocol::error_e::ERROR_OK) {
-                    ep->send(&assign_ack_buffer[0], static_cast<uint32_t>(assign_ack_buffer.size()));
-                }
+                ep->send(&assign_ack_buffer[0], static_cast<uint32_t>(assign_ack_buffer.size()));
 
                 VSOMEIP_INFO << ss.str();
             }

@@ -310,16 +310,9 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
         config_command.insert("expected_id", std::move(id_str));
 
         std::vector<byte_t> config_buffer;
-        protocol::error_e err;
-        config_command.serialize(config_buffer, err);
+        config_command.serialize(config_buffer);
 
-        if (err == protocol::error_e::ERROR_OK) {
-            its_endpoint->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
-        } else {
-            VSOMEIP_ERROR_P << "config_command creation failed , self 0x" << hex4(get_client_id()) << ", client 0x" << hex4(_client)
-                            << ", err " << static_cast<int>(err);
-            return nullptr;
-        }
+        its_endpoint->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
 
         if (_client == VSOMEIP_ROUTING_CLIENT) {
             protocol::assign_client_command assign_command;
@@ -327,15 +320,9 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
             assign_command.set_name(rm_->get_name());
 
             std::vector<byte_t> assign_buffer;
-            assign_command.serialize(assign_buffer, err);
+            assign_command.serialize(assign_buffer);
 
-            if (err == protocol::error_e::ERROR_OK) {
-                its_endpoint->send(&assign_buffer[0], static_cast<uint32_t>(assign_buffer.size()));
-            } else {
-                VSOMEIP_ERROR_P << "assign_client_command creation failed , self 0x" << hex4(get_client_id()) << ", client 0x"
-                                << hex4(_client) << ", err " << static_cast<int>(err);
-                return nullptr;
-            }
+            its_endpoint->send(&assign_buffer[0], static_cast<uint32_t>(assign_buffer.size()));
         } else {
             // Messages sent to the VSOMEIP_ROUTING_CLIENT are meant to be routed to
             // external devices. Therefore, its local endpoint must not be found by

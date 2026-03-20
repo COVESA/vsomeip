@@ -14,7 +14,7 @@ class remove_security_policy_command : public command {
 public:
     remove_security_policy_command();
 
-    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer) const;
     void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
     // specific

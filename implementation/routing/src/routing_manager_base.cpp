@@ -1159,8 +1159,6 @@ bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, 
                                       instance_t _instance, bool _reliable, protocol::id_e _command, uint8_t _status_check,
                                       client_t _sender) const {
 
-    bool has_sent(false);
-
     protocol::send_command its_command(_command);
     its_command.set_client(_sender);
     its_command.set_instance(_instance);
@@ -1170,13 +1168,9 @@ bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, 
     its_command.set_message(std::vector<byte_t>(_data, _data + _size));
 
     std::vector<byte_t> its_buffer;
-    protocol::error_e its_error;
-    its_command.serialize(its_buffer, its_error);
-    if (its_error == protocol::error_e::ERROR_OK) {
-        has_sent = _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
-    }
+    its_command.serialize(its_buffer);
 
-    return has_sent;
+    return _target->send(&its_buffer[0], uint32_t(its_buffer.size()));
 }
 
 bool routing_manager_base::insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,

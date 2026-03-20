@@ -88,13 +88,7 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         protocol::config_command command;
         command.set_client(client_);
         command.insert("hostname", "");
-
-        protocol::error_e its_error;
-        command.serialize(msg, its_error);
-        if (its_error != protocol::error_e::ERROR_OK) {
-            throw std::logic_error("config command could not be created");
-        }
-
+        command.serialize(msg);
         return msg;
     }
     void add_offer_service_command(std::vector<std::vector<byte_t>>& _queue) {
@@ -104,11 +98,7 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
         command.set_instance(1);
         command.set_major(1);
         command.set_minor(0);
-        protocol::error_e its_error;
-        command.serialize(msg, its_error);
-        if (its_error != protocol::error_e::ERROR_OK) {
-            throw std::logic_error("service offer could not be serialized");
-        }
+        command.serialize(msg);
         _queue.push_back(std::move(msg));
     }
     std::shared_ptr<stub_factory> factory_;

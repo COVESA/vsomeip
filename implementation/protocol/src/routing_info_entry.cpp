@@ -19,18 +19,13 @@ routing_info_entry::routing_info_entry() : type_(routing_info_entry_type_e::RIE_
 routing_info_entry::routing_info_entry(const routing_info_entry& _source) :
     type_(_source.type_), client_(_source.client_), address_(_source.address_), port_(_source.port_), services_(_source.services_) { }
 
-void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index, error_e& _error) const {
+void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index) const {
 
     _buffer[_index] = static_cast<byte_t>(type_);
     _index += sizeof(type_);
 
     // Size is overall size - size field - command type
     size_t its_size = get_size() - sizeof(uint32_t) - 1;
-    if (its_size > std::numeric_limits<uint32_t>::max()) {
-
-        _error = error_e::ERROR_MALFORMED;
-        return;
-    }
 
     uint32_t its_size32(static_cast<uint32_t>(its_size));
     std::memcpy(&_buffer[_index], &its_size32, sizeof(its_size32));
@@ -65,12 +60,6 @@ void routing_info_entry::serialize(std::vector<byte_t>& _buffer, size_t& _index,
     }
 
     its_size = (services_.size() * (sizeof(service_t) + sizeof(instance_t) + sizeof(major_version_t) + sizeof(minor_version_t)));
-
-    if (its_size > std::numeric_limits<uint32_t>::max()) {
-
-        _error = error_e::ERROR_MALFORMED;
-        return;
-    }
 
     its_size32 = static_cast<uint32_t>(its_size);
     std::memcpy(&_buffer[_index], &its_size32, sizeof(its_size32));

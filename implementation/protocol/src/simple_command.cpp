@@ -12,7 +12,7 @@ namespace protocol {
 
 simple_command::simple_command(id_e _id) : command(_id) { }
 
-void simple_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void simple_command::serialize(std::vector<byte_t>& _buffer) const {
 
     // no size check as we know this is small enough
 
@@ -23,7 +23,7 @@ void simple_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) co
     size_ = 0;
 
     // serialize header
-    command::serialize(_buffer, _error);
+    command::serialize(_buffer);
 }
 
 void simple_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {

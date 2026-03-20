@@ -15,15 +15,9 @@ namespace protocol {
 
 distribute_security_policies_command::distribute_security_policies_command() : command(id_e::DISTRIBUTE_SECURITY_POLICIES_ID) { }
 
-void distribute_security_policies_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void distribute_security_policies_command::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + std::min(payload_.size(), size_t(std::numeric_limits<uint32_t>::max())));
-
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     // resize buffer
     _buffer.resize(its_size);
@@ -32,9 +26,7 @@ void distribute_security_policies_command::serialize(std::vector<byte_t>& _buffe
     size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize (add) payload
     size_t its_offset(COMMAND_HEADER_SIZE);

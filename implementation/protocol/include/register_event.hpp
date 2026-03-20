@@ -18,7 +18,7 @@ public:
                    event_type_e event_type = event_type_e::ET_UNKNOWN, bool is_provided = false,
                    reliability_type_e reliability = reliability_type_e::RT_UNKNOWN, bool is_cyclic = false, uint16_t num_eventg = 0,
                    const std::set<eventgroup_t>& eventgroups = std::set<eventgroup_t>());
-    void serialize(std::vector<byte_t>& _buffer, size_t& _offset, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer, size_t& _offset) const;
     void deserialize(const std::vector<byte_t>& _buffer, size_t& _offset, error_e& _error);
 
     service_t get_service() const { return service_; }

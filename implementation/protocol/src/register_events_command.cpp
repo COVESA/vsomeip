@@ -31,27 +31,18 @@ bool register_events_command::add_registration(const register_event& _register_e
     return true;
 }
 
-void register_events_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
-
-    if (size_ + COMMAND_HEADER_SIZE > std::numeric_limits<command_size_t>::max()) {
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
+void register_events_command::serialize(std::vector<byte_t>& _buffer) const {
 
     // resize buffer
     _buffer.resize(size_ + COMMAND_HEADER_SIZE);
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     size_t its_offset(COMMAND_HEADER_SIZE);
     for (auto& reg : registrations_) {
-        reg.serialize(_buffer, its_offset, _error);
-        if (_error != error_e::ERROR_OK)
-            return;
+        reg.serialize(_buffer, its_offset);
     }
 }
 

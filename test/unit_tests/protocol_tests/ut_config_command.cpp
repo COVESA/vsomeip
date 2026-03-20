@@ -43,9 +43,7 @@ TEST(config_command_test, serialize) {
     command.insert("efgh", "5678");
 
     std::vector<std::uint8_t> buffer;
-    vsomeip_v3::protocol::error_e error;
-    command.serialize(buffer, error);
-    ASSERT_EQ(error, vsomeip_v3::protocol::error_e::ERROR_OK);
+    command.serialize(buffer);
     ASSERT_EQ(buffer, serialized_config_command);
 }
 

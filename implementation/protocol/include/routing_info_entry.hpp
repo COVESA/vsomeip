@@ -19,7 +19,7 @@ public:
     routing_info_entry();
     routing_info_entry(const routing_info_entry& _source);
 
-    void serialize(std::vector<byte_t>& _buffer, size_t& _index, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer, size_t& _index) const;
     void deserialize(const std::vector<byte_t>& _buffer, size_t& _index, error_e& _error);
 
     routing_info_entry_type_e get_type() const;

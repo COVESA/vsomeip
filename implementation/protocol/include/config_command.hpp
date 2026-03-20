@@ -31,7 +31,7 @@ public:
      *
      * Serialized data will be represented in Little-Endian byte order.
      */
-    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const override;
+    void serialize(std::vector<byte_t>& _buffer) const override;
 
     /**
      * Deserializes the `config_command` from the given buffer.

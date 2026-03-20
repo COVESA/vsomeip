@@ -25,7 +25,7 @@ void subscribe_command::set_filter(const std::shared_ptr<debounce_filter_impl_t>
     filter_ = _filter;
 }
 
-void subscribe_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void subscribe_command::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + sizeof(service_) + sizeof(instance_) + sizeof(eventgroup_) + sizeof(major_) + sizeof(event_)
                     + sizeof(pending_id_));
@@ -36,12 +36,6 @@ void subscribe_command::serialize(std::vector<byte_t>& _buffer, error_e& _error)
                 + (filter_->ignore_.size() * (sizeof(size_t) + sizeof(byte_t))) + sizeof(filter_->send_current_value_after_);
     }
 
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
-
     // resize buffer
     _buffer.resize(its_size);
 
@@ -49,9 +43,7 @@ void subscribe_command::serialize(std::vector<byte_t>& _buffer, error_e& _error)
     size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
 
     // serialize header
-    subscribe_command_base::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    subscribe_command_base::serialize(_buffer);
 
     if (filter_) {
 

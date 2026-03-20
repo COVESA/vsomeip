@@ -25,7 +25,7 @@ public:
     minor_version_t get_minor() const;
     void set_minor(minor_version_t _minor);
 
-    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer) const;
     void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 protected:

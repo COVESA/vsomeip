@@ -23,7 +23,7 @@ public:
     std::shared_ptr<debounce_filter_impl_t> get_filter() const;
     void set_filter(const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
-    void serialize(std::vector<byte_t>& _buffer, error_e& _error) const;
+    void serialize(std::vector<byte_t>& _buffer) const;
     void deserialize(const std::vector<byte_t>& _buffer, error_e& _error);
 
 private:

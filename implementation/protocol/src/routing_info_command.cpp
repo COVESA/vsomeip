@@ -12,7 +12,7 @@ namespace protocol {
 
 routing_info_command::routing_info_command() : command(id_e::ROUTING_INFO_ID) { }
 
-void routing_info_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void routing_info_command::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE);
     for (const auto& e : entries_)
@@ -25,18 +25,12 @@ void routing_info_command::serialize(std::vector<byte_t>& _buffer, error_e& _err
     size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     size_t _index(COMMAND_HEADER_SIZE);
     for (const auto& e : entries_) {
-        e.serialize(_buffer, _index, _error);
-        if (_error != error_e::ERROR_OK) {
-            _buffer.clear();
-            return;
-        }
+        e.serialize(_buffer, _index);
     }
 }
 

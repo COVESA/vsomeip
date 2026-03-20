@@ -10,24 +10,17 @@
 
 namespace vsomeip_v3::protocol {
 
-void config_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void config_command::serialize(std::vector<byte_t>& _buffer) const {
     size_t size = COMMAND_HEADER_SIZE;
     for (const auto& [key, value] : configs_) {
         size += sizeof(std::uint32_t) * 2;
         size += key.size();
         size += value.size();
     }
-    if (size > std::numeric_limits<command_size_t>::max()) {
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     _buffer.resize(size);
     size_ = static_cast<command_size_t>(size - COMMAND_HEADER_SIZE);
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK) {
-        return;
-    }
+    command::serialize(_buffer);
 
     size_t write_position(COMMAND_POSITION_PAYLOAD);
     for (const auto& [key, value] : configs_) {
@@ -45,7 +38,6 @@ void config_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) co
         std::memcpy(&_buffer[write_position], value.data(), value.length());
         write_position += value_size;
     }
-    _error = error_e::ERROR_OK;
 }
 
 void config_command::deserialize(const std::vector<byte_t>& _buffer, error_e& _error) {

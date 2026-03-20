@@ -12,15 +12,9 @@ namespace protocol {
 
 update_security_credentials_command::update_security_credentials_command() : command(id_e::UPDATE_SECURITY_CREDENTIALS_ID) { }
 
-void update_security_credentials_command::serialize(std::vector<byte_t>& _buffer, error_e& _error) const {
+void update_security_credentials_command::serialize(std::vector<byte_t>& _buffer) const {
 
     size_t its_size(COMMAND_HEADER_SIZE + (credentials_.size() * (sizeof(uid_t) + sizeof(gid_t))));
-
-    if (its_size > std::numeric_limits<command_size_t>::max()) {
-
-        _error = error_e::ERROR_MAX_COMMAND_SIZE_EXCEEDED;
-        return;
-    }
 
     // resize buffer
     _buffer.resize(its_size);
@@ -29,9 +23,7 @@ void update_security_credentials_command::serialize(std::vector<byte_t>& _buffer
     size_ = static_cast<command_size_t>(its_size - COMMAND_HEADER_SIZE);
 
     // serialize header
-    command::serialize(_buffer, _error);
-    if (_error != error_e::ERROR_OK)
-        return;
+    command::serialize(_buffer);
 
     // serialize payload
     size_t its_offset(COMMAND_HEADER_SIZE);
