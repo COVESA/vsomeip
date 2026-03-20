@@ -1,0 +1,49 @@
+{
+    "unicast":"@TEST_IP_MASTER@",
+    "logging":
+    {
+        "level":"trace",
+        "console":"true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "services":
+    [
+        {
+            "service":"0x1111",
+            "instance":"0x0001",
+            "unreliable":"0xFFFF",
+            "reliable":
+            {
+                "port":"34511",
+                "enable-magic-cookies":"false"
+            },
+            "events": [
+                {
+                    "event": "0x1111",
+                    "is_field": true
+                }
+            ],
+            "eventgroups": [
+                {
+                    "eventgroup": "0x1000",
+                    "events": [
+                        "0x1111"
+                    ]
+                }
+            ]
+        }
+    ],
+    "routing":"routingmanagerd",
+    "service-discovery":
+    {
+        "enable":"true",
+        "multicast":"224.0.0.1",
+        "port":"30490",
+        "protocol":"udp",
+        "cyclic_offer_delay" : "500",
+        "max_remote_subscribers" : "100"
+    }
+}

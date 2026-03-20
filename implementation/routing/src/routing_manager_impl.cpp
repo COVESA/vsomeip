@@ -197,6 +197,8 @@ void routing_manager_impl::init() {
 }
 
 void routing_manager_impl::start() {
+    ep_mgr_impl_->start();
+
 #if defined(__linux__)
     boost::asio::ip::address its_multicast;
     try {
@@ -278,8 +280,7 @@ void routing_manager_impl::stop() {
 
     stub_->stop();
 
-    ep_mgr_impl_->clear_local_endpoints();
-    ep_mgr_impl_->clear_routing_endpoints();
+    ep_mgr_impl_->stop();
 
     utility::reset_client_ids(configuration_->get_network());
 }
@@ -2782,7 +2783,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                            << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
             // stop processing of incoming SD messages
-            discovery_->stop();
+            discovery_->suspend();
 
             VSOMEIP_INFO_P << "Inform all applications that we are going to suspend.";
             send_suspend();

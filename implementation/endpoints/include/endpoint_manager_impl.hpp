@@ -12,6 +12,7 @@
 
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../include/endpoint_manager_base.hpp"
+#include "../include/auxiliary_context.hpp"
 #include "../include/endpoint_definition.hpp"
 
 namespace vsomeip_v3 {
@@ -86,6 +87,8 @@ public:
     std::unordered_set<client_t> get_connected_clients() const;
     void suspend();
     void resume();
+    void start();
+    void stop();
 
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
     void remove_routing_endpoint(client_t _client, bool _remove_due_to_error);
@@ -132,7 +135,6 @@ private:
     std::map<service_t, std::map<boost::asio::ip::address, instance_t>> service_instances_multicast_;
 
     std::map<boost::asio::ip::address, std::map<port_t, std::map<bool, std::set<port_t>>>> used_client_ports_;
-    std::mutex used_client_ports_mutex_;
 
     // Server endpoints for local services
     using server_endpoints_t = std::map<uint16_t, std::map<bool, std::shared_ptr<boardnet_endpoint>>>;
@@ -140,6 +142,7 @@ private:
 
     // Multicast endpoint info (notifications)
     std::map<service_t, std::map<instance_t, std::shared_ptr<endpoint_definition>>> multicast_info_;
+    auxiliary_context auxiliary_context_;
 
     // Socket option processing (join, leave)
     std::mutex options_mutex_;

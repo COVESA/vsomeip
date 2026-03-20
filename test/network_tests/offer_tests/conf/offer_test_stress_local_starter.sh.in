@@ -1,0 +1,37 @@
+#!/bin/bash -x
+# Copyright (C) 2015-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+FAIL=0
+
+echo "TEST: Launch daemon"
+export VSOMEIP_CONFIGURATION=offer_test_stress_local.json
+export VSOMEIP_APPLICATION_NAME="routingmanagerd"
+routingmanagerd &
+PID_VSOMEIPD=$!
+
+echo "TEST: Launch server"
+export VSOMEIP_APPLICATION_NAME="service-sample"
+./offer_test_service 2 &
+PID_SERVICE=$!
+
+export VSOMEIP_APPLICATION_NAME="wua"
+wait-until-available 0x1111 || FAIL=$(($FAIL+1))
+
+echo "TEST: Launch test"
+exec_slave "./stress_tcp_subscriptions 10000 3 500 @TEST_IP_SLAVE@ @TEST_IP_MASTER@"
+SLAVE_PID=$!
+
+wait $SLAVE_PID || ((FAIL+=1))
+
+echo "TEST: Kill daemon and server"
+kill $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
+kill -SIGUSR1 $PID_SERVICE
+wait $PID_SERVICE || FAIL=$(($FAIL+1))

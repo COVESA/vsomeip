@@ -18,6 +18,8 @@ set(configuration_files
     offer_test_local.json
     offer_test_local_starter.sh
     offer_test_multiple_offerings.json
+    offer_test_stress_local.json
+    offer_test_stress_local_starter.sh
 )
 configure_files("${configuration_files}")
 
@@ -52,6 +54,11 @@ add_executable(offer_test_big_sd_msg_client
     offer_test_big_sd_msg_client.cpp
 )
 
+# Add test executable.
+add_executable(stress_tcp_subscriptions
+    stress_tcp_subscriptions.cpp
+)
+
 # Add build dependencies and link libraries to executables.
 set(executables
     offer_test_service
@@ -61,6 +68,7 @@ set(executables
     offer_test_external_sd_msg_sender
     offer_test_big_sd_msg_service
     offer_test_big_sd_msg_client
+    stress_tcp_subscriptions
 )
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
@@ -85,4 +93,10 @@ add_custom_test(
 add_custom_test(
     NAME offer_test_multiple_offerings
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_multiple_offerings
+)
+
+add_custom_test(
+    NAME stress_tcp_subscriptions
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_stress_local_starter.sh
+    SEQUENTIAL
 )

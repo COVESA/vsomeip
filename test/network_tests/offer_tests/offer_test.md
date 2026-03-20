@@ -106,3 +106,13 @@ Offer_test_external has 2 test cases:
 4. Start client which exchanges messages with the service
 5. Set routingmanagerd to suspended
    - Client should send and receive all expected messages
+
+### Stress Subscriptions Test
+1. Start routingmanagerd as the HOST
+2. Start 1st application which offers service
+3. The client repeatedly (on different threads) does:
+   3.1. Create a TCP socket to a unique port
+   3.2. Connect to the HOST on TCP_SERVER_PORT.
+   3.3. Send subscribe via SD port.
+   3.4. Receive notification on TCP socket.
+   3.5. Collect failures on each step.

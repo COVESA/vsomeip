@@ -3,6 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#if defined(__linux__)
+#include <unistd.h>
+#endif
+
 #include "../include/endpoint_manager_impl.hpp"
 
 #include "../../logger/include/logger_ext.hpp"
@@ -31,35 +35,112 @@
 #define SYSTEMD_SOCKET_ACTIVATION 1
 #endif
 
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
+
 #define VSOMEIP_LOG_PREFIX "emi"
 
 namespace vsomeip_v3 {
 
 endpoint_manager_impl::endpoint_manager_impl(routing_manager_impl* const _rm, boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration) :
-    endpoint_manager_base(_rm, _io, _configuration), router_(_rm), is_processing_options_(true), options_thread_([this]() {
+    endpoint_manager_base(_rm, _io, _configuration), router_(_rm),
+    auxiliary_context_(configuration_->get_io_thread_nice_level(router_->get_name())), is_processing_options_(true) {
+
+    local_port_ = port_t(_configuration->get_routing_host_port() + 1);
+    if (!is_local_routing_) {
+        VSOMEIP_INFO_P << "Connecting to other clients from " << configuration_->get_routing_host_address().to_string() << ":"
+                       << local_port_;
+    }
+}
+
+endpoint_manager_impl::~endpoint_manager_impl() { }
+
+void endpoint_manager_impl::start() {
+    options_thread_ = std::thread([this]() {
 #if defined(__linux__) || defined(__QNX__)
         pthread_setname_np(pthread_self(), "m_multicast");
 #endif
         utility::set_thread_niceness(configuration_->get_io_thread_nice_level(router_->get_name()));
 
+        VSOMEIP_INFO << "emi::endpoint_manager_impl: Started thread m_multicast " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                ;
         process_multicast_options();
-    }) {
+        VSOMEIP_INFO << "emi::endpoint_manager_impl: Stopped thread m_multicast " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                ;
+    });
 
-    local_port_ = port_t(_configuration->get_routing_host_port() + 1);
-    if (!is_local_routing_) {
-        VSOMEIP_INFO << "Connecting to other clients from " << configuration_->get_routing_host_address().to_string() << ":" << local_port_;
-    }
+    auxiliary_context_.restart();
 }
 
-endpoint_manager_impl::~endpoint_manager_impl() {
+void endpoint_manager_impl::stop() {
+    VSOMEIP_INFO_P << "called";
+
+    clear_local_endpoints();
+    clear_routing_endpoints();
+
+    // stop boardnet endpoints
+    std::vector<std::shared_ptr<boardnet_endpoint>> endpoints;
+
+    {
+        std::scoped_lock its_lock{endpoint_mutex_};
+
+        for (const auto& [its_address, ports] : client_endpoints_) {
+            for (const auto& [its_port, protocols] : ports) {
+                for (const auto& [its_protocol, partitions] : protocols) {
+                    for (const auto& [its_partition, its_endpoint] : partitions) {
+                        endpoints.push_back(its_endpoint);
+                    }
+                }
+            }
+        }
+
+        for (const auto& [its_port, protocols] : server_endpoints_) {
+            for (const auto& [its_protocol, its_endpoint] : protocols) {
+                endpoints.push_back(its_endpoint);
+            }
+        }
+    }
+
+    for (std::shared_ptr<boardnet_endpoint>& endpoint : endpoints) {
+        endpoint->stop(false);
+    }
+
+    // clear endpoints (and related state)
+    {
+        std::scoped_lock its_lock{endpoint_mutex_};
+
+        client_endpoints_.clear();
+        server_endpoints_.clear();
+        service_instances_.clear();
+        service_instances_multicast_.clear();
+        used_client_ports_.clear();
+        remote_services_.clear();
+    }
+
+    endpoints.clear();
 
     {
         std::scoped_lock its_guard(options_mutex_);
         is_processing_options_ = false;
         options_condition_.notify_one();
     }
-    options_thread_.join();
+
+    try {
+        options_thread_.join();
+        VSOMEIP_INFO_P << "Joined thread " << "m_multicast " << std::hex << std::this_thread::get_id();
+    } catch (...) {
+        // Ignore exception if thread already joined
+    }
+
+    auxiliary_context_.stop();
 }
 
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_client(service_t _service, instance_t _instance,
@@ -231,7 +312,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
             bool its_magic_cookies_enabled = configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
                     || configuration_->has_enabled_magic_cookies("local", _port);
             auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
-                                                                    router_->shared_from_this(), io_, configuration_,
+                                                                    router_->shared_from_this(), io_, configuration_, auxiliary_context_,
                                                                     its_magic_cookies_enabled)};
             if (its_tmp) {
                 boost::asio::ip::tcp::endpoint its_reliable(its_unicast, _port);
@@ -877,12 +958,10 @@ bool endpoint_manager_impl::on_bind_error(std::shared_ptr<boardnet_endpoint> _en
                     uint16_t its_old_local_port = _endpoint->get_local_port();
                     _local_port = ILLEGAL_PORT; // will be given as a new local port
 
-                    std::unique_lock<std::mutex> its_lock(used_client_ports_mutex_);
                     std::map<bool, std::set<port_t>> its_used_client_ports;
                     get_used_client_ports(_remote_address, _remote_port, its_used_client_ports);
                     if (configuration_->get_client_port(its_service.first, its_instance.first, _remote_port, is_reliable,
                                                         its_used_client_ports, _local_port)) {
-                        its_lock.unlock();
                         release_used_client_port(_remote_address, _remote_port, _endpoint->is_reliable(), its_old_local_port);
                         return true;
                     }
@@ -917,14 +996,14 @@ void endpoint_manager_impl::get_used_client_ports(const boost::asio::ip::address
 void endpoint_manager_impl::request_used_client_port(const boost::asio::ip::address& _remote_address, port_t _remote_port, bool _reliable,
                                                      port_t _local_port) {
 
-    std::scoped_lock its_lock(used_client_ports_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     used_client_ports_[_remote_address][_remote_port][_reliable].insert(_local_port);
 }
 
 void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::address& _remote_address, port_t _remote_port, bool _reliable,
                                                      port_t _local_port) {
 
-    std::scoped_lock its_lock(used_client_ports_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     auto find_address = used_client_ports_.find(_remote_address);
     if (find_address != used_client_ports_.end()) {
         auto find_port = find_address->second.find(_remote_port);
@@ -1022,10 +1101,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
         // if client port range for remote service port range is configured
         // and remote port is in range, determine unused client port
         std::map<bool, std::set<port_t>> its_used_client_ports;
-        {
-            std::scoped_lock its_lock(used_client_ports_mutex_);
-            get_used_client_ports(its_remote_address, its_remote_port, its_used_client_ports);
-        }
+        get_used_client_ports(its_remote_address, its_remote_port, its_used_client_ports);
         if (configuration_->get_client_port(_service, _instance, its_remote_port, _reliable, its_used_client_ports, its_local_port)) {
             if (its_endpoint_def) {
                 its_endpoint = create_client_endpoint(its_remote_address, its_local_port, its_remote_port, _reliable);

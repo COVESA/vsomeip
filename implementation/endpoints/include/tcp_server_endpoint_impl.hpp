@@ -13,6 +13,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/export.hpp>
 #include "server_endpoint_impl.hpp"
+#include "auxiliary_context.hpp"
 
 #include <chrono>
 
@@ -29,7 +30,7 @@ class tcp_server_endpoint_impl : public tcp_server_endpoint_base_impl {
 public:
     tcp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                              const std::shared_ptr<boardnet_routing_host>& _routing_host, boost::asio::io_context& _io,
-                             const std::shared_ptr<configuration>& _configuration, bool _use_magic_cookies);
+                             const std::shared_ptr<configuration>& _configuration, auxiliary_context& _auxiliary, bool _use_magic_cookies);
     virtual ~tcp_server_endpoint_impl();
 
     void init(const endpoint_type& _local, boost::system::error_code& _error);
@@ -56,6 +57,7 @@ public:
     void print_status();
 
 private:
+    bool is_established_to_without_retry(const std::shared_ptr<endpoint_definition>& _endpoint);
     class connection : public std::enable_shared_from_this<connection> {
 
     public:
@@ -122,6 +124,8 @@ private:
 
         std::string instance_name_;
     };
+
+    auxiliary_context& auxiliary_ctxt_;
 
     const bool use_magic_cookies_ = false;
     std::mutex acceptor_mutex_;

@@ -79,6 +79,7 @@ public:
     void init();
     void start();
     void stop();
+    void suspend();
 
     void request_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl);
     void release_service(service_t _service, instance_t _instance);
@@ -381,7 +382,6 @@ private:
     std::chrono::milliseconds find_debounce_time_;
     std::mutex find_debounce_timer_mutex_;
     boost::asio::steady_timer find_debounce_timer_;
-    requests_t collected_finds_;
 
     // this map contains the offers and their timers currently in repetition phase
     std::mutex repetition_phase_timers_mutex_;

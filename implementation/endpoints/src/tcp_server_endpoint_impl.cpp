@@ -3,13 +3,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <condition_variable>
 #include <iomanip>
+#include <thread>
 
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/constants.hpp>
-
 #include "../../logger/include/logger_ext.hpp"
+#ifdef _WIN32
+#include <Winsock2.h>
+#endif
 #include "../include/endpoint_definition.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/boardnet_routing_host.hpp"
@@ -26,9 +30,10 @@ namespace vsomeip_v3 {
 tcp_server_endpoint_impl::tcp_server_endpoint_impl(const std::shared_ptr<boardnet_endpoint_host>& _boardnet_endpoint_host,
                                                    const std::shared_ptr<boardnet_routing_host>& _routing_host,
                                                    boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration,
-                                                   bool _use_magic_cookies) :
-    tcp_server_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _io, _configuration), use_magic_cookies_(_use_magic_cookies),
-    acceptor_(_io), buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
+                                                   auxiliary_context& _auxiliary, bool _use_magic_cookies) :
+    tcp_server_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _io, _configuration), auxiliary_ctxt_(_auxiliary),
+    use_magic_cookies_(_use_magic_cookies), acceptor_(_auxiliary.get_context()),
+    buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
     // send timeout after 2/3 of configured ttl, warning after 1/3
     send_timeout_(configuration_->get_sd_ttl() * 666) {
 
@@ -121,10 +126,13 @@ void tcp_server_endpoint_impl::start() {
         // remote_endpoint() on the socket in the callback would fail (returning an unspecified
         // address), which would later cause messages to be dropped in on_message.
         auto its_remote_ep = std::make_shared<endpoint_type>();
-        acceptor_.async_accept(new_connection->get_socket(), *its_remote_ep,
-                               std::bind(&tcp_server_endpoint_impl::accept_cbk,
-                                         std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), new_connection,
-                                         its_remote_ep, std::placeholders::_1));
+        acceptor_.async_accept(
+                io_.get_executor(), *its_remote_ep,
+                [self = shared_from_this(), new_connection, its_remote_ep](const boost::system::error_code& _ec, socket_type _socket) {
+                    new_connection->get_socket() = std::move(_socket);
+
+                    std::dynamic_pointer_cast<tcp_server_endpoint_impl>(self)->accept_cbk(new_connection, its_remote_ep, _ec);
+                });
     } else {
         VSOMEIP_ERROR_P << instance_name_ << "Start failed, acceptor is closed";
     }
@@ -224,6 +232,100 @@ void tcp_server_endpoint_impl::get_configured_times_from_endpoint(service_t _ser
 }
 
 bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_definition>& _endpoint) {
+
+    // Check if we have incoming TCP connections waiting in the acceptor queue
+    for (int repeat_count = 1;; ++repeat_count) {
+        const int no_delay{0};
+        const uint32_t numfds{1};
+#if defined(_WIN32)
+        WSAPOLLFD pfds;
+#else
+        pollfd pfds;
+#endif
+        pfds.fd = acceptor_.native_handle();
+        pfds.events = POLLIN;
+        pfds.revents = 0;
+
+#if defined(__linux__) || defined(__QNX__)
+        int ready_fds_count = ::poll(&pfds, numfds, no_delay);
+#else
+        int ready_fds_count = ::WSAPoll(&pfds, numfds, no_delay);
+#endif
+
+        if (ready_fds_count != 1) {
+            if (ready_fds_count != 0) {
+                VSOMEIP_ERROR_P << instance_name_ << "poll returned " << ready_fds_count << ", errno=" << errno;
+            }
+
+            break;
+        }
+        // poll error events
+        if (pfds.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+            VSOMEIP_ERROR_P << instance_name_ << "poll error, revents=" << pfds.revents;
+            break;
+        }
+
+        // there is data to be read
+        if (pfds.revents & POLLIN) {
+            if (repeat_count > 10) {
+                VSOMEIP_WARNING_P << instance_name_ << "incoming TCP connection still waiting in acceptor queue";
+                break;
+            } else {
+                VSOMEIP_INFO_P << instance_name_
+                               << "waiting for TCP connections to be accepted. No SOME/IP-SD messages are being processed";
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+
+        } else {
+            break;
+        }
+    }
+
+    // Flush jobs handling the incoming connections if necessary.
+
+    auto its_connected = is_established_to_without_retry(_endpoint);
+
+    for (int retry_count = 1; !its_connected && retry_count <= 2; ++retry_count) {
+        if (retry_count > 1) {
+            // Between accepting the connection and posting the job managing this new connection,
+            // Boost ASIO may be interrupted. We handle this case with a delay.
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+
+        VSOMEIP_WARNING_P << instance_name_
+                          << " flush incoming TCP connections (blocking SOME/IP-SD), for: " << _endpoint->get_address().to_string() << ":"
+                          << std::dec << _endpoint->get_port() << ", retry = " << retry_count;
+
+        {
+            std::mutex mutex;
+            std::condition_variable signal;
+            bool signaled = false;
+            std::unique_lock wait_lock(mutex);
+
+            boost::asio::post(auxiliary_ctxt_.get_context(), [&mutex, &signal, &signaled] {
+                std::unique_lock signal_lock(mutex);
+                signaled = true;
+                signal.notify_one();
+            });
+
+            if (!signal.wait_for(wait_lock, std::chrono::seconds(5), [&signaled] { return signaled; })) {
+                VSOMEIP_ERROR_P << "auxiliary context is blocked, cannot wait for TCP connection";
+                return false;
+            }
+        }
+
+        its_connected = is_established_to_without_retry(_endpoint);
+    }
+
+    if (!its_connected) {
+        VSOMEIP_ERROR_P << instance_name_ << " Didn't find TCP connection: Subscription "
+                        << "rejected for: " << _endpoint->get_address().to_string() << ":" << std::dec << _endpoint->get_port();
+    }
+
+    return its_connected;
+}
+
+bool tcp_server_endpoint_impl::is_established_to_without_retry(const std::shared_ptr<endpoint_definition>& _endpoint) {
     bool is_connected = false;
     endpoint_type its_endpoint(_endpoint->get_address(), _endpoint->get_port());
     {
@@ -231,9 +333,6 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
         auto connection_iterator = connections_.find(its_endpoint);
         if (connection_iterator != connections_.end()) {
             is_connected = true;
-        } else {
-            VSOMEIP_INFO_P << instance_name_ << "Didn't find TCP connection: Subscription "
-                           << "rejected for: " << its_endpoint.address().to_string() << ":" << its_endpoint.port();
         }
     }
     return is_connected;
@@ -250,11 +349,12 @@ void tcp_server_endpoint_impl::remove_connection(endpoint_type _endpoint, connec
         if (auto its_itr = connections_.find(_endpoint); its_itr != connections_.end() && its_itr->second.get() == _connection) {
             its_old_connection = its_itr->second;
             if (!connections_.erase(_endpoint)) {
-                VSOMEIP_WARNING_P << "Remote endpoint: " << _endpoint << " has no registered connection to remove, endpoint > " << this;
+                VSOMEIP_WARNING_P << instance_name_ << " Remote endpoint: " << _endpoint
+                                  << " has no registered connection to remove, endpoint > " << this;
             }
             // if client still has a connection but a different one
         } else if (its_itr != connections_.end() && its_itr->second.get() != _connection) {
-            VSOMEIP_WARNING_P << "Tried to remove old connection " << _connection << " for endpoint " << _endpoint
+            VSOMEIP_WARNING_P << instance_name_ << " Tried to remove old connection " << _connection << " for endpoint " << _endpoint
                               << " new connection: " << connections_[_endpoint];
             its_old_connection = _connection->shared_from_this();
         }
@@ -573,9 +673,11 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                                 if (!is_magic_cookie(its_iteration_gap)) {
                                     auto its_endpoint_host = its_server->endpoint_host_.lock();
                                     if (its_endpoint_host) {
+                                        its_lock.unlock();
                                         its_endpoint_host->on_error(&recv_buffer_[its_iteration_gap],
                                                                     static_cast<length_t>(recv_buffer_size_), its_server.get(),
                                                                     remote_address_, remote_port_);
+                                        its_lock.lock();
                                     }
                                 }
                                 current_message_size = its_offset;

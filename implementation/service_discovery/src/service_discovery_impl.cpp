@@ -196,7 +196,7 @@ void service_discovery_impl::start() {
     start_last_msg_received_timer();
 }
 
-void service_discovery_impl::stop() {
+void service_discovery_impl::suspend() {
     is_suspended_ = true;
     stop_last_msg_received_timer();
     stop_ttl_timer();
@@ -208,6 +208,31 @@ void service_discovery_impl::stop() {
         // FIXME(bruno.ld.silva): Replace with general-purpose service discovery mutex, when available.
         std::scoped_lock its_session_lock(sessions_received_mutex_);
         clear_observed_host();
+    }
+}
+
+void service_discovery_impl::stop() {
+    suspend(); // for general cleanup
+
+    {
+        std::scoped_lock its_lock(collected_offers_mutex_);
+        collected_offers_.clear(); // because it holds refs to serviceinfo (therefore endpoints)
+    }
+    {
+        std::scoped_lock its_lock(repetition_phase_timers_mutex_);
+        repetition_phase_timers_.clear();
+    }
+    {
+        std::scoped_lock its_lock(find_repetition_phase_timers_mutex_);
+        find_repetition_phase_timers_.clear();
+    }
+    {
+        std::scoped_lock its_lock(pending_remote_subscriptions_mutex_);
+        pending_remote_subscriptions_.clear();
+    }
+    {
+        std::scoped_lock its_lock(subscribed_mutex_);
+        subscribed_.clear();
     }
 }
 
