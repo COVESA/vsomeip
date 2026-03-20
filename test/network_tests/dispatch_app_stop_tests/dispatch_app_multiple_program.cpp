@@ -145,5 +145,5 @@ TEST(dispatch_app_stop, multiple_program) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(20));
 }

@@ -45,7 +45,8 @@ TEST(dispatch_app_stop, outlives_global) {
      *     use-after-free or race conditions with dispatcher activity.
      */
     auto cv = std::make_shared<std::condition_variable>();
-    std::mutex mt;
+    auto mt = std::make_shared<std::mutex>();
+    auto shutdown_complete = std::make_shared<bool>(false);
 
     auto thread_assign_cv = std::make_shared<std::condition_variable>();
     auto thread_assign_mt = std::make_shared<std::mutex>();
@@ -63,7 +64,8 @@ TEST(dispatch_app_stop, outlives_global) {
     // Thread executing app->start(); explicitly joined from dispatcher.
     std::thread t0;
 
-    app->register_state_handler([a = app, &t0, cv, thread_assign_cv, thread_assign_mt, thread_assign_gate](vsomeip_v3::state_type_e state) {
+    app->register_state_handler([a = app, &t0, cv, mt, shutdown_complete, thread_assign_cv, thread_assign_mt,
+                                 thread_assign_gate](vsomeip_v3::state_type_e state) {
         if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
             std::cout << "[TEST] Stopping application" << std::endl;
 
@@ -87,6 +89,10 @@ TEST(dispatch_app_stop, outlives_global) {
             // The callback deliberately continues executing afterward to
             // overlap with test teardown and static lifetime handling.
             std::cout << "[TEST] Sleeping inside dispatcher thread" << std::endl;
+            {
+                std::scoped_lock lock{*mt};
+                *shutdown_complete = true;
+            }
             cv->notify_one();
 
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -107,12 +113,12 @@ TEST(dispatch_app_stop, outlives_global) {
     // Wait until the dispatcher has completed stop() and join().
     // Successful return implies no deadlock, crash, or undefined behavior
     // despite overlapping global lifetime and callback execution.
-    std::unique_lock lock{mt};
-    cv->wait(lock);
+    std::unique_lock lock{*mt};
+    cv->wait(lock, [shutdown_complete] { return *shutdown_complete; });
 
     std::cout << "[TEST] Returning on main" << std::endl;
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(20));
 }

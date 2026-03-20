@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <gtest/gtest.h>
@@ -35,7 +36,8 @@ TEST(dispatch_app_stop, outlives_program) {
      *   - The thread is able to finish before the program is really finished.
      */
     auto cv = std::make_shared<std::condition_variable>();
-    std::mutex mt;
+    auto mt = std::make_shared<std::mutex>();
+    auto shutdown_complete = std::make_shared<bool>(false);
 
     auto thread_assign_cv = std::make_shared<std::condition_variable>();
     auto thread_assign_mt = std::make_shared<std::mutex>();
@@ -51,41 +53,46 @@ TEST(dispatch_app_stop, outlives_program) {
     // Thread running app->start(); joined explicitly from the dispatcher.
     std::thread t0;
 
-    app->register_state_handler([app, &t0, cv, thread_assign_cv, thread_assign_mt, thread_assign_gate](vsomeip_v3::state_type_e state) {
-        if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
-            std::cout << "[TEST] Stopping application" << std::endl;
+    app->register_state_handler(
+            [app, &t0, cv, mt, shutdown_complete, thread_assign_cv, thread_assign_mt, thread_assign_gate](vsomeip_v3::state_type_e state) {
+                if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
+                    std::cout << "[TEST] Stopping application" << std::endl;
 
-            // Remove handlers to release objects held by the lambda
-            app->clear_all_handler();
+                    // Remove handlers to release objects held by the lambda
+                    app->clear_all_handler();
 
-            // Stop application from within the dispatcher thread.
-            app->stop();
+                    // Stop application from within the dispatcher thread.
+                    app->stop();
 
-            // Blocks until t0 constructor properly finishes
-            std::unique_lock lock{*thread_assign_mt};
-            thread_assign_cv->wait(lock, [thread_assign_gate] { return *thread_assign_gate; });
+                    // Blocks until t0 constructor properly finishes
+                    std::unique_lock lock{*thread_assign_mt};
+                    thread_assign_cv->wait(lock, [thread_assign_gate] { return *thread_assign_gate; });
 
-            // Intentionally join the start() thread from the dispatcher context.
-            // This exercises a shutdown path that could deadlock if internal
-            // locking or thread ownership is incorrect.
-            std::cout << "[TEST] Joining t0" << std::endl;
-            t0.join();
+                    // Intentionally join the start() thread from the dispatcher context.
+                    // This exercises a shutdown path that could deadlock if internal
+                    // locking or thread ownership is incorrect.
+                    std::cout << "[TEST] Joining t0" << std::endl;
+                    t0.join();
 
-            // Notify the main thread that the shutdown sequence completed.
-            // The callback deliberately continues executing afterward to
-            // overlap with main thread teardown.
-            cv->notify_one();
+                    // Notify the main thread that the shutdown sequence completed.
+                    // The callback deliberately continues executing afterward to
+                    // overlap with main thread teardown.
+                    {
+                        std::scoped_lock lock{*mt};
+                        *shutdown_complete = true;
+                    }
+                    cv->notify_one();
 
-            std::cout << "[TEST] Sleeping inside dispatcher thread" << std::endl;
+                    std::cout << "[TEST] Sleeping inside dispatcher thread" << std::endl;
 
-            // Keep the dispatcher callback alive briefly after notification.
-            // This forces the main thread to return while this callback
-            // is still active, validating safe teardown under overlap.
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    // Keep the dispatcher callback alive briefly after notification.
+                    // This forces the main thread to return while this callback
+                    // is still active, validating safe teardown under overlap.
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-            std::cout << "[TEST] Waking up dispatcher thread" << std::endl;
-        }
-    });
+                    std::cout << "[TEST] Waking up dispatcher thread" << std::endl;
+                }
+            });
 
     // Start application event loop in a dedicated thread.
     std::cout << "[TEST] Starting t0 thread" << std::endl;
@@ -99,12 +106,12 @@ TEST(dispatch_app_stop, outlives_program) {
     // Block until the dispatcher has completed the stop/join sequence.
     // The test is considered successful if we reach this point without
     // deadlock, crash, or undefined behavior.
-    std::unique_lock lock{mt};
-    cv->wait(lock);
+    std::unique_lock lock{*mt};
+    cv->wait(lock, [shutdown_complete] { return *shutdown_complete; });
 
     std::cout << "[TEST] Returning on main" << std::endl;
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(20));
 }

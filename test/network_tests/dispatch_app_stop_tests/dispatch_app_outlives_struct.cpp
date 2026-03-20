@@ -106,5 +106,5 @@ TEST(dispatch_app_stop, outlives_struct) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv);
+    return test_main(argc, argv, std::chrono::seconds(20));
 }
