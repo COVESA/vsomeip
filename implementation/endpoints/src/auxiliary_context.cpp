@@ -13,27 +13,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 
-vsomeip_v3::auxiliary_context::auxiliary_context(int thread_niceness) {
-    thread_ = std::thread([&context = context_, thread_niceness]() mutable {
-#if defined(__linux__) || defined(__QNX__)
-        pthread_setname_np(pthread_self(), "m_auxiliary");
-#endif
-        utility::set_thread_niceness(thread_niceness);
-        VSOMEIP_INFO << "ac::auxiliary_context: Started thread m_auxiliary " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-                ;
-        boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard(context.get_executor());
-        context.run();
-
-        VSOMEIP_INFO << "ac::auxiliary_context: Stopped thread m_auxiliary " << std::hex << std::this_thread::get_id()
-#if defined(__linux__)
-                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
-#endif
-                ;
-    });
-}
+vsomeip_v3::auxiliary_context::auxiliary_context(int thread_niceness) : thread_niceness_(thread_niceness) { }
 
 vsomeip_v3::auxiliary_context::~auxiliary_context() {
     stop();
@@ -41,6 +21,30 @@ vsomeip_v3::auxiliary_context::~auxiliary_context() {
 
 boost::asio::io_context& vsomeip_v3::auxiliary_context::get_context() {
     return context_;
+}
+
+void vsomeip_v3::auxiliary_context::start() {
+    context_.restart();
+
+    thread_ = std::thread([this]() mutable {
+#if defined(__linux__) || defined(__QNX__)
+        pthread_setname_np(pthread_self(), "m_auxiliary");
+#endif
+        utility::set_thread_niceness(thread_niceness_);
+        VSOMEIP_INFO << "ac::auxiliary_context: Started thread m_auxiliary " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                ;
+        boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard(context_.get_executor());
+        context_.run();
+
+        VSOMEIP_INFO << "ac::auxiliary_context: Stopped thread m_auxiliary " << std::hex << std::this_thread::get_id()
+#if defined(__linux__)
+                     << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
+#endif
+                ;
+    });
 }
 
 void vsomeip_v3::auxiliary_context::stop() {
@@ -54,11 +58,5 @@ void vsomeip_v3::auxiliary_context::stop() {
         }
     } catch (...) {
         // Ignore exception if thread already joined
-    }
-}
-void vsomeip_v3::auxiliary_context::restart() {
-
-    if (context_.stopped()) {
-        context_.restart();
     }
 }

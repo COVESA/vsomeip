@@ -77,7 +77,7 @@ void endpoint_manager_impl::start() {
                 ;
     });
 
-    auxiliary_context_.restart();
+    auxiliary_context_.start();
 }
 
 void endpoint_manager_impl::stop() {

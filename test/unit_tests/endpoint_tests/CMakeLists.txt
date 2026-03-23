@@ -9,6 +9,7 @@ set(TEST_SRCS
     ../main.cpp
     base_endpoint_fixture.cpp
     mock_routing_host.cpp
+    test_auxiliary_context.cpp
     test_timer.cpp
     test_local_endpoint.cpp
     test_local_receive_buffer.cpp

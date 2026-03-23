@@ -28,14 +28,15 @@ namespace vsomeip_v3 {
 class auxiliary_context {
     boost::asio::io_context context_;
     std::thread thread_;
+    const int thread_niceness_;
 
 public:
     auxiliary_context(int thread_niceness);
     ~auxiliary_context();
 
     boost::asio::io_context& get_context();
+    void start();
     void stop();
-    void restart();
 };
 
 } // namespace vsomeip_v3
