@@ -42,6 +42,35 @@
 
 namespace vsomeip_v3 {
 
+namespace {
+
+const char* availability_state_to_string(availability_state_e _state) {
+    switch (_state) {
+    case availability_state_e::AS_AVAILABLE:
+        return "available";
+    case availability_state_e::AS_UNAVAILABLE:
+        return "unavailable";
+    case availability_state_e::AS_UNKNOWN:
+    default:
+        return "unknown";
+    }
+}
+
+const char* subscription_state_to_string(subscription_state_e _state) {
+    switch (_state) {
+    case subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED:
+        return "acknowledged";
+    case subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED:
+        return "not_acknowledged";
+    case subscription_state_e::IS_SUBSCRIBING:
+        return "subscribing";
+    default:
+        return "unknown";
+    }
+}
+
+}
+
 #ifdef ANDROID
 configuration::~configuration() { }
 #endif
@@ -1546,6 +1575,11 @@ void application_impl::set_availability_state(availability_state_t& _availabilit
 void application_impl::on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
                                        minor_version_t _minor, availability_reason_e _reason) {
 
+    VSOMEIP_INFO << "application_impl::" << __func__ << ": Service [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                 << "." << std::setw(4) << _instance << ":" << std::dec << static_cast<uint32_t>(_major) << "." << _minor
+                 << "] changed availability to " << availability_state_to_string(_state)
+                 << " reason=" << static_cast<uint32_t>(_reason);
+
     std::vector<availability_state_handler_t> its_handlers;
     {
         std::scoped_lock availability_lock{availability_mutex_};
@@ -1645,6 +1679,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
         }
     }
     if (_state == availability_state_e::AS_UNAVAILABLE) {
+        bool had_subscription_state(false);
         {
             std::scoped_lock its_lock{subscriptions_mutex_};
             auto found_service = subscriptions_.find(_service);
@@ -1665,6 +1700,7 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             if (its_service != subscriptions_state_.end()) {
                 auto its_instance = its_service->second.find(_instance);
                 if (its_instance != its_service->second.end()) {
+                    had_subscription_state = true;
                     for (auto& its_eventgroup : its_instance->second) {
                         for (auto& its_event : its_eventgroup.second) {
                             its_event.second = subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
@@ -1672,6 +1708,11 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
                     }
                 }
             }
+        }
+        if (had_subscription_state) {
+            VSOMEIP_INFO << "application_impl::" << __func__ << ": Reset subscription state for unavailable service ["
+                         << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance
+                         << "] to not acknowledged.";
         }
     }
 
@@ -1710,7 +1751,7 @@ void application_impl::on_message(std::shared_ptr<message>&& _message) {
         if (!check_for_active_subscription(its_service, its_instance, static_cast<event_t>(its_method))) {
             VSOMEIP_INFO << "application_impl::on_message [" << std::hex << std::setfill('0') << std::setw(4) << its_service << "."
                          << std::setw(4) << its_instance << "." << std::setw(4) << its_method << "]"
-                         << ": blocked as the subscription is already inactive.";
+                         << ": blocked as the subscription is already inactive or no longer acknowledged.";
             return;
         }
     }
@@ -2397,6 +2438,7 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
 
     bool is_acknowledged(false);
     bool should_subscribe(true);
+    subscription_state_e its_state(subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED);
     {
         bool has_found(false);
 
@@ -2409,6 +2451,7 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
                 if (its_eventgroup != its_instance->second.end()) {
                     auto its_event = its_eventgroup->second.find(_event);
                     if (its_event != its_eventgroup->second.end()) {
+                        its_state = its_event->second;
                         if (its_event->second != subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED) {
                             has_found = true;
 
@@ -2426,7 +2469,19 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
 
         if (!has_found) {
             subscriptions_state_[_service][_instance][_eventgroup][_event] = subscription_state_e::IS_SUBSCRIBING;
+            its_state = subscription_state_e::IS_SUBSCRIBING;
         }
+    }
+
+    if (should_subscribe) {
+        VSOMEIP_INFO << "application_impl::" << __func__ << ": Subscribing to [" << std::hex << std::setfill('0')
+                     << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
+                     << "." << std::setw(4) << _event << "]";
+    } else {
+        VSOMEIP_DEBUG << "application_impl::" << __func__ << ": Reusing existing subscription state "
+                      << subscription_state_to_string(its_state) << " for [" << std::hex << std::setfill('0')
+                      << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
+                      << "." << std::setw(4) << _event << "]";
     }
 
     if (!should_subscribe && is_acknowledged) {

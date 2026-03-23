@@ -45,6 +45,24 @@
 namespace vsomeip_v3 {
 namespace sd {
 
+namespace {
+
+const char* reliability_type_to_string(reliability_type_e _type) {
+    switch (_type) {
+    case reliability_type_e::RT_RELIABLE:
+        return "reliable";
+    case reliability_type_e::RT_UNRELIABLE:
+        return "unreliable";
+    case reliability_type_e::RT_BOTH:
+        return "both";
+    case reliability_type_e::RT_UNKNOWN:
+    default:
+        return "unknown";
+    }
+}
+
+}
+
 service_discovery_impl::service_discovery_impl(service_discovery_host* _host, const std::shared_ptr<configuration>& _configuration) :
     io_(_host->get_io()), host_(_host), configuration_(_configuration), port_(VSOMEIP_SD_DEFAULT_PORT), reliable_(false),
     serializer_(std::make_shared<serializer>(configuration_->get_buffer_shrink_threshold())),
@@ -997,13 +1015,21 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     std::lock_guard<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);
 
     if (is_suspended_) {
+        VSOMEIP_INFO << "service_discovery_impl::" << __func__ << ": Ignoring SD message from " << _sender.to_string()
+                     << " because service discovery is suspended.";
         return;
     }
 
     // ignore all SD messages with source address equal to node's unicast address
     if (!check_source_address(_sender)) {
+        VSOMEIP_DEBUG << "service_discovery_impl::" << __func__ << ": Ignoring SD message from own source address "
+                      << _sender.to_string();
         return;
     }
+
+    VSOMEIP_DEBUG << "service_discovery_impl::" << __func__ << ": Received SD message from " << _sender.to_string()
+                  << " via " << (_is_multicast ? "multicast" : "unicast") << " (" << std::dec << _length
+                  << " bytes)";
 
     if (_is_multicast) {
         static bool must_start_last_msg_received_timer(true);
@@ -1023,6 +1049,8 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     if (its_message) {
         // ignore all messages which are sent with invalid header fields
         if (!check_static_header_fields(its_message)) {
+            VSOMEIP_WARNING << "service_discovery_impl::" << __func__ << ": Ignoring SD message from " << _sender.to_string()
+                            << " because the static header fields are invalid.";
             return;
         }
 
@@ -1154,7 +1182,8 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
             serialize_and_send(its_resubscribes, _sender);
         }
     } else {
-        VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Deserialization error.";
+        VSOMEIP_ERROR << "service_discovery_impl::" << __func__ << ": Deserialization error for SD message from "
+                      << _sender.to_string() << " via " << (_is_multicast ? "multicast" : "unicast") << ".";
         return;
     }
 }
@@ -1298,6 +1327,10 @@ void service_discovery_impl::process_serviceentry(std::shared_ptr<serviceentry_i
             VSOMEIP_ERROR << __func__ << ": Unsupported service entry type";
         }
     } else if (its_type != entry_type_e::FIND_SERVICE && (_sd_ac_state.sd_acceptance_required_ || _sd_ac_state.accept_entries_)) {
+        VSOMEIP_INFO << "service_discovery_impl::" << __func__ << ": Processing stop offer for [" << std::hex << std::setfill('0')
+                     << std::setw(4) << its_service << "." << std::setw(4) << its_instance << "]"
+                     << " reliable=" << std::boolalpha << (its_reliable_port != ILLEGAL_PORT)
+                     << " unreliable=" << (its_unreliable_port != ILLEGAL_PORT);
         // stop sending find service in repetition phase
         update_request(its_service, its_instance);
 
@@ -1327,8 +1360,11 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         && ((_reliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_reliable_address, _reliable_port, true))
             || (_unreliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_unreliable_address, _unreliable_port, false)))) {
 
-        VSOMEIP_WARNING << __func__ << ": Ignoring offer of [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "]";
+        VSOMEIP_WARNING << __func__ << ": Ignoring secure offer for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                        << "." << std::setw(4) << _instance
+                        << "] because at least one advertised endpoint is not configured as secure."
+                        << " reliable=" << _reliable_address.to_string() << ":" << std::dec << _reliable_port
+                        << " unreliable=" << _unreliable_address.to_string() << ":" << _unreliable_port;
         return;
     }
 
@@ -1340,7 +1376,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
 
     if (offer_type == reliability_type_e::RT_UNKNOWN) {
         VSOMEIP_WARNING << __func__ << ": Unknown remote offer type [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
-                        << std::setw(4) << _instance << "]";
+                        << std::setw(4) << _instance << "] reliable=" << _reliable_address.to_string() << ":" << std::dec
+                        << _reliable_port << " unreliable=" << _unreliable_address.to_string() << ":" << _unreliable_port;
         return; // Unknown remote offer type --> no way to access it!
     }
 
@@ -1353,7 +1390,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                 VSOMEIP_WARNING << "service_discovery_impl::process_offerservice_serviceentry"
                                 << ": Do not accept offer [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
                                 << std::setw(4) << _instance << "]"
-                                << " from " << _address.to_string() << ":" << std::dec << _port << " reliable=" << _reliable;
+                                << " from " << _address.to_string() << ":" << std::dec << _port << " reliable=" << _reliable
+                                << " because SD acceptance rejected this protected port.";
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
                 host_->expire_subscriptions(_address, _port, _reliable);
                 host_->expire_services(_address, _port, _reliable);
@@ -1393,6 +1431,12 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
 
     if (update_remote_offer_type(_service, _instance, offer_type, _reliable_address, _reliable_port, _unreliable_address, _unreliable_port,
                                  _received_via_multicast)) {
+        VSOMEIP_INFO << __func__ << ": Accepted offer [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
+                     << std::setw(4) << _instance << ":" << std::dec << static_cast<std::uint32_t>(_major) << "." << _minor
+                     << "] ttl=" << _ttl << " transport=" << reliability_type_to_string(offer_type)
+                     << " reliable=" << _reliable_address.to_string() << ":" << _reliable_port
+                     << " unreliable=" << _unreliable_address.to_string() << ":" << _unreliable_port
+                     << " via " << (_received_via_multicast ? "multicast" : "unicast");
         VSOMEIP_WARNING << __func__ << ": Remote offer type changed [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
                         << std::setw(4) << _instance << "]";
         // Only update eventgroup reliability type if it was initially unknown
@@ -2059,8 +2103,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
         VSOMEIP_WARNING << __func__ << ": Subscription for [" << std::hex << std::setfill('0') << std::setw(4) << _service << "."
                         << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]"
                         << " not valid: Event configuration (" << static_cast<std::uint32_t>(_info->get_reliability())
-                        << ") does not match the provided endpoint options: " << _first_address.to_string() << ":" << std::dec
-                        << _first_port << " " << _second_address.to_string() << ":" << _second_port;
+                        << ") does not match the provided endpoint options from sender " << _sender.to_string() << ": "
+                        << _first_address.to_string() << ":" << std::dec << _first_port << " "
+                        << _second_address.to_string() << ":" << _second_port;
         return;
     }
 
@@ -2078,6 +2123,10 @@ void service_discovery_impl::handle_eventgroup_subscription(
         }
         if (send_nack) {
             insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
+            VSOMEIP_WARNING << __func__ << ": Rejecting subscription for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                            << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
+                            << "] from sender " << _sender.to_string()
+                            << " because the service is not accepting remote subscriptions from this sender.";
             return;
         }
     }
@@ -2114,7 +2163,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
                     VSOMEIP_ERROR << "TCP connection to target1: [" << its_reliable->get_address().to_string() << ":"
                                   << its_reliable->get_port() << "] not established for subscription to: [" << std::hex << std::setfill('0')
                                   << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
-                                  << "] ";
+                                  << "] sender=" << _sender.to_string();
                     return;
                 }
             } else { // udp unicast
@@ -2133,7 +2182,7 @@ void service_discovery_impl::handle_eventgroup_subscription(
                     VSOMEIP_ERROR << "TCP connection to target2 : [" << its_reliable->get_address().to_string() << ":"
                                   << its_reliable->get_port() << "] not established for subscription to: [" << std::hex << std::setfill('0')
                                   << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
-                                  << "] ";
+                                  << "] sender=" << _sender.to_string();
                     return;
                 }
             } else { // udp unicast
@@ -2155,6 +2204,10 @@ void service_discovery_impl::handle_eventgroup_subscription(
         }
         if (insert_nack) {
             insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
+            VSOMEIP_WARNING << __func__ << ": Rejecting subscription for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                            << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
+                            << "] because SD acceptance rejected one of the protected subscriber endpoints."
+                            << " sender=" << _sender.to_string();
             return;
         }
     }
@@ -2170,6 +2223,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
 
         if (_ttl == 0) { // --> unsubscribe
             its_subscription->set_ttl(0);
+            VSOMEIP_INFO << __func__ << ": Received unsubscribe for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                         << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "] from sender "
+                         << _sender.to_string();
             if (!_is_stop_subscribe_subscribe) {
                 {
                     std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
@@ -2185,6 +2241,13 @@ void service_discovery_impl::handle_eventgroup_subscription(
             its_subscription->set_force_initial_events(true);
         }
         its_subscription->set_ttl(_ttl * get_ttl_factor(_service, _instance, ttl_factor_subscriptions_));
+
+        VSOMEIP_INFO << __func__ << ": Received subscribe for [" << std::hex << std::setfill('0') << std::setw(4) << _service
+                     << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "] ttl=" << std::dec << _ttl
+                     << " sender=" << _sender.to_string() << " reliable="
+                     << (its_reliable ? its_reliable->get_address().to_string() + ":" + std::to_string(its_reliable->get_port()) : "n/a")
+                     << " unreliable="
+                     << (its_unreliable ? its_unreliable->get_address().to_string() + ":" + std::to_string(its_unreliable->get_port()) : "n/a");
 
         {
             std::lock_guard<std::mutex> its_lock(pending_remote_subscriptions_mutex_);
@@ -2211,6 +2274,9 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
             if (found_eventgroup != found_instance->second.end()) {
                 auto its_subscription = found_eventgroup->second;
                 for (const auto its_client : _clients) {
+                    VSOMEIP_INFO << __func__ << ": Subscription NACK for client 0x" << std::hex << std::setfill('0')
+                                 << std::setw(4) << its_client << " [" << std::setw(4) << _service << "."
+                                 << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup << "]";
                     host_->on_subscribe_nack(its_client, _service, _instance, _eventgroup, true, PENDING_SUBSCRIPTION_ID);
                 }
 
@@ -2248,7 +2314,7 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(service_t _servi
                             << std::setw(4) << its_client << "): ["
                             << std::setw(4) << _service << "."
                             << std::setw(4) << _instance << "."
-                            << std::setw(4) << _eventgroup << "]";
+                            << std::setw(4) << _eventgroup << "] from sender " << _sender.to_string();
 
                         host_->on_subscribe_ack(its_client, _service, _instance, _eventgroup, ANY_EVENT, PENDING_SUBSCRIPTION_ID);
                     }

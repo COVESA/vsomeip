@@ -63,6 +63,27 @@
 
 namespace vsomeip_v3 {
 
+namespace {
+
+const char* message_type_to_string(message_type_e _type) {
+    switch (_type) {
+    case message_type_e::MT_REQUEST:
+        return "request";
+    case message_type_e::MT_REQUEST_NO_RETURN:
+        return "request_no_return";
+    case message_type_e::MT_NOTIFICATION:
+        return "notification";
+    case message_type_e::MT_RESPONSE:
+        return "response";
+    case message_type_e::MT_ERROR:
+        return "error";
+    default:
+        return "other";
+    }
+}
+
+}
+
 #ifdef ANDROID
 namespace sd {
 runtime::~runtime() { }
@@ -670,6 +691,12 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                     // is available before subscribing via SD otherwise we sent
                     // a StopSubscribe/Subscribe once the first offer is received
                     if (its_info && (!subscriber_is_rm_host || find_service(_service, _instance))) {
+                        VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client
+                                     << "): sending SD subscribe for [" << std::setw(4) << _service << "."
+                                     << std::setw(4) << _instance << "." << std::setw(4)
+                                     << _eventgroup << ":" << std::setw(4) << _event << ":" << std::dec
+                                     << static_cast<uint16_t>(_major) << "]"
+                                     << " selective=" << std::boolalpha << its_info->is_selective();
                         discovery_->subscribe(_service, _instance, _eventgroup, _major, configured_ttl,
                                               its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT, its_info);
                     }
@@ -731,7 +758,11 @@ void routing_manager_impl::unsubscribe(client_t _client, const vsomeip_sec_clien
             }
 
             if (its_info && (last_subscriber_removed || its_info->is_selective())) {
-
+                VSOMEIP_INFO << "UNSUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client
+                             << "): sending SD unsubscribe for [" << std::setw(4) << _service << "." << std::setw(4) << _instance
+                             << "." << std::setw(4) << _eventgroup << "." << std::setw(4) << _event << "]"
+                             << " selective=" << std::boolalpha << its_info->is_selective()
+                             << " last_subscriber_removed=" << last_subscriber_removed;
                 discovery_->unsubscribe(_service, _instance, _eventgroup, its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT);
             }
         } else {
@@ -1274,6 +1305,14 @@ void routing_manager_impl::on_message(const byte_t* _data, length_t _size, endpo
     const method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     const client_t its_client = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
     const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
+
+    if (its_message_type == message_type_e::MT_RESPONSE || its_message_type == message_type_e::MT_ERROR) {
+        VSOMEIP_DEBUG << "Received remote " << message_type_to_string(its_message_type) << " ["
+                      << std::hex << std::setfill('0') << std::setw(4) << its_service << "." << std::setw(4) << its_method
+                      << "." << std::setw(4) << its_client << "." << std::setw(4) << its_session << "] from "
+                      << _remote_address.to_string() << ":" << std::dec << _remote_port << " via "
+                      << (_receiver->is_local() ? "local" : (_receiver->is_reliable() ? "tcp" : "udp"));
+    }
 
     // refer to error workflow in PRS_SOMEIP_00195
     // (although note that it is *NOT* strictly followed!)

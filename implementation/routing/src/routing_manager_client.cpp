@@ -2104,6 +2104,9 @@ void routing_manager_client::on_subscribe_ack(client_t _client, service_t _servi
             << std::setw(4) << _eventgroup << "."
             << std::setw(4) << _event;
 #endif
+    VSOMEIP_INFO << "routing_manager_client::" << __func__ << ": Received subscription ACK for ["
+                 << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
+                 << std::setw(4) << _eventgroup << "." << std::setw(4) << _event << "]";
     if (_event == ANY_EVENT) {
         auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
         if (its_eventgroup) {
@@ -2119,6 +2122,9 @@ void routing_manager_client::on_subscribe_ack(client_t _client, service_t _servi
 void routing_manager_client::on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                event_t _event) {
     (void)_client;
+    VSOMEIP_INFO << "routing_manager_client::" << __func__ << ": Received subscription NACK for ["
+                 << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance << "."
+                 << std::setw(4) << _eventgroup << "." << std::setw(4) << _event << "]";
     if (_event == ANY_EVENT) {
         auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
         if (its_eventgroup) {
