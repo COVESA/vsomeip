@@ -106,9 +106,9 @@ void routing_restart_test_client::run() {
 
     {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(ip_sync->client_mutex_);
-        vt::interprocess_utils::assert_wait_and_check_unlocked(
+        ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
                 ip_sync->client_cv_, its_lock, 10, ip_sync->sending_status_,
-                restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES);
+                restart_routing::restart_routing_test_interprocess_sync::sending_status::SEND_MESSAGES));
     }
 
     std::uint32_t its_sent_requests(0);

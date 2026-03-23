@@ -99,9 +99,9 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        vt::interprocess_utils::assert_wait_and_check_unlocked(
+        ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
@@ -156,9 +156,9 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_servic
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        vt::interprocess_utils::assert_wait_and_check_unlocked(
+        ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
@@ -213,9 +213,9 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host_w
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        vt::interprocess_utils::assert_wait_and_check_unlocked(
+        ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.
@@ -271,9 +271,9 @@ TEST_F(restart_routing_test_manager, client_id_race_condition) {
     // Wait for fist registration of all service consumers.
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         bpi::scoped_lock<bpi::interprocess_mutex> its_lock(shm_data.sync_ptr->client_mutex_);
-        vt::interprocess_utils::assert_wait_and_check_unlocked(
+        ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
                 shm_data.sync_ptr->client_cv_, its_lock, 10, shm_data.sync_ptr->client_status_[app_counter],
-                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED);
+                restart_routing::restart_routing_test_interprocess_sync::registration_status::STATE_REGISTERED));
     }
 
     // Restart host.

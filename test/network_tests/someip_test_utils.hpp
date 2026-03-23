@@ -24,27 +24,6 @@ struct interprocess_utils {
      * @param expected_value Part of predicate, expected value to be set by notifier to positive predicate evaluation.
      */
     template<typename T>
-    static void assert_wait_and_check_unlocked(boost::interprocess::interprocess_condition& cv,
-                                               boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock,
-                                               int timeout_s, T& value_to_check, T expected_value) {
-        boost::posix_time::ptime timeout = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(timeout_s);
-
-        cv.timed_wait(its_lock, timeout, [&] { return value_to_check == expected_value; });
-
-        ASSERT_EQ(value_to_check, expected_value);
-    }
-
-    /**
-     * @brief Waits on @param cv until either time @param timeout_s has expire or @param value_to_check matches to @param expected_value.
-     *
-     * @tparam T Specifies the type of @param value_to_check and @param expected_value
-     * @param cv Condition variable.
-     * @param its_lock Lock being held.
-     * @param timeout_s Maximum wait time.
-     * @param value_to_check Part of predicate, value to be changed by notifier.
-     * @param expected_value Part of predicate, expected value to be set by notifier to positive predicate evaluation.
-     */
-    template<typename T>
     static bool wait_and_check_unlocked(boost::interprocess::interprocess_condition& cv,
                                         boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex>& its_lock, int timeout_s,
                                         T& value_to_check, T expected_value) {
