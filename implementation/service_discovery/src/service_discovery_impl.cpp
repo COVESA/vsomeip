@@ -26,7 +26,6 @@
 #include "../include/message_impl.hpp"
 #include "../include/remote_subscription_ack.hpp"
 #include "../include/request.hpp"
-#include "../include/runtime.hpp"
 #include "../include/service_discovery_host.hpp"
 #include "../include/service_discovery_impl.hpp"
 #include "../include/serviceentry_impl.hpp"
@@ -77,9 +76,6 @@ boost::asio::io_context& service_discovery_impl::get_io() {
 }
 
 void service_discovery_impl::init() {
-    runtime_ =
-            std::dynamic_pointer_cast<sd::runtime>(plugin_manager::get()->get_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, VSOMEIP_SD_LIBRARY));
-
     unicast_ = configuration_->get_unicast_address();
     sd_multicast_ = configuration_->get_sd_multicast();
     boost::system::error_code ec;
@@ -303,7 +299,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
                                        ttl_t _ttl, client_t _client, const std::shared_ptr<eventgroupinfo>& _info) {
 
     if (is_suspended_) {
-        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended.";
+        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended";
         return;
     }
 
@@ -426,8 +422,8 @@ void service_discovery_impl::get_subscription_address(const std::shared_ptr<boar
 }
 
 void service_discovery_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, client_t _client) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (!its_runtime) {
+    if (is_suspended_) {
+        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended";
         return;
     }
 
@@ -500,6 +496,10 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
 }
 
 void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _instance) {
+    if (is_suspended_) {
+        VSOMEIP_WARNING_P << "Ignoring subscription as we are suspended";
+        return;
+    }
 
     auto its_current_message = std::make_shared<message_impl>();
     boost::asio::ip::address its_address;
@@ -1009,23 +1009,21 @@ void service_discovery_impl::insert_subscription_ack_unlocked(const std::shared_
 }
 
 bool service_discovery_impl::send(bool _is_announcing) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (its_runtime) {
-        std::vector<std::shared_ptr<message_impl>> its_messages;
-        std::shared_ptr<message_impl> its_message;
+    std::vector<std::shared_ptr<message_impl>> its_messages;
+    std::shared_ptr<message_impl> its_message;
 
-        if (_is_announcing) {
-            its_message = std::make_shared<message_impl>();
-            its_messages.push_back(its_message);
+    if (_is_announcing) {
+        its_message = std::make_shared<message_impl>();
+        its_messages.push_back(its_message);
 
-            std::scoped_lock its_lock(offer_mutex_);
-            services_t its_offers = host_->get_offered_services();
-            insert_offer_entries(its_messages, its_offers, false);
+        std::scoped_lock its_lock(offer_mutex_);
+        services_t its_offers = host_->get_offered_services();
+        insert_offer_entries(its_messages, its_offers, false);
 
-            // Serialize and send
-            return send(its_messages);
-        }
+        // Serialize and send
+        return send(its_messages);
     }
+
     return false;
 }
 
@@ -1108,11 +1106,6 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
         }
 
         std::vector<std::shared_ptr<option_impl>> its_options = its_message->get_options();
-
-        std::shared_ptr<runtime> its_runtime = runtime_.lock();
-        if (!its_runtime) {
-            return;
-        }
 
         auto its_acknowledgement = std::make_shared<remote_subscription_ack>(_sender);
 
@@ -1372,10 +1365,6 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                                                                uint16_t _unreliable_port,
                                                                std::vector<std::shared_ptr<message_impl>>& _resubscribes,
                                                                bool _received_via_multicast, const sd_acceptance_state_t& _sd_ac_state) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (!its_runtime)
-        return;
-
     bool is_secure = configuration_->is_secure_service(_service, _instance);
     if (is_secure
         && ((_reliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(_reliable_address, _reliable_port, true))
@@ -1539,11 +1528,6 @@ void service_discovery_impl::process_findservice_serviceentry(service_t _service
 }
 
 void service_discovery_impl::send_unicast_offer_service(const std::shared_ptr<const serviceinfo>& _info) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (!its_runtime) {
-        return;
-    }
-
     auto its_offer_message(std::make_shared<message_impl>());
     std::vector<std::shared_ptr<message_impl>> its_messages;
     its_messages.push_back(its_offer_message);
@@ -1567,10 +1551,6 @@ void service_discovery_impl::send_multicast_offer_service(const std::shared_ptr<
 
 void service_discovery_impl::on_endpoint_connected(service_t _service, instance_t _instance,
                                                    const std::shared_ptr<boardnet_endpoint>& _endpoint) {
-    std::shared_ptr<runtime> its_runtime = runtime_.lock();
-    if (!its_runtime) {
-        return;
-    }
 
     // TODO: Simplify this method! It is not clear, why we need to check
     // both endpoints here although the method is always called for a
@@ -2737,7 +2717,7 @@ void service_discovery_impl::move_offers_into_main_phase(const std::shared_ptr<b
     }
 }
 
-bool service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinfo>& _info, bool _send) {
+void service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinfo>& _info) {
     std::scoped_lock its_lock(offer_mutex_);
     _info->set_ttl(0);
     // disable accepting remote subscriptions
@@ -2792,15 +2772,16 @@ bool service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinf
         }
     }
 
-    if (!_send) {
-        // stop offer required
-        return (_info->is_in_mainphase() || stop_offer_required);
-    } else if (_info->is_in_mainphase() || stop_offer_required) {
-        // Send stop offer
-        return send_stop_offer(_info);
+    if (is_suspended_) {
+        // nothing to do, cannot send StopOffers anyhow
+        return;
     }
 
-    return false;
+    if (_info->is_in_mainphase() || stop_offer_required) {
+        // Send stop offer
+        send_stop_offer(_info);
+    }
+
     // sent out NACKs for all pending subscriptions
     // TODO: remote_subscription_not_acknowledge_all(its_service, its_instance);
 }
@@ -2821,7 +2802,6 @@ bool service_discovery_impl::send_stop_offer(const std::shared_ptr<serviceinfo>&
 }
 
 bool service_discovery_impl::send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>>& _infos) {
-
     std::vector<std::shared_ptr<message_impl>> its_messages;
     auto its_current_message = std::make_shared<message_impl>();
     its_messages.push_back(its_current_message);

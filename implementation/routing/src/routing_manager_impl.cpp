@@ -1062,7 +1062,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
         clear_targets_and_pending_sub_from_eventgroups(_service, _instance);
 
         if (discovery_ && its_info) {
-            discovery_->stop_offer_service(its_info, true);
+            discovery_->stop_offer_service(its_info);
             its_info->set_endpoint(nullptr, _reliable);
             VSOMEIP_INFO_P << "Sending StopOffer to [" << hex4(_service) << "." << hex4(_instance) << "." << _port << "] with reliability ("
                            << std::boolalpha << _reliable << ')';
@@ -1075,7 +1075,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
             // ensure to not send StopOffer for endpoint on which the service is
             // still offered
             its_copied_info->set_endpoint(nullptr, !_reliable);
-            discovery_->stop_offer_service(its_copied_info, true);
+            discovery_->stop_offer_service(its_copied_info);
             VSOMEIP_INFO_P << "Only sending the StopOffer to [" << hex4(_service) << '.' << hex4(_instance) << ']' << " with reliability ("
                            << std::boolalpha << !_reliable << ')' << " as the service is still partly offered!";
         }
@@ -1334,7 +1334,7 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
 
         if (discovery_) {
             if (its_info->get_major() == _major && its_info->get_minor() == _minor)
-                discovery_->stop_offer_service(its_info, true);
+                discovery_->stop_offer_service(its_info);
         }
 
         std::set<std::shared_ptr<eventgroupinfo>> its_eventgroup_info_set;
@@ -2804,10 +2804,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                         VSOMEIP_WARNING_P << "Service " << hex4(service) << "." << hex4(instance) << " still offered by "
                                           << hex4(its_client);
                     }
+
                     // collect stop offers to be sent out
-                    if (discovery_->stop_offer_service(info, false)) {
-                        _service_infos.push_back(info);
-                    }
+                    discovery_->stop_offer_service(info); // does book-keeping changes only due to stop()
+                    _service_infos.push_back(info);
                 }
             }
             // send collected stop offers packed together in one ore multiple SD messages
@@ -2943,7 +2943,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             for (const auto& its_service : get_offered_services()) {
                 for (const auto& its_instance : its_service.second) {
                     if (host_->get_configuration()->is_someip(its_service.first, its_instance.first)) {
-                        discovery_->stop_offer_service(its_instance.second, true);
+                        discovery_->stop_offer_service(its_instance.second);
                     }
                 }
             }

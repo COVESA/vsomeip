@@ -103,7 +103,12 @@ public:
     void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<boardnet_endpoint>& _endpoint);
 
     void offer_service(const std::shared_ptr<serviceinfo>& _info);
-    bool stop_offer_service(const std::shared_ptr<serviceinfo>& _info, bool _send);
+    /**
+     * @brief Stop offering the service described by `_info` and send a StopOffer if required
+     *
+     * Does *NOT* send a StopOffer if we are already `stop()`ed (aka suspended)
+     */
+    void stop_offer_service(const std::shared_ptr<serviceinfo>& _info);
     bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>>& _infos);
 
     void set_diagnosis_mode(const bool _activate);
@@ -324,9 +329,6 @@ private:
     void clear_observed_host();
 
 private:
-    // Runtime
-    std::weak_ptr<runtime> runtime_;
-
     boost::asio::io_context& io_;
     service_discovery_host* host_;
     std::shared_ptr<configuration> configuration_;

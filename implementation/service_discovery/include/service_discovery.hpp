@@ -54,7 +54,7 @@ public:
     virtual void on_endpoint_connected(service_t _service, instance_t _instance, const std::shared_ptr<boardnet_endpoint>& _endpoint) = 0;
 
     virtual void offer_service(const std::shared_ptr<serviceinfo>& _info) = 0;
-    virtual bool stop_offer_service(const std::shared_ptr<serviceinfo>& _info, bool _send) = 0;
+    virtual void stop_offer_service(const std::shared_ptr<serviceinfo>& _info) = 0;
     virtual bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>>& _infos) = 0;
 
     virtual void set_diagnosis_mode(const bool _activate) = 0;
