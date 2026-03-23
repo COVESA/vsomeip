@@ -68,7 +68,7 @@ struct ecu_config {
     std::string network_;
     boost::asio::ip::address unicast_ip_{boost::asio::ip::make_address("127.0.0.1")};
     std::optional<std::variant<local_tcp_config, std::string>> routing_config_ = std::string("routingmanagerd"); // defaults to uds
-    std::optional<client_port_config> client_ports_;
+    std::optional<client_port_config> client_ports_ = client_port_config{.remote_ports_ = {30501, 30599}, .client_ports_ = {30491, 30499}};
     bool sd_{true};
 };
 
