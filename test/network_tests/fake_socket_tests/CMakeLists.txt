@@ -47,6 +47,8 @@ set (TEST_SUITES
     stress_routing_info_server_reoffers
     test_connection_control
     test_connection_restoration
+    test_client_lifecycle
+    test_protocol_messages
     test_boardnet
     test_debounce
     test_uds_communication
