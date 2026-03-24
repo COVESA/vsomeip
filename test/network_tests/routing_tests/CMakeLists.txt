@@ -63,5 +63,5 @@ if(NOT TESTS_BAT)
         NAME external_local_routing_test
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external_local_routing_test_starter.sh
     )
-
+    
 endif()

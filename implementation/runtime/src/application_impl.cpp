@@ -329,7 +329,7 @@ void application_impl::start() {
                           << std::setw(4) << client_ << ")";
             return;
         }
-     }
+    }
 
     const size_t io_thread_count = configuration_->get_io_thread_count(name_);
     const int io_thread_nice_level = configuration_->get_io_thread_nice_level(name_);

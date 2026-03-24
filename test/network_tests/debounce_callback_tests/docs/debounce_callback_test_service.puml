@@ -59,7 +59,7 @@ note across
   Testing with lots of messages
 end note
 
-loop 30 times
+loop 30 times 
 
 SP -> RM : Send notification event 1
 SP -> RM : Send notification event 2

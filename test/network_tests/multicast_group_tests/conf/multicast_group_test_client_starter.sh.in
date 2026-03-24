@@ -38,3 +38,4 @@ wait "$HOST_PID" || ((FAIL+=1))
 
 # Return the result of the test.
 exit "$FAIL"
+
