@@ -11,9 +11,14 @@
 #include "../../../../implementation/protocol/include/command.hpp"
 #include "../../../../implementation/protocol/include/routing_info_entry.hpp"
 #include "../../../../implementation/service_discovery/include/enumeration_types.hpp"
+#include "../../../../implementation/service_discovery/include/entry_impl.hpp"
+#include "../../../../implementation/utility/include/utility.hpp"
+
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <vsomeip/enumeration_types.hpp>
+#include <vsomeip/payload.hpp>
 
 namespace vsomeip_v3::testing {
 
@@ -25,7 +30,12 @@ std::string to_string(vsomeip_v3::protocol::service const& s);
 std::string to_string(vsomeip_v3::protocol::routing_info_entry const& e);
 std::string to_string(vsomeip_v3::protocol::routing_info_command const& c);
 std::string to_string(vsomeip_v3::protocol::config_command const& c);
+char const* to_string(vsomeip_v3::message_type_e const& m);
+char const* to_string(vsomeip_v3::return_code_e const& e);
+char const* to_string(vsomeip_v3::sd::entry_type_e const& e);
+std::string to_string(vsomeip_v3::payload const& p);
 std::string to_string(command_message const& c);
+std::string to_string(std::shared_ptr<vsomeip_v3::sd::entry_impl> const& e);
 // allows to be used below
 std::string to_string(std::string const&);
 

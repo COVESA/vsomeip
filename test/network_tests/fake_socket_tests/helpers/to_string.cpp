@@ -86,6 +86,85 @@ char const* to_string(vsomeip_v3::protocol::id_e _id) {
         return "INVALID_ID";
     }
 }
+char const* to_string(vsomeip_v3::message_type_e const& m) {
+    switch (m) {
+    case message_type_e::MT_REQUEST:
+        return "MT_REQUEST";
+    case message_type_e::MT_REQUEST_NO_RETURN:
+        return "MT_REQUEST_NO_RETURN";
+    case message_type_e::MT_NOTIFICATION:
+        return "MT_NOTIFICATION";
+    case message_type_e::MT_REQUEST_ACK:
+        return "MT_REQUEST_ACK";
+    case message_type_e::MT_REQUEST_NO_RETURN_ACK:
+        return "MT_REQUEST_NO_RETURN_ACK";
+    case message_type_e::MT_NOTIFICATION_ACK:
+        return "MT_NOTIFICATION_ACK";
+    case message_type_e::MT_RESPONSE:
+        return "MT_RESPONSE";
+    case message_type_e::MT_ERROR:
+        return "MT_ERROR";
+    case message_type_e::MT_RESPONSE_ACK:
+        return "MT_RESPONSE_ACK";
+    case message_type_e::MT_ERROR_ACK:
+        return "MT_ERROR_ACK";
+    case message_type_e::MT_UNKNOWN:
+        return "MT_UNKNOWN";
+    }
+    return "INVALID";
+}
+char const* to_string(vsomeip_v3::return_code_e const& e) {
+    switch (e) {
+    case return_code_e::E_OK:
+        return "E_OK";
+    case return_code_e::E_NOT_OK:
+        return "E_NOT_OK";
+    case return_code_e::E_UNKNOWN_SERVICE:
+        return "E_UNKNOWN_SERVICE";
+    case return_code_e::E_UNKNOWN_METHOD:
+        return "E_UNKNOWN_METHOD";
+    case return_code_e::E_NOT_READY:
+        return "E_NOT_READY";
+    case return_code_e::E_NOT_REACHABLE:
+        return "E_NOT_REACHABLE";
+    case return_code_e::E_TIMEOUT:
+        return "E_TIMEOUT";
+    case return_code_e::E_WRONG_PROTOCOL_VERSION:
+        return "E_WRONG_PROTOCOL_VERSION";
+    case return_code_e::E_WRONG_INTERFACE_VERSION:
+        return "E_WRONG_INTERFACE_VERSION";
+    case return_code_e::E_MALFORMED_MESSAGE:
+        return "E_MALFORMED_MESSAGE";
+    case return_code_e::E_WRONG_MESSAGE_TYPE:
+        return "E_WRONG_MESSAGE_TYPE";
+    case return_code_e::E_UNKNOWN:
+        return "E_UNKNOWN";
+    }
+    return "INVALID";
+}
+
+char const* to_string(vsomeip_v3::sd::entry_type_e const& e) {
+    switch (e) {
+    case sd::entry_type_e::FIND_SERVICE:
+        return "FIND_SERVICE";
+    case sd::entry_type_e::STOP_OFFER_SERVICE:
+        return "(STOP_)OFFER_SERVICE"; // OFFER_SERVICE + STOP_OFFER_SERVICE have the same numerical value
+    case sd::entry_type_e::REQUEST_SERVICE:
+        return "REQUEST_SERVICE";
+    case sd::entry_type_e::FIND_EVENT_GROUP:
+        return "FIND_EVENT_GROUP";
+    case sd::entry_type_e::STOP_PUBLISH_EVENTGROUP:
+        return "(STOP_)PUBLISH_EVENTGROUP";
+    case sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP:
+        return "(STOP_)SUBSCRIBE_EVENTGROUP";
+    case sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK:
+        return "(STOP_)SUBSCRIBE_EVENTGROUP_ACK";
+    case sd::entry_type_e::UNKNOWN:
+        return "UNKNOWN";
+    }
+    return "INVALID";
+}
+
 char const* to_string(vsomeip_v3::protocol::routing_info_entry_type_e e) {
     switch (e) {
     case protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE:
@@ -157,6 +236,14 @@ std::string to_string(command_message const& c) {
     s << c;
     return s.str();
 }
+
+std::string to_string(std::shared_ptr<vsomeip_v3::sd::entry_impl> const& e) {
+    std::stringstream s;
+    s << "{type: " << to_string(e->get_type()) << ", service: " << hex4(e->get_service()) << ", instance: " << hex4(e->get_instance())
+      << "}";
+
+    return s.str();
+}
 std::string to_string(std::string const& _str) {
     return "\"" + _str + "\"";
 }
@@ -172,6 +259,14 @@ std::string hex_bytes_to_string(std::string_view bytes) {
 
     return os.str();
 }
+std::string to_string(vsomeip_v3::payload const& p) {
+    std::vector<unsigned char> input_payload;
+    auto payload_it = p.get_data();
+    input_payload.reserve(p.get_length());
+    std::copy(payload_it, payload_it + p.get_length(), std::back_inserter(input_payload));
+    return to_string(input_payload);
+}
+
 std::string to_string(vsomeip_v3::protocol::config_command const& c) {
     std::vector<std::pair<std::string, std::string>> v;
     auto const& container = c.configs();

@@ -7,56 +7,16 @@
 #define VSOMEIP_V3_SOMEIP_MESSAGE_HPP_
 
 #include "../../../../implementation/service_discovery/include/message_impl.hpp"
+#include "../../../../implementation/message/include/message_impl.hpp"
 #include "service_state.hpp"
 
 #include <vsomeip/vsomeip.hpp>
 #include "to_string.hpp"
 
 namespace vsomeip_v3::testing {
-
-/**
- * Abstract wrapper around the payload that extends the internal commands.
- * This allows to abstract around the actual payload but allows for unified
- * printing.
- * Internally anything of type T could be stored for which a to_string(T) can
- * can be found.
- * If it is of interest do add e.g. an equality operator the same principle
- * pattern could be applied.
- *
- * (see "Runtime Polymorphism" from Sean Parent)
- **/
-class someip_payload {
-public:
-    explicit someip_payload() = default;
-
-    template<typename T>
-    explicit someip_payload(T&& t) : data_(std::make_shared<derived<T>>(std::move(t))) { }
-
-    friend std::string to_string(someip_payload const& _payload) { return _payload.data_->to_string_impl(); }
-
-private:
-    class base {
-    public:
-        virtual ~base() = default;
-        virtual std::string to_string_impl() const = 0;
-    };
-    template<typename T>
-    class derived : public base {
-    public:
-        explicit derived(T&& _t) : t_(std::move(_t)) { }
-
-        virtual std::string to_string_impl() const override { return to_string(t_); }
-        T t_;
-    };
-    std::shared_ptr<base const> data_;
-};
-
 struct someip_message {
-    vsomeip_v3::service_t service_;
-    vsomeip_v3::method_t method_;
-    vsomeip_v3::client_t client_;
-    bool is_sd_;
-    someip_payload payload_;
+    std::shared_ptr<message_impl> msg_;
+    std::shared_ptr<sd::message_impl> sd_;
 };
 
 [[nodiscard]] size_t parse(std::vector<unsigned char>& message, someip_message& _out_message);

@@ -23,6 +23,7 @@
 #include "../../../../implementation/service_discovery/include/eventgroupentry_impl.hpp"
 #include "../../../../implementation/service_discovery/include/ipv4_option_impl.hpp"
 #include "../../../../implementation/service_discovery/include/serviceentry_impl.hpp"
+#include "../../../../implementation/utility/include/utility.hpp"
 
 namespace vsomeip_v3::testing {
 
@@ -33,24 +34,20 @@ namespace vsomeip_v3::testing {
     }
 
     vsomeip_v3::deserializer des{&_message[0], _message.size(), VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD};
-    auto deserialized_message = des.deserialize_message();
+    auto msg = des.deserialize_message();
 
-    if (!deserialized_message) {
+    if (!msg) {
         TEST_LOG << "Failure during message deserialization";
         return 0;
     }
-
-    _out_message.service_ = deserialized_message->get_service();
-    _out_message.method_ = deserialized_message->get_method();
-    _out_message.client_ = deserialized_message->get_client();
-    _out_message.is_sd_ = (_out_message.service_ == VSOMEIP_SD_SERVICE && _out_message.method_ == VSOMEIP_SD_METHOD);
-
-    std::vector<unsigned char> input_payload;
-    auto payload = deserialized_message->get_payload();
-    auto payload_it = payload->get_data();
-    input_payload.reserve(payload->get_length());
-    std::copy(payload_it, payload_it + payload->get_length(), std::back_inserter(input_payload));
-    _out_message.payload_ = someip_payload(std::move(input_payload));
+    if (msg->get_service() == VSOMEIP_SD_SERVICE && msg->get_method() == VSOMEIP_SD_METHOD) {
+        auto sd_msg = parse_sd(_message);
+        if (sd_msg) {
+            _out_message.sd_ = sd_msg;
+            return _message.size();
+        }
+    }
+    _out_message.msg_ = msg;
 
     return _message.size();
 }
@@ -122,9 +119,19 @@ std::vector<unsigned char> construct_offer(event_ids const& _offer, boost::asio:
 }
 
 std::ostream& operator<<(std::ostream& _out, someip_message const& _m) {
-    _out << "{service: " << _m.service_;
-    _out << ", client_id: " << std::hex << std::setfill('0') << std::setw(4) << _m.client_;
-    _out << ", payload: [" << to_string(_m.payload_) << "]}";
+    if (_m.msg_) {
+        _out << "someip-message: { type: " << to_string(_m.msg_->get_message_type()) << ", service: " << hex4(_m.msg_->get_service())
+             << ", instance: " << hex4(_m.msg_->get_instance()) << ", method: " << hex4(_m.msg_->get_method())
+             << ", client: " << hex4(_m.msg_->get_client()) << ", session: " << hex4(_m.msg_->get_session())
+             << ", return_code: " << to_string(_m.msg_->get_return_code()) << ", is_reliable: " << std::boolalpha << _m.msg_->is_reliable()
+             << ", is_initial: " << std::boolalpha << _m.msg_->is_initial() << ", payload: " << to_string(*(_m.msg_->get_payload())) << "}";
+    } else if (_m.sd_) {
+
+        _out << "sd-message: { entries: " << to_string(_m.sd_->get_entries()) << "}";
+
+    } else {
+        _out << "ERROR, no valid message";
+    }
     return _out;
 }
 }
