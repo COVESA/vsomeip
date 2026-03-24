@@ -14,7 +14,6 @@
 #include <unistd.h>
 #include <cstdio>
 #include <time.h>
-#include <inttypes.h>
 #endif
 
 #include <boost/asio/steady_timer.hpp>

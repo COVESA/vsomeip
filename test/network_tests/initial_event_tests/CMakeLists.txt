@@ -79,64 +79,64 @@ targets_add_default_dependencies("${executables}")
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_diff_ports_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json 
     UDP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_diff_ports_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json 
     TCP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_diff_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master.json 
     TCP_AND_UDP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_same_ports_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master_udp.json 
     UDP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_same_ports_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json 
     TCP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master.json 
     TCP_AND_UDP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_partial_same_ports_master.json 
     TCP_AND_UDP
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json 
     TCP_AND_UDP SAME_SERVICE_ID
 )
 
@@ -145,64 +145,64 @@ add_custom_test(
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json 
     UDP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json 
     TCP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_udp_and_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_same_ports_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master_udp.json 
     UDP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_same_ports_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json 
     TCP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_partial_same_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json 
     TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS
 )
 
@@ -211,64 +211,64 @@ add_custom_test(
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json 
     UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json 
     TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_udp_and_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master_udp.json 
     UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master_tcp.json 
     TCP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_same_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_same_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_same_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_partial_same_ports_both_tcp_and_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_partial_same_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_partial_same_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_subscribe_on_availability_diff_client_ids_diff_ports_same_service_id_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_same_service_id_master.json 
     TCP_AND_UDP SAME_SERVICE_ID MULTIPLE_EVENTS SUBSCRIBE_ON_AVAILABILITY
 )
 
@@ -277,24 +277,24 @@ add_custom_test(
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json 
     UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_partial_subscription_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_tcp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_tcp.json 
     TCP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
 )
 
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_multiple_events_diff_client_ids_diff_ports_partial_subscription_udp_and_tcp
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master.json 
     TCP_AND_UDP MULTIPLE_EVENTS SUBSCRIBE_ONLY_ONE
 )
 
@@ -303,8 +303,8 @@ add_custom_test(
 # Add custom test command.
 add_custom_test(
     NAME initial_event_test_diff_client_ids_diff_ports_client_subscribes_twice
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh
-    initial_event_test_diff_client_ids_diff_ports_master_udp.json
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/initial_event_test_master_starter.sh 
+    initial_event_test_diff_client_ids_diff_ports_master_udp.json 
     UDP CLIENT_SUBSCRIBES_TWICE
 )
 

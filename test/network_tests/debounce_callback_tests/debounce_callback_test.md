@@ -8,7 +8,7 @@ There is 1 service with 2 events being offered by a service-provider that are be
 
   - Assure that debounce times are respected.
   - ASsure that last message sent during debounce time is received by the service-consumer.
-
+  
 ## Test Logic
 
 ### Service provider

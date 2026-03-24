@@ -23,7 +23,7 @@ set(configuration_files
     client_id_test_utility_discontinuous_masked_511.json
     client_id_test_utility_masked_127.json
     client_id_test_utility_masked_511.json
-    client_id_test_utility_masked_4095.json
+    client_id_test_utility_masked_3327.json
 )
 configure_files("${configuration_files}")
 
@@ -80,10 +80,9 @@ add_custom_test(
 )
 
 add_custom_test(
-    NAME client_id_test_utility_masked_4095
+    NAME client_id_test_utility_masked_3327
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/client_id_test_utility
-    ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/client_id_test_utility_masked_4095.json"
-    TIMEOUT 600
+    ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/client_id_test_utility_masked_3327.json"
 )
 
 add_custom_test(

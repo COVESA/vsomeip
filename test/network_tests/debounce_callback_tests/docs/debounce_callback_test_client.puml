@@ -30,6 +30,6 @@ SC -> RM : UNSUBSCRIBE
 
 SC -> RM : REQUEST DEBOUNCE_STOP_METHOD
 
-end
+end 
 
 @enduml
