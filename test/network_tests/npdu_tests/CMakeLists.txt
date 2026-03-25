@@ -9,14 +9,9 @@ if(NOT TESTS_BAT AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
 
     # Configure necessary files into the build folder.
     set(configuration_files
-        npdu_test_client_no_npdu.json
-        npdu_test_client_no_npdu_start.sh
         npdu_test_client_npdu.json
         npdu_test_client_npdu_start.sh
-        npdu_test_service_no_npdu.json
-        npdu_test_service_no_npdu_start.sh
         npdu_test_service_npdu.json
-        npdu_test_service_npdu_start.sh
         npdu_test_starter.sh
     )
     configure_files("${configuration_files}")

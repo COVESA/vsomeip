@@ -40,7 +40,6 @@ private:
 
 private:
     std::shared_ptr<vsomeip::application> app_;
-    bool is_registered_;
     std::array<vsomeip::method_t, 4> method_ids_;
     std::array<std::chrono::nanoseconds, 4> debounce_times_;
     std::array<std::chrono::nanoseconds, 4> max_retention_times_;
@@ -49,13 +48,5 @@ private:
     std::deque<std::chrono::microseconds> undershot_debounce_times_;
     vsomeip::service_t service_id_;
     vsomeip::instance_t instance_id_;
-    std::mutex mutex_;
-    std::condition_variable condition_;
-    bool blocked_;
-    std::mutex shutdown_mutex_;
-    std::condition_variable shutdown_condition_;
-    bool allowed_to_shutdown_;
     std::uint32_t number_of_received_messages_;
-    std::thread offer_thread_;
-    std::thread shutdown_thread_;
 };

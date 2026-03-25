@@ -10,9 +10,6 @@
 #include <vsomeip/vsomeip.hpp>
 
 #include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <functional>
 
 class npdu_test_rmd {
 
@@ -22,17 +19,9 @@ public:
     void start();
     void stop();
     void on_state(vsomeip::state_type_e _state);
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
     void on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request);
-    void join_shutdown_thread();
-    void run();
 
 private:
     std::shared_ptr<vsomeip::application> app_;
-    bool is_registered_;
-
-    std::mutex mutex_;
-    std::condition_variable condition_;
-    bool blocked_;
-    std::thread offer_thread_;
-    std::thread shutdown_thread_;
 };

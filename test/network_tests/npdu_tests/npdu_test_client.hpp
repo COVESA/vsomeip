@@ -13,7 +13,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
-#include <map>
 
 #include "../npdu_tests/npdu_test_globals.hpp"
 #include "../someip_test_globals.hpp"
@@ -21,8 +20,7 @@
 
 class npdu_test_client {
 public:
-    npdu_test_client(bool _use_tcp, bool _call_service_sync, std::uint32_t _sliding_window_size, bool _wait_for_replies,
-                     std::array<std::array<std::chrono::milliseconds, 4>, 4> _applicative_debounce);
+    npdu_test_client(bool _use_tcp, std::array<std::array<std::chrono::milliseconds, 4>, 4> _applicative_debounce);
     ~npdu_test_client();
     void init();
     void start();
@@ -31,6 +29,7 @@ public:
     void on_state(vsomeip::state_type_e _state);
     template<int service_idx>
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
+    void on_shutdown_service_available(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available);
     template<int service_idx, int method_idx>
     void on_message(const std::shared_ptr<vsomeip::message>& _response);
     template<int service_idx>
@@ -43,10 +42,6 @@ private:
     void send_messages_sync();
     template<int service_idx, int method_idx>
     std::thread start_send_thread_sync();
-    template<int service_idx>
-    void send_messages_async();
-    template<int service_idx, int method_idx>
-    std::thread start_send_thread_async();
     template<int service_idx>
     void send_messages_and_dont_wait_for_reply();
     std::uint32_t get_max_allowed_payload();
@@ -63,9 +58,6 @@ private:
 private:
     std::shared_ptr<vsomeip::application> app_;
     std::shared_ptr<vsomeip::message> request_;
-    bool call_service_sync_;
-    bool wait_for_replies_;
-    std::uint32_t sliding_window_size_;
 
     std::array<std::mutex, npdu_test::service_ids.size()> mutexes_;
     std::array<std::condition_variable, npdu_test::service_ids.size()> conditions_;
@@ -91,4 +83,8 @@ private:
     std::mutex finished_mutex_;
     std::array<bool, npdu_test::service_ids.size()> finished_;
     std::thread finished_waiter_;
+
+    bool shutdown_service_available_;
+    std::mutex shutdown_service_available_mtx_;
+    std::condition_variable shutdown_service_available_cv_;
 };

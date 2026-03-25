@@ -13,19 +13,18 @@
 
 #include "../npdu_tests/npdu_test_globals.hpp"
 
-npdu_test_rmd::npdu_test_rmd() :
-    app_(vsomeip::runtime::get()->create_application()), is_registered_(false), blocked_(false),
-    offer_thread_(std::bind(&npdu_test_rmd::run, this)) {
+npdu_test_rmd::npdu_test_rmd() : app_(vsomeip::runtime::get()->create_application()) {
     // TODO Auto-generated constructor stub
 }
 
 void npdu_test_rmd::init() {
-    std::scoped_lock its_lock(mutex_);
-
     app_->init();
 
 #ifdef RMD_CLIENT_SIDE
     app_->request_service(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE, npdu_test::RMD_INSTANCE_ID);
+    app_->register_availability_handler(
+            npdu_test::RMD_SERVICE_ID_SERVICE_SIDE, npdu_test::RMD_INSTANCE_ID,
+            std::bind(&npdu_test_rmd::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     app_->register_message_handler(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE,
 #elif defined(RMD_SERVICE_SIDE)
     app_->register_message_handler(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE,
@@ -46,24 +45,22 @@ void npdu_test_rmd::stop() {
 
     app_->unregister_message_handler(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID, npdu_test::RMD_SHUTDOWN_METHOD_ID);
     app_->unregister_state_handler();
-    offer_thread_.join();
     app_->stop();
 }
 
 void npdu_test_rmd::on_state(vsomeip::state_type_e _state) {
     VSOMEIP_INFO << "Application " << app_->get_name() << " is "
                  << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
+#ifdef RMD_SERVICE_SIDE
+    app_->offer_service(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE, npdu_test::RMD_INSTANCE_ID);
+#endif
+}
 
-    if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-        if (!is_registered_) {
-            std::scoped_lock its_lock(mutex_);
-            is_registered_ = true;
-            blocked_ = true;
-            // "start" the run method thread
-            condition_.notify_one();
-        }
-    } else {
-        is_registered_ = false;
+void npdu_test_rmd::on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+    (void)_service;
+    (void)_instance;
+    if (_is_available) {
+        app_->offer_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID);
     }
 }
 
@@ -114,21 +111,6 @@ void npdu_test_rmd::on_message_shutdown(const std::shared_ptr<vsomeip::message>&
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     stop();
-#endif
-}
-
-void npdu_test_rmd::join_shutdown_thread() {
-    shutdown_thread_.join();
-}
-
-void npdu_test_rmd::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
-    condition_.wait(its_lock, [this] { return blocked_; });
-
-#ifdef RMD_CLIENT_SIDE
-    app_->offer_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID);
-#elif defined(RMD_SERVICE_SIDE)
-    app_->offer_service(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE, npdu_test::RMD_INSTANCE_ID);
 #endif
 }
 

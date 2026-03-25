@@ -7,6 +7,7 @@
 
 #include "../npdu_tests/npdu_test_client.hpp"
 
+#include <mutex>
 #include <vsomeip/internal/logger.hpp>
 #include "common/test_main.hpp"
 #include "../../implementation/configuration/include/configuration.hpp"
@@ -18,22 +19,16 @@ enum class payloadsize : std::uint8_t { UDS, TCP, UDP };
 
 // this variables are changed via cmdline parameters
 static bool use_tcp = false;
-static bool call_service_sync = true;
-static bool wait_for_replies = true;
-static std::uint32_t sliding_window_size = vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND;
-static payloadsize max_payload_size = payloadsize::UDS;
-static bool shutdown_service_at_end = true;
 
-npdu_test_client::npdu_test_client(bool _use_tcp, bool _call_service_sync, std::uint32_t _sliding_window_size, bool _wait_for_replies,
-                                   std::array<std::array<std::chrono::milliseconds, 4>, 4> _applicative_debounce) :
+npdu_test_client::npdu_test_client(bool _use_tcp, std::array<std::array<std::chrono::milliseconds, 4>, 4> _applicative_debounce) :
     app_(vsomeip::runtime::get()->create_application()), request_(vsomeip::runtime::get()->create_request(_use_tcp)),
-    call_service_sync_(_call_service_sync), wait_for_replies_(_wait_for_replies), sliding_window_size_(_sliding_window_size),
     blocked_({false, false, false, false}), is_available_({false, false, false, false}),
     number_of_messages_to_send_(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND),
     number_of_acknowledged_messages_{{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}}, current_payload_size_({0, 0, 0, 0}),
     all_msg_acknowledged_(
             {{{false, false, false, false}, {false, false, false, false}, {false, false, false, false}, {false, false, false, false}}}),
-    applicative_debounce_(_applicative_debounce), finished_waiter_(&npdu_test_client::wait_for_all_senders, this) {
+    applicative_debounce_(_applicative_debounce), finished_waiter_(&npdu_test_client::wait_for_all_senders, this),
+    shutdown_service_available_(false) {
     senders_[0] = std::thread(&npdu_test_client::run<0>, this);
     senders_[1] = std::thread(&npdu_test_client::run<1>, this);
     senders_[2] = std::thread(&npdu_test_client::run<2>, this);
@@ -60,11 +55,12 @@ void npdu_test_client::init() {
     register_message_handler_for_all_service_methods<3>();
 
     app_->request_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID);
+    app_->register_availability_handler(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE, npdu_test::RMD_INSTANCE_ID,
+                                        std::bind(&npdu_test_client::on_shutdown_service_available, this, std::placeholders::_1,
+                                                  std::placeholders::_2, std::placeholders::_3));
 
     request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);
     request_->set_instance(vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-    if (!wait_for_replies_)
-        request_->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
 }
 
 template<int service_idx>
@@ -107,23 +103,17 @@ void npdu_test_client::stop() {
         }
     }
 
-    if (shutdown_service_at_end) {
-        // notify the routing manager daemon that were finished
-        request_->set_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE);
-        request_->set_instance(npdu_test::RMD_INSTANCE_ID);
-        request_->set_method(npdu_test::RMD_SHUTDOWN_METHOD_ID);
-        request_->set_payload(vsomeip::runtime::get()->create_payload());
-        request_->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
-        app_->send(request_);
+    // notify the routing manager daemon that were finished
+    request_->set_service(npdu_test::RMD_SERVICE_ID_CLIENT_SIDE);
+    request_->set_instance(npdu_test::RMD_INSTANCE_ID);
+    request_->set_method(npdu_test::RMD_SHUTDOWN_METHOD_ID);
+    request_->set_payload(vsomeip::runtime::get()->create_payload());
+    request_->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
+    app_->send(request_);
 
-        // magic sleep to give time for the last message to be read
-        // in the router, before the clean-up starts the forceful stop
-        // of the "server" connection within the router.
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-    }
-
-    // magic sleep to give time for the last message to be sent
-    // TODO: FIXME! REMOVE THIS!
+    // magic sleep to give time for the last message to be read
+    // in the router, before the clean-up starts the forceful stop
+    // of the "server" connection within the router.
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     app_->stop();
@@ -157,6 +147,16 @@ void npdu_test_client::on_availability(vsomeip::service_t _service, vsomeip::ins
     }
 }
 
+void npdu_test_client::on_shutdown_service_available(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+    (void)_service;
+    (void)_instance;
+    if (_is_available) {
+        std::unique_lock lock(shutdown_service_available_mtx_);
+        shutdown_service_available_ = true;
+        shutdown_service_available_cv_.notify_all();
+    }
+}
+
 template<int service_idx, int method_idx>
 void npdu_test_client::on_message(const std::shared_ptr<vsomeip::message>& _response) {
     (void)_response;
@@ -165,29 +165,10 @@ void npdu_test_client::on_message(const std::shared_ptr<vsomeip::message>& _resp
                   << std::setw(4) << npdu_test::instance_ids[service_idx] << ":" << std::setw(4)
                   << npdu_test::method_ids[service_idx][method_idx];
 
-    if (call_service_sync_) {
-        // We notify the sender thread every time a message was acknowledged
-        std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
-        all_msg_acknowledged_[service_idx][method_idx] = true;
-        all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
-    } else {
-
-        std::scoped_lock its_lock(number_of_acknowledged_messages_mutexes_[service_idx][method_idx]);
-        number_of_acknowledged_messages_[service_idx][method_idx]++;
-
-        // We notify the sender thread only if all sent messages have been acknowledged
-        if (number_of_acknowledged_messages_[service_idx][method_idx] == number_of_messages_to_send_) {
-            std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
-            // reset
-            number_of_acknowledged_messages_[service_idx][method_idx] = 0;
-            all_msg_acknowledged_[service_idx][method_idx] = true;
-            all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
-        } else if (number_of_acknowledged_messages_[service_idx][method_idx] % sliding_window_size_ == 0) {
-            std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
-            all_msg_acknowledged_[service_idx][method_idx] = true;
-            all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
-        }
-    }
+    // We notify the sender thread every time a message was acknowledged
+    std::scoped_lock lk(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
+    all_msg_acknowledged_[service_idx][method_idx] = true;
+    all_msg_acknowledged_cvs_[service_idx][method_idx].notify_one();
 }
 
 template<int service_idx>
@@ -203,7 +184,14 @@ void npdu_test_client::run() {
     conditions_[service_idx].wait(its_lock, [this] { return blocked_[service_idx]; });
     current_payload_size_[service_idx] = 1;
 
-    std::uint32_t max_allowed_payload = get_max_allowed_payload();
+    {
+        std::unique_lock lock(shutdown_service_available_mtx_);
+        if (!shutdown_service_available_) {
+            shutdown_service_available_cv_.wait(lock, [this] { return shutdown_service_available_; });
+        }
+    }
+
+    std::uint32_t max_allowed_payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
 
     for (std::size_t var = 0; var < payloads_[service_idx].size(); ++var) {
         payloads_[service_idx][var] = vsomeip::runtime::get()->create_payload();
@@ -220,11 +208,7 @@ void npdu_test_client::run() {
         }
 
         // send the payloads to the service's methods
-        if (wait_for_replies_) {
-            call_service_sync_ ? send_messages_sync<service_idx>() : send_messages_async<service_idx>();
-        } else {
-            send_messages_and_dont_wait_for_reply<service_idx>();
-        }
+        send_messages_sync<service_idx>();
 
         // Increase array size for next iteration
         current_payload_size_[service_idx] *= 2;
@@ -242,25 +226,6 @@ void npdu_test_client::run() {
         std::scoped_lock its_lock(finished_mutex_);
         finished_[service_idx] = true;
     }
-}
-
-std::uint32_t npdu_test_client::get_max_allowed_payload() {
-    std::uint32_t payload;
-    switch (max_payload_size) {
-    case payloadsize::UDS:
-        payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
-        break;
-    case payloadsize::TCP:
-        payload = 4095;
-        break;
-    case payloadsize::UDP:
-        payload = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
-        break;
-    default:
-        payload = VSOMEIP_MAX_LOCAL_MESSAGE_SIZE;
-        break;
-    }
-    return payload;
 }
 
 template<int service_idx>
@@ -305,75 +270,6 @@ std::thread npdu_test_client::start_send_thread_sync() {
     });
 }
 
-template<int service_idx>
-void npdu_test_client::send_messages_async() {
-    std::thread t0 = start_send_thread_async<service_idx, 0>();
-    std::thread t1 = start_send_thread_async<service_idx, 1>();
-    std::thread t2 = start_send_thread_async<service_idx, 2>();
-    std::thread t3 = start_send_thread_async<service_idx, 3>();
-    t0.join();
-    t1.join();
-    t2.join();
-    t3.join();
-}
-
-template<int service_idx, int method_idx>
-std::thread npdu_test_client::start_send_thread_async() {
-    return std::thread([&]() {
-        all_msg_acknowledged_unique_locks_[service_idx][method_idx] =
-                std::unique_lock<std::mutex>(all_msg_acknowledged_mutexes_[service_idx][method_idx]);
-        std::shared_ptr<vsomeip::message> request = vsomeip::runtime::get()->create_request(use_tcp);
-        request->set_service(npdu_test::service_ids[service_idx]);
-        request->set_instance(npdu_test::instance_ids[service_idx]);
-        request->set_method(npdu_test::method_ids[service_idx][method_idx]);
-        request->set_payload(payloads_[service_idx][method_idx]);
-        for (std::uint32_t i = 0; i < number_of_messages_to_send_; i++) {
-            app_->send(request);
-
-            if ((i + 1) == number_of_messages_to_send_ || (i + 1) % sliding_window_size_ == 0) {
-                // wait until all send messages have been acknowledged
-                // as long we wait lk is released; after wait returns lk is reacquired
-                all_msg_acknowledged_cvs_[service_idx][method_idx].wait(all_msg_acknowledged_unique_locks_[service_idx][method_idx],
-                                                                        [this] { return all_msg_acknowledged_[service_idx][method_idx]; });
-                // Reset condition variable
-                all_msg_acknowledged_[service_idx][method_idx] = false;
-            }
-            // make sure we don't send faster than debounce time + max retention time
-            std::this_thread::sleep_for(applicative_debounce_[service_idx][method_idx]);
-        }
-        all_msg_acknowledged_unique_locks_[service_idx][method_idx].unlock();
-    });
-}
-
-template<int service_idx>
-void npdu_test_client::send_messages_and_dont_wait_for_reply() {
-    std::thread t0 = start_send_thread<service_idx, 0>();
-    std::thread t1 = start_send_thread<service_idx, 1>();
-    std::thread t2 = start_send_thread<service_idx, 2>();
-    std::thread t3 = start_send_thread<service_idx, 3>();
-    t0.join();
-    t1.join();
-    t2.join();
-    t3.join();
-}
-
-template<int service_idx, int method_idx>
-std::thread npdu_test_client::start_send_thread() {
-    return std::thread([&]() {
-        std::shared_ptr<vsomeip::message> request = vsomeip::runtime::get()->create_request(use_tcp);
-        request->set_service(npdu_test::service_ids[service_idx]);
-        request->set_instance(npdu_test::instance_ids[service_idx]);
-        request->set_message_type(vsomeip::message_type_e::MT_REQUEST_NO_RETURN);
-        request->set_method(npdu_test::method_ids[service_idx][method_idx]);
-        request->set_payload(payloads_[service_idx][method_idx]);
-        for (std::uint32_t i = 0; i < number_of_messages_to_send_; i++) {
-            app_->send(request);
-            // make sure we don't send faster than debounce time + max retention time
-            std::this_thread::sleep_for(applicative_debounce_[service_idx][method_idx]);
-        }
-    });
-}
-
 void npdu_test_client::wait_for_all_senders() {
     bool all_finished(false);
     while (!all_finished) {
@@ -386,20 +282,6 @@ void npdu_test_client::wait_for_all_senders() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     join_sender_thread();
-
-    if (!wait_for_replies_ || !call_service_sync_) {
-        // sleep longer here as sending is asynchronously and it's necessary
-        // to wait until all messages have left the application
-        VSOMEIP_INFO << "Sleeping for 180sec since the client is running "
-                        "in --dont-wait-for-replies or --async mode. "
-                        "Otherwise it might be possible that not all messages leave the "
-                        "application.";
-        for (int i = 0; i < 180; i++) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            std::cout << ".";
-            std::cout.flush();
-        }
-    }
 
     stop();
 }
@@ -449,7 +331,7 @@ TEST(someip_npdu_test, send_different_payloads) {
         }
     }
 
-    npdu_test_client test_client_(use_tcp, call_service_sync, sliding_window_size, wait_for_replies, applicative_debounce);
+    npdu_test_client test_client_(use_tcp, applicative_debounce);
     test_client_.init();
     test_client_.start();
 }
@@ -458,12 +340,6 @@ TEST(someip_npdu_test, send_different_payloads) {
 int main(int argc, char** argv) {
     std::string tcp_enable("--TCP");
     std::string udp_enable("--UDP");
-    std::string sync_enable("--sync");
-    std::string async_enable("--async");
-    std::string no_reply_enable("--dont-wait-for-replies");
-    std::string sliding_window_size_param("--sliding-window-size");
-    std::string max_payload_size_param("--max-payload-size");
-    std::string shutdown_service_disable_param("--dont-shutdown-service");
     std::string help("--help");
 
     int i = 1;
@@ -472,51 +348,10 @@ int main(int argc, char** argv) {
             use_tcp = true;
         } else if (udp_enable == argv[i]) {
             use_tcp = false;
-        } else if (sync_enable == argv[i]) {
-            call_service_sync = true;
-        } else if (async_enable == argv[i]) {
-            call_service_sync = false;
-        } else if (no_reply_enable == argv[i]) {
-            wait_for_replies = false;
-        } else if (sliding_window_size_param == argv[i] && i + 1 < argc) {
-            i++;
-            std::stringstream converter(argv[i]);
-            converter >> sliding_window_size;
-        } else if (max_payload_size_param == argv[i] && i + 1 < argc) {
-            i++;
-            if (std::string("UDS") == argv[i]) {
-                max_payload_size = payloadsize::UDS;
-            } else if (std::string("TCP") == argv[i]) {
-                max_payload_size = payloadsize::TCP;
-            } else if (std::string("UDP") == argv[i]) {
-                max_payload_size = payloadsize::UDP;
-            }
-        } else if (shutdown_service_disable_param == argv[i]) {
-            shutdown_service_at_end = false;
         } else if (help == argv[i]) {
             VSOMEIP_INFO << "Parameters:\n"
                          << "--TCP: Send messages via TCP\n"
                          << "--UDP: Send messages via UDP (default)\n"
-                         << "--sync: Wait for acknowledge before sending next message (default)\n"
-                         << "--async: Send multiple messages w/o waiting for"
-                            " acknowledge of service\n"
-                         << "--dont-wait-for-replies: Just send out the messages w/o waiting for "
-                            "a reply by the service (use REQUEST_NO_RETURN message type)\n"
-                         << "--sliding-window-size: Number of messages to send before waiting "
-                            "for acknowledge of service. Default: "
-                         << sliding_window_size << "\n"
-                         << "--max-payload-size: limit the maximum payloadsize of send requests. "
-                            "One of {"
-                            "UDS (="
-                         << VSOMEIP_MAX_LOCAL_MESSAGE_SIZE
-                         << "byte), "
-                            "UDP (="
-                         << VSOMEIP_MAX_UDP_MESSAGE_SIZE
-                         << "byte), "
-                            "TCP (="
-                         << VSOMEIP_MAX_TCP_MESSAGE_SIZE << "byte)}, default: UDS\n"
-                         << "--dont-shutdown-service: Don't shutdown the service upon "
-                            "finishing of the payload test\n"
                          << "--help: print this help";
         }
         i++;

@@ -32,10 +32,8 @@ size_t get_service_number() {
 npdu_test_service::npdu_test_service(vsomeip::service_t _service_id, vsomeip::instance_t _instance_id,
                                      std::array<vsomeip::method_t, 4> _method_ids, std::array<std::chrono::nanoseconds, 4> _debounce_times,
                                      std::array<std::chrono::nanoseconds, 4> _max_retention_times) :
-    app_(vsomeip::runtime::get()->create_application()), is_registered_(false), method_ids_(_method_ids), debounce_times_(_debounce_times),
-    max_retention_times_(_max_retention_times), service_id_(_service_id), instance_id_(_instance_id), blocked_(false),
-    allowed_to_shutdown_(false), number_of_received_messages_(0), offer_thread_(std::bind(&npdu_test_service::run, this)),
-    shutdown_thread_(std::bind(&npdu_test_service::stop, this)) {
+    app_(vsomeip::runtime::get()->create_application()), method_ids_(_method_ids), debounce_times_(_debounce_times),
+    max_retention_times_(_max_retention_times), service_id_(_service_id), instance_id_(_instance_id), number_of_received_messages_(0) {
     // init timepoints of last received message to one hour before now.
     // needed that the first message which arrives isn't registered as undershot
     // debounce time
@@ -45,8 +43,6 @@ npdu_test_service::npdu_test_service(vsomeip::service_t _service_id, vsomeip::in
 }
 
 void npdu_test_service::init() {
-    std::scoped_lock its_lock(mutex_);
-
     app_->init();
 
     register_message_handler<0>();
@@ -72,9 +68,6 @@ void npdu_test_service::start() {
 }
 
 void npdu_test_service::stop() {
-    std::unique_lock<std::mutex> its_lock(shutdown_mutex_);
-    shutdown_condition_.wait(its_lock, [this] { return allowed_to_shutdown_; });
-
     VSOMEIP_INFO << "Stopping...";
     if (!undershot_debounce_times_.empty()) {
         std::chrono::microseconds sum(0);
@@ -82,11 +75,12 @@ void npdu_test_service::stop() {
             sum += t;
         }
         double average = static_cast<double>(sum.count()) / static_cast<double>(undershot_debounce_times_.size());
-        VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_id_ << "." << std::setw(4) << instance_id_ << "]: "
-                     << " Debounce time was undershot " << std::dec << undershot_debounce_times_.size() << "/"
-                     << number_of_received_messages_ << "(" << std::setprecision(2)
-                     << (static_cast<double>(undershot_debounce_times_.size()) / static_cast<double>(number_of_received_messages_)) * 100.00
-                     << "%) on average: " << std::setprecision(4) << average << "µs";
+        EXPECT_TRUE(undershot_debounce_times_.empty())
+                << "[" << std::hex << std::setfill('0') << std::setw(4) << service_id_ << "." << std::setw(4) << instance_id_
+                << "]: " << " Debounce time was undershot " << std::dec << undershot_debounce_times_.size() << "/"
+                << number_of_received_messages_ << "(" << std::setprecision(2)
+                << (static_cast<double>(undershot_debounce_times_.size()) / static_cast<double>(number_of_received_messages_)) * 100.00
+                << "%) on average: " << std::setprecision(4) << average << "µs";
     }
     app_->unregister_message_handler(service_id_, instance_id_, method_ids_[0]);
     app_->unregister_message_handler(service_id_, instance_id_, method_ids_[1]);
@@ -94,21 +88,10 @@ void npdu_test_service::stop() {
     app_->unregister_message_handler(service_id_, instance_id_, method_ids_[3]);
     app_->unregister_message_handler(service_id_, instance_id_, npdu_test::NPDU_SERVICE_SHUTDOWNMETHOD_ID);
     app_->unregister_state_handler();
-    offer_thread_.join();
-    stop_offer();
-    app_->stop();
-}
 
-void npdu_test_service::offer() {
-    app_->offer_service(service_id_, instance_id_);
-}
-
-void npdu_test_service::stop_offer() {
     app_->stop_offer_service(service_id_, instance_id_);
-}
 
-void npdu_test_service::join_shutdown_thread() {
-    shutdown_thread_.join();
+    app_->stop();
 }
 
 void npdu_test_service::on_state(vsomeip::state_type_e _state) {
@@ -116,15 +99,7 @@ void npdu_test_service::on_state(vsomeip::state_type_e _state) {
                  << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
     if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-        if (!is_registered_) {
-            std::scoped_lock its_lock(mutex_);
-            is_registered_ = true;
-            blocked_ = true;
-            // "start" the run method thread
-            condition_.notify_one();
-        }
-    } else {
-        is_registered_ = false;
+        app_->offer_service(service_id_, instance_id_);
     }
 }
 
@@ -168,15 +143,7 @@ void npdu_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::messa
     VSOMEIP_DEBUG << "Number of received messages: " << number_of_received_messages_;
     VSOMEIP_INFO << "Shutdown method was called, going down now.";
 
-    std::scoped_lock its_lock(shutdown_mutex_);
-    allowed_to_shutdown_ = true;
-    shutdown_condition_.notify_one();
-}
-
-void npdu_test_service::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
-    condition_.wait(its_lock, [this] { return blocked_; });
-    offer();
+    stop();
 }
 
 TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
@@ -227,7 +194,6 @@ TEST(someip_npdu_test, offer_service_and_check_debounce_times) {
                                    npdu_test::method_ids[get_service_number()], debounce_times, max_retention_times);
     test_service.init();
     test_service.start();
-    test_service.join_shutdown_thread();
 }
 
 #if defined(__linux__) || defined(__QNX__)
