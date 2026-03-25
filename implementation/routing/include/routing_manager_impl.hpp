@@ -94,11 +94,6 @@ public:
 
     bool send_via_sd(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size, uint16_t _sd_port);
 
-    void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
-                        const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
-                        std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow, bool _is_cache_placeholder);
-
     void register_shadow_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                                const std::set<eventgroup_t>& _eventgroups, event_type_e _type, reliability_type_e _reliability,
                                bool _is_provided, bool _is_cyclic);

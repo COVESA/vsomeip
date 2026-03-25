@@ -157,9 +157,6 @@ protected:
 
     void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
-    bool send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
-                                 uint8_t _status_check, bool _force, std::shared_ptr<local_endpoint> _fallback = nullptr);
-
     bool send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
                     bool _reliable, protocol::id_e _command, uint8_t _status_check, client_t _sender) const;
 

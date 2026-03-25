@@ -1012,47 +1012,6 @@ void routing_manager_base::remove_eventgroup_info(service_t _service, instance_t
     }
 }
 
-bool routing_manager_base::send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
-                                                   bool _reliable, uint8_t _status_check, bool _force,
-                                                   std::shared_ptr<local_endpoint> _fallback) {
-    bool has_local(false);
-    bool has_remote(false);
-    service_t its_service = bithelper::read_uint16_be(&_data[VSOMEIP_SERVICE_POS_MIN]);
-    method_t its_method = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
-
-    std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method);
-    if (its_event && !its_event->is_shadow()) {
-        for (auto its_client : its_event->get_filtered_subscribers(_force)) {
-            // local
-            if (its_client == VSOMEIP_ROUTING_CLIENT) {
-                has_remote = true;
-                continue;
-            } else {
-                has_local = true;
-            }
-
-            std::shared_ptr<local_endpoint> its_local_target = ep_mgr_->find_local_server_endpoint(its_client);
-            if (its_local_target) {
-                send_local(its_local_target, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check,
-                           _client);
-            } else if (_fallback) {
-                send_local(_fallback, its_client, _data, _size, _instance, _reliable, protocol::id_e::SEND_ID, _status_check, _client);
-            } else {
-                VSOMEIP_WARNING_P << "No target connection. Dropping the message to client: 0x" << hex4(its_client);
-            }
-        }
-    }
-
-    // Trace the message if a local client but will _not_ be forwarded to the routing manager
-    if (has_local && !has_remote) {
-        trace::header its_header;
-        if (its_header.prepare(nullptr, true, _instance, trace::protocol_e::unknown))
-            tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
-    }
-
-    return has_remote;
-}
-
 bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size,
                                       instance_t _instance, bool _reliable, protocol::id_e _command, uint8_t _status_check,
                                       client_t _sender) const {

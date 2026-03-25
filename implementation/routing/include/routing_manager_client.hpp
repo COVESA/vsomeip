@@ -120,6 +120,9 @@ private:
     void send_subscribe_ack(client_t _subscriber, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                             remote_subscription_id_t _id);
 
+    bool send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
+                                 uint8_t _status_check, bool _force);
+
     bool is_field(service_t _service, instance_t _instance, event_t _event) const;
 
     void on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);

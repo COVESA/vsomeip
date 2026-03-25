@@ -636,7 +636,7 @@ bool routing_manager_impl::send(client_t _client, std::shared_ptr<message> _mess
 
 bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
                                 [[maybe_unused]] client_t _bound_client, [[maybe_unused]] const vsomeip_sec_client_t* _sec_client,
-                                uint8_t _status_check, [[maybe_unused]] bool _sent_from_remote, bool _force) {
+                                uint8_t _status_check, [[maybe_unused]] bool _sent_from_remote, [[maybe_unused]] bool _force) {
 
     bool is_sent(false);
     if (_size <= VSOMEIP_MESSAGE_TYPE_POS) {
@@ -719,8 +719,6 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
             std::shared_ptr<serviceinfo> its_info(find_service(its_service, _instance));
             if (its_info || is_service_discovery) {
                 if (is_notification && !is_service_discovery) {
-                    static_cast<void>(
-                            send_local_notification(VSOMEIP_ROUTING_CLIENT, _data, _size, _instance, _reliable, _status_check, _force));
                     method_t its_method_inner = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
                     std::shared_ptr<event> its_event = find_event(its_service, _instance, its_method_inner);
                     if (its_event) {
@@ -894,29 +892,6 @@ bool routing_manager_impl::send_via_sd(const std::shared_ptr<endpoint_definition
         }
     }
     return is_sent;
-}
-
-void routing_manager_impl::register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
-                                          const std::set<eventgroup_t>& _eventgroups, const event_type_e _type,
-                                          reliability_type_e _reliability, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
-                                          bool _update_on_change, epsilon_change_func_t _epsilon_change_func, bool _is_provided,
-                                          bool _is_shadow, bool _is_cache_placeholder) {
-    auto its_event = find_event(_service, _instance, _notifier);
-    bool is_first(false);
-    if (its_event) {
-        if (!its_event->has_ref(_client, _is_provided)) {
-            is_first = true;
-        }
-    } else {
-        is_first = true;
-    }
-    if (is_first) {
-        routing_manager_base::register_event(_client, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle,
-                                             _change_resets_cycle, _update_on_change, _epsilon_change_func, _is_provided, _is_shadow,
-                                             _is_cache_placeholder);
-    }
-    VSOMEIP_INFO << "REGISTER EVENT(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
-                 << ":is_provider=" << std::boolalpha << _is_provided << "]";
 }
 
 void routing_manager_impl::register_shadow_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
