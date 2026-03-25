@@ -6,6 +6,7 @@
 #pragma once
 
 #include "local_receive_buffer.hpp"
+#include "local_client_data.hpp"
 #include "timer.hpp"
 
 #ifdef ANDROID
@@ -52,6 +53,7 @@ struct local_endpoint_context {
 struct local_endpoint_params {
     client_t peer_{0};
     client_t own_{VSOMEIP_CLIENT_UNSET};
+    std::string env_;
     std::shared_ptr<local_socket> socket_;
 };
 
@@ -199,6 +201,9 @@ public:
     void print_status();
     size_t get_queue_size() const;
 
+    std::string get_env() const;
+    vsomeip_sec_client_t get_sec_client() const;
+
 private:
     /**
      * @brief Transitions to FAILED state and invokes error handler.
@@ -245,8 +250,10 @@ private:
     bool is_sending_{false};
     state_e state_{state_e::STOPPED};
     client_t own_{VSOMEIP_CLIENT_UNSET};
-    client_t const peer_;
-    vsomeip_sec_client_t sec_client_{};
+    // holds the peer id, the peer env and the sec_client.
+    // Note that only in case of the endpoint being
+    // the server does the env contain meaningful data.
+    local_client_data peer_data_;
 
     uint32_t const max_connection_attempts_{0};
     uint32_t reconnect_counter_{0};

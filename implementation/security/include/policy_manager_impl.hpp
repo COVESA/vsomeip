@@ -100,6 +100,7 @@ public:
 
     bool get_sec_client_to_clients_mapping(const vsomeip_sec_client_t* _sec_client, std::set<client_t>& _clients);
     bool remove_client_to_sec_client_mapping(client_t _client);
+    void cleanup_client_to_sec_client_mappings();
 
     bool get_client_to_sec_client_mapping(client_t _client, vsomeip_sec_client_t& _sec_client);
     bool store_client_to_sec_client_mapping(client_t _client, const vsomeip_sec_client_t* _sec_client);

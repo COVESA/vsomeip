@@ -29,10 +29,7 @@ namespace vsomeip_v3 {
 
 endpoint_manager_base::endpoint_manager_base(routing_manager_base* const _rm, boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration) :
-    rm_(_rm), io_(_io), configuration_(_configuration), local_port_(ILLEGAL_PORT) {
-
-    is_local_routing_ = configuration_->is_local_routing();
-}
+    rm_(_rm), io_(_io), configuration_(_configuration), is_local_routing_(configuration_->is_local_routing()), local_port_(ILLEGAL_PORT) { }
 
 void endpoint_manager_base::init(std::shared_ptr<routing_host> const& _local_message_handler) {
     std::scoped_lock its_lock(mtx_);
@@ -51,16 +48,14 @@ void endpoint_manager_base::remove_local(const client_t _client, bool _remove_du
     remove_local_server_endpoint_unlocked(_client, _remove_due_to_error);
 }
 
-void endpoint_manager_base::clear_local_endpoints() {
+void endpoint_manager_base::clear_local_endpoints(bool _remove_due_to_error) {
     std::scoped_lock lock{mtx_};
     VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id());
     for (auto const& [id, ep] : local_client_endpoints_) {
-        ep->register_error_handler(nullptr);
-        ep->stop(false);
+        ep->stop(_remove_due_to_error);
     }
     for (auto const& [id, ep] : local_server_endpoints_) {
-        ep->register_error_handler(nullptr);
-        ep->stop(false);
+        ep->stop(_remove_due_to_error);
     }
     for (auto const& [id, ep] : pending_server_endpoints_) {
         ep->stop(true); // never "started", but the socket needs to be stopped anyhow
@@ -68,6 +63,20 @@ void endpoint_manager_base::clear_local_endpoints() {
     local_client_endpoints_.clear();
     local_server_endpoints_.clear();
     pending_server_endpoints_.clear();
+}
+
+void endpoint_manager_base::stop_all_endpoints() {
+    std::scoped_lock lock{mtx_};
+    VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id());
+    for (auto const& [id, ep] : local_client_endpoints_) {
+        ep->stop(true);
+    }
+    for (auto const& [id, ep] : local_server_endpoints_) {
+        ep->stop(true);
+    }
+    for (auto const& [id, ep] : pending_server_endpoints_) {
+        ep->stop(true);
+    }
 }
 
 std::shared_ptr<local_endpoint> endpoint_manager_base::find_or_create_local_client(client_t _client) {
@@ -262,7 +271,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
     if (is_local_routing_) {
         its_endpoint = local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, local_message_handler_},
-                local_endpoint_params{_client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(),
+                local_endpoint_params{_client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(), "",
                                       std::make_shared<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(""),
                                                                               boost::asio::local::stream_protocol::endpoint(its_path.str()),
                                                                               socket_role_e::CLIENT)});
@@ -276,6 +285,13 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
         port_t its_remote_port;
 
         bool is_guest = rm_->get_guest(_client, its_remote_address, its_remote_port);
+        if (!is_guest && _client == VSOMEIP_ROUTING_CLIENT) {
+            its_remote_address = configuration_->get_routing_host_address();
+            its_remote_port = configuration_->get_routing_host_port();
+            if (!its_remote_address.is_unspecified() && !its_remote_address.is_multicast()) {
+                is_guest = true;
+            }
+        }
         if (is_guest) {
             try {
                 its_local_address = configuration_->get_routing_guest_address();
@@ -283,8 +299,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
                 its_endpoint = local_endpoint::create_client_ep(
                         local_endpoint_context{io_, configuration_, local_message_handler_},
                         local_endpoint_params{
-                                _client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(),
-
+                                _client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(), "",
                                 std::make_shared<local_socket_tcp_impl>(io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
                                                                         boost::asio::ip::tcp::endpoint(its_remote_address, its_remote_port),
                                                                         socket_role_e::CLIENT)});

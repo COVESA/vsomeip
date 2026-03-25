@@ -190,11 +190,11 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
         }
         if (auto rh = routing_host_.lock(); rh) {
             auto const peer_endpoint = _socket->peer_endpoint();
-            // Carful: Order matters. First call add_known_client (lazy load of config for this client), before trying to create
+            // Carful: Order matters. First call lazy_load (lazy load of config for this client), before trying to create
             // the endpoint (as the creation method is trying to reason whether the connection is allowed based on the loaded config).
             // Carful: These calls should happen under the lock to guarantee consistency, and before the endpoint might be removed
             // again from the map
-            rh->add_known_client(_client, _environment);
+            rh->lazy_load(_environment);
 
             std::stringstream ss;
 
@@ -212,16 +212,14 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                 }
             }
 
-            auto ep = local_endpoint::create_server_ep(local_endpoint_context{io_, configuration_, routing_host_},
-                                                       local_endpoint_params{_client, rh->get_client(), std::move(_socket)},
-                                                       std::move(_buffer));
+            auto ep = local_endpoint::create_server_ep(
+                    local_endpoint_context{io_, configuration_, routing_host_},
+                    local_endpoint_params{_client, rh->get_client(), std::move(_environment), std::move(_socket)}, std::move(_buffer));
             if (!ep) {
                 VSOMEIP_ERROR_P << "endpoint creation failed for client: " << hex4(_client) << ", self: " << this;
                 // socket is closed already in the create_server_ep on failure
                 // clean-up id
                 utility::release_client_id(configuration_->get_network(), _client);
-                // clean-up environment
-                rh->remove_known_client(_client);
                 return;
             }
 
@@ -229,11 +227,9 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                 VSOMEIP_WARNING_P << "connection from client " << hex4(_client) << ", " << ep->name() << ", " << ep->name()
                                   << " rejected, dropping, self : " << this;
                 utility::release_client_id(configuration_->get_network(), _client);
-                rh->remove_known_client(_client);
                 ep->stop(true);
                 return;
             }
-
             protocol::config_command config_command;
             config_command.set_client(own_client_id_);
             config_command.insert("hostname", std::string(server_host_));
@@ -243,6 +239,7 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             ep->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
 
             if (is_router_) {
+
                 protocol::assign_client_ack_command assign_ack_command;
                 assign_ack_command.set_client(VSOMEIP_ROUTING_CLIENT);
                 assign_ack_command.set_assigned(_client);

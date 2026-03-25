@@ -65,8 +65,8 @@ std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_
 
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
                                std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state) :
-    state_(_initial_state), own_(_params.own_), peer_(_params.peer_), max_connection_attempts_(MAX_RECONNECTS_LOCAL),
-    max_message_size_(_context.configuration_->get_max_message_size_local()),
+    state_(_initial_state), own_(_params.own_), peer_data_({_params.peer_, std::move(_params.env_), {}}),
+    max_connection_attempts_(MAX_RECONNECTS_LOCAL), max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
     socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_) { }
 
@@ -304,7 +304,7 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
     }
     if (!_ec) {
         set_state_unlocked(state_e::CONNECTED);
-        if (peer_ == VSOMEIP_ROUTING_CLIENT) {
+        if (peer_data_.id_ == VSOMEIP_ROUTING_CLIENT) {
             if (!assignment_timebox_) {
                 assignment_timebox_ = timer::create(io_, std::chrono::seconds(3), [weak_self = weak_from_this()] {
                     if (auto self = weak_self.lock(); self) {
@@ -356,7 +356,7 @@ std::string local_endpoint::status() const {
 }
 std::string local_endpoint::status_unlock() const {
     std::stringstream s;
-    s << "Client: " << hex4(peer_) << ", connection : " << socket_->to_string() << ", send_queue: " << send_queue_.size()
+    s << "Client: " << hex4(peer_data_.id_) << ", connection : " << socket_->to_string() << ", send_queue: " << send_queue_.size()
       << ", receive_buffer: " << *receive_buffer_ << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
     return s.str();
 }
@@ -406,13 +406,13 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
                 }
             }
             _lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
-            routing->on_message(result.message_data_, result.message_size_, peer_, &sec_client_);
+            routing->on_message(result.message_data_, result.message_size_, peer_data_);
             _lock.lock(); // because next_message changes internal state -> lock
         }
     } else {
         while (receive_buffer_->next_message(result)) {
             _lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
-            routing->on_message(result.message_data_, result.message_size_, peer_, &sec_client_);
+            routing->on_message(result.message_data_, result.message_size_, peer_data_);
             _lock.lock(); // because next_message changes internal state -> lock
         }
     }
@@ -456,26 +456,27 @@ bool local_endpoint::is_allowed() {
     if (!config) {
         return end();
     }
-    if (!socket_->update(sec_client_, *config)) {
+    if (!socket_->update(peer_data_.sec_client_, *config)) {
         VSOMEIP_WARNING_P << "Escalating after a failed sec_client update, socket > " << status_unlock();
         return end();
     }
     if (config->is_security_enabled()) {
-        if (!config->check_routing_credentials(peer_, &sec_client_)) {
-            VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << hex4(peer_)
-                              << " uid/gid= " << sec_client_.user << "/" << sec_client_.group
+        if (!config->check_routing_credentials(peer_data_.id_, &peer_data_.sec_client_)) {
+            VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x" << hex4(peer_data_.id_)
+                              << " uid/gid= " << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
                               << " because passed credentials do not match with routing manager credentials! " << status_unlock();
             return end();
         }
 
-        if (!config->get_policy_manager()->check_credentials(peer_, &sec_client_)) {
-            VSOMEIP_WARNING_P << "vSomeIP Security: Client 0x" << hex4(own_) << " received client credentials from client 0x" << hex4(peer_)
-                              << " which violates the security policy : uid/gid=" << sec_client_.user << "/" << sec_client_.group;
+        if (!config->get_policy_manager()->check_credentials(peer_data_.id_, &peer_data_.sec_client_)) {
+            VSOMEIP_WARNING_P << "vSomeIP Security: Client 0x" << hex4(own_) << " received client credentials from client 0x"
+                              << hex4(peer_data_.id_) << " which violates the security policy : uid/gid=" << peer_data_.sec_client_.user
+                              << "/" << peer_data_.sec_client_.group;
             return end();
         }
     } else {
-        config->get_policy_manager()->store_client_to_sec_client_mapping(peer_, &sec_client_);
-        config->get_policy_manager()->store_sec_client_to_client_mapping(&sec_client_, peer_);
+        config->get_policy_manager()->store_client_to_sec_client_mapping(peer_data_.id_, &peer_data_.sec_client_);
+        config->get_policy_manager()->store_sec_client_to_client_mapping(&peer_data_.sec_client_, peer_data_.id_);
     }
     return true;
 }
@@ -537,6 +538,14 @@ size_t local_endpoint::get_queue_size() const {
     return send_queue_.size();
 }
 
+std::string local_endpoint::get_env() const {
+    return peer_data_.env_;
+}
+
+vsomeip_sec_client_t local_endpoint::get_sec_client() const {
+    return peer_data_.sec_client_;
+}
+
 std::uint16_t local_endpoint::get_local_port() const {
     return socket_->own_port();
 }
@@ -545,7 +554,7 @@ boost::asio::ip::tcp::endpoint local_endpoint::peer_endpoint() const {
 }
 
 client_t local_endpoint::connected_client() const {
-    return peer_;
+    return peer_data_.id_;
 }
 
 std::string const& local_endpoint::name() const {

@@ -698,7 +698,8 @@ TEST_F(guest_offering, guests_provide_and_consume_interface) {
     client->subscribe(interfaces::boardnet::service_3344);
 
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
-    EXPECT_TRUE(client->subscription_record_.wait_for_last(
+    // wait_for_any, because we also subscribe for the event and this might come in last
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(
             event_subscription::successfully_subscribed_to(interfaces::boardnet::service_3344.fields_[0])));
 }
 }

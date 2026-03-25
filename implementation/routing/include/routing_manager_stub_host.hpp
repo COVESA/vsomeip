@@ -47,8 +47,7 @@ public:
     virtual void on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _remove,
                                    remote_subscription_id_t _subscription_id) = 0;
 
-    virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                             eventgroup_t _eventgroup, event_t _event) = 0;
+    virtual void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) = 0;
 
     virtual void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                     remote_subscription_id_t _unsubscription_id) = 0;
@@ -72,9 +71,7 @@ public:
     /// @brief Remove local client
     ///
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
-    ///
-    /// @param _remove_due_to_error whether we are removing due to an error - do not bother with graceful endpoint closure
-    virtual void remove_local(client_t _client, bool _remove_due_to_error) = 0;
+    virtual void remove_local(client_t _client) = 0;
 
     virtual boost::asio::io_context& get_io() = 0;
     virtual client_t get_client() const = 0;
@@ -94,11 +91,6 @@ public:
 
     virtual bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                                    instance_t _instance, eventgroup_t _eventgroup) = 0;
-
-    virtual void add_known_client(client_t _client, const std::string& _client_host) = 0;
-    virtual void remove_known_client(client_t _client) = 0;
-
-    virtual std::string get_env(client_t _client) const = 0;
 
     virtual void set_client_host(const std::string& _client_host) = 0;
     virtual std::string get_client_host() const = 0;

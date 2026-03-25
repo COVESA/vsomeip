@@ -105,21 +105,6 @@ void routing_manager_impl::set_client_host(const std::string& _client_host) {
     routing_manager_base::set_client_host(_client_host);
 }
 
-std::string routing_manager_impl::get_env(client_t _client) const {
-
-    std::scoped_lock its_known_clients_lock{known_clients_mutex_};
-    return get_env_unlocked(_client);
-}
-
-std::string routing_manager_impl::get_env_unlocked(client_t _client) const {
-
-    auto find_client = known_clients_.find(_client);
-    if (find_client != known_clients_.end()) {
-        return find_client->second;
-    }
-    return "";
-}
-
 std::set<client_t> routing_manager_impl::find_local_clients(service_t _service, instance_t _instance) {
     return routing_manager_base::find_local_clients(_service, _instance);
 }
@@ -140,11 +125,8 @@ void routing_manager_impl::on_register_application(client_t _client, const boost
     }
 }
 
-void routing_manager_impl::add_known_client(client_t _client, const std::string& _client_host) {
-    routing_manager_base::add_known_client(_client, _client_host);
-}
-void routing_manager_impl::remove_known_client(client_t _client) {
-    routing_manager_base::remove_known_client(_client);
+void routing_manager_impl::lazy_load([[maybe_unused]] const std::string& _client_host) {
+    VSOMEIP_ERROR_P << "Not supposed to be called";
 }
 
 bool routing_manager_impl::is_routing_manager() const {
@@ -587,8 +569,8 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
     }
 }
 
-void routing_manager_impl::unsubscribe(client_t _client, [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, service_t _service,
-                                       instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
+void routing_manager_impl::unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                       event_t _event) {
 
     VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "."
                  << hex4(_event) << "]";
@@ -1085,7 +1067,7 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
     return ret;
 }
 
-void routing_manager_impl::on_message(const byte_t*, length_t, client_t, const vsomeip_sec_client_t*) {
+void routing_manager_impl::on_message(const byte_t*, length_t, const local_client_data&) {
     VSOMEIP_ERROR_P << "Not supposed to be called";
 }
 
@@ -1617,13 +1599,10 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
     }
 }
 
-void routing_manager_impl::remove_local(client_t _client, bool _remove_due_to_error) {
+void routing_manager_impl::remove_local(client_t _client) {
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> its_clients_subscriptions;
     its_clients_subscriptions = get_subscriptions(_client);
-
-    vsomeip_sec_client_t its_sec_client;
-    configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
 
     for (const auto& s : its_clients_subscriptions) {
         auto [service, instance, eventgroup] = s;
@@ -1631,16 +1610,55 @@ void routing_manager_impl::remove_local(client_t _client, bool _remove_due_to_er
             std::scoped_lock its_lock{remote_subscription_state_mutex_};
             remote_subscription_state_.erase(std::tuple_cat(s, std::make_tuple(_client)));
         }
-        unsubscribe(_client, &its_sec_client, service, instance, eventgroup, ANY_EVENT);
+        unsubscribe(_client, service, instance, eventgroup, ANY_EVENT);
     }
-    routing_manager_base::remove_local(_client, _remove_due_to_error, its_clients_subscriptions, nullptr);
+    {
+        std::scoped_lock its_lock(local_services_mutex_);
+        // Finally remove all services that are implemented by the client.
+        std::set<std::pair<service_t, instance_t>> its_services;
+        for (const auto& s : local_services_) {
+            for (const auto& i : s.second) {
+                if (std::get<2>(i.second) == _client) {
+                    service_t its_service = s.first;
+                    instance_t its_instance = i.first;
+                    auto [its_major, its_minor, unused] = i.second;
+                    its_services.insert({its_service, its_instance});
+                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance)
+                                 << ":" << static_cast<int>(its_major) << "." << static_cast<int>(its_minor) << "]";
+                }
+            }
+        }
+
+        for (auto& si : its_services) {
+            local_services_[si.first].erase(si.second);
+            if (local_services_[si.first].size() == 0)
+                local_services_.erase(si.first);
+        }
+
+        // remove disconnected client from offer service history
+        std::set<std::tuple<service_t, instance_t, client_t>> its_clients;
+        for (const auto& s : local_services_history_) {
+            for (const auto& i : s.second) {
+                for (const auto& c : i.second) {
+                    if (c == _client) {
+                        its_clients.insert(std::make_tuple(s.first, i.first, c));
+                    }
+                }
+            }
+        }
+
+        for (auto& sic : its_clients) {
+            local_services_history_[std::get<0>(sic)][std::get<1>(sic)].erase(std::get<2>(sic));
+            if (local_services_history_[std::get<0>(sic)][std::get<1>(sic)].size() == 0) {
+                local_services_history_.erase(std::get<0>(sic));
+            }
+        }
+    }
 
     for (const auto& s : get_requested_services(_client)) {
         release_service(_client, s.service_, s.instance_);
     }
-    // at this point we unfortunately can not differentiate between a routing client and a client of ours
-    // of some service -> also remove the routing connection
-    ep_mgr_impl_->remove_routing_endpoint(_client, _remove_due_to_error);
+    ep_mgr_impl_->remove_routing_endpoint(_client);
 }
 
 bool routing_manager_impl::is_field(service_t _service, instance_t _instance, event_t _event) const {

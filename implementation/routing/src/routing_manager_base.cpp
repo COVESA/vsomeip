@@ -625,28 +625,6 @@ bool routing_manager_base::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
     return is_allowed;
 }
 
-void routing_manager_base::add_known_client(client_t _client, const std::string& _client_host) {
-
-#if !defined(VSOMEIP_DISABLE_SECURITY) && (defined(__linux__))
-    std::scoped_lock lazy_lock(add_known_client_mutex_);
-    if (configuration_->is_security_enabled() && !configuration_->is_security_external()) {
-        configuration_->lazy_load_security(_client_host);
-        configuration_->lazy_load_security(get_client_host()); // necessary for lazy loading from inside android container
-    }
-#endif
-    std::scoped_lock its_lock(known_clients_mutex_);
-    if (known_clients_.find(_client) == known_clients_.end()) {
-        known_clients_[_client] = _client_host;
-    } else if (!_client_host.empty()) {
-        known_clients_[_client] = _client_host;
-    }
-}
-
-void routing_manager_base::remove_known_client(client_t _client) {
-    std::scoped_lock its_lock(known_clients_mutex_);
-    known_clients_.erase(_client);
-}
-
 void routing_manager_base::on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
     // Default implementation does nothing
     // This is overridden by routing_manager_impl to delegate to the stub
@@ -659,10 +637,8 @@ std::string const& routing_manager_base::get_name() const {
     return host_->get_name();
 }
 
-void routing_manager_base::unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                                       eventgroup_t _eventgroup, event_t _event) {
-
-    (void)_sec_client;
+void routing_manager_base::unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                       event_t _event) {
 
     if (_event != ANY_EVENT) {
         auto its_event = find_event(_service, _instance, _event);
@@ -953,84 +929,6 @@ client_t routing_manager_base::find_local_client_unlocked(service_t _service, in
         }
     }
     return its_client;
-}
-
-void routing_manager_base::remove_local(client_t _client, bool _remove_due_to_error) {
-    remove_local(_client, _remove_due_to_error, get_subscriptions(_client), nullptr);
-}
-
-void routing_manager_base::remove_local(client_t _client, bool _remove_due_to_error,
-                                        const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                                        std::set<protocol::service>* _requested_services) {
-
-    vsomeip_sec_client_t its_sec_client;
-    configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
-    // routing only removes mapping when incoming connection breaks, see `ls::remove_connection`
-    if (!is_routing_manager()) {
-        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
-    }
-
-    for (auto its_subscription : _subscribed_eventgroups) {
-        auto [its_service, its_instance, its_eventgroup] = its_subscription;
-        host_->on_subscription(its_service, its_instance, its_eventgroup, _client, &its_sec_client, get_env(_client), false,
-                               [](const bool _subscription_accepted) { (void)_subscription_accepted; });
-        routing_manager_base::unsubscribe(_client, &its_sec_client, its_service, its_instance, its_eventgroup, ANY_EVENT);
-        VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                     << hex4(its_eventgroup) << "." << hex4(ANY_EVENT) << "]";
-    }
-    ep_mgr_->remove_local(_client, _remove_due_to_error);
-    remove_known_client(_client);
-    if (!is_routing_manager()) {
-        remove_guest(_client);
-    }
-    {
-        std::scoped_lock its_lock(local_services_mutex_);
-        // Finally remove all services that are implemented by the client.
-        std::set<std::pair<service_t, instance_t>> its_services;
-        for (const auto& s : local_services_) {
-            for (const auto& i : s.second) {
-                if (std::get<2>(i.second) == _client) {
-                    service_t its_service = s.first;
-                    instance_t its_instance = i.first;
-                    auto [its_major, its_minor, unused] = i.second;
-                    its_services.insert({its_service, its_instance});
-                    // NOTE: requested by us, offered by client
-                    if (_requested_services) {
-                        _requested_services->emplace(its_service, its_instance, its_major, its_minor);
-                    }
-
-                    host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
-                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance)
-                                 << ":" << static_cast<int>(its_major) << "." << static_cast<int>(its_minor) << "]";
-                }
-            }
-        }
-
-        for (auto& si : its_services) {
-            local_services_[si.first].erase(si.second);
-            if (local_services_[si.first].size() == 0)
-                local_services_.erase(si.first);
-        }
-
-        // remove disconnected client from offer service history
-        std::set<std::tuple<service_t, instance_t, client_t>> its_clients;
-        for (const auto& s : local_services_history_) {
-            for (const auto& i : s.second) {
-                for (const auto& c : i.second) {
-                    if (c == _client) {
-                        its_clients.insert(std::make_tuple(s.first, i.first, c));
-                    }
-                }
-            }
-        }
-
-        for (auto& sic : its_clients) {
-            local_services_history_[std::get<0>(sic)][std::get<1>(sic)].erase(std::get<2>(sic));
-            if (local_services_history_[std::get<0>(sic)][std::get<1>(sic)].size() == 0) {
-                local_services_history_.erase(std::get<0>(sic));
-            }
-        }
-    }
 }
 
 std::shared_ptr<event> routing_manager_base::find_event(service_t _service, instance_t _instance, event_t _event) const {

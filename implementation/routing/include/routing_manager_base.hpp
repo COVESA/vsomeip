@@ -59,8 +59,6 @@ public:
     virtual vsomeip_sec_client_t get_sec_client() const;
     virtual void set_sec_client_port(port_t _port);
 
-    virtual std::string get_env(client_t _client) const = 0;
-
     virtual bool is_routing_manager() const;
 
     virtual void init() = 0;
@@ -90,8 +88,7 @@ public:
                            eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                            const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
 
-    virtual void unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                             eventgroup_t _eventgroup, event_t _event);
+    virtual void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force);
 
@@ -154,19 +151,6 @@ protected:
     services_t get_services_remote() const;
     virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
-    void remove_local(client_t _client, bool _remove_due_to_error);
-    /// @brief Remove local client
-    ///
-    /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
-    ///
-    /// @param _client what client
-    /// @param _remove_due_to_error whether we are removing due to an error - do not bother with graceful endpoint closure
-    /// @param _subscribed_eventgroups what eventgroups to unsubscribe to
-    /// @param _requested_services what services were requested by us and offered by client; will be filled if not nullptr
-    void remove_local(client_t _client, bool _remove_due_to_error,
-                      const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                      std::set<protocol::service>* _requested_services);
-
     std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
 
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
@@ -218,9 +202,6 @@ protected:
     bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                            instance_t _instance, eventgroup_t _eventgroup);
-
-    void add_known_client(client_t _client, const std::string& _client_host);
-    void remove_known_client(client_t _client);
 
     // event_dispatcher iface
     session_t get_event_session() override;
@@ -288,9 +269,6 @@ protected:
 
     std::shared_ptr<endpoint_manager_base> ep_mgr_;
 
-    mutable std::mutex known_clients_mutex_;
-    std::map<client_t, std::string> known_clients_;
-
     mutable std::mutex guests_mutex_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> guests_;
 
@@ -305,8 +283,6 @@ protected:
 private:
     services_t services_;
     mutable std::mutex services_mutex_;
-
-    std::mutex add_known_client_mutex_;
 };
 
 } // namespace vsomeip_v3

@@ -1263,6 +1263,17 @@ bool policy_manager_impl::remove_client_to_sec_client_mapping(client_t _client) 
     return (is_client_removed && is_sec_client_removed);
 }
 
+void policy_manager_impl::cleanup_client_to_sec_client_mappings() {
+    {
+        std::scoped_lock its_lock(ids_mutex_);
+        ids_.clear();
+    }
+    {
+        std::scoped_lock its_lock(sec_client_to_clients_mutex_);
+        sec_client_to_clients_.clear();
+    }
+}
+
 void policy_manager_impl::store_sec_client_to_client_mapping(const vsomeip_sec_client_t* _sec_client, client_t _client) {
 
     if (_sec_client && _sec_client->port == VSOMEIP_SEC_PORT_UNUSED) {

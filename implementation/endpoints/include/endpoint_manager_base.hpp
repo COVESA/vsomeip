@@ -43,7 +43,8 @@ public:
     std::shared_ptr<local_endpoint> find_local_server_endpoint(client_t _client) const;
 
     void remove_local(client_t _client, bool _remove_due_to_error);
-    void clear_local_endpoints();
+    void clear_local_endpoints(bool _remove_due_to_error = false);
+    void stop_all_endpoints();
 
     void flush_local_endpoint_queues() const;
 
@@ -71,7 +72,7 @@ protected:
     boost::asio::io_context& io_;
     std::shared_ptr<configuration> configuration_;
 
-    bool is_local_routing_;
+    bool const is_local_routing_;
     port_t local_port_; // local (client) port when connecting to other
                         // vsomeip application via TCP
 

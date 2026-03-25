@@ -650,13 +650,13 @@ void application_impl::subscribe(service_t _service, instance_t _instance, event
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
     remove_subscription(_service, _instance, _eventgroup, ANY_EVENT);
     if (routing_)
-        routing_->unsubscribe(client_, &sec_client_, _service, _instance, _eventgroup, ANY_EVENT);
+        routing_->unsubscribe(client_, _service, _instance, _eventgroup, ANY_EVENT);
 }
 
 void application_impl::unsubscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
     remove_subscription(_service, _instance, _eventgroup, _event);
     if (routing_)
-        routing_->unsubscribe(client_, &sec_client_, _service, _instance, _eventgroup, _event);
+        routing_->unsubscribe(client_, _service, _instance, _eventgroup, _event);
 }
 
 bool application_impl::is_available(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) const {

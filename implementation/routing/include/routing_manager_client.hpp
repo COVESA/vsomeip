@@ -44,8 +44,6 @@ public:
     void stop();
 
     std::shared_ptr<configuration> get_configuration() const;
-    std::string get_env(client_t _client) const;
-    std::string get_env_unlocked(client_t _client) const;
 
     void start_keepalive();
     void check_keepalive();
@@ -65,8 +63,7 @@ public:
                    eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                    const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
-    void unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                     eventgroup_t _eventgroup, event_t _event);
+    void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     using routing_manager_base::send;
     bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
@@ -84,7 +81,7 @@ public:
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
 
-    void on_message(const byte_t* _data, length_t _length, client_t _bound_client, const vsomeip_sec_client_t* _sec_client) override;
+    void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
 
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
@@ -100,7 +97,7 @@ private:
 
     void register_application(client_t _client);
 
-    void reconnect(const std::map<client_t, std::string>& _clients);
+    void reconnect();
 
     void send_pong() const;
 
@@ -142,8 +139,6 @@ private:
     uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _increment);
     void clear_remote_subscriber_count(service_t _service, instance_t _instance);
 
-    bool is_client_known(client_t _client);
-
     bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _notifier,
                                                 const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
 
@@ -181,6 +176,21 @@ private:
 
     void restart_sender(std::unique_lock<std::recursive_mutex> const& _sender_mutex);
     void debounce_restart_sender_done();
+
+    void lazy_load(const std::string& _client_host) override;
+
+    /// @brief Remove local client
+    ///
+    /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
+    ///
+    /// @param _client what client
+    /// @param _subscribed_eventgroups what eventgroups to unsubscribe to
+    /// @param _requested_services what services were requested by us and offered by client; will be filled if not nullptr
+    void remove_local(client_t _client, const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
+                      std::set<protocol::service>* _requested_services);
+
+    void cleanup_routing_data();
+    void cleanup_subscriber();
 
 private:
     boost::asio::steady_timer keepalive_timer_;
@@ -237,6 +247,7 @@ private:
     std::shared_ptr<routing_client_state_machine> state_machine_;
 
     std::mutex stop_mutex_;
+    std::mutex lazy_load_mtx_;
 
     std::shared_ptr<timer> sender_debounce_;
 };

@@ -81,8 +81,7 @@ public:
                    eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                    const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
-    void unsubscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                     eventgroup_t _eventgroup, event_t _event);
+    void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
 
@@ -123,7 +122,7 @@ public:
 
     std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
-    void remove_local(client_t _client, bool _remove_due_to_error);
+    void remove_local(client_t _client);
     void on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                         minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -139,7 +138,7 @@ public:
                             remote_subscription_id_t _id);
 
     // as routing_host (no-op!)
-    void on_message(const byte_t* _data, length_t _length, client_t _bound_client, const vsomeip_sec_client_t* _sec_client) override;
+    void on_message(const byte_t* _data, length_t _length, const local_client_data&) override;
     // as boardnet_routing_host
     void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, const boost::asio::ip::address& _remote_address,
                     port_t _remote_port, bool _is_multicast) override;
@@ -228,8 +227,7 @@ public:
     bool remove_security_policy_configuration(uid_t _uid, gid_t _gid, const security_update_handler_t& _handler);
 #endif
 
-    void add_known_client(client_t _client, const std::string& _client_host);
-    void remove_known_client(client_t _client);
+    void lazy_load(const std::string& _client_host);
 
     void register_message_acceptance_handler(const message_acceptance_handler_t& _handler);
 
@@ -334,9 +332,6 @@ private:
     bool insert_offer_command(service_t _service, instance_t _instance, uint8_t _command, client_t _client, major_version_t _major,
                               minor_version_t _minor);
     void erase_offer_command(service_t _service, instance_t _instance);
-
-    std::string get_env(client_t _client) const;
-    std::string get_env_unlocked(client_t _client) const;
 
     bool insert_event_statistics(service_t _service, instance_t _instance, method_t _method, length_t _length);
     void statistics_log_timer_cbk(boost::system::error_code const& _error);

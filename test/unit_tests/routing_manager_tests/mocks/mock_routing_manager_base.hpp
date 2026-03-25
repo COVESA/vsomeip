@@ -38,7 +38,6 @@ public:
 
     using vsomeip_v3::routing_manager_base::insert_subscription;
 
-    MOCK_METHOD(std::string, get_env, (client_t _client), (const, override));
     MOCK_METHOD(void, init, (), (override));
 
     MOCK_METHOD(void, subscribe,
@@ -51,7 +50,8 @@ public:
                  const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force),
                 (override));
 
-    MOCK_METHOD(void, on_message, (const byte_t*, length_t, client_t, const vsomeip_sec_client_t*), (override));
+    MOCK_METHOD(void, on_message, (const byte_t*, length_t, const local_client_data&), (override));
+    MOCK_METHOD(void, lazy_load, (const std::string&), (override));
 
     MOCK_METHOD(void, register_client_error_handler, (client_t _client, const std::shared_ptr<local_endpoint>& _endpoint), (override));
 

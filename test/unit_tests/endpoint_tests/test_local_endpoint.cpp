@@ -79,7 +79,7 @@ struct test_uds_local_endpoint : base_endpoint_fixture {
     auto create_client_ep() {
         return local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, client_routing_host_},
-                local_endpoint_params{server_, client_,
+                local_endpoint_params{server_, client_, "",
                                       std::make_unique<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint{},
                                                                               server_endpoint_, socket_role_e::CLIENT)});
     }
@@ -133,7 +133,7 @@ TEST_F(test_uds_local_endpoint, config_command_leads_to_information_forwarding_t
     io_.poll();
 
     EXPECT_CALL(*server_routing_host_, on_message).Times(0); // the config command shall not be forwarded
-    EXPECT_CALL(*server_routing_host_, add_known_client(client_, ::testing::_));
+    EXPECT_CALL(*server_routing_host_, lazy_load(::testing::_));
     auto config_msg = create_client_config_command();
     client->send(&config_msg[0], static_cast<uint32_t>(config_msg.size()));
     io_.poll();

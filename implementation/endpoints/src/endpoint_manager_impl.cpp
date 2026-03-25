@@ -1395,12 +1395,11 @@ std::shared_ptr<local_endpoint> endpoint_manager_impl::find_routing_endpoint(cli
     return nullptr;
 }
 
-void endpoint_manager_impl::remove_routing_endpoint(client_t _client, bool _remove_due_to_error) {
-    VSOMEIP_INFO_P << "client 0x" << hex4(_client) << ", error " << _remove_due_to_error;
+void endpoint_manager_impl::remove_routing_endpoint(client_t _client) {
+    VSOMEIP_INFO_P << "client 0x" << hex4(_client);
     std::scoped_lock const lock{routing_endpoint_mtx_};
     if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
-        it->second->register_error_handler(nullptr);
-        it->second->stop(_remove_due_to_error);
+        it->second->stop(true);
         VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
                        << it->second->name();
         if (auto const peer = it->second->peer_endpoint(); peer != boost::asio::ip::tcp::endpoint{}) {

@@ -51,8 +51,7 @@ public:
     connection_control_response_e change_connection_control(connection_control_request_e _control,
                                                             const boost::asio::ip::address& _guest_address);
 
-    virtual void on_message(const byte_t* _data, length_t _length, client_t _bound_client,
-                            const vsomeip_sec_client_t* _sec_client) override;
+    virtual void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
 
     void on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -106,14 +105,7 @@ public:
     void remove_requester_policies(uid_t _uid, gid_t _gid);
 #endif // !VSOMEIP_DISABLE_SECURITY
 
-    void add_known_client(client_t _client, const std::string& _client_host) override;
-    void remove_known_client(client_t _client) override;
-    client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const override;
-    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
-
-    void remove_local(client_t _client, bool _remove_due_to_error) override;
-
-    std::string get_env(client_t _client) const override;
+    void lazy_load(const std::string& _client_host) override;
 
     void send_suspend() const;
 
@@ -146,11 +138,10 @@ private:
     void on_ping_timer_expired(boost::system::error_code const& _error);
     void remove_from_pinged_clients(client_t _client);
 
-    void remove_client_connections(client_t _client, bool _remove_due_to_error);
+    void remove_client_connections(client_t _client);
 
     void send_client_routing_info(const client_t _target, protocol::routing_info_entry& _entry);
     void send_client_routing_info(const client_t _target, std::vector<protocol::routing_info_entry>&& _entries);
-    void send_client_config_command(const client_t _client, const client_t _target);
 
     void send_client_credentials(client_t _target, std::set<std::pair<uid_t, gid_t>>& _credentials);
 
@@ -185,6 +176,8 @@ private:
     boost::asio::steady_timer watchdog_timer_;
 
     std::shared_ptr<local_server> root_; // Routing manager endpoint
+
+    std::mutex lazy_load_mtx_;
 
     std::map<client_t, std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>>>
             routing_info_;
