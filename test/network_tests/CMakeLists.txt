@@ -192,7 +192,7 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(subscribe_notify_tests)
     add_subdirectory(suspend_resume_tests)
     add_subdirectory(start_stop_start_tests)
-    # add_subdirectory(shutdown_tests)
+    add_subdirectory(shutdown_tests)
     add_subdirectory(tcp_user_timeout_tests)
 endif()
 
