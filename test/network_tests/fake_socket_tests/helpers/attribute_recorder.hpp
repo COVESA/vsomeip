@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_ATTRIBUTE_RECORDER_HPP_
-#define VSOMEIP_V3_TESTING_ATTRIBUTE_RECORDER_HPP_
+#pragma once
 
 #include <algorithm>
 #include <chrono>
@@ -71,9 +70,17 @@ public:
     std::string to_string() const {
         auto lock = std::unique_lock(mtx_);
         std::stringstream s;
+        s << "[";
+        bool first = true;
         for (auto const& val : record_) {
+            if (first) {
+                first = false;
+            } else {
+                s << ", ";
+            }
             s << val;
         }
+        s << "]";
 
         return s.str();
     }
@@ -90,4 +97,3 @@ std::ostream& operator<<(std::ostream& _out, attribute_recorder<Value> const& _m
     return _out;
 }
 }
-#endif

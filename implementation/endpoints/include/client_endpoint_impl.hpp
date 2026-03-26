@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_CLIENT_ENDPOINT_IMPL_HPP_
-#define VSOMEIP_V3_CLIENT_ENDPOINT_IMPL_HPP_
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -55,7 +54,6 @@ public:
     bool send_error(const std::shared_ptr<endpoint_definition> _target, const byte_t* _data, uint32_t _size);
     bool flush();
 
-    void prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service);
     virtual void stop(bool _due_to_error);
     virtual void restart(bool _force = false) = 0;
 
@@ -159,5 +157,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_CLIENT_ENDPOINT_IMPL_HPP_

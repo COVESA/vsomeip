@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_SERVER_ENDPOINT_IMPL_HPP_
-#define VSOMEIP_V3_SERVER_ENDPOINT_IMPL_HPP_
+#pragma once
 
 #include <deque>
 #include <map>
@@ -76,7 +75,6 @@ public:
     bool send(const uint8_t* _data, uint32_t _size);
     bool send(const std::vector<byte_t>& _cmd_header, const byte_t* _data, uint32_t _size);
 
-    void prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& _handler, service_t _service);
     bool flush(endpoint_type _it);
 
     size_t get_queue_size() const;
@@ -88,7 +86,6 @@ public:
     void connect_cbk(boost::system::error_code const& _error);
     void send_cbk(const endpoint_type _key, boost::system::error_code const& _error, std::size_t _bytes);
     void flush_cbk(endpoint_type _key, const boost::system::error_code& _error_code);
-    void remove_stop_handler(service_t _service);
 
 protected:
     // The caller must hold the `mutex_` lock
@@ -126,8 +123,6 @@ protected:
 
     target_data_type targets_;
 
-    std::map<service_t, boardnet_endpoint::prepare_stop_handler_t> prepare_stop_handlers_;
-
     mutable std::mutex mutex_;
 
 private:
@@ -146,5 +141,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_SERVER_ENDPOINT_IMPL_HPP_

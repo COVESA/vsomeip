@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
-#define VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_
+#pragma once
 
 #include "boardnet_endpoint.hpp"
 
@@ -19,7 +18,6 @@ public:
     virtual ~virtual_server_endpoint_impl();
 
     void start();
-    void prepare_stop(const prepare_stop_handler_t& _handler, service_t _service);
     void stop(bool _due_to_error);
 
     bool is_established() const;
@@ -34,7 +32,6 @@ public:
 
     void add_default_target(service_t _service, const std::string& _address, uint16_t _port);
     void remove_default_target(service_t _service);
-    void remove_stop_handler(service_t _service);
 
     bool get_remote_address(boost::asio::ip::address& _address) const;
     std::uint16_t get_local_port() const;
@@ -52,10 +49,6 @@ private:
     std::string address_;
     uint16_t port_;
     bool reliable_;
-
-    boost::asio::io_context& io_;
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_VIRTUAL_SERVER_ENDPOINT_IMPL_HPP_

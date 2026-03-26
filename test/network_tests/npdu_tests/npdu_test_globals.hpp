@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef NPDU_TESTS_NPDU_TEST_GLOBALS_HPP_
-#define NPDU_TESTS_NPDU_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace npdu_test {
 
@@ -34,4 +33,3 @@ constexpr std::array<vsomeip::client_t, 4> client_ids_clients = {0x1111, 0x2222,
 constexpr std::array<vsomeip::client_t, 4> client_ids_services = service_ids;
 
 }
-#endif /* NPDU_TESTS_NPDU_TEST_GLOBALS_HPP_ */

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef PENDING_SUBSCRIPTION_TEST_GLOBALS_HPP_
-#define PENDING_SUBSCRIPTION_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace pending_subscription_test {
 
@@ -32,5 +31,3 @@ enum test_mode_e {
 };
 
 }
-
-#endif /* PENDING_SUBSCRIPTION_TEST_GLOBALS_HPP_ */

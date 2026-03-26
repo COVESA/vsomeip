@@ -3,10 +3,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_ROUTING_CLIENT_STATE_MACHINE_HPP
-#define VSOMEIP_V3_ROUTING_CLIENT_STATE_MACHINE_HPP
+#pragma once
+
+#include <vsomeip/primitive_types.hpp>
 
 #include "../../endpoints/include/timer.hpp"
+
+#ifdef ANDROID
+#include "../../configuration/include/internal_android.hpp"
+#else
+#include "../../configuration/include/internal.hpp"
+#endif
 
 #include <memory>
 #include <mutex>
@@ -204,10 +211,11 @@ public:
      * Valid transition: ST_ASSIGNING -> ST_ASSIGNED
      * Cancels the assignment timeout timer.
      *
+     * @param client_ assigned client-id, used for logging
      * @return true if transition succeeded, false if:
      *         - Current state is not ST_ASSIGNING
      */
-    [[nodiscard]] bool assigned();
+    [[nodiscard]] bool assigned(client_t _client);
 
     /**
      * @brief Start the application registration phase.
@@ -342,6 +350,9 @@ private:
     /// Timer for registration phase timeout
     std::shared_ptr<timer> registration_timebox_;
 
+    /// Client-id for logging
+    client_t client_ = VSOMEIP_CLIENT_UNSET;
+
     /// Protects all state and timers
     mutable std::mutex mtx_;
 
@@ -350,5 +361,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_ROUTING_CLIENT_STATE_MACHINE_HPP

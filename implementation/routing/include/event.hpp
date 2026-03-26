@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_EVENT_IMPL_HPP_
-#define VSOMEIP_V3_EVENT_IMPL_HPP_
+#pragma once
 
 #include <list>
 #include <map>
@@ -133,8 +132,6 @@ private:
     bool prepare_update_payload_unlocked(const std::shared_ptr<payload>& _payload, bool _force);
     void update_payload_unlocked();
 
-    void get_pending_updates(const std::set<client_t>& _clients);
-
     /// Updates the `is_set` flag to the given `value`.
     ///
     /// This is used to track changes to the flag.
@@ -179,5 +176,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_EVENT_IMPL_HPP_

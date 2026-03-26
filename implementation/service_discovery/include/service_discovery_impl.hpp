@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_SD_SERVICE_DISCOVERY_IMPL_
-#define VSOMEIP_V3_SD_SERVICE_DISCOVERY_IMPL_
+#pragma once
 
 #include <map>
 #include <memory>
@@ -333,8 +332,6 @@ private:
     boost::asio::steady_timer subscription_expiration_timer_;
     std::chrono::steady_clock::time_point next_subscription_expiration_;
 
-    uint32_t max_message_size_;
-
     std::chrono::milliseconds initial_delay_;
     std::chrono::milliseconds offer_debounce_time_;
     std::chrono::milliseconds repetitions_base_delay_;
@@ -430,5 +427,3 @@ private:
 
 } // namespace sd
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_SD_SERVICE_DISCOVERY_IMPL_

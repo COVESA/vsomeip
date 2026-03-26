@@ -19,8 +19,17 @@ base_fake_socket_fixture::base_fake_socket_fixture() {
 }
 
 base_fake_socket_fixture::~base_fake_socket_fixture() {
+    // stop normal applications first, let them deregister
     for (auto& name_to_client : name_to_client_) {
-        name_to_client.second->stop();
+        if (!name_to_client.second->is_router()) {
+            name_to_client.second->stop();
+        }
+    }
+    // stop routing applications
+    for (auto& name_to_client : name_to_client_) {
+        if (name_to_client.second->is_router()) {
+            name_to_client.second->stop();
+        }
     }
     name_to_client_.clear();
     factory_->set_manager(nullptr);
@@ -110,6 +119,11 @@ void base_fake_socket_fixture::set_ignore_connections(std::string const& _app_na
     return socket_manager_->set_ignore_inner_close(_from, _ignore_in_from, _to, _ignore_in_to);
 }
 
+void base_fake_socket_fixture::set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role,
+                                                               bool _ignore) {
+    return socket_manager_->set_ignore_nothing_to_read_from(_from, _to, _role, _ignore);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::block_on_close_for(std::string const& _from,
                                                                 std::optional<std::chrono::milliseconds> _from_block_time,
                                                                 std::string const& _to,
@@ -137,9 +151,10 @@ void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail)
 void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     socket_manager_->set_ignore_broken_pipe(_app_name, _set);
 }
-bool base_fake_socket_fixture::wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                                             std::chrono::milliseconds _timeout) {
-    return socket_manager_->wait_once_for_dropped_command(_from, _to, _id, _timeout);
+
+std::future<protocol::id_e> base_fake_socket_fixture::drop_command_once(std::string const& _from, std::string const& _to,
+                                                                        protocol::id_e _id) {
+    return socket_manager_->drop_command_once(_from, _to, _id);
 }
 
 void base_fake_socket_fixture::set_custom_command_handler(std::string const& _from, std::string const& _to,

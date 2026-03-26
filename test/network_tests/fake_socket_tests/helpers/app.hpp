@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_APP_HPP_
-#define VSOMEIP_V3_TESTING_APP_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -52,6 +51,11 @@ public:
      * 3. awaits the background thread to join (the one that called vsomeip::application::start())
      */
     void stop();
+
+    /**
+     * Whether application is a router, e.g., is routingmanagerd
+     */
+    bool is_router() const;
 
     /**
      * Forwards the request to the vsomeip::application::offer_service()
@@ -104,18 +108,74 @@ public:
     void subscribe_field(event_ids const& _ei);
 
     /**
+     * 1. registers a subscription handler to record subscription events with @see
+     * subscription_record_.
+     * 2. calls vsomeip::application::request_event()
+     * 3. calls vsomeip::application::subscribe(), with only the event group
+     *
+     * Note: Received events are recorded in the @see message_record_.
+     */
+    void subscribe_eventgroup_event(event_ids const& _ei);
+
+    /**
+     * 1. registers a subscription handler to record subscription events with @see
+     * subscription_record_.
+     * 2. calls vsomeip::application::request_event()
+     * 3. calls vsomeip::application::subscribe(), with only the event group
+     *
+     * Note: Received events are recorded in the @see message_record_.
+     */
+    void subscribe_eventgroup_field(event_ids const& _ei);
+
+    /**
+     * @see subscribe_event
+     *
+     * Uses `subscribe_with_debounce`
+     */
+    void subscribe_event_debounce(event_ids const& _ei, debounce_filter_t const& _filter);
+
+    /*
+     * @see subscribe_field
+     *
+     * Uses `subscribe_with_debounce`
+     */
+    void subscribe_field_debounce(event_ids const& _ei, debounce_filter_t const& _filter);
+
+    /**
      * registers a message handler that will
      * 1. record the incoming request in the
      * @see message_record_
      * 2. uses the _payload_creator to fill the response
      * 3. dispatch the response with vsomeip::application::send()
      */
-    void answer_request(request const& r, std::function<std::vector<unsigned char>()> payload_creator);
+    void answer_request(request const& _r, std::function<std::vector<unsigned char>()> _payload_creator);
 
     /**
      * Forwards the event payload to the vsomeip::application::notify()
      */
     void send_event(event_ids const& _ei, std::vector<unsigned char> const& _payload);
+
+    /**
+     * Wait for message (payloads!) to reach given state
+     *
+     * It is essentially an advanced wrapper around `message_record_`, which only looks at payloads (and ignores service/method/session/...)
+     */
+    bool wait_for_messages(std::vector<std::vector<uint8_t>> const& _payloads,
+                           std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        return message_record_.wait_for(
+                [&_payloads](auto const& _record) {
+                    if (_record.size() != _payloads.size()) {
+                        return false;
+                    }
+
+                    bool equal = true;
+                    for (size_t i = 0; i < _record.size(); ++i) {
+                        equal = equal && _record[i].payload_ == _payloads[i];
+                    }
+                    return equal;
+                },
+                timeout);
+    }
 
     /**
      * After app::start() has been called this helper can be used to await the registration
@@ -146,6 +206,8 @@ private:
     void on_subscription_status_changed(vsomeip::service_t _service, vsomeip::instance_t _instance, vsomeip::eventgroup_t _eventgroup,
                                         vsomeip::event_t _event, uint16_t error_code);
     void subscribe(event_ids const& _ei, vsomeip::event_type_e _et);
+    void subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et);
+    void subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& _filter);
     void offer(event_ids const& _ei, vsomeip::event_type_e _et);
 
     bool is_running_{false};
@@ -153,4 +215,3 @@ private:
     std::thread runner_;
 };
 }
-#endif

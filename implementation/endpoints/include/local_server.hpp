@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_LOCAL_SERVER_HPP_
-#define VSOMEIP_V3_LOCAL_SERVER_HPP_
+#pragma once
 
 #include "local_receive_buffer.hpp"
 #include "timer.hpp"
@@ -204,5 +203,3 @@ private:
     std::unordered_map<client_t, std::shared_ptr<local_endpoint>> clients_;
 };
 }
-
-#endif

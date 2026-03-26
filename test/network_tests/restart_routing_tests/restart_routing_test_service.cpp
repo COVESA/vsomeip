@@ -138,7 +138,7 @@ TEST(someip_restart_routing_test, send_response_for_every_request) {
 
 #if defined(__linux__) || defined(__QNX__)
 int main(int argc, char** argv) {
-    timeout_detector td(600);
+    timeout_detector td;
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

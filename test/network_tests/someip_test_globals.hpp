@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SOMEIP_TEST_GLOBALS_HPP_
-#define SOMEIP_TEST_GLOBALS_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
@@ -46,5 +45,3 @@ constexpr std::uint32_t NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS = 32;
 
 constexpr std::uint32_t NUMBER_OF_CLIENTS_TO_REQUEST_SHUTDOWN = 4;
 }
-
-#endif /* SOMEIP_TEST_GLOBALS_HPP_ */

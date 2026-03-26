@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_APPLICATION_IMPL_HPP_
-#define VSOMEIP_V3_APPLICATION_IMPL_HPP_
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -40,6 +39,7 @@ class runtime;
 class configuration;
 class routing_manager;
 class routing_manager_stub;
+class plugin_manager_impl;
 
 class application_impl : public application, public routing_manager_host, public std::enable_shared_from_this<application_impl> {
 public:
@@ -284,6 +284,7 @@ private:
     // terminate() during process exit. Therefore, we extend the runtime data to be valid for all applications in that process.
     std::shared_ptr<runtime> runtime_;
     std::shared_ptr<configuration> configuration_;
+    std::shared_ptr<plugin_manager_impl> plugin_manager_;
     std::atomic<client_t> client_; // unique application identifier
     session_t session_;
     std::mutex session_mutex_;
@@ -401,5 +402,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_APPLICATION_IMPL_HPP_

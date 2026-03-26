@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_SHARED_TCP_SOCKET_STATE_HPP_
-#define VSOMEIP_V3_TESTING_SHARED_TCP_SOCKET_STATE_HPP_
+#pragma once
 
 #include "../../../implementation/endpoints/include/tcp_socket.hpp"
 #include "attribute_recorder.hpp"
@@ -162,6 +161,12 @@ struct fake_tcp_socket_handle : std::enable_shared_from_this<fake_tcp_socket_han
     void delay_processing(bool _delay);
 
     /**
+     * if _ignore == true, then no error will be reported when async_receive is called,
+     * without a connected socket. This is helpful if this socket is "suspended".
+     **/
+    void ignore_nothing_to_read_from(bool _ignore);
+
+    /**
      * Lets the thread calling ::close sleep for _block_time after informing
      * the connected socket about the closing.
      **/
@@ -199,6 +204,7 @@ private:
     };
 
     bool ignore_inner_close_{false};
+    bool ignore_nothing_to_read_from_{false};
     bool delay_processing_{false};
     socket_id socket_id_;
     boost::asio::io_context& io_;
@@ -309,5 +315,3 @@ private:
     boost::asio::ip::tcp::endpoint endpoint_;
 };
 }
-
-#endif

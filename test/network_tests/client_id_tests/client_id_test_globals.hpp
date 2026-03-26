@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef CLIENT_ID_TEST_CLIENT_ID_TEST_GLOBALS_HPP_
-#define CLIENT_ID_TEST_CLIENT_ID_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace client_id_test {
 
@@ -28,5 +27,3 @@ static constexpr std::array<service_info, 7> service_infos = {{// placeholder to
 
 static constexpr int messages_to_send = 10;
 }
-
-#endif /* CLIENT_ID_TEST_CLIENT_ID_TEST_GLOBALS_HPP_ */

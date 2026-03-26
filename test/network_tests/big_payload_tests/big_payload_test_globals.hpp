@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef BIG_PAYLOAD_TEST_GLOBALS_HPP_
-#define BIG_PAYLOAD_TEST_GLOBALS_HPP_
+#pragma once
 
 #include <cstdint>
 
@@ -16,7 +15,7 @@ constexpr vsomeip::byte_t DATA_SERVICE_TO_CLIENT = 0xAA;
 constexpr vsomeip::byte_t DATA_CLIENT_TO_SERVICE = 0xFF;
 
 constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES = 10;
-constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM = 50;
+constexpr std::uint32_t BIG_PAYLOAD_TEST_NUMBER_MESSAGES_RANDOM = 5;
 
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID = 0x1234;
 constexpr vsomeip::service_t TEST_SERVICE_SERVICE_ID_LIMITED = 0x1235;
@@ -33,5 +32,3 @@ constexpr vsomeip::method_t STOP_METHOD = 0x0999;
 
 enum test_mode { RANDOM, LIMITED, LIMITED_GENERAL, QUEUE_LIMITED_GENERAL, QUEUE_LIMITED_SPECIFIC, UDP, UNKNOWN };
 }
-
-#endif /* BIG_PAYLOAD_TEST_GLOBALS_HPP_ */

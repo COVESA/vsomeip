@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_DEFINES_HPP_
-#define VSOMEIP_V3_DEFINES_HPP_
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -40,5 +39,3 @@ constexpr std::size_t VSOMEIP_INTERFACE_VERSION_POS = 13;
 constexpr std::size_t VSOMEIP_MESSAGE_TYPE_POS = 14;
 constexpr std::size_t VSOMEIP_RETURN_CODE_POS = 15;
 constexpr std::size_t VSOMEIP_PAYLOAD_POS = 16;
-
-#endif // VSOMEIP_V3_DEFINES_HPP_

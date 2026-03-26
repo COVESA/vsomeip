@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_ROUTING_MANAGER_
-#define VSOMEIP_V3_ROUTING_MANAGER_
+#pragma once
 
 #include <memory>
 #include <set>
@@ -99,13 +98,6 @@ public:
                             bool _force) = 0;
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
-
-    virtual void register_debounce(const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
-                                   const std::shared_ptr<vsomeip_v3::event>& _event) = 0;
-    virtual void remove_debounce(client_t _client, event_t _event) = 0;
-    virtual void update_debounce_clients(const std::set<client_t>& _clients, event_t _event) = 0;
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_ROUTING_MANAGER_

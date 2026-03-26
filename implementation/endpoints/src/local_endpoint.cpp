@@ -79,14 +79,23 @@ void local_endpoint::start() {
     if (state_ == state_e::INIT) {
         connect_unlock();
     } else if (state_ == state_e::CONNECTED) {
-        send_unlock();
-        // process is not allowed to be called with a lock hold, as process
-        // might dispatch to a callback
-        lock.unlock();
-        if (!process(0)) {
-            escalate();
-            return;
-        }
+        // Posting the actual start action here ensures that
+        // every public method can be called without re-entering any other callback.
+        boost::asio::post(io_, [this, weak_self = weak_from_this()] {
+            if (auto self = weak_self.lock(); self) {
+                std::unique_lock inner_lock{mutex_};
+                // ensure that we weren't stopped in between
+                if (state_ != state_e::CONNECTED) {
+                    VSOMEIP_INFO << "le::start::post: Not starting to process due to state: " << status_unlock();
+                    return;
+                }
+                if (!process(0, inner_lock)) {
+                    escalate_internal(inner_lock);
+                }
+                // sending is not required to be started here, as nothing
+                // should be in the queue for the just accepted connection
+            }
+        });
     } else {
         VSOMEIP_ERROR << "le::" << __func__ << ": Unexpected state when trying to start: " << status_unlock();
     }
@@ -366,8 +375,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
     VSOMEIP_WARNING << "le::" << __func__ << " not dealing with the error: " << _ec.message() << ", " << status();
 }
 
-[[nodiscard]] bool local_endpoint::process(size_t _new_bytes) {
-    std::unique_lock lock{mutex_};
+[[nodiscard]] bool local_endpoint::process(size_t _new_bytes, std::unique_lock<std::mutex>& _lock) {
     if (_new_bytes > 0 && !receive_buffer_->bump_end(_new_bytes)) {
         VSOMEIP_ERROR << "le::" << __func__ << ": inconsistent buffer handling, trying add the read of: " << _new_bytes
                       << " bytes, escalating on " << status_unlock();
@@ -389,17 +397,17 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
                     assignment_timebox_->stop();
                 }
             }
-            lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
+            _lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
             routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
                                 endpoint.port());
-            lock.lock(); // because next_message changes internal state -> lock
+            _lock.lock(); // because next_message changes internal state -> lock
         }
     } else {
         while (receive_buffer_->next_message(result)) {
-            lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
+            _lock.unlock(); // fine to unlock, because the caller needs to return, before we would schedule another read
             routing->on_message(result.message_data_, result.message_size_, nullptr, false, peer_, &sec_client_, endpoint.address(),
                                 endpoint.port());
-            lock.lock(); // because next_message changes internal state -> lock
+            _lock.lock(); // because next_message changes internal state -> lock
         }
     }
     if (result.error_) {
@@ -428,8 +436,8 @@ void local_endpoint::receive_cbk(boost::system::error_code const& _ec, size_t _b
         }
         return;
     }
-    if (!process(_bytes)) {
-        escalate();
+    if (std::unique_lock lock{mutex_}; !process(_bytes, lock)) {
+        escalate_internal(lock);
     }
 }
 
@@ -486,7 +494,7 @@ void local_endpoint::flush_queue() {
         }
 
         if (is_sending_ || !send_queue_.empty() || send_buffer_size > 0) {
-            VSOMEIP_WARNING << "ls::" << __func__ << ": waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
+            VSOMEIP_WARNING << "le::" << __func__ << ": waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
                             << " and send_buffer_size: " << send_buffer_size;
             lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
@@ -496,7 +504,7 @@ void local_endpoint::flush_queue() {
             break;
         }
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": max retries reached to send! will drop remaining data on close, " << status_unlock()
+            VSOMEIP_ERROR << "le::" << __func__ << ": max retries reached to send! will drop remaining data on close, " << status_unlock()
                           << " and send_buffer_size: " << send_buffer_size;
             ;
             break;

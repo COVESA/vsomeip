@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_ENDPOINT_IMPL_HPP_
-#define VSOMEIP_V3_ENDPOINT_IMPL_HPP_
+#pragma once
 
 #include <map>
 #include <memory>
@@ -36,7 +35,6 @@ public:
 
     void add_default_target(service_t, const std::string&, uint16_t) override;
     void remove_default_target(service_t) override;
-    void remove_stop_handler(service_t) override;
 
     virtual std::uint16_t get_local_port() const = 0;
     virtual bool is_reliable() const = 0;
@@ -71,8 +69,6 @@ protected:
 
     endpoint_type local_;
 
-    std::mutex error_handler_mutex_;
-
     configuration::endpoint_queue_limit_t queue_limit_;
 
     std::shared_ptr<configuration> configuration_;
@@ -81,5 +77,3 @@ protected:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_ENDPOINT_IMPL_HPP_

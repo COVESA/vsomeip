@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TO_STRING_HPP_
-#define VSOMEIP_V3_TO_STRING_HPP_
+#pragma once
 
 #include "../../../../implementation/protocol/include/protocol.hpp"
 #include "../../../../implementation/protocol/include/routing_info_command.hpp"
@@ -56,5 +55,3 @@ std::string to_string(std::vector<T> const& _container) {
     return s.str();
 }
 }
-
-#endif

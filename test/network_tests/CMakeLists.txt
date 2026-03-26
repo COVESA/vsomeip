@@ -57,13 +57,14 @@ endfunction()
 function(targets_link_default_libraries targets)
     foreach(target ${targets})
         target_link_libraries(${target}
-            ${VSOMEIP_NAME}
+            ${VSOMEIP_NAME}-test
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
             ${DLT_LIBRARIES}
             vsomeip_utilities
         )
+
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             target_link_libraries(${target} stdc++)
             if(UNIX)
@@ -156,7 +157,6 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(client_id_tests)
     add_subdirectory(configuration_tests)
     add_subdirectory(cpu_load_tests)
-    add_subdirectory(debounce_callback_tests)
     add_subdirectory(debounce_epsilon_tests)
     add_subdirectory(debounce_filter_tests)
     add_subdirectory(debounce_frequency_tests)
@@ -186,6 +186,7 @@ if(NOT ${TESTS_BAT})
     add_subdirectory(subscribe_notify_tests)
     add_subdirectory(suspend_resume_tests)
     add_subdirectory(start_stop_start_tests)
+    add_subdirectory(shutdown_tests)
 endif()
 
 add_subdirectory(application_tests)
@@ -196,7 +197,7 @@ add_subdirectory(npdu_tests)
 add_subdirectory(payload_tests)
 add_subdirectory(routing_tests)
 
-# some tests require the routingmanagerd
+# some tests require example binaries
 if(NOT MSVC)
-    add_dependencies(build_network_tests routingmanagerd)
+    add_dependencies(build_network_tests routingmanagerd wait-until-available)
 endif()

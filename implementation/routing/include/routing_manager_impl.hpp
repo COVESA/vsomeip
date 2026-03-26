@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_ROUTING_MANAGER_IMPL_HPP_
-#define VSOMEIP_V3_ROUTING_MANAGER_IMPL_HPP_
+#pragma once
 
 #include <map>
 #include <memory>
@@ -278,6 +277,8 @@ private:
                                   minor_version_t _minor);
     std::set<client_t> get_requesters(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     std::set<client_t> get_requesters_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
+
+    bool has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     bool has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void call_sd_endpoint_connected(const boost::system::error_code& _error, service_t _service, instance_t _instance,
@@ -407,5 +408,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_ROUTING_MANAGER_IMPL_HPP_

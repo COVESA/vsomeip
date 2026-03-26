@@ -145,6 +145,20 @@ void fake_tcp_socket_handle::delay_processing(bool _delay) {
     update_reception();
 }
 
+void fake_tcp_socket_handle::ignore_nothing_to_read_from(bool _ignore) {
+    auto const lock = std::scoped_lock(mtx_);
+    TEST_LOG << "[fake-socket] setting ignore_nothing_to_read_from: " << (_ignore ? "true" : "false") << " on: " << socket_id_;
+    ignore_nothing_to_read_from_ = _ignore;
+    if (auto remote = connected_socket_.lock(); !remote && !ignore_nothing_to_read_from_ && receptor_) {
+        TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
+        boost::asio::post(io_, [handler = std::move(receptor_->handler_)] { handler(boost::asio::error::connection_reset, 0); });
+        // safe to do under the lock, because the handler is already empty and will be destructed after being called on one of the io
+        // threads.
+        receptor_ = std::nullopt;
+        return;
+    }
+}
+
 void fake_tcp_socket_handle::block_on_close_for(std::optional<std::chrono::milliseconds> _block_time) {
     auto const lock = std::scoped_lock(mtx_);
     block_on_close_time_ = _block_time;
@@ -270,11 +284,12 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
         boost::asio::post(io_, [ec = *stashed_ec_, handler = std::move(_handler)] { handler(ec, 0); });
         stashed_ec_ = std::nullopt;
     }
-    if (auto remote = connected_socket_.lock(); !remote) {
+    if (auto remote = connected_socket_.lock(); !remote && input_data_.size() == 0 && !ignore_nothing_to_read_from_) {
         TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
         boost::asio::post(io_, [handler = std::move(_handler)] { handler(boost::asio::error::connection_reset, 0); });
         return;
     }
+
     receptor_ = Receptor{std::move(_buffer), std::move(_handler)};
     update_reception();
 }

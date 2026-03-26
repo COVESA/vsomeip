@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_SOCKET_MANAGER_HPP_
-#define VSOMEIP_V3_TESTING_SOCKET_MANAGER_HPP_
+#pragma once
 
 #include "fake_tcp_socket_handle.hpp"
 
@@ -128,6 +127,13 @@ public:
     [[nodiscard]] bool set_ignore_inner_close(std::string const& _from, bool _ignore_in_from, std::string const& _to, bool _ignore_in_to);
 
     /**
+     * Ensures that a async_receive will not fail, if the other socket disconnected.
+     * This is helpful for simulating suspend sequences.
+     * Note: This option is permanent to the connection and needs to be actively reset.
+     **/
+    void set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore);
+
+    /**
      * searches for the _from -> _to connected sockets and demands from _from to block execution
      * for _from_block_time when close is invoked, equivalent for _to with _to_block_time.
      * @see fake_tcp_socket_handle::block_on_close_for() for further details.
@@ -211,11 +217,11 @@ public:
     void awaiting();
 
     /**
-     * Stops once the delivery of a specific vsomeip command @param _id from @param _from towards @param _to.
-     * Returns when the command is stopped or when @param _timeout expires.
+     * Prepares a drop for the specific vsomeip command @param _id from @param _from towards @param _to, gives a future for when it happens
+     *
+     * NOTE: not composeable, difficut to use, take care..
      */
-    bool wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                       std::chrono::milliseconds _timeout);
+    std::future<protocol::id_e> drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id);
 
     /**
      * Forces the delivery of a vsomeip message @param _payload from @param _from to @param _to.
@@ -268,5 +274,3 @@ private:
     std::set<std::string> ignore_broken_pipe_;
 };
 }
-
-#endif

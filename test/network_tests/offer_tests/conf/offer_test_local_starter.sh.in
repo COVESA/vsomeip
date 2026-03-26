@@ -80,7 +80,7 @@ End-of-message
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 
 # Start the services
@@ -134,7 +134,7 @@ End-of-message
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
 export VSOMEIP_APPLICATION_NAME="service-2"
@@ -195,7 +195,7 @@ End-of-message
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
 export VSOMEIP_APPLICATION_NAME="service-2"
@@ -207,7 +207,9 @@ export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
-sleep 1
+# wait until service is available..
+export VSOMEIP_APPLICATION_NAME="wua"
+wait-until-available 0x1111 || FAIL=$(($FAIL+1))
 # Pause the service
 kill -STOP $PID_SERVICE_TWO
 
@@ -259,7 +261,7 @@ End-of-message
 export VSOMEIP_CONFIGURATION=offer_test_local.json
 # start daemon
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
-../../../examples/routingmanagerd/routingmanagerd &
+routingmanagerd &
 PID_VSOMEIPD=$!
 # Start the service
 export VSOMEIP_APPLICATION_NAME="service-2"
@@ -271,8 +273,11 @@ export VSOMEIP_APPLICATION_NAME="client-1"
 ./offer_test_client METHODCALL &
 CLIENT_PID_ONE=$!
 
-# Pause the service
-sleep 1
+
+# wait until service is available..
+export VSOMEIP_APPLICATION_NAME="wua"
+wait-until-available 0x1111 || FAIL=$(($FAIL+1))
+# then pause service
 kill -STOP $PID_SERVICE_TWO
 
 # reoffer the service

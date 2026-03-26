@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_NETLINK_CONNECTOR_HPP_
-#define VSOMEIP_V3_NETLINK_CONNECTOR_HPP_
+#pragma once
 
 #if defined(__linux__)
 
@@ -175,9 +174,7 @@ private:
     bool multicast_route_found_ = false;
     state_e current_state_ = state_e::INIT;
 
-    static const std::uint32_t max_retries_ = VSOMEIP_MAX_NETLINK_RETRIES;
     static const std::uint32_t retry_bit_shift_ = 8;
-    static const std::uint32_t request_sequence_bitmask_ = 0xFF;
     static const std::uint32_t ifa_request_sequence_ = 1;
     static const std::uint32_t ifi_request_sequence_ = 2;
     static const std::uint32_t rt_request_sequence_ = 3;
@@ -186,5 +183,3 @@ private:
 } // namespace vsomeip_v3
 
 #endif // __linux__
-
-#endif // VSOMEIP_V3_NETLINK_CONNECTOR_HPP_

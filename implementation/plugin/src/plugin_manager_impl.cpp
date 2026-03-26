@@ -47,7 +47,7 @@ plugin_manager_impl::~plugin_manager_impl() {
 }
 
 std::shared_ptr<plugin> plugin_manager_impl::get_plugin(plugin_type_e _type, const std::string& _name) {
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock_start_stop{plugins_mutex_};
     auto its_type = plugins_.find(_type);
     if (its_type != plugins_.end()) {
         auto its_name = its_type->second.find(_name);
@@ -80,7 +80,7 @@ std::shared_ptr<plugin> plugin_manager_impl::load_plugin(const std::string& _lib
 }
 
 bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
-    std::lock_guard<std::recursive_mutex> its_lock_start_stop(plugins_mutex_);
+    std::scoped_lock<std::recursive_mutex> its_lock_start_stop{plugins_mutex_};
     const auto found_handle = handles_.find(_type);
     if (found_handle != handles_.end()) {
         for (const auto& its_name : found_handle->second) {

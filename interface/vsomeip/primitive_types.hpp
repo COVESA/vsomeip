@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_PRIMITIVE_TYPES_HPP_
-#define VSOMEIP_V3_PRIMITIVE_TYPES_HPP_
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -63,5 +62,3 @@ typedef ::uid_t gid_t;
 #endif
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_PRIMITIVE_TYPES_HPP

@@ -47,7 +47,8 @@ configuration::~configuration() { }
 #endif
 
 application_impl::application_impl(const std::string& _name, const std::string& _path) :
-    runtime_{runtime::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0}, is_initialized_{false}, name_{_name}, path_{_path},
+    runtime_{runtime::get()}, plugin_manager_{plugin_manager_impl::get()}, client_{VSOMEIP_CLIENT_UNSET}, session_{0},
+    is_initialized_{false}, name_{_name}, path_{_path},
 #if defined(__linux__) || defined(__QNX__)
     start_thread_{0},
 #endif
@@ -62,8 +63,8 @@ application_impl::application_impl(const std::string& _name, const std::string& 
 application_impl::~application_impl() {
     runtime_->remove_application(name_);
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-    if (configuration_) {
-        auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+    if (configuration_ && plugin_manager_) {
+        auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
             auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
             if (its_configuration_plugin) {
@@ -102,7 +103,7 @@ bool application_impl::init() {
         // TODO: Add loading of custom configuration module
     } else { // load default module
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-        auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+        auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
             auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
             if (its_configuration_plugin) {
@@ -293,7 +294,7 @@ bool application_impl::init() {
         auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
         if (its_app_plugin_info != its_plugins.end()) {
             for (auto its_library : its_app_plugin_info->second) {
-                auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
+                auto its_application_plugin = plugin_manager_->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
                 if (its_application_plugin) {
                     VSOMEIP_INFO << "Client 0x" << std::hex << get_client() << " Loading plug-in library: " << its_library << " succeeded!";
                     std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
@@ -434,7 +435,7 @@ void application_impl::start() {
     auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
     if (its_app_plugin_info != its_plugins.end()) {
         for (const auto& its_library : its_app_plugin_info->second) {
-            auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
+            auto its_application_plugin = plugin_manager_->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
             if (its_application_plugin) {
                 std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
                         ->on_application_state_change(name_, application_plugin_state_e::STATE_STARTED);
@@ -562,7 +563,7 @@ void application_impl::stop() {
         auto its_app_plugin_info = its_plugins.find(plugin_type_e::APPLICATION_PLUGIN);
         if (its_app_plugin_info != its_plugins.end()) {
             for (const auto& its_library : its_app_plugin_info->second) {
-                auto its_application_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
+                auto its_application_plugin = plugin_manager_->get_plugin(plugin_type_e::APPLICATION_PLUGIN, its_library);
                 if (its_application_plugin) {
                     std::dynamic_pointer_cast<application_plugin>(its_application_plugin)
                             ->on_application_state_change(name_, application_plugin_state_e::STATE_STOPPED);
@@ -876,7 +877,7 @@ void application_impl::notify(service_t _service, instance_t _instance, event_t 
                               bool _force) const {
 
     if (routing_) {
-        auto its_payload{runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
+        auto its_payload{runtime_->create_payload(_payload->get_data(), _payload->get_length())};
         routing_->notify(_service, _instance, _event, its_payload, _force);
     }
 }
@@ -884,7 +885,7 @@ void application_impl::notify(service_t _service, instance_t _instance, event_t 
 void application_impl::notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload,
                                   client_t _client, bool _force) const {
     if (routing_) {
-        auto its_payload{runtime::get()->create_payload(_payload->get_data(), _payload->get_length())};
+        auto its_payload{runtime_->create_payload(_payload->get_data(), _payload->get_length())};
         routing_->notify_one(_service, _instance, _event, its_payload, _client, _force);
     }
 }
@@ -2088,12 +2089,7 @@ bool application_impl::is_routing() const {
 void application_impl::send_back_cached_event(service_t _service, instance_t _instance, event_t _event) {
     std::shared_ptr<event> its_event = routing_->find_event(_service, _instance, _event);
     if (its_event && its_event->is_field() && its_event->is_set()) {
-        auto rt = runtime::get();
-        if (!rt) {
-            VSOMEIP_ERROR << "Cannot send cached event - runtime already destroyed";
-            return;
-        }
-        std::shared_ptr<message> its_message = rt->create_notification();
+        std::shared_ptr<message> its_message = runtime_->create_notification();
         its_message->set_service(_service);
         its_message->set_method(_event);
         its_message->set_instance(_instance);
@@ -2106,16 +2102,10 @@ void application_impl::send_back_cached_event(service_t _service, instance_t _in
 }
 
 void application_impl::send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
-    auto rt = runtime::get();
-    if (!rt) {
-        VSOMEIP_ERROR << "Cannot send cached eventgroup - runtime already destroyed";
-        return;
-    }
-
     std::set<std::shared_ptr<event>> its_events = routing_->find_events(_service, _instance, _eventgroup);
     for (const auto& its_event : its_events) {
         if (its_event && its_event->is_field() && its_event->is_set()) {
-            std::shared_ptr<message> its_message = rt->create_notification();
+            std::shared_ptr<message> its_message = runtime_->create_notification();
             const event_t its_event_id(its_event->get_event());
             its_message->set_service(_service);
             its_message->set_method(its_event_id);

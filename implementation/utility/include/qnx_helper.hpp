@@ -4,8 +4,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifdef __QNX__
-#ifndef VSOMEIP_V3_QNX_HELPER_HPP_
-#define VSOMEIP_V3_QNX_HELPER_HPP_
+#pragma once
 #include <sys/socket.h>
 #include <netinet/in.h>
 
@@ -20,8 +19,4 @@ struct in_pktinfo {
     struct in_addr ipi_addr; /* Header destination address  */
 };
 #define _STRUCT_IN_PKTINFO
-#endif
-
-#endif // VSOMEIP_V3_QNX_HELPER_HPP_
-
 #endif

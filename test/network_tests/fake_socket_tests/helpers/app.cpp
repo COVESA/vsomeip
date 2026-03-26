@@ -44,6 +44,10 @@ void app::stop() {
     app_ = nullptr;
 }
 
+bool app::is_router() const {
+    return app_ && app_->is_routing();
+}
+
 void app::offer(service_instance _si) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _si;
     app_->offer_service(_si.service_, _si.instance_);
@@ -69,14 +73,34 @@ void app::subscribe_field(event_ids const& _ei) {
     subscribe(_ei, vsomeip::event_type_e::ET_FIELD);
 }
 
-void app::answer_request(request const& r, std::function<std::vector<unsigned char>()> payload_creator) {
-    app_->register_message_handler(r.service_instance_.service_, r.service_instance_.instance_, r.method_,
-                                   [this, payload_creator](auto const& message) {
+void app::subscribe_eventgroup_event(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
+    subscribe_eventgroup(_ei, vsomeip::event_type_e::ET_EVENT);
+}
+
+void app::subscribe_eventgroup_field(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
+    subscribe_eventgroup(_ei, vsomeip::event_type_e::ET_FIELD);
+}
+
+void app::subscribe_event_debounce(event_ids const& _ei, debounce_filter_t const& _filter) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing-with-debounce to: " << _ei;
+    subscribe_with_debounce(_ei, vsomeip::event_type_e::ET_EVENT, _filter);
+}
+
+void app::subscribe_field_debounce(event_ids const& _ei, debounce_filter_t const& _filter) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing-with-debounce to: " << _ei;
+    subscribe_with_debounce(_ei, vsomeip::event_type_e::ET_FIELD, _filter);
+}
+
+void app::answer_request(request const& _r, std::function<std::vector<unsigned char>()> _payload_creator) {
+    app_->register_message_handler(_r.service_instance_.service_, _r.service_instance_.instance_, _r.method_,
+                                   [this, _payload_creator](auto const& message) {
                                        // capture the message and log the reception
                                        on_message(message);
                                        auto response = vsomeip::runtime::get()->create_response(message);
                                        auto payload = vsomeip::runtime::get()->create_payload();
-                                       payload->set_data(payload_creator());
+                                       payload->set_data(_payload_creator());
                                        response->set_payload(payload);
                                        app_->send(response);
                                    });
@@ -158,6 +182,36 @@ void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
 
     app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_);
+}
+
+void app::subscribe_eventgroup(event_ids const& _ei, vsomeip::event_type_e _et) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
+    std::set<vsomeip::eventgroup_t> its_eventgroups;
+    app_->register_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
+                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
+                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+                                                         std::placeholders::_5));
+
+    its_eventgroups.insert(_ei.eventgroup_id_);
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, vsomeip::reliability_type_e::RT_RELIABLE);
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
+
+    app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, ANY_EVENT);
+}
+
+void app::subscribe_with_debounce(event_ids const& _ei, vsomeip::event_type_e _et, debounce_filter_t const& filter) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is requesting: " << _ei;
+    std::set<vsomeip::eventgroup_t> its_eventgroups;
+    app_->register_subscription_status_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.event_id_,
+                                               std::bind(&app::on_subscription_status_changed, this, std::placeholders::_1,
+                                                         std::placeholders::_2, std::placeholders::_3, std::placeholders::_4,
+                                                         std::placeholders::_5));
+
+    its_eventgroups.insert(_ei.eventgroup_id_);
+    app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, vsomeip::reliability_type_e::RT_RELIABLE);
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing-with-debounce to: " << _ei;
+
+    app_->subscribe_with_debounce(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, 0, _ei.event_id_, filter);
 }
 
 void app::offer(event_ids const& _ei, vsomeip::event_type_e _et) {

@@ -22,8 +22,7 @@
 namespace vsomeip_v3 {
 
 routing_manager_base::routing_manager_base(routing_manager_host* _host) :
-    host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), debounce_timer_(host_->get_io()),
-    tc_(trace::connector_impl::get()) {
+    host_(_host), io_(host_->get_io()), configuration_(host_->get_configuration()), tc_(trace::connector_impl::get()) {
     const std::size_t its_max = configuration_->get_io_thread_count(host_->get_name());
     const uint32_t its_buffer_shrink_threshold = configuration_->get_buffer_shrink_threshold();
 
@@ -37,131 +36,6 @@ routing_manager_base::routing_manager_base(routing_manager_host* _host) :
         auto its_routing_port = configuration_->get_routing_host_port();
         if (!its_routing_address.is_unspecified() && !its_routing_address.is_multicast()) {
             add_guest(VSOMEIP_ROUTING_CLIENT, its_routing_address, its_routing_port);
-        }
-    }
-}
-
-void routing_manager_base::debounce_timeout_update_cbk(const boost::system::error_code& _error, size_t _lifecycle_idx) {
-    if (_error) {
-        // nothing to do
-        return;
-    }
-
-    auto const now = std::chrono::steady_clock::now();
-
-    bool notify = false;
-    client_t client = 0;
-    std::shared_ptr<event> event;
-    std::shared_ptr<debounce_filter_impl_t> filter;
-
-    {
-        std::scoped_lock its_lock(debounce_mutex_);
-
-        if (_lifecycle_idx != debounce_lifecycle_idx_) {
-            // nothing to do, stale timer
-            return;
-        }
-
-        auto const itr = debounce_clients_.begin();
-        if (itr == debounce_clients_.end()) {
-            // nothing to do, not even a reschedule
-            return;
-        }
-
-        if (itr->first > now) {
-            // only need to reschedule
-            debounce_timer_.expires_at(itr->first);
-            debounce_timer_.async_wait(std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                                                 std::placeholders::_1, _lifecycle_idx));
-            return;
-        }
-
-        event = itr->second.weak_event_.lock();
-        filter = itr->second.weak_filter_.lock();
-        auto data = itr->second;
-        // NOTE! invalidated `itr`
-        debounce_clients_.erase(itr);
-
-        if (event && filter) {
-            std::chrono::steady_clock::time_point last = filter->last_forwarded_.load();
-            int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
-            bool is_elapsed = (last == std::chrono::steady_clock::time_point::max() || elapsed >= filter->interval_);
-            if (is_elapsed) {
-                if (data.update_) {
-                    data.update_ = false;
-                    notify = true;
-                    client = data.client_;
-                }
-                elapsed = 0;
-            }
-
-            auto timeout = now + std::chrono::milliseconds(filter->interval_ - elapsed);
-            debounce_clients_.emplace(timeout,
-                                      debounce_data_t{data.client_, data.update_, data.event_, data.weak_event_, data.weak_filter_});
-        }
-
-        if (!debounce_clients_.empty()) {
-            auto first = debounce_clients_.begin();
-
-            debounce_timer_.expires_at(first->first);
-            debounce_timer_.async_wait(std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                                                 std::placeholders::_1, _lifecycle_idx));
-        }
-    }
-
-    if (notify && event && client) {
-        // NOTE: subscriber check done here because otherwise we'd have a lock inversion with
-        // debounce_mutex_+eventgroup_mutex (in remove_subscribes)
-        auto its_subscribers = event->get_subscribers();
-        if (its_subscribers.find(client) != its_subscribers.end()) {
-            event->notify_one(client, false);
-        }
-    }
-}
-
-void routing_manager_base::register_debounce(const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
-                                             const std::shared_ptr<vsomeip_v3::event>& _event) {
-    if (_filter->send_current_value_after_ == true) {
-        std::scoped_lock its_lock(debounce_mutex_);
-        auto sec = std::chrono::milliseconds(_filter->interval_);
-        auto timeout = std::chrono::steady_clock::now() + sec;
-
-        auto weak_event = std::weak_ptr<event>(_event);
-        auto weak_filter = std::weak_ptr<debounce_filter_impl_t>(_filter);
-
-        auto itr = debounce_clients_.emplace(timeout, debounce_data_t{_client, false, _event->get_event(), weak_event, weak_filter});
-
-        // reschedule timer; timer is anyhow a "hint" for the next debouncing we need to process
-        if (itr == debounce_clients_.begin()) {
-            debounce_lifecycle_idx_ += 1;
-            debounce_timer_.expires_at(itr->first);
-            debounce_timer_.async_wait(std::bind(&routing_manager_base::debounce_timeout_update_cbk, shared_from_this(),
-                                                 std::placeholders::_1, debounce_lifecycle_idx_));
-        }
-    }
-}
-
-void routing_manager_base::remove_debounce(client_t _client, event_t _event) {
-    std::scoped_lock its_lock(debounce_mutex_);
-    for (auto itr = debounce_clients_.begin(); itr != debounce_clients_.end();) {
-        if (itr->second.client_ == _client && itr->second.event_ == _event) {
-            itr = debounce_clients_.erase(itr);
-        } else {
-            ++itr;
-        }
-    }
-}
-
-void routing_manager_base::update_debounce_clients(const std::set<client_t>& _clients, event_t _event) {
-    std::scoped_lock its_lock(debounce_mutex_);
-    for (auto& itr : debounce_clients_) {
-        if (itr.second.event_ == _event) {
-            itr.second.update_ = true;
-            for (auto client : _clients) {
-                if (itr.second.client_ == client) {
-                    itr.second.update_ = false;
-                }
-            }
         }
     }
 }
@@ -571,8 +445,6 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                     return (is_changed || is_elapsed);
                 };
 
-                // Create a new callback for this client if filter interval is used
-                register_debounce(its_debounce, _client, its_event);
             } else {
                 if (_is_shadow || !is_routing_manager()) {
                     _epsilon_change_func = [](const std::shared_ptr<payload>& _old, const std::shared_ptr<payload>& _new) {
@@ -902,7 +774,7 @@ void routing_manager_base::unset_all_eventpayloads(service_t _service, instance_
 }
 
 void routing_manager_base::notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                                    event_t _event, const std::set<event_t>& _events_to_exclude) {
+                                                    event_t _event) {
     if (_event != ANY_EVENT) {
         std::shared_ptr<event> its_event = find_event(_service, _instance, _event);
         if (its_event && its_event->is_field())
@@ -912,7 +784,7 @@ void routing_manager_base::notify_one_current_value(client_t _client, service_t 
         if (its_eventgroup) {
             std::set<std::shared_ptr<event>> its_events = its_eventgroup->get_events();
             for (const auto& e : its_events) {
-                if (e->is_field() && _events_to_exclude.find(e->get_event()) == _events_to_exclude.end()) {
+                if (e->is_field()) {
                     e->notify_one(_client, false);
                 }
             }
@@ -1302,8 +1174,7 @@ bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, 
 }
 
 bool routing_manager_base::insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                               const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
-                                               std::set<event_t>* _already_subscribed_events) {
+                                               const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client) {
 
     bool is_inserted(false);
     std::scoped_lock its_lock{subscription_mutex};
@@ -1329,12 +1200,6 @@ bool routing_manager_base::insert_subscription(service_t _service, instance_t _i
                 create_place_holder = true;
             } else {
                 for (const auto& e : its_events) {
-                    if (e->is_subscribed(_client)) {
-                        // client is already subscribed to event from eventgroup
-                        // this can happen if events are members of multiple
-                        // eventgroups
-                        _already_subscribed_events->insert(e->get_event());
-                    }
                     is_inserted = e->add_subscriber(_eventgroup, _filter, _client, host_->is_routing()) || is_inserted;
                 }
             }

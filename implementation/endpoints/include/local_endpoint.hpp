@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_LOCAL_ENDPOINT_HPP_
-#define VSOMEIP_V3_LOCAL_ENDPOINT_HPP_
+#pragma once
 
 #include "local_receive_buffer.hpp"
 #include "timer.hpp"
@@ -85,6 +84,15 @@ struct local_endpoint_params {
  * Thread-safety: All public methods are thread-safe. Callbacks to external code
  * (routing_host, error_handler) are invoked without holding internal locks
  * to prevent deadlocks.
+ *
+ * Callback Guarantee: All public member functions guarantee that they will not
+ * synchronously invoke any callbacks (error handlers, message handlers, etc.) except
+ * for destructors of promoted weak_ptr references that expire during the function call,
+ * or the injected local_socket.
+ * This ensures that:
+ * - Public functions can be safely called while holding external locks
+ * - No re-entrancy issues arise from calling public methods
+ * - Callbacks are only invoked asynchronously via boost::asio::post() on the io_context
  *
  * Protocol-agnostic: Delegates protocol-specific behavior to local_socket implementations.
  *
@@ -207,7 +215,7 @@ private:
     void connect_cbk(boost::system::error_code const& _ec);
     void send_cbk(boost::system::error_code const& _ec, size_t _bytes, std::vector<uint8_t> _send_buffer);
     void receive_cbk(boost::system::error_code const& _ec, size_t _bytes);
-    [[nodiscard]] bool process(size_t _new_bytes);
+    [[nodiscard]] bool process(size_t _new_bytes, std::unique_lock<std::mutex>& _lock);
 
     void assignment_timeout();
 
@@ -253,5 +261,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_ENDPOINT_HPP_

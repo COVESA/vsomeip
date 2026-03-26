@@ -235,10 +235,6 @@ public:
         std::unique_lock<std::mutex> its_lock(stop_mutex_);
         stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
 
-        // magic sleep to give time for the last message to be sent
-        // TODO: FIXME! REMOVE THIS!
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-
         VSOMEIP_INFO << "going down";
         app_->clear_all_handler();
         app_->stop();

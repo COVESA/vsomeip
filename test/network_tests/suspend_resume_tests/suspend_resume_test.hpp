@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SUSPEND_RESUME_TEST_
-#define SUSPEND_RESUME_TEST_
+#pragma once
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
@@ -21,5 +20,3 @@
 
 #define TEST_SUSPEND 0x00
 #define TEST_STOP 0xFF
-
-#endif // SUSPEND_RESUME_TEST_

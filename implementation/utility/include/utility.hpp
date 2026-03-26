@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_UTILITY_HPP
-#define VSOMEIP_V3_UTILITY_HPP
+#pragma once
 
 #include <atomic>
 #include <chrono>
@@ -74,8 +73,8 @@ public:
     static bool is_routing_manager(const std::string& _network);
     static void remove_lockfile(const std::string& _network);
     static bool exists(const std::string& _path);
-    static bool VSOMEIP_IMPORT_EXPORT is_file(const std::string& _path);
-    static bool VSOMEIP_IMPORT_EXPORT is_folder(const std::string& _path);
+    static bool is_file(const std::string& _path);
+    static bool is_folder(const std::string& _path);
 
     static std::string get_base_path(const std::string& _network);
 
@@ -138,5 +137,3 @@ private:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_UTILITY_HPP

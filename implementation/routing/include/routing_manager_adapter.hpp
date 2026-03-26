@@ -19,5 +19,3 @@ public:
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_ROUTING_MANAGER_ADAPTER_HPP_

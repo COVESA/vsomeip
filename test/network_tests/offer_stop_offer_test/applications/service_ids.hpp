@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_SERVICE_IDS_HPP
-#define VSOMEIP_SERVICE_IDS_HPP
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -31,5 +30,3 @@ constexpr vsomeip::event_t EVENT_ID = 0x8778;
 
 /// @brief Both services eventgroup id
 constexpr vsomeip::eventgroup_t EVENTGROUP_ID = 0x4465;
-
-#endif // VSOMEIP_EXAMPLES_IDS_HPP

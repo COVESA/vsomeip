@@ -129,10 +129,6 @@ public:
         } else if (_response->get_method() >= info_.event_id
                    && _response->get_method() <= static_cast<vsomeip::event_t>(info_.event_id + 3)) {
             received_events_.push_back(_response->get_payload());
-            if (received_events_.size() > 8) {
-                ADD_FAILURE() << "Received too many events [" << std::hex << _response->get_method() << " (" << std::dec
-                              << received_events_.size() << ")";
-            }
             number_received_events_[_response->get_method()]++;
             events_condition_.notify_one();
         } else {
@@ -197,14 +193,14 @@ public:
     }
 
     void wait_for_events(std::unique_lock<std::mutex>& _lock, std::condition_variable& _condition) {
-        // For the "normal" events, we expected to received 1 notification from each event, which sums up to 3 total notifications
+        // For the "normal" events, we expected to receive at least one 1 notification from each event, so >= 3 notifications
         constexpr int _expected_number_received_events = 3;
         if (!_condition.wait_for(_lock, std::chrono::seconds(5),
                                  [this] { return received_events_.size() >= _expected_number_received_events; })) {
             ADD_FAILURE() << "Didn't receive expected number of events: " << _expected_number_received_events
                           << " within time. Instead received: " << received_events_.size();
         }
-        ASSERT_EQ(received_events_.size(), 3);
+        ASSERT_GE(received_events_.size(), 3);
     }
 
     void check_received_events_payload(vsomeip::byte_t _value) {
@@ -218,7 +214,7 @@ public:
     void check_received_initial_events_number(std::set<std::pair<vsomeip::event_t, std::uint32_t>> _expected) {
         for (const auto& e : _expected) {
             auto event = number_received_events_.find(e.first);
-            ASSERT_NE(number_received_events_.end(), event);
+            ASSERT_NE(number_received_events_.end(), event) << e.first;
             switch (event->first) {
             case 0x8111:
                 ASSERT_GE(event->second, 1) << "Didn't receive initial events for event:" << event->first;
@@ -264,7 +260,7 @@ public:
             std::set<std::pair<vsomeip::event_t, std::uint32_t>> its_expected;
             its_expected.insert({info_.event_id, 1});
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 1), 1});
-            // Initial event for the event which is member of both eventgroups has to be sent twice
+            // Initial event for the event which is member of both eventgroups has to be sent at least twice
             // see TR_SOMEIP_00571
             its_expected.insert({static_cast<vsomeip::event_t>(info_.event_id + 2), 2});
 

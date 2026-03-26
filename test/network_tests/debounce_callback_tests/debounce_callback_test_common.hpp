@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef DEBOUNCE_TEST_COMMON_HPP_
-#define DEBOUNCE_TEST_COMMON_HPP_
+#pragma once
 
 #include <vsomeip/vsomeip.hpp>
 
@@ -17,5 +16,3 @@ const vsomeip::event_t DEBOUNCE_EVENT_2 = 0x8002;
 const vsomeip::eventgroup_t DEBOUNCE_EVENTGROUP = 0x0005;
 const vsomeip::major_version_t DEBOUNCE_MAJOR = 0x01;
 const vsomeip::minor_version_t DEBOUNCE_MINOR = 0x01;
-
-#endif // DEBOUNCE_CALLBACK_TEST_COMMON_HPP_

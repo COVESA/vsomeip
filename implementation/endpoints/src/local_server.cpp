@@ -220,8 +220,6 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
                     }
                 }
             });
-            // Carful: A call to start might end up calling the error handler causing a lock inversion
-            lock.unlock();
             ep->start();
         } else {
             VSOMEIP_WARNING << "ls::" << __func__ << ": Dropping connection from: " << std::hex << std::setfill('0') << std::setw(4)
@@ -329,8 +327,9 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
                 return;
             }
         } else {
-            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: " << result.message_data_[protocol::COMMAND_POSITION_ID]
-                          << " received. Breaking connection > " << socket_->to_string();
+            VSOMEIP_ERROR << "ls::" << __func__ << ": Unexpected command: 0x" << std::hex << std::setfill('0') << std::setw(2)
+                          << static_cast<int>(result.message_data_[protocol::COMMAND_POSITION_ID]) << " received. Breaking connection > "
+                          << socket_->to_string();
             socket_->stop(true);
             return;
         }

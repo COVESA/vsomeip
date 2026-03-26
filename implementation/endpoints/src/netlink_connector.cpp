@@ -310,8 +310,8 @@ void netlink_connector::send_ifa_request(std::uint32_t _retry) {
     {
         std::lock_guard its_lock(socket_mutex_);
         socket_.async_send(boost::asio::buffer(get_address_msg.get(), get_address_msg->nlhdr.nlmsg_len),
-                           [this, data = get_address_msg](auto... args) mutable {
-                               send_cbk(args...);
+                           [self = shared_from_this(), data = get_address_msg](auto... args) mutable {
+                               self->send_cbk(args...);
                                data.reset();
                            });
     }
@@ -344,8 +344,8 @@ void netlink_connector::send_ifi_request(std::uint32_t _retry) {
     {
         std::lock_guard its_lock(socket_mutex_);
         socket_.async_send(boost::asio::buffer(get_link_msg.get(), sizeof(*get_link_msg)),
-                           [this, data = get_link_msg](auto... args) mutable {
-                               send_cbk(args...);
+                           [self = shared_from_this(), data = get_link_msg](auto... args) mutable {
+                               self->send_cbk(args...);
                                data.reset();
                            });
     }
@@ -375,8 +375,8 @@ void netlink_connector::send_rt_request(std::uint32_t _retry) {
     {
         std::lock_guard its_lock(socket_mutex_);
         socket_.async_send(boost::asio::buffer(get_route_msg.get(), sizeof(*get_route_msg)),
-                           [this, data = get_route_msg](auto... args) mutable {
-                               send_cbk(args...);
+                           [self = shared_from_this(), data = get_route_msg](auto... args) mutable {
+                               self->send_cbk(args...);
                                data.reset();
                            });
     }

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_UDP_CLIENT_ENDPOINT_IMPL_HPP_
-#define VSOMEIP_V3_UDP_CLIENT_ENDPOINT_IMPL_HPP_
+#pragma once
 
 #include <memory>
 
@@ -64,11 +63,7 @@ private:
     const std::uint16_t remote_port_;
     const int udp_receive_buffer_size_;
     std::shared_ptr<tp::tp_reassembler> tp_reassembler_;
-
-    std::mutex last_sent_mutex_;
     std::chrono::steady_clock::time_point last_sent_;
 };
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_UDP_CLIENT_ENDPOINT_IMPL_HPP_

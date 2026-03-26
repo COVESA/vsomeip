@@ -194,7 +194,6 @@ void udp_client_endpoint_impl::restart(bool _force) {
 }
 
 void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) {
-    std::scoped_lock its_last_sent_lock(last_sent_mutex_);
     std::scoped_lock its_socket_lock(socket_mutex_);
 
     // Check whether we need to wait (SOME/IP-TP separation time)
@@ -243,6 +242,8 @@ bool udp_client_endpoint_impl::get_remote_address(boost::asio::ip::address& _add
 }
 
 std::uint16_t udp_client_endpoint_impl::get_local_port() const {
+    std::scoped_lock its_lock(socket_mutex_);
+
     return local_.port();
 }
 

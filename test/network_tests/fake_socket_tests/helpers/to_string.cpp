@@ -6,11 +6,6 @@
 #include "to_string.hpp"
 #include "command_message.hpp"
 
-#include "../../../../implementation/protocol/src/routing_info_command.cpp"
-#include "../../../../implementation/protocol/src/config_command.cpp"
-#include "../../../../implementation/protocol/src/command.cpp"
-#include "../../../../implementation/protocol/src/routing_info_entry.cpp"
-
 #include <ostream>
 #include <iomanip>
 

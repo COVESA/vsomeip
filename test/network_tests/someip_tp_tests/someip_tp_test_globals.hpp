@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef SOMEIP_TP_TEST_GLOBALS_HPP_
-#define SOMEIP_TP_TEST_GLOBALS_HPP_
+#pragma once
 
 #include <vsomeip/primitive_types.hpp>
 
@@ -29,5 +28,3 @@ const std::uint32_t number_of_fragments = 6;
 const std::uint32_t max_segment_size = 1392;
 
 }
-
-#endif /* SOMEIP_TP_TEST_GLOBALS_HPP_ */

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef RESTART_ROUTING_TEST_CLIENT_HPP
-#define RESTART_ROUTING_TEST_CLIENT_HPP
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -44,5 +43,3 @@ private:
     restart_routing::restart_routing_test_interprocess_sync* ip_sync{nullptr};
     uint32_t app_id_;
 };
-
-#endif // RESTART_ROUTING_TEST_CLIENT_HPP

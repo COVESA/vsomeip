@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef MOCKED_VSOMEIP_DEPENDENCIES_HPP_
-#define MOCKED_VSOMEIP_DEPENDENCIES_HPP_
+#pragma once
 
 #include <gmock/gmock.h>
 
@@ -43,9 +42,6 @@ template<typename Protocol>
 void vsomeip_v3::endpoint_impl<Protocol>::remove_default_target(service_t) { }
 
 template<typename Protocol>
-void vsomeip_v3::endpoint_impl<Protocol>::remove_stop_handler(service_t) { }
-
-template<typename Protocol>
 vsomeip_v3::instance_t vsomeip_v3::endpoint_impl<Protocol>::get_instance(service_t /*_service*/) {
     return 0xFFFF;
 }
@@ -56,10 +52,6 @@ vsomeip_v3::server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shar
                                                                  boost::asio::io_context& _io,
                                                                  const std::shared_ptr<configuration>& _configuration) :
     endpoint_impl<Protocol>(_endpoint_host, _routing_host, _io, _configuration) { }
-
-template<typename Protocol>
-void vsomeip_v3::server_endpoint_impl<Protocol>::prepare_stop(const boardnet_endpoint::prepare_stop_handler_t& /*_handler*/,
-                                                              service_t /*_service*/) { }
 
 template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::stop(bool /*_due_to_error*/) { }
@@ -177,9 +169,6 @@ template<typename Protocol>
 void vsomeip_v3::server_endpoint_impl<Protocol>::flush_cbk(endpoint_type /*_key*/, const boost::system::error_code& /*_error_code*/) { }
 
 template<typename Protocol>
-void vsomeip_v3::server_endpoint_impl<Protocol>::remove_stop_handler(service_t /*_service*/) { }
-
-template<typename Protocol>
 size_t vsomeip_v3::server_endpoint_impl<Protocol>::get_queue_size() const {
     return 0;
 }
@@ -258,5 +247,3 @@ struct mock_routing_host : public vsomeip_v3::routing_host {
                  void(vsomeip_v3::port_t _local_port, const boost::asio::ip::address& _remote_address, vsomeip_v3::port_t _remote_port));
     MOCK_METHOD0(get_routing_state, vsomeip_v3::routing_state_e());
 };
-
-#endif /* MOCKED_VSOMEIP_DEPENDENCIES_HPP_ */

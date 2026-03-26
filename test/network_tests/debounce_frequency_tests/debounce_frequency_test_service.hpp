@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef DEBOUNCE_FREQUENCY_TEST_SERVICE_HPP_
-#define DEBOUNCE_FREQUENCY_TEST_SERVICE_HPP_
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -37,5 +36,3 @@ public:
     bool was_event_1_sent();
     bool was_event_2_sent();
 };
-
-#endif // debounce_frequency_test_SERVICE_HPP_

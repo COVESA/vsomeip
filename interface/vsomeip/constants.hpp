@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_CONSTANTS_HPP_
-#define VSOMEIP_V3_CONSTANTS_HPP_
+#pragma once
 
 #include <string>
 
@@ -59,5 +58,3 @@ inline constexpr int VSOMEIP_ALL = -1;
 inline constexpr pending_security_update_id_t DEFAULT_SECURITY_UPDATE_ID = 0x0;
 
 } // namespace vsomeip_v3
-
-#endif // VSOMEIP_V3_CONSTANTS_HPP_

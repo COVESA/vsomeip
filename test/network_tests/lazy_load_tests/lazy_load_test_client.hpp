@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef LAZY_LOAD_TEST_CLIENT_HPP
-#define LAZY_LOAD_TEST_CLIENT_HPP
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -55,5 +54,3 @@ private:
 
     const std::uint16_t NUMBER_OF_MESSAGES_TO_SEND = 10;
 };
-
-#endif // LAZY_LOAD_TEST_CLIENT_HPP

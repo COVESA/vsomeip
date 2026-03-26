@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef E2E_PROFILE_04_TEST_SERVICE_HPP_
-#define E2E_PROFILE_04_TEST_SERVICE_HPP_
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -45,5 +44,3 @@ private:
 
     std::atomic<uint32_t> received_;
 };
-
-#endif // E2E_PROFILE_04_TEST_SERVICE_HPP_

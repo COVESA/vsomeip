@@ -10,7 +10,7 @@ set (VSOMEIP_NAME vsomeip3)
 
 set (VSOMEIP_MAJOR_VERSION 3)
 set (VSOMEIP_MINOR_VERSION 6)
-set (VSOMEIP_PATCH_VERSION 3)
+set (VSOMEIP_PATCH_VERSION 4)
 set (VSOMEIP_HOTFIX_VERSION 0)
 
 set (VSOMEIP_VERSION ${VSOMEIP_MAJOR_VERSION}.${VSOMEIP_MINOR_VERSION}.${VSOMEIP_PATCH_VERSION})
@@ -120,11 +120,22 @@ endif ()
 if (NOT MSVC)
     # Sanitizers
     if (ENABLE_SANITIZERS)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize=leak -fsanitize=undefined")
+        set(flags "-fno-omit-frame-pointer -fsanitize=address -fsanitize=leak -fsanitize=undefined -pthread")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flags}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flags}")
+        set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} ${flags}")
     endif ()
 
     if (ENABLE_THREAD_SANITIZER)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -fsanitize=thread -pthread")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=thread -pthread")
+        set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=thread -pthread")
+    endif ()
+
+    if (ENABLE_SANITIZERS OR ENABLE_THREAD_SANITIZER)
+        # force RPATH instead of RUNPATH
+        # see https://stackoverflow.com/questions/53286707/why-would-runpath-be-ignored, *sans cause issues!
+        SET(CMAKE_EXE_LINKER_FLAGS "-Wl,--disable-new-dtags")
     endif ()
 
     if (ENABLE_PROFILING)
@@ -278,6 +289,8 @@ else()
     set(USE_RT "rt")
 endif()
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 ################################################################################
 # Configuration library
 ################################################################################
@@ -286,10 +299,14 @@ file(GLOB ${VSOMEIP_NAME}-cfg_SRC
 )
 list(SORT ${VSOMEIP_NAME}-cfg_SRC)
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
-    add_library(${VSOMEIP_NAME}-cfg SHARED ${${VSOMEIP_NAME}-cfg_SRC})
+    add_library(${VSOMEIP_NAME}-cfg-internal OBJECT ${${VSOMEIP_NAME}-cfg_SRC})
+    target_link_libraries(${VSOMEIP_NAME}-cfg-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
+    add_library(${VSOMEIP_NAME}-cfg SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-cfg-internal>)
     set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
     target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
     if (MSVC)
+        set_target_properties(${VSOMEIP_NAME}-cfg-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     endif()
 
@@ -321,20 +338,28 @@ endif()
 
 list(SORT ${VSOMEIP_NAME}_SRC)
 
-add_library(${VSOMEIP_NAME} SHARED ${${VSOMEIP_NAME}_SRC})
-set_target_properties (${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
+# internal object library, all symbols exposed, used for testing
+add_library(${VSOMEIP_NAME}-internal OBJECT ${${VSOMEIP_NAME}_SRC})
+target_link_libraries(${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+add_library(${VSOMEIP_NAME} SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-internal>)
+# libvsomeip also `dlopens` other libs (cfg, sd, ..) so leave a rpath hint
+set_target_properties(${VSOMEIP_NAME} PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}")
+set_target_properties(${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
 if (MSVC)
+    set_target_properties(${VSOMEIP_NAME}-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
+    set_target_properties(${VSOMEIP_NAME}-internal PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
     set_target_properties(${VSOMEIP_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 else ()
-  if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
-    # add syscall wrappers to deal with CLOEXEC
-    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
-  else ()
-    # add syscall wrappers to deal with CLOEXEC + react on certain errors
-    set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open -Wl,-wrap,close -Wl,-wrap,recvfrom -Wl,-wrap,recvmsg -Wl,-wrap,sendto -Wl,-wrap,sendmsg -Wl,-wrap,epoll_wait -Wl,-wrap,epoll_pwait")
-  endif ()
+    if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        # add syscall wrappers to deal with CLOEXEC
+        set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open")
+    else ()
+        # add syscall wrappers to deal with CLOEXEC + react on certain errors
+        set_target_properties(${VSOMEIP_NAME} PROPERTIES LINK_FLAGS "-Wl,-wrap,socket -Wl,-wrap,accept -Wl,-wrap,open -Wl,-wrap,close -Wl,-wrap,recvfrom -Wl,-wrap,recvmsg -Wl,-wrap,sendto -Wl,-wrap,sendmsg -Wl,-wrap,epoll_wait -Wl,-wrap,epoll_pwait")
+    endif ()
 endif ()
 target_include_directories(${VSOMEIP_NAME} INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/interface>
@@ -359,10 +384,14 @@ file(GLOB ${VSOMEIP_NAME}-sd_SRC
 )
 list(SORT ${VSOMEIP_NAME}-sd_SRC)
 
-add_library(${VSOMEIP_NAME}-sd SHARED ${${VSOMEIP_NAME}-sd_SRC})
+add_library(${VSOMEIP_NAME}-sd-internal OBJECT ${${VSOMEIP_NAME}-sd_SRC})
+target_link_libraries(${VSOMEIP_NAME}-sd-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+add_library(${VSOMEIP_NAME}-sd SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-sd-internal>)
 target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
+    set_target_properties(${VSOMEIP_NAME}-sd-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(${VSOMEIP_NAME}-sd PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
 
@@ -377,10 +406,14 @@ file(GLOB_RECURSE ${VSOMEIP_NAME}-e2e_SRC
 )
 list(SORT ${VSOMEIP_NAME}-e2e_SRC)
 
-add_library(${VSOMEIP_NAME}-e2e SHARED ${${VSOMEIP_NAME}-e2e_SRC})
+add_library(${VSOMEIP_NAME}-e2e-internal OBJECT ${${VSOMEIP_NAME}-e2e_SRC})
+target_link_libraries(${VSOMEIP_NAME}-e2e-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
+
+add_library(${VSOMEIP_NAME}-e2e SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-e2e-internal>)
 target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_17)
 set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
+    set_target_properties(${VSOMEIP_NAME}-e2e-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(${VSOMEIP_NAME}-e2e PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
 
@@ -524,11 +557,12 @@ configure_file (${VSOMEIP_NAME}Config.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_
 configure_file (${VSOMEIP_NAME}ConfigVersion.cmake.in "${PROJECT_BINARY_DIR}/${VSOMEIP_NAME}ConfigVersion.cmake" @ONLY)
 
 # configure internal.hpp for correct version number
+if(NOT ANDROID_CI_BUILD)
 configure_file (
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp.in"
    "${PROJECT_SOURCE_DIR}/implementation/configuration/include/internal.hpp"
 )
-
+endif ()
 # Install the ${VSOMEIP_NAME}Config.cmake and ${VSOMEIP_NAME}ConfigVersion.cmake
 install (
     FILES
@@ -602,6 +636,8 @@ add_subdirectory( examples/routingmanagerd )
 add_subdirectory( examples/hello_world )
 endif()
 
+add_subdirectory( examples/wait-until-available )
+
 # build tools
 add_custom_target( tools )
 add_subdirectory( tools/vsomeip_ctrl )
@@ -613,6 +649,8 @@ add_subdirectory( examples EXCLUDE_FROM_ALL )
 ##############################################################################
 # add test directory
 enable_testing()
+
+option(WITH_TEST_DISCOVERY "Enables ctest regex selection of single test cases" OFF)
 
 add_subdirectory( test EXCLUDE_FROM_ALL )
 

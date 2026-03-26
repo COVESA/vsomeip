@@ -99,7 +99,7 @@ TEST_F(routing_client_state_machine_test, happy_path_full_registration) {
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm->state());
 
     // ST_ASSIGNING -> ST_ASSIGNED
-    EXPECT_TRUE(sm->assigned());
+    EXPECT_TRUE(sm->assigned(0x1234));
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNED, sm->state());
 
     // ST_ASSIGNED -> ST_REGISTERING
@@ -134,7 +134,7 @@ TEST_F(routing_client_state_machine_test, deregistered_from_any_state) {
 
     // From ST_ASSIGNED
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     initial_count = get_error_count();
     sm->deregistered();
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
@@ -144,7 +144,7 @@ TEST_F(routing_client_state_machine_test, deregistered_from_any_state) {
 
     // From ST_REGISTERING
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     initial_count = get_error_count();
     sm->deregistered();
@@ -155,7 +155,7 @@ TEST_F(routing_client_state_machine_test, deregistered_from_any_state) {
 
     // From ST_REGISTERED
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
     initial_count = get_error_count();
@@ -171,7 +171,7 @@ TEST_F(routing_client_state_machine_test, graceful_deregistration_flow) {
 
     // Get to registered state
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
 
@@ -209,7 +209,7 @@ TEST_F(routing_client_state_machine_test, cannot_start_connecting_from_non_dereg
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm->state());
 
     // Get to ST_ASSIGNED
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     EXPECT_FALSE(sm->start_assignment());
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNED, sm->state());
 }
@@ -219,15 +219,15 @@ TEST_F(routing_client_state_machine_test, cannot_mark_assigned_from_non_assignin
     sm->target_running();
 
     // From ST_DEREGISTERED
-    EXPECT_FALSE(sm->assigned());
+    EXPECT_FALSE(sm->assigned(0x1234));
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
 
     // Get to ST_ASSIGNED
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
 
     // From ST_ASSIGNED
-    EXPECT_FALSE(sm->assigned());
+    EXPECT_FALSE(sm->assigned(0x1234));
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNED, sm->state());
 }
 
@@ -245,7 +245,7 @@ TEST_F(routing_client_state_machine_test, cannot_start_registration_from_non_ass
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm->state());
 
     // Get to ST_REGISTERING
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     // From ST_REGISTERING
@@ -267,7 +267,7 @@ TEST_F(routing_client_state_machine_test, cannot_mark_registered_from_non_regist
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm->state());
 
     // From ST_ASSIGNED
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     EXPECT_FALSE(sm->registered());
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNED, sm->state());
 
@@ -304,7 +304,7 @@ TEST_F(routing_client_state_machine_test, registration_timeout) {
     int initial_count = get_error_count();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERING, sm->state());
 
@@ -319,7 +319,7 @@ TEST_F(routing_client_state_machine_test, registration_timeout_canceled_on_succe
     int initial_count = get_error_count();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     // Complete registration before timeout
@@ -340,7 +340,7 @@ TEST_F(routing_client_state_machine_test, await_registered_succeeds_when_already
     sm->target_running();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
 
@@ -352,7 +352,7 @@ TEST_F(routing_client_state_machine_test, await_registered_waits_for_registratio
     sm->target_running();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     // Start waiting in separate thread
@@ -382,7 +382,7 @@ TEST_F(routing_client_state_machine_test, await_registered_times_out) {
     sm->target_running();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     // Don't call registered() - should timeout
@@ -400,7 +400,7 @@ TEST_F(routing_client_state_machine_test, await_deregistered_waits_for_deregistr
     sm->target_running();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
     ASSERT_TRUE(sm->start_deregister());
@@ -437,7 +437,7 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_deregistration) {
 
     // First registration
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
 
@@ -450,7 +450,7 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_deregistration) {
 
     // Second registration
     EXPECT_TRUE(sm->start_assignment());
-    EXPECT_TRUE(sm->assigned());
+    EXPECT_TRUE(sm->assigned(0x1234));
     EXPECT_TRUE(sm->start_registration());
     EXPECT_TRUE(sm->registered());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
@@ -466,7 +466,7 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_registration_time
 
     // First attempt with timeout
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     EXPECT_TRUE(wait_for_error(initial_count, 700ms));
     EXPECT_EQ(routing_client_state_e::ST_DEREGISTERED, sm->state());
@@ -475,7 +475,7 @@ TEST_F(routing_client_state_machine_test, can_reregister_after_registration_time
 
     // Second attempt successful
     EXPECT_TRUE(sm->start_assignment());
-    EXPECT_TRUE(sm->assigned());
+    EXPECT_TRUE(sm->assigned(0x1234));
     EXPECT_TRUE(sm->start_registration());
     EXPECT_TRUE(sm->registered());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
@@ -509,7 +509,7 @@ TEST_F(routing_client_state_machine_test, can_restart_after_shutdown) {
     sm->target_shutdown();
 
     // Cannot proceed while shut down
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_FALSE(sm->start_registration());
 
     // Deregister and restart
@@ -529,7 +529,7 @@ TEST_F(routing_client_state_machine_test, error_handler_called_on_timeout) {
     int initial_count = get_error_count();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     EXPECT_TRUE(wait_for_error(initial_count, 200ms));
@@ -565,7 +565,7 @@ TEST_F(routing_client_state_machine_test, error_handler_can_reenter_state_machin
 
     sm->target_running();
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     std::this_thread::sleep_for(75ms);
@@ -580,7 +580,7 @@ TEST_F(routing_client_state_machine_test, no_error_handler_on_graceful_shutdown)
     sm->target_running();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     // Shutdown before timeout
@@ -604,7 +604,7 @@ TEST_F(routing_client_state_machine_test, no_stale_handlers_after_rapid_restart)
 
     // Start assignment that will timeout
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
 
     // Wait for timeout and handler execution
@@ -615,7 +615,7 @@ TEST_F(routing_client_state_machine_test, no_stale_handlers_after_rapid_restart)
 
     // Immediately restart and complete registration
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
 
@@ -634,7 +634,7 @@ TEST_F(routing_client_state_machine_test, multiple_shutdown_restart_cycles_no_ac
     for (int cycle = 0; cycle < 3; ++cycle) {
         sm->target_running();
         ASSERT_TRUE(sm->start_assignment());
-        ASSERT_TRUE(sm->assigned());
+        ASSERT_TRUE(sm->assigned(0x1234));
         ASSERT_TRUE(sm->start_registration());
 
         // Shutdown before timeout
@@ -649,7 +649,7 @@ TEST_F(routing_client_state_machine_test, multiple_shutdown_restart_cycles_no_ac
     // Restart one more time
     sm->target_running();
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     std::this_thread::sleep_for(10ms);
 
@@ -663,7 +663,7 @@ TEST_F(routing_client_state_machine_test, graceful_deregister_after_registered_c
 
     // Get to registered state
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
 
@@ -682,7 +682,7 @@ TEST_F(routing_client_state_machine_test, graceful_deregister_with_shutdown_no_h
     sm->target_running();
 
     ASSERT_TRUE(sm->start_assignment());
-    ASSERT_TRUE(sm->assigned());
+    ASSERT_TRUE(sm->assigned(0x1234));
     ASSERT_TRUE(sm->start_registration());
     ASSERT_TRUE(sm->registered());
     ASSERT_TRUE(sm->start_deregister());
@@ -708,7 +708,7 @@ TEST_F(routing_client_state_machine_test, rapid_state_transitions) {
 
     // Rapid transitions without delays
     EXPECT_TRUE(sm->start_assignment());
-    EXPECT_TRUE(sm->assigned());
+    EXPECT_TRUE(sm->assigned(0x1234));
     EXPECT_TRUE(sm->start_registration());
     EXPECT_TRUE(sm->registered());
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
@@ -728,7 +728,7 @@ TEST_F(routing_client_state_machine_test, multiple_state_machine_instances) {
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm1->state());
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm2->state());
 
-    EXPECT_TRUE(sm1->assigned());
+    EXPECT_TRUE(sm1->assigned(0x1234));
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNED, sm1->state());
     EXPECT_EQ(routing_client_state_e::ST_ASSIGNING, sm2->state());
 }

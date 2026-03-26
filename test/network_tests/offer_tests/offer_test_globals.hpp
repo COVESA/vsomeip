@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef OFFER_TEST_GLOBALS_HPP_
-#define OFFER_TEST_GLOBALS_HPP_
+#pragma once
 
 namespace offer_test {
 
@@ -23,5 +22,3 @@ static constexpr std::uint16_t big_msg_number_services = 300;
 static constexpr vsomeip::event_t big_msg_event_id = 0x8000;
 static constexpr vsomeip::eventgroup_t big_msg_eventgroup_id = 0x1;
 }
-
-#endif /* OFFER_TEST_GLOBALS_HPP_ */

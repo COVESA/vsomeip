@@ -83,10 +83,6 @@ process_group_t& process_group_t::add_process(const std::string& name, const std
 
     // Always set application name to the process name
     env["VSOMEIP_APPLICATION_NAME"] = name;
-    const char* ld_library_path = std::getenv("LD_LIBRARY_PATH");
-    std::string asdf = ld_library_path ? ld_library_path : "";
-    // std::cout << "LD_LIBRARY_PATH:" << asdf << std::endl;
-    env["LD_LIBRARY_PATH"] = asdf;
     configs_.push_back({name, type.executable, env});
     return *this;
 }
@@ -95,7 +91,6 @@ process_group_t& process_group_t::add_daemon(std::string config_file) {
     auto& type = types_.at("daemon");
     std::map<std::string, std::string> env;
     env["VSOMEIP_CONFIGURATION"] = std::move(config_file);
-    env["LD_LIBRARY_PATH"] = std::getenv("LD_LIBRARY_PATH");
 
     configs_.push_back({"daemon", type.executable, env});
     return *this;

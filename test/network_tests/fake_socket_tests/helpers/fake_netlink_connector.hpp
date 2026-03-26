@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef VSOMEIP_V3_TESTING_FAKE_NETLINK_CONNECTOR_HPP_
-#define VSOMEIP_V3_TESTING_FAKE_NETLINK_CONNECTOR_HPP_
+#pragma once
 
 #if defined(__linux__)
 #include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
@@ -41,5 +40,4 @@ private:
 };
 }
 
-#endif
 #endif

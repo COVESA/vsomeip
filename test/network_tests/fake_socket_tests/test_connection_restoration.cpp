@@ -411,8 +411,12 @@ TEST_F(test_client_helper, client_server_connection_breakdown_on_client_suspend_
     send_first_message();
     ASSERT_TRUE(client_->message_record_.wait_for_last(first_expected_message_));
 
-    // simulating a suspend of a client:
+    // simulating a suspend of a client (the client should not react to any action of the server)
+    ASSERT_TRUE(set_ignore_inner_close(client_name_, true, server_name_, false));
+    ASSERT_TRUE(set_ignore_inner_close(server_name_, true, client_name_, false));
     set_ignore_connections(client_name_, true);
+    set_ignore_nothing_to_read_from(server_name_, client_name_, socket_role::receiver, true);
+
     ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, client_name_, std::nullopt));
     std::ignore = disconnect(client_name_, std::nullopt, server_name_, boost::asio::error::timed_out);
 
@@ -920,6 +924,38 @@ TEST_F(test_client_helper, routing_info_conflict_routingmanagerd) {
     EXPECT_TRUE(client_->availability_record_.wait_for_any(service_availability::unavailable(service_instance_)));
 }
 
+TEST_F(test_client_helper, subscribe_eventgroup_connection_break) {
+    /// check whether a subscription to an event group is restored after a connection break
+
+    start_apps();
+
+    send_field_message();
+
+    client_->request_service(service_instance_);
+    client_->subscribe_eventgroup_field(offered_field_);
+
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 0; }));
+
+    // need to increase the odds, hence the extra iterations
+    for (size_t i = 0; i < 100; ++i) {
+        TEST_LOG << "Iteration " << i;
+
+        client_->availability_record_.clear();
+        client_->subscription_record_.clear();
+        client_->message_record_.clear();
+
+        // client -> server connection breaks..
+        std::ignore = disconnect(client_name_, boost::asio::error::timed_out, server_name_, std::nullopt);
+
+        // we *MUST* see available/subscribed/message
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+        ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+        ASSERT_TRUE(client_->message_record_.wait_for([](auto const& record) { return record.size() > 0; }));
+    }
+}
+
 struct test_restart_clients : test_client_helper {
 
     bool subscribe(app* client) {
@@ -1035,12 +1071,22 @@ TEST_F(test_restart_clients, test_restart_service_availability) {
  */
 TEST_F(test_restart_clients, block_registration_process) {
     start_router();
+
+    std::future<protocol::id_e> fut = drop_command_once(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID);
+
+    // start a client
     create_app(client_one_);
     auto* one = start_client(client_one_);
-    ASSERT_TRUE(await_connection(client_one_, routingmanager_name_, std::chrono::seconds(2)));
-    ASSERT_TRUE(wait_once_for_dropped_command(client_one_, routingmanager_name_, protocol::id_e::REGISTER_APPLICATION_ID,
-                                              std::chrono::milliseconds(500)));
+    ASSERT_TRUE(await_connection(client_one_, routingmanager_name_));
+
     ASSERT_FALSE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED, std::chrono::seconds(1)));
+
+    // sanity check that the right message was dropped
+    ASSERT_TRUE(fut.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    ASSERT_EQ(fut.get(), protocol::id_e::REGISTER_APPLICATION_ID);
+
+    // and that application eventually registers
+    EXPECT_TRUE(one->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
 }
 
 struct test_single_connection_breakdown : test_client_helper, ::testing::WithParamInterface<std::pair<std::string, std::string>> { };

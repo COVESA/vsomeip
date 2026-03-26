@@ -339,6 +339,11 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
     return connection->set_ignore_inner_close(_ignore_in_from, _ignore_in_to);
 }
 
+void socket_manager::set_ignore_nothing_to_read_from(std::string const& _from, std::string const& _to, socket_role _role, bool _ignore) {
+    auto connection = get_or_create_connection(_from, _to);
+    connection->set_ignore_nothing_to_read_from(_role, _ignore);
+}
+
 [[nodiscard]] bool socket_manager::block_on_close_for(std::string const& _from, std::optional<std::chrono::milliseconds> _from_block_time,
                                                       std::string const& _to, std::optional<std::chrono::milliseconds> _to_block_time) {
     auto connection = get_or_create_connection(_from, _to);
@@ -383,23 +388,20 @@ bool socket_manager::ignore_broken_pipe(fake_tcp_socket_handle const& _handle) {
     return true;
 }
 
-bool socket_manager::wait_once_for_dropped_command(std::string const& _from, std::string const& _to, protocol::id_e _id,
-                                                   [[maybe_unused]] std::chrono::milliseconds _timeout) {
+std::future<protocol::id_e> socket_manager::drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id) {
     std::shared_ptr<std::promise<protocol::id_e>> blocked_promise{std::make_shared<std::promise<protocol::id_e>>()};
-    auto blocked_future = blocked_promise->get_future();
-    set_custom_command_handler(_from, _to, [blocked_promise, _id](command_message const& _cmd) {
+    auto fut = blocked_promise->get_future();
+    set_custom_command_handler(_from, _to, [this, blocked_promise, _id, from = _from, to = _to](command_message const& _cmd) {
         if (_cmd.id_ == _id) {
             blocked_promise->set_value(_id);
+            // reset handler
+            set_custom_command_handler(from, to, nullptr);
             return true;
         }
         return false;
     });
 
-    auto expired = blocked_future.wait_for(_timeout);
-    // Destroy previous registered handler and consequently dangling captures.
-    set_custom_command_handler(_from, _to, nullptr);
-
-    return expired == std::future_status::ready;
+    return fut;
 }
 
 bool socket_manager::inject_command(std::string const& _from, std::string const& _to, std::vector<unsigned char>& _payload) {

@@ -3,8 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef LAZY_LOAD_TEST_SERVICE_HPP
-#define LAZY_LOAD_TEST_SERVICE_HPP
+#pragma once
 
 #include <condition_variable>
 #include <mutex>
@@ -49,5 +48,3 @@ private:
     // Twice as big as messages to send, account for all messages from both clients
     const std::uint16_t NUMBER_OF_MESSAGES_TO_RECEIVE = 20;
 };
-
-#endif // LAZY_LOAD_TEST_SERVICE_HPP

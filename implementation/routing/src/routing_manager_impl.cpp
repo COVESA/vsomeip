@@ -415,13 +415,11 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     }
 
     {
-        std::set<event_t> its_already_subscribed_events;
         {
             std::scoped_lock ist_lock(pending_subscription_mutex_);
             for (auto& ps : pending_subscriptions_) {
                 if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
-                    insert_subscription(ps.service_, ps.instance_, ps.eventgroup_, ps.event_, nullptr, get_client(),
-                                        &its_already_subscribed_events);
+                    insert_subscription(ps.service_, ps.instance_, ps.eventgroup_, ps.event_, nullptr, get_client());
                 }
             }
         }
@@ -596,7 +594,10 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
         }
     } else {
         if (discovery_) {
-            discovery_->release_service(_service, _instance);
+            // Release the service only if there are no more requesters.
+            if (!has_requester(_service, _instance, ANY_MAJOR, ANY_MINOR)) {
+                discovery_->release_service(_service, _instance);
+            }
         }
     }
 }
@@ -624,15 +625,14 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                         if (stub_)
                             stub_->send_subscribe_nack(_client, _service, _instance, _eventgroup, _event);
                     } else {
-                        std::set<event_t> its_already_subscribed_events;
-                        insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, &its_already_subscribed_events);
+                        insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
 
                         // NOTE: order matters, send ACK _after_ inserting the subscription
                         if (stub_) {
                             stub_->send_subscribe_ack(_client, _service, _instance, _eventgroup, _event);
                         }
 
-                        notify_one_current_value(_client, _service, _instance, _eventgroup, _event, its_already_subscribed_events);
+                        notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
                     }
 
                     VSOMEIP_INFO << "SUBSCRIBE(" << std::hex << std::setfill('0') << std::setw(4) << _client << "): [" << std::setw(4)
@@ -642,21 +642,19 @@ void routing_manager_impl::subscribe(client_t _client, const vsomeip_sec_client_
                 });
     } else {
         if (discovery_) {
-            std::set<event_t> its_already_subscribed_events;
-
             // Note: The calls to insert_subscription & handle_subscription_state must not
             // run concurrently to a call to on_subscribe_ack. Therefore the lock is acquired
             // before calling insert_subscription and released after the call to
             // handle_subscription_state.
             std::unique_lock<std::mutex> its_critical(remote_subscription_state_mutex_);
-            bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, &its_already_subscribed_events);
+            bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
             const bool subscriber_is_rm_host = (get_client() == _client);
             if (inserted) {
                 if (0 == its_local_client) {
                     handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
                     its_critical.unlock();
                     static const ttl_t configured_ttl(configuration_->get_sd_ttl());
-                    notify_one_current_value(_client, _service, _instance, _eventgroup, _event, its_already_subscribed_events);
+                    notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
 
                     auto its_info = find_eventgroup(_service, _instance, _eventgroup);
                     // if the subscriber is the rm_host itself: check if service
@@ -1465,97 +1463,27 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
      * After triggering "del_routing_info" this endpoints gets cleanup up
      * within this method if they not longer used by any other local service.
      */
-    std::shared_ptr<boardnet_endpoint> its_reliable_endpoint;
-    std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint;
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
     if (its_info) {
-        its_reliable_endpoint = its_info->get_endpoint(true);
-        its_unreliable_endpoint = its_info->get_endpoint(false);
-
-        // Create a ready_to_stop_t object to synchronize the stopping
-        // of the service on reliable and unreliable endpoints.
-        struct ready_to_stop_t {
-            ready_to_stop_t(bool _reliable, bool _unreliable, major_version_t _major, minor_version_t _minor) :
-                reliable_ready_(_reliable), unreliable_ready_(_unreliable), major_(_major), minor_(_minor) { }
-
-            inline bool is_ready() const { return reliable_ready_ && unreliable_ready_; }
-            std::mutex is_ready_mutex_;
-            bool done_{false};
-            std::atomic<bool> reliable_ready_;
-            std::atomic<bool> unreliable_ready_;
-
-            major_version_t major_;
-            minor_version_t minor_;
-        };
-        auto ready_to_stop = std::make_shared<ready_to_stop_t>(its_reliable_endpoint == nullptr, its_unreliable_endpoint == nullptr,
-                                                               its_info->get_major(), its_info->get_minor());
-        auto ptr = shared_from_this();
-
-        auto callback = [this, ptr, ready_to_stop, _client, _service, _instance, _major,
-                         _minor](std::shared_ptr<boardnet_endpoint> _endpoint) {
-            bool reliable_endpoint = _endpoint->is_reliable();
-            if (reliable_endpoint) {
-                ready_to_stop->reliable_ready_ = true;
-            } else {
-                ready_to_stop->unreliable_ready_ = true;
-            }
-
-            if (discovery_) {
-                if (ready_to_stop->major_ == _major && ready_to_stop->minor_ == _minor) {
-                    auto service_info = find_service(_service, _instance);
-                    if (service_info)
-                        discovery_->stop_offer_service(service_info, true);
-                }
-            }
-
-            if (ep_mgr_impl_->remove_instance(_service, _endpoint.get())) {
-                // last instance -> pass ANY_INSTANCE and shutdown completely
-                _endpoint->prepare_stop(
-                        [this, ptr](std::shared_ptr<boardnet_endpoint> _endpoint_to_stop) {
-                            if (ep_mgr_impl_->remove_server_endpoint(_endpoint_to_stop->get_local_port(),
-                                                                     _endpoint_to_stop->is_reliable())) {
-                                _endpoint_to_stop->stop(false);
-                            }
-                        },
-                        ANY_SERVICE);
-            }
-
-            if (ready_to_stop->is_ready()) {
-                {
-                    std::scoped_lock ready_lck{ready_to_stop->is_ready_mutex_};
-                    if (!ready_to_stop->done_) {
-                        ready_to_stop->done_ = true;
-                        del_routing_info(_service, _instance, reliable_endpoint, !reliable_endpoint, false);
-                        // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process
-                        // has completed before starting the next one, otherwise, we may have the availability being reported in the wrong
-                        // order
-                        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
-                        if (stub_) {
-                            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-                        }
-                        erase_offer_command(_service, _instance);
-                    } else {
-                        del_routing_info(_service, _instance, reliable_endpoint, !reliable_endpoint, false);
-                    }
-                }
-            } else {
-                del_routing_info(_service, _instance, reliable_endpoint, !reliable_endpoint, false);
-            }
-        };
+        std::shared_ptr<boardnet_endpoint> its_reliable_endpoint = its_info->get_endpoint(true);
+        std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint = its_info->get_endpoint(false);
 
         for (const auto& ep : {its_reliable_endpoint, its_unreliable_endpoint}) {
-            if (ep)
-                ep->prepare_stop(callback, _service);
+            if (ep == nullptr) {
+                continue;
+            }
+
+            if (ep_mgr_impl_->remove_instance(_service, ep.get())
+                && ep_mgr_impl_->remove_server_endpoint(ep->get_local_port(), ep->is_reliable())) {
+                ep->stop(false);
+            }
         }
 
-        if (!its_reliable_endpoint && !its_unreliable_endpoint) {
-            // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has
-            // completed before starting the next one, otherwise, we may have the availability being reported in the wrong order
-            on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
-            if (stub_) {
-                stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-            }
-            erase_offer_command(_service, _instance);
+        del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
+
+        if (discovery_) {
+            if (its_info->get_major() == _major && its_info->get_minor() == _minor)
+                discovery_->stop_offer_service(its_info, true);
         }
 
         std::set<std::shared_ptr<eventgroupinfo>> its_eventgroup_info_set;
@@ -1573,15 +1501,15 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
         for (auto e : its_eventgroup_info_set) {
             e->clear_remote_subscriptions();
         }
-    } else {
-        // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed
-        // before starting the next one, otherwise, we may have the availability being reported in the wrong order
-        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
-        if (stub_) {
-            stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
-        }
-        erase_offer_command(_service, _instance);
     }
+
+    // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed
+    // before starting the next one, otherwise, we may have the availability being reported in the wrong order
+    on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+    if (stub_) {
+        stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+    }
+    erase_offer_command(_service, _instance);
 }
 
 bool routing_manager_impl::deliver_message(const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
@@ -3130,27 +3058,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     bool has_unreliable(info->get_endpoint(false) != nullptr);
                     if (has_reliable || has_unreliable) {
                         const client_t its_client(find_local_client(service, instance));
-                        if (its_client == VSOMEIP_ROUTING_CLIENT) {
-                            // Inconsistency between services_ and local_services_ table detected
-                            // --> cleanup.
-                            VSOMEIP_WARNING << "rmi::" << __func__ << " Found table inconsistency for [" << std::hex << std::setfill('0')
-                                            << std::setw(4) << service << "." << std::setw(4) << instance << "]";
-
-                            // Remove the service from the offer_commands_ and
-                            // prepare_stop_handlers_ to force the next offer to be processed
-                            offer_commands_.erase(std::make_pair(service, instance));
-                            if (has_reliable)
-                                info->get_endpoint(true)->remove_stop_handler(service);
-                            if (has_unreliable)
-                                info->get_endpoint(false)->remove_stop_handler(service);
-
-                            del_routing_info(service, instance, has_reliable, has_unreliable, true);
-
-                            std::scoped_lock its_lock{pending_offers_mutex_};
-                            auto its_pending_offer = pending_offers_.find(service);
-                            if (its_pending_offer != pending_offers_.end())
-                                its_pending_offer->second.erase(instance);
-                        }
                         VSOMEIP_WARNING << "rmi::" << __func__ << ": Service " << std::hex << std::setfill('0') << std::setw(4) << service
                                         << "." << std::setw(4) << instance << " still offered by " << std::setw(4) << its_client;
                     }
@@ -3579,6 +3486,11 @@ std::set<client_t> routing_manager_impl::get_requesters_unlocked(service_t _serv
     return its_requesters;
 }
 
+bool routing_manager_impl::has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {
+    std::scoped_lock lock{requested_services_mutex_};
+    return has_requester_unlocked(_service, _instance, _major, _minor);
+}
+
 bool routing_manager_impl::has_requester_unlocked(service_t _service, instance_t _instance, major_version_t _major,
                                                   minor_version_t _minor) {
 
@@ -3599,10 +3511,9 @@ bool routing_manager_impl::has_requester_unlocked(service_t _service, instance_t
     }
 
     for (const auto& [major, minors_map] : found_instance->second) {
-        if (major == _major || _major == DEFAULT_MAJOR || major == ANY_MAJOR) {
+        if (major == _major || _major == DEFAULT_MAJOR || major == ANY_MAJOR || _major == ANY_MAJOR) {
             for (const auto& [minor, clients] : minors_map) {
-                if (minor <= _minor || _minor == DEFAULT_MINOR || minor == ANY_MINOR) {
-
+                if (minor <= _minor || _minor == DEFAULT_MINOR || minor == ANY_MINOR || _minor == ANY_MINOR) {
                     return true;
                 }
             }

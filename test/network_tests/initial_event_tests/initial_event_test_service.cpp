@@ -194,8 +194,7 @@ int main(int argc, char** argv) {
                 reliability_type = vsomeip::reliability_type_e::RT_BOTH;
                 std::cout << "Using reliability type RT_BOTH" << std::endl;
             } else if (std::string("SUBSCRIBE_ON_AVAILABILITY") == std::string(argv[i])
-                       || std::string("SUBSCRIBE_BEFORE_START") == std::string(argv[i])
-                       || std::string("STRICT_CHECKING") == std::string(argv[i]) || std::string("DONT_EXIT") == std::string(argv[i])
+                       || std::string("SUBSCRIBE_BEFORE_START") == std::string(argv[i]) || std::string("DONT_EXIT") == std::string(argv[i])
                        || std::string("SUBSCRIBE_ONLY_ONE") == std::string(argv[i])
                        || std::string("CLIENT_SUBSCRIBES_TWICE") == std::string(argv[i])) {
                 std::cout << std::string(argv[i]) << " will be unused for service" << std::endl;

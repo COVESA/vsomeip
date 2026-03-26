@@ -13,20 +13,13 @@
 namespace vsomeip_v3 {
 
 virtual_server_endpoint_impl::virtual_server_endpoint_impl(const std::string& _address, uint16_t _port, bool _reliable,
-                                                           boost::asio::io_context& _io) :
+                                                           boost::asio::io_context& /*_io*/) :
 
-    address_(_address), port_(_port), reliable_(_reliable), io_(_io) { }
+    address_(_address), port_(_port), reliable_(_reliable) { }
 
 virtual_server_endpoint_impl::~virtual_server_endpoint_impl() { }
 
 void virtual_server_endpoint_impl::start() { }
-
-void virtual_server_endpoint_impl::prepare_stop(const prepare_stop_handler_t& _handler, service_t _service) {
-    (void)_service;
-
-    auto ptr = shared_from_this();
-    boost::asio::post(io_, [ptr, _handler]() { _handler(ptr); });
-}
 
 void virtual_server_endpoint_impl::stop(bool /*_due_to_error*/) { }
 
@@ -77,8 +70,6 @@ void virtual_server_endpoint_impl::add_default_target(service_t _service, const 
 void virtual_server_endpoint_impl::remove_default_target(service_t _service) {
     (void)_service;
 }
-
-void virtual_server_endpoint_impl::remove_stop_handler(service_t) { }
 
 bool virtual_server_endpoint_impl::get_remote_address(boost::asio::ip::address& _address) const {
     (void)_address;
