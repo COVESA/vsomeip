@@ -178,5 +178,7 @@ cc_library_shared {
     // see https://android.googlesource.com/platform/art/+/refs/heads/main/tools/create_minidebuginfo/create_minidebuginfo.cc#60
     strip: {
         none:true,
-    }
+    },
+    // disable coverage, makes no sense anyhow for a dummy lib
+    native_coverage: false
 }
