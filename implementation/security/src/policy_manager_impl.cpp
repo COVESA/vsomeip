@@ -17,11 +17,7 @@
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/policy_manager_impl.hpp"
 #include "../../configuration/include/configuration_element.hpp"
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 #include "../../utility/include/utility.hpp"
 
 #define VSOMEIP_LOG_PREFIX "pmi"

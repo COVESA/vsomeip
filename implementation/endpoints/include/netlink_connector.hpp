@@ -17,11 +17,7 @@
 #include <boost/asio/basic_raw_socket.hpp>
 #include <boost/asio/ip/address.hpp>
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif
+#include "internal.hpp"
 
 #include "../../endpoints/include/buffer.hpp"
 #include "abstract_netlink_connector.hpp"

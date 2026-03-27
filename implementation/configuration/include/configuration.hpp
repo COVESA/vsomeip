@@ -27,11 +27,7 @@
 #include "../../e2e_protection/include/e2exf/config.hpp"
 #include "e2e.hpp"
 
-#ifdef ANDROID
-#include "internal_android.hpp"
-#else
 #include "internal.hpp"
-#endif // ANDROID
 
 #include "../../security/include/policy.hpp"
 

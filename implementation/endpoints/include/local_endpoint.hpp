@@ -9,11 +9,7 @@
 #include "local_client_data.hpp"
 #include "timer.hpp"
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/constants.hpp>

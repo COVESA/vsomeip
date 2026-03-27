@@ -16,7 +16,7 @@
 #include "../../../../interface/vsomeip/defines.hpp"
 #include "../../../../implementation/message/include/deserializer.hpp"
 #include "../../../../implementation/message/include/serializer.hpp"
-#include "../../../../implementation/configuration/include/internal.hpp"
+#include "internal.hpp"
 #include "../../../../implementation/message/include/message_impl.hpp"
 #include "../../../../implementation/service_discovery/include/defines.hpp"
 #include "../../../../implementation/service_discovery/include/deserializer.hpp"

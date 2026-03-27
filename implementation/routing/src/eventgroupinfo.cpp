@@ -12,11 +12,7 @@
 #include "../include/eventgroupinfo.hpp"
 #include "../include/event.hpp"
 #include "../include/remote_subscription.hpp"
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 #include "../../endpoints/include/endpoint_definition.hpp"
 #include "../../utility/include/utility.hpp"
 

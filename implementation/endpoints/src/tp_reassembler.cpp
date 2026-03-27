@@ -15,11 +15,7 @@
 #include "../../utility/include/bithelper.hpp"
 #include "../../utility/include/utility.hpp"
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 
 #define VSOMEIP_LOG_PREFIX "tp_reassembler"
 

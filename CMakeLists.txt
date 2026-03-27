@@ -279,14 +279,18 @@ if (MSVC)
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     add_compile_options(/MD$<$<CONFIG:Debug>:d>)
+    set(VSOMEIP_CONFIG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/configuration/include)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(USE_RT "")
+    set(VSOMEIP_CONFIG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/configuration/include)
 elseif(ANDROID_CI_BUILD)
-    set( USE_RT "")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CI_BUILD -Wno-format-security -Wno-conversion -Wno-error -Wno-inconsistent-missing-override -llog")
+    set(USE_RT "")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CI_BUILD -Wno-format-security -Wno-conversion -Wno-error -Wno-inconsistent-missing-override -llog")
+    set(VSOMEIP_CONFIG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/configuration/include/android)
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OS_CXX_FLAGS} -g ${OPTIMIZE} ${NO_DEPRECATED} ${EXPORTSYMBOLS}")
     set(USE_RT "rt")
+    set(VSOMEIP_CONFIG_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/implementation/configuration/include)
 endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -300,6 +304,7 @@ file(GLOB ${VSOMEIP_NAME}-cfg_SRC
 list(SORT ${VSOMEIP_NAME}-cfg_SRC)
 if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
     add_library(${VSOMEIP_NAME}-cfg-internal OBJECT ${${VSOMEIP_NAME}-cfg_SRC})
+    target_include_directories(${VSOMEIP_NAME}-cfg-internal PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
     target_link_libraries(${VSOMEIP_NAME}-cfg-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
     add_library(${VSOMEIP_NAME}-cfg SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-cfg-internal>)
@@ -341,6 +346,7 @@ list(SORT ${VSOMEIP_NAME}_SRC)
 
 # internal object library, all symbols exposed, used for testing
 add_library(${VSOMEIP_NAME}-internal OBJECT ${${VSOMEIP_NAME}_SRC})
+target_include_directories(${VSOMEIP_NAME}-internal PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 target_link_libraries(${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(${VSOMEIP_NAME} SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-internal>)
@@ -386,6 +392,7 @@ file(GLOB ${VSOMEIP_NAME}-sd_SRC
 list(SORT ${VSOMEIP_NAME}-sd_SRC)
 
 add_library(${VSOMEIP_NAME}-sd-internal OBJECT ${${VSOMEIP_NAME}-sd_SRC})
+target_include_directories(${VSOMEIP_NAME}-sd-internal PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 target_link_libraries(${VSOMEIP_NAME}-sd-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(${VSOMEIP_NAME}-sd SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-sd-internal>)
@@ -408,6 +415,7 @@ file(GLOB_RECURSE ${VSOMEIP_NAME}-e2e_SRC
 list(SORT ${VSOMEIP_NAME}-e2e_SRC)
 
 add_library(${VSOMEIP_NAME}-e2e-internal OBJECT ${${VSOMEIP_NAME}-e2e_SRC})
+target_include_directories(${VSOMEIP_NAME}-e2e-internal PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 target_link_libraries(${VSOMEIP_NAME}-e2e-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 add_library(${VSOMEIP_NAME}-e2e SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-e2e-internal>)

@@ -15,11 +15,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 
 #include "../../logger/include/logger_ext.hpp" // for VSOMEIP_FATAL
 

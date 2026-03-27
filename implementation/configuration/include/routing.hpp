@@ -9,11 +9,7 @@
 
 #include <vsomeip/primitive_types.hpp>
 
-#ifdef ANDROID
-#include "internal_android.hpp"
-#else
 #include "internal.hpp"
-#endif
 
 namespace vsomeip_v3 {
 namespace cfg {

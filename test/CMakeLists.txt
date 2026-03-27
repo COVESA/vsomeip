@@ -45,6 +45,7 @@ endif()
 # these expose all symbols, unlike the normal vsomeip libraries; useful for tests
 
 add_library(${VSOMEIP_NAME}-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-internal>)
+target_include_directories(${VSOMEIP_NAME}-test PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 # libvsomeip also `dlopens` other libs (cfg, sd, ..) so leave a rpath hint
 set_target_properties(${VSOMEIP_NAME}-test PROPERTIES BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}")
 set_target_properties(${VSOMEIP_NAME}-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME} VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
@@ -61,15 +62,18 @@ if (NOT MSVC)
 endif ()
 
 add_library(${VSOMEIP_NAME}-cfg-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-cfg-internal>)
+target_include_directories(${VSOMEIP_NAME}-cfg-test PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 set_target_properties(${VSOMEIP_NAME}-cfg-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME}-cfg VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(${VSOMEIP_NAME}-cfg-test ${VSOMEIP_NAME}-test ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 set_target_properties(${VSOMEIP_NAME}-cfg-test PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 
 add_library(${VSOMEIP_NAME}-sd-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-sd-internal>)
+target_include_directories(${VSOMEIP_NAME}-sd-test PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 set_target_properties(${VSOMEIP_NAME}-sd-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME}-sd VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(${VSOMEIP_NAME}-sd-test ${VSOMEIP_NAME}-test ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(${VSOMEIP_NAME}-e2e-test SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-e2e-internal>)
+target_include_directories(${VSOMEIP_NAME}-e2e-test PRIVATE ${VSOMEIP_CONFIG_INCLUDE_DIR})
 set_target_properties(${VSOMEIP_NAME}-e2e-test PROPERTIES OUTPUT_NAME ${VSOMEIP_NAME}-e2e VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 target_link_libraries(${VSOMEIP_NAME}-e2e-test ${VSOMEIP_NAME}-test ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
@@ -80,6 +84,10 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-sd-test PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
     set_target_properties(${VSOMEIP_NAME}-e2e-test PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
 endif ()
+
+##############################################################################
+# Add configuration include directory for all test targets
+include_directories(${VSOMEIP_CONFIG_INCLUDE_DIR})
 
 ##############################################################################
 # build tests

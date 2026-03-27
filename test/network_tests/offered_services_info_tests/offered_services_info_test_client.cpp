@@ -19,11 +19,7 @@
 #include <vsomeip/vsomeip.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-#ifdef ANDROID
-#include "../../implementation/configuration/include/internal_android.hpp"
-#else
-#include "../../implementation/configuration/include/internal.hpp"
-#endif
+#include "internal.hpp"
 
 #include "offered_services_info_test_globals.hpp"
 #include "someip_test_globals.hpp"

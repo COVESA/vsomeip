@@ -58,7 +58,8 @@ cc_defaults {
     ],
 
     local_include_dirs: [
-        "interface"
+        "interface",
+        "implementation/configuration/include/android",
     ]
 }
 

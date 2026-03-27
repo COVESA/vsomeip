@@ -9,11 +9,7 @@
 
 #include "../../endpoints/include/timer.hpp"
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif
+#include "internal.hpp"
 
 #include <memory>
 #include <mutex>

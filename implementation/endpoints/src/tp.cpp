@@ -9,11 +9,7 @@
 #include "../../logger/include/logger_ext.hpp"
 #include "../include/tp.hpp"
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 
 #if defined(__linux__) || defined(__QNX__)
 #include <arpa/inet.h>

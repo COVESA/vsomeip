@@ -9,12 +9,8 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-// internal[_android.hpp] must be included before defines.hpp
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+// internal.hpp must be included before defines.hpp
+#include "internal.hpp"
 
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"

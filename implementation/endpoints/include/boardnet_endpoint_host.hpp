@@ -11,11 +11,7 @@
 
 #include <vsomeip/primitive_types.hpp>
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif
+#include "internal.hpp"
 
 namespace vsomeip_v3 {
 

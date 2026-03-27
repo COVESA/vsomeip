@@ -25,11 +25,7 @@
 #include <vsomeip/export.hpp>
 #include <vsomeip/application.hpp>
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 #include "../../routing/include/routing_manager_host.hpp"
 #include "../../utility/include/service_instance_map.hpp"
 

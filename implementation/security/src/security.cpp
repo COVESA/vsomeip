@@ -8,11 +8,7 @@
 #include "../include/security.hpp"
 #include "../../logger/include/logger_ext.hpp"
 
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif
+#include "internal.hpp"
 #include "../../configuration/include/configuration_plugin.hpp"
 #include "../../configuration/include/configuration_impl.hpp"
 

@@ -24,11 +24,7 @@
 #include "../../utility/include/utility.hpp"
 
 #include "../../configuration/include/debounce_filter_impl.hpp"
-#ifdef ANDROID
-#include "../../configuration/include/internal_android.hpp"
-#else
-#include "../../configuration/include/internal.hpp"
-#endif // ANDROID
+#include "internal.hpp"
 
 #define VSOMEIP_LOG_PREFIX "event"
 
