@@ -17,7 +17,7 @@ constexpr vsomeip::major_version_t MEMORY_MAJOR = 0x01;
 constexpr vsomeip::minor_version_t MEMORY_MINOR = 0x01;
 
 constexpr auto MEMORY_CHECKER_INTERVAL = std::chrono::seconds(5);
-constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(1);
+constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(5);
 constexpr auto WATCHDOG_INTERVAL = std::chrono::seconds(2);
 constexpr auto WAIT_AVAILABILITY = std::chrono::milliseconds(15000);
 constexpr auto WAIT_START_MESSAGE = std::chrono::milliseconds(10000);
