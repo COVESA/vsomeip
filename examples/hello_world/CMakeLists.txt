@@ -15,7 +15,7 @@ function(create_target executable)
     target_sources(vsomeip_hello_world_${executable} INTERFACE
         "${CMAKE_CURRENT_SOURCE_DIR}/hello_world_${executable}.hpp"
     )
-    target_compile_features(vsomeip_hello_world_${executable} INTERFACE cxx_std_17)
+    target_compile_features(vsomeip_hello_world_${executable} INTERFACE cxx_std_${VSOMEIP_CXX_STANDARD})
 
     target_include_directories(vsomeip_hello_world_${executable} INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}
