@@ -1,5 +1,75 @@
 Changes
 =======
+v3.7.1
+- global
+  - avoid routing info race on reconnect
+  - move the client environment into local_endpoint
+  - remove use of target_include_directories
+  - dump message on parsing error
+  - set thread priority on multicast thread
+  - fix runtime endianness check
+  - fix compilation with gcc15
+  - fix uninitialized variable
+  - fix android compilation issues
+  - serialization cannot fail
+
+- application
+  - fix detached dispatcher thread
+
+- runtime
+  - fix logger include
+
+- service discovery
+  - no messages while suspended
+  - improve subnack logging
+  - fix selective event subscription race
+
+- routing
+  - fix subscription race
+  - cleanup rmi notification hack
+  - cleanup policy_manager usage
+  - drop second registration phase
+  - drop graceful de-registration
+  - remove minor for request/release service
+  - remove subscription state on disconnect
+  - remove the routing_manager interface
+
+- endpoints
+  - fix multicast read loop race
+  - split routing_host into a boardnet variant
+  - fix auxiliary_context restart
+  - split the routing app in two
+  - accept tcp incoming connections before subscriptions + test
+  - reset queue size when dropping messages
+  - revert flush_queue for boardnet
+  - update async_accept to use the peer-endpoint overload
+
+- tests
+  - remove assert from common
+  - Interpret more data on the wire (fake_socket_tests)
+  - test concurrent fixed client-id app registration
+  - increase timeout for memory_test
+  - remove small timeouts
+  - switch client id test with fake sockets
+  - use boardnet addresses for boardnet tests
+  - fix race(s) in malicious_data_test
+  - fix script to properly detect valgrind errors
+  - fix test_vlan_toggle_registration
+  - more boardnet tests
+  - refactor bool in dispatch app tests
+  - remove npdu test dead code
+  - enable shutdown_tests
+  - split the test_connection_restoration file
+  - fix reuse client id test
+  - bump initial phase timeout for suspend_resume_initial test
+  - bump initial timeout in suspend_resume_initial test #2
+  - fixes flaky boardnet tests
+  - fix thread ctor race against join
+  - specify ports by default
+  - fix routingmanagerd deadlock
+  - introduce config writer helper
+  - solve dispatch_app_outlives_global failures
+
 v3.7.0
 - global
   - remove additions from logger.hpp
