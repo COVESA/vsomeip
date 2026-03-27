@@ -1054,7 +1054,7 @@ void udp_server_endpoint_impl::wait_until_sent() {
         }
         ++retry_count;
         if (retry_count > VSOMEIP_UDP_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR_P << instance_name_ << "Max retries reached to send! Will lose data";
+            VSOMEIP_WARNING_P << instance_name_ << "Max retries reached to send! Will lose data";
             break;
         }
     }

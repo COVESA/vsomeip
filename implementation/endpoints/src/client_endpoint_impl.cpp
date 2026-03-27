@@ -645,8 +645,8 @@ void client_endpoint_impl<Protocol>::close_socket(bool _recreate_socket, bool _d
             }
             ++retry_count;
             if (retry_count > VSOMEIP_TCP_CLOSE_SEND_BUFFER_RETRIES) {
-                VSOMEIP_ERROR_P << "Max retries reached to send! will drop " << send_buffer_size
-                                << " bytes on close, remote: " << get_remote_information() << ", endpoint > " << this;
+                VSOMEIP_WARNING_P << "Max retries reached to send! will drop " << send_buffer_size
+                                  << " bytes on close, remote: " << get_remote_information() << ", endpoint > " << this;
                 break;
             }
         }

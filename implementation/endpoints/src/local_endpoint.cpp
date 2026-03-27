@@ -241,7 +241,7 @@ void local_endpoint::stop_internal(std::unique_lock<std::mutex>& lock, bool _due
         }
         ++retry_count;
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR_P << "Max retries reached to send! will lose data, " << status_unlock();
+            VSOMEIP_WARNING_P << "Max retries reached to send! will lose data, " << status_unlock();
             break;
         }
     }
@@ -373,7 +373,7 @@ void local_endpoint::send_cbk(boost::system::error_code const& _ec, [[maybe_unus
         return;
     }
     if (_send_buffer.size() > 0) {
-        VSOMEIP_ERROR_P << "Error: " << _ec.message() << ", " << _send_buffer.size() << " bytes are dropped, " << status();
+        VSOMEIP_WARNING_P << "Error: " << _ec.message() << ", " << _send_buffer.size() << " bytes are dropped, " << status();
     }
 
     if (_ec != boost::asio::error::operation_aborted) {
@@ -506,8 +506,8 @@ void local_endpoint::flush_queue() {
             break;
         }
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR_P << "Max retries reached to send! Will drop remaining data on close, " << status_unlock()
-                            << " and send_buffer_size: " << send_buffer_size;
+            VSOMEIP_WARNING_P << "Max retries reached to send! Will drop remaining data on close, " << status_unlock()
+                              << " and send_buffer_size: " << send_buffer_size;
             ;
             break;
         }

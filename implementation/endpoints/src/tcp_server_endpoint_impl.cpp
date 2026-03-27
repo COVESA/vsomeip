@@ -433,7 +433,12 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shar
             VSOMEIP_ERROR_P << instance_name_ << "Socket couldn't be started, " << its_error.message();
         }
     } else {
-        VSOMEIP_ERROR_P << instance_name_ << "Error, " << _error.message();
+        auto err_msg = instance_name_ + "Error, " + _error.message();
+        if (_error == boost::system::errc::operation_canceled) {
+            VSOMEIP_WARNING_P << err_msg;
+        } else {
+            VSOMEIP_ERROR_P << err_msg;
+        }
     }
 
     if (_error != boost::asio::error::bad_descriptor && _error != boost::asio::error::operation_aborted

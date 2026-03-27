@@ -82,7 +82,7 @@ void local_socket_tcp_impl::stop(bool _force) {
         }
         ++retry_count;
         if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_ERROR_P << "Max retries reached to send! will drop " << send_buffer_size << " bytes on close, " << name_;
+            VSOMEIP_WARNING_P << "Max retries reached to send! will drop " << send_buffer_size << " bytes on close, " << name_;
             break;
         }
     }

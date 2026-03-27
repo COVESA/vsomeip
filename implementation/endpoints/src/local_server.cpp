@@ -133,7 +133,11 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
         return;
     }
     if (_ec != boost::asio::error::operation_aborted) {
-        VSOMEIP_ERROR_P << "Received error: " << _ec.message() << ", self: " << this;
+        if (_ec != boost::asio::error::not_connected) {
+            VSOMEIP_WARNING_P << "Received error: " << _ec.message() << ", self: " << this;
+        } else {
+            VSOMEIP_ERROR_P << "Received error: " << _ec.message() << ", self: " << this;
+        }
         if (_ec == boost::asio::error::bad_descriptor) {
             auto log_problem = [mem = this] {
                 VSOMEIP_FATAL_P << "async_accept: Bad descriptors can not be dealt with. Lingering in a very bad state, self: " << mem;
