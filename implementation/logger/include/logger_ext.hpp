@@ -31,12 +31,12 @@
     do {                                                      \
         auto r = (reason);                                    \
         VSOMEIP_FATAL << "TERMINATING DUE TO '" << r << "'";  \
-        fprintf(stderr, "TERMINATING DUE TO '%s'", r);        \
+        fprintf(stderr, "TERMINATING DUE TO '%s'\n", r);        \
         fflush(stderr);                                       \
         ; /* no better way to flush DLTs than to wait */      \
         std::this_thread::sleep_for(std::chrono::seconds(2)); \
         VSOMEIP_FATAL << "TERMINATING";                       \
-        fprintf(stderr, "TERMINATING");                       \
+        fprintf(stderr, "TERMINATING\n");                       \
         fflush(stderr);                                       \
         std::abort();                                         \
     } while (0)
