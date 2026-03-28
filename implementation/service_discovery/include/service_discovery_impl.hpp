@@ -352,6 +352,7 @@ private:
     // Sessions
     std::map<boost::asio::ip::address, std::pair<session_t, bool>> sessions_sent_;
     std::map<boost::asio::ip::address, std::tuple<session_t, session_t, bool, bool>> sessions_received_;
+    std::map<std::pair<boost::asio::ip::address, bool>, session_t> sessions_received_by_peer_;
     std::mutex sessions_received_mutex_;
 
     // TTL handling for services offered by other hosts
@@ -415,6 +416,7 @@ private:
     configuration::ttl_map_t ttl_factor_subscriptions_;
 
     std::mutex last_msg_received_timer_mutex_;
+    bool must_start_last_msg_received_timer_;
     boost::asio::steady_timer last_msg_received_timer_;
     std::chrono::milliseconds last_msg_received_timer_timeout_;
 

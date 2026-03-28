@@ -60,7 +60,7 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
     remaining_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(_host->get_io()), main_phase_timer_(_host->get_io()),
-    is_suspended_(false), is_diagnosis_(false), last_msg_received_timer_(_host->get_io()),
+    is_suspended_(false), is_diagnosis_(false), must_start_last_msg_received_timer_(true), last_msg_received_timer_(_host->get_io()),
     last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)),
     suspend_stop_offer_watchdog_{_host->get_io()}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME},
     offers_watchdog_{_host->get_io()}, offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0},
@@ -151,6 +151,7 @@ void service_discovery_impl::start() {
     {
         std::scoped_lock its_lock(sessions_received_mutex_);
         sessions_received_.clear();
+        sessions_received_by_peer_.clear();
     }
     {
         std::scoped_lock its_lock(serialize_mutex_);
@@ -687,18 +688,16 @@ bool service_discovery_impl::check_session_id_sequence(const boost::asio::ip::ad
                                                        const session_t& _session, session_t& _missing_session) {
 
     using address_pair_t = std::pair<boost::asio::ip::address, bool>;
-    static std::map<address_pair_t, session_t> session_peer;
     address_pair_t peer_to_peer(_sender, _is_multicast);
-    std::map<address_pair_t, session_t>::iterator it = session_peer.find(peer_to_peer);
-    if (it != session_peer.end()) {
+    if (auto it = sessions_received_by_peer_.find(peer_to_peer); it != sessions_received_by_peer_.end()) {
         if ((_session > it->second) && (_session != (it->second + 1))) {
             _missing_session = static_cast<session_t>(it->second + 1);
-            session_peer[peer_to_peer] = _session;
+            sessions_received_by_peer_[peer_to_peer] = _session;
             return false;
         }
     }
 
-    session_peer[peer_to_peer] = _session;
+    sessions_received_by_peer_[peer_to_peer] = _session;
     return true;
 }
 
@@ -1047,11 +1046,9 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
     }
 
     if (_is_multicast) {
-        static bool must_start_last_msg_received_timer(true);
-
         std::scoped_lock its_last_msg_lock{last_msg_received_timer_mutex_};
-        if (0 < last_msg_received_timer_.cancel() || must_start_last_msg_received_timer) {
-            must_start_last_msg_received_timer = false;
+        if (0 < last_msg_received_timer_.cancel() || must_start_last_msg_received_timer_) {
+            must_start_last_msg_received_timer_ = false;
             last_msg_received_timer_.expires_after(last_msg_received_timer_timeout_);
             last_msg_received_timer_.async_wait(
                     std::bind(&service_discovery_impl::on_last_msg_received_timer_expired, shared_from_this(), std::placeholders::_1));
