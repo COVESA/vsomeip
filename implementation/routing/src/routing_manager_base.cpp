@@ -155,10 +155,6 @@ bool routing_manager_base::is_routing_manager() const {
     return false;
 }
 
-void routing_manager_base::init(const std::shared_ptr<endpoint_manager_base>& _endpoint_manager) {
-    ep_mgr_ = _endpoint_manager;
-}
-
 bool routing_manager_base::offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                          minor_version_t _minor) {
     (void)_client;

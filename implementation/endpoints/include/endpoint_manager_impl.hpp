@@ -21,7 +21,7 @@ class routing_manager_impl;
 class local_server;
 class boardnet_endpoint;
 
-class endpoint_manager_impl : public endpoint_manager_base, public boardnet_endpoint_host {
+class endpoint_manager_impl : public boardnet_endpoint_host, public std::enable_shared_from_this<endpoint_manager_impl> {
 public:
     endpoint_manager_impl(routing_manager_impl* const _rm, boost::asio::io_context& _io,
                           const std::shared_ptr<configuration>& _configuration);
@@ -120,7 +120,11 @@ private:
     void add_local_routing_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _ep);
 
 private:
+    boost::asio::io_context& io_;
+    std::shared_ptr<configuration> configuration_;
     routing_manager_impl* const router_;
+
+    bool const is_local_routing_;
 
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services

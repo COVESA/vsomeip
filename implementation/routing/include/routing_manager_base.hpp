@@ -63,7 +63,6 @@ public:
     virtual bool is_routing_manager() const;
 
     virtual void init() = 0;
-    void init(const std::shared_ptr<endpoint_manager_base>& _endpoint_manager);
 
     virtual bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
@@ -223,8 +222,6 @@ protected:
 
     services_t services_remote_;
     mutable std::mutex services_remote_mutex_;
-
-    std::shared_ptr<endpoint_manager_base> ep_mgr_;
 
     mutable std::mutex env_mutex_;
     std::string env_;

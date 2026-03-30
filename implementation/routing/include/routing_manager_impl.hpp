@@ -110,11 +110,6 @@ public:
                            remote_subscription_id_t _id);
 
     // interface to stub
-    inline std::shared_ptr<local_endpoint> find_local_client(client_t _client) { return ep_mgr_->find_local_client(_client); }
-    inline std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client) {
-        return ep_mgr_->find_or_create_local_client(_client);
-    }
-
     std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
     void remove_local(client_t _client);

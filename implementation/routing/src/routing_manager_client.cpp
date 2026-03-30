@@ -89,7 +89,7 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
     routing_manager_base(_host), keepalive_timer_(io_), status_log_timer_(io_), version_log_timer_(_host->get_io()),
     keepalive_active_(false), keepalive_is_alive_(false), sender_(nullptr), receiver_(nullptr), request_debounce_timer_(io_),
     request_debounce_timer_running_(false), client_side_logging_(_client_side_logging),
-    client_side_logging_filter_(_client_side_logging_filter) {
+    client_side_logging_filter_(_client_side_logging_filter), ep_mgr_(std::make_shared<endpoint_manager_base>(this, io_, configuration_)) {
 
     if (char its_hostname[1024]; gethostname(its_hostname, sizeof(its_hostname)) == 0) {
         set_client_host(its_hostname);
@@ -99,7 +99,6 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
 routing_manager_client::~routing_manager_client() { }
 
 void routing_manager_client::init() {
-    routing_manager_base::init(std::make_shared<endpoint_manager_base>(this, io_, configuration_));
     ep_mgr_->init(shared_from_this());
     sender_debounce_ = timer::create(io_, std::chrono::milliseconds(100), [this, weak_self = weak_from_this()] {
         if (auto self = weak_self.lock(); self) {

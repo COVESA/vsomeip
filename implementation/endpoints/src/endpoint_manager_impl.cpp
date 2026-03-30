@@ -45,15 +45,8 @@ namespace vsomeip_v3 {
 
 endpoint_manager_impl::endpoint_manager_impl(routing_manager_impl* const _rm, boost::asio::io_context& _io,
                                              const std::shared_ptr<configuration>& _configuration) :
-    endpoint_manager_base(_rm, _io, _configuration), router_(_rm),
-    auxiliary_context_(configuration_->get_io_thread_nice_level(router_->get_name())), is_processing_options_(true) {
-
-    local_port_ = port_t(_configuration->get_routing_host_port() + 1);
-    if (!is_local_routing_) {
-        VSOMEIP_INFO_P << "Connecting to other clients from " << configuration_->get_routing_host_address().to_string() << ":"
-                       << local_port_;
-    }
-}
+    io_(_io), configuration_(_configuration), router_(_rm), is_local_routing_(configuration_->is_local_routing()),
+    auxiliary_context_(configuration_->get_io_thread_nice_level(router_->get_name())), is_processing_options_(true) { }
 
 endpoint_manager_impl::~endpoint_manager_impl() { }
 
@@ -83,7 +76,6 @@ void endpoint_manager_impl::start() {
 void endpoint_manager_impl::stop() {
     VSOMEIP_INFO_P << "called";
 
-    clear_local_endpoints();
     clear_routing_endpoints();
 
     // stop boardnet endpoints
@@ -247,7 +239,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
         its_endpoint = find_remote_client(_service, _instance, _ep_definition->is_reliable());
         must_report = (its_endpoint && its_endpoint->is_established_or_connected());
         if (must_report)
-            its_info = rm_->find_service(_service, _instance);
+            its_info = router_->find_service(_service, _instance);
     }
 
     if (must_report)
@@ -273,7 +265,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
                        && its_reliable->is_established_or_connected());
 
         if (must_report)
-            its_info = rm_->find_service(_service, _instance);
+            its_info = router_->find_service(_service, _instance);
     }
 
     if (must_report) {
@@ -311,9 +303,8 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
         if (_reliable) {
             bool its_magic_cookies_enabled = configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
                     || configuration_->has_enabled_magic_cookies("local", _port);
-            auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
-                                                                    router_->shared_from_this(), io_, configuration_, auxiliary_context_,
-                                                                    its_magic_cookies_enabled)};
+            auto its_tmp{std::make_shared<tcp_server_endpoint_impl>(shared_from_this(), router_->shared_from_this(), io_, configuration_,
+                                                                    auxiliary_context_, its_magic_cookies_enabled)};
             if (its_tmp) {
                 boost::asio::ip::tcp::endpoint its_reliable(its_unicast, _port);
                 its_tmp->init(its_reliable, its_error);
@@ -322,8 +313,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
                 }
             }
         } else {
-            auto its_tmp{std::make_shared<udp_server_endpoint_impl>(std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()),
-                                                                    router_->shared_from_this(), io_, configuration_)};
+            auto its_tmp{std::make_shared<udp_server_endpoint_impl>(shared_from_this(), router_->shared_from_this(), io_, configuration_)};
             if (its_tmp) {
                 boost::asio::ip::udp::endpoint its_unreliable(its_unicast, _port);
                 its_tmp->init(its_unreliable, its_error);
@@ -626,8 +616,6 @@ void endpoint_manager_impl::print_status() const {
         }
         VSOMEIP_INFO << "status pending local routing endpoints: " << pending_routing_endpoints_.size();
     }
-    // local client endpoints
-    endpoint_manager_base::print_status();
 
     // udp and tcp client endpoints
     {
@@ -893,7 +881,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
                 auto found_endpoint = its_instance.second.find(endpoint_is_reliable);
                 if (found_endpoint != its_instance.second.end()) {
                     if (found_endpoint->second == _endpoint) {
-                        std::shared_ptr<serviceinfo> its_info(rm_->find_service(its_service.first, its_instance.first));
+                        std::shared_ptr<serviceinfo> its_info(router_->find_service(its_service.first, its_instance.first));
                         if (!its_info) {
                             _endpoint->set_established(true);
                             return;
@@ -928,7 +916,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
             auto found_endpoint = its_instance.second.find(is_reliable);
             if (found_endpoint != its_instance.second.end()) {
                 if (found_endpoint->second == _endpoint) {
-                    std::shared_ptr<serviceinfo> its_info(rm_->find_service(its_service.first, its_instance.first));
+                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_service.first, its_instance.first));
                     if (!its_info) {
                         return;
                     }
@@ -1061,7 +1049,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(ser
                                 service_instances_[_service][its_endpoint.get()] = _instance;
 
                                 // add endpoint to serviceinfo object
-                                auto found_service_info_inner = rm_->find_service(_service, _instance);
+                                auto found_service_info_inner = router_->find_service(_service, _instance);
                                 if (found_service_info_inner) {
                                     found_service_info_inner->set_endpoint(its_endpoint, _reliable);
                                 }
@@ -1116,7 +1104,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
                 partition_id_t its_partition = configuration_->get_partition_id(_service, _instance);
                 client_endpoints_[its_endpoint_def->get_address()][its_endpoint_def->get_port()][_reliable][its_partition] = its_endpoint;
                 // Set the basic route to the service in the service info
-                auto found_service_info = rm_->find_service(_service, _instance);
+                auto found_service_info = router_->find_service(_service, _instance);
                 if (found_service_info) {
                     found_service_info->set_endpoint(its_endpoint, _reliable);
                 }
@@ -1139,14 +1127,12 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_client_endpoint
         if (_reliable) {
             bool its_use_magic_cookies = configuration_->has_enabled_magic_cookies(_address.to_string(), _remote_port);
             its_endpoint = std::make_shared<tcp_client_endpoint_impl>(
-                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), router_->shared_from_this(),
-                    boost::asio::ip::tcp::endpoint(its_unicast, _local_port), boost::asio::ip::tcp::endpoint(_address, _remote_port), io_,
-                    configuration_, its_use_magic_cookies);
+                    shared_from_this(), router_->shared_from_this(), boost::asio::ip::tcp::endpoint(its_unicast, _local_port),
+                    boost::asio::ip::tcp::endpoint(_address, _remote_port), io_, configuration_, its_use_magic_cookies);
         } else {
             its_endpoint = std::make_shared<udp_client_endpoint_impl>(
-                    std::dynamic_pointer_cast<endpoint_manager_impl>(shared_from_this()), router_->shared_from_this(),
-                    boost::asio::ip::udp::endpoint(its_unicast, _local_port), boost::asio::ip::udp::endpoint(_address, _remote_port), io_,
-                    configuration_);
+                    shared_from_this(), router_->shared_from_this(), boost::asio::ip::udp::endpoint(its_unicast, _local_port),
+                    boost::asio::ip::udp::endpoint(_address, _remote_port), io_, configuration_);
         }
     } catch (...) {
         VSOMEIP_ERROR_P << "Client endpoint creation failed";
@@ -1343,7 +1329,7 @@ void endpoint_manager_impl::add_local_routing_endpoint(std::shared_ptr<local_end
     }
 
     // _ep->peer_endpoint().port() - 1 because we need to pass the server port
-    rm_->on_register_application(client, _ep->peer_endpoint().address(), _ep->peer_endpoint().port() - 1);
+    router_->on_register_application(client, _ep->peer_endpoint().address(), _ep->peer_endpoint().port() - 1);
 }
 
 std::unordered_set<client_t> endpoint_manager_impl::get_connected_clients() const {
@@ -1382,10 +1368,10 @@ void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
         }
     }
 
-    rm_->register_client_error_handler(_client, _ep);
+    router_->register_client_error_handler(_client, _ep);
     routing_endpoints_[_client] = _ep;
     _ep->start();
-    VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
+    VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
 }
 
 void endpoint_manager_impl::flush_routing_endpoint_queues() {
@@ -1411,8 +1397,8 @@ void endpoint_manager_impl::remove_routing_endpoint(client_t _client) {
     std::scoped_lock const lock{routing_endpoint_mtx_};
     if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
         it->second->stop(true);
-        VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
-                       << it->second->name();
+        VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << " is closing connection to client 0x" << hex4(_client)
+                       << " endpoint > " << it->second->name();
         routing_endpoints_.erase(it);
     }
     if (auto const it = pending_routing_endpoints_.find(_client); it != pending_routing_endpoints_.end()) {
@@ -1567,11 +1553,11 @@ void endpoint_manager_impl::resume() {
     }
 }
 client_t endpoint_manager_impl::get_client() const {
-    return rm_->get_client();
+    return router_->get_client();
 }
 
 std::string endpoint_manager_impl::get_client_host() const {
-    return rm_->get_client_host();
+    return router_->get_client_host();
 }
 
 bool endpoint_manager_impl::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {

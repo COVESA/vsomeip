@@ -289,6 +289,8 @@ private:
     std::mutex lazy_load_mtx_;
 
     std::shared_ptr<timer> sender_debounce_;
+
+    std::shared_ptr<endpoint_manager_base> ep_mgr_;
 };
 
 } // namespace vsomeip_v3

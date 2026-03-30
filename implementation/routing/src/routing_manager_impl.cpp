@@ -136,10 +136,8 @@ bool routing_manager_impl::is_routing_manager() const {
 }
 
 void routing_manager_impl::init() {
-    routing_manager_base::init(ep_mgr_impl_);
 
     stub_ = std::make_shared<routing_manager_stub>(this, configuration_);
-    ep_mgr_impl_->init(stub_);
     stub_->init();
 
     if (configuration_->is_sd_enabled()) {
@@ -2466,7 +2464,6 @@ void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const
         VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " | (" << ((is_diag_mode == true) ? "diagnosis)" : "default)")
                      << its_last_resume.str();
 
-        ep_mgr_->log_client_states();
         ep_mgr_impl_->log_client_states();
         ep_mgr_impl_->log_server_states();
 
@@ -3449,7 +3446,6 @@ void routing_manager_impl::status_log_timer_cbk(boost::system::error_code const&
     VSOMEIP_INFO_P << " ";
 
     ep_mgr_impl_->print_status();
-    ep_mgr_->print_status();
     {
         std::scoped_lock its_lock{log_timer_mutex_};
         status_log_timer_.expires_after(std::chrono::milliseconds(its_interval));
@@ -3785,7 +3781,6 @@ std::shared_ptr<local_endpoint> routing_manager_impl::find_routing_endpoint(clie
 }
 
 void routing_manager_impl::try_to_send_before_stop() {
-    ep_mgr_->flush_local_endpoint_queues();
     ep_mgr_impl_->flush_routing_endpoint_queues();
 }
 
