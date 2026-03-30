@@ -25,7 +25,7 @@ add_executable(debounce_frequency_test_service
 # Add build dependencies and link libraries to executables.
 set(executables
     debounce_frequency_test_client
-    debounce_frequency_test_service    
+    debounce_frequency_test_service
 )
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")

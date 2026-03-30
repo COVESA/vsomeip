@@ -11,18 +11,18 @@
 
   RM --\ SP : REQUEST MEMORY_START_METHOD
 
-  loop repeat TEST_MESSAGE_NUMBER times 
-    loop repeat TEST_EVENT_NUMBER times 
+  loop repeat TEST_MESSAGE_NUMBER times
+    loop repeat TEST_EVENT_NUMBER times
       SP -> RM : send  notification for (MEMORY_EVENT + i)\nwith payload1
     end
     SP -> SP : sleep for 1 millisecond
 
-    loop repeat TEST_EVENT_NUMBER times 
+    loop repeat TEST_EVENT_NUMBER times
       SP -> RM : send  notification for (MEMORY_EVENT + i)\nwith payload2
     end
     SP -> SP : sleep for 1 millisecond
   end
-  
+
   note across
     Wait for MEMORY_STOP_METHOD request
   endnote

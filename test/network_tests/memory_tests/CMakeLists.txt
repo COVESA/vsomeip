@@ -25,7 +25,7 @@ add_executable(memory_test_service
 # Add build dependencies and link libraries to executables.
 set(executables
     memory_test_service
-    memory_test_client    
+    memory_test_client
 )
 targets_link_default_libraries("${executables}")
 targets_add_default_dependencies("${executables}")

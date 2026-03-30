@@ -18,7 +18,7 @@ loop 8 times
     Service -> Service: count_subscribe ++
     Service -> Routing: Accept subscription
     Routing --> Client: SubscribeAck to EG 0x1000 and EG 0x1001
-    
+
     alt Not last iteration (i < 7)
         Client -> Routing: Unsubscribe from EG 0x1000 and EG 0x1001
         Routing -> Service: Forward unsubscribe request

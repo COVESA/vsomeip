@@ -14,7 +14,7 @@ loop Sending notifications
 
     SRV <- SRV : Sleeping 10 ms
 
-    alt 
+    alt
 
         RM -> SRV : All clients unsubscribed
 

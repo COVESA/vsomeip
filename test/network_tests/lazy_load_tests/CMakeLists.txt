@@ -45,7 +45,7 @@ if (TEST_SECURITY)
     add_dependencies(build_network_tests gethostname)
     # logs won't be generated for this test as there is one application which
     # will run as uid:1 gid:1, which is not allowed to write to the log file
-    list(FILTER TEST_ENTRYPOINT EXCLUDE REGEX "^--log-file=") 
+    list(FILTER TEST_ENTRYPOINT EXCLUDE REGEX "^--log-file=")
 
     add_custom_test(
         NAME lazy_load_test

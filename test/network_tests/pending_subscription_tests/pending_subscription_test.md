@@ -271,7 +271,7 @@ The service offers two eventgroups with different subscription handler types:
 # Service side
 ./pending_subscription_test_service <TEST_MODE>
 
-# Client side  
+# Client side
 ./pending_subscription_test_sd_msg_sender <TEST_MODE>
 ```
 

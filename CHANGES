@@ -350,7 +350,7 @@ v3.6.1
   - deliver service availability only after endpoint creation
 
 - tests
-  - add regression test - client ignores server connections for a while 
+  - add regression test - client ignores server connections for a while
   - add another fake_socket test
   - update subscribe notify tests documentation
   - update shebang line to interpret as bash
@@ -469,7 +469,7 @@ v3.5.9
   - Remove use of strerror
   - React on Bad File Descriptor (EBADF) for epoll_wait
   - Remove leftover configurations
-  - Improve logger performance, turn it almost lock-free 
+  - Improve logger performance, turn it almost lock-free
   - Fix use of boost non-asio error codes
   - Fix compile with GCC < 10 again
   - Mark all DLT log messages as public
@@ -488,7 +488,7 @@ v3.5.9
   - unit tests
     - Created udp_server_endpoint_impl unit tests
     - Fix unit tests with boost 1.87+
-  
+
 - endpoint
   - Fix get_local_port, remove set_local_port
   - Fix multicast leave, add repeat delay
@@ -521,7 +521,7 @@ v3.5.8
 
 - routing
   - Check if a service is available before sending a request to it
-  - Infer routing information (client-id, guest address) for a local server connection from 
+  - Infer routing information (client-id, guest address) for a local server connection from
     the first received message, removing the dependency of ADD_CLIENT command from the routing manager host.
 
   - routing_manager_client
@@ -545,7 +545,7 @@ v3.5.8
     - When tcp keepalive is disabled, for clients in the same VM/SOC, the HOST never discovers that it lost the connection.
       Add recovery mechanism for this scenario: replace the previous connection.
 
-- e2e 
+- e2e
   - Fix update of E2E local counters
 
 - application_impl

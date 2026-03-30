@@ -47,7 +47,7 @@
   note across
     For every message received in background
   endnote
-  
+
   SP --\ SC : message received
 
   alt if is response

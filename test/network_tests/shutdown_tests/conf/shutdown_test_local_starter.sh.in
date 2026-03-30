@@ -35,7 +35,7 @@ for PAYLOAD in "${PAYLOADS[@]}"; do
     export VSOMEIP_APPLICATION_NAME="routingmanagerd"
     routingmanagerd &
     PID_VSOMEIPD=$!
-    
+
     if [[ $2 == "CLIENT" ]]; then
         export VSOMEIP_APPLICATION_NAME=shutdown_test_service
         ./shutdown_test_service_receive &

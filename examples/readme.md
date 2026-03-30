@@ -22,7 +22,7 @@ env VSOMEIP_CONFIGURATION=../../config/vsomeip-local.json VSOMEIP_APPLICATION_NA
 
 To start the subscribe/notify-example from the build-directory do:
 ```bash
-# HOST1: 
+# HOST1:
 env VSOMEIP_CONFIGURATION=../../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=client-sample ./subscribe-sample
 # HOST1:
 env VSOMEIP_CONFIGURATION=../../config/vsomeip-local.json VSOMEIP_APPLICATION_NAME=service-sample ./notify-sample
@@ -39,7 +39,7 @@ To start the request/response-example from the build-directory do:
 ```bash
 #HOST1:
 set "VSOMEIP_CONFIGURATION=<root directory of vSomeIP-Lib>\config\vsomeip-local.json"
-set "VSOMEIP_APPLICATION_NAME=service-sample" 
+set "VSOMEIP_APPLICATION_NAME=service-sample"
 cd /d "<root directory of vSomeIP-Lib>\buildlib\examples\Release"
 response-sample.exe
 #HOST1:
@@ -53,7 +53,7 @@ To start the subscribe/notify-example from the build-directory do:
 ```bash
 #HOST1:
 set "VSOMEIP_CONFIGURATION=<root directory of vSomeIP-Lib>\config\vsomeip-local.json"
-set "VSOMEIP_APPLICATION_NAME=service-sample" 
+set "VSOMEIP_APPLICATION_NAME=service-sample"
 cd /d "<root directory of vSomeIP-Lib>\buildlib\examples\Release"
 notify-sample.exe
 #HOST1:

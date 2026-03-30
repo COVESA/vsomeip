@@ -16,7 +16,7 @@
             service -> rm : OFFER_SERVICE 0x3344.0x0001
             alt Client is ready
                 app -> service : SUBSCRIBE_EVENTGROUP
-                service -> service : client_connected = true 
+                service -> service : client_connected = true
             else Client is not ready
                 service -> service: sleep_for(100)
             end

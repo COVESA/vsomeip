@@ -30,7 +30,7 @@ check_tcp_udp_sockets_are_open ()
     # awk is used to avoid the case when a inode number is the same as a PID. The awk
     # program filters the netstat output down to the protocol (1st field) and
     # the PID/Program name (last field) fields.
-    
+
     while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
         SERVICE_SOCKETS_LISTENING=$(cat /proc/$1/net/udp /proc/$1/net/tcp 2>/dev/null | awk 'NR>1 && $4 == "0A"' | wc -l)
 

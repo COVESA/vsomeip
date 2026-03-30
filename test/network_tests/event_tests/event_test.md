@@ -5,7 +5,7 @@ This test assures that event notifications are working both in udp and tcp commu
 ## Purpose
 
 - Assure that all notifications are sent and received
-- Assure that both fixed and dynamic payload notifications are sent and received 
+- Assure that both fixed and dynamic payload notifications are sent and received
 - Assure that it works in udp and tcp communication
 
 

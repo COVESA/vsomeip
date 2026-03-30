@@ -226,8 +226,8 @@ The following example assumes that different machines (i.e., with different IP a
   - **threads** (optional) - The number of internal threads to process messages and events within an application. Valid values are `1-255`. The default value is `2`.
   - **io_thread_nice** (optional) - The nice level for internal threads processing messages and events. POSIX/Linux only. For actual values refer to nice() documentation. The default value is `0`.
   - **status_log_interval** - Configures interval in **milliseconds** in which an app logs its internal status. Setting a value greater than zero enables the logging. The default value is `0` ms. Setting this will override the value set in the **Logging** section. Note: The **Logging** setting uses seconds while this uses milliseconds.
-  - **version_log_interval** - Configures interval in **milliseconds** in which an app prints vsomeip lib version and internal queues. 
-  Setting a value greater than zero enables the logging. The default value for the host is `10000` ms, the rest defaults to `0` ms. 
+  - **version_log_interval** - Configures interval in **milliseconds** in which an app prints vsomeip lib version and internal queues.
+  Setting a value greater than zero enables the logging. The default value for the host is `10000` ms, the rest defaults to `0` ms.
   Setting this will override the value set in the **Logging** section. Note: The **Logging** setting uses seconds while this uses milliseconds.
   - **request_debounce_time** (optional) - Specifies a debounce-time interval in ms in which request-service messages are sent to the routing manager. If an application requests many services in short same time the load of sent messages to the routing manager and furthermore the replies from the routing manager (which contains the routing info for the requested service if available) can be heavily reduced. The default value if not specified is set by the global configuration variable of the same name.
   - **plugins** (optional array) - Contains the plug-ins that should be loaded to extend the functionality of vsomeip.

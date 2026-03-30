@@ -15,7 +15,7 @@ loop While test timer hasnt elapsed
     SC -> RM : REQUEST
 
     RM --\ SC : RESPONSE
-    
+
     note right
       service_consumer will wait for
       a reponse from routing_manager

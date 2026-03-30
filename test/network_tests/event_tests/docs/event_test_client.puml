@@ -12,7 +12,7 @@ SC -> RM : SUBSCRIBE
 
 RM --\ SC : SUBSCRIBE_ACK
 
-note across 
+note across
   Send notify_method_id request to trigger
   notifications from service provider
 endnote
@@ -28,7 +28,7 @@ loop for each notification received
   SC -> SC : check notification payload size\naccording to test_mode
 
   alt if received all expected notifications
-    SC -> SC : trigger shutdown_method_id request 
+    SC -> SC : trigger shutdown_method_id request
   end
 end
 

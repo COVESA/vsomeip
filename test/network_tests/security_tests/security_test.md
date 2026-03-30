@@ -5,7 +5,7 @@ The service provider offers one service with 2 events (0x8001 and 0x8002) both o
 
 ## Purpose
 
-Depending on security policies configuration: 
+Depending on security policies configuration:
 - Assure that remote_clients are allowed
 - Assure that remote_clients are not allowed
 - Assure that only allowed methodIDs notifications are received
@@ -14,7 +14,7 @@ Depending on security policies configuration:
 
 ### Service provider
 
-Service provider, after registering, starts offering the service and notifying both 0x8001 and 0x8002 methods. If the client is external and not allowed, it will wait 10 seconds + 250ms for every message to be sent and then stop. Otherwise it will wait for the TEST_SERVICE_METHOD_ID_SHUTDOWN request to be received. For every request it receives, it checks the serviceID and instanceID and sends a response back. 
+Service provider, after registering, starts offering the service and notifying both 0x8001 and 0x8002 methods. If the client is external and not allowed, it will wait 10 seconds + 250ms for every message to be sent and then stop. Otherwise it will wait for the TEST_SERVICE_METHOD_ID_SHUTDOWN request to be received. For every request it receives, it checks the serviceID and instanceID and sends a response back.
 
 ![Diagram](docs/security_test_service.png)
 

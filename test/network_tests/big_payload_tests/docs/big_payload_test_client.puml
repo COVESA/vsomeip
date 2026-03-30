@@ -25,7 +25,7 @@ loop for each response received
 
   SC -> SC : check payload data
 
-  alt if received expected number of responses 
+  alt if received expected number of responses
     SC -> SC : stop
   end
 end

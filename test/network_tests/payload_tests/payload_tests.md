@@ -1,6 +1,6 @@
 # Payload Tests
 
-These tests validate the vsomeip library's ability to handle different payload sizes and 
+These tests validate the vsomeip library's ability to handle different payload sizes and
 communication scenarios across various transport protocols.
 
 ## Parameters
@@ -24,7 +24,7 @@ The payload tests support various configuration parameters:
 *Payload Configuration:*
 - `--max-payload-size`: Limit maximum payload size. Options:
   - `UDS`: Unix Domain Socket size limit (~32KB)
-  - `UDP`: UDP message size limit (~1.4KB)  
+  - `UDP`: UDP message size limit (~1.4KB)
   - `TCP`: TCP message size limit (~4KB)
   - `<number>`: Custom size in bytes (default: UDS)
 
@@ -45,7 +45,7 @@ Tests basic request-response communication between local service and client.
 
 **Test Flow:**
 1. Start local service offering the test service
-2. Start local client that discovers and connects to the service  
+2. Start local client that discovers and connects to the service
 3. Client sends messages with increasing payload sizes
 4. Service validates each message and sends acknowledgment responses
 
@@ -54,7 +54,7 @@ Tests basic request-response communication between local service and client.
 - No hanging TCP/UDP sockets after completion
 - Both processes exit with code 0
 
-### 2. local_payload_test_huge_payload - Large Payload Stress Test  
+### 2. local_payload_test_huge_payload - Large Payload Stress Test
 
 Tests the system's ability to handle very large payloads.
 
@@ -78,7 +78,7 @@ Tests communication between local service and external client running in Docker 
 3. **TCP Phase:** Restart local service with `--tcp`, external client tests TCP communication
 4. Validate both transport protocols work across container boundaries
 
-**Success Criteria:**  
+**Success Criteria:**
 - Both UDP and TCP phases complete successfully
 - Cross-container communication works properly
 - Service can switch between transport protocols
@@ -88,7 +88,7 @@ Tests communication between local service and external client running in Docker 
 Tests simultaneous communication with both local and external clients.
 
 **Test Flow:**
-1. Start local service offering the test service  
+1. Start local service offering the test service
 2. Start local client with `--dont-shutdown-service` flag (runs in background)
 3. **UDP Phase:** External client tests UDP communication while local client is active
 4. Service handles both local and external clients simultaneously
@@ -98,5 +98,5 @@ Tests simultaneous communication with both local and external clients.
 
 **Success Criteria:**
 - Service handles multiple concurrent clients (local + external)
-- Both UDP and TCP phases work with mixed client setup  
+- Both UDP and TCP phases work with mixed client setup
 - No interference between local and external clients

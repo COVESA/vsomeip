@@ -16,7 +16,7 @@ loop 15 times
     Routing -> Service: Forward subscription request
     Service -> Service: (0x1000) subscription_handler_async()\n- Stores callback
     Service -> Service: (0x1001) subscription_handler()\n- Returns true immediately
-    
+
     Service -> Routing: (0x1000) Accept subscription via callback
     Service -> Routing: (0x1001) Accept subscription immediately
     Routing --> Client: SubscribeAck (EG 0x1000 and 0x1001)

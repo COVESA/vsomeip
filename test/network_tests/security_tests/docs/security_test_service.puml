@@ -15,7 +15,7 @@ SP -> SC : notify 0x8002
 alt If test mode has a remote client that is not allowed
 
   SP -> SP : sleep for 10s + 250ms * number\nof messages to send
-  
+
   SP -> SP : stop
 end
 

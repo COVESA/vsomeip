@@ -12,7 +12,7 @@ There is 1 service being offered through all 3 tests with different debounce tim
 
 ### Service provider
 
-Service provider intially offers the service and waits for the request for DEBOUNCE_START_METHOD from service consumer, after which sends 1001 notification pairs with 5 milliseconds in between to service consumer. Finally waits for request for DEBOUNCE_STOP_METHOD to stop operation. 
+Service provider intially offers the service and waits for the request for DEBOUNCE_START_METHOD from service consumer, after which sends 1001 notification pairs with 5 milliseconds in between to service consumer. Finally waits for request for DEBOUNCE_STOP_METHOD to stop operation.
 
 ![Diagram](docs/debounce_filter_test_service.png)
 

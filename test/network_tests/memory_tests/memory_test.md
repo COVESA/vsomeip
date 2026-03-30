@@ -10,7 +10,7 @@ This test makes sure that memory load does not increase significantly during vso
 
 ### Service provider
 
-The service provider after offering the service, waits for MEMORY_START_METHOD request and starts the memory check process that retrieves resident set size and page size and multiply them together during the whole test execution time. After receiving the MEMORY_START_METHOD it starts sending 2 notifications with 2 different payloads for all methodIDs. When all notifications are sent the service provider waits for MEMORY_STOP_METHOD request and verifies that each memory load calculated during the test process is smaller than 115% of its average. 
+The service provider after offering the service, waits for MEMORY_START_METHOD request and starts the memory check process that retrieves resident set size and page size and multiply them together during the whole test execution time. After receiving the MEMORY_START_METHOD it starts sending 2 notifications with 2 different payloads for all methodIDs. When all notifications are sent the service provider waits for MEMORY_STOP_METHOD request and verifies that each memory load calculated during the test process is smaller than 115% of its average.
 
 ![Diagram](docs/memory_test_service.png)
 

@@ -18,6 +18,6 @@ Service provider, after offering the service, will wait for START_METHOD request
 
 ### Service consumer
 
-Service consumer, after requesting and subscribing to the 3 offered events, will send a START_METHOD request to service provider and wait for notifications. For each one will check the service and event according to test_mode and after receiving all expected notifications will send the STOP_METHOD request. 
+Service consumer, after requesting and subscribing to the 3 offered events, will send a START_METHOD request to service provider and wait for notifications. For each one will check the service and event according to test_mode and after receiving all expected notifications will send the STOP_METHOD request.
 
 ![Diagram](docs/debounce_test_client.png)

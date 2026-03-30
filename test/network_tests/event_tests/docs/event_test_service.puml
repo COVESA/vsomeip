@@ -19,7 +19,7 @@
   loop for each notification to be sent
     SP -> SP : create notification with\npayload according to test_mode
 
-    SP -> RM : notification 
+    SP -> RM : notification
   end
 
   note across

@@ -16,14 +16,14 @@ note right of SP
 end note
 
 loop Until STOP_METHOD received
-  
+
   RM -> SP : REQUEST
-  
+
   note right of SP
     Service Provider processes
     the received request
   end note
-  
+
   SP -> RM : RESPONSE
 
 end

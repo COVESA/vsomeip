@@ -11,9 +11,9 @@ RM --\ SP : REGISTER_ACK
 loop While test timer hasnt elapsed
 
   SP -> RM : STOP OFFER
-  
+
   RM --\ SP : ON_UNAVAILABLE
-  
+
   note right
     Service Provider will be waiting for the
     availability to trigger the next command
@@ -22,12 +22,12 @@ loop While test timer hasnt elapsed
   SP -> RM : OFFER
 
   RM --\ SP : ON_AVAILABLE
-  
+
   note right
     Service Provider will be waiting for the
     availability to trigger the next command
   end note
-  
+
 end
 
 @enduml

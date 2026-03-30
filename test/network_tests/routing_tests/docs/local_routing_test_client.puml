@@ -29,7 +29,7 @@ loop For each request to send
   SC -> SP : REQUEST
 
   SP -> SC : RESPONSE
-  
+
   note right of SC
     Service Consumer validates
     the received response

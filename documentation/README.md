@@ -1,7 +1,7 @@
 # Multicast
 
 To use IP Multicast, the route must be added.
-This is needed to define a network route and enable boardnet (external) communication. 
+This is needed to define a network route and enable boardnet (external) communication.
 In Linux this can be done by:
 
 ```bash
