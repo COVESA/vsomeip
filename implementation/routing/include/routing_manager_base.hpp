@@ -20,6 +20,7 @@
 #include "eventgroupinfo.hpp"
 #include "event_dispatcher.hpp"
 #include "routing_manager_host.hpp"
+#include "local_service_table.hpp"
 
 #include "../../message/include/serializer.hpp"
 #include "../../message/include/deserializer.hpp"
@@ -95,8 +96,6 @@ public:
     virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
                             bool _force);
 
-    virtual bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
-
     virtual bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
                       client_t _bound_client = VSOMEIP_ROUTING_CLIENT, const vsomeip_sec_client_t* _sec_client = nullptr,
                       uint8_t _status_check = 0, bool _sent_from_remote = false, bool _force = true) = 0;
@@ -105,20 +104,13 @@ public:
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 
-    std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
-
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
-
-    client_t find_local_client(service_t _service, instance_t _instance) const;
-    client_t find_local_client_unlocked(service_t _service, instance_t _instance) const;
 
     std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
 
     // address data for vsomeip routing via TCP
-    bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
-    client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const;
-    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port);
-    void remove_guest(client_t _client);
+    virtual bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const = 0;
+    virtual void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) = 0;
 
     std::string const& get_name() const;
 
@@ -149,7 +141,6 @@ protected:
     void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
     services_t get_services() const;
     services_t get_services_remote() const;
-    virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
     std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
 
@@ -175,12 +166,8 @@ protected:
     std::shared_ptr<deserializer> get_deserializer();
     void put_deserializer(const std::shared_ptr<deserializer>& _deserializer);
 
-    void send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major);
-
     virtual void send_subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                 major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
-
-    void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void unset_all_eventpayloads(service_t _service, instance_t _instance);
     void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
@@ -196,14 +183,11 @@ protected:
 
     std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
 
-    bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                            instance_t _instance, eventgroup_t _eventgroup);
 
     // event_dispatcher iface
     session_t get_event_session() override;
-
-    bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
 
     bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
                        std::shared_ptr<message> _message) override;
@@ -226,11 +210,6 @@ protected:
     std::mutex deserializer_mutex_;
     std::condition_variable deserializer_condition_;
 
-    mutable std::mutex local_services_mutex_;
-    typedef std::map<service_t, std::map<instance_t, std::tuple<major_version_t, minor_version_t, client_t>>> local_services_map_t;
-    local_services_map_t local_services_;
-    std::map<service_t, std::map<instance_t, std::set<client_t>>> local_services_history_;
-
     // Eventgroups
     mutable std::mutex eventgroups_mutex_;
     using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
@@ -242,32 +221,10 @@ protected:
 
     std::mutex event_registration_mutex_;
 
-    struct subscription_data_t {
-        service_t service_;
-        instance_t instance_;
-        eventgroup_t eventgroup_;
-        major_version_t major_;
-        event_t event_;
-        std::shared_ptr<debounce_filter_impl_t> filter_;
-        vsomeip_sec_client_t sec_client_;
-
-        bool operator<(const subscription_data_t& _other) const {
-            return (service_ < _other.service_ || (service_ == _other.service_ && instance_ < _other.instance_)
-                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ < _other.eventgroup_)
-                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ == _other.eventgroup_
-                        && event_ < _other.event_));
-        }
-    };
-    std::set<subscription_data_t> pending_subscriptions_;
-    std::mutex pending_subscription_mutex_;
-
     services_t services_remote_;
     mutable std::mutex services_remote_mutex_;
 
     std::shared_ptr<endpoint_manager_base> ep_mgr_;
-
-    mutable std::mutex guests_mutex_;
-    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> guests_;
 
     mutable std::mutex env_mutex_;
     std::string env_;

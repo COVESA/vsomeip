@@ -10,6 +10,7 @@
 #include "../../../implementation/endpoints/include/uds_socket.hpp"
 #include "../attribute_recorder.hpp"
 #include "../command_message.hpp"
+#include "../data_pipe.hpp"
 #include "../vsomeip_command_handler.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
@@ -207,6 +208,15 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
 
     void set_vsomeip_command_handler(vsomeip_command_handler const& _handler);
 
+    /**
+     * Installs _pipe as the socket's data pipe:
+     * 1. Registers this socket's async_receive wakeup as _pipe's open_reaction.
+     * 2. Transfers approved data from the old pipe into _pipe (exchange_queues).
+     * 3. Wakes any pending async_receive that may now be satisfiable.
+     * Can be set ahead of time via setup_data_pipe; applied when the socket forms.
+     */
+    void replace_pipe(std::shared_ptr<data_pipe> _pipe);
+
     attribute_recorder<protocol::id_e> received_command_record_;
 
 private:
@@ -225,7 +235,6 @@ private:
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
     std::weak_ptr<fake_tcp_socket_handle> connected_socket_;
-    std::vector<unsigned char> input_data_;
     std::optional<Receptor> receptor_;
     std::optional<boost::system::error_code> stashed_ec_;
     boost::asio::ip::tcp::endpoint local_ep_;
@@ -235,6 +244,8 @@ private:
     std::optional<std::chrono::milliseconds> block_on_close_time_;
     mutable std::mutex mtx_;
     vsomeip_command_handler command_handler_;
+
+    std::shared_ptr<data_pipe> pipe_ = std::make_shared<data_pipe>();
 };
 
 /**

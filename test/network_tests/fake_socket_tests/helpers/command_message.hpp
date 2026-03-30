@@ -56,6 +56,7 @@ struct command_message {
 };
 
 [[nodiscard]] size_t parse(std::vector<unsigned char> const& _message, command_message& _out_message);
+[[nodiscard]] size_t parse(unsigned char const* _data, size_t _size, command_message& _out_message);
 
 std::ostream& operator<<(std::ostream& _out, command_message const& _m);
 

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "sockets/fake_tcp_socket_handle.hpp"
+#include "data_pipe.hpp"
 
 #include <mutex>
 #include <map>
@@ -71,6 +72,15 @@ public:
     void set_custom_command_handler(vsomeip_command_handler _handler, socket_role _sender);
 
     /**
+     * Installs _pipe on the socket identified by _applied_on (client or server).
+     * Can be called before the connection is established; the pipe will be applied
+     * when the socket forms. Returns true if staged successfully (socket not yet
+     * connected), false if the socket already exists (applying to a live socket
+     * risks data loss and is not allowed) or if _applied_on is unspecified.
+     **/
+    bool setup_data_pipe(std::shared_ptr<data_pipe> const& _pipe, socket_role _applied_on);
+
+    /**
      * sets the fake_tcp_socket_handle on each socket correspondingly (can be set ahead of time)
      **/
     [[nodiscard]] bool block_on_close_for(std::optional<std::chrono::milliseconds> _client_block_time,
@@ -115,6 +125,7 @@ private:
         bool ignore_nothing_to_read_from_{false};
         std::optional<std::chrono::milliseconds> block_on_close_time_{};
         vsomeip_command_handler handler_{};
+        std::shared_ptr<data_pipe> data_pipe_{};
     };
 
     bool apply_options(std::unique_lock<std::mutex> _lock);

@@ -430,6 +430,19 @@ void routing_manager_client::request_service(client_t _client, service_t _servic
 void routing_manager_client::release_service(client_t _client, service_t _service, instance_t _instance) {
     routing_manager_base::release_service(_client, _service, _instance);
     {
+        std::scoped_lock its_service_guard(available_services_mutex_);
+        auto found_service = available_services_history_.find(_service);
+        if (found_service != available_services_history_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                found_service->second.erase(_instance);
+                if (found_service->second.empty()) {
+                    available_services_history_.erase(_service);
+                }
+            }
+        }
+    }
+    {
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
 
         // order matters:
@@ -773,7 +786,7 @@ void routing_manager_client::unsubscribe(client_t _client, service_t _service, i
             std::vector<byte_t> its_buffer;
             its_command.serialize(its_buffer);
 
-            auto its_target = ep_mgr_->find_local_client(_service, _instance);
+            auto its_target = ep_mgr_->find_local_client(find_local_client(_service, _instance));
             if (its_target) {
                 its_target->send(&its_buffer[0], uint32_t(its_buffer.size()));
             } else {
@@ -1561,25 +1574,27 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     // trigger error handler to ensure offered services by the old client are re-requested
                     cleanup_client(old_client);
                 }
-
-                add_guest(its_client, its_address, its_port);
             }
 
-            for (const auto& s : e.get_services()) {
-
-                const auto its_service(s.service_);
-                const auto its_instance(s.instance_);
-                const auto its_major(s.major_);
-                const auto its_minor(s.minor_);
-
-                {
-                    std::scoped_lock its_lock(local_services_mutex_);
-                    local_services_[its_service][its_instance] = std::make_tuple(its_major, its_minor, its_client);
+            {
+                std::scoped_lock its_lock(available_services_mutex_);
+                address_table_[its_client] = std::make_pair(its_address, its_port);
+                for (const auto& s : e.get_services()) {
+                    const auto its_service(s.service_);
+                    const auto its_instance(s.instance_);
+                    const auto its_major(s.major_);
+                    const auto its_minor(s.minor_);
+                    available_services_.add(its_service, its_instance, its_major, its_minor, its_client);
+                    // call on_availability only under the same lock as the available_services_ to ensure
+                    // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
+                    // dispatcher queue)
+                    host_->on_availability(its_service, its_instance, availability_state_e::AS_AVAILABLE, its_major, its_minor);
+                    VSOMEIP_INFO << "ON_AVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
+                                 << int(its_major) << "." << its_minor << "]";
                 }
-                { send_pending_subscriptions(its_service, its_instance, its_major); }
-                host_->on_availability(its_service, its_instance, availability_state_e::AS_AVAILABLE, its_major, its_minor);
-                VSOMEIP_INFO << "ON_AVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
-                             << int(its_major) << "." << its_minor << "]";
+            }
+            for (const auto& s : e.get_services()) {
+                send_pending_subscriptions(s.service_, s.instance_, s.major_);
             }
             break;
         }
@@ -1592,21 +1607,18 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 const auto its_minor(s.minor_);
 
                 {
-                    std::scoped_lock its_lock(local_services_mutex_);
-                    auto found_service = local_services_.find(its_service);
-                    if (found_service != local_services_.end()) {
-                        found_service->second.erase(its_instance);
-                        // move previously offering client to history
-                        local_services_history_[its_service][its_instance].insert(its_client);
-                        if (found_service->second.size() == 0) {
-                            local_services_.erase(its_service);
-                        }
+                    std::scoped_lock its_lock(available_services_mutex_);
+                    if (available_services_.remove(its_service, its_instance)) {
+                        available_services_history_[its_service][its_instance].insert(its_client);
                     }
+                    // call on_availability only under the same lock as the available_services_ to ensure
+                    // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
+                    // dispatcher queue)
+                    host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
+                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance)
+                                 << ":" << static_cast<int>(its_major) << "." << its_minor << "]";
                 }
                 on_stop_offer_service(its_service, its_instance, its_major, its_minor);
-                host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
-                VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
-                             << static_cast<int>(its_major) << "." << its_minor << "]";
             }
             break;
         }
@@ -2379,39 +2391,26 @@ void routing_manager_client::remove_local(client_t _client,
                      << hex4(its_eventgroup) << "." << hex4(ANY_EVENT) << "]";
     }
     ep_mgr_->remove_local(_client, true);
-    remove_guest(_client);
     {
-        std::scoped_lock its_lock(local_services_mutex_);
-        // Finally remove all services that are implemented by the client.
-        std::set<std::pair<service_t, instance_t>> its_services;
-        for (const auto& s : local_services_) {
-            for (const auto& i : s.second) {
-                if (std::get<2>(i.second) == _client) {
-                    service_t its_service = s.first;
-                    instance_t its_instance = i.first;
-                    auto [its_major, its_minor, unused] = i.second;
-                    its_services.insert({its_service, its_instance});
-                    // NOTE: requested by us, offered by client
-                    if (_requested_services) {
-                        _requested_services->emplace(its_service, its_instance, its_major, its_minor);
-                    }
-
-                    host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
-                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance)
-                                 << ":" << static_cast<int>(its_major) << "." << static_cast<int>(its_minor) << "]";
-                }
+        std::scoped_lock its_lock(available_services_mutex_);
+        address_table_.erase(_client);
+        auto removed = available_services_.remove_all_for_client(_client);
+        for (auto const& [its_service, its_instance, its_major, its_minor, its_client] : removed) {
+            // save the removed available services to re-request them from the router
+            if (_requested_services) {
+                _requested_services->emplace(its_service, its_instance, its_major, its_minor);
             }
-        }
-
-        for (auto& si : its_services) {
-            local_services_[si.first].erase(si.second);
-            if (local_services_[si.first].size() == 0)
-                local_services_.erase(si.first);
+            // call on_availability only under the same lock as the available_services_ to ensure
+            // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
+            // dispatcher queue)
+            host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
+            VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
+                         << static_cast<int>(its_major) << "." << static_cast<int>(its_minor) << "]";
         }
 
         // remove disconnected client from offer service history
         std::set<std::tuple<service_t, instance_t, client_t>> its_clients;
-        for (const auto& s : local_services_history_) {
+        for (const auto& s : available_services_history_) {
             for (const auto& i : s.second) {
                 for (const auto& c : i.second) {
                     if (c == _client) {
@@ -2422,33 +2421,28 @@ void routing_manager_client::remove_local(client_t _client,
         }
 
         for (auto& sic : its_clients) {
-            local_services_history_[std::get<0>(sic)][std::get<1>(sic)].erase(std::get<2>(sic));
-            if (local_services_history_[std::get<0>(sic)][std::get<1>(sic)].size() == 0) {
-                local_services_history_.erase(std::get<0>(sic));
+            available_services_history_[std::get<0>(sic)][std::get<1>(sic)].erase(std::get<2>(sic));
+            if (available_services_history_[std::get<0>(sic)][std::get<1>(sic)].size() == 0) {
+                available_services_history_.erase(std::get<0>(sic));
             }
         }
     }
 }
 
 void routing_manager_client::cleanup_routing_data() {
-    local_services_map_t services;
     {
-        std::scoped_lock lock(local_services_mutex_);
-        services = local_services_;
-        local_services_.clear();
-        local_services_history_.clear();
-    }
-    for (auto const& [service, instances] : services) {
-        for (const auto& [instance, version] : instances) {
-            auto [major, minor, unused] = version;
+        std::scoped_lock lock(available_services_mutex_);
+        auto removed = available_services_.clear();
+        for (auto const& [service, instance, major, minor, client] : removed) {
+            // call on_availability only under the same lock as the available_services_ to ensure
+            // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
+            // dispatcher queue)
             host_->on_availability(service, instance, availability_state_e::AS_UNAVAILABLE, major, minor);
             VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(service) << "." << hex4(instance) << ":"
                          << static_cast<int>(major) << "." << static_cast<int>(minor) << "]";
         }
-    }
-    {
-        std::scoped_lock lock(guests_mutex_);
-        guests_.clear();
+        available_services_history_.clear();
+        address_table_.clear();
     }
 }
 
@@ -2482,6 +2476,152 @@ void routing_manager_client::cleanup_subscriber() {
         routing_manager_base::unsubscribe(client, service, instance, group, ANY_EVENT);
         VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(client) << "): [" << hex4(service) << "." << hex4(instance) << "." << hex4(group) << "."
                      << hex4(ANY_EVENT) << "]";
+    }
+}
+bool routing_manager_client::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {
+    std::scoped_lock lock{available_services_mutex_};
+    if (auto const it = address_table_.find(_client); it != address_table_.end()) {
+        _address = it->second.first;
+        _port = it->second.second;
+        return true;
+    }
+    return false;
+}
+
+client_t routing_manager_client::get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const {
+    std::scoped_lock lock{available_services_mutex_};
+    auto const it = std::find_if(address_table_.begin(), address_table_.end(),
+                                 [&_address, &_port](const std::pair<client_t, std::pair<boost::asio::ip::address, port_t>>& p) {
+                                     return p.second.first == _address && p.second.second == _port;
+                                 });
+    return it == address_table_.end() ? VSOMEIP_CLIENT_UNSET : it->first;
+}
+
+void routing_manager_client::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
+    std::scoped_lock lock{available_services_mutex_};
+    address_table_[_client] = std::make_pair(_address, _port);
+}
+
+client_t routing_manager_client::find_local_client(service_t _service, instance_t _instance) const {
+    std::scoped_lock its_lock(available_services_mutex_);
+    return available_services_.find_client(_service, _instance);
+}
+
+bool routing_manager_client::is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method) {
+
+    if (!configuration_->is_security_enabled() || !configuration_->is_local_routing()) {
+        return true;
+    }
+
+    {
+        std::scoped_lock its_lock(available_services_mutex_);
+        if (_sender == available_services_.find_client(_service, _instance)) {
+            // sender is still offering the service
+            return true;
+        }
+
+        auto found_service = available_services_history_.find(_service);
+        if (found_service != available_services_history_.end()) {
+            auto found_instance = found_service->second.find(_instance);
+            if (found_instance != found_service->second.end()) {
+                auto found_client = found_instance->second.find(_sender);
+                if (found_client != found_instance->second.end()) {
+                    // sender was offering the service and is still connected
+                    return true;
+                }
+            }
+        }
+    }
+
+    // service is now offered by another client
+    // or service is not offered at all
+    std::string security_mode_text = "!";
+    if (!configuration_->is_security_audit()) {
+        security_mode_text = ", but will be allowed due to audit mode is active!";
+    }
+
+    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::is_response_allowed: "
+                    << "received a response from client 0x" << hex4(_sender) << " which does not offer service/instance/method "
+                    << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(_method) << security_mode_text;
+
+    return !configuration_->is_security_audit();
+}
+
+bool routing_manager_client::send_event(client_t _client, std::shared_ptr<message> _message, bool _force) {
+    return send(_client, _message, _force);
+}
+
+bool routing_manager_client::send(client_t _client, std::shared_ptr<message> _message, bool _force) {
+    bool is_sent(false);
+    if (utility::is_request(_message->get_message_type())) {
+        _message->set_client(_client);
+        if (!host_->is_routing() && !is_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
+            VSOMEIP_WARNING_P << "this=" << this << "}::send{_client=" << _client << " _message=" << hex4(_message->get_service()) << "."
+                              << hex4(_message->get_method()) << "." << static_cast<int>(_message->get_message_type()) << "."
+                              << static_cast<int>(_message->get_return_code()) << " _force=" << _force
+                              << "}: Service not available. instance=" << hex4(_message->get_instance())
+                              << " version=" << hex4(_message->get_interface_version());
+            if (!_force) {
+                return is_sent;
+            }
+        }
+    }
+
+    std::shared_ptr<serializer> its_serializer(get_serializer());
+    if (its_serializer->serialize(_message.get())) {
+        auto const sec_client = get_sec_client();
+        is_sent = send(_client, its_serializer->get_data(), its_serializer->get_size(), _message->get_instance(), _message->is_reliable(),
+                       get_client(), &sec_client, 0, false, _force);
+        its_serializer->reset();
+        put_serializer(its_serializer);
+    } else {
+        VSOMEIP_ERROR_P << "Failed to serialize message. Check message size!";
+    }
+    return is_sent;
+}
+
+bool routing_manager_client::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
+    std::scoped_lock its_lock(available_services_mutex_);
+    return available_services_.is_available(_service, _instance, _major);
+}
+
+void routing_manager_client::send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major) {
+    std::scoped_lock its_lock(pending_subscription_mutex_);
+    for (auto& ps : pending_subscriptions_) {
+        if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
+            send_subscribe(get_client(), ps.service_, ps.instance_, ps.eventgroup_, ps.major_, ps.event_, ps.filter_);
+        }
+    }
+}
+
+void routing_manager_client::remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                         event_t _event) {
+    std::scoped_lock its_lock(pending_subscription_mutex_);
+    if (_eventgroup == 0xFFFF) {
+        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
+            if (it->service_ == _service && it->instance_ == _instance) {
+                it = pending_subscriptions_.erase(it);
+            } else {
+                it++;
+            }
+        }
+    } else if (_event == ANY_EVENT) {
+        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
+            if (it->service_ == _service && it->instance_ == _instance && it->eventgroup_ == _eventgroup) {
+                it = pending_subscriptions_.erase(it);
+            } else {
+                it++;
+            }
+        }
+    } else {
+        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
+            if (it->service_ == _service && it->instance_ == _instance && it->eventgroup_ == _eventgroup && it->event_ == _event) {
+                it = pending_subscriptions_.erase(it);
+                break;
+            } else {
+                it++;
+            }
+        }
     }
 }
 

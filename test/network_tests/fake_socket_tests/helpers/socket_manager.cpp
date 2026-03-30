@@ -508,6 +508,12 @@ void socket_manager::clear_command_record(std::string const& _client, std::strin
     connection->clear_command_record();
 }
 
+bool socket_manager::setup_data_pipe(std::string const& _client, std::string const& _server, socket_role _applied_on,
+                                     std::shared_ptr<data_pipe> const& _pipe) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->setup_data_pipe(_pipe, _applied_on);
+}
+
 [[nodiscard]] bool socket_manager::wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id,
                                                     socket_role _waiting, std::chrono::milliseconds _timeout) {
     auto connection = get_or_create_connection(_client, _server);

@@ -12,6 +12,7 @@
 #include "helpers/sockets/fake_tcp_socket_handle.hpp"
 #include "helpers/service_state.hpp"
 #include "helpers/availability_checker.hpp"
+#include "helpers/command_gate.hpp"
 
 #include "sample_interfaces.hpp"
 
@@ -831,28 +832,143 @@ TEST_F(test_connection_restoration, ensure_the_correct_routing_info_is_kept) {
 
     // 9.
     std::vector<service_availability> expected_availabilities = {
-            // Refers to the first request done at 7. (note that only the new server is offering this service)
-            service_availability::available(service_instance_two_),
-
-            // Once the second request for the service instance_ is done, the client will notice another client w/ same ip/port exists
-            // this triggers the error handler because of conflicting ip/port
-            // connection will be removed, and therefore UNAVAILABLE will be sent for the service_instance_two_
-            service_availability::unavailable(service_instance_two_),
-            // router addresses now the client request at 8.
-            // at this point, the router does not know nothing about server_instance_, and all is fine because only
-            // old server was offering it
-            service_availability::available(service_instance_),
-
-            // After the client re-requests (due to handle client error)
-            // Client noticies that old server still exists and therefore clients sees unavailable for the service_instance_
-            // and available for the service_instance_two_
-            service_availability::unavailable(service_instance_),
             service_availability::available(service_instance_two_),
     };
 
     ASSERT_TRUE(client_->availability_record_.wait_for([&expected_availabilities](const auto& record) {
         return record == expected_availabilities;
     })) << client_->availability_record_;
+
+    // the clean-up of the ep is asynchronous therefore there is a chance that the client might see
+    // an available of the first service, but if this happens we need to ensure that the last availability
+    // for this very service is unavail.
+    if (client_->availability_record_.wait_for_any(service_availability::available(service_instance_), std::chrono::milliseconds(100))) {
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)))
+                << client_->availability_record_;
+    }
+}
+
+struct test_reoffer_on_connection_breaking : test_connection_restoration {
+
+    void setup() {
+        ASSERT_TRUE(setup_data_pipe(client_name_, routingmanager_name_, socket_role::client, router_to_client_gate_->get_data_pipe()));
+        start_apps();
+        request_service(); // do not subscribe to an event!
+        answer_requests_with(expected_payload_);
+        auto c = client_->get_application();
+        // let the client always dispatch a request on availability
+        c->register_availability_handler(
+                service_instance_.service_, service_instance_.instance_,
+                [this, weak_c = std::weak_ptr<vsomeip::application>(c)](service_t, instance_t, vsomeip::availability_state_e state) {
+                    if (state == vsomeip::availability_state_e::AS_AVAILABLE) {
+                        if (auto self = weak_c.lock(); self) {
+                            TEST_LOG << "Client received service state: AVAILABLE";
+                            client_->send_request(request_);
+                        }
+                    } else {
+                        TEST_LOG << "Client received service state: UNAVAILABLE";
+                    }
+                });
+    }
+
+    // setup the control to be in control when the routing_info is received by the client
+    // to increase chances of a concurrent routing_info reception + clean_up
+    std::shared_ptr<command_gate> router_to_client_gate_ = command_gate::create();
+    std::vector<unsigned char> expected_payload_ = {0x1, 0x2, 0x3};
+    message_checker const response_checker_{std::nullopt, service_instance_, method_, vsomeip::message_type_e::MT_RESPONSE,
+                                            expected_payload_};
+};
+
+TEST_F(test_reoffer_on_connection_breaking, client_can_dispatch_a_request_after_reoffer_during_connection_break) {
+    /**
+     * Ensure that when a client sees:
+     * 1. routing info for a service that is re-offered (without a subscription)
+     * 2. the connection breaking to the service that re-offers
+     * 3. after the routing_info is received the connection breaks to the router
+     *
+     * that an "automatic" request (on availability) receives a response.
+     **/
+    setup();
+
+    // the automatic request will ensure that we start the loop
+    // with an established connection that can break.
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
+
+    for (int i = 0; i < 100; ++i) {
+        TEST_LOG << "### Iteration: " << i << " START";
+
+        // 0. Stop the offer
+        client_->availability_record_.clear();
+        stop_offer();
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+        client_->message_record_.clear();
+        client_->app_state_record_.clear();
+
+        // 1. Hold back the routing_info at the clients "gate" to ensure it is received in close repetition with 2. and 3.
+        router_to_client_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID, 1);
+        server_->offer(service_instance_);
+        ASSERT_TRUE(router_to_client_gate_->wait_for_blocked());
+
+        // 1.
+        router_to_client_gate_->block(false);
+        // 2.
+        ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::timed_out));
+        // 3.
+        ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, boost::asio::error::timed_out));
+
+        // checking of sanity
+        ASSERT_TRUE(client_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        ASSERT_TRUE(await_connection(client_name_, server_name_));
+        ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
+        ASSERT_TRUE(await_service());
+        TEST_LOG << "### Iteration: " << i << " END";
+    }
+}
+TEST_F(test_reoffer_on_connection_breaking, client_receives_response_after_reoffer_during_connection_break) {
+    setup();
+    /**
+     * Ensure that when a client sees:
+     * 1. routing info for a service that is re-offered (without a subscription)
+     * 2. the connection breaking to the service that re-offers
+     *
+     * that an "automatic" request (on availability) receives a response.
+     **/
+
+    // the automatic request will ensure that we start the loop
+    // with an established connection that can break.
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
+    client_->message_record_.clear();
+
+    for (int i = 0; i < 100; ++i) {
+        TEST_LOG << "### Iteration: " << i << " START";
+
+        // 0. Stop the offer
+        stop_offer();
+
+        // 1. Hold back the routing_info at the clients "gate" to ensure it is received in close repetition with 2.
+        router_to_client_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID);
+        server_->offer(service_instance_);
+        ASSERT_TRUE(router_to_client_gate_->wait_for_blocked());
+
+        // 1.
+        router_to_client_gate_->block(false);
+        // 2.
+        ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::timed_out));
+
+        // it is important to check as a first step that the connection was re-established,
+        // and that then the service is getting available
+        // and only then does the reply matter.
+        // (If we would directly check the service and the reply, they might have been captured before the connection was disconnected,
+        // leading to a false positive failure in the next iteration)
+        ASSERT_TRUE(await_connection(client_name_, server_name_));
+        ASSERT_TRUE(await_service());
+        client_->availability_record_.clear();
+        ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
+        client_->message_record_.clear();
+        TEST_LOG << "### Iteration: " << i << " END";
+    }
 }
 
 TEST_F(test_connection_restoration, offer_and_stop_service_concurrency) {

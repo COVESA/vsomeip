@@ -95,19 +95,9 @@ public:
     virtual void set_client_host(const std::string& _client_host) = 0;
     virtual std::string get_client_host() const = 0;
 
-    virtual bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const = 0;
-    /// @brief Get guest client-id by address/port
-    ///
-    /// @return client-id of found guest, or VSOMEIP_CLIENT_UNSET
-    virtual client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const = 0;
-    virtual void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) = 0;
-    virtual void remove_guest(client_t _client) = 0;
-
     virtual routing_state_e get_routing_state() = 0;
 
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
-
-    virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const = 0;
 
     virtual bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance) = 0;
 

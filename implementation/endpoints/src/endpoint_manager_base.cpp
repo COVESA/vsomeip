@@ -103,10 +103,6 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_client(client_
     return find_local_client_unlocked(_client);
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_client(service_t _service, instance_t _instance) {
-    return find_local_client(rm_->find_local_client(_service, _instance));
-}
-
 std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_server_endpoint(client_t _client) const {
     std::scoped_lock lock{mtx_};
     if (auto const it = local_server_endpoints_.find(_client); it != local_server_endpoints_.end()) {

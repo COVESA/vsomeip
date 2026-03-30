@@ -4,6 +4,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "app_connection.hpp"
+#include "data_pipe.hpp"
+#include "sockets/fake_socket_handle.hpp"
 #include "sockets/fake_tcp_socket_handle.hpp"
 #include "test_logging.hpp"
 
@@ -16,6 +18,13 @@ app_connection::app_connection(std::string const& _name) : name_(_name) { }
 void app_connection::set_sockets(std::weak_ptr<fake_tcp_socket_handle> _client, std::weak_ptr<fake_tcp_socket_handle> _server) {
     {
         std::unique_lock lock{mtx_};
+        // ensure that the queues are separated and not shared across sockets
+        if (auto client = client_.lock(); client) {
+            client->replace_pipe(std::make_shared<data_pipe>());
+        }
+        if (auto server = server_.lock(); server) {
+            server->replace_pipe(std::make_shared<data_pipe>());
+        }
         client_ = _client;
         server_ = _server;
         ++socket_count_;
@@ -49,6 +58,24 @@ void app_connection::clear_command_record() const {
     if (to) {
         to->received_command_record_.clear();
     }
+}
+
+bool app_connection::setup_data_pipe(std::shared_ptr<data_pipe> const& _pipe, socket_role _applied_on) {
+    if (_applied_on == socket_role::unspecified) {
+        // a data pipe can only be applied to a single socket
+        return false;
+    }
+    std::unique_lock lock{mtx_};
+    if (_applied_on == socket_role::client) {
+        client_options_.data_pipe_ = _pipe;
+    }
+    if (_applied_on == socket_role::server) {
+        server_options_.data_pipe_ = _pipe;
+    }
+    // if we can already apply the option, we are replacing
+    // the data pipe potentially while "in action". This might
+    // lead to data loss on the socket -> don't do it.
+    return !apply_options(std::move(lock));
 }
 
 bool app_connection::delay_message_processing(bool _delay, socket_role _role) {
@@ -199,6 +226,9 @@ bool app_connection::apply_options(std::unique_lock<std::mutex> _lock) {
             }
             if (opt.handler_) {
                 ptr->set_vsomeip_command_handler(opt.handler_);
+            }
+            if (opt.data_pipe_) {
+                ptr->replace_pipe(opt.data_pipe_);
             }
             ptr->ignore_nothing_to_read_from(opt.ignore_nothing_to_read_from_);
             return true;

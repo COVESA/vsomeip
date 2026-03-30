@@ -1367,12 +1367,23 @@ void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
         it->second->trigger_error();
         return;
     }
+
+    // Remove clients that occupy the same address
+    if (auto const addr = _ep->peer_endpoint(); addr != boost::asio::ip::tcp::endpoint{}) {
+        for (auto& [id, ep] : routing_endpoints_) {
+            if (ep->peer_endpoint() == addr) {
+                if (id != _client) {
+                    // the other caase we did already take care above.
+                    VSOMEIP_WARNING_P << "Deregistering old client " << hex4(id) << " due to new client " << hex4(_client) << " @ " << addr;
+                    ep->trigger_error();
+                }
+                break;
+            }
+        }
+    }
+
     rm_->register_client_error_handler(_client, _ep);
     routing_endpoints_[_client] = _ep;
-    // _ep->peer_endpoint().port() - 1 because we need to pass the server port
-    if (auto const peer = _ep->peer_endpoint(); peer != boost::asio::ip::tcp::endpoint{}) {
-        rm_->add_guest(_client, peer.address(), peer.port() - 1);
-    }
     _ep->start();
     VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
 }
@@ -1402,9 +1413,6 @@ void endpoint_manager_impl::remove_routing_endpoint(client_t _client) {
         it->second->stop(true);
         VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
                        << it->second->name();
-        if (auto const peer = it->second->peer_endpoint(); peer != boost::asio::ip::tcp::endpoint{}) {
-            rm_->remove_guest(_client);
-        }
         routing_endpoints_.erase(it);
     }
     if (auto const it = pending_routing_endpoints_.find(_client); it != pending_routing_endpoints_.end()) {
@@ -1564,5 +1572,17 @@ client_t endpoint_manager_impl::get_client() const {
 
 std::string endpoint_manager_impl::get_client_host() const {
     return rm_->get_client_host();
+}
+
+bool endpoint_manager_impl::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {
+    if (auto const ep = find_routing_endpoint(_client); ep) {
+        if (auto const peer = ep->peer_endpoint(); peer != boost::asio::ip::tcp::endpoint{}) {
+            _address = peer.address();
+            // _ep->peer_endpoint().port() - 1 because we need to pass the server port
+            _port = peer.port() - 1;
+            return true;
+        }
+    }
+    return false;
 }
 } // namespace vsomeip_v3

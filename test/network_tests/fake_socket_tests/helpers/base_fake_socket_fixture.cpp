@@ -141,6 +141,11 @@ void base_fake_socket_fixture::clear_command_record(std::string const& _client, 
     socket_manager_->clear_command_record(_client, _server);
 }
 
+bool base_fake_socket_fixture::setup_data_pipe(std::string const& _client, std::string const& _server, socket_role _applied_on,
+                                               std::shared_ptr<data_pipe> const& _pipe) {
+    return socket_manager_->setup_data_pipe(_client, _server, _applied_on, _pipe);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id,
                                                               socket_role _waiting, std::chrono::milliseconds _timeout) {
     return socket_manager_->wait_for_command(_client, _server, _id, _waiting, _timeout);

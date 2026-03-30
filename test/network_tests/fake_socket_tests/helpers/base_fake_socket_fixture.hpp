@@ -177,6 +177,9 @@ struct base_fake_socket_fixture : ::testing::Test {
      **/
     void clear_command_record(std::string const& _client, std::string const& _server);
 
+    [[nodiscard]] bool setup_data_pipe(std::string const& _client, std::string const& _server, socket_role _applied_on,
+                                       std::shared_ptr<data_pipe> const& _pipe);
+
     /**
      * @see socket_manager::wait_for_command
      **/

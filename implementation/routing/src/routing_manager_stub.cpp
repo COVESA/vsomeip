@@ -647,19 +647,6 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
 
     if (_port > 0 && _port < ILLEGAL_PORT) {
         its_address << " @ " << _address.to_string() << ":" << _port;
-
-        // remove client (and endpoints!) at same address/port
-        // as address/port are unique and that definitely means the client no longer exists
-        if (client_t old_client = host_->get_guest_by_address(_address, _port);
-            old_client != VSOMEIP_CLIENT_UNSET && old_client != _client) {
-            VSOMEIP_WARNING_P << "Deregistering old client " << hex4(old_client) << " due to new client " << hex4(_client) << " @ "
-                              << _address.to_string() + ":" << _port;
-
-            // we *definitely* need to do this in order - deregister old client, register new client
-            // therefore call the error handler for the old client
-            // NOTE: no danger of deeper recursion, because the deregistration is triggered by a disconnect.
-            host_->cleanup_client(old_client);
-        }
     }
 
     VSOMEIP_INFO << "Application/Client " << hex4(_client) << " is registering" << its_address.str();
@@ -839,7 +826,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
                     its_entry.set_type(_type);
                     its_entry.set_client(_hoster);
                     if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
-                        && host_->get_guest(_hoster, its_address, its_port)) {
+                        && host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port)) {
                         its_entry.set_address(its_address);
                         its_entry.set_port(its_port);
                     }
@@ -1307,7 +1294,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                                 protocol::routing_info_entry its_entry;
                                 its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                                 its_entry.set_client(c);
-                                if (host_->get_guest(c, its_address, its_port)) {
+                                if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
                                     its_entry.set_address(its_address);
                                     its_entry.set_port(its_port);
                                 }
@@ -1330,7 +1317,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                             protocol::routing_info_entry its_entry;
                             its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                             its_entry.set_client(c);
-                            if (host_->get_guest(c, its_address, its_port)) {
+                            if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
                                 its_entry.set_address(its_address);
                                 its_entry.set_port(its_port);
                             }

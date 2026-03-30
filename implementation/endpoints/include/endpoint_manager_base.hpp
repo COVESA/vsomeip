@@ -37,7 +37,6 @@ public:
     std::shared_ptr<local_endpoint> create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_local_client(client_t _client);
-    std::shared_ptr<local_endpoint> find_local_client(service_t _service, instance_t _instance);
 
     // server endpoint API (endpoints towards clients of this application)
     std::shared_ptr<local_endpoint> find_local_server_endpoint(client_t _client) const;

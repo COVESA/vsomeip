@@ -100,6 +100,8 @@ public:
      **/
     void drop_from(const boost::asio::ip::address& _address);
 
+    bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
+
 private:
     std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable);
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable);

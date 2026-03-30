@@ -317,7 +317,7 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
         stashed_ec_ = std::nullopt;
         return;
     }
-    if (auto remote = connected_socket_.lock(); !remote && input_data_.size() == 0 && !ignore_nothing_to_read_from_) {
+    if (auto remote = connected_socket_.lock(); !remote && pipe_->size() == 0 && !ignore_nothing_to_read_from_) {
         TEST_LOG << "[fake-socket] Error on: " << socket_id_ << ", no connection to read from";
         boost::asio::post(io_, [handler = std::move(_handler)] { handler(boost::asio::error::connection_reset, 0); });
         return;
@@ -370,8 +370,7 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
         }
     }
 
-    input_data_.reserve(input_data_.size() + current_size);
-    std::copy(raw_message.begin(), raw_message.end(), std::back_inserter(input_data_));
+    pipe_->add_data(raw_message);
     update_reception();
     return incoming_size;
 }
@@ -380,23 +379,11 @@ void fake_tcp_socket_handle::update_reception() {
     if (!receptor_ || delay_processing_) {
         return;
     }
-    auto const len = std::min(receptor_->buffer_.size(), input_data_.size());
-    if (len == 0) {
+    auto bytes = pipe_->fetch_data(receptor_->buffer_);
+    if (bytes == 0) {
         return;
     }
-    if (receptor_->buffer_.size() < input_data_.size()) {
-        TEST_LOG << "[fake-socket] Input data too much for buffer, chopping input for: " << socket_id_ << "(r: " << input_data_.size()
-                 << " bytes, buffer_size: " << receptor_->buffer_.size() << " bytes)";
-    }
-
-    char* out = static_cast<char*>(receptor_->buffer_.data());
-    char* end = out + len;
-    for (auto it = input_data_.begin(); out != end; ++out) {
-        *out = static_cast<char>(*it);
-        ++it;
-    }
-    input_data_.erase(input_data_.begin(), input_data_.begin() + static_cast<std::vector<unsigned char>::difference_type>(len));
-    boost::asio::post(io_, [handler = std::move(receptor_->handler_), len] { handler(boost::system::error_code(), len); });
+    boost::asio::post(io_, [handler = std::move(receptor_->handler_), bytes] { handler(boost::system::error_code(), bytes); });
     receptor_ = std::nullopt;
 }
 
@@ -427,6 +414,20 @@ fd_t fake_tcp_socket_handle::fd() {
 void fake_tcp_socket_handle::set_vsomeip_command_handler(vsomeip_command_handler const& _handler) {
     auto const lock = std::scoped_lock(mtx_);
     command_handler_ = _handler;
+}
+
+void fake_tcp_socket_handle::replace_pipe(std::shared_ptr<data_pipe> _pipe) {
+    auto const lock = std::scoped_lock(mtx_);
+    _pipe->init([weak_self = weak_from_this(), this] {
+        if (auto self = weak_self.lock(); self) {
+            auto const lock = std::scoped_lock(mtx_);
+            update_reception();
+        }
+    });
+    pipe_->exchange_queues(*_pipe);
+    pipe_ = _pipe;
+    // wake any pending receptor that may now be satisfiable with transferred data
+    update_reception();
 }
 
 void fake_tcp_socket_handle::delayed_consume(std::vector<boost::asio::const_buffer> const& _buffer) {

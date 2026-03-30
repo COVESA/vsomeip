@@ -32,14 +32,6 @@ routing_manager_base::routing_manager_base(routing_manager_host* _host) :
         serializers_.push(std::make_shared<serializer>(its_buffer_shrink_threshold));
         deserializers_.push(std::make_shared<deserializer>(its_buffer_shrink_threshold));
     }
-
-    if (!configuration_->is_local_routing()) {
-        auto its_routing_address = configuration_->get_routing_host_address();
-        auto its_routing_port = configuration_->get_routing_host_port();
-        if (!its_routing_address.is_unspecified() && !its_routing_address.is_multicast()) {
-            add_guest(VSOMEIP_ROUTING_CLIENT, its_routing_address, its_routing_port);
-        }
-    }
 }
 
 boost::asio::io_context& routing_manager_base::get_io() {
@@ -244,19 +236,6 @@ void routing_manager_base::release_service(client_t _client, service_t _service,
     auto its_info = find_service(_service, _instance);
     if (its_info) {
         its_info->remove_client(_client);
-    }
-    {
-        std::scoped_lock its_service_guard(local_services_mutex_);
-        auto found_service = local_services_history_.find(_service);
-        if (found_service != local_services_history_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                found_service->second.erase(_instance);
-                if (found_service->second.empty()) {
-                    local_services_history_.erase(_service);
-                }
-            }
-        }
     }
 }
 
@@ -562,46 +541,6 @@ std::vector<event_t> routing_manager_base::find_events(service_t _service, insta
     return its_events;
 }
 
-bool routing_manager_base::is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method) {
-
-    if (!configuration_->is_security_enabled() || !configuration_->is_local_routing()) {
-        return true;
-    }
-
-    {
-        std::scoped_lock its_lock(local_services_mutex_);
-        if (_sender == find_local_client_unlocked(_service, _instance)) {
-            // sender is still offering the service
-            return true;
-        }
-
-        auto found_service = local_services_history_.find(_service);
-        if (found_service != local_services_history_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_client = found_instance->second.find(_sender);
-                if (found_client != found_instance->second.end()) {
-                    // sender was offering the service and is still connected
-                    return true;
-                }
-            }
-        }
-    }
-
-    // service is now offered by another client
-    // or service is not offered at all
-    std::string security_mode_text = "!";
-    if (!configuration_->is_security_audit()) {
-        security_mode_text = ", but will be allowed due to audit mode is active!";
-    }
-
-    VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_base::is_response_allowed: "
-                    << "received a response from client 0x" << hex4(_sender) << " which does not offer service/instance/method "
-                    << hex4(_service) << "/" << hex4(_instance) << "/" << hex4(_method) << security_mode_text;
-
-    return !configuration_->is_security_audit();
-}
-
 bool routing_manager_base::is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                                              instance_t _instance, eventgroup_t _eventgroup) {
 
@@ -770,35 +709,6 @@ void routing_manager_base::notify_one_current_value(client_t _client, service_t 
     }
 }
 
-bool routing_manager_base::send(client_t _client, std::shared_ptr<message> _message, bool _force) {
-    bool is_sent(false);
-    if (utility::is_request(_message->get_message_type())) {
-        _message->set_client(_client);
-        if (!host_->is_routing() && !is_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
-            VSOMEIP_WARNING_P << "this=" << this << "}::send{_client=" << _client << " _message=" << hex4(_message->get_service()) << "."
-                              << hex4(_message->get_method()) << "." << static_cast<int>(_message->get_message_type()) << "."
-                              << static_cast<int>(_message->get_return_code()) << " _force=" << _force
-                              << "}: Service not available. instance=" << hex4(_message->get_instance())
-                              << " version=" << hex4(_message->get_interface_version());
-            if (!_force) {
-                return is_sent;
-            }
-        }
-    }
-
-    std::shared_ptr<serializer> its_serializer(get_serializer());
-    if (its_serializer->serialize(_message.get())) {
-        auto const sec_client = get_sec_client();
-        is_sent = send(_client, its_serializer->get_data(), its_serializer->get_size(), _message->get_instance(), _message->is_reliable(),
-                       get_client(), &sec_client, 0, false, _force);
-        its_serializer->reset();
-        put_serializer(its_serializer);
-    } else {
-        VSOMEIP_ERROR_P << "Failed to serialize message. Check message size!";
-    }
-    return is_sent;
-}
-
 // ********************************* PROTECTED **************************************
 std::shared_ptr<serviceinfo> routing_manager_base::create_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                                                        minor_version_t _minor, ttl_t _ttl, bool _is_local_service) {
@@ -870,65 +780,6 @@ services_t routing_manager_base::get_services() const {
 services_t routing_manager_base::get_services_remote() const {
     std::scoped_lock its_lock(services_remote_mutex_);
     return services_remote_;
-}
-
-bool routing_manager_base::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
-    bool available(false);
-    std::scoped_lock its_lock(local_services_mutex_);
-
-    auto its_service = local_services_.find(_service);
-    if (its_service != local_services_.end()) {
-        if (_instance == ANY_INSTANCE) {
-            return true;
-        }
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            if (_major == ANY_MAJOR || _major == DEFAULT_MAJOR) {
-                return true;
-            }
-            if (std::get<0>(its_instance->second) == _major) {
-                available = true;
-            }
-        }
-    }
-
-    return available;
-}
-
-std::set<client_t> routing_manager_base::find_local_clients(service_t _service, instance_t _instance) {
-    std::set<client_t> its_clients;
-    std::scoped_lock its_lock(local_services_mutex_);
-    auto its_service = local_services_.find(_service);
-    if (its_service != local_services_.end()) {
-        if (_instance == ANY_INSTANCE) {
-            for (auto its_instance : its_service->second) {
-                its_clients.insert(std::get<2>(its_instance.second));
-            }
-        } else {
-            auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                its_clients.insert(std::get<2>(its_instance->second));
-            }
-        }
-    }
-    return its_clients;
-}
-
-client_t routing_manager_base::find_local_client(service_t _service, instance_t _instance) const {
-    std::scoped_lock its_lock(local_services_mutex_);
-    return find_local_client_unlocked(_service, _instance);
-}
-
-client_t routing_manager_base::find_local_client_unlocked(service_t _service, instance_t _instance) const {
-    client_t its_client(VSOMEIP_ROUTING_CLIENT);
-    auto its_service = local_services_.find(_service);
-    if (its_service != local_services_.end()) {
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            its_client = std::get<2>(its_instance->second);
-        }
-    }
-    return its_client;
 }
 
 std::shared_ptr<event> routing_manager_base::find_event(service_t _service, instance_t _instance, event_t _event) const {
@@ -1113,45 +964,6 @@ void routing_manager_base::put_deserializer(const std::shared_ptr<deserializer>&
     deserializer_condition_.notify_one();
 }
 
-void routing_manager_base::send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major) {
-    std::scoped_lock its_lock(pending_subscription_mutex_);
-    for (auto& ps : pending_subscriptions_) {
-        if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
-            send_subscribe(get_client(), ps.service_, ps.instance_, ps.eventgroup_, ps.major_, ps.event_, ps.filter_);
-        }
-    }
-}
-
-void routing_manager_base::remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) {
-    std::scoped_lock its_lock(pending_subscription_mutex_);
-    if (_eventgroup == 0xFFFF) {
-        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
-            if (it->service_ == _service && it->instance_ == _instance) {
-                it = pending_subscriptions_.erase(it);
-            } else {
-                it++;
-            }
-        }
-    } else if (_event == ANY_EVENT) {
-        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
-            if (it->service_ == _service && it->instance_ == _instance && it->eventgroup_ == _eventgroup) {
-                it = pending_subscriptions_.erase(it);
-            } else {
-                it++;
-            }
-        }
-    } else {
-        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
-            if (it->service_ == _service && it->instance_ == _instance && it->eventgroup_ == _eventgroup && it->event_ == _event) {
-                it = pending_subscriptions_.erase(it);
-                break;
-            } else {
-                it++;
-            }
-        }
-    }
-}
-
 std::set<std::tuple<service_t, instance_t, eventgroup_t>> routing_manager_base::get_subscriptions(const client_t _client) {
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> result;
     std::scoped_lock its_lock(events_mutex_);
@@ -1180,49 +992,8 @@ void routing_manager_base::clear_shadow_subscriptions(void) {
     }
 }
 
-bool routing_manager_base::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {
-    std::scoped_lock its_lock(guests_mutex_);
-    auto find_guest = guests_.find(_client);
-    if (find_guest == guests_.end())
-        return false;
-
-    _address = find_guest->second.first;
-    _port = find_guest->second.second;
-
-    return true;
-}
-
-client_t routing_manager_base::get_guest_by_address(const boost::asio::ip::address& _address, const port_t _port) const {
-    std::scoped_lock its_lock(guests_mutex_);
-    // inefficient, but as applications usually have few clients/connect to few services, it does not matter
-    auto itr = std::find_if(guests_.begin(), guests_.end(),
-                            [&_address, &_port](const std::pair<client_t, std::pair<boost::asio::ip::address, port_t>>& p) {
-                                return p.second.first == _address && p.second.second == _port;
-                            });
-
-    if (itr == guests_.end()) {
-        return VSOMEIP_CLIENT_UNSET;
-    } else {
-        return itr->first;
-    }
-}
-
-void routing_manager_base::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
-    std::scoped_lock its_lock(guests_mutex_);
-    guests_[_client] = std::make_pair(_address, _port);
-}
-
-void routing_manager_base::remove_guest(client_t _client) {
-    std::scoped_lock its_lock(guests_mutex_);
-    guests_.erase(_client);
-}
-
 session_t routing_manager_base::get_event_session() {
     return get_session(false);
-}
-
-bool routing_manager_base::send_event(client_t _client, std::shared_ptr<message> _message, bool _force) {
-    return send(_client, _message, _force);
 }
 
 bool routing_manager_base::send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,

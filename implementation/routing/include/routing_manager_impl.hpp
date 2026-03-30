@@ -230,7 +230,7 @@ public:
 
     std::vector<protocol::service> get_requested_services(client_t _client) const;
 
-    virtual bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
+    bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
     bool is_external_routing_ready() const;
 
@@ -332,9 +332,7 @@ private:
     void statistics_log_timer_cbk(boost::system::error_code const& _error);
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
-    client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const;
     void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port);
-    void remove_guest(client_t _client);
 
     void send_suspend() const;
 
@@ -360,6 +358,7 @@ private:
     bool is_valid_client_id(const client_t _client, const message_type_e _type) const;
 
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
+    bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;
@@ -435,6 +434,8 @@ private:
     std::mutex update_remote_subscription_mutex_;
 
     message_acceptance_handler_t message_acceptance_handler_;
+    mutable std::mutex local_services_mutex_;
+    local_service_table local_services_table_;
 
     std::mutex on_state_change_mutex_;
 };

@@ -16,8 +16,8 @@
 
 namespace vsomeip_v3::testing {
 
-[[nodiscard]] size_t parse(const std::vector<unsigned char>& _message, command_message& _out_message) {
-    if (_message.size() < protocol::COMMAND_POSITION_PAYLOAD) {
+[[nodiscard]] size_t parse(unsigned char const* _data, size_t _len, command_message& _out_message) {
+    if (_len < protocol::COMMAND_POSITION_PAYLOAD) {
         TEST_LOG << "wire bytes were not long enough to contain the header";
         return 0;
     }
@@ -66,18 +66,18 @@ namespace vsomeip_v3::testing {
     };
 
     uint32_t length = 0;
-    memcpy(&length, &_message[protocol::COMMAND_POSITION_SIZE], sizeof(length));
+    memcpy(&length, &_data[protocol::COMMAND_POSITION_SIZE], sizeof(length));
     if (std::numeric_limits<uint32_t>::max() - protocol::COMMAND_HEADER_SIZE < length) {
         TEST_LOG << "ERROR message length: " << length << " exceeded allowed message size";
         return 0;
     }
     auto const size = length + protocol::COMMAND_HEADER_SIZE;
-    if (size > _message.size()) {
+    if (size > _len) {
         TEST_LOG << "ERROR remaining_bytes are insufficient";
         return 0;
     }
     if (size <= std::numeric_limits<uint32_t>::max()) {
-        if (!handle_message(&_message[0], static_cast<uint32_t>(size))) {
+        if (!handle_message(&_data[0], static_cast<uint32_t>(size))) {
             TEST_LOG << "ERROR message could not be parsed";
             return 0;
         }
@@ -87,6 +87,9 @@ namespace vsomeip_v3::testing {
     }
 
     return size;
+}
+[[nodiscard]] size_t parse(const std::vector<unsigned char>& _message, command_message& _out_message) {
+    return parse(_message.data(), _message.size(), _out_message);
 }
 
 std::ostream& operator<<(std::ostream& _out, command_message const& _m) {

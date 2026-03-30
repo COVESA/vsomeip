@@ -65,7 +65,6 @@ public:
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
-    using routing_manager_base::send;
     bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
               const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force);
 
@@ -91,8 +90,17 @@ public:
     void on_offered_services_info(protocol::offered_services_response_command& _command);
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type);
+    bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
+    bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
 private:
+    void send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major);
+    void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+
+    bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const override;
+    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
+    client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const;
+
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
     void register_application(client_t _client);
@@ -195,6 +203,10 @@ private:
     void cleanup_routing_data();
     void cleanup_subscriber();
 
+    client_t find_local_client(service_t _service, instance_t _instance) const;
+    bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
+    bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
+
 private:
     boost::asio::steady_timer keepalive_timer_;
     std::mutex log_timer_mutex_;
@@ -248,6 +260,30 @@ private:
     const std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
 
     std::shared_ptr<routing_client_state_machine> state_machine_;
+
+    mutable std::mutex available_services_mutex_;
+    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
+    local_service_table available_services_;
+    std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
+
+    struct subscription_data_t {
+        service_t service_;
+        instance_t instance_;
+        eventgroup_t eventgroup_;
+        major_version_t major_;
+        event_t event_;
+        std::shared_ptr<debounce_filter_impl_t> filter_;
+        vsomeip_sec_client_t sec_client_;
+
+        bool operator<(const subscription_data_t& _other) const {
+            return (service_ < _other.service_ || (service_ == _other.service_ && instance_ < _other.instance_)
+                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ < _other.eventgroup_)
+                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ == _other.eventgroup_
+                        && event_ < _other.event_));
+        }
+    };
+    std::set<subscription_data_t> pending_subscriptions_;
+    std::mutex pending_subscription_mutex_;
 
     std::mutex stop_mutex_;
     std::mutex lazy_load_mtx_;
