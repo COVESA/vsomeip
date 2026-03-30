@@ -184,7 +184,6 @@ void socket_manager::try_add(boost::asio::io_context* _io, fd_t _fd, char const*
 }
 
 std::shared_ptr<app_connection> socket_manager::get_or_create_connection(std::string const& _client, std::string const& _server) {
-
     auto const name = connection_name(_client, _server);
     auto const lock = std::scoped_lock(mtx_);
     if (auto it = connections_.find(name); it != connections_.end()) {
@@ -584,8 +583,12 @@ void socket_manager::close_connection(std::string const& _one, std::string const
     connection->notify();
 }
 
-void socket_manager::join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd) {
+void socket_manager::join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd, std::string _app_name) {
     auto const lock = std::scoped_lock(mtx_);
+    if (auto it_router = ignore_all_multicast_joins_.find(_app_name); it_router != ignore_all_multicast_joins_.end()) {
+        return;
+    }
+
     if (auto it_address = multicast_to_fds_.find(_multicast); it_address != multicast_to_fds_.end()) {
         if (auto handle = it_address->second.find(_fd); handle == it_address->second.end()) {
             it_address->second.insert(_fd);
@@ -646,5 +649,60 @@ void socket_manager::send_someip(boost::asio::const_buffer const& _buffer, boost
             }
         }
     }
+}
+
+void socket_manager::ignore_router_all_multicast_joins(std::string _router, bool _ignore) {
+    auto const lock = std::scoped_lock(mtx_);
+    auto router_it = ignore_all_multicast_joins_.find(_router);
+    if (router_it != ignore_all_multicast_joins_.end() && !_ignore) {
+        ignore_all_multicast_joins_.erase(_router);
+    } else if (_ignore) {
+        ignore_all_multicast_joins_.insert(_router);
+    }
+}
+
+[[nodiscard]] bool socket_manager::wait_for_sd_message(boost::asio::ip::udp::endpoint const& _ep, someip_sd_record_message _message,
+                                                       std::chrono::milliseconds _timeout) {
+    std::shared_ptr<fake_udp_socket_handle> udp_handle;
+    {
+        std::scoped_lock lock(mtx_);
+        auto const ep_it = endpoint_udp_to_fd_.find(_ep);
+        if (ep_it == endpoint_udp_to_fd_.end()) {
+            LOCAL_LOG << "Sender endpoint not yet bound" << _ep;
+            return false;
+        }
+        auto const h_it = fd_to_handle_.find(ep_it->second);
+        if (h_it == fd_to_handle_.end()) {
+            return false;
+        }
+        udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+    }
+    if (!udp_handle) {
+        return false;
+    }
+
+    return udp_handle->received_sd_record_.wait_for_any(_message, _timeout);
+}
+
+void socket_manager::clear_sd_message_record(boost::asio::ip::udp::endpoint const& _ep) {
+    std::shared_ptr<fake_udp_socket_handle> udp_handle;
+    {
+        std::scoped_lock lock(mtx_);
+        auto const ep_it = endpoint_udp_to_fd_.find(_ep);
+        if (ep_it == endpoint_udp_to_fd_.end()) {
+            LOCAL_LOG << "Sender endpoint not yet bound" << _ep;
+            return;
+        }
+        auto const h_it = fd_to_handle_.find(ep_it->second);
+        if (h_it == fd_to_handle_.end()) {
+            return;
+        }
+        udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+    }
+    if (!udp_handle) {
+        return;
+    }
+
+    udp_handle->received_sd_record_.clear();
 }
 }

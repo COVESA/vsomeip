@@ -7,6 +7,8 @@
 
 #include "../../../implementation/endpoints/include/udp_socket.hpp"
 #include "fake_socket_handle.hpp"
+#include "../someip_message.hpp"
+#include "../attribute_recorder.hpp"
 
 #include <boost/asio.hpp>
 
@@ -113,6 +115,8 @@ struct fake_udp_socket_handle : public fake_socket_handle {
      * Processes and sends all delayed messages.
      **/
     void process_delayed_messages();
+
+    attribute_recorder<someip_sd_record_message> received_sd_record_;
 
 private:
     void update_reception_unlocked();

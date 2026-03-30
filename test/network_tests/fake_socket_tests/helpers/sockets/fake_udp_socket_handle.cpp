@@ -136,7 +136,7 @@ void fake_udp_socket_handle::set_option(boost::asio::ip::multicast::join_group _
     boost::asio::ip::address_v4 interface_address{ntohl(inet4_cast->imr_interface.s_addr)};
 
     if (type_sm.second) {
-        type_sm.second->join_multicast_group(multicast_address, socket_id_.fd_);
+        type_sm.second->join_multicast_group(multicast_address, socket_id_.fd_, socket_id_.app_name_);
         _ec = boost::system::error_code();
     } else {
         _ec = boost::asio::error::network_unreachable;
@@ -272,6 +272,12 @@ void fake_udp_socket_handle::consume(boost::asio::const_buffer const& _buffer, b
 
     if (someip_message message; parse(input, message) > 0) {
         LOCAL_LOG << socket_id_ << " @ " << *local_ep_ << " received message from " << _src.address() << " data: " << message;
+        if (message.sd_) {
+            for (auto const& entry : message.sd_->get_entries()) {
+                someip_sd_record_message received_entry{entry->get_type(), entry->get_ttl()};
+                received_sd_record_.record(received_entry);
+            }
+        }
         control_data data{};
         data.buffer_ = input;
         data.src_ = _src;

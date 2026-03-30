@@ -240,7 +240,7 @@ std::string to_string(command_message const& c) {
 std::string to_string(std::shared_ptr<vsomeip_v3::sd::entry_impl> const& e) {
     std::stringstream s;
     s << "{type: " << to_string(e->get_type()) << ", service: " << hex4(e->get_service()) << ", instance: " << hex4(e->get_instance())
-      << "}";
+      << ", ttl: " << e->get_ttl() << "}";
 
     return s.str();
 }

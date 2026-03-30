@@ -19,6 +19,13 @@ struct someip_message {
     std::shared_ptr<sd::message_impl> sd_;
 };
 
+struct someip_sd_record_message {
+    sd::entry_type_e id_;
+    ttl_t ttl_;
+
+    bool operator==(const someip_sd_record_message& _other) const { return id_ == _other.id_ && ttl_ == _other.ttl_; }
+};
+
 [[nodiscard]] size_t parse(std::vector<unsigned char>& message, someip_message& _out_message);
 [[nodiscard]] std::shared_ptr<vsomeip_v3::sd::message_impl> parse_sd(std::vector<unsigned char>& _message);
 std::vector<unsigned char> construct_subscription(event_ids const& _subscription, boost::asio::ip::address _address, uint16_t _port);

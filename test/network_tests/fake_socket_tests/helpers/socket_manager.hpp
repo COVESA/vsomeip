@@ -290,8 +290,9 @@ public:
      *
      * @param _multicast Multicast address to be joined.
      * @param _fd member to join group.
+     * @param _app_name application name of member trying to join group.
      */
-    void join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
+    void join_multicast_group(boost::asio::ip::address _multicast, fd_t _fd, std::string _app_name);
 
     /**
      * @brief Removes member @param _fd from virtual multicast group @param _multicast.
@@ -302,6 +303,23 @@ public:
     void leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
 
     void send_someip(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+
+    /**
+     * @brief Set control flag to prevent application @param _router to join any multicast group.
+     */
+    void ignore_router_all_multicast_joins(std::string _router, bool _ignore);
+
+    /**
+     * @brief Waits for _message to be received by the router _ep for _timeout amount of time.
+     * @return false, if the _messaage was not received within time.
+     */
+    [[nodiscard]] bool wait_for_sd_message(boost::asio::ip::udp::endpoint const& _ep, someip_sd_record_message _message,
+                                           std::chrono::milliseconds _timeout);
+
+    /**
+     * Clears the sd message record for \param _ep.
+     **/
+    void clear_sd_message_record(boost::asio::ip::udp::endpoint const& _ep);
 
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
@@ -336,5 +354,6 @@ private:
     std::set<std::string> connections_to_ignore_;
     std::set<std::string> fail_on_bind_;
     std::set<std::string> ignore_broken_pipe_;
+    std::set<std::string> ignore_all_multicast_joins_;
 };
 }

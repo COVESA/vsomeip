@@ -221,6 +221,22 @@ struct base_fake_socket_fixture : ::testing::Test {
     void set_custom_command_handler(std::string const& _client, std::string const& _server, vsomeip_command_handler const& _handler,
                                     socket_role _sender = socket_role::unspecified);
 
+    /**
+     * @see socket_manager::ignore_router_all_multicast_joins
+     */
+    void ignore_router_all_multicast_joins(std::string _router, bool _ignore);
+
+    /**
+     * @see socket_manager::wait_for_sd_message
+     */
+    [[nodiscard]] bool wait_for_sd_message(boost::asio::ip::udp::endpoint const& _ep, someip_sd_record_message _message,
+                                           std::chrono::milliseconds _timeout = std::chrono::seconds(3)) const;
+
+    /**
+     * @see socket_manager::clear_sd_message_record
+     **/
+    void clear_sd_message_record(boost::asio::ip::udp::endpoint const& _ep);
+
 protected:
     std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
 

@@ -187,6 +187,7 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
                                     boardnet_interface_.fields_[0].event_id_,
                                     vsomeip::message_type_e::MT_NOTIFICATION,
                                     {}};
+    boost::asio::ip::udp::endpoint const ecu_one_sd_comm_{boost::asio::ip::make_address("160.48.199.65"), 30490};
     boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("160.48.199.99"), 30490};
 
     std::map<std::string, app*> apps_;
@@ -298,6 +299,111 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
 
     // Client two should still be able to receive notification.
     EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message));
+}
+
+TEST_F(test_boardnet_helper, subscription_without_own_offer) {
+    // Regression test for race condition where a subscription nack is sent due to service info not being ready to accept remote
+    // subscriptioins. This occured with previous implementation that controlled if remote subscriptions were able to be accecpted if the
+    // offer sent by the ECU was also received by the own offering ECU (check_sent_messages). On some non-deterministic scenarios, partner
+    // ECUs could receive the the offer and send a subscribe without the offering ECU handled its own offer, this would lead a subscription
+    // nack.
+
+    // To replicate the behavior of the offering ECU "delaying/not receiving" its own offer, we're blocking all multicast joins for this
+    // router.
+    ignore_router_all_multicast_joins(router_two_name_, true);
+
+    // Create router and clients.
+    start_all_apps();
+
+    // Client requests service and subscribes to it.
+    ecu_one_client_->request_service(service_instance_);
+    ecu_one_client_->subscribe_field(offered_field_);
+
+    // Server offers service.
+    ecu_two_server_->offer(boardnet_interface_);
+
+    // Previously, this would fail as a subscription nack would be sent.
+    EXPECT_FALSE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}, std::chrono::seconds(1)));
+}
+
+TEST_F(test_boardnet_helper, offer_service_before_event) {
+    /// Test subscription handling when the event/field offering is delayed from the service offer.
+
+    start_all_apps();
+
+    // Client requests service and subscribes to it
+    ecu_one_client_->request_service(service_instance_);
+    ecu_one_client_->subscribe_field(offered_field_);
+
+    // Server offers service. SD offers are sent.
+    ecu_two_server_->offer(boardnet_interface_.instance_);
+
+    // Client receives service availability and tries to subscribe to field, NACK must be received.
+    EXPECT_TRUE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}));
+    EXPECT_FALSE(
+            wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 3}, std::chrono::milliseconds(500)));
+
+    // Release service
+    ecu_one_client_->release_service(service_instance_);
+    clear_sd_message_record(ecu_one_sd_comm_);
+
+    // Offer events and fields
+    for (auto const& event : boardnet_interface_.events_) {
+        ecu_two_server_->offer_event(event);
+    }
+    for (auto const& field : boardnet_interface_.fields_) {
+        ecu_two_server_->offer_field(field);
+    }
+
+    // Request and subscribe again.
+    ecu_one_client_->request_service(service_instance_);
+    ecu_one_client_->subscribe_field(offered_field_);
+
+    ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
+
+    // ACK must be received, no NACKs.
+    EXPECT_FALSE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}, std::chrono::seconds(1)));
+    EXPECT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+
+    auto next_expected_message = first_expected_message_;
+    next_expected_message.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+}
+
+TEST_F(test_boardnet_helper, offer_event_before_service) {
+    /// Test subscription handling when the event/field are offered before the service.
+
+    start_all_apps();
+
+    // Client requests service and subscribes to it
+    ecu_one_client_->request_service(service_instance_);
+    ecu_one_client_->subscribe_field(offered_field_);
+
+    // Offer events and fields
+    for (auto const& event : boardnet_interface_.events_) {
+        ecu_two_server_->offer_event(event);
+    }
+    for (auto const& field : boardnet_interface_.fields_) {
+        ecu_two_server_->offer_field(field);
+    }
+
+    // No ACK or NACK should be received, SD must not offer service only based on event and field.
+    EXPECT_FALSE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}, std::chrono::seconds(1)));
+    EXPECT_FALSE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 3}, std::chrono::seconds(1)));
+
+    // Server offers service.
+    ecu_two_server_->offer(boardnet_interface_.instance_);
+
+    // Successful subscription.
+    EXPECT_FALSE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}, std::chrono::seconds(1)));
+    EXPECT_TRUE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 3}));
+    EXPECT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
+
+    ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
+
+    auto next_expected_message = first_expected_message_;
+    next_expected_message.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
 }
 
 struct test_field_routing : test_boardnet_helper { };

@@ -50,12 +50,6 @@ public:
     VSOMEIP_EXPORT bool is_in_mainphase() const;
     VSOMEIP_EXPORT void set_is_in_mainphase(bool _in_mainphase);
 
-    VSOMEIP_EXPORT bool is_accepting_remote_subscriptions() const;
-    VSOMEIP_EXPORT void set_accepting_remote_subscriptions(bool _accepting_remote_subscriptions);
-
-    VSOMEIP_EXPORT void add_remote_ip(std::string _remote_ip);
-    VSOMEIP_EXPORT std::set<std::string, std::less<>> get_remote_ip_accepting_sub();
-
 private:
     const service_t service_;
     const instance_t instance_;
@@ -76,13 +70,6 @@ private:
     std::set<client_t> requesters_;
 
     std::atomic_bool is_in_mainphase_;
-
-    // Added flag, to ensure the lib only process subscriptions request
-    // when at least one offer is sent from SD, otherwise will be sent a NACK
-    // this is needed to avoid desynchronizations triggered by high CPU load
-    std::atomic_bool accepting_remote_subscription_; // offers sent to multicast
-    std::set<std::string, std::less<>> accepting_remote_subscription_from_; // offers sent by unicast
-    std::mutex accepting_remote_mutex;
 };
 
 } // namespace vsomeip_v3

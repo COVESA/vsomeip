@@ -1213,7 +1213,7 @@ void service_discovery_impl::sent_messages(const byte_t* _data, length_t _size, 
 }
 
 // Entry processing
-void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _entries, const boost::asio::ip::address& _remote_address) {
+void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _entries, const boost::asio::ip::address&) {
 
     // only the offers messages sent by itself to multicast or unicast will be verified
     // the another messages sent by itself will be ignored here
@@ -1228,16 +1228,6 @@ void service_discovery_impl::check_sent_offers(const message_impl::entries_t& _e
                 std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(its_service, its_instance);
                 if (its_info) {
                     offers_received_++;
-                    if (_remote_address.is_unspecified()) {
-                        // enable proccess remote subscription for the services
-                        // SD has already sent the offers for this service to multicast ip
-                        its_info->set_accepting_remote_subscriptions(true);
-                    } else {
-                        if (!its_info->is_accepting_remote_subscriptions()) {
-                            // enable to proccess remote subscription from remote ip for the services
-                            its_info->add_remote_ip(_remote_address.to_string());
-                        }
-                    }
                 }
             } else if ((*iter)->get_ttl() == 0 && stop_offer_watchdog_time_ != std::chrono::milliseconds::zero()) {
                 // Stop offer service.
@@ -2071,14 +2061,9 @@ void service_discovery_impl::handle_eventgroup_subscription(
         if (!its_info) {
             VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to unknown service";
             send_nack = true;
-        } else {
-            if (!its_info->is_accepting_remote_subscriptions()) { // offer not sent to multicast ip
-                auto its_remote_ips = its_info->get_remote_ip_accepting_sub(); // offer not sent to unicast
-                if (its_remote_ips.find(_sender.to_string()) == its_remote_ips.end()) {
-                    VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to not-accepting-remote-sub";
-                    send_nack = true;
-                }
-            }
+        } else if (its_info->get_ttl() == 0) {
+            VSOMEIP_ERROR_P << "SubNack for " << dump_entry() << " due to not-accepting-remote-sub";
+            send_nack = true;
         }
         if (send_nack) {
             insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
@@ -2717,8 +2702,6 @@ void service_discovery_impl::move_offers_into_main_phase(const std::shared_ptr<b
 void service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinfo>& _info) {
     std::scoped_lock its_lock(offer_mutex_);
     _info->set_ttl(0);
-    // disable accepting remote subscriptions
-    _info->set_accepting_remote_subscriptions(false);
     const service_t its_service = _info->get_service();
     const instance_t its_instance = _info->get_instance();
     bool stop_offer_required(false);

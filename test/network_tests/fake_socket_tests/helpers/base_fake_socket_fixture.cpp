@@ -183,4 +183,18 @@ void base_fake_socket_fixture::inject_command(std::string const& _client, std::s
                                               std::vector<unsigned char>& _payload) {
     socket_manager_->inject_command(_client, _server, _payload);
 }
+
+void base_fake_socket_fixture::ignore_router_all_multicast_joins(std::string _router, bool _ignore) {
+    socket_manager_->ignore_router_all_multicast_joins(_router, _ignore);
+}
+
+[[nodiscard]] bool base_fake_socket_fixture::wait_for_sd_message(boost::asio::ip::udp::endpoint const& _ep,
+                                                                 someip_sd_record_message _message,
+                                                                 std::chrono::milliseconds _timeout) const {
+    return socket_manager_->wait_for_sd_message(_ep, _message, _timeout);
+}
+
+void base_fake_socket_fixture::clear_sd_message_record(boost::asio::ip::udp::endpoint const& _ep) {
+    socket_manager_->clear_sd_message_record(_ep);
+}
 }
