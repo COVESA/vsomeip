@@ -2818,6 +2818,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             // stop all server endpoints
             ep_mgr_impl_->suspend();
 
+            if (routing_state_handler_) {
+                routing_state_handler_(_routing_state);
+            }
+
             VSOMEIP_INFO_P << "Set routing to suspend mode done, diagnosis mode is "
                            << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
 
@@ -2827,7 +2831,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             {
                 std::scoped_lock its_lock(on_state_change_mutex_);
                 if (!is_external_routing_ready()) {
-                    VSOMEIP_INFO_P << "Network not running, delaying the resume of routing manager";
+                    VSOMEIP_INFO_P << "Network not running, delaying the resume of routing manager (if_state_running_: "
+                                   << if_state_running_ << ", sd_route_set_: " << sd_route_set_ << ")";
                     routing_state_ = routing_state_e::RS_DELAYED_RESUME;
                     return;
                 }
@@ -2910,6 +2915,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
             }
 
+            if (routing_state_handler_) {
+                routing_state_handler_(_routing_state);
+            }
+
             VSOMEIP_INFO_P << "Set routing to diagnosis mode done.";
             break;
         }
@@ -2938,11 +2947,17 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
             }
 
+            if (routing_state_handler_) {
+                routing_state_handler_(_routing_state);
+            }
+
             VSOMEIP_INFO_P << "Set routing to running mode done, diagnosis mode was "
                            << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
             break;
         case routing_state_e::RS_DELAYED_RESUME:
-            // Do nothing
+            if (routing_state_handler_) {
+                routing_state_handler_(_routing_state);
+            }
             break;
         default:
             break;
