@@ -17,12 +17,12 @@ public:
 
     bool has_elapsed() {
         const auto current = std::chrono::high_resolution_clock::now();
-        return target <= std::chrono::duration_cast<std::chrono::seconds>(current - start);
+        return target <= std::chrono::duration_cast<std::chrono::milliseconds>(current - start);
     }
 
 private:
     std::chrono::milliseconds target;
-    std::chrono::system_clock::time_point start;
+    std::chrono::high_resolution_clock::time_point start;
 };
 } // namespace common
 
