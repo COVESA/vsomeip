@@ -107,10 +107,6 @@ public:
 
     std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
 
-    // address data for vsomeip routing via TCP
-    virtual bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const = 0;
-    virtual void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) = 0;
-
     std::string const& get_name() const;
 
     // Default implementation - overridden by routing_manager_impl to delegate to stub

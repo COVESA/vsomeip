@@ -18,6 +18,7 @@
 #include "routing_manager_base.hpp"
 #include "types.hpp"
 #include "../../protocol/include/protocol.hpp"
+#include "../../endpoints/include/local_endpoint_manager_host.hpp"
 
 namespace vsomeip_v3 {
 
@@ -33,7 +34,9 @@ class offered_services_response_command;
 class update_security_credentials_command;
 }
 
-class routing_manager_client : public routing_manager_base, public std::enable_shared_from_this<routing_manager_client> {
+class routing_manager_client : public routing_manager_base,
+                               public local_endpoint_manager_host,
+                               public std::enable_shared_from_this<routing_manager_client> {
 public:
     routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
                            const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter);
@@ -87,6 +90,13 @@ public:
     void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint);
     void cleanup_client(client_t _client);
 
+    // local_endpoint_manager_host
+    client_t get_client_id() override;
+    void set_port(port_t _port) override;
+    bool get_connection_param(client_t _client, boost::asio::ip::address& _address, port_t& _port) override;
+    void add_connection_param(client_t _client, boost::asio::ip::address const& _address, port_t const& _port) override;
+    void register_error_handler(client_t _client, std::shared_ptr<local_endpoint> _ep) override;
+
     void on_offered_services_info(protocol::offered_services_response_command& _command);
 
     void send_get_offered_services_info(client_t _client, offer_type_e _offer_type);
@@ -97,9 +107,7 @@ private:
     void send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major);
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
-    bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const override;
-    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
-    client_t get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const;
+    client_t get_client_by_address(const boost::asio::ip::address& _address, port_t _port) const;
 
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 

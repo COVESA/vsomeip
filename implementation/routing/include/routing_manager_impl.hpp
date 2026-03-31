@@ -327,7 +327,6 @@ private:
     void statistics_log_timer_cbk(boost::system::error_code const& _error);
 
     bool get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const;
-    void add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port);
 
     void send_suspend() const;
 

@@ -3752,11 +3752,6 @@ bool routing_manager_impl::get_guest(client_t _client, boost::asio::ip::address&
     return ep_mgr_impl_->get_guest(_client, _address, _port);
 }
 
-void routing_manager_impl::add_guest([[maybe_unused]] client_t _client, [[maybe_unused]] const boost::asio::ip::address& _address,
-                                     [[maybe_unused]] port_t _port) {
-    VSOMEIP_ERROR_P << "Should not have been called";
-}
-
 void routing_manager_impl::send_suspend() const {
     stub_->send_suspend();
 }

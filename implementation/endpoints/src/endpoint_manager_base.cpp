@@ -27,9 +27,11 @@
 
 namespace vsomeip_v3 {
 
-endpoint_manager_base::endpoint_manager_base(routing_manager_base* const _rm, boost::asio::io_context& _io,
-                                             const std::shared_ptr<configuration>& _configuration) :
-    rm_(_rm), io_(_io), configuration_(_configuration), is_local_routing_(configuration_->is_local_routing()), local_port_(ILLEGAL_PORT) { }
+endpoint_manager_base::endpoint_manager_base(local_endpoint_manager_host& _host, boost::asio::io_context& _io,
+                                             const std::shared_ptr<configuration>& _configuration, std::string _name,
+                                             std::string _client_host) :
+    host_(_host), io_(_io), configuration_(_configuration), is_local_routing_(configuration_->is_local_routing()),
+    local_port_(ILLEGAL_PORT), name_(std::move(_name)), client_host_(std::move(_client_host)) { }
 
 void endpoint_manager_base::init(std::shared_ptr<routing_host> const& _local_message_handler) {
     std::scoped_lock its_lock(mtx_);
@@ -130,10 +132,10 @@ void endpoint_manager_base::add_local_server_endpoint_unlocked(client_t _client,
         it->second->trigger_error();
         return;
     }
-    rm_->register_client_error_handler(_client, _connection);
+    host_.register_error_handler(_client, _connection);
     local_server_endpoints_[_client] = _connection;
     _connection->start();
-    VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _connection->name();
+    VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << ", client 0x" << hex4(_client) << ", connection > " << _connection->name();
 }
 std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
     std::stringstream its_path;
@@ -179,7 +181,7 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
                     local_port_ = port_t(its_port + 1);
                     VSOMEIP_INFO << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
 
-                    rm_->set_sec_client_port(local_port_);
+                    host_.set_port(local_port_);
 
                     its_acceptor = its_tmp;
                 } else {
@@ -196,7 +198,7 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
             }
 
             if (its_acceptor) {
-                rm_->add_guest(its_client, its_address, its_port);
+                host_.add_connection_param(its_client, its_address, its_port);
             } else {
                 VSOMEIP_ERROR_P << "Local TCP server endpoint initialization failed. Client 0x" << hex4(its_client)
                                 << " Reason: No local port available!";
@@ -220,11 +222,11 @@ std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
 }
 
 client_t endpoint_manager_base::get_client_id() const {
-    return rm_->get_client();
+    return host_.get_client_id();
 }
 
 std::string endpoint_manager_base::get_client_env() const {
-    return rm_->get_client_host();
+    return client_host_;
 }
 
 void endpoint_manager_base::log_client_states() const {
@@ -280,7 +282,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
         boost::asio::ip::address its_local_address, its_remote_address;
         port_t its_remote_port;
 
-        bool is_guest = rm_->get_guest(_client, its_remote_address, its_remote_port);
+        bool is_guest = host_.get_connection_param(_client, its_remote_address, its_remote_port);
         if (!is_guest && _client == VSOMEIP_ROUTING_CLIENT) {
             its_remote_address = configuration_->get_routing_host_address();
             its_remote_port = configuration_->get_routing_host_port();
@@ -328,7 +330,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
         if (_client == VSOMEIP_ROUTING_CLIENT) {
             protocol::assign_client_command assign_command;
             assign_command.set_client(get_client_id());
-            assign_command.set_name(rm_->get_name());
+            assign_command.set_name(name_);
 
             std::vector<byte_t> assign_buffer;
             assign_command.serialize(assign_buffer);
@@ -341,7 +343,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
             // clients.
             local_client_endpoints_[_client] = its_endpoint;
         }
-        rm_->register_client_error_handler(_client, its_endpoint);
+        host_.register_error_handler(_client, its_endpoint);
     } else {
         VSOMEIP_WARNING_P << "0x" << hex4(get_client_id()) << " not connected. Ignoring client assignment";
     }
@@ -405,7 +407,7 @@ void endpoint_manager_base::remove_local_client_endpoint_unlocked(client_t _clie
     if (auto const it = local_client_endpoints_.find(_client); it != local_client_endpoints_.end()) {
         it->second->register_error_handler(nullptr);
         it->second->stop(_remove_due_to_error);
-        VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << " is closing connection to server 0x" << hex4(_client) << " endpoint > "
+        VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << " is closing connection to server 0x" << hex4(_client) << " endpoint > "
                        << it->second->name();
         local_client_endpoints_.erase(it);
     }
@@ -415,7 +417,7 @@ void endpoint_manager_base::remove_local_server_endpoint_unlocked(client_t _clie
     if (auto const it = local_server_endpoints_.find(_client); it != local_server_endpoints_.end()) {
         it->second->register_error_handler(nullptr);
         it->second->stop(_remove_due_to_error);
-        VSOMEIP_INFO_P << "self 0x" << hex4(rm_->get_client()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
+        VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << " is closing connection to client 0x" << hex4(_client) << " endpoint > "
                        << it->second->name();
         local_server_endpoints_.erase(it);
     }

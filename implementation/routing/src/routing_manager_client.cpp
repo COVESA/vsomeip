@@ -89,11 +89,12 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
     routing_manager_base(_host), keepalive_timer_(io_), status_log_timer_(io_), version_log_timer_(_host->get_io()),
     keepalive_active_(false), keepalive_is_alive_(false), sender_(nullptr), receiver_(nullptr), request_debounce_timer_(io_),
     request_debounce_timer_running_(false), client_side_logging_(_client_side_logging),
-    client_side_logging_filter_(_client_side_logging_filter), ep_mgr_(std::make_shared<endpoint_manager_base>(this, io_, configuration_)) {
+    client_side_logging_filter_(_client_side_logging_filter) {
 
     if (char its_hostname[1024]; gethostname(its_hostname, sizeof(its_hostname)) == 0) {
         set_client_host(its_hostname);
     }
+    ep_mgr_ = std::make_shared<endpoint_manager_base>(*this, io_, configuration_, get_name(), get_client_host());
 }
 
 routing_manager_client::~routing_manager_client() { }
@@ -1565,7 +1566,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
             if (!its_address.is_unspecified()) {
                 // remove client (and endpoints!) at same address/port
                 // as address/port are unique and that definitely means the client no longer exists
-                if (client_t old_client = get_guest_by_address(its_address, its_port);
+                if (client_t old_client = get_client_by_address(its_address, its_port);
                     old_client != VSOMEIP_CLIENT_UNSET && old_client != its_client) {
                     VSOMEIP_INFO_P << "Old client 0x" << hex4(old_client) << " removed due to new client 0x" << hex4(its_client) << " @ "
                                    << its_address.to_string() + ":" << its_port;
@@ -2106,6 +2107,34 @@ void routing_manager_client::register_client_error_handler(client_t _client, con
     _endpoint->register_error_handler(std::bind(&routing_manager_client::cleanup_client, this, _client));
 }
 
+// local_endpoint_manager_host
+client_t routing_manager_client::get_client_id() {
+    return get_client();
+}
+
+void routing_manager_client::set_port(port_t _port) {
+    set_sec_client_port(_port);
+}
+
+bool routing_manager_client::get_connection_param(client_t _client, boost::asio::ip::address& _address, port_t& _port) {
+    std::scoped_lock lock{available_services_mutex_};
+    if (auto const it = address_table_.find(_client); it != address_table_.end()) {
+        _address = it->second.first;
+        _port = it->second.second;
+        return true;
+    }
+    return false;
+}
+
+void routing_manager_client::add_connection_param(client_t _client, boost::asio::ip::address const& _address, port_t const& _port) {
+    std::scoped_lock lock{available_services_mutex_};
+    address_table_[_client] = std::make_pair(_address, _port);
+}
+
+void routing_manager_client::register_error_handler(client_t _client, std::shared_ptr<local_endpoint> _ep) {
+    register_client_error_handler(_client, _ep);
+}
+
 void routing_manager_client::cleanup_client(client_t _client) {
 
     if (_client != VSOMEIP_ROUTING_CLIENT) {
@@ -2477,28 +2506,13 @@ void routing_manager_client::cleanup_subscriber() {
                      << hex4(ANY_EVENT) << "]";
     }
 }
-bool routing_manager_client::get_guest(client_t _client, boost::asio::ip::address& _address, port_t& _port) const {
-    std::scoped_lock lock{available_services_mutex_};
-    if (auto const it = address_table_.find(_client); it != address_table_.end()) {
-        _address = it->second.first;
-        _port = it->second.second;
-        return true;
-    }
-    return false;
-}
-
-client_t routing_manager_client::get_guest_by_address(const boost::asio::ip::address& _address, port_t _port) const {
+client_t routing_manager_client::get_client_by_address(const boost::asio::ip::address& _address, port_t _port) const {
     std::scoped_lock lock{available_services_mutex_};
     auto const it = std::find_if(address_table_.begin(), address_table_.end(),
                                  [&_address, &_port](const std::pair<client_t, std::pair<boost::asio::ip::address, port_t>>& p) {
                                      return p.second.first == _address && p.second.second == _port;
                                  });
     return it == address_table_.end() ? VSOMEIP_CLIENT_UNSET : it->first;
-}
-
-void routing_manager_client::add_guest(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
-    std::scoped_lock lock{available_services_mutex_};
-    address_table_[_client] = std::make_pair(_address, _port);
 }
 
 client_t routing_manager_client::find_local_client(service_t _service, instance_t _instance) const {

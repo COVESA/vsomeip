@@ -68,8 +68,6 @@ public:
     MOCK_METHOD(bool, is_local_client, (client_t _client), (const, override));
 
     MOCK_METHOD(bool, send_event, (client_t, std::shared_ptr<message>, bool), (override));
-    MOCK_METHOD(bool, get_guest, (client_t, boost::asio::ip::address&, port_t&), (const, override));
-    MOCK_METHOD(void, add_guest, (client_t, boost::asio::ip::address const&, port_t), (override));
 
     MOCK_METHOD(void, send_subscribe,
                 (client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,

@@ -16,9 +16,10 @@
 #include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
 
+#include "local_endpoint_manager_host.hpp"
+
 namespace vsomeip_v3 {
 
-class routing_manager_base;
 class configuration;
 class routing_host;
 class local_server;
@@ -26,8 +27,8 @@ class local_endpoint;
 
 class endpoint_manager_base : public std::enable_shared_from_this<endpoint_manager_base> {
 public:
-    endpoint_manager_base(routing_manager_base* const _rm, boost::asio::io_context& _io,
-                          const std::shared_ptr<configuration>& _configuration);
+    endpoint_manager_base(local_endpoint_manager_host& _host, boost::asio::io_context& _io,
+                          const std::shared_ptr<configuration>& _configuration, std::string _name, std::string _client_host);
     virtual ~endpoint_manager_base() = default;
 
     void init(std::shared_ptr<routing_host> const& _local_message_handler);
@@ -67,7 +68,7 @@ private:
     bool get_local_server_port(port_t& _port, const std::set<port_t>& _used_ports) const;
 
 protected:
-    routing_manager_base* const rm_;
+    local_endpoint_manager_host& host_;
     boost::asio::io_context& io_;
     std::shared_ptr<configuration> configuration_;
 
@@ -80,6 +81,9 @@ private:
     std::weak_ptr<routing_host> local_message_handler_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_client_endpoints_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_server_endpoints_;
+
+    const std::string name_;
+    const std::string client_host_;
 
     /**
      * It can happen that a new connection has to be accepted, when a former
