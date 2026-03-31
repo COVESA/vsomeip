@@ -36,6 +36,4 @@ Shutdown_test has 2 test cases, each executed twice: once with payload and once 
 
 ### Different scenarios for local communication covered in TCP and UDS
 
-1. Routingmanagerd (Host), Client and Service
-2. Client (Host) and Service
-3. Service (Host) and Client
+Routingmanagerd (Host), Client and Service

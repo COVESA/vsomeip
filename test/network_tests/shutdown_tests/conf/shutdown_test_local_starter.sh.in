@@ -12,9 +12,9 @@ fi
 PAYLOADS=("TRUE" "FALSE")
 FAIL=0
 
-if [[ $# -gt 0 && ($1 != "TCP" && $1 != "UDP" && $1 != "UDS") || ($2 != "CLIENT" && $2 != "SERVICE") ]]
+if [[ $# -gt 0 && ($1 != "TCP" && $1 != "UDS") || ($2 != "CLIENT" && $2 != "SERVICE") ]]
 then
-    echo "The only allowed parameter to this script is TCP, UDP or UDS and CLIENT or SERVICE"
+    echo "The only allowed parameter to this script is TCP or UDS and CLIENT or SERVICE"
     echo "Like $0 TCP CLIENT"
     exit 1
 fi
