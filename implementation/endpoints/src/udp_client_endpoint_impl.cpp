@@ -253,29 +253,29 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         return;
     }
 
-    // reject UDP packets larger than 1416 (16 bytes full header + 1400 payload); see Section 4.1.2.9 "Payload" in AUTOSAR FO R22-11
-    // "With UDP the SOME/IP payload shall be between 0 and 1400 Bytes. The limitation to 1400
-    // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
-    // IPv6 or adding security means)"
-    if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
-        VSOMEIP_ERROR_P << "Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE (" << VSOMEIP_MAX_UDP_MESSAGE_SIZE
-                        << ") bytes with " << _bytes << " bytes in " << local_.address() << ":" << get_local_port() << " from "
-                        << remote_.address() << ":" << remote_.port() << ". Message will be dropped";
-        receive();
-        return;
-    } else if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
-        VSOMEIP_ERROR << "ucei::" << __func__ << ": Dropping packet that is smaller than VSOMEIP_FULL_HEADER_SIZE (16). size=" << _bytes
-                      << " remote=" << remote_;
-
-        receive();
-        return;
-    }
-
     std::shared_ptr<boardnet_routing_host> its_host = routing_host_.lock();
     if (!_error && 0 < _bytes && its_host) {
+        // reject UDP packets larger than 1416 (16 bytes full header + 1400 payload); see Section 4.1.2.9 "Payload" in AUTOSAR FO R22-11
+        // "With UDP the SOME/IP payload shall be between 0 and 1400 Bytes. The limitation to 1400
+        // Bytes is needed in order to allow for future changes to protocol stack (e.g. changing to
+        // IPv6 or adding security means)"
+        if (_bytes > VSOMEIP_MAX_UDP_MESSAGE_SIZE) {
+            VSOMEIP_ERROR_P << "Received a packet that is bigger than VSOMEIP_MAX_UDP_MESSAGE_SIZE (" << VSOMEIP_MAX_UDP_MESSAGE_SIZE
+                            << ") bytes with " << _bytes << " bytes in " << local_ << " from " << remote_ << ". Message will be dropped";
+            receive();
+            return;
+        } else if (_bytes < VSOMEIP_FULL_HEADER_SIZE) {
+            VSOMEIP_ERROR_P << "ucei::" << __func__
+                            << ": Dropping packet that is smaller than VSOMEIP_FULL_HEADER_SIZE (16). size=" << _bytes
+                            << " remote=" << remote_;
+            receive();
+            return;
+        } else {
+            // Size is within boundaries.
+        }
+
         std::size_t remaining_bytes = _bytes;
         std::size_t i = 0;
-
         do {
             uint64_t read_message_size = utility::get_message_size(&(*_recv_buffer)[i], remaining_bytes);
             if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
