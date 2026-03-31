@@ -222,6 +222,12 @@ struct base_fake_socket_fixture : ::testing::Test {
                                     socket_role _sender = socket_role::unspecified);
 
     /**
+     * @see socket_manager::get_connection_socket_type
+     * Returns the socket type used by the connection between _client and _server.
+     */
+    [[nodiscard]] std::optional<socket_type> get_connection_socket_type(std::string const& _client, std::string const& _server);
+
+    /**
      * @see socket_manager::ignore_router_all_multicast_joins
      */
     void ignore_router_all_multicast_joins(std::string _router, bool _ignore);

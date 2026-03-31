@@ -184,6 +184,11 @@ void base_fake_socket_fixture::inject_command(std::string const& _client, std::s
     socket_manager_->inject_command(_client, _server, _payload);
 }
 
+[[nodiscard]] std::optional<socket_type> base_fake_socket_fixture::get_connection_socket_type(std::string const& _client,
+                                                                                              std::string const& _server) {
+    return socket_manager_->get_connection_socket_type(_client, _server);
+}
+
 void base_fake_socket_fixture::ignore_router_all_multicast_joins(std::string _router, bool _ignore) {
     socket_manager_->ignore_router_all_multicast_joins(_router, _ignore);
 }

@@ -137,7 +137,8 @@ private:
      * Notifies routing_host and creates local_endpoint for ongoing communication.
      */
     void add_connection(client_t _client, client_t _expected_id, std::shared_ptr<local_socket> _socket,
-                        std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment);
+                        std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment,
+                        boost::asio::ip::address _guest_address, port_t _guest_port);
 
     void start_unlock(uint32_t _lc_count);
 
@@ -159,7 +160,7 @@ private:
 
         void async_receive();
         void receive_cbk(boost::system::error_code const& _ec, size_t _bytes);
-        client_t assign_client(uint8_t const* _data, uint32_t _message_size) const;
+        client_t assign_client(uint8_t const* _data, uint32_t const _message_size);
         client_t read_config_command(uint8_t const* _data, uint32_t _message_size, bool& _version_matches);
         void hand_over(client_t _client);
 
@@ -167,6 +168,9 @@ private:
         uint32_t const lc_count_{0};
         client_t expected_id_{VSOMEIP_CLIENT_UNSET};
         std::string client_host_;
+        /// TCP endpoint the connecting client sent in assign_client_command; forwarded on hand-over.
+        boost::asio::ip::address routing_address_;
+        port_t routing_port_{};
         std::shared_ptr<local_socket> socket_; // not const as it will be moved out after the handshake
 
         std::shared_ptr<local_receive_buffer> const receive_buffer_;

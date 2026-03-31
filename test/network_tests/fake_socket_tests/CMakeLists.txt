@@ -55,6 +55,7 @@ set (TEST_SUITES
     test_debounce
     test_uds_communication
     test_vlan_toggle_registration
+    test_hybrid_mode
     test_broken_behavior
 )
 

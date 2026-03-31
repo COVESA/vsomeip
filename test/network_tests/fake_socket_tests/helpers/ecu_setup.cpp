@@ -53,7 +53,7 @@ ecu_setup::~ecu_setup() {
     }
 }
 
-void ecu_setup::add_guest(application_config app) {
+void ecu_setup::add_guest(application_config app, bool uds_preferred) {
     LOCAL_LOG << app.name_;
     EARLY_LOG << app.name_ << std::endl;
     if (!guest_config_) {
@@ -76,6 +76,7 @@ void ecu_setup::add_guest(application_config app) {
         gcfg.unicast_ip_ = config_.unicast_ip_;
         gcfg.routing_config_ =
                 local_tcp_config{.router_name_ = tcp.router_name_, .host_ = tcp.host_, .guest_ = boost::asio::ip::address{guest_ip}};
+        gcfg.uds_preferred_ = uds_preferred;
         gcfg.sd_ = false;
         guest_config_name_ = name_ + "_guest";
         guest_config_ = std::move(gcfg);

@@ -65,7 +65,8 @@ std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_
 
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
                                std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state) :
-    state_(_initial_state), own_(_params.own_), peer_data_({_params.peer_, std::move(_params.env_), {}}),
+    state_(_initial_state), own_(_params.own_),
+    peer_data_({_params.peer_, std::move(_params.env_), {}, std::move(_params.routing_address_), _params.routing_port_}),
     max_connection_attempts_(MAX_RECONNECTS_LOCAL), max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
     socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_) { }
@@ -478,6 +479,23 @@ bool local_endpoint::is_allowed() {
         config->get_policy_manager()->store_client_to_sec_client_mapping(peer_data_.id_, &peer_data_.sec_client_);
         config->get_policy_manager()->store_sec_client_to_client_mapping(&peer_data_.sec_client_, peer_data_.id_);
     }
+
+    // For UDS clients that advertised a routing address/port in assign_client_command,
+    // verify the claimed port falls within the range configured for their uid/gid.
+    // Without this check, any local process could claim an arbitrary TCP endpoint
+    // and have the routing manager treat it as authoritative.
+    if (config->is_uds_preferred() && socket_->own_port() == VSOMEIP_SEC_PORT_UNUSED && peer_data_.routing_port_ != ILLEGAL_PORT) {
+        auto const allowed_ranges = config->get_routing_guest_ports(peer_data_.sec_client_.user, peer_data_.sec_client_.group);
+        bool const port_allowed = std::any_of(allowed_ranges.begin(), allowed_ranges.end(), [&](auto const& r) {
+            return peer_data_.routing_port_ >= r.first && peer_data_.routing_port_ <= r.second;
+        });
+        if (!port_allowed) {
+            VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting claimed routing port " << peer_data_.routing_port_
+                              << " from uid/gid=" << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
+                              << " (not in allowed range for this uid/gid), client: " << hex4(peer_data_.id_);
+            return false;
+        }
+    }
     return true;
 }
 
@@ -550,7 +568,10 @@ std::uint16_t local_endpoint::get_local_port() const {
     return socket_->own_port();
 }
 boost::asio::ip::tcp::endpoint local_endpoint::peer_endpoint() const {
-    return socket_->peer_endpoint();
+    if (!peer_data_.routing_address_.is_unspecified()) {
+        return {peer_data_.routing_address_, peer_data_.routing_port_};
+    }
+    return {};
 }
 
 client_t local_endpoint::connected_client() const {

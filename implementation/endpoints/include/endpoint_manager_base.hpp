@@ -15,15 +15,18 @@
 
 #include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
-
+#include <vsomeip/enumeration_types.hpp>
 #include "local_endpoint_manager_host.hpp"
 
 namespace vsomeip_v3 {
+
+enum class transport_protocol_e : uint8_t { TCP = 0x00, UDS = 0x01 };
 
 class configuration;
 class routing_host;
 class local_server;
 class local_endpoint;
+class local_acceptor;
 
 class endpoint_manager_base : public std::enable_shared_from_this<endpoint_manager_base> {
 public:
@@ -33,7 +36,7 @@ public:
 
     void init(std::shared_ptr<routing_host> const& _local_message_handler);
 
-    std::shared_ptr<local_server> create_local_server();
+    std::shared_ptr<local_server> create_local_server(transport_protocol_e _transport_protocol);
 
     std::shared_ptr<local_endpoint> create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client);
@@ -67,12 +70,17 @@ private:
 
     bool get_local_server_port(port_t& _port, const std::set<port_t>& _used_ports) const;
 
+    // local server creation helpers
+    std::shared_ptr<local_acceptor> create_uds_local_acceptor(const std::string& _path, client_t _client);
+    std::shared_ptr<local_acceptor> create_tcp_local_acceptor(client_t _client);
+
 protected:
     local_endpoint_manager_host& host_;
     boost::asio::io_context& io_;
     std::shared_ptr<configuration> configuration_;
 
     bool const is_local_routing_;
+    bool const is_uds_preferred_; // UDS is transport type for local routing, but only if preferred in configuration
     port_t local_port_; // local (client) port when connecting to other
                         // vsomeip application via TCP
 

@@ -47,6 +47,8 @@
     Client             xx xx
     Size               xx xx xx xx
     Name               xx ... xx        ;#xx = Size
+    [Address]          xx .. xx ; used only if "uds-preferred" is enabled
+    [Port]             xx xx ; used only if "uds-preferred" is enabled
 
 ## VSOMEIP_ASSIGN_CLIENT_ACK (0x01)
 

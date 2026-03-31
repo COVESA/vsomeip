@@ -208,6 +208,8 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
 
     void set_vsomeip_command_handler(vsomeip_command_handler const& _handler);
 
+    [[nodiscard]] socket_id const& get_socket_id() const { return socket_id_; }
+
     /**
      * Installs _pipe as the socket's data pipe:
      * 1. Registers this socket's async_receive wakeup as _pipe's open_reaction.

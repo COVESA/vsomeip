@@ -181,7 +181,8 @@ void local_server::accept_cbk(boost::system::error_code const& _ec, std::shared_
     }
 }
 void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _expected_id, std::shared_ptr<local_socket> _socket,
-                                  std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment) {
+                                  std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment,
+                                  boost::asio::ip::address _routing_address, port_t _routing_port) {
     std::unique_lock lock{mtx_};
     if (_lc_count == lc_count_) {
         if (_expected_id != own_client_id_ && _expected_id != VSOMEIP_CLIENT_UNSET) {
@@ -208,17 +209,25 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
 
                 // check if is uds socket
                 if (_socket->own_port() != VSOMEIP_SEC_PORT_UNUSED) {
-                    ss << " @ " << _socket->peer_endpoint().address() << ":" << _socket->peer_endpoint().port();
+                    ss << " @ " << peer_endpoint.address() << ":" << peer_endpoint.port();
                 } else {
                     vsomeip_sec_client_t sec_client{};
                     _socket->update(sec_client, *configuration_);
                     ss << " @ " << sec_client.user << "/" << sec_client.group;
+                    if (!_routing_address.is_unspecified() && _routing_port != ILLEGAL_PORT) {
+                        ss << " (guest: " << _routing_address.to_string() << ":" << _routing_port << ")";
+                    }
                 }
             }
 
             auto ep = local_endpoint::create_server_ep(
                     local_endpoint_context{io_, configuration_, routing_host_},
-                    local_endpoint_params{_client, rh->get_client(), std::move(_environment), std::move(_socket)}, std::move(_buffer));
+                    local_endpoint_params{_client, rh->get_client(), std::move(_environment), std::move(_socket),
+                                          // For TCP sockets use the real peer endpoint directly.
+                                          // For UDS, fall back to what the client advertised in assign_client_command.
+                                          !peer_endpoint.address().is_unspecified() ? peer_endpoint.address() : _routing_address,
+                                          peer_endpoint.port() != 0 ? static_cast<port_t>(peer_endpoint.port()) : _routing_port},
+                    std::move(_buffer));
             if (!ep) {
                 VSOMEIP_ERROR_P << "endpoint creation failed for client: " << hex4(_client) << ", self: " << this;
                 // socket is closed already in the create_server_ep on failure
@@ -281,7 +290,7 @@ void local_server::start_unlock(uint32_t _lc_count) {
 
 local_server::tmp_connection::tmp_connection(std::shared_ptr<local_socket> _socket, bool _is_router, uint32_t _lc_count,
                                              std::weak_ptr<local_server> _parent, std::shared_ptr<configuration> _configuration) :
-    is_router_(_is_router), lc_count_{_lc_count}, socket_(std::move(_socket)),
+    is_router_(_is_router), lc_count_{_lc_count}, routing_port_{ILLEGAL_PORT}, socket_(std::move(_socket)),
     receive_buffer_(std::make_shared<local_receive_buffer>(_configuration->get_max_message_size_local(),
                                                            _configuration->get_buffer_shrink_threshold())),
     parent_(std::move(_parent)), configuration_(std::move(_configuration)) { }
@@ -340,7 +349,7 @@ void local_server::tmp_connection::receive_cbk(boost::system::error_code const& 
     async_receive();
 }
 
-client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint32_t _message_size) const {
+client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint32_t const _message_size) {
 
     std::vector<byte_t> its_data(_data, _data + _message_size);
     protocol::assign_client_command command;
@@ -352,7 +361,12 @@ client_t local_server::tmp_connection::assign_client(uint8_t const* _data, uint3
         return VSOMEIP_CLIENT_UNSET;
     }
 
-    return utility::request_client_id(configuration_, command.get_name(), command.get_client());
+    auto client_id = utility::request_client_id(configuration_, command.get_name(), command.get_client());
+
+    routing_address_ = command.get_address();
+    routing_port_ = command.get_port();
+
+    return client_id;
 }
 
 client_t local_server::tmp_connection::read_config_command(uint8_t const* _data, uint32_t _message_size, bool& _version_matches) {
@@ -389,7 +403,8 @@ client_t local_server::tmp_connection::read_config_command(uint8_t const* _data,
 
 void local_server::tmp_connection::hand_over(client_t _client) {
     if (auto p = parent_.lock(); p) {
-        p->add_connection(_client, expected_id_, std::move(socket_), receive_buffer_, lc_count_, std::move(client_host_));
+        p->add_connection(_client, expected_id_, std::move(socket_), receive_buffer_, lc_count_, std::move(client_host_),
+                          std::move(routing_address_), routing_port_);
     }
 }
 }

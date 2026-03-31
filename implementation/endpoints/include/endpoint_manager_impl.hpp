@@ -19,6 +19,7 @@ namespace vsomeip_v3 {
 
 class routing_manager_impl;
 class local_server;
+class local_acceptor;
 class boardnet_endpoint;
 
 class endpoint_manager_impl : public boardnet_endpoint_host, public std::enable_shared_from_this<endpoint_manager_impl> {
@@ -57,7 +58,8 @@ public:
 
     void print_status() const;
 
-    bool create_routing_root(std::shared_ptr<local_server>& _root, bool& _is_socket_activated, const std::shared_ptr<routing_host>& _host);
+    bool create_routing_root(std::shared_ptr<local_server>& _root, const transport_protocol_e& _type, bool& _is_socket_activated,
+                             const std::shared_ptr<routing_host>& _host);
 
     instance_t find_instance(service_t _service, boardnet_endpoint* const _endpoint) const;
     instance_t find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const;
@@ -108,6 +110,14 @@ private:
     std::shared_ptr<boardnet_endpoint> create_client_endpoint(const boost::asio::ip::address& _address, uint16_t _local_port,
                                                               uint16_t _remote_port, bool _reliable);
 
+    // routing root creation helpers
+    bool create_local_uds_acceptor(std::shared_ptr<local_acceptor>& _uds_acceptor, const std::string& _endpoint_path,
+                                   bool& _is_socket_activated);
+    bool create_local_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
+    bool create_remote_routing_endpoint_tcp(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
+    void setup_root_server(std::shared_ptr<local_server>& _root, std::shared_ptr<local_acceptor> _acceptor,
+                           const std::shared_ptr<routing_host>& _host);
+
     // process join/leave options
     void process_multicast_options();
 
@@ -125,6 +135,7 @@ private:
     routing_manager_impl* const router_;
 
     bool const is_local_routing_;
+    bool const is_uds_preferred_;
 
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services

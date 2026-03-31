@@ -216,6 +216,10 @@ std::string to_json_string(const ecu_config& cfg) {
         o << ",";
     }
 
+    if (cfg.uds_preferred_) {
+        o << R"( "uds-preferred" : "true",)";
+    }
+
     o << " ";
     write_service_discovery(o, cfg.sd_);
 

@@ -151,7 +151,7 @@ private:
 
     [[nodiscard]] bool send_pending_commands();
 
-    void init_receiver(std::unique_lock<std::mutex> const& _receive_lock);
+    void init_receiver_side([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock);
 
     void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
 
@@ -230,7 +230,8 @@ private:
     std::shared_ptr<local_endpoint> sender_; // --> stub
 
     mutable std::mutex receiver_mutex_;
-    std::shared_ptr<local_server> receiver_; // --> from everybody
+    std::shared_ptr<local_server> tcp_receiver_; // --> from everybody
+    std::shared_ptr<local_server> uds_receiver_; // --> from everybody
 
     std::mutex pending_offers_mutex_;
     std::set<protocol::service> pending_offers_;
@@ -299,6 +300,9 @@ private:
     std::shared_ptr<timer> sender_debounce_;
 
     std::shared_ptr<endpoint_manager_base> ep_mgr_;
+
+    bool const is_uds_preferred_;
+    bool const is_local_routing_;
 };
 
 } // namespace vsomeip_v3

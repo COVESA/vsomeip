@@ -34,6 +34,38 @@ inline const ecu_config tcp_config = []() {
 
 }
 
+namespace hybrid {
+
+/// Host ECU (127.0.0.1) with uds_preferred=true.
+/// router_one is the routing manager; service_3344 is offered locally.
+/// Apps on the same host connect via UDS; remote guests are forced to use TCP.
+inline const ecu_config host_uds_preferred_config = []() {
+    ecu_config cfg{{interfaces::boardnet::service_3344}};
+    cfg.unicast_ip_ = boost::asio::ip::make_address("127.0.0.1");
+    cfg.apps_ = {application_config{"router_one", 0x32fe}};
+    cfg.routing_config_ = local_tcp_config{.router_name_ = "router_one",
+                                           .host_ = boost::asio::ip::make_address("127.0.0.1"),
+                                           .guest_ = boost::asio::ip::make_address("127.0.0.1")};
+    cfg.client_ports_ = client_port_config{.remote_ports_ = {30501, 30599}, .client_ports_ = {30491, 30499}};
+    cfg.uds_preferred_ = true;
+    return cfg;
+}();
+
+/// Host ECU (127.0.0.1) without uds_preferred (TCP-only local transport).
+/// Same topology as host_uds_preferred_config but clients connect via TCP.
+inline const ecu_config host_tcp_config = []() {
+    ecu_config cfg{{interfaces::boardnet::service_3344}};
+    cfg.unicast_ip_ = boost::asio::ip::make_address("127.0.0.1");
+    cfg.apps_ = {application_config{"router_one", 0x32fe}};
+    cfg.routing_config_ = local_tcp_config{.router_name_ = "router_one",
+                                           .host_ = boost::asio::ip::make_address("127.0.0.1"),
+                                           .guest_ = boost::asio::ip::make_address("127.0.0.1")};
+    cfg.client_ports_ = client_port_config{.remote_ports_ = {30501, 30599}, .client_ports_ = {30491, 30499}};
+    cfg.uds_preferred_ = false;
+    return cfg;
+}();
+}
+
 namespace boardnet {
 // ecu_one is the client side — no offered services, only routing + client port config
 inline const ecu_config ecu_one_config = []() {

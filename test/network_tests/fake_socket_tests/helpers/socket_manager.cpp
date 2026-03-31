@@ -433,6 +433,12 @@ size_t socket_manager::count_established_connections(std::string const& _client,
     return get_or_create_connection(_client, _server)->count();
 }
 
+[[nodiscard]] std::optional<socket_type> socket_manager::get_connection_socket_type(std::string const& _client,
+                                                                                    std::string const& _server) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->get_socket_type();
+}
+
 void socket_manager::report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors) {
     auto const lock = std::scoped_lock(mtx_);
     auto& errors = app_to_next_connection_errors_[_app_name];

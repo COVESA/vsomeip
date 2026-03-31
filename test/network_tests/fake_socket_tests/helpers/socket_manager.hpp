@@ -12,6 +12,7 @@
 #include <map>
 #include <set>
 #include <memory>
+#include <optional>
 
 namespace vsomeip_v3::testing {
 
@@ -79,6 +80,12 @@ public:
      * Counts how often the directed connection was established.
      */
     size_t count_established_connections(std::string const& _client, std::string const& _server);
+
+    /**
+     * Retrieves the socket type used by the connection between _client and _server.
+     * @return socket_type if the connection exists, empty optional otherwise.
+     */
+    [[nodiscard]] std::optional<socket_type> get_connection_socket_type(std::string const& _client, std::string const& _server);
 
     /**
      * Searches for a directed connection _client_name to _server_name and calls

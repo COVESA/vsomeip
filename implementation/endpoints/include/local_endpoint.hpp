@@ -51,6 +51,9 @@ struct local_endpoint_params {
     client_t own_{VSOMEIP_CLIENT_UNSET};
     std::string env_;
     std::shared_ptr<local_socket> socket_;
+    /// TCP endpoint the peer advertised during the assign_client handshake (server-side, routing clients only).
+    boost::asio::ip::address routing_address_{};
+    port_t routing_port_{ILLEGAL_PORT};
 };
 
 /**

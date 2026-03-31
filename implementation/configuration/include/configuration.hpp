@@ -89,6 +89,7 @@ public:
     virtual std::set<std::pair<port_t, port_t>> get_routing_guest_ports(uid_t _uid, gid_t _gid) const = 0;
 
     virtual bool is_local_routing() const = 0;
+    virtual bool is_uds_preferred() const = 0;
     virtual routing_state_e get_initial_routing_state() const = 0;
 
     virtual std::string get_unicast_address(service_t _service, instance_t _instance) const = 0;

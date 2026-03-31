@@ -118,6 +118,11 @@ public:
      **/
     size_t count() const;
 
+    /**
+     * Returns the socket type of the connection if available
+     **/
+    [[nodiscard]] std::optional<socket_type> get_socket_type() const;
+
 private:
     struct connection_options {
         bool delay_message_processing_{false};

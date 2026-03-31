@@ -8,6 +8,7 @@
 #include <string>
 
 #include "command.hpp"
+#include <boost/asio/ip/address.hpp>
 
 namespace vsomeip_v3 {
 namespace protocol {
@@ -26,8 +27,18 @@ public:
     std::string get_name() const;
     void set_name(const std::string& _name);
 
+    port_t get_port() const;
+    void set_port(port_t _port);
+
+    boost::asio::ip::address get_address() const;
+    void set_address(const boost::asio::ip::address& _address);
+
 private:
     std::string name_;
+
+    port_t port_;
+
+    boost::asio::ip::address address_;
 };
 
 } // namespace protocol

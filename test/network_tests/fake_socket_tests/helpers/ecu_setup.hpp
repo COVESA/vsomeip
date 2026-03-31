@@ -42,7 +42,8 @@ struct ecu_setup {
     /// a separate network address (host_ip_ + 1 in the last octet) with no local router.
     /// The host routing config must use local_tcp_config. Must be called before prepare().
     /// May be called multiple times to register additional guest apps.
-    void add_guest(application_config app);
+    /// uds_preferred: whether the guest's config has UDS-preferred mode enabled (default false).
+    void add_guest(application_config app, bool uds_preferred = false);
 
     /// Write the config to $VSOMEIP_BASE_PATH/<name>.json (falling back to the system
     /// temp directory if VSOMEIP_BASE_PATH is unset) and set VSOMEIP_CONFIGURATION_<name>

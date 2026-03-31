@@ -523,6 +523,7 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
         for (const auto& e : _elements) {
             has_routing = load_routing(e) || has_routing;
             has_applications = load_applications(e) || has_applications;
+            load_uds_preferred(e);
             load_network(e);
             load_diagnosis_address(e);
             load_shutdown_timeout(e);
@@ -1574,6 +1575,26 @@ void configuration_impl::load_shutdown_timeout(const configuration_element& _ele
                 }
                 its_converter >> shutdown_timeout_;
                 is_configured_[ET_SHUTDOWN_TIMEOUT] = true;
+            }
+        }
+    } catch (...) {
+        // intentionally left empty
+    }
+}
+
+void configuration_impl::load_uds_preferred(const configuration_element& _element) {
+    const std::string uds_preferred("uds-preferred");
+    try {
+        if (_element.tree_.get_child_optional(uds_preferred)) {
+            std::string its_value = _element.tree_.get<std::string>(uds_preferred);
+            if (is_configured_[ET_UDS_PREFERRED]) {
+                VSOMEIP_WARNING << "Multiple definitions for uds-preferred. Ignoring definition from " << _element.name_;
+            } else {
+                is_uds_preferred_ = (its_value == "true");
+                if (is_uds_preferred_) {
+                    VSOMEIP_INFO << "Routing configuration prefers UDS over TCP.";
+                }
+                is_configured_[ET_UDS_PREFERRED] = true;
             }
         }
     } catch (...) {
@@ -2933,6 +2954,10 @@ bool configuration_impl::is_local_routing() const {
     }
 
     return is_local;
+}
+
+bool configuration_impl::is_uds_preferred() const {
+    return is_uds_preferred_;
 }
 
 client_t configuration_impl::get_id(const std::string& _name) const {

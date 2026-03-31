@@ -112,6 +112,8 @@ public:
                                         std::map<bool, std::set<uint16_t>>& _used_client_ports, uint16_t& _client_port) const;
 
     VSOMEIP_EXPORT bool is_local_routing() const;
+    VSOMEIP_EXPORT bool is_uds_preferred() const;
+
     VSOMEIP_EXPORT routing_state_e get_initial_routing_state() const;
 
     VSOMEIP_EXPORT const std::string& get_routing_host_name() const;
@@ -340,6 +342,7 @@ private:
     void load_netmask(const configuration_element& _element);
     void load_diagnosis_address(const configuration_element& _element);
     void load_shutdown_timeout(const configuration_element& _element);
+    void load_uds_preferred(const configuration_element& _element);
 
     void load_service_discovery(const configuration_element& _element);
 
@@ -469,6 +472,7 @@ protected:
     std::list<std::shared_ptr<client>> clients_;
 
     routing_t routing_;
+    bool is_uds_preferred_{false};
 
     bool is_sd_enabled_;
     std::string sd_protocol_;
@@ -569,6 +573,7 @@ protected:
         ET_REQUEST_DEBOUNCE_TIME,
         ET_STOP_OFFER_WATCHDOG,
         ET_OFFER_WATCHDOG,
+        ET_UDS_PREFERRED,
         ET_MAX
     };
 

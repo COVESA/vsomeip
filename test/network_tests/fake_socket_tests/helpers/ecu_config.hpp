@@ -70,6 +70,7 @@ struct ecu_config {
     std::optional<std::variant<local_tcp_config, std::string>> routing_config_ = std::string("routingmanagerd"); // defaults to uds
     std::optional<client_port_config> client_ports_ = client_port_config{.remote_ports_ = {30501, 30599}, .client_ports_ = {30491, 30499}};
     bool sd_{true};
+    bool uds_preferred_{false};
 };
 
 /// Serializes an ecu_config to a vsomeip-compatible JSON configuration string.

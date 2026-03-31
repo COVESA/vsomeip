@@ -15,6 +15,7 @@
 #include <thread>
 #include <atomic>
 #include <unordered_set>
+#include <vector>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -169,13 +170,26 @@ private:
     std::shared_ptr<local_endpoint> find_local_routing_endpoint(client_t _client) const;
     static bool send_local(std::shared_ptr<local_endpoint> const& _ep, std::vector<byte_t> const& _data);
 
+    /**
+     * @brief Returns pointers to all active routing root members for the current configuration.
+     *
+     * - Local routing:   [ &uds_root_ ]
+     * - Network routing: [ &tcp_root_ ]
+     * - uds-preferred:   [ &uds_root_, &tcp_root_ ]
+     *
+     * Returning pointers (not copies) allows callers to modify the members in-place,
+     * e.g. to null them out after stopping.
+     */
+    std::vector<std::shared_ptr<local_server>*> get_routing_roots();
+
 private:
     routing_manager_stub_host* host_;
     boost::asio::io_context& io_;
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;
 
-    std::shared_ptr<local_server> root_; // Routing manager endpoint
+    std::shared_ptr<local_server> uds_root_; // Routing manager endpoint for UDS
+    std::shared_ptr<local_server> tcp_root_; // Routing manager endpoint for TCP
 
     std::mutex lazy_load_mtx_;
 
@@ -185,6 +199,7 @@ private:
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
+    bool const is_uds_preferred_;
 
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> internal_client_ports_;
     const std::chrono::milliseconds configured_watchdog_timeout_;

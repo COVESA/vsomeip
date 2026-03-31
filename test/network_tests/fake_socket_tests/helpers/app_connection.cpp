@@ -212,6 +212,14 @@ size_t app_connection::count() const {
     return socket_count_;
 }
 
+std::optional<socket_type> app_connection::get_socket_type() const {
+    std::scoped_lock lock{mtx_};
+    if (auto client = client_.lock(); client) {
+        return client->get_socket_id().type_;
+    }
+    return std::nullopt;
+}
+
 bool app_connection::apply_options(std::unique_lock<std::mutex> _lock) {
     auto from_opt = client_options_;
     auto to_opt = server_options_;

@@ -31,7 +31,8 @@ endpoint_manager_base::endpoint_manager_base(local_endpoint_manager_host& _host,
                                              const std::shared_ptr<configuration>& _configuration, std::string _name,
                                              std::string _client_host) :
     host_(_host), io_(_io), configuration_(_configuration), is_local_routing_(configuration_->is_local_routing()),
-    local_port_(ILLEGAL_PORT), name_(std::move(_name)), client_host_(std::move(_client_host)) { }
+    is_uds_preferred_(configuration_->is_uds_preferred()), local_port_(ILLEGAL_PORT), name_(std::move(_name)),
+    client_host_(std::move(_client_host)) { }
 
 void endpoint_manager_base::init(std::shared_ptr<routing_host> const& _local_message_handler) {
     std::scoped_lock its_lock(mtx_);
@@ -137,75 +138,87 @@ void endpoint_manager_base::add_local_server_endpoint_unlocked(client_t _client,
     _connection->start();
     VSOMEIP_INFO_P << "self 0x" << hex4(get_client_id()) << ", client 0x" << hex4(_client) << ", connection > " << _connection->name();
 }
-std::shared_ptr<local_server> endpoint_manager_base::create_local_server() {
+std::shared_ptr<local_acceptor> endpoint_manager_base::create_uds_local_acceptor(const std::string& _path, client_t _client) {
+    std::shared_ptr<local_acceptor> uds_acceptor;
+#if defined(__linux__) || defined(__QNX__)
+    try {
+        auto tmp = std::make_shared<local_acceptor_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(_path), configuration_);
+        boost::system::error_code its_error;
+        tmp->init(its_error, std::nullopt);
+        if (its_error) {
+            VSOMEIP_ERROR_P << "Local UDS server endpoint initialization failed. Client 0x" << hex4(_client) << " Path: " << _path
+                            << " Reason: " << its_error.message();
+        } else {
+            uds_acceptor = tmp;
+            VSOMEIP_INFO << "Listening @ " << _path;
+        }
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR_P << "Caught exception: " << e.what();
+    }
+#endif
+    return uds_acceptor;
+}
+
+std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor(client_t _client) {
+    std::shared_ptr<local_acceptor> tcp_acceptor;
+    try {
+        port_t its_port;
+        std::set<port_t> its_used_ports;
+        auto its_address = configuration_->get_routing_guest_address();
+        uint32_t its_current_wait_time{0};
+
+        auto its_tmp = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
+        while (get_local_server_port(its_port, its_used_ports) && !tcp_acceptor) {
+            boost::system::error_code its_error;
+            its_tmp->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
+            if (!its_error) {
+                VSOMEIP_INFO << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
+                local_port_ = port_t(its_port + 1);
+                VSOMEIP_INFO << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
+
+                host_.set_port(local_port_);
+
+                tcp_acceptor = its_tmp;
+            } else {
+                if (its_error == boost::asio::error::address_in_use) {
+                    its_used_ports.insert(its_port);
+                } else {
+                    its_current_wait_time += LOCAL_TCP_PORT_WAIT_TIME;
+                    if (its_current_wait_time > LOCAL_TCP_PORT_MAX_WAIT_TIME)
+                        break;
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(LOCAL_TCP_PORT_WAIT_TIME));
+                }
+            }
+        }
+
+        if (tcp_acceptor && _client != VSOMEIP_ROUTING_CLIENT) {
+            host_.add_connection_param(_client, its_address, its_port);
+            VSOMEIP_INFO_P << "Adds guest for client 0x" << hex4(_client) << " with address " << its_address.to_string() << " and port "
+                           << std::dec << its_port;
+        } else {
+            VSOMEIP_ERROR_P << "Local TCP server endpoint initialization failed. Client 0x" << hex4(_client)
+                            << " Reason: No local port available!";
+        }
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR_P << "Caught exception: " << e.what();
+    }
+    return tcp_acceptor;
+}
+
+std::shared_ptr<local_server> endpoint_manager_base::create_local_server(transport_protocol_e _transport_protocol) {
     std::stringstream its_path;
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << get_client_id();
     const client_t its_client = get_client_id();
+    VSOMEIP_INFO << "Creating local server endpoint for client 0x" << hex4(its_client) << " with transport type "
+                 << (_transport_protocol == transport_protocol_e::UDS ? "UDS" : "TCP") << ".";
 
     std::shared_ptr<local_acceptor> its_acceptor;
-#if defined(__linux__) || defined(__QNX__)
-    if (is_local_routing_) {
-        try {
 
-            auto tmp = std::make_shared<local_acceptor_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(its_path.str()),
-                                                                 configuration_);
-            boost::system::error_code its_error;
-            tmp->init(its_error, std::nullopt);
-            if (its_error) {
-                VSOMEIP_ERROR_P << "Local UDS server endpoint initialization failed. Client 0x" << hex4(its_client)
-                                << " Path: " << its_path.str() << " Reason: " << its_error.message();
-
-            } else {
-                its_acceptor = tmp;
-                VSOMEIP_INFO << "Listening @ " << its_path.str();
-            }
-        } catch (const std::exception& e) {
-            VSOMEIP_ERROR_P << "Caught exception: " << e.what();
-        }
+    if (_transport_protocol == transport_protocol_e::UDS) {
+        its_acceptor = create_uds_local_acceptor(its_path.str(), its_client);
     } else {
-#else
-    {
-#endif
-        try {
-            port_t its_port;
-            std::set<port_t> its_used_ports;
-            auto its_address = configuration_->get_routing_guest_address();
-            uint32_t its_current_wait_time{0};
-
-            auto its_tmp = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
-            while (get_local_server_port(its_port, its_used_ports) && !its_acceptor) {
-                boost::system::error_code its_error;
-                its_tmp->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
-                if (!its_error) {
-                    VSOMEIP_INFO << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
-                    local_port_ = port_t(its_port + 1);
-                    VSOMEIP_INFO << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
-
-                    host_.set_port(local_port_);
-
-                    its_acceptor = its_tmp;
-                } else {
-                    if (its_error == boost::asio::error::address_in_use) {
-                        its_used_ports.insert(its_port);
-                    } else {
-                        its_current_wait_time += LOCAL_TCP_PORT_WAIT_TIME;
-                        if (its_current_wait_time > LOCAL_TCP_PORT_MAX_WAIT_TIME)
-                            break;
-
-                        std::this_thread::sleep_for(std::chrono::milliseconds(LOCAL_TCP_PORT_WAIT_TIME));
-                    }
-                }
-            }
-
-            if (its_acceptor) {
-                host_.add_connection_param(its_client, its_address, its_port);
-            } else {
-                VSOMEIP_ERROR_P << "Local TCP server endpoint initialization failed. Client 0x" << hex4(its_client)
-                                << " Reason: No local port available!";
-            }
-        } catch (const std::exception& e) {
-            VSOMEIP_ERROR_P << "Caught exception: " << e.what();
-        }
+        its_acceptor = create_tcp_local_acceptor(its_client);
     }
 
     if (its_acceptor) {
@@ -265,8 +278,23 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
     its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
     std::shared_ptr<local_endpoint> its_endpoint;
 
+    boost::asio::ip::address its_local_address, its_remote_address;
+    port_t its_remote_port;
+
+    bool is_guest = host_.get_connection_param(_client, its_remote_address, its_remote_port);
+
+    // For the routing manager itself, fall back to the configured host address
+    // when it hasn't registered as a guest yet (early connection phase).
+    if (!is_guest && _client == VSOMEIP_ROUTING_CLIENT) {
+        its_remote_address = configuration_->get_routing_host_address();
+        its_remote_port = configuration_->get_routing_host_port();
+        is_guest = !its_remote_address.is_unspecified() && !its_remote_address.is_multicast();
+    }
+
+    bool const same_address = is_guest && its_remote_address == configuration_->get_routing_guest_address();
+
 #if defined(__linux__) || defined(__QNX__)
-    if (is_local_routing_) {
+    if (is_local_routing_ || (is_uds_preferred_ && same_address)) {
         its_endpoint = local_endpoint::create_client_ep(
                 local_endpoint_context{io_, configuration_, local_message_handler_},
                 local_endpoint_params{_client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(), "",
@@ -279,17 +307,7 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
 #else
     {
 #endif
-        boost::asio::ip::address its_local_address, its_remote_address;
-        port_t its_remote_port;
 
-        bool is_guest = host_.get_connection_param(_client, its_remote_address, its_remote_port);
-        if (!is_guest && _client == VSOMEIP_ROUTING_CLIENT) {
-            its_remote_address = configuration_->get_routing_host_address();
-            its_remote_port = configuration_->get_routing_host_port();
-            if (!its_remote_address.is_unspecified() && !its_remote_address.is_multicast()) {
-                is_guest = true;
-            }
-        }
         if (is_guest) {
             try {
                 its_local_address = configuration_->get_routing_guest_address();
@@ -331,6 +349,9 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
             protocol::assign_client_command assign_command;
             assign_command.set_client(get_client_id());
             assign_command.set_name(name_);
+
+            assign_command.set_address(configuration_->get_routing_guest_address());
+            assign_command.set_port(local_port_);
 
             std::vector<byte_t> assign_buffer;
             assign_command.serialize(assign_buffer);

@@ -51,7 +51,6 @@ struct routing_t {
     routing_t& operator=(const routing_t& _other) {
         host_ = _other.host_;
         guests_ = _other.guests_;
-
         return *this;
     }
 };

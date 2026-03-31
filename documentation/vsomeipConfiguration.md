@@ -79,6 +79,7 @@
 
 ## Routing
 
+- **uds-preferred** (optional) - Specifies whether **Unix Domain Sockets (UDS)** should be preferred over **TCP** for internal communication between the routing manager and client applications, as well as for communication between clients. Valid values are `true` or `false`. The default value is `false`.
 - **routing** (optional) - Specifies the properties of the routing. Either a string that specifies the application that hosts the routing component or a structure that specifies all properties of the routing. If the routing is not specified, the first started application will host the routing component.
   - **host** - Properties of the routing manager.
     - **name** - Name of the application that hosts the routing component.
