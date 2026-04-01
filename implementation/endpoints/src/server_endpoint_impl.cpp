@@ -221,12 +221,13 @@ void server_endpoint_impl<Protocol>::set_client_target(const clients_key_t _clie
     std::scoped_lock its_clients_lock{clients_mutex_};
     if (auto it = clients_to_target_.find(_client); it != clients_to_target_.end()) {
         auto& [id, current_target] = *it;
+        // different ECUs using the same client-id? CATASTROPHIC! we will lose responses to the old ECU..
         if (current_target != _target) {
             const auto service = static_cast<uint16_t>((_client >> 48) & 0xffff);
             const auto method = static_cast<uint16_t>((_client >> 32) & 0xffff);
             const auto client = static_cast<uint16_t>((_client >> 16) & 0xffff);
-            VSOMEIP_WARNING_P << "Target replaced. May cause pending response to be lost. message=" << hex4(service) << "." << hex4(method)
-                              << " client=" << hex4(client) << " old=" << current_target << " new=" << _target;
+            VSOMEIP_ERROR_P << "Target replaced. May cause pending response to be lost. message=" << hex4(service) << "." << hex4(method)
+                            << " client=" << hex4(client) << " old=" << current_target << " new=" << _target;
         }
     }
     clients_to_target_[_client] = _target;
