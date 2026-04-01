@@ -1124,20 +1124,20 @@ void routing_manager_stub::check_watchdog() {
 
     auto its_callback = [this](boost::system::error_code const& _error) {
         (void)_error;
-        std::list<client_t> lost;
         {
             std::scoped_lock its_lock{routing_info_mutex_};
             for (const auto& i : routing_info_) {
                 if (i.first > 0) {
                     if (i.second.first > configuration_->get_allowed_missing_pongs()) {
                         VSOMEIP_WARNING << "Lost contact to application " << hex4(i.first);
-                        lost.push_back(i.first);
+                        // Trigger the error under the routing_info_mutex_, to ensure that a concurrent clean-up
+                        // of the client is not racing with this watchdog.
+                        if (auto ep = host_->get_endpoint_manager()->find_routing_endpoint(i.first); ep) {
+                            ep->trigger_error();
+                        }
                     }
                 }
             }
-        }
-        for (auto i : lost) {
-            host_->cleanup_client(i);
         }
         start_watchdog();
     };
@@ -1204,7 +1204,12 @@ void routing_manager_stub::on_ping_timer_expired(boost::system::error_code const
 
         for (auto client_iter = pinged_clients_.begin(); client_iter != pinged_clients_.end();) {
             if ((now - client_iter->second) >= configured_watchdog_timeout_) {
-                timed_out_clients.push_front(client_iter->first);
+                // Trigger the error under the pinged_clients_mutex_, to ensure that a concurrent clean-up
+                // of the client is not racing with this timer.
+                if (auto ep = host_->get_endpoint_manager()->find_routing_endpoint(client_iter->first); ep) {
+                    VSOMEIP_WARNING_P << "Triggering a client error for: " << hex4(client_iter->first);
+                    ep->trigger_error();
+                }
                 client_iter = pinged_clients_.erase(client_iter);
             } else {
                 ++client_iter;
@@ -1224,12 +1229,6 @@ void routing_manager_stub::on_ping_timer_expired(boost::system::error_code const
         }
     }
 
-    for (const client_t client : timed_out_clients) {
-        // Client did not respond to ping. Report client_error in order to
-        // accept pending offers trying to replace the offers of the client
-        // that seems to be gone.
-        host_->cleanup_client(client);
-    }
     if (pinged_clients_remaining) {
         pinged_clients_timer_.expires_after(next_timeout);
         pinged_clients_timer_.async_wait(std::bind(&routing_manager_stub::on_ping_timer_expired, this, std::placeholders::_1));
@@ -1270,6 +1269,7 @@ void routing_manager_stub::deregister_client(client_t _client) {
     configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     VSOMEIP_INFO << "Application/Client " << hex4(_client) << " is deregistering";
     on_deregister_application(_client);
+    remove_from_pinged_clients(_client);
     remove_client_connections(_client);
     utility::release_client_id(configuration_->get_network(), _client);
 }

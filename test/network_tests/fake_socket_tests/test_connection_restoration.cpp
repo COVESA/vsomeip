@@ -971,6 +971,50 @@ TEST_F(test_reoffer_on_connection_breaking, client_receives_response_after_reoff
     }
 }
 
+TEST_F(test_connection_restoration, pinged_services_are_cleaned_up_on_deregistration) {
+    // 1. Break the connection between the server and the client
+    // 2. Await the sanity check from the router to the server
+    // 3. Re-register the server
+    // 4. Ensure that after the ping timeout, the restarted server is not cleaned-up
+
+    // To ensure 2. can be awaited
+    std::shared_ptr<command_gate> router_to_server_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::client, router_to_server_gate->get_data_pipe()));
+    // To ensure the prior gate is not opened "too early"
+    std::shared_ptr<command_gate> server_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::server, server_to_router_gate->get_data_pipe()));
+
+    // Ensure client server relationship
+    start_apps();
+    ASSERT_TRUE(subscribe_to_field());
+    client_->availability_record_.clear();
+
+    router_to_server_gate->block_at(vsomeip_v3::protocol::id_e::PING_ID);
+    // 1.
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, boost::asio::error::connection_reset));
+
+    // 2. ensure that we send the ping
+    ASSERT_TRUE(router_to_server_gate->wait_for_blocked());
+
+    // ensure that the connection must have been cleaned up on the server side
+    server_to_router_gate->block_at(vsomeip_v3::protocol::id_e::ASSIGN_CLIENT_ID);
+
+    // 3.
+    // start the cleanup on the server side, but let it propagate to the router
+    ASSERT_TRUE(disconnect(server_name_, boost::asio::error::timed_out, routingmanager_name_, std::nullopt));
+    ASSERT_TRUE(server_to_router_gate->wait_for_blocked());
+
+    // let the registration kick in
+    router_to_server_gate->block(false);
+    server_to_router_gate->block(false);
+
+    // after the next availability
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+    // 5s seems to be the default watchdog timeout
+    ASSERT_FALSE(
+            client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_), std::chrono::seconds(5)));
+}
+
 TEST_F(test_connection_restoration, offer_and_stop_service_concurrency) {
 
     // 1. Setup applications (does not start second server just yet)
