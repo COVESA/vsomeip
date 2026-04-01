@@ -102,7 +102,20 @@ TEST_F(stress_server_reconnects, request_reply_works_after_server_reconnects) {
         // Wait for the service to cycle: unavailable then available again (routing info re-sent), but don't enforce with last,
         // as the re-availability can be very fast
         ASSERT_TRUE(client_->availability_record_.wait_for_any(service_availability::unavailable(service_instance_)));
-        ASSERT_TRUE(client_->availability_record_.wait_for_any(service_availability::available(service_instance_)));
+        ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+        // it can happen that the client sees a chain of
+        // 1. DELETE_SERVICE -> from router (UNAVAIL)
+        // 2. ADD_SERVICE -> from router (AVAIL)
+        // 3. connection reset -> from server (UNAVAIL)
+        // 4. ADD_SERVICE -> from router (AVAIL)
+        //
+        // which would be fine for this test, but we would like to check that when the service is finally available,
+        // that the routing info is also given
+        if (client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_),
+                                                        std::chrono::milliseconds(10))) {
+            ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+        }
 
         // Send a request — requires the client to physically connect to the server.
         // Without the fix the routing info carries 0.0.0.0:0 and the request never arrives.
