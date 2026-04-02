@@ -175,6 +175,7 @@ void policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid, const 
                         << " Ignoring definition from " << _name;
     } else {
         routing_credentials_ = std::make_pair(_uid, _gid);
+        check_routing_credentials_ = true;
         is_configured_ = true;
     }
 }
