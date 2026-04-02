@@ -51,6 +51,8 @@ public:
     VSOMEIP_EXPORT void set_is_in_mainphase(bool _in_mainphase);
 
 private:
+    mutable std::mutex mutex_;
+
     const service_t service_;
     const instance_t instance_;
 
@@ -59,14 +61,11 @@ private:
 
     const bool is_local_;
 
-    mutable std::mutex ttl_mutex_;
     std::chrono::milliseconds ttl_;
 
     std::shared_ptr<boardnet_endpoint> reliable_;
     std::shared_ptr<boardnet_endpoint> unreliable_;
 
-    mutable std::mutex endpoint_mutex_;
-    std::mutex requesters_mutex_;
     std::set<client_t> requesters_;
 
     std::atomic_bool is_in_mainphase_;
