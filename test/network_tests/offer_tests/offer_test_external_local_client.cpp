@@ -11,9 +11,9 @@
 #include "../someip_test_globals.hpp"
 #include "common/test_main.hpp"
 
+#include <condition_variable>
 #include <fstream>
 #include <filesystem>
-#include <future>
 #include <thread>
 
 #include "offer_test_globals.hpp"
@@ -35,21 +35,29 @@ TEST(OfferTestExternal, OfferTestExternalLocalClient) {
     application->request_service(service.service_id, service.instance_id);
     application->request_event(service.service_id, service.instance_id, service.event_id, {service.eventgroup_id});
 
-    // Create future and promise to know when service becomes unavailable
-    std::promise<bool> is_unavailable_prom;
-    std::future<bool> is_unavailable_fut = is_unavailable_prom.get_future();
+    // Use a cv to know when the service becomes unavailable after subscribe
+    bool service_available = false;
+    std::mutex service_available_mutex;
+    std::condition_variable service_available_cv;
 
     // Register the availability handler for the service
-    application->register_availability_handler(
-            service.service_id, service.instance_id, [&](vsomeip::service_t, vsomeip::instance_t, const bool is_available) {
-                if (is_available) {
-                    std::filesystem::path filename = std::filesystem::current_path() / "service_available.flag";
-                    std::ofstream file(filename);
-                    ASSERT_TRUE(file) << "Failed to create service available file!";
-                } else {
-                    is_unavailable_prom.set_value(true);
-                }
-            });
+    application->register_availability_handler(service.service_id, service.instance_id,
+                                               [&service_available, &service_available_mutex,
+                                                &service_available_cv](vsomeip::service_t, vsomeip::instance_t, const bool is_available) {
+                                                   {
+                                                       std::unique_lock<std::mutex> its_lock(service_available_mutex);
+                                                       if (is_available) {
+                                                           service_available = true;
+                                                           std::filesystem::path filename =
+                                                                   std::filesystem::current_path() / "service_available.flag";
+                                                           std::ofstream file(filename);
+                                                           ASSERT_TRUE(file) << "Failed to create service available file!";
+                                                       } else {
+                                                           service_available = false;
+                                                       }
+                                                   }
+                                                   service_available_cv.notify_one();
+                                               });
 
     // Start the vsomeip application
     std::thread start_thread([&application] { application->start(); });
@@ -64,9 +72,12 @@ TEST(OfferTestExternal, OfferTestExternalLocalClient) {
 
     application->subscribe(service.service_id, service.instance_id, service.eventgroup_id);
 
-    // After the client subscribes to the service, wait until service provider
-    // stops which will lead to the service becoming unavailable
-    is_unavailable_fut.wait();
+    {
+        // After the client subscribes to the service, wait until service provider
+        // stops which will lead to the service becoming unavailable
+        std::unique_lock<std::mutex> its_lock(service_available_mutex);
+        ASSERT_TRUE(service_available_cv.wait_for(its_lock, std::chrono::seconds(15), [&service_available] { return !service_available; }));
+    }
 
     // Stop the application after the test is done
     application->stop();
