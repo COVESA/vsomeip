@@ -607,6 +607,9 @@ void routing_manager_base::register_event(client_t _client, service_t _service, 
                     std::set<client_t> its_any_event_subscribers = its_any_event->get_subscribers(eventgroup);
                     for (const client_t subscriber : its_any_event_subscribers) {
                         its_event->add_subscriber(eventgroup, nullptr, subscriber, true);
+                        if (its_event->is_set()) {
+                            its_event->notify_one(subscriber, false);
+                        }
                     }
                 }
             }
