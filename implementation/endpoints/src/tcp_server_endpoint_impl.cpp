@@ -677,7 +677,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                         its_lock.unlock();
                         wait_until_sent(boost::asio::error::operation_aborted);
                         return;
-                    } else if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && current_message_size > max_message_size_) {
+                    } else if (current_message_size > max_message_size_) {
                         recv_buffer_size_ = 0;
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
