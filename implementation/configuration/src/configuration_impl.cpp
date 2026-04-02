@@ -3453,7 +3453,7 @@ std::uint32_t configuration_impl::get_max_message_size_reliable(const std::strin
             return its_port->second;
         }
     }
-    return (max_reliable_message_size_ == 0) ? ((VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ? MESSAGE_SIZE_UNLIMITED : VSOMEIP_MAX_TCP_MESSAGE_SIZE)
+    return (max_reliable_message_size_ == 0) ? ((VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ? VSOMEIP_MAX_TCP_MESSAGE_SIZE_DEFAULT : VSOMEIP_MAX_TCP_MESSAGE_SIZE)
                                              : max_reliable_message_size_;
 }
 

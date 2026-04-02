@@ -14,6 +14,12 @@ constexpr std::uint8_t VSOMEIP_PROTOCOL_VERSION = 0x1;
 constexpr std::size_t VSOMEIP_MAX_LOCAL_MESSAGE_SIZE = 0;
 // 0 = unlimited, if not specified otherwise via configuration file
 constexpr std::size_t VSOMEIP_MAX_TCP_MESSAGE_SIZE = 0;
+// Safe default cap for TCP receive buffer when neither VSOMEIP_MAX_TCP_MESSAGE_SIZE
+// nor the runtime "max-message-size-reliable" JSON option is set.  Prevents unbounded
+// heap growth from an attacker-supplied SOME/IP Length field (CWE-789, issue #1009).
+// Operators who genuinely need larger messages should set max-message-size-reliable
+// in their vsomeip configuration file.
+constexpr std::uint32_t VSOMEIP_MAX_TCP_MESSAGE_SIZE_DEFAULT = 1048576U; // 1 MiB
 constexpr std::size_t VSOMEIP_MAX_UDP_MESSAGE_SIZE = 1416;
 
 constexpr std::size_t VSOMEIP_PACKET_SIZE = VSOMEIP_MAX_UDP_MESSAGE_SIZE;
