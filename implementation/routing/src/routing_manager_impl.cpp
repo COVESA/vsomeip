@@ -2451,22 +2451,16 @@ void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const
     if (!_error) {
         const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name(), true);
 
-        bool is_diag_mode(false);
-
-        if (discovery_) {
-            is_diag_mode = discovery_->get_diagnosis_mode();
-        }
         std::stringstream its_last_resume;
         {
             std::scoped_lock its_lock(last_resume_mutex_);
             if (last_resume_ != std::chrono::steady_clock::time_point::min()) {
-                its_last_resume << " | "
+                its_last_resume << " | Last resume: "
                                 << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - last_resume_).count()
-                                << "s";
+                                << "s ago.";
             }
         }
-        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " | (" << ((is_diag_mode == true) ? "diagnosis)" : "default)")
-                     << its_last_resume.str();
+        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << its_last_resume.str();
 
         ep_mgr_impl_->log_client_states();
         ep_mgr_impl_->log_server_states();
@@ -2745,8 +2739,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
     if (discovery_) {
         switch (_routing_state) {
         case routing_state_e::RS_SUSPENDED: {
-            VSOMEIP_INFO_P << "Set routing to suspend mode, diagnosis mode is "
-                           << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
+            VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED";
 
             // stop processing of incoming SD messages
             discovery_->suspend();
@@ -2826,9 +2819,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 routing_state_handler_(_routing_state);
             }
 
-            VSOMEIP_INFO_P << "Set routing to suspend mode done, diagnosis mode is "
-                           << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
-
+            VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED done";
             break;
         }
         case routing_state_e::RS_RESUMED: {
@@ -2842,16 +2833,10 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 }
             }
 
-            VSOMEIP_INFO_P << "Set routing to resume mode, diagnosis mode was "
-                           << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
+            VSOMEIP_INFO_P << "Set routing to RS_RESUMED";
 
             // resume all endpoints
             ep_mgr_impl_->resume();
-
-            {
-                std::scoped_lock its_lock(last_resume_mutex_);
-                last_resume_ = std::chrono::steady_clock::now();
-            }
 
             // Reset relevant in service info
             VSOMEIP_INFO_P << "Reset service info.";
@@ -2864,7 +2849,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
             // Switch SD back to normal operation
             VSOMEIP_INFO_P << "Go to normal operation.";
-            discovery_->set_diagnosis_mode(false);
 
             if (routing_state_handler_) {
                 routing_state_handler_(_routing_state);
@@ -2900,35 +2884,23 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
             init_pending_services();
 
-            VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
-
-            VSOMEIP_INFO_P << "Set routing to resume mode done, diagnosis mode was "
-                           << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
-            break;
-        }
-        case routing_state_e::RS_DIAGNOSIS: {
-            VSOMEIP_INFO_P << "Set routing to diagnosis mode.";
-            discovery_->set_diagnosis_mode(true);
-
-            // send StopOffer messages for all someip protocol services
-            for (const auto& its_service : get_offered_services()) {
-                for (const auto& its_instance : its_service.second) {
-                    if (host_->get_configuration()->is_someip(its_service.first, its_instance.first)) {
-                        discovery_->stop_offer_service(its_instance.second);
-                    }
-                }
+            {
+                std::scoped_lock its_lock(last_resume_mutex_);
+                last_resume_ = std::chrono::steady_clock::now();
             }
 
             if (routing_state_handler_) {
                 routing_state_handler_(_routing_state);
             }
 
-            VSOMEIP_INFO_P << "Set routing to diagnosis mode done.";
+            VSOMEIP_INFO_P << "Set routing to RS_RESUMED done";
             break;
         }
+        case routing_state_e::RS_DIAGNOSIS:
+            VSOMEIP_INFO_P << "Set routing to RS_DIAGNOSIS, not supported since 3.7.2 --> do nothing.";
+            break;
         case routing_state_e::RS_RUNNING:
-            VSOMEIP_INFO_P << "Set routing to running mode, diagnosis mode was "
-                           << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
+            VSOMEIP_INFO_P << "Set routing to RS_RUNNING";
 
             // Reset relevant in service info
             for (const auto& its_service : get_offered_services()) {
@@ -2939,8 +2911,6 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                     }
                 }
             }
-            // Switch SD back to normal operation
-            discovery_->set_diagnosis_mode(false);
 
             // Trigger initial phase for relevant services
             for (const auto& its_service : get_offered_services()) {
@@ -2955,8 +2925,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
                 routing_state_handler_(_routing_state);
             }
 
-            VSOMEIP_INFO_P << "Set routing to running mode done, diagnosis mode was "
-                           << ((discovery_->get_diagnosis_mode() == true) ? "active." : "inactive.");
+            VSOMEIP_INFO_P << "Set routing to RS_RUNNING done";
             break;
         case routing_state_e::RS_DELAYED_RESUME:
             if (routing_state_handler_) {
@@ -3808,8 +3777,6 @@ const char* routing_manager_impl::routing_state_tostring(routing_state_e _state)
         return "RS_RESUMED";
     case routing_state_e::RS_SHUTDOWN:
         return "RS_SHUTDOWN";
-    case routing_state_e::RS_DIAGNOSIS:
-        return "RS_DIAGNOSIS";
     case routing_state_e::RS_DELAYED_RESUME:
         return "RS_DELAYED_RESUME";
     case routing_state_e::RS_UNKNOWN:

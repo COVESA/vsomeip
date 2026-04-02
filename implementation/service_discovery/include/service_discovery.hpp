@@ -57,10 +57,6 @@ public:
     virtual void stop_offer_service(const std::shared_ptr<serviceinfo>& _info) = 0;
     virtual bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>>& _infos) = 0;
 
-    virtual void set_diagnosis_mode(const bool _activate) = 0;
-
-    virtual bool get_diagnosis_mode() = 0;
-
     virtual void update_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription) = 0;
 
     virtual void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) = 0;

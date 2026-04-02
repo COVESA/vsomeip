@@ -60,7 +60,7 @@ service_discovery_impl::service_discovery_impl(service_discovery_host* _host, co
     find_initial_debounce_time_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_TIME),
     remaining_find_initial_debounce_reps_(VSOMEIP_SD_INITIAL_FIND_DEBOUNCE_REPS),
     find_debounce_time_(VSOMEIP_SD_DEFAULT_FIND_DEBOUNCE_TIME), find_debounce_timer_(_host->get_io()), main_phase_timer_(_host->get_io()),
-    is_suspended_(false), is_diagnosis_(false), must_start_last_msg_received_timer_(true), last_msg_received_timer_(_host->get_io()),
+    is_suspended_(false), must_start_last_msg_received_timer_(true), last_msg_received_timer_(_host->get_io()),
     last_msg_received_timer_timeout_(VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY + (VSOMEIP_SD_DEFAULT_CYCLIC_OFFER_DELAY / 10)),
     suspend_stop_offer_watchdog_{_host->get_io()}, stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME},
     offers_watchdog_{_host->get_io()}, offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME}, offers_received_after_last_resume_{0},
@@ -746,8 +746,7 @@ void service_discovery_impl::insert_offer_entries(std::vector<std::shared_ptr<me
                                                   bool _ignore_phase) {
     for (const auto& its_service : _services) {
         for (const auto& its_instance : its_service.second) {
-            if ((!is_suspended_)
-                && ((!is_diagnosis_) || (is_diagnosis_ && !configuration_->is_someip(its_service.first, its_instance.first)))) {
+            if (!is_suspended_) {
                 // Only insert services with configured endpoint(s)
                 if ((_ignore_phase || its_instance.second->is_in_mainphase())
                     && (its_instance.second->get_endpoint(false) || its_instance.second->get_endpoint(true))) {
@@ -1338,7 +1337,7 @@ void service_discovery_impl::process_serviceentry(std::shared_ptr<serviceentry_i
         remove_remote_offer_type(its_service, its_instance, its_reliable_address, its_reliable_port, its_unreliable_address,
                                  its_unreliable_port);
         remove_subscriptions(its_service, its_instance);
-        if (!is_diagnosis_ && !is_suspended_) {
+        if (!is_suspended_) {
             host_->del_routing_info(its_service, its_instance, (its_reliable_port != ILLEGAL_PORT), (its_unreliable_port != ILLEGAL_PORT),
                                     true);
         }
@@ -2534,23 +2533,8 @@ void service_discovery_impl::on_offer_debounce_timer_expired(const boost::system
         std::vector<services_t::iterator> non_someip_services;
         std::scoped_lock its_lock(collected_offers_mutex_);
         if (collected_offers_.size()) {
-            if (is_diagnosis_) {
-                for (services_t::iterator its_service = collected_offers_.begin(); its_service != collected_offers_.end(); its_service++) {
-                    for (const auto& its_instance : its_service->second) {
-                        if (!configuration_->is_someip(its_service->first, its_instance.first)) {
-                            non_someip_services.push_back(its_service);
-                        }
-                    }
-                }
-                for (auto its_service : non_someip_services) {
-                    repetition_phase_offers.insert(*its_service);
-                    collected_offers_.erase(its_service);
-                }
-            } else {
-                repetition_phase_offers = collected_offers_;
-                collected_offers_.clear();
-            }
-
+            repetition_phase_offers = collected_offers_;
+            collected_offers_.clear();
             new_offers = true;
         }
     }
@@ -2863,16 +2847,6 @@ bool service_discovery_impl::check_source_address(const boost::asio::ip::address
         is_valid = false;
     }
     return is_valid;
-}
-
-void service_discovery_impl::set_diagnosis_mode(const bool _activate) {
-
-    is_diagnosis_ = _activate;
-}
-
-bool service_discovery_impl::get_diagnosis_mode() {
-
-    return is_diagnosis_;
 }
 
 void service_discovery_impl::update_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription) {

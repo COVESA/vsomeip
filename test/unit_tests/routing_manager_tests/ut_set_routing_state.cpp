@@ -110,30 +110,6 @@ TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_SHUTDOWN) {
     ASSERT_EQ(its_manager->get_routing_state(), vsomeip_v3::routing_state_e::RS_SHUTDOWN);
 }
 
-TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_DIAGNOSIS) {
-
-    // Adding a service using add_routing_info
-    its_manager->add_routing_info(service_, instance_, major_version_, minor_version_, ttl_, ip_address_, port_reliable, ip_address_,
-                                  port_unreliable);
-
-    // Check it was added
-    auto service_list = its_manager->get_offered_services();
-    ASSERT_TRUE(service_list.size() > 0);
-
-    // Call test method with test input.
-    its_manager->set_routing_state(vsomeip_v3::routing_state_e::RS_DIAGNOSIS);
-
-    // Assert routing state, is equal to tested state.
-    ASSERT_EQ(its_manager->get_routing_state(), vsomeip_v3::routing_state_e::RS_DIAGNOSIS);
-
-    // Check ttl was set to 0 done in discovery_->stop_offer_service
-    for (const auto& its_service : its_manager->get_offered_services()) {
-        for (const auto& its_instance : its_service.second) {
-            ASSERT_EQ(its_instance.second->get_ttl(), 0);
-        }
-    }
-}
-
 TEST_F(routing_manager_ut_setup, DISABLED_set_routing_state_RS_UNKNOWN) {
 
     // RS_RUNNING is the default value so set RS_UNKOWN

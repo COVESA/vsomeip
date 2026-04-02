@@ -111,10 +111,6 @@ public:
     void stop_offer_service(const std::shared_ptr<serviceinfo>& _info);
     bool send_collected_stop_offers(const std::vector<std::shared_ptr<serviceinfo>>& _infos);
 
-    void set_diagnosis_mode(const bool _activate);
-
-    bool get_diagnosis_mode();
-
     void update_remote_subscription(const std::shared_ptr<remote_subscription>& _subscription);
 
     void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler);
@@ -403,8 +399,6 @@ private:
     boost::asio::ip::address sd_multicast_address_;
 
     boost::asio::ip::address current_remote_address_;
-
-    std::atomic<bool> is_diagnosis_;
 
     std::mutex pending_remote_subscriptions_mutex_;
     std::map<std::shared_ptr<remote_subscription>, std::shared_ptr<remote_subscription_ack>> pending_remote_subscriptions_;
