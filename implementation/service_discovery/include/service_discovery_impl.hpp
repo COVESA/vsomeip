@@ -294,6 +294,52 @@ private:
     void check_offer_services(const boost::system::error_code& error, uint32_t _faulty_value);
 
 private:
+    // ------------------------------------------------------------------
+    // TOCTOU fix: deferred-NACK for TCP subscriptions (issue #971)
+    //
+    // When is_tcp_connected() returns false we may be in the race window
+    // between UDP SUBSCRIBE arrival and accept_cbk() committing the TCP
+    // connection into connections_.  Instead of NACKing immediately we
+    // park the subscription for 100 ms and retry once.
+    // ------------------------------------------------------------------
+    struct pending_tcp_sub_t {
+        service_t                service;
+        instance_t               instance;
+        eventgroup_t             eventgroup;
+        major_version_t          major;
+        ttl_t                    ttl;
+        uint8_t                  counter;
+        uint16_t                 reserved;
+        boost::asio::ip::address first_address;
+        uint16_t                 first_port;
+        bool                     is_first_reliable;
+        boost::asio::ip::address second_address;
+        uint16_t                 second_port;
+        bool                     is_second_reliable;
+        bool                     is_stop_subscribe_subscribe;
+        bool                     force_initial_events;
+        std::set<client_t>       clients;
+        // sd_acceptance_state_t holds a reference; store the three fields
+        // by value so the retry lambda can reconstruct the struct safely.
+        expired_ports_t          expired_ports_copy;
+        bool                     sd_ac_required;
+        bool                     sd_ac_accept;
+        std::shared_ptr<eventgroupinfo>          info;
+        boost::asio::ip::address sender;
+        std::shared_ptr<remote_subscription_ack> ack;
+    };
+
+    void retry_pending_tcp_subscription(
+        pending_tcp_sub_t                           _entry,
+        std::shared_ptr<boost::asio::steady_timer>  _timer);
+
+    std::mutex pending_tcp_subscriptions_mutex_;
+    using pending_tcp_key_t = std::tuple<service_t, instance_t, eventgroup_t,
+                                         boost::asio::ip::address, uint16_t>;
+    std::map<pending_tcp_key_t,
+             std::shared_ptr<boost::asio::steady_timer>> pending_tcp_subscriptions_;
+
+private:
     // Runtime
     std::weak_ptr<runtime> runtime_;
 
