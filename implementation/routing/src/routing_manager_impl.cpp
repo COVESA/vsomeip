@@ -1769,6 +1769,10 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                         if (discovery_) {
                             discovery_->on_endpoint_connected(_service, _instance, ep);
                         }
+                    } else {
+                        if (ep->is_closed()) {
+                            ep->start();
+                        }
                     }
                 } else {
                     ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);

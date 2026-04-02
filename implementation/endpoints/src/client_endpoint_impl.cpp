@@ -62,6 +62,11 @@ bool client_endpoint_impl<Protocol>::is_client() const {
 }
 
 template<typename Protocol>
+bool client_endpoint_impl<Protocol>::is_closed() const {
+    return state_ == cei_state_e::CLOSED;
+}
+
+template<typename Protocol>
 bool client_endpoint_impl<Protocol>::is_established() const {
 
     return state_ == cei_state_e::ESTABLISHED;

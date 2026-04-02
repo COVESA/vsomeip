@@ -10,6 +10,7 @@
 #include "../test_logging.hpp"
 #include "../someip_message.hpp"
 
+#include <mutex>
 #include <span>
 #include <thread>
 #include <numeric>
@@ -303,19 +304,42 @@ void fake_udp_socket_handle::async_receive_from(boost::asio::mutable_buffer _buf
 }
 
 void fake_udp_socket_handle::update_reception_unlocked() {
-    if (!input_.empty() && receptor_) {
+    // Check if a receptor is configured.
+    if (!receptor_) {
+        LOCAL_LOG << "No receptor for unicast data. input.size=" << input_.size()
+                  << " ec=" << stashed_ec_.value_or(boost::system::error_code());
+        return;
+    }
+
+    // Check if there is an error to deliver.
+    if (stashed_ec_) {
+        // Post the handler to the event loop.
+        boost::asio::post(io_, [handler = std::move(receptor_->rw_handler_), ec = *stashed_ec_] { handler(ec, 0); });
+
+        // Clean-up data.
+        stashed_ec_.reset();
+        receptor_.reset();
+        return;
+    }
+
+    // Check if there is data to process.
+    if (!input_.empty()) {
+        // Copy data to the buffer.
         auto unicast_it = input_.begin();
         auto writable_length = std::min(receptor_->buffer_.size(), unicast_it->buffer_.size());
-        receptor_->endpoint_ = unicast_it->src_;
         std::memcpy(receptor_->buffer_.data(), unicast_it->buffer_.data(), writable_length);
 
+        // Update the source endpoint.
+        receptor_->endpoint_ = unicast_it->src_;
+
+        // Post the handler to the event loop.
         boost::asio::post(io_, [handler = std::move(receptor_->rw_handler_), written = writable_length] {
             handler(boost::system::error_code(), written);
         });
+
+        // Clean-up data.
         input_.pop_front();
         receptor_.reset();
-    } else {
-        LOCAL_LOG << "No data reception unicast input " << input_.size() << " unicast receptor " << &receptor_;
     }
 }
 
@@ -357,5 +381,11 @@ void fake_udp_socket_handle::process_delayed_messages() {
             }
         }
     }
+}
+
+void fake_udp_socket_handle::stash_ec(boost::system::error_code _ec) {
+    std::scoped_lock lock{mtx_};
+    stashed_ec_ = {_ec};
+    update_reception_unlocked();
 }
 }

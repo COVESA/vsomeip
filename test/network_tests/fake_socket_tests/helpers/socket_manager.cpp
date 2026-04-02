@@ -657,6 +657,20 @@ void socket_manager::send_someip(boost::asio::const_buffer const& _buffer, boost
     }
 }
 
+bool socket_manager::insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec) {
+    if (auto fd_it = endpoint_udp_to_fd_.find(_endpoint); fd_it != endpoint_udp_to_fd_.end()) {
+        auto& [endpoint, fd] = *fd_it;
+        if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
+            auto [fd, weak_handle] = *handle_it;
+            if (auto handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(weak_handle.lock()); handle) {
+                handle->stash_ec(_ec);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void socket_manager::ignore_router_all_multicast_joins(std::string _router, bool _ignore) {
     auto const lock = std::scoped_lock(mtx_);
     auto router_it = ignore_all_multicast_joins_.find(_router);

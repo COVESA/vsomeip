@@ -54,6 +54,11 @@ void server_endpoint_impl<Protocol>::restart(bool _force) {
 }
 
 template<typename Protocol>
+bool server_endpoint_impl<Protocol>::is_closed() const {
+    return false;
+}
+
+template<typename Protocol>
 bool server_endpoint_impl<Protocol>::is_established() const {
     return true;
 }

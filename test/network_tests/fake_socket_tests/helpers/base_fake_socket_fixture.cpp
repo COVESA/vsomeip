@@ -184,6 +184,10 @@ void base_fake_socket_fixture::inject_command(std::string const& _client, std::s
     socket_manager_->inject_command(_client, _server, _payload);
 }
 
+bool base_fake_socket_fixture::insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec) {
+    return socket_manager_->insert_udp_recv_error(_endpoint, _ec);
+}
+
 [[nodiscard]] std::optional<socket_type> base_fake_socket_fixture::get_connection_socket_type(std::string const& _client,
                                                                                               std::string const& _server) {
     return socket_manager_->get_connection_socket_type(_client, _server);

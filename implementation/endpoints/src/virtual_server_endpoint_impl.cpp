@@ -23,6 +23,10 @@ void virtual_server_endpoint_impl::start() { }
 
 void virtual_server_endpoint_impl::stop(bool /*_due_to_error*/) { }
 
+bool virtual_server_endpoint_impl::is_closed() const {
+    return false;
+}
+
 bool virtual_server_endpoint_impl::is_established() const {
     return false;
 }

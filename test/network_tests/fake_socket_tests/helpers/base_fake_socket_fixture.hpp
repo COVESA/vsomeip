@@ -3,14 +3,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "attribute_recorder.hpp"
 #include "sockets/fake_tcp_socket_handle.hpp"
-#include "service_state.hpp"
 #include "fake_socket_factory.hpp"
 #include "app.hpp"
 
 #include "socket_manager.hpp"
 
+#include <boost/asio/ip/udp.hpp>
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
@@ -220,6 +219,13 @@ struct base_fake_socket_fixture : ::testing::Test {
      */
     void set_custom_command_handler(std::string const& _client, std::string const& _server, vsomeip_command_handler const& _handler,
                                     socket_role _sender = socket_role::unspecified);
+
+    /*
+     * Inserts an error code in the receive operation of the given `endpoint`.
+     *
+     * Returns true if successful.
+     */
+    [[nodiscard]] bool insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec);
 
     /**
      * @see socket_manager::get_connection_socket_type

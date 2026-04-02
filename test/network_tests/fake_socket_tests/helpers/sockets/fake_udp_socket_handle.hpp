@@ -116,6 +116,11 @@ struct fake_udp_socket_handle : public fake_socket_handle {
      **/
     void process_delayed_messages();
 
+    /*
+     * Stash an error code to be processed during the receive operation on this socket.
+     */
+    void stash_ec(boost::system::error_code _ec);
+
     attribute_recorder<someip_sd_record_message> received_sd_record_;
 
 private:
@@ -146,6 +151,11 @@ private:
     socket_id socket_id_;
     std::atomic<bool> delay_messages_{false};
     std::vector<control_data> delayed_messages_;
+
+    /*
+     *  Error code to be delivered during the next receive operation.
+     */
+    std::optional<boost::system::error_code> stashed_ec_;
 };
 
 }

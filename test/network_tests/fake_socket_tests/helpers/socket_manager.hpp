@@ -8,10 +8,13 @@
 #include "sockets/fake_tcp_socket_handle.hpp"
 #include "sockets/fake_udp_socket_handle.hpp"
 
+#include <boost/asio/ip/address.hpp>
+#include <cstdint>
 #include <mutex>
 #include <map>
 #include <set>
 #include <memory>
+#include <tuple>
 #include <optional>
 
 namespace vsomeip_v3::testing {
@@ -310,6 +313,13 @@ public:
     void leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
 
     void send_someip(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+
+    /*
+     * Inserts an error into the next receive operation performed by the given endpoint.
+     *
+     * Returns `true` if successful.
+     */
+    [[nodiscard]] bool insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec);
 
     /**
      * @brief Set control flag to prevent application @param _router to join any multicast group.

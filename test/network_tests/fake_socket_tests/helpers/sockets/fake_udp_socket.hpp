@@ -111,6 +111,11 @@ public:
         state_->async_send_to(_buffer, _endpoint, std::move(_handler));
     }
 
+    /*
+     * Stash an error code to be processed during the receive operation on this socket once.
+     */
+    void stash_ec(boost::system::error_code _ec) { state_->stash_ec(_ec); }
+
 private:
     std::shared_ptr<fake_udp_socket_handle> state_;
 };

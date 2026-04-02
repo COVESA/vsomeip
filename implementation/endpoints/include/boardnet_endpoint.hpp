@@ -37,6 +37,7 @@ public:
     virtual void add_default_target(service_t _service, const std::string& _address, uint16_t _port) = 0;
     virtual void remove_default_target(service_t _service) = 0;
 
+    virtual bool is_closed() const = 0;
     virtual bool is_established() const = 0;
     virtual bool is_established_or_connected() const = 0;
     virtual bool is_reliable() const = 0;

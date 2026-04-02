@@ -20,6 +20,7 @@ public:
     void start();
     void stop(bool _due_to_error);
 
+    bool is_closed() const override;
     bool is_established() const;
     bool is_established_or_connected() const;
     void set_established(bool _established);

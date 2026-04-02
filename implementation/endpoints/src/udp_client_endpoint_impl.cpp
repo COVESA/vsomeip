@@ -332,9 +332,9 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         if (_error == boost::asio::error::connection_refused) {
             VSOMEIP_WARNING_P << "local: " << get_address_port_local() << " remote: " << get_address_port_remote()
                               << " error: " << _error.message();
+            close_socket(false, true);
             std::shared_ptr<boardnet_endpoint_host> its_ep_host = endpoint_host_.lock();
             its_ep_host->on_disconnect(shared_from_this());
-            restart(false);
         } else {
             receive();
         }

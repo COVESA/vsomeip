@@ -187,8 +187,12 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
                                     boardnet_interface_.fields_[0].event_id_,
                                     vsomeip::message_type_e::MT_NOTIFICATION,
                                     {}};
+
     boost::asio::ip::udp::endpoint const ecu_one_sd_comm_{boost::asio::ip::make_address("160.48.199.65"), 30490};
     boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("160.48.199.99"), 30490};
+
+    /// Endpoint used for SOME/IP communication between client and server (hosts).
+    boost::asio::ip::udp::endpoint const ecu_one_client_port_{boost::asio::ip::make_address("160.48.199.65"), 30491};
 
     std::map<std::string, app*> apps_;
     std::set<std::string> env_vars_;
@@ -777,6 +781,42 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
     ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, false));
 
     ecu_one_server->stop_offer(service_instance_);
+}
+
+TEST_F(test_boardnet_helper, udp_connection_refused) {
+    // This test checks for a regression where vsomeip would be stuck in an availability loop when
+    // an UDP endpoint would receive a connection refused error.
+    //
+    // This was usually caused by not observing the service provider's STOP OFFER and trying to send
+    // messages to the UDP port where the service was previously offered.
+
+    // Create client, server and routing hosts.
+    start_all_apps();
+
+    // Offer the test service.
+    ecu_two_server_->offer(service_instance_);
+
+    // Wait for it to become available.
+    ecu_one_client_->request_service(service_instance_);
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // Stop SD communication, simulating a shutdown without STOP OFFERs.
+    ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, true));
+
+    // Insert a "Connection refused" error in the client-server connection.
+    ASSERT_TRUE(insert_udp_recv_error(ecu_one_client_port_, boost::asio::error::connection_refused));
+
+    // Client receives unavailable.
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+
+    // Client does not receive available.
+    ASSERT_FALSE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // Offer the test service again.
+    ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, false));
+
+    // Client receives available.
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
 }
 
 struct guest_offering : public base_fake_socket_fixture {
