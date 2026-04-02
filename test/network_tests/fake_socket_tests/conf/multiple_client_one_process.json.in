@@ -60,7 +60,7 @@
     },
     "service-discovery" :
     {
-        "enable": "true"
+        "enable": "false"
     }
 }
 

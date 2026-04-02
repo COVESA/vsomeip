@@ -29,6 +29,6 @@
     "routing" : "routingmanagerd",
     "service-discovery" :
     {
-        "enable": "true"
+        "enable": "false"
     }
 }
