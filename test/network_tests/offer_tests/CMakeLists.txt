@@ -12,7 +12,8 @@ set(configuration_files
     offer_test_big_sd_msg_slave.json
     offer_test_big_sd_msg_slave_starter.sh
     offer_test_external_master.json
-    offer_test_external_master_starter.sh
+    offer_test_external_local_offer_master_starter.sh
+    offer_test_external_remote_offer_master_starter.sh
     offer_test_external_slave.json
     offer_test_external_slave_starter.sh
     offer_test_local.json
@@ -35,8 +36,16 @@ add_executable(offer_test_client
     offer_test_client.cpp
 )
 
-add_executable(offer_test_service_external
-    offer_test_service_external.cpp
+add_executable(offer_test_external_local_client
+    offer_test_external_local_client.cpp
+)
+
+add_executable(offer_test_external_local_service
+    offer_test_external_local_service.cpp
+)
+
+add_executable(offer_test_external_remote_service
+    offer_test_external_remote_service.cpp
 )
 
 add_executable(offer_test_external_sd_msg_sender
@@ -64,7 +73,9 @@ set(executables
     offer_test_service
     offer_test_multiple_offerings
     offer_test_client
-    offer_test_service_external
+    offer_test_external_local_client
+    offer_test_external_local_service
+    offer_test_external_remote_service
     offer_test_external_sd_msg_sender
     offer_test_big_sd_msg_service
     offer_test_big_sd_msg_client
@@ -79,8 +90,14 @@ add_custom_test(
 )
 
 add_custom_test(
-    NAME offer_test_external
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_external_master_starter.sh
+    NAME offer_test_external_local_offer
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_external_local_offer_master_starter.sh
+    SEQUENTIAL
+)
+
+add_custom_test(
+    NAME offer_test_external_remote_offer
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/offer_test_external_remote_offer_master_starter.sh
     SEQUENTIAL
 )
 

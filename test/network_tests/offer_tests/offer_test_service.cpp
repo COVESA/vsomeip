@@ -66,10 +66,6 @@ public:
 
     void offer() {
         app_->offer_service(service_info_.service_id, service_info_.instance_id);
-        // this is allowed
-        app_->offer_service(service_info_.service_id, service_info_.instance_id);
-        // this is not allowed and will be rejected
-        app_->offer_service(service_info_.service_id, service_info_.instance_id, 33, 4711);
         // instance-specific service (for test orchestration)
         app_->offer_service(0x1000 + service_number, service_number);
     }

@@ -68,12 +68,19 @@ Offer_test_local has 5 test cases:
 
 ### Offer Test External
 
-Offer_test_external has 2 test cases:
+Offer_test_external has 2 sub tests:
 
 1. Rejecting offer for which there is already a remote offer
 2. Rejecting remote offer for which there is already a local offer
 
-#### 1st Test Case - Rejecting offer for which there is already a remote offer
+#### Offer test external local offer - Rejecting remote offer for which there is already a local offer
+
+1. Start routingmanagerd as the HOST
+2. Start application which offers service
+3. Start client which exchanges messages with the service
+4. Send SD message trying to offer the same service instance as already offered locally from a remote host
+
+#### Offer test external remote offer - Rejecting offer for which there is already a remote offer
 
 1. Start routingmanagerd as the HOST
 2. Start application which offers service
@@ -81,13 +88,6 @@ Offer_test_external has 2 test cases:
 4. Start external routingmanagerd as the HOST
 5. Start external application which offers same service
    - Offer should be rejected as there is another already present.
-
-#### 2nd Test Case - Rejecting remote offer for which there is already a local offer
-
-1. Start routingmanagerd as the HOST
-2. Start application which offers service
-3. Start client which exchanges messages with the service
-4. Send SD message trying to offer the same service instance as already offered locally from a remote host
 
 ### Offer Test Big Sd Msg
 

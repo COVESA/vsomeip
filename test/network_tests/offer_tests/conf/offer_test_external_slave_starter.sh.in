@@ -10,26 +10,22 @@ if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
 fi
 
 FAIL=0
-# Rejecting offer for which there is already a remote offer:
-# * start daemon
-# * start application which offers service
-# * start daemon remotely
-# * start same application which offers the same service again remotely
-#   -> should be rejected as there is already a service instance
-#   running in the network
 
 export VSOMEIP_CONFIGURATION=offer_test_external_slave.json
-export VSOMEIP_APPLICATION_NAME="service-external-routingmanager"
-# start daemon
+export VSOMEIP_APPLICATION_NAME="remote-host"
+# Start remote host
 routingmanagerd &
-PID_VSOMEIPD=$!
+REMOTE_HOST_PID=$!
 
-# Start the services
-export VSOMEIP_APPLICATION_NAME="service-external-sample"
-./offer_test_service_external 2 || FAIL=$(($FAIL+1))
+# Start remote service and wait for it to end
+# The remote service will end when client subscribes
+# to the service (offered by either local or remote service)
+export VSOMEIP_APPLICATION_NAME="remote-service"
+./offer_test_external_remote_service || ((FAIL+=1))
 
-# kill the services
-kill $PID_VSOMEIPD
-wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
+# Kill the remote host
+kill $REMOTE_HOST_PID
+wait $REMOTE_HOST_PID || FAIL=$(($FAIL+1))
 
+# Exit second container
 exit $FAIL

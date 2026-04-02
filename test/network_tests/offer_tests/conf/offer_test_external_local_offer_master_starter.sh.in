@@ -1,0 +1,72 @@
+#!/bin/bash -x
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+FAIL=0
+
+# File to signal when the client receives availability for service
+SERVICE_AVAILABLE_FILE="$(pwd)/service_available.flag"
+
+# File to signal that the remote service was subscribed
+REMOTE_SERVICE_SUBSCRIBED_FILE="$(pwd)/remote_service_subscribed.flag"
+
+# File to signal that the local service was subscribed
+LOCAL_SERVICE_SUBSCRIBED_FILE="$(pwd)/local_service_subscribed.flag"
+
+# Remove any existing file before checking
+rm -f *.flag
+
+# Start local host
+export VSOMEIP_CONFIGURATION=offer_test_external_master.json
+export VSOMEIP_APPLICATION_NAME="local-host"
+routingmanagerd &
+LOCAL_HOST_PID=$!
+
+# Start local client
+export VSOMEIP_APPLICATION_NAME="local-client"
+./offer_test_external_local_client &
+LOCAL_CLIENT_PID=$!
+
+# Start local service
+export VSOMEIP_APPLICATION_NAME="local-service"
+./offer_test_external_local_service &
+
+# Wait until client receives availability to start the remote service
+while true; do
+    if [ -f "$SERVICE_AVAILABLE_FILE" ]; then
+        echo "Client received service availability, starting local service..."
+        break
+    fi
+    echo "Waiting for the client to receive service availability..."
+    sleep 0.3;
+done
+
+# Start remote host and service
+exec_slave "./offer_test_external_slave_starter.sh"
+
+# Wait until client shuts down
+wait $LOCAL_CLIENT_PID || FAIL=$(($FAIL+1))
+
+# Verify that the local service was subscribed
+# and not the remote service
+if [[ ! -f "$LOCAL_SERVICE_SUBSCRIBED_FILE"  || -f "$REMOTE_SERVICE_SUBSCRIBED_FILE" ]]; then
+    FAIL+=1
+fi
+
+# Send kill signal to the local host
+kill $LOCAL_HOST_PID
+
+# Wait for jobs to finish
+for job in $(jobs -p)
+do
+    wait $job || ((FAIL+=1))
+done
+
+exit $FAIL
