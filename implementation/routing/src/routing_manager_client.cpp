@@ -296,10 +296,38 @@ void routing_manager_client::on_pong(client_t _client) {
 bool routing_manager_client::offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                            minor_version_t _minor) {
 
-    if (!routing_manager_base::offer_service(_client, _service, _instance, _major, _minor)) {
-        VSOMEIP_WARNING_P << "Service " << hex4(_service) << "." << hex4(_instance) << "." << hex4(_major)
-                          << " is already offered by Client 0x" << hex4(_client);
+    {
+        std::scoped_lock its_lock(provider_mutex_);
+        auto its_info = find_service(_service, _instance, its_lock);
+        if (its_info) {
+            if (its_info->get_major() != _major || its_info->get_minor() != _minor) {
+                VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance)
+                                << ":" << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+                                << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
+                return false;
+            }
+            return true; // we are already offering this service -> no need to do anything else!
+        }
+        its_info = std::make_shared<serviceinfo>(_service, _instance, _major, _minor, DEFAULT_TTL, true);
+        provided_services_[_service][_instance] = its_info;
     }
+
+    {
+        // TODO
+        // events need dedicated scoping/locking, because events_
+        // are currently not only containing events provided by us,
+        // but also events that are consumed by us.
+        std::scoped_lock its_lock(events_mutex_);
+        // Set major version for all registered events of this service and instance
+        const auto search = events_.find(service_instance_t{_service, _instance});
+
+        if (search != events_.end()) {
+            for (const auto& [event_id, event_ptr] : search->second) {
+                event_ptr->set_version(_major);
+            }
+        }
+    }
+
     {
         // order matters:
         // 1. Ensure that it is part of the pending_offers set
@@ -353,9 +381,7 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
         routing_manager_base::stop_offer_service(_client, _service, _instance, _major, _minor);
         clear_remote_subscriber_count(_service, _instance);
 
-        // Note: The last argument does not matter here as a proxy
-        //       does not manage endpoints to the external network.
-        clear_service_info(_service, _instance, false);
+        clear_service_info(_service, _instance);
     }
 
     {
@@ -2677,6 +2703,35 @@ void routing_manager_client::remove_pending_subscription(service_t _service, ins
             }
         }
     }
+}
+
+void routing_manager_client::clear_service_info(service_t _service, instance_t _instance) {
+    std::scoped_lock its_lock(provider_mutex_);
+    if (auto const it_service = provided_services_.find(_service); it_service != provided_services_.end()) {
+        if (it_service->second.size() <= 1) {
+            // Why don't we need to check the instance?
+            provided_services_.erase(_service);
+        } else {
+            it_service->second.erase(_instance);
+        }
+    }
+}
+
+std::shared_ptr<serviceinfo> routing_manager_client::find_service(service_t _service, instance_t _instance) const {
+    std::scoped_lock its_lock(provider_mutex_);
+    return find_service(_service, _instance, its_lock);
+}
+
+std::shared_ptr<serviceinfo> routing_manager_client::find_service(service_t _service, instance_t _instance,
+                                                                  std::scoped_lock<std::mutex> const&) const {
+    auto found_service = provided_services_.find(_service);
+    if (found_service != provided_services_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            return found_instance->second;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace vsomeip_v3

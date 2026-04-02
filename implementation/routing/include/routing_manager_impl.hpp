@@ -234,6 +234,12 @@ public:
     void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
                                  instance_t _instance = ANY_INSTANCE);
 
+    // endpoint_manager_impl requires this to be accessible
+    std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const override;
+    bool offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
+    std::shared_ptr<serviceinfo> create_service_info(service_t _service, instance_t _instance, major_version_t _major,
+                                                     minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
+
 private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
@@ -354,6 +360,10 @@ private:
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
 
+    services_t get_services_remote() const;
+    void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
+    services_t get_services() const;
+
 private:
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
@@ -432,6 +442,11 @@ private:
     local_service_table local_services_table_;
 
     std::mutex on_state_change_mutex_;
+
+    services_t services_remote_;
+    mutable std::mutex services_remote_mutex_;
+    services_t services_;
+    mutable std::mutex services_mutex_;
 };
 
 } // namespace vsomeip_v3

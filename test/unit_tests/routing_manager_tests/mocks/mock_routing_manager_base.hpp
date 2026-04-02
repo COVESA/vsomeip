@@ -66,6 +66,7 @@ public:
                 (const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size, instance_t _instance),
                 (override));
     MOCK_METHOD(bool, is_local_client, (client_t _client), (const, override));
+    MOCK_METHOD(std::shared_ptr<serviceinfo>, find_service, (service_t, instance_t), (const, override));
 
     MOCK_METHOD(bool, send_event, (client_t, std::shared_ptr<message>, bool), (override));
 

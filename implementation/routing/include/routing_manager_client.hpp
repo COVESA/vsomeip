@@ -103,6 +103,9 @@ public:
     bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
     bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
+    // that this function is provided to the application_impl feels pretty strange
+    std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const override;
+
 private:
     void send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major);
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
@@ -215,6 +218,9 @@ private:
     bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
 
+    void clear_service_info(service_t _service, instance_t _instance);
+    std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
+
 private:
     boost::asio::steady_timer keepalive_timer_;
     std::mutex log_timer_mutex_;
@@ -303,6 +309,13 @@ private:
 
     bool const is_uds_preferred_;
     bool const is_local_routing_;
+
+    // This mutex should be used whenever the client
+    // is trying to accessing data relevant for its
+    // "provider" side (offering of events, pending_offers, offered services etc.)
+    mutable std::mutex provider_mutex_;
+    // Set of services provided by this client
+    services_t provided_services_;
 };
 
 } // namespace vsomeip_v3

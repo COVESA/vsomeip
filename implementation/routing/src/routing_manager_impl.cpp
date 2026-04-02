@@ -2545,7 +2545,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
         }
 
         // check if the same service instance is already offered remotely
-        if (routing_manager_base::offer_service(_client, _service, _instance, _major, _minor)) {
+        if (offer_service_base(_client, _service, _instance, _major, _minor)) {
             local_services_table_.add(_service, _instance, _major, _minor, _client);
         } else {
             VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer [" << hex4(_service)
@@ -3867,6 +3867,111 @@ bool routing_manager_impl::is_valid_client_id(const client_t _client, const mess
 
 bool routing_manager_impl::send_event(client_t _client, std::shared_ptr<message> _message, bool _force) {
     return send(_client, _message, _force);
+}
+
+services_t routing_manager_impl::get_services_remote() const {
+    std::scoped_lock its_lock(services_remote_mutex_);
+    return services_remote_;
+}
+
+void routing_manager_impl::clear_service_info(service_t _service, instance_t _instance, bool _reliable) {
+    std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
+    if (!its_info) {
+        return;
+    }
+
+    bool deleted_instance(false);
+    bool deleted_service(false);
+    {
+        std::scoped_lock its_lock(services_mutex_);
+
+        // Clear service_info and service_group
+        if (!its_info->get_endpoint(!_reliable)) {
+            if (1 >= services_[_service].size()) {
+                services_.erase(_service);
+                deleted_service = true;
+            } else {
+                services_[_service].erase(_instance);
+                deleted_instance = true;
+            }
+        } else {
+            its_info->set_endpoint(nullptr, _reliable);
+        }
+    }
+
+    if ((deleted_instance || deleted_service) && !its_info->is_local()) {
+        std::scoped_lock its_lock(services_remote_mutex_);
+        if (deleted_service) {
+            services_remote_.erase(_service);
+        } else if (deleted_instance) {
+            services_remote_[_service].erase(_instance);
+        }
+    }
+}
+
+std::shared_ptr<serviceinfo> routing_manager_impl::find_service(service_t _service, instance_t _instance) const {
+    std::shared_ptr<serviceinfo> its_info;
+    std::scoped_lock its_lock(services_mutex_);
+    auto found_service = services_.find(_service);
+    if (found_service != services_.end()) {
+        auto found_instance = found_service->second.find(_instance);
+        if (found_instance != found_service->second.end()) {
+            its_info = found_instance->second;
+        }
+    }
+    return its_info;
+}
+
+services_t routing_manager_impl::get_services() const {
+    std::scoped_lock its_lock(services_mutex_);
+    return services_;
+}
+bool routing_manager_impl::offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
+                                              minor_version_t _minor) {
+    (void)_client;
+
+    // Remote route (incoming only)
+    auto its_info = find_service(_service, _instance);
+    if (its_info) {
+        if (!its_info->is_local()) {
+            return false;
+        } else if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
+            its_info->set_ttl(DEFAULT_TTL);
+        } else {
+            VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+                            << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+                            << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
+            return false;
+        }
+    } else {
+        its_info = create_service_info(_service, _instance, _major, _minor, DEFAULT_TTL, true);
+    }
+    {
+        std::scoped_lock its_lock(events_mutex_);
+        // Set major version for all registered events of this service and instance
+        const auto search = events_.find(service_instance_t{_service, _instance});
+
+        if (search != events_.end()) {
+            for (const auto& [event_id, event_ptr] : search->second) {
+                event_ptr->set_version(_major);
+            }
+        }
+    }
+    return true;
+}
+
+std::shared_ptr<serviceinfo> routing_manager_impl::create_service_info(service_t _service, instance_t _instance, major_version_t _major,
+                                                                       minor_version_t _minor, ttl_t _ttl, bool _is_local_service) {
+    std::shared_ptr<serviceinfo> its_info = std::make_shared<serviceinfo>(_service, _instance, _major, _minor, _ttl, _is_local_service);
+    {
+        std::scoped_lock its_lock(services_mutex_);
+        services_[_service][_instance] = its_info;
+    }
+    if (!_is_local_service) {
+        std::scoped_lock its_lock(services_remote_mutex_);
+        services_remote_[_service][_instance] = its_info;
+    }
+    return its_info;
 }
 
 } // namespace vsomeip_v3

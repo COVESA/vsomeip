@@ -155,40 +155,6 @@ bool routing_manager_base::is_routing_manager() const {
     return false;
 }
 
-bool routing_manager_base::offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                         minor_version_t _minor) {
-    (void)_client;
-
-    // Remote route (incoming only)
-    auto its_info = find_service(_service, _instance);
-    if (its_info) {
-        if (!its_info->is_local()) {
-            return false;
-        } else if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
-            its_info->set_ttl(DEFAULT_TTL);
-        } else {
-            VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                            << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
-                            << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
-            return false;
-        }
-    } else {
-        its_info = create_service_info(_service, _instance, _major, _minor, DEFAULT_TTL, true);
-    }
-    {
-        std::scoped_lock its_lock(events_mutex_);
-        // Set major version for all registered events of this service and instance
-        const auto search = events_.find(service_instance_t{_service, _instance});
-
-        if (search != events_.end()) {
-            for (const auto& [event_id, event_ptr] : search->second) {
-                event_ptr->set_version(_major);
-            }
-        }
-    }
-    return true;
-}
-
 void routing_manager_base::stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                               minor_version_t _minor) {
     (void)_client;
@@ -706,77 +672,6 @@ void routing_manager_base::notify_one_current_value(client_t _client, service_t 
 }
 
 // ********************************* PROTECTED **************************************
-std::shared_ptr<serviceinfo> routing_manager_base::create_service_info(service_t _service, instance_t _instance, major_version_t _major,
-                                                                       minor_version_t _minor, ttl_t _ttl, bool _is_local_service) {
-    std::shared_ptr<serviceinfo> its_info = std::make_shared<serviceinfo>(_service, _instance, _major, _minor, _ttl, _is_local_service);
-    {
-        std::scoped_lock its_lock(services_mutex_);
-        services_[_service][_instance] = its_info;
-    }
-    if (!_is_local_service) {
-        std::scoped_lock its_lock(services_remote_mutex_);
-        services_remote_[_service][_instance] = its_info;
-    }
-    return its_info;
-}
-
-std::shared_ptr<serviceinfo> routing_manager_base::find_service(service_t _service, instance_t _instance) const {
-    std::shared_ptr<serviceinfo> its_info;
-    std::scoped_lock its_lock(services_mutex_);
-    auto found_service = services_.find(_service);
-    if (found_service != services_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            its_info = found_instance->second;
-        }
-    }
-    return its_info;
-}
-
-void routing_manager_base::clear_service_info(service_t _service, instance_t _instance, bool _reliable) {
-    std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance));
-    if (!its_info) {
-        return;
-    }
-
-    bool deleted_instance(false);
-    bool deleted_service(false);
-    {
-        std::scoped_lock its_lock(services_mutex_);
-
-        // Clear service_info and service_group
-        if (!its_info->get_endpoint(!_reliable)) {
-            if (1 >= services_[_service].size()) {
-                services_.erase(_service);
-                deleted_service = true;
-            } else {
-                services_[_service].erase(_instance);
-                deleted_instance = true;
-            }
-        } else {
-            its_info->set_endpoint(nullptr, _reliable);
-        }
-    }
-
-    if ((deleted_instance || deleted_service) && !its_info->is_local()) {
-        std::scoped_lock its_lock(services_remote_mutex_);
-        if (deleted_service) {
-            services_remote_.erase(_service);
-        } else if (deleted_instance) {
-            services_remote_[_service].erase(_instance);
-        }
-    }
-}
-
-services_t routing_manager_base::get_services() const {
-    std::scoped_lock its_lock(services_mutex_);
-    return services_;
-}
-
-services_t routing_manager_base::get_services_remote() const {
-    std::scoped_lock its_lock(services_remote_mutex_);
-    return services_remote_;
-}
 
 std::shared_ptr<event> routing_manager_base::find_event(service_t _service, instance_t _instance, event_t _event) const {
     std::scoped_lock its_lock(events_mutex_);

@@ -64,8 +64,6 @@ public:
 
     virtual void init() = 0;
 
-    virtual bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
-
     virtual void stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                     minor_version_t _minor);
 
@@ -103,7 +101,7 @@ public:
 
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 
-    std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const;
+    virtual std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const = 0;
 
     std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
 
@@ -129,13 +127,6 @@ protected:
      * \param _only_external if true, logs *only* external connections (e.g., service-discovery), otherwise everything
      */
     void log_network_state(bool _tcp, bool _only_external) const;
-
-    std::shared_ptr<serviceinfo> create_service_info(service_t _service, instance_t _instance, major_version_t _major,
-                                                     minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
-
-    void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
-    services_t get_services() const;
-    services_t get_services_remote() const;
 
     std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
 
@@ -216,9 +207,6 @@ protected:
 
     std::mutex event_registration_mutex_;
 
-    services_t services_remote_;
-    mutable std::mutex services_remote_mutex_;
-
     mutable std::mutex env_mutex_;
     std::string env_;
 
@@ -226,10 +214,6 @@ protected:
 
     // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
     std::mutex subscription_mutex;
-
-private:
-    services_t services_;
-    mutable std::mutex services_mutex_;
 };
 
 } // namespace vsomeip_v3
