@@ -1053,8 +1053,13 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         join_status_.erase(_address.to_string());
 
         if (multicast_socket_ && multicast_socket_->is_open()) {
-            boost::asio::ip::multicast::leave_group its_leave_option(_address);
-            std::ignore = multicast_socket_->set_option(its_leave_option, _error);
+            if (is_v4_) {
+                boost::asio::ip::multicast::leave_group its_leave_option(_address.to_v4(), local_.address().to_v4());
+                std::ignore = multicast_socket_->set_option(its_leave_option, _error);
+            } else {
+                boost::asio::ip::multicast::leave_group its_leave_option(_address.to_v6(), scope_id_);
+                std::ignore = multicast_socket_->set_option(its_leave_option, _error);
+            }
 
             if (_error) {
                 VSOMEIP_ERROR << instance_name_ << __func__ << ": leave failure, " << _error.message();
