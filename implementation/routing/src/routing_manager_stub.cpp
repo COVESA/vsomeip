@@ -1227,11 +1227,10 @@ void routing_manager_stub::on_ping_timer_expired(boost::system::error_code const
                 }
             }
         }
-    }
-
-    if (pinged_clients_remaining) {
-        pinged_clients_timer_.expires_after(next_timeout);
-        pinged_clients_timer_.async_wait(std::bind(&routing_manager_stub::on_ping_timer_expired, this, std::placeholders::_1));
+        if (pinged_clients_remaining) {
+            pinged_clients_timer_.expires_after(next_timeout);
+            pinged_clients_timer_.async_wait(std::bind(&routing_manager_stub::on_ping_timer_expired, this, std::placeholders::_1));
+        }
     }
 }
 

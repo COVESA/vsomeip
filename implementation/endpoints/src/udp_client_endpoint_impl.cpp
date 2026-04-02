@@ -171,15 +171,10 @@ void udp_client_endpoint_impl::restart(bool _force) {
         std::lock_guard<std::recursive_mutex> its_lock(mutex_);
         queue_.clear();
     }
-    std::string local;
-    {
-        std::scoped_lock its_lock(socket_mutex_);
-        local = get_address_port_local();
-    }
     was_not_connected_ = true;
     is_sending_ = false;
     reconnect_counter_ = 0;
-    VSOMEIP_WARNING_P << "local: " << local << " remote: " << get_address_port_remote();
+    VSOMEIP_WARNING_P << "local: " << get_address_port_local() << " remote: " << get_address_port_remote();
     close_socket(false, false);
     state_ = cei_state_e::CONNECTING;
     start_connect_timer();
@@ -359,6 +354,7 @@ std::string udp_client_endpoint_impl::get_address_port_remote() const {
 }
 
 std::string udp_client_endpoint_impl::get_address_port_local() const {
+    std::scoped_lock its_lock{socket_mutex_};
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::system::error_code ec;
@@ -381,13 +377,8 @@ void udp_client_endpoint_impl::print_status() {
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }
-    std::string local;
-    {
-        std::scoped_lock its_lock(socket_mutex_);
-        local = get_address_port_local();
-    }
 
-    VSOMEIP_INFO << "status uce: " << local << " -> " << get_address_port_remote() << " queue: " << its_queue_size
+    VSOMEIP_INFO << "status uce: " << get_address_port_local() << " -> " << get_address_port_remote() << " queue: " << its_queue_size
                  << " data: " << its_data_size;
 }
 
