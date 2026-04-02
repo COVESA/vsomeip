@@ -15,7 +15,7 @@
 #include <vsomeip/payload.hpp>
 #include <vsomeip/runtime.hpp>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/event.hpp"
 #include "../include/types.hpp"
 #include "../include/event_dispatcher.hpp"

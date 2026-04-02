@@ -10,7 +10,7 @@
 #include "../../tracing/include/connector_impl.hpp"
 #include "../../utility/include/utility.hpp"
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 #if defined(__linux__)
 #include <dlfcn.h>

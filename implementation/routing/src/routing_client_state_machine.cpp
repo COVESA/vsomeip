@@ -8,7 +8,7 @@
 #include "../include/routing_client_state_machine.hpp"
 #include "../../utility/include/is_value.hpp"
 #include "../../utility/include/utility.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 namespace vsomeip_v3 {
 

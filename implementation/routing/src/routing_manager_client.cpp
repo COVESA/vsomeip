@@ -25,7 +25,7 @@
 #include <vsomeip/runtime.hpp>
 #include <vsomeip/vsomeip_sec.h>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/event.hpp"
 #include "../include/routing_manager_host.hpp"
 #include "../include/routing_manager_client.hpp"

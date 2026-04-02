@@ -7,7 +7,7 @@
 
 #include "../include/update_security_policy_command.hpp"
 #include "../../security/include/policy.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 namespace vsomeip_v3 {
 namespace protocol {

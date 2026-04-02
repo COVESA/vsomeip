@@ -14,7 +14,7 @@
 #include <thread>
 #include <algorithm>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
 #include "../include/deserializer.hpp"

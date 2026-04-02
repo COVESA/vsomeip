@@ -13,7 +13,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/channel_impl.hpp"
 #include "../include/connector_impl.hpp"
 #include "../include/defines.hpp"

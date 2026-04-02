@@ -9,7 +9,7 @@
 
 #include "../../configuration/include/configuration.hpp"
 #include "../../security/include/security.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 #include <vsomeip/vsomeip_sec.h>
 #include <boost/system/error_code.hpp>

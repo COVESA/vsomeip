@@ -23,7 +23,7 @@
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/application_impl.hpp"
 #include "../include/runtime_impl.hpp"
 #include "../include/routing_application.hpp"

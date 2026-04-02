@@ -6,7 +6,7 @@
 #include "../include/timer.hpp"
 #include "../include/abstract_socket_factory.hpp"
 #include "../../utility/include/is_value.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 #include <boost/asio/error.hpp>
 

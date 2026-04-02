@@ -10,7 +10,7 @@
 #include <boost/asio/write.hpp>
 
 #include <vsomeip/constants.hpp>
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #ifdef _WIN32
 #include <Winsock2.h>
 #endif

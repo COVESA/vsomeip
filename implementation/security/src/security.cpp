@@ -6,7 +6,7 @@
 #include <vsomeip/internal/plugin_manager.hpp>
 
 #include "../include/security.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 #include "internal.hpp"
 #include "../../configuration/include/configuration_plugin.hpp"

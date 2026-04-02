@@ -8,7 +8,7 @@
 
 #include <vsomeip/constants.hpp>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/eventgroupinfo.hpp"
 #include "../include/event.hpp"
 #include "../include/remote_subscription.hpp"

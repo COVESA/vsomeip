@@ -13,7 +13,7 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/defines.hpp>
 
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 #include "../include/tcp_socket.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/boardnet_routing_host.hpp"

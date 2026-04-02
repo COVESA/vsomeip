@@ -6,7 +6,7 @@
 #if defined(__linux__) || defined(__QNX__)
 #include "../include/local_socket_uds_impl.hpp"
 #include "../include/abstract_socket_factory.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 #include <boost/asio/error.hpp>
 #include <boost/asio/write.hpp>

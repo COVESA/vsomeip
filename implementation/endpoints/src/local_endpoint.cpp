@@ -13,7 +13,7 @@
 #include "../../utility/include/utility.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
 #include "../../protocol/include/logging.hpp"
-#include "../../logger/include/logger_ext.hpp"
+#include "logger_ext.hpp"
 
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/error.hpp>
