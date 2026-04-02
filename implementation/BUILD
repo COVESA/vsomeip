@@ -130,6 +130,7 @@ cc_library(
     deps = [
         ":generated_config",
         ":helper",
+        "@boost//:headers",
         "//interface",
     ],
 )
