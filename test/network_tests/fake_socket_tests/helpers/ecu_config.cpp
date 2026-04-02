@@ -10,6 +10,10 @@
 
 namespace vsomeip_v3::testing {
 ecu_config::ecu_config(std::vector<interface> offered, vsomeip::port_t base_port) {
+    add_interface(offered, base_port);
+}
+
+ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::port_t base_port) {
 
     vsomeip::port_t next_port = base_port;
     for (auto const& iface : offered) {
@@ -58,6 +62,8 @@ ecu_config::ecu_config(std::vector<interface> offered, vsomeip::port_t base_port
 
         services_.push_back(std::move(svc));
     }
+
+    return *this;
 }
 namespace {
 

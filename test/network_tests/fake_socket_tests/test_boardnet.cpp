@@ -848,4 +848,68 @@ TEST_F(guest_offering, guests_provide_and_consume_interface) {
     EXPECT_TRUE(client->subscription_record_.wait_for_any(
             event_subscription::successfully_subscribed_to(interfaces::boardnet::service_3344.fields_[0])));
 }
+
+struct server_offering_multiple_fields : public base_fake_socket_fixture {
+
+    // Custom interface with 10 fields
+    std::vector<interface::event_spec> const fields_specs_{
+            {0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8003, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x8004, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8005, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x8006, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8007, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x8008, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x8009, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
+            {0x800a, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}, {0x800b, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE},
+    };
+    interface multi_field_service_{0x3344, {}, fields_specs_};
+    ecu_config ecu_one_config_extended_{boardnet::ecu_one_config};
+    ecu_config ecu_two_config_extended_{boardnet::ecu_two_config};
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_two_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
+};
+
+TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fields) {
+    // Purpose is purely to test the trivial scenario where there is a consumer that is interested in
+    // multiple fields of the same service, and the provider offers all these fields together.
+    // This is to verify that there are no issues with the handling of multiple fields in the
+    // same service, and that the client can receive events from all these fields without any problem.
+
+    ecu_one_.add_guest({"guest_server", std::nullopt});
+    ecu_two_.add_guest({"guest_client", std::nullopt});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* server = ecu_one_.apps_["guest_server"];
+    server->offer(multi_field_service_);
+
+    // We need it to set the respective payloads for the events of each field,
+    // so we send them before subscribing, they should be cached and delivered once the subscription is done
+    for (size_t i = 0; i < fields_specs_.size(); ++i) {
+        std::vector<unsigned char> payload{static_cast<unsigned char>(0x10 + i), static_cast<unsigned char>(i)};
+        server->send_event(multi_field_service_.fields_[i], payload);
+    }
+
+    // ecu_one's dynamic client subscribes to all 10 fields
+    auto* client = ecu_two_.apps_["guest_client"];
+    client->request_service(multi_field_service_.instance_);
+
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
+
+    // Note that the provider will be registering all the events
+    // otherwise, initial events for all fields won't be received
+    client->subscribe(multi_field_service_);
+
+    // Verify client receives all 10 events using message_checker for flexible matching
+    // These should be the cached events from before subscription
+    for (size_t i = 0; i < 10; ++i) {
+        std::vector<unsigned char> expected_payload{static_cast<unsigned char>(0x10 + i), static_cast<unsigned char>(i)};
+        message_checker checker{std::nullopt, multi_field_service_.instance_, multi_field_service_.fields_[i].event_id_,
+                                vsomeip::message_type_e::MT_NOTIFICATION, expected_payload};
+        EXPECT_TRUE(client->message_record_.wait_for(checker))
+                << "Failed to receive event for field " << i << "\nRecord: " << client->message_record_.to_string();
+    }
+}
 }
