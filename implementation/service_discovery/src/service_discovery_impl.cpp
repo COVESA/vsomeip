@@ -2116,12 +2116,55 @@ void service_discovery_impl::handle_eventgroup_subscription(
                 its_reliable = its_subscriber;
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
-                    insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
-                    // TODO: Add sender and session id
-                    VSOMEIP_ERROR << "TCP connection to target1: [" << its_reliable->get_address().to_string() << ":"
-                                  << its_reliable->get_port() << "] not established for subscription to: [" << std::hex << std::setfill('0')
-                                  << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
-                                  << "] ";
+                    VSOMEIP_WARNING << "TCP connection to target1: ["
+                        << its_reliable->get_address().to_string() << ":"
+                        << its_reliable->get_port()
+                        << "] not yet established for subscription to: ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup
+                        << "] — deferring 100 ms (issue #971)";
+                    pending_tcp_sub_t entry;
+                    entry.service    = _service;    entry.instance  = _instance;
+                    entry.eventgroup = _eventgroup; entry.major     = _major;
+                    entry.ttl        = _ttl;        entry.counter   = _counter;
+                    entry.reserved   = _reserved;
+                    entry.first_address     = _first_address;
+                    entry.first_port        = _first_port;
+                    entry.is_first_reliable = _is_first_reliable;
+                    entry.second_address     = _second_address;
+                    entry.second_port        = _second_port;
+                    entry.is_second_reliable = _is_second_reliable;
+                    entry.is_stop_subscribe_subscribe = _is_stop_subscribe_subscribe;
+                    entry.force_initial_events        = _force_initial_events;
+                    entry.clients            = _clients;
+                    entry.expired_ports_copy = _sd_ac_state.expired_ports_;
+                    entry.sd_ac_required     = _sd_ac_state.sd_acceptance_required_;
+                    entry.sd_ac_accept       = _sd_ac_state.accept_entries_;
+                    entry.info   = _info;
+                    entry.sender = _sender;
+                    entry.ack    = std::make_shared<remote_subscription_ack>(_sender);
+                    auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
+                    pending_tcp_key_t key{_service, _instance, _eventgroup,
+                                          its_reliable->get_address(),
+                                          its_reliable->get_port()};
+                    {
+                        std::scoped_lock lk(pending_tcp_subscriptions_mutex_);
+                        if (auto it = pending_tcp_subscriptions_.find(key);
+                                it != pending_tcp_subscriptions_.end()) {
+                            it->second->cancel();
+                        }
+                        pending_tcp_subscriptions_[key] = its_timer;
+                    }
+                    its_timer->expires_after(std::chrono::milliseconds(100));
+                    its_timer->async_wait(
+                        [self = shared_from_this(), e = std::move(entry),
+                         t = its_timer](const boost::system::error_code& ec) mutable {
+                            if (!ec) {
+                                self->retry_pending_tcp_subscription(std::move(e), t);
+                            }
+                        });
                     return;
                 }
             } else { // udp unicast
@@ -2135,12 +2178,55 @@ void service_discovery_impl::handle_eventgroup_subscription(
                 its_reliable = its_subscriber;
                 // check if TCP connection is established by client
                 if (_ttl > 0 && !is_tcp_connected(_service, _instance, its_reliable)) {
-                    insert_subscription_ack(_acknowledgement, _info, 0, nullptr, _clients);
-                    // TODO: Add sender and session id
-                    VSOMEIP_ERROR << "TCP connection to target2 : [" << its_reliable->get_address().to_string() << ":"
-                                  << its_reliable->get_port() << "] not established for subscription to: [" << std::hex << std::setfill('0')
-                                  << std::setw(4) << _service << "." << std::setw(4) << _instance << "." << std::setw(4) << _eventgroup
-                                  << "] ";
+                    VSOMEIP_WARNING << "TCP connection to target2: ["
+                        << its_reliable->get_address().to_string() << ":"
+                        << its_reliable->get_port()
+                        << "] not yet established for subscription to: ["
+                        << std::hex << std::setfill('0')
+                        << std::setw(4) << _service << "."
+                        << std::setw(4) << _instance << "."
+                        << std::setw(4) << _eventgroup
+                        << "] — deferring 100 ms (issue #971)";
+                    pending_tcp_sub_t entry;
+                    entry.service    = _service;    entry.instance  = _instance;
+                    entry.eventgroup = _eventgroup; entry.major     = _major;
+                    entry.ttl        = _ttl;        entry.counter   = _counter;
+                    entry.reserved   = _reserved;
+                    entry.first_address     = _first_address;
+                    entry.first_port        = _first_port;
+                    entry.is_first_reliable = _is_first_reliable;
+                    entry.second_address     = _second_address;
+                    entry.second_port        = _second_port;
+                    entry.is_second_reliable = _is_second_reliable;
+                    entry.is_stop_subscribe_subscribe = _is_stop_subscribe_subscribe;
+                    entry.force_initial_events        = _force_initial_events;
+                    entry.clients            = _clients;
+                    entry.expired_ports_copy = _sd_ac_state.expired_ports_;
+                    entry.sd_ac_required     = _sd_ac_state.sd_acceptance_required_;
+                    entry.sd_ac_accept       = _sd_ac_state.accept_entries_;
+                    entry.info   = _info;
+                    entry.sender = _sender;
+                    entry.ack    = std::make_shared<remote_subscription_ack>(_sender);
+                    auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
+                    pending_tcp_key_t key{_service, _instance, _eventgroup,
+                                          its_reliable->get_address(),
+                                          its_reliable->get_port()};
+                    {
+                        std::scoped_lock lk(pending_tcp_subscriptions_mutex_);
+                        if (auto it = pending_tcp_subscriptions_.find(key);
+                                it != pending_tcp_subscriptions_.end()) {
+                            it->second->cancel();
+                        }
+                        pending_tcp_subscriptions_[key] = its_timer;
+                    }
+                    its_timer->expires_after(std::chrono::milliseconds(100));
+                    its_timer->async_wait(
+                        [self = shared_from_this(), e = std::move(entry),
+                         t = its_timer](const boost::system::error_code& ec) mutable {
+                            if (!ec) {
+                                self->retry_pending_tcp_subscription(std::move(e), t);
+                            }
+                        });
                     return;
                 }
             } else { // udp unicast
@@ -2272,6 +2358,66 @@ bool service_discovery_impl::is_tcp_connected(service_t _service, instance_t _in
         }
     }
     return is_connected;
+}
+
+void service_discovery_impl::retry_pending_tcp_subscription(
+        pending_tcp_sub_t _entry,
+        std::shared_ptr<boost::asio::steady_timer> _timer) {
+
+    const bool first_was_reliable = _entry.is_first_reliable
+                                    && _entry.first_port != ILLEGAL_PORT;
+    const boost::asio::ip::address& rel_addr =
+        first_was_reliable ? _entry.first_address : _entry.second_address;
+    const uint16_t rel_port =
+        first_was_reliable ? _entry.first_port : _entry.second_port;
+
+    pending_tcp_key_t key{_entry.service, _entry.instance, _entry.eventgroup,
+                          rel_addr, rel_port};
+    {
+        std::scoped_lock lk(pending_tcp_subscriptions_mutex_);
+        pending_tcp_subscriptions_.erase(key);
+    }
+
+    auto its_reliable_ep = endpoint_definition::get(
+        rel_addr, rel_port,
+        first_was_reliable ? _entry.is_first_reliable : _entry.is_second_reliable,
+        _entry.service, _entry.instance);
+
+    if (is_tcp_connected(_entry.service, _entry.instance, its_reliable_ep)) {
+        expired_ports_t its_expired_ports = _entry.expired_ports_copy;
+        sd_acceptance_state_t its_sd_ac_state(its_expired_ports);
+        its_sd_ac_state.sd_acceptance_required_ = _entry.sd_ac_required;
+        its_sd_ac_state.accept_entries_         = _entry.sd_ac_accept;
+
+        handle_eventgroup_subscription(
+            _entry.service, _entry.instance, _entry.eventgroup,
+            _entry.major, _entry.ttl, _entry.counter, _entry.reserved,
+            _entry.first_address,  _entry.first_port,  _entry.is_first_reliable,
+            _entry.second_address, _entry.second_port, _entry.is_second_reliable,
+            _entry.ack,
+            _entry.is_stop_subscribe_subscribe, _entry.force_initial_events,
+            _entry.clients, its_sd_ac_state, _entry.info, _entry.sender);
+
+        _entry.ack->complete();
+        if (_entry.ack->has_subscription()) {
+            update_acknowledgement(_entry.ack);
+        } else if (!_entry.ack->is_pending() && !_entry.ack->is_done()) {
+            send_subscription_ack(_entry.ack);
+        }
+    } else {
+        VSOMEIP_ERROR << "TCP connection to ["
+            << rel_addr.to_string() << ":" << rel_port
+            << "] still not established after 100 ms for subscription to: ["
+            << std::hex << std::setfill('0')
+            << std::setw(4) << _entry.service << "."
+            << std::setw(4) << _entry.instance << "."
+            << std::setw(4) << _entry.eventgroup << "] — sending NACK";
+        insert_subscription_ack(_entry.ack, _entry.info, 0, nullptr, _entry.clients);
+        _entry.ack->complete();
+        if (!_entry.ack->is_pending() && !_entry.ack->is_done()) {
+            send_subscription_ack(_entry.ack);
+        }
+    }
 }
 
 bool service_discovery_impl::send(const std::vector<std::shared_ptr<message_impl>>& _messages) {
