@@ -3298,7 +3298,12 @@ void routing_manager_impl::on_net_interface_or_route_state_changed(bool _is_inte
 
 void routing_manager_impl::start_ip_routing() {
 #if defined(_WIN32) || defined(__QNX__)
+    // On platforms without netlink, on_net_interface_or_route_state_changed
+    // is never called, so sd_route_set_ would remain false and
+    // is_external_routing_ready() would never return true.
+    // Mark both conditions satisfied when IP routing starts on these platforms.
     if_state_running_ = true;
+    sd_route_set_ = true;
 #endif
 
     if (routing_ready_handler_) {
