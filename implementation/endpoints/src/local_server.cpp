@@ -199,7 +199,7 @@ void local_server::add_connection(client_t _client, [[maybe_unused]] client_t _e
             }
 
             if (peer_endpoint != boost::asio::ip::tcp::endpoint{}) {
-                rh->add_guest(_client, peer_endpoint.address(), peer_endpoint.port() - 1); // -1 taken over from the legacy
+                rh->add_guest(_client, peer_endpoint.address(), static_cast<port_t>(peer_endpoint.port() - 1U)); // -1 taken over from the legacy
             }
 
             if (auto it = clients_.find(_client); it != clients_.end()) {
