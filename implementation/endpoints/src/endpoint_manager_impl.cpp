@@ -423,23 +423,29 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
                         its_udp_client_endpoint->get_remote_address(its_remote_address);
                     }
                 }
-                const auto found_ip = client_endpoints_.find(its_remote_address);
-                if (found_ip != client_endpoints_.end()) {
-                    const auto found_port = found_ip->second.find(its_remote_port);
-                    if (found_port != found_ip->second.end()) {
-                        auto found_reliable = found_port->second.find(_reliable);
-                        if (found_reliable != found_port->second.end()) {
-                            const auto found_partition = found_reliable->second.find(its_partition);
-                            if (found_partition != found_reliable->second.end()) {
-                                if (found_partition->second == its_endpoint) {
-                                    found_reliable->second.erase(its_partition);
-                                    // delete if necessary
-                                    if (0 == found_reliable->second.size()) {
-                                        found_port->second.erase(_reliable);
-                                        if (0 == found_port->second.size()) {
-                                            found_ip->second.erase(found_port);
-                                            if (0 == found_ip->second.size()) {
-                                                client_endpoints_.erase(found_ip);
+                const auto found_service_ep = client_endpoints_.find(_service);
+                if (found_service_ep != client_endpoints_.end()) {
+                    const auto found_ip = found_service_ep->second.find(its_remote_address);
+                    if (found_ip != found_service_ep->second.end()) {
+                        const auto found_port = found_ip->second.find(its_remote_port);
+                        if (found_port != found_ip->second.end()) {
+                            auto found_reliable = found_port->second.find(_reliable);
+                            if (found_reliable != found_port->second.end()) {
+                                const auto found_partition = found_reliable->second.find(its_partition);
+                                if (found_partition != found_reliable->second.end()) {
+                                    if (found_partition->second == its_endpoint) {
+                                        found_reliable->second.erase(its_partition);
+                                        // delete if necessary
+                                        if (0 == found_reliable->second.size()) {
+                                            found_port->second.erase(_reliable);
+                                            if (0 == found_port->second.size()) {
+                                                found_ip->second.erase(found_port);
+                                                if (0 == found_ip->second.size()) {
+                                                    found_service_ep->second.erase(found_ip);
+                                                    if (0 == found_service_ep->second.size()) {
+                                                        client_endpoints_.erase(found_service_ep);
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -575,12 +581,14 @@ void endpoint_manager_impl::print_status() const {
         VSOMEIP_INFO << "status start remote client endpoints:";
         std::uint32_t num_remote_client_endpoints(0);
         // normal endpoints
-        for (const auto& its_address : its_client_endpoints) {
-            for (const auto& its_port : its_address.second) {
-                for (const auto& its_reliability : its_port.second) {
-                    for (const auto& its_partition : its_reliability.second) {
-                        its_partition.second->print_status();
-                        num_remote_client_endpoints++;
+        for (const auto& its_service : its_client_endpoints) {
+            for (const auto& its_address : its_service.second) {
+                for (const auto& its_port : its_address.second) {
+                    for (const auto& its_reliability : its_port.second) {
+                        for (const auto& its_partition : its_reliability.second) {
+                            its_partition.second->print_status();
+                            num_remote_client_endpoints++;
+                        }
                     }
                 }
             }
@@ -988,15 +996,17 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(ser
             auto found_reliable = found_instance->second.find(_reliable);
             if (found_reliable != found_instance->second.end()) {
                 std::shared_ptr<endpoint_definition> its_ep_def = found_reliable->second;
-                auto found_address = client_endpoints_.find(its_ep_def->get_address());
-                if (found_address != client_endpoints_.end()) {
-                    auto found_port = found_address->second.find(its_ep_def->get_remote_port());
-                    if (found_port != found_address->second.end()) {
-                        auto found_reliable2 = found_port->second.find(_reliable);
-                        if (found_reliable2 != found_port->second.end()) {
-                            auto found_partition = found_reliable2->second.find(its_partition_id);
-                            if (found_partition != found_reliable2->second.end()) {
-                                its_endpoint = found_partition->second;
+                auto found_service_ce = client_endpoints_.find(_service);
+                if (found_service_ce != client_endpoints_.end()) {
+                    auto found_address = found_service_ce->second.find(its_ep_def->get_address());
+                    if (found_address != found_service_ce->second.end()) {
+                        auto found_port = found_address->second.find(its_ep_def->get_remote_port());
+                        if (found_port != found_address->second.end()) {
+                            auto found_reliable2 = found_port->second.find(_reliable);
+                            if (found_reliable2 != found_port->second.end()) {
+                                auto found_partition = found_reliable2->second.find(its_partition_id);
+                                if (found_partition != found_reliable2->second.end()) {
+                                    its_endpoint = found_partition->second;
 
                                 // store the endpoint under this service/instance id
                                 // as well - needed for later cleanup
@@ -1060,7 +1070,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
                 remote_services_[_service][_instance][_reliable] = its_endpoint;
 
                 partition_id_t its_partition = configuration_->get_partition_id(_service, _instance);
-                client_endpoints_[its_endpoint_def->get_address()][its_endpoint_def->get_port()][_reliable][its_partition] = its_endpoint;
+                client_endpoints_[_service][its_endpoint_def->get_address()][its_endpoint_def->get_port()][_reliable][its_partition] = its_endpoint;
                 // Set the basic route to the service in the service info
                 auto found_service_info = rm_->find_service(_service, _instance);
                 if (found_service_info) {
@@ -1112,14 +1122,16 @@ void endpoint_manager_impl::log_client_states() const {
         its_client_endpoints = client_endpoints_;
     }
 
-    for (const auto& its_address : its_client_endpoints) {
-        for (const auto& its_port : its_address.second) {
-            for (const auto& its_reliability : its_port.second) {
-                for (const auto& its_partition : its_reliability.second) {
-                    size_t its_queue_size = its_partition.second->get_queue_size();
-                    if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
-                        its_client_queue_sizes.push_back(
-                                std::make_pair(std::make_tuple(its_address.first, its_port.first, its_reliability.first), its_queue_size));
+    for (const auto& its_service : its_client_endpoints) {
+        for (const auto& its_address : its_service.second) {
+            for (const auto& its_port : its_address.second) {
+                for (const auto& its_reliability : its_port.second) {
+                    for (const auto& its_partition : its_reliability.second) {
+                        size_t its_queue_size = its_partition.second->get_queue_size();
+                        if (its_queue_size > VSOMEIP_DEFAULT_QUEUE_WARN_SIZE)
+                            its_client_queue_sizes.push_back(
+                                    std::make_pair(std::make_tuple(its_address.first, its_port.first, its_reliability.first), its_queue_size));
+                    }
                 }
             }
         }
@@ -1276,7 +1288,7 @@ void endpoint_manager_impl::suspend() {
 }
 
 void endpoint_manager_impl::resume() {
-    std::vector<std::tuple<boost::asio::ip::address, uint16_t, bool, partition_id_t>> clients;
+    std::vector<std::tuple<service_t, boost::asio::ip::address, uint16_t, bool, partition_id_t>> clients;
     std::vector<std::tuple<uint16_t, bool>> servers;
 
     {
@@ -1284,11 +1296,13 @@ void endpoint_manager_impl::resume() {
 
         // restart client endpoints
 
-        for (const auto& [its_address, ports] : client_endpoints_) {
-            for (const auto& [its_port, protocols] : ports) {
-                for (const auto& [its_protocol, partitions] : protocols) {
-                    for (const auto& [its_partition, its_endpoint] : partitions) {
-                        clients.push_back(std::make_tuple(its_address, its_port, its_protocol, its_partition));
+        for (const auto& [its_service, addresses] : client_endpoints_) {
+            for (const auto& [its_address, ports] : addresses) {
+                for (const auto& [its_port, protocols] : ports) {
+                    for (const auto& [its_protocol, partitions] : protocols) {
+                        for (const auto& [its_partition, its_endpoint] : partitions) {
+                            clients.push_back(std::make_tuple(its_service, its_address, its_port, its_protocol, its_partition));
+                        }
                     }
                 }
             }
@@ -1303,14 +1317,19 @@ void endpoint_manager_impl::resume() {
         }
     }
 
-    for (const auto& [its_address, its_port, its_protocol, its_partition] : clients) {
+    for (const auto& [its_service, its_address, its_port, its_protocol, its_partition] : clients) {
         std::shared_ptr<boardnet_endpoint> its_endpoint;
 
         {
             std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
 
-            const auto& ports = client_endpoints_.find(its_address);
-            if (ports == client_endpoints_.end()) {
+            const auto& services = client_endpoints_.find(its_service);
+            if (services == client_endpoints_.end()) {
+                continue;
+            }
+
+            const auto& ports = services->second.find(its_address);
+            if (ports == services->second.end()) {
                 continue;
             }
 

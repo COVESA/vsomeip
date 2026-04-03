@@ -108,8 +108,9 @@ private:
     typedef std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<boardnet_endpoint>>>> remote_services_t;
     remote_services_t remote_services_;
 
-    using client_endpoints_t = std::map<boost::asio::ip::address,
-                                        std::map<uint16_t, std::map<bool, std::map<partition_id_t, std::shared_ptr<boardnet_endpoint>>>>>;
+    using client_endpoints_t = std::map<service_t,
+                                        std::map<boost::asio::ip::address,
+                                                 std::map<uint16_t, std::map<bool, std::map<partition_id_t, std::shared_ptr<boardnet_endpoint>>>>>>;
     client_endpoints_t client_endpoints_;
 
     std::map<service_t, std::map<boardnet_endpoint*, instance_t>> service_instances_;
