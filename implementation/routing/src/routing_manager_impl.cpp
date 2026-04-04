@@ -1883,21 +1883,53 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
         if (_is_local_service) {
             const bool is_someip = configuration_->is_someip(_service, _instance);
             uint16_t its_reliable_port = configuration_->get_reliable_port(_service, _instance);
-            bool _is_found(false);
-            if (ILLEGAL_PORT != its_reliable_port) {
-                auto its_reliable_endpoint =
-                        ep_mgr_impl_->find_or_create_server_endpoint(its_reliable_port, true, is_someip, _service, _instance, _is_found);
-                if (its_reliable_endpoint) {
-                    its_info->set_endpoint(its_reliable_endpoint, true);
-                }
-            }
             uint16_t its_unreliable_port = configuration_->get_unreliable_port(_service, _instance);
+            bool _is_found(false);
+
+            std::shared_ptr<boardnet_endpoint> its_reliable_endpoint;
+            std::shared_ptr<boardnet_endpoint> its_unreliable_endpoint;
+
+            if (ILLEGAL_PORT != its_reliable_port) {
+                its_reliable_endpoint =
+                        ep_mgr_impl_->find_or_create_server_endpoint(its_reliable_port, true, is_someip, _service, _instance, _is_found);
+            }
             if (ILLEGAL_PORT != its_unreliable_port) {
-                auto its_unreliable_endpoint =
+                its_unreliable_endpoint =
                         ep_mgr_impl_->find_or_create_server_endpoint(its_unreliable_port, false, is_someip, _service, _instance, _is_found);
-                if (its_unreliable_endpoint) {
-                    its_info->set_endpoint(its_unreliable_endpoint, false);
+            }
+
+            // Both endpoints must succeed when both ports are configured; a
+            // partial registration (one bind succeeds, one fails) would cause
+            // inconsistent TCP+UDP service advertisement (issue #1002).
+            bool tcp_required = (ILLEGAL_PORT != its_reliable_port);
+            bool udp_required = (ILLEGAL_PORT != its_unreliable_port);
+            bool tcp_ok = !tcp_required || (its_reliable_endpoint != nullptr);
+            bool udp_ok = !udp_required || (its_unreliable_endpoint != nullptr);
+
+            if (tcp_required && udp_required && !(tcp_ok && udp_ok)) {
+                // Roll back whichever endpoint was created so the service is
+                // not partially registered.
+                VSOMEIP_ERROR << "rmi::" << __func__
+                              << ": partial endpoint creation for [" << std::hex << std::setfill('0')
+                              << std::setw(4) << _service << "." << std::setw(4) << _instance
+                              << "] — rolling back. TCP ok=" << std::boolalpha << tcp_ok
+                              << " UDP ok=" << udp_ok;
+                if (its_reliable_endpoint) {
+                    its_info->set_endpoint(nullptr, true);
+                    ep_mgr_impl_->remove_server_endpoint(its_reliable_port, true);
                 }
+                if (its_unreliable_endpoint) {
+                    its_info->set_endpoint(nullptr, false);
+                    ep_mgr_impl_->remove_server_endpoint(its_unreliable_port, false);
+                }
+                return;
+            }
+
+            if (its_reliable_endpoint) {
+                its_info->set_endpoint(its_reliable_endpoint, true);
+            }
+            if (its_unreliable_endpoint) {
+                its_info->set_endpoint(its_unreliable_endpoint, false);
             }
 
             if (ILLEGAL_PORT == its_reliable_port && ILLEGAL_PORT == its_unreliable_port) {

@@ -307,6 +307,11 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_server_endpoint(u
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_server_endpoint(uint16_t _port, bool _reliable, bool _start,
                                                                                          service_t _service, instance_t _instance,
                                                                                          bool& _is_found, bool _is_multicast) {
+    // Hold endpoint_mutex_ across the entire find→create sequence to prevent
+    // a TOCTOU race (CWE-362): two threads must not both observe a null entry
+    // and independently call create_server_endpoint for the same (port, reliable)
+    // pair.
+    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
     auto its_endpoint = find_server_endpoint(_port, _reliable);
     _is_found = false;
     if (!its_endpoint) {
@@ -315,7 +320,6 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_server_
         _is_found = true;
     }
     if (its_endpoint) {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
         if (!_is_multicast) {
             service_instances_[_service][its_endpoint.get()] = _instance;
         }
