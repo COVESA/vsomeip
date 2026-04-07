@@ -16,6 +16,7 @@
 #include <vsomeip/handler.hpp>
 
 #include "routing_manager_base.hpp"
+#include "event_dispatcher.hpp"
 #include "types.hpp"
 #include "../../protocol/include/protocol.hpp"
 #include "../../endpoints/include/local_endpoint_manager_host.hpp"
@@ -36,6 +37,8 @@ class update_security_credentials_command;
 
 class routing_manager_client : public routing_manager_base,
                                public local_endpoint_manager_host,
+                               public event_dispatcher,
+                               public routing_host,
                                public std::enable_shared_from_this<routing_manager_client> {
 public:
     routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
@@ -83,8 +86,6 @@ public:
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
     void unregister_event_base(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
-
-    void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
 
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
@@ -212,8 +213,6 @@ private:
     void restart_sender(std::unique_lock<std::recursive_mutex> const& _sender_mutex);
     void debounce_restart_sender_done();
 
-    void lazy_load(const std::string& _client_host) override;
-
     /// @brief Remove local client
     ///
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
@@ -252,6 +251,17 @@ private:
                              const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                              std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
                              epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_cache_placeholder);
+
+    // event_dispatcher iface
+    session_t get_event_session() override;
+
+    bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                       std::shared_ptr<message> _message) override;
+
+    // routing_host
+    client_t get_client() const override;
+    void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
+    void lazy_load(const std::string& _client_host) override;
 
 private:
     boost::asio::steady_timer keepalive_timer_;

@@ -935,27 +935,6 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
     return is_sent;
 }
 
-bool routing_manager_client::send_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
-                                     std::shared_ptr<message> _message) {
-
-    (void)_client;
-    (void)_target;
-    (void)_message;
-
-    return false;
-}
-
-bool routing_manager_client::send_to(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size,
-                                     instance_t _instance) {
-
-    (void)_target;
-    (void)_data;
-    (void)_size;
-    (void)_instance;
-
-    return false;
-}
-
 void routing_manager_client::on_message(const byte_t* _data, length_t _size, const local_client_data& _peer_data) {
     protocol::id_e its_id;
     client_t its_client;
@@ -3196,6 +3175,19 @@ std::shared_ptr<serviceinfo> routing_manager_client::find_service(service_t _ser
         }
     }
     return nullptr;
+}
+
+session_t routing_manager_client::get_event_session() {
+    return host_->get_session(false);
+}
+
+bool routing_manager_client::send_event_to(const client_t, const std::shared_ptr<endpoint_definition>&, std::shared_ptr<message>) {
+    VSOMEIP_ERROR_P << "Not implemented";
+    return false;
+}
+client_t routing_manager_client::get_client() const {
+
+    return host_->get_client();
 }
 
 } // namespace vsomeip_v3

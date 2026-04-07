@@ -172,14 +172,6 @@ void routing_manager_base::release_service(client_t _client, service_t _service,
     }
 }
 
-void routing_manager_base::on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) {
-    // Default implementation does nothing
-    // This is overridden by routing_manager_impl to delegate to the stub
-    (void)_client;
-    (void)_address;
-    (void)_port;
-}
-
 std::string const& routing_manager_base::get_name() const {
     return host_->get_name();
 }
@@ -248,12 +240,4 @@ void routing_manager_base::put_deserializer(const std::shared_ptr<deserializer>&
     deserializer_condition_.notify_one();
 }
 
-session_t routing_manager_base::get_event_session() {
-    return get_session(false);
-}
-
-bool routing_manager_base::send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
-                                         std::shared_ptr<message> _message) {
-    return send_to(_client, _target, _message);
-}
 } // namespace vsomeip_v3

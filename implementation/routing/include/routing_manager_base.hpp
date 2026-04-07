@@ -18,7 +18,6 @@
 #include "serviceinfo.hpp"
 #include "routing_host.hpp"
 #include "eventgroupinfo.hpp"
-#include "event_dispatcher.hpp"
 #include "routing_manager_host.hpp"
 #include "local_service_table.hpp"
 
@@ -43,7 +42,7 @@ class connector_impl;
 class serializer;
 class local_endpoint;
 
-class routing_manager_base : public event_dispatcher, public routing_host {
+class routing_manager_base {
 
 public:
     routing_manager_base(routing_manager_host* _host);
@@ -83,15 +82,6 @@ public:
 
     std::string const& get_name() const;
 
-    // Default implementation - overridden by routing_manager_impl to delegate to stub
-    virtual void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port);
-
-    virtual bool send_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
-                         std::shared_ptr<message> _message) = 0;
-
-    virtual bool send_to(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size,
-                         instance_t _instance) = 0;
-
 protected:
     [[nodiscard]] virtual bool is_local_client(client_t _client) const = 0;
     /**
@@ -114,12 +104,6 @@ protected:
 
     virtual void send_subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                 major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
-
-    // event_dispatcher iface
-    session_t get_event_session() override;
-
-    bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
-                       std::shared_ptr<message> _message) override;
 
 protected:
     routing_manager_host* host_;

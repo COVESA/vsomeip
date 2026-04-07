@@ -24,6 +24,7 @@
 #include "routing_manager_base.hpp"
 #include "routing_manager_stub_host.hpp"
 #include "types.hpp"
+#include "event_dispatcher.hpp"
 
 #include "../../endpoints/include/abstract_netlink_connector.hpp"
 #include "../../service_discovery/include/service_discovery_host.hpp"
@@ -52,6 +53,7 @@ class routing_manager_impl : public routing_manager_base,
                              public boardnet_routing_host,
                              public routing_manager_stub_host,
                              public sd::service_discovery_host,
+                             public event_dispatcher,
                              public std::enable_shared_from_this<routing_manager_impl> {
 public:
     routing_manager_impl(routing_manager_host* _host);
@@ -122,8 +124,6 @@ public:
     void on_unsubscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                             remote_subscription_id_t _id);
 
-    // as routing_host (no-op!)
-    void on_message(const byte_t* _data, length_t _length, const local_client_data&) override;
     // as boardnet_routing_host
     void on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver, const boost::asio::ip::address& _remote_address,
                     port_t _remote_port, bool _is_multicast) override;
@@ -200,7 +200,7 @@ public:
     client_t find_local_client(service_t _service, instance_t _instance);
     std::set<client_t> find_local_clients(service_t _service, instance_t _instance);
 
-    void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
+    void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port);
 
 #ifndef VSOMEIP_DISABLE_SECURITY
     bool update_security_policy_configuration(uid_t _uid, gid_t _gid, const std::shared_ptr<policy>& _policy,
@@ -383,6 +383,11 @@ private:
 
     void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
                     bool _force);
+    // event_dispatcher iface
+    session_t get_event_session() override;
+
+    bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                       std::shared_ptr<message> _message) override;
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;

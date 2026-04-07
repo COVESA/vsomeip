@@ -89,7 +89,7 @@ boost::asio::io_context& routing_manager_impl::get_io() {
 }
 
 client_t routing_manager_impl::get_client() const {
-    return routing_manager_base::get_client();
+    return VSOMEIP_ROUTING_CLIENT;
 }
 
 vsomeip_sec_client_t routing_manager_impl::get_sec_client() const {
@@ -1054,10 +1054,6 @@ bool routing_manager_impl::stop_offer_service_remotely(service_t _service, insta
 
     cleanup_server_endpoint(_service, its_server_endpoint);
     return ret;
-}
-
-void routing_manager_impl::on_message(const byte_t*, length_t, const local_client_data&) {
-    VSOMEIP_ERROR_P << "Not supposed to be called";
 }
 
 void routing_manager_impl::on_message(const byte_t* _data, length_t _length, boardnet_endpoint* _receiver,
@@ -4518,6 +4514,14 @@ void routing_manager_impl::stop_offer_service_base(client_t _client, service_t _
         e.second->unset_payload();
         e.second->clear_subscribers();
     }
+}
+session_t routing_manager_impl::get_event_session() {
+    return host_->get_session(false);
+}
+
+bool routing_manager_impl::send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
+                                         std::shared_ptr<message> _message) {
+    return send_to(_client, _target, _message);
 }
 
 } // namespace vsomeip_v3
