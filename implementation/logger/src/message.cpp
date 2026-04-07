@@ -179,11 +179,13 @@ message::~message() try {
         // Like above, we unfortunately have to use somewhat awkward code, as freely mixing of
         // strings and string_view only becomes available in C++26.
         const std::string_view ts = timestamp();
+        const std::string_view app = app_name();
         const std::string_view lvl = level_as_view();
         const std::string_view msg = buffer_as_view();
         std::string output;
-        output.reserve(ts.size() + lvl.size() + msg.size() + 1);
+        output.reserve(ts.size() + app.size() + lvl.size() + msg.size() + 1);
         output += ts;
+        output += app;
         output += lvl;
         output += msg;
         output += '\n';
@@ -209,7 +211,7 @@ std::string_view message::timestamp() const {
     }
 
     auto its_time_t = std::chrono::system_clock::to_time_t(when_);
-    struct tm its_time { };
+    struct tm its_time;
 #ifdef _WIN32
     localtime_s(&its_time, &its_time_t);
 #else

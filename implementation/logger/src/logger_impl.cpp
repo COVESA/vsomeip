@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <ios>
 #include <vsomeip/runtime.hpp>
 
 #include "../include/logger_impl.hpp"
@@ -33,7 +34,7 @@ void logger_impl::set_configuration(const std::shared_ptr<configuration>& _confi
             std::scoped_lock its_lock{log_file_mutex_};
             cfg.file_enabled = _configuration->has_file_log();
             if (cfg.file_enabled) {
-                log_file_ = std::ofstream{_configuration->get_logfile()};
+                log_file_ = std::ofstream{_configuration->get_logfile(), std::ios_base::out | std::ios_base::app};
             }
         }
         config_.store(cfg, std::memory_order_release);
