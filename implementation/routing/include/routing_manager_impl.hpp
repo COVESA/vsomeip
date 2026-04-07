@@ -63,8 +63,6 @@ public:
     std::string get_client_host() const;
     void set_client_host(const std::string& _client_host);
 
-    bool is_routing_manager() const;
-
     void init();
     void start();
     void stop();
@@ -99,9 +97,6 @@ public:
                                bool _is_provided, bool _is_cyclic);
 
     void unregister_shadow_event(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
-
-    void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-                    bool _force);
 
     void on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                           remote_subscription_id_t _id);
@@ -143,7 +138,6 @@ public:
                                      bool _magic_cookies_enabled);
 
     // interface "service_discovery_host"
-    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
     services_t get_offered_services() const;
     std::shared_ptr<serviceinfo> get_offered_service(service_t _service, instance_t _instance) const;
     std::map<instance_t, std::shared_ptr<serviceinfo>> get_offered_service_instances(service_t _service) const;
@@ -208,9 +202,6 @@ public:
 
     void on_register_application(client_t _client, const boost::asio::ip::address& _address, port_t _port) override;
 
-    bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
-                                           instance_t _instance, eventgroup_t _eventgroup);
-
 #ifndef VSOMEIP_DISABLE_SECURITY
     bool update_security_policy_configuration(uid_t _uid, gid_t _gid, const std::shared_ptr<policy>& _policy,
                                               const std::shared_ptr<payload>& _payload, const security_update_handler_t& _handler);
@@ -239,6 +230,23 @@ public:
     bool offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     std::shared_ptr<serviceinfo> create_service_info(service_t _service, instance_t _instance, major_version_t _major,
                                                      minor_version_t _minor, ttl_t _ttl, bool _is_local_service);
+    void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
+                        const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
+                        std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
+                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow = false,
+                        bool _is_cache_placeholder = false);
+    void unset_all_eventpayloads(service_t _service, instance_t _instance);
+    void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
+    std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
+    void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    std::set<std::shared_ptr<event>> find_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
+    std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
+
+    bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
+
+    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
 private:
     [[nodiscard]] bool is_local_client(client_t _client) const override;
@@ -359,10 +367,22 @@ private:
 
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
+    void clear_shadow_subscriptions(void);
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
+    bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
+                                           instance_t _instance, eventgroup_t _eventgroup);
+
+    std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
+    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
+    void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
+                                 minor_version_t _minor);
 
     services_t get_services_remote() const;
     void clear_service_info(service_t _service, instance_t _instance, bool _reliable);
     services_t get_services() const;
+
+    void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+                    bool _force);
 
 private:
     std::shared_ptr<routing_manager_stub> stub_;
@@ -447,6 +467,17 @@ private:
     mutable std::mutex services_remote_mutex_;
     services_t services_;
     mutable std::mutex services_mutex_;
+
+    // Eventgroups
+    mutable std::mutex eventgroups_mutex_;
+    using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
+    eventgroups_t eventgroups_;
+
+    // Events (part of one or more eventgroups)
+    mutable std::mutex events_mutex_;
+    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> events_;
+
+    std::mutex event_registration_mutex_;
 };
 
 } // namespace vsomeip_v3

@@ -60,38 +60,16 @@ public:
     virtual vsomeip_sec_client_t get_sec_client() const;
     virtual void set_sec_client_port(port_t _port);
 
-    virtual bool is_routing_manager() const;
-
     virtual void init() = 0;
-
-    virtual void stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                    minor_version_t _minor);
 
     virtual void request_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                  minor_version_t _minor);
 
     virtual void release_service(client_t _client, service_t _service, instance_t _instance);
 
-    virtual void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
-                                const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
-                                std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                                epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow = false,
-                                bool _is_cache_placeholder = false);
-
-    virtual void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
-
-    virtual std::set<std::shared_ptr<event>> find_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
-
     virtual void subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
                            eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                            const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
-
-    virtual void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-
-    virtual void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force);
-
-    virtual void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
-                            bool _force);
 
     virtual bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
                       client_t _bound_client = VSOMEIP_ROUTING_CLIENT, const vsomeip_sec_client_t* _sec_client = nullptr,
@@ -102,8 +80,6 @@ public:
     virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
 
     virtual std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const = 0;
-
-    std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
 
     std::string const& get_name() const;
 
@@ -128,24 +104,8 @@ protected:
      */
     void log_network_state(bool _tcp, bool _only_external) const;
 
-    std::set<std::shared_ptr<eventgroupinfo>> find_eventgroups(service_t _service, instance_t _instance) const;
-
-    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
-
-    void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
-
     bool send_local(std::shared_ptr<local_endpoint>& _target, client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance,
                     bool _reliable, protocol::id_e _command, uint8_t _status_check, client_t _sender) const;
-
-    /**
-     * @brief insert subscription into events/eventgroups
-     *
-     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription ack/nack and initial events
-     */
-    bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
-
-    void clear_shadow_subscriptions(void);
 
     std::shared_ptr<serializer> get_serializer();
     void put_serializer(const std::shared_ptr<serializer>& _serializer);
@@ -155,32 +115,11 @@ protected:
     virtual void send_subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                 major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
 
-    void unset_all_eventpayloads(service_t _service, instance_t _instance);
-    void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
-
-    /**
-     * @brief Notify current value for event/eventgroup
-     *
-     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription insertion + subscription ack/nack
-     */
-    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-
-    std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
-
-    std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
-
-    bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
-                                           instance_t _instance, eventgroup_t _eventgroup);
-
     // event_dispatcher iface
     session_t get_event_session() override;
 
     bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
                        std::shared_ptr<message> _message) override;
-
-private:
-    virtual bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                                        const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client) = 0;
 
 protected:
     routing_manager_host* host_;
@@ -196,24 +135,10 @@ protected:
     std::mutex deserializer_mutex_;
     std::condition_variable deserializer_condition_;
 
-    // Eventgroups
-    mutable std::mutex eventgroups_mutex_;
-    using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
-    eventgroups_t eventgroups_;
-
-    // Events (part of one or more eventgroups)
-    mutable std::mutex events_mutex_;
-    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> events_;
-
-    std::mutex event_registration_mutex_;
-
     mutable std::mutex env_mutex_;
     std::string env_;
 
     std::shared_ptr<trace::connector_impl> tc_;
-
-    // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
-    std::mutex subscription_mutex;
 };
 
 } // namespace vsomeip_v3

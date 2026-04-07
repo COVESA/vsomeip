@@ -67,6 +67,7 @@ public:
                    const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+    void unsubscribe_base(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
               const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force);
@@ -78,10 +79,10 @@ public:
     void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                         const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                         std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow = false,
-                        bool _is_cache_placeholder = false);
+                        epsilon_change_func_t _epsilon_change_func, bool _is_provided);
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
+    void unregister_event_base(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
 
     void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
 
@@ -105,6 +106,18 @@ public:
 
     // that this function is provided to the application_impl feels pretty strange
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const override;
+    std::set<std::shared_ptr<event>> find_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
+    void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
+                    bool _force);
+    void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force);
+    /**
+     * @brief Notify current value for event/eventgroup
+     *
+     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription insertion + subscription ack/nack
+     */
+    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+    std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
+    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
 
 private:
     void send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major);
@@ -217,9 +230,28 @@ private:
     client_t find_local_client(service_t _service, instance_t _instance) const;
     bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
+    void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
+    /**
+     * @brief insert subscription into events/eventgroups
+     *
+     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription ack/nack and initial events
+     */
+    bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
+
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
+    bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
+                                           instance_t _instance, eventgroup_t _eventgroup);
+    void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
+                                 minor_version_t _minor);
 
     void clear_service_info(service_t _service, instance_t _instance);
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
+    void register_event_base(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
+                             const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
+                             std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
+                             epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_cache_placeholder);
 
 private:
     boost::asio::steady_timer keepalive_timer_;
@@ -299,6 +331,20 @@ private:
     };
     std::set<subscription_data_t> pending_subscriptions_;
     std::mutex pending_subscription_mutex_;
+
+    // Eventgroups
+    mutable std::mutex eventgroups_mutex_;
+    using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
+    eventgroups_t eventgroups_;
+
+    // Events (part of one or more eventgroups)
+    mutable std::mutex events_mutex_;
+    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> events_;
+
+    // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
+    std::mutex subscription_mutex;
+
+    std::mutex event_registration_mutex_;
 
     std::mutex stop_mutex_;
     std::mutex lazy_load_mtx_;
