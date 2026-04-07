@@ -47,6 +47,9 @@ public:
 
     VSOMEIP_EXPORT bool is_local() const;
 
+    VSOMEIP_EXPORT bool is_in_preparation() const;
+    VSOMEIP_EXPORT void set_is_in_preparation(bool _in_preparation);
+
     VSOMEIP_EXPORT bool is_in_mainphase() const;
     VSOMEIP_EXPORT void set_is_in_mainphase(bool _in_mainphase);
 
@@ -68,6 +71,7 @@ private:
 
     std::set<client_t> requesters_;
 
+    std::atomic_bool is_in_preparation_;
     std::atomic_bool is_in_mainphase_;
 };
 

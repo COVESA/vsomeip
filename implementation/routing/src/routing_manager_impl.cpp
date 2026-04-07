@@ -1588,6 +1588,7 @@ void routing_manager_impl::init_service_info(service_t _service, instance_t _ins
             if (ILLEGAL_PORT == its_reliable_port && ILLEGAL_PORT == its_unreliable_port) {
                 VSOMEIP_INFO << "Port configuration missing for [" << hex4(_service) << "." << hex4(_instance) << "]. Service is internal.";
             }
+            its_info->set_is_in_preparation(false);
         }
     } else {
         VSOMEIP_ERROR << "Missing vsomeip configuration.";

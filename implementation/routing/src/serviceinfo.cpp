@@ -10,7 +10,7 @@ namespace vsomeip_v3 {
 serviceinfo::serviceinfo(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor, ttl_t _ttl,
                          bool _is_local) :
     service_(_service), instance_(_instance), major_(_major), minor_(_minor), is_local_(_is_local), ttl_(0), reliable_(nullptr),
-    unreliable_(nullptr), is_in_mainphase_(false) {
+    unreliable_(nullptr), is_in_preparation_(true), is_in_mainphase_(false) {
 
     std::chrono::seconds ttl = static_cast<std::chrono::seconds>(_ttl);
     ttl_ = std::chrono::duration_cast<std::chrono::milliseconds>(ttl);
@@ -99,6 +99,14 @@ uint32_t serviceinfo::get_requesters_size() {
 
 bool serviceinfo::is_local() const {
     return is_local_;
+}
+
+bool serviceinfo::is_in_preparation() const {
+    return is_in_preparation_;
+}
+
+void serviceinfo::set_is_in_preparation(bool _in_preparation) {
+    is_in_preparation_ = _in_preparation;
 }
 
 bool serviceinfo::is_in_mainphase() const {

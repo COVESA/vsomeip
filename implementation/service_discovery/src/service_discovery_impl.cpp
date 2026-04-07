@@ -1488,7 +1488,7 @@ void service_discovery_impl::process_findservice_serviceentry(service_t _service
 
     if (_instance != ANY_INSTANCE) {
         std::shared_ptr<serviceinfo> its_info = host_->get_offered_service(_service, _instance);
-        if (its_info) {
+        if (its_info && !its_info->is_in_preparation()) {
             if (_major == ANY_MAJOR || _major == its_info->get_major()) {
                 if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
                     if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
@@ -1502,10 +1502,12 @@ void service_discovery_impl::process_findservice_serviceentry(service_t _service
         // send back all available instances
         for (const auto& found_instance : offered_instances) {
             auto its_info = found_instance.second;
-            if (_major == ANY_MAJOR || _major == its_info->get_major()) {
-                if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
-                    if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
-                        send_uni_or_multicast_offerservice(its_info, _unicast_flag);
+            if (!its_info->is_in_preparation()) {
+                if (_major == ANY_MAJOR || _major == its_info->get_major()) {
+                    if (_minor == 0xFFFFFFFF || _minor <= its_info->get_minor()) {
+                        if (its_info->get_endpoint(false) || its_info->get_endpoint(true)) {
+                            send_uni_or_multicast_offerservice(its_info, _unicast_flag);
+                        }
                     }
                 }
             }
