@@ -124,7 +124,7 @@ For all other failure, we wait for a wait time until we retry with the same port
 To configure wait time and maximum wait time, call cmake with:
 
 ```bash
-cmake -DLOCAL_TCP_PORT_WAIT_TIME=50 -DLOCAL_TCP_PORT_MAX_WAIT_TIME=2000 ..
+cmake -DIPC_PORT_WAIT_TIME=50 -DIPC_PORT_MAX_WAIT_TIME=2000 ..
 ```
 
 The `default values are a wait time of 100ms` and a `maximum wait time of 10000ms`.
@@ -513,4 +513,3 @@ The client example results in the following program execution:
 7. *stop()*
 
 This function unregister the event and the message handler and shuts down the application.
-

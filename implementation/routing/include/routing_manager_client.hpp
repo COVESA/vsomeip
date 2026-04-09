@@ -316,6 +316,8 @@ private:
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
 
+    routing_mode_e const routing_mode_;
+
     std::shared_ptr<routing_client_state_machine> state_machine_;
 
     mutable std::mutex available_services_mutex_;
@@ -362,9 +364,6 @@ private:
     std::shared_ptr<timer> sender_debounce_;
 
     std::shared_ptr<endpoint_manager_base> ep_mgr_;
-
-    bool const is_uds_preferred_;
-    bool const is_local_routing_;
 
     // This mutex should be used whenever the client
     // is trying to accessing data relevant for its

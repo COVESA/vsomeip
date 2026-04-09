@@ -138,7 +138,7 @@ private:
      */
     void add_connection(client_t _client, client_t _expected_id, std::shared_ptr<local_socket> _socket,
                         std::shared_ptr<local_receive_buffer> _buffer, uint32_t _lc_count, std::string _environment,
-                        boost::asio::ip::address _guest_address, port_t _guest_port);
+                        boost::asio::ip::address _routing_address, port_t _routing_port);
 
     void start_unlock(uint32_t _lc_count);
 

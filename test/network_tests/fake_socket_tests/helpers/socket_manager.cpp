@@ -218,6 +218,11 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
     if (auto const it = uds_to_acceptor_states_.find(_ep); it != uds_to_acceptor_states_.end()) {
         return false;
     }
+    // Honour fail_on_uds_bind_ for UDS acceptors — this lets tests simulate
+    // /var/run/someip not being ready yet without also blocking TCP socket binds.
+    if (auto state = _state.lock(); state && fail_on_uds_bind_.count(state->get_app_name()) != 0) {
+        return false;
+    }
     uds_to_acceptor_states_[_ep] = _state;
     return true;
 }
@@ -397,6 +402,14 @@ void socket_manager::fail_on_bind(std::string const& _app, bool fail) {
         fail_on_bind_.insert(_app);
     } else {
         fail_on_bind_.erase(_app);
+    }
+}
+void socket_manager::fail_on_uds_bind(std::string const& _app, bool fail) {
+    auto lock = std::unique_lock(mtx_);
+    if (fail) {
+        fail_on_uds_bind_.insert(_app);
+    } else {
+        fail_on_uds_bind_.erase(_app);
     }
 }
 

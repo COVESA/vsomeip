@@ -165,6 +165,9 @@ bool base_fake_socket_fixture::setup_data_pipe(std::string const& _client, std::
 void base_fake_socket_fixture::fail_on_bind(std::string const& _app, bool _fail) {
     socket_manager_->fail_on_bind(_app, _fail);
 }
+void base_fake_socket_fixture::fail_on_uds_bind(std::string const& _app, bool _fail) {
+    socket_manager_->fail_on_uds_bind(_app, _fail);
+}
 
 void base_fake_socket_fixture::set_ignore_broken_pipe(std::string const& _app_name, bool _set) {
     socket_manager_->set_ignore_broken_pipe(_app_name, _set);

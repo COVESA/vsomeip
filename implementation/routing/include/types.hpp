@@ -41,5 +41,12 @@ struct msg_statistic_t {
 };
 
 enum class pending_request_removal_type_e : std::uint8_t { OFFERING_ONLY = 0x00, REQUESTING_ONLY = 0x01, BOTH = 0x02 };
+
+// Describes how a routing participant communicates with the routing manager.
+enum class routing_mode_e : uint8_t {
+    UDS_ONLY, //< is_local_routing(): UDS-only, no TCP receiver
+    TCP_ONLY, //< default remote mode: TCP receiver and sender, no UDS
+    UDS_AND_TCP, //< is_uds_preferred(): dual UDS + TCP receivers, UDS sender when on the same machine
+};
 }
 // namespace vsomeip_v3

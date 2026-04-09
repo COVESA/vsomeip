@@ -142,15 +142,27 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_uds_local_acceptor
     std::shared_ptr<local_acceptor> uds_acceptor;
 #if defined(__linux__) || defined(__QNX__)
     try {
-        auto tmp = std::make_shared<local_acceptor_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(_path), configuration_);
-        boost::system::error_code its_error;
-        tmp->init(its_error, std::nullopt);
-        if (its_error) {
-            VSOMEIP_ERROR_P << "Local UDS server endpoint initialization failed. Client 0x" << hex4(_client) << " Path: " << _path
-                            << " Reason: " << its_error.message();
-        } else {
-            uds_acceptor = tmp;
-            VSOMEIP_INFO << "Listening @ " << _path;
+        uint32_t its_current_wait_time{0};
+        while (!uds_acceptor) {
+            // Create a fresh acceptor object on every attempt so that a previously
+            // opened-but-not-bound socket does not carry over stale state.
+            auto tmp = std::make_shared<local_acceptor_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(_path), configuration_);
+            boost::system::error_code its_error;
+            tmp->init(its_error, std::nullopt);
+            if (its_error) {
+                its_current_wait_time += IPC_PORT_WAIT_TIME;
+                if (its_current_wait_time > IPC_PORT_MAX_WAIT_TIME) {
+                    VSOMEIP_ERROR_P << "Local UDS server endpoint initialization failed. Client 0x" << hex4(_client) << " Path: " << _path
+                                    << " Reason: " << its_error.message();
+                    break;
+                }
+                VSOMEIP_WARNING_P << "Local UDS server endpoint initialization failed, retrying in " << IPC_PORT_WAIT_TIME
+                                  << "ms. Client 0x" << hex4(_client) << " Path: " << _path << " Reason: " << its_error.message();
+                std::this_thread::sleep_for(std::chrono::milliseconds(IPC_PORT_WAIT_TIME));
+            } else {
+                uds_acceptor = tmp;
+                VSOMEIP_INFO << "Listening @ " << _path;
+            }
         }
     } catch (const std::exception& e) {
         VSOMEIP_ERROR_P << "Caught exception: " << e.what();
@@ -183,11 +195,11 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
                 if (its_error == boost::asio::error::address_in_use) {
                     its_used_ports.insert(its_port);
                 } else {
-                    its_current_wait_time += LOCAL_TCP_PORT_WAIT_TIME;
-                    if (its_current_wait_time > LOCAL_TCP_PORT_MAX_WAIT_TIME)
+                    its_current_wait_time += IPC_PORT_WAIT_TIME;
+                    if (its_current_wait_time > IPC_PORT_MAX_WAIT_TIME)
                         break;
 
-                    std::this_thread::sleep_for(std::chrono::milliseconds(LOCAL_TCP_PORT_WAIT_TIME));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(IPC_PORT_WAIT_TIME));
                 }
             }
         }
@@ -283,12 +295,11 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
 
     bool is_guest = host_.get_connection_param(_client, its_remote_address, its_remote_port);
 
-    // For the routing manager itself, fall back to the configured host address
-    // when it hasn't registered as a guest yet (early connection phase).
-    if (!is_guest && _client == VSOMEIP_ROUTING_CLIENT) {
+    // VSOMEIP_ROUTING_CLIENT never registers as a guest, so get_connection_param always returns false for it
+    if (_client == VSOMEIP_ROUTING_CLIENT) {
         its_remote_address = configuration_->get_routing_host_address();
         its_remote_port = configuration_->get_routing_host_port();
-        is_guest = !its_remote_address.is_unspecified() && !its_remote_address.is_multicast();
+        is_guest = !its_remote_address.is_unspecified();
     }
 
     bool const same_address = is_guest && its_remote_address == configuration_->get_routing_guest_address();

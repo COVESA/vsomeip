@@ -88,8 +88,10 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
     routing_manager_base(_host), keepalive_timer_(io_), status_log_timer_(io_), version_log_timer_(_host->get_io()),
     keepalive_active_(false), keepalive_is_alive_(false), sender_(nullptr), tcp_receiver_(nullptr), uds_receiver_(nullptr),
     request_debounce_timer_(io_), request_debounce_timer_running_(false), client_side_logging_(_client_side_logging),
-    client_side_logging_filter_(_client_side_logging_filter), is_uds_preferred_(configuration_->is_uds_preferred()),
-    is_local_routing_(configuration_->is_local_routing()) {
+    client_side_logging_filter_(_client_side_logging_filter),
+    routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
+                          : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP
+                                                               : routing_mode_e::TCP_ONLY) {
 
     if (char its_hostname[1024]; gethostname(its_hostname, sizeof(its_hostname)) == 0) {
         set_client_host(its_hostname);
@@ -125,7 +127,7 @@ void routing_manager_client::start() {
         std::scoped_lock its_receiver_lock(receiver_mutex_);
         // NOTE: order matters, `create_local_server` must done first
         // with TCP, following `create_local_client` will use whatever port is established there
-        if (!is_local_routing_ && !tcp_receiver_) {
+        if (routing_mode_ != routing_mode_e::UDS_ONLY && !tcp_receiver_) {
             tcp_receiver_ = ep_mgr_->create_local_server(transport_protocol_e::TCP);
             VSOMEIP_INFO << "Created local TCP server for routing manager client";
         }
@@ -961,7 +963,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
 
         bool is_from_routing = (_peer_data.id_ == VSOMEIP_ROUTING_CLIENT);
 
-        if (configuration_->is_security_enabled() && is_local_routing_ && !is_from_routing && _peer_data.id_ != its_client) {
+        if (configuration_->is_security_enabled() && routing_mode_ == routing_mode_e::UDS_ONLY && !is_from_routing
+            && _peer_data.id_ != its_client) {
             VSOMEIP_WARNING_P << "Client 0x" << hex4(get_client()) << " received a message with command " << static_cast<int>(its_id)
                               << " from " << hex4(its_client) << " which doesn't match the bound client " << hex4(_peer_data.id_)
                               << " ~> skip message!";
@@ -989,7 +992,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
 
                     if (!is_from_routing) {
                         if (utility::is_request(its_message->get_message_type())) {
-                            if (configuration_->is_security_enabled() && is_local_routing_ && its_message->get_client() != _peer_data.id_) {
+                            if (configuration_->is_security_enabled() && routing_mode_ == routing_mode_e::UDS_ONLY
+                                && its_message->get_client() != _peer_data.id_) {
                                 VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
                                                 << " received a request from client 0x" << hex4(its_message->get_client())
                                                 << " to service/instance/method " << hex4(its_message->get_service()) << "/"
@@ -1648,7 +1652,7 @@ void routing_manager_client::reconnect() {
     {
         // ensure that no further connections will be added to the list of endpoints
         std::scoped_lock lock(receiver_mutex_);
-        if (!is_local_routing_) {
+        if (routing_mode_ != routing_mode_e::UDS_ONLY) {
             // tcp needs to claim a port to ensure that the sender is not
             // blocking a wrong port
             if (tcp_receiver_) {
@@ -1660,20 +1664,11 @@ void routing_manager_client::reconnect() {
                 // to be down. How to break out of this loop in case of "stop" ?
                 tcp_receiver_ = ep_mgr_->create_local_server(transport_protocol_e::TCP);
             }
+        }
 
-            if (uds_receiver_) {
-                uds_receiver_->stop();
-                uds_receiver_ = nullptr;
-            }
-        } else {
-            // But the actual reconnect
-            // can lead to a change in the client id, for which reason the
-            // uds receiver should only be set up, once the "new" client id
-            // is known.
-            if (uds_receiver_) {
-                uds_receiver_->stop();
-                uds_receiver_ = nullptr;
-            }
+        if (uds_receiver_) {
+            uds_receiver_->stop();
+            uds_receiver_ = nullptr;
         }
     }
     // Now the set of endpoints should be fixed:
@@ -1709,10 +1704,10 @@ bool routing_manager_client::is_local_client(client_t _client) const {
 void routing_manager_client::register_application(client_t _client) {
     auto its_configuration = get_configuration();
     auto const its_routing_host_address = its_configuration->get_routing_host_address();
-    // UDS is used only when local routing is configured, or when uds-preferred is on and the routing manager has the same IP
+    // UDS is used only when local routing is configured, or when uds-preferred is on and the routing manager has the same IP.
     // Otherwise TCP is used.
-    bool const via_uds = its_configuration->is_local_routing()
-            || (is_uds_preferred_ && its_routing_host_address == its_configuration->get_routing_guest_address());
+    bool const via_uds = (routing_mode_ == routing_mode_e::UDS_ONLY)
+            || (routing_mode_ == routing_mode_e::UDS_AND_TCP && its_routing_host_address == its_configuration->get_routing_guest_address());
     if (via_uds) {
         VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " Registering to routing manager @ " << its_configuration->get_network()
                        << "-0";
@@ -1968,35 +1963,27 @@ bool routing_manager_client::send_pending_commands() {
 }
 
 void routing_manager_client::init_receiver_side([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock) {
-    auto create_receiver = [&](auto& _receiver, transport_protocol_e _protocol) { _receiver = ep_mgr_->create_local_server(_protocol); };
-
-    auto set_port = [&](auto& _receiver) {
+    auto create_receiver = [&](auto& _receiver, transport_protocol_e _protocol) {
         if (_receiver) {
             std::uint16_t its_port = _receiver->get_local_port();
-            if (its_port != ILLEGAL_PORT)
+            if (its_port != ILLEGAL_PORT && _protocol == transport_protocol_e::TCP)
                 VSOMEIP_INFO_P << "Reusing local server endpoint @" << its_port << " endpoint: " << _receiver;
+            return;
         }
+        _receiver = ep_mgr_->create_local_server(_protocol);
     };
 
-    if (is_uds_preferred_) {
-        if (!tcp_receiver_) {
-            create_receiver(tcp_receiver_, transport_protocol_e::TCP);
-        } else {
-            set_port(tcp_receiver_);
-        }
-        if (!uds_receiver_) {
-            create_receiver(uds_receiver_, transport_protocol_e::UDS);
-        }
-    } else if (is_local_routing_) {
-        if (!uds_receiver_) {
-            create_receiver(uds_receiver_, transport_protocol_e::UDS);
-        }
-    } else {
-        if (!tcp_receiver_) {
-            create_receiver(tcp_receiver_, transport_protocol_e::TCP);
-        } else {
-            set_port(tcp_receiver_);
-        }
+    switch (routing_mode_) {
+    case routing_mode_e::UDS_AND_TCP:
+        create_receiver(tcp_receiver_, transport_protocol_e::TCP);
+        create_receiver(uds_receiver_, transport_protocol_e::UDS);
+        break;
+    case routing_mode_e::UDS_ONLY:
+        create_receiver(uds_receiver_, transport_protocol_e::UDS);
+        break;
+    default: // TCP_ONLY
+        create_receiver(tcp_receiver_, transport_protocol_e::TCP);
+        break;
     }
 }
 
@@ -2339,18 +2326,23 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
             }
         };
 
-        if (is_local_routing_) {
+        switch (routing_mode_) {
+        case routing_mode_e::UDS_ONLY:
             start_receiver(uds_receiver_);
-        } else if (is_uds_preferred_) {
+            break;
+        case routing_mode_e::UDS_AND_TCP:
             start_receiver(uds_receiver_);
             start_receiver(tcp_receiver_);
-        } else {
+            break;
+        default: // TCP_ONLY
             start_receiver(tcp_receiver_);
+            break;
         }
 
         if (is_started) {
+            const bool via_tcp = sender_ && !sender_->peer_endpoint().address().is_unspecified();
             VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " (" << host_->get_name() << ") successfully connected to routing via "
-                           << ((is_uds_preferred_ || is_local_routing_) ? "UDS" : "TCP") << " ~> registering..";
+                           << (via_tcp ? "TCP" : "UDS") << " ~> registering...";
             register_application(_client);
         }
     }

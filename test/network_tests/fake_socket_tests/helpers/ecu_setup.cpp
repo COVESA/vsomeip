@@ -80,6 +80,13 @@ void ecu_setup::add_guest(application_config app, bool uds_preferred) {
         gcfg.sd_ = false;
         guest_config_name_ = name_ + "_guest";
         guest_config_ = std::move(gcfg);
+    } else {
+        // uds_preferred is an ECU-wide setting, not per-app. All guest apps share the same
+        // config file, so it must be consistent across all add_guest() calls.
+        ASSERT_EQ(guest_config_->uds_preferred_, uds_preferred)
+                << "add_guest called with uds_preferred=" << uds_preferred
+                << " but guest config was already created with uds_preferred=" << guest_config_->uds_preferred_
+                << ". uds_preferred is a per-ECU setting, not per-app.";
     }
 
     guest_config_->apps_.push_back(std::move(app));

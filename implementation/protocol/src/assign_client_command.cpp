@@ -6,7 +6,6 @@
 #include <limits>
 
 #include <boost/asio/ip/address_v4.hpp>
-#include <boost/asio/ip/address_v6.hpp>
 
 #include <vsomeip/internal/logger.hpp>
 #include "../include/assign_client_command.hpp"
@@ -18,20 +17,13 @@ assign_client_command::assign_client_command() : command(id_e::ASSIGN_CLIENT_ID)
 
 void assign_client_command::serialize(std::vector<byte_t>& _buffer) const {
 
-    // Calculate size: header + name_length(4) + name + address_type(1)
-    // + address_bytes + port(2) only if address is specified
+    // Layout: header | name_length(4) | name | has_address(1) | address_v4(4) | port(2)
+    // Local TCP communication is IPv4-only
+    const bool has_address = !address_.is_unspecified();
     size_t its_size(COMMAND_HEADER_SIZE + sizeof(uint32_t) + name_.length() + sizeof(uint8_t));
+    if (has_address)
+        its_size += sizeof(boost::asio::ip::address_v4::bytes_type) + sizeof(port_t);
 
-    if (!address_.is_unspecified()) {
-        if (address_.is_v4()) {
-            its_size += sizeof(boost::asio::ip::address_v4::bytes_type);
-        } else {
-            its_size += sizeof(boost::asio::ip::address_v6::bytes_type);
-        }
-        its_size += sizeof(port_t);
-    }
-
-    // resize buffer
     _buffer.resize(its_size);
 
     // set size
@@ -52,27 +44,12 @@ void assign_client_command::serialize(std::vector<byte_t>& _buffer) const {
         write_position += name_.length();
     }
 
-    uint8_t address_type = 0; // 0 = unspecified, 4 = v4, 6 = v6
-    if (!address_.is_unspecified()) {
-        if (address_.is_v4()) {
-            address_type = 4;
-        } else {
-            address_type = 6;
-        }
-    }
+    _buffer[write_position++] = has_address ? 1 : 0;
 
-    std::memcpy(&_buffer[write_position], &address_type, sizeof(uint8_t));
-    write_position += sizeof(uint8_t);
-
-    if (!address_.is_unspecified()) {
-        if (address_.is_v4()) {
-            std::memcpy(&_buffer[write_position], address_.to_v4().to_bytes().data(), sizeof(boost::asio::ip::address_v4::bytes_type));
-            write_position += sizeof(boost::asio::ip::address_v4::bytes_type);
-        } else {
-            std::memcpy(&_buffer[write_position], address_.to_v6().to_bytes().data(), sizeof(boost::asio::ip::address_v6::bytes_type));
-            write_position += sizeof(boost::asio::ip::address_v6::bytes_type);
-        }
-
+    if (has_address) {
+        auto bytes = address_.to_v4().to_bytes();
+        std::memcpy(&_buffer[write_position], bytes.data(), bytes.size());
+        write_position += bytes.size();
         std::memcpy(&_buffer[write_position], &port_, sizeof(port_t));
     }
 }
@@ -118,40 +95,22 @@ void assign_client_command::deserialize(const std::vector<byte_t>& _buffer, erro
         return;
     }
 
-    uint8_t address_type = 0;
-    std::memcpy(&address_type, &_buffer[read_position], sizeof(uint8_t));
+    uint8_t has_address = 0;
+    std::memcpy(&has_address, &_buffer[read_position], sizeof(uint8_t));
     read_position += sizeof(uint8_t);
     remaining -= sizeof(uint8_t);
 
-    if (address_type == 4) {
+    if (has_address) {
         if (remaining < sizeof(boost::asio::ip::address_v4::bytes_type) + sizeof(port_t)) {
             _error = error_e::ERROR_NOT_ENOUGH_BYTES;
             return;
         }
-
         boost::asio::ip::address_v4::bytes_type its_array;
         std::memcpy(&its_array, &_buffer[read_position], its_array.size());
         address_ = boost::asio::ip::address_v4(its_array);
-        read_position += sizeof(boost::asio::ip::address_v4::bytes_type);
-        remaining -= sizeof(boost::asio::ip::address_v4::bytes_type);
-
-        std::memcpy(&port_, &_buffer[read_position], sizeof(port_t));
-
-    } else if (address_type == 6) {
-        if (remaining < sizeof(boost::asio::ip::address_v6::bytes_type) + sizeof(port_t)) {
-            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
-            return;
-        }
-
-        boost::asio::ip::address_v6::bytes_type its_array;
-        std::memcpy(&its_array, &_buffer[read_position], its_array.size());
-        address_ = boost::asio::ip::address_v6(its_array);
-        read_position += sizeof(boost::asio::ip::address_v6::bytes_type);
-        remaining -= sizeof(boost::asio::ip::address_v6::bytes_type);
-
+        read_position += its_array.size();
         std::memcpy(&port_, &_buffer[read_position], sizeof(port_t));
     }
-    // address_type == 0 means unspecified, no port follows
 }
 
 std::string assign_client_command::get_name() const {

@@ -113,8 +113,10 @@ private:
     // routing root creation helpers
     bool create_local_uds_acceptor(std::shared_ptr<local_acceptor>& _uds_acceptor, const std::string& _endpoint_path,
                                    bool& _is_socket_activated);
+    // TCP substitute for UDS on platforms that lack UDS support (non-Linux/QNX).
+    bool create_fallback_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
+    // TCP routing root acceptor bound to the configured host address+port; used by guests.
     bool create_local_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
-    bool create_remote_routing_endpoint_tcp(std::shared_ptr<local_acceptor>& _tcp_acceptor) const;
     void setup_root_server(std::shared_ptr<local_server>& _root, std::shared_ptr<local_acceptor> _acceptor,
                            const std::shared_ptr<routing_host>& _host);
 

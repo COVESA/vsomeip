@@ -724,7 +724,7 @@ bool endpoint_manager_impl::create_local_uds_acceptor(std::shared_ptr<local_acce
 #endif // __linux__ || __QNX__
 }
 
-bool endpoint_manager_impl::create_local_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const {
+bool endpoint_manager_impl::create_fallback_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const {
     (_tcp_acceptor) = nullptr;
 #if !defined(__linux__) && !defined(__QNX__)
     try {
@@ -751,7 +751,7 @@ bool endpoint_manager_impl::create_local_tcp_acceptor(std::shared_ptr<local_acce
     return true;
 }
 
-bool endpoint_manager_impl::create_remote_routing_endpoint_tcp(std::shared_ptr<local_acceptor>& _tcp_acceptor) const {
+bool endpoint_manager_impl::create_local_tcp_acceptor(std::shared_ptr<local_acceptor>& _tcp_acceptor) const {
     try {
         auto its_address = configuration_->get_routing_host_address();
         auto its_port = configuration_->get_routing_host_port();
@@ -817,13 +817,13 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
             return false;
         }
 #else
-        if (!create_local_tcp_acceptor(acceptor)) {
+        if (!create_fallback_tcp_acceptor(acceptor)) {
             return false;
         }
         _is_socket_activated = false;
 #endif // __linux__ || __QNX__
     } else {
-        if (!create_remote_routing_endpoint_tcp(acceptor)) {
+        if (!create_local_tcp_acceptor(acceptor)) {
             return false;
         }
         _is_socket_activated = false;

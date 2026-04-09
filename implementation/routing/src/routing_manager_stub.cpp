@@ -65,8 +65,10 @@ namespace vsomeip_v3 {
 
 routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
     host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), configuration_(_configuration), is_socket_activated_(false),
-    is_uds_preferred_(configuration_->is_uds_preferred()), configured_watchdog_timeout_(configuration_->get_watchdog_timeout()),
-    pinged_clients_timer_(io_), pending_security_update_id_(0) { }
+    routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
+                          : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP
+                                                               : routing_mode_e::TCP_ONLY),
+    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
 
@@ -88,21 +90,13 @@ void routing_manager_stub::start() {
         }
     };
 
-    if (is_uds_preferred_) {
-        // When UDS is preferred, start both roots if they exist
-        start_root(uds_root_);
-        start_root(tcp_root_);
-    } else {
-        auto root = configuration_->is_local_routing() ? uds_root_ : tcp_root_;
-
-        if (!root) {
-            // application has been stopped and started again
-            init_routing_endpoint();
-            root = configuration_->is_local_routing() ? uds_root_ : tcp_root_;
-        }
-
-        start_root(root);
+    // Re-initialize only the roots required for the current mode (e.g. after stop/restart).
+    if ((routing_mode_ != routing_mode_e::TCP_ONLY && !uds_root_) || (routing_mode_ != routing_mode_e::UDS_ONLY && !tcp_root_)) {
+        init_routing_endpoint();
     }
+
+    start_root(uds_root_);
+    start_root(tcp_root_);
 
     if (configuration_->is_watchdog_enabled()) {
         VSOMEIP_INFO << "Watchdog is enabled : Timeout in ms = " << configuration_->get_watchdog_timeout()
@@ -127,9 +121,9 @@ void routing_manager_stub::stop() {
     }
 
     // Stop routing roots
-    for (auto* root : get_routing_roots()) {
-        if (*root && !is_socket_activated_)
-            stop_local_server(*root);
+    if (!is_socket_activated_) {
+        stop_local_server(uds_root_);
+        stop_local_server(tcp_root_);
     }
 }
 
@@ -139,15 +133,22 @@ connection_control_response_e routing_manager_stub::change_connection_control(co
     // Only tcp matters here, as makes no sense to block UDS connections
     // therefore, uds_root does not need to be handled here
     if (_control == connection_control_request_e::CCR_ACCEPT) {
-        if (tcp_root_)
+        if (tcp_root_) {
             tcp_root_->allow_from(_guest_address);
-
+        } else {
+            VSOMEIP_ERROR_P << "change_connection_control(ACCEPT) called for " << _guest_address.to_string()
+                            << " but tcp_root_ is not available";
+        }
         return connection_control_response_e::CCR_OK;
     }
 
     // BLOCK case
-    if (tcp_root_)
+    if (tcp_root_) {
         tcp_root_->block_from(_guest_address);
+    } else {
+        VSOMEIP_ERROR_P << "change_connection_control(BLOCK) called for " << _guest_address.to_string()
+                        << " but tcp_root_ is not available";
+    }
 
     // Due to the single lock in the local_server it is guaranteed that after
     // returning from the next line, no endpoint is in a transient state into
@@ -720,22 +721,18 @@ void routing_manager_stub::init_routing_endpoint() {
     bool is_successful{true};
 
     auto create_root = [&](auto& _root, transport_protocol_e _protocol) {
-        transport_protocol_e protocol = _protocol;
-        if (!ep_mgr->create_routing_root(_root, protocol, is_socket_activated_, shared_from_this())) {
+        if (_root)
+            return; // already initialised, skip
+        if (!ep_mgr->create_routing_root(_root, _protocol, is_socket_activated_, shared_from_this())) {
             is_successful = false;
         }
     };
 
-    if (is_uds_preferred_) {
+    if (routing_mode_ != routing_mode_e::TCP_ONLY) {
         create_root(uds_root_, transport_protocol_e::UDS);
+    }
+    if (routing_mode_ != routing_mode_e::UDS_ONLY) {
         create_root(tcp_root_, transport_protocol_e::TCP);
-    } else {
-        // Preserve original behavior
-        if (configuration_->is_local_routing()) {
-            create_root(uds_root_, transport_protocol_e::UDS);
-        } else {
-            create_root(tcp_root_, transport_protocol_e::TCP);
-        }
     }
 
     if (!is_successful) {
@@ -1923,12 +1920,6 @@ bool routing_manager_stub::send_local(std::shared_ptr<local_endpoint> const& _ep
         return false;
     }
     return _ep->send(&_data[0], static_cast<uint32_t>(_data.size()));
-}
-
-std::vector<std::shared_ptr<local_server>*> routing_manager_stub::get_routing_roots() {
-    if (is_uds_preferred_)
-        return {&uds_root_, &tcp_root_};
-    return {configuration_->is_local_routing() ? &uds_root_ : &tcp_root_};
 }
 
 } // namespace vsomeip_v3

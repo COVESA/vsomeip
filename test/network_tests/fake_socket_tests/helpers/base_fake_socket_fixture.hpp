@@ -200,6 +200,11 @@ struct base_fake_socket_fixture : ::testing::Test {
     void fail_on_bind(std::string const& _app, bool _fail);
 
     /**
+     * @see socket_manager::fail_on_uds_bind
+     */
+    void fail_on_uds_bind(std::string const& _app, bool _fail);
+
+    /**
      * @see socket_manager::set_ignore_broken_pipe
      */
     void set_ignore_broken_pipe(std::string const& _app_name, bool _set);

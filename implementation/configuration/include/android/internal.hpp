@@ -102,8 +102,8 @@
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
 #define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000 // us
 
-#define LOCAL_TCP_PORT_WAIT_TIME                100
-#define LOCAL_TCP_PORT_MAX_WAIT_TIME            10000
+#define IPC_PORT_WAIT_TIME                100
+#define IPC_PORT_MAX_WAIT_TIME            10000
 
 // wait-on-close for boardnet TCP communication
 #define VSOMEIP_TCP_CLOSE_SEND_BUFFER_CHECK_PERIOD  10 // ms

@@ -78,4 +78,9 @@ struct ecu_config {
 /// Serializes an ecu_config to a vsomeip-compatible JSON configuration string.
 std::string to_json_string(const ecu_config& cfg);
 
+/// Returns a copy of an existing ecu_config with additional boardnet interfaces appended.
+inline ecu_config with_interfaces(ecu_config base, std::vector<interface> extra, vsomeip::port_t base_port = 30501) {
+    base.add_interface(std::move(extra), base_port);
+    return base;
+}
 }

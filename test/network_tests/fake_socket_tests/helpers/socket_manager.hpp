@@ -63,6 +63,13 @@ public:
     void fail_on_bind(std::string const& _app, bool fail);
 
     /**
+     * Like fail_on_bind, but ONLY affects UDS acceptor binds (i.e. the local UDS server
+     * creation path). TCP/UDP socket binds are unaffected, so the app can still connect
+     * to the router. Use this to simulate /var/run/someip not being ready at startup.
+     */
+    void fail_on_uds_bind(std::string const& _app, bool fail);
+
+    /**
      * Waits until either the timeout expires, or the application associated
      * with this name called async_accept on some fake_acceptor.
      * Useful to await the start of the routing application.
@@ -370,6 +377,7 @@ private:
     std::map<boost::asio::ip::udp::endpoint, bool> udp_sending_delay_;
     std::set<std::string> connections_to_ignore_;
     std::set<std::string> fail_on_bind_;
+    std::set<std::string> fail_on_uds_bind_;
     std::set<std::string> ignore_broken_pipe_;
     std::set<std::string> ignore_all_multicast_joins_;
 };

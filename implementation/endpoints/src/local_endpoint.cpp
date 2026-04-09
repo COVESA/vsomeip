@@ -484,15 +484,15 @@ bool local_endpoint::is_allowed() {
     // verify the claimed port falls within the range configured for their uid/gid.
     // Without this check, any local process could claim an arbitrary TCP endpoint
     // and have the routing manager treat it as authoritative.
-    if (config->is_uds_preferred() && socket_->own_port() == VSOMEIP_SEC_PORT_UNUSED && peer_data_.routing_port_ != ILLEGAL_PORT) {
+    if (config->is_uds_preferred() && socket_->own_port() == VSOMEIP_SEC_PORT_UNUSED && peer_data_.id_ == VSOMEIP_ROUTING_CLIENT) {
         auto const allowed_ranges = config->get_routing_guest_ports(peer_data_.sec_client_.user, peer_data_.sec_client_.group);
-        bool const port_allowed = std::any_of(allowed_ranges.begin(), allowed_ranges.end(), [&](auto const& r) {
-            return peer_data_.routing_port_ >= r.first && peer_data_.routing_port_ <= r.second;
-        });
+        auto const its_port = peer_endpoint().port();
+        bool const port_allowed = std::any_of(allowed_ranges.begin(), allowed_ranges.end(),
+                                              [&](auto const& r) { return its_port >= r.first && its_port <= r.second; });
         if (!port_allowed) {
-            VSOMEIP_WARNING_P << "vSomeIP Security: Rejecting claimed routing port " << peer_data_.routing_port_
-                              << " from uid/gid=" << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
-                              << " (not in allowed range for this uid/gid), client: " << hex4(peer_data_.id_);
+            VSOMEIP_ERROR_P << "vSomeIP Security: Rejecting claimed routing port " << its_port
+                            << " from uid/gid=" << peer_data_.sec_client_.user << "/" << peer_data_.sec_client_.group
+                            << " (not in allowed range for this uid/gid), client: " << hex4(peer_data_.id_);
             return false;
         }
     }
@@ -571,7 +571,7 @@ boost::asio::ip::tcp::endpoint local_endpoint::peer_endpoint() const {
     if (!peer_data_.routing_address_.is_unspecified()) {
         return {peer_data_.routing_address_, peer_data_.routing_port_};
     }
-    return {};
+    return socket_->peer_endpoint();
 }
 
 client_t local_endpoint::connected_client() const {
