@@ -47,7 +47,6 @@ void local_acceptor_tcp_impl::init(boost::asio::ip::tcp::endpoint _local_ep, boo
 
     acceptor_->bind(local_ep_, _ec);
     if (_ec) {
-        VSOMEIP_INFO_P << "Could not bind, " << _ec.message() << ", " << local_ep_ << ", mem: " << this;
         // we do not close the socket, as this is an expected situation
         return;
     }

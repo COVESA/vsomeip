@@ -180,9 +180,11 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
         uint32_t its_current_wait_time{0};
 
         auto its_tmp = std::make_shared<local_acceptor_tcp_impl>(io_, configuration_);
+        auto bind_fail_count_ = 0;
         while (get_local_server_port(its_port, its_used_ports) && !tcp_acceptor) {
             boost::system::error_code its_error;
-            its_tmp->init(boost::asio::ip::tcp::endpoint(its_address, its_port), its_error);
+            auto local_ep = boost::asio::ip::tcp::endpoint(its_address, its_port);
+            its_tmp->init(local_ep, its_error);
             if (!its_error) {
                 VSOMEIP_INFO << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
                 local_port_ = port_t(its_port + 1);
@@ -194,6 +196,10 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
             } else {
                 if (its_error == boost::asio::error::address_in_use) {
                     its_used_ports.insert(its_port);
+                    if (++bind_fail_count_ % 10 == 0) {
+                        VSOMEIP_INFO_P << "Could not bind (x" << bind_fail_count_ << "), " << its_error.message() << ", " << local_ep
+                                       << ", mem: " << its_tmp.get();
+                    }
                 } else {
                     its_current_wait_time += IPC_PORT_WAIT_TIME;
                     if (its_current_wait_time > IPC_PORT_MAX_WAIT_TIME)
