@@ -269,12 +269,14 @@ void connector_impl::trace(const byte_t* _header, uint16_t _header_size, const b
             std::stringstream ss;
 #if !defined(ANDROID)
             ss << its_channel.first << ":";
+#elif !defined(ANDROID_CI_BUILD)
+            ss << "TC:";
 #endif
             for (int i = 0; i < _header_size; i++) {
                 ss << ' ' << hex2(_header[i]);
             }
 
-            if (ftype.second) {
+            if (!ftype.second) {
                 // Header-Only Filter
                 its_data_size = VSOMEIP_FULL_HEADER_SIZE;
             }
