@@ -1,0 +1,47 @@
+{
+    "unicast" : "@TEST_IP_SLAVE@",
+    "netmask" : "255.255.255.0",
+    "logging" :
+    {
+        "level" : "trace",
+        "console" : "true"
+    },
+    "tracing" :
+    {
+        "enable" : "true"
+    },
+    "applications" :
+    [
+        {
+            "name" : "suspend_resume_test_slave",
+            "id" : "0x4567"
+        }
+    ],
+    "services" :
+    [
+        {
+            "service" : "0x6312",
+            "instance" : "0x0002",
+            "unreliable" : "34506",
+            "reliable" :
+            {
+                "port" : "34507",
+                "enable-magic-cookies" : "false"
+            }
+        }
+    ],
+    "routing" : "suspend_resume_test_slave",
+    "service-discovery" :
+    {
+        "enable" : "true",
+        "multicast" : "224.0.0.1",
+        "port" : "30490",
+        "protocol" : "udp",
+        "initial_delay_min" : "10",
+        "initial_delay_max" : "10",
+        "repetitions_base_delay" : "30",
+        "repetitions_max" : "3",
+        "cyclic_offer_delay" : "1000",
+        "ttl" : "3"
+    }
+}

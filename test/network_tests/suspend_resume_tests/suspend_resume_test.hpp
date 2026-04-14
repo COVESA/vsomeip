@@ -9,6 +9,7 @@
 #include <common/vsomeip_app_utilities.hpp>
 
 #define TEST_SERVICE 0x6311
+#define TEST_SERVICE_SLAVE 0x6312
 #define TEST_INSTANCE 0x0002
 #define TEST_MAJOR 0x01
 #define TEST_MINOR 0x0

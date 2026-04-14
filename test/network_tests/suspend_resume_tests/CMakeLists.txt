@@ -11,6 +11,10 @@ set(configuration_files
     suspend_resume_test_master_starter.sh
     suspend_resume_test_service.json
     suspend_resume_test_slave_starter.sh
+    suspend_resume_test_connections_master_starter.sh
+    suspend_resume_test_connections_slave_starter.sh
+    suspend_resume_test_connections_slave.json
+    suspend_resume_test_connections_master.json
 )
 configure_files("${configuration_files}")
 
@@ -22,10 +26,20 @@ add_executable(suspend_resume_test_client
     suspend_resume_test_client.cpp
 )
 
+add_executable(suspend_resume_test_connections_master
+    suspend_resume_test_connections_master.cpp
+)
+
+add_executable(suspend_resume_test_connections_slave
+    suspend_resume_test_connections_slave.cpp
+)
+
 # Add build dependencies and link libraries to executables.
 set(executables
     suspend_resume_test_service
     suspend_resume_test_client
+    suspend_resume_test_connections_master
+    suspend_resume_test_connections_slave
 )
 targets_add_default_dependencies("${executables}")
 targets_link_default_libraries("${executables}")
@@ -33,5 +47,11 @@ targets_link_default_libraries("${executables}")
 add_custom_test(
     NAME suspend_resume_test_initial
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/suspend_resume_test_master_starter.sh SERVICE
+    SEQUENTIAL
+)
+
+add_custom_test(
+    NAME suspend_resume_test_connections
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/suspend_resume_test_connections_master_starter.sh SERVICE
     SEQUENTIAL
 )
