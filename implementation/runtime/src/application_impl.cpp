@@ -642,7 +642,7 @@ void application_impl::subscribe(service_t _service, instance_t _instance, event
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
             // Get configured, application-specific filter
             auto its_filter{configuration_->get_debounce(get_name(), _service, _instance, _event)};
-            routing_->subscribe(client_, &sec_client_, _service, _instance, _eventgroup, _major, _event, its_filter);
+            routing_->subscribe(client_, _service, _instance, _eventgroup, _major, _event, its_filter);
         }
     }
 }
@@ -2566,9 +2566,8 @@ void application_impl::subscribe_with_debounce(service_t _service, instance_t _i
         }
 
         if (check_subscription_state(_service, _instance, _eventgroup, _event)) {
-            auto its_filter = std::make_shared<debounce_filter_impl_t>(_filter);
-            auto const sec_client = get_sec_client(); // do not use member directly, to avoid data races
-            routing_->subscribe(client_, &sec_client, _service, _instance, _eventgroup, _major, _event, its_filter);
+            routing_->subscribe(client_, _service, _instance, _eventgroup, _major, _event,
+                                std::make_shared<debounce_filter_impl_t>(_filter));
         }
     }
 }

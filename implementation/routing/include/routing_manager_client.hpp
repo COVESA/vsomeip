@@ -14,6 +14,7 @@
 
 #include <vsomeip/enumeration_types.hpp>
 #include <vsomeip/handler.hpp>
+#include <vsomeip/primitive_types.hpp>
 
 #include "routing_manager_base.hpp"
 #include "event_dispatcher.hpp"
@@ -40,6 +41,8 @@ class routing_manager_client : public routing_manager_base,
                                public event_dispatcher,
                                public routing_host,
                                public std::enable_shared_from_this<routing_manager_client> {
+    struct subscription_data_t;
+
 public:
     routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
                            const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter);
@@ -65,9 +68,8 @@ public:
 
     void release_service(client_t _client, service_t _service, instance_t _instance);
 
-    void subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                   eventgroup_t _eventgroup, major_version_t _major, event_t _event,
-                   const std::shared_ptr<debounce_filter_impl_t>& _filter);
+    void subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, major_version_t _major,
+                   event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
     void unsubscribe_base(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
@@ -121,8 +123,8 @@ public:
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
 
 private:
-    void send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major);
-    void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+    void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                     std::scoped_lock<std::mutex> const&);
 
     client_t get_client_by_address(const boost::asio::ip::address& _address, port_t _port) const;
 
@@ -263,6 +265,9 @@ private:
     void on_message(const byte_t* _data, length_t _length, const local_client_data& _peer_data) override;
     void lazy_load(const std::string& _client_host) override;
 
+    void collect_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major,
+                                       std::vector<subscription_data_t>& _collected_subscriptions, std::scoped_lock<std::mutex> const&);
+
 private:
     boost::asio::steady_timer keepalive_timer_;
     std::mutex log_timer_mutex_;
@@ -320,30 +325,6 @@ private:
 
     std::shared_ptr<routing_client_state_machine> state_machine_;
 
-    mutable std::mutex available_services_mutex_;
-    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
-    local_service_table available_services_;
-    std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
-
-    struct subscription_data_t {
-        service_t service_;
-        instance_t instance_;
-        eventgroup_t eventgroup_;
-        major_version_t major_;
-        event_t event_;
-        std::shared_ptr<debounce_filter_impl_t> filter_;
-        vsomeip_sec_client_t sec_client_;
-
-        bool operator<(const subscription_data_t& _other) const {
-            return (service_ < _other.service_ || (service_ == _other.service_ && instance_ < _other.instance_)
-                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ < _other.eventgroup_)
-                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ == _other.eventgroup_
-                        && event_ < _other.event_));
-        }
-    };
-    std::set<subscription_data_t> pending_subscriptions_;
-    std::mutex pending_subscription_mutex_;
-
     // Eventgroups
     mutable std::mutex eventgroups_mutex_;
     using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
@@ -371,6 +352,30 @@ private:
     mutable std::mutex provider_mutex_;
     // Set of services provided by this client
     services_t provided_services_;
+
+    // This mutex should be used whenever the client
+    // is trying to access data relevant for its "consumer" side
+    mutable std::mutex consumer_mutex_;
+    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
+    local_service_table available_services_;
+    std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
+
+    struct subscription_data_t {
+        service_t service_;
+        instance_t instance_;
+        eventgroup_t eventgroup_;
+        major_version_t major_;
+        event_t event_;
+        std::shared_ptr<debounce_filter_impl_t> filter_;
+
+        bool operator<(const subscription_data_t& _other) const {
+            return (service_ < _other.service_ || (service_ == _other.service_ && instance_ < _other.instance_)
+                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ < _other.eventgroup_)
+                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ == _other.eventgroup_
+                        && event_ < _other.event_));
+        }
+    };
+    std::set<subscription_data_t> pending_subscriptions_;
 };
 
 } // namespace vsomeip_v3

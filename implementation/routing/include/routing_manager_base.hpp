@@ -66,10 +66,6 @@ public:
 
     virtual void release_service(client_t _client, service_t _service, instance_t _instance);
 
-    virtual void subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                           eventgroup_t _eventgroup, major_version_t _major, event_t _event,
-                           const std::shared_ptr<debounce_filter_impl_t>& _filter) = 0;
-
     virtual bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
                       client_t _bound_client = VSOMEIP_ROUTING_CLIENT, const vsomeip_sec_client_t* _sec_client = nullptr,
                       uint8_t _status_check = 0, bool _sent_from_remote = false, bool _force = true) = 0;
