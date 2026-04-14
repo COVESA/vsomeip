@@ -1,5 +1,46 @@
 Changes
 =======
+v3.7.2
+- global
+  - Internal header w/ cmake instead of using macros in the header files
+  - Minor log level changes
+  - Remove trailing whitespaces
+  - Introduces hybrid mode
+  - Deprecate RS_DIAGNOSIS
+  - Fix payload not being printed on android
+
+- endpoints
+  - Separate the two endpoint_manager
+  - Decouple endpoint_manager_base from routing_manager_base
+  - Fix missing lock in udp_client_endpoint
+  - Fix UDP connection availability loop
+
+- service-discovery
+  - Fix data races in the service discovery
+  - Allow subscriptions as soon as the service is offered
+
+- routing
+  - Fix availability, host state, tcp address races in rmc
+  - Trigger routing_state_handler_ in all states
+  - Fix missing clean-up of pinged clients
+  - Only one mutex for serviceinfo
+  - Move offered services into rmc/rmi
+  - Add preparation stage to serviceinfo
+  - Move events out out routing_manager_base
+  - Move implementation of event_dispatcher
+
+-tests
+  - Add post tests log level tests
+  - Re-enable memory_test
+  - New "broken behavior" test
+  - Remove flaky shutdown_tests
+  - Add robustness to flaky stress test
+  - Fix offer test external
+  - Add test for routing state handler states
+  - Cleanup offer test big sd msg
+  - Fix initial event client data race
+
+
 v3.7.1
 - global
   - avoid routing info race on reconnect
