@@ -865,6 +865,17 @@ struct server_offering_multiple_fields : public base_fake_socket_fixture {
 
     ecu_setup ecu_one_{"ecu_one", ecu_one_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
     ecu_setup ecu_two_{"ecu_two", ecu_two_config_extended_.add_interface({multi_field_service_}), *socket_manager_};
+
+    void prepare_ecus_and_apps() {
+        ecu_one_.add_guest({"guest_server", 0x1337});
+        ecu_two_.add_guest({"guest_client", 0x1338});
+
+        ecu_one_.prepare();
+        ecu_two_.prepare();
+
+        ecu_one_.start_apps();
+        ecu_two_.start_apps();
+    }
 };
 
 TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fields) {
@@ -873,14 +884,7 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
     // This is to verify that there are no issues with the handling of multiple fields in the
     // same service, and that the client can receive events from all these fields without any problem.
 
-    ecu_one_.add_guest({"guest_server", std::nullopt});
-    ecu_two_.add_guest({"guest_client", std::nullopt});
-
-    ecu_one_.prepare();
-    ecu_two_.prepare();
-
-    ecu_one_.start_apps();
-    ecu_two_.start_apps();
+    prepare_ecus_and_apps();
 
     auto* server = ecu_one_.apps_["guest_server"];
     server->offer(multi_field_service_);
@@ -896,7 +900,8 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
     auto* client = ecu_two_.apps_["guest_client"];
     client->request_service(multi_field_service_.instance_);
 
-    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
+    // Assert because it no longer makes sense to further continue with the test steps
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
 
     // Note that the provider will be registering all the events
     // otherwise, initial events for all fields won't be received
@@ -904,12 +909,13 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
 
     // Verify client receives all 10 events using message_checker for flexible matching
     // These should be the cached events from before subscription
-    for (size_t i = 0; i < 10; ++i) {
+    for (size_t i = 0; i < fields_specs_.size(); ++i) {
         std::vector<unsigned char> expected_payload{static_cast<unsigned char>(0x10 + i), static_cast<unsigned char>(i)};
         message_checker checker{std::nullopt, multi_field_service_.instance_, multi_field_service_.fields_[i].event_id_,
                                 vsomeip::message_type_e::MT_NOTIFICATION, expected_payload};
         EXPECT_TRUE(client->message_record_.wait_for(checker))
-                << "Failed to receive event for field " << i << "\nRecord: " << client->message_record_.to_string();
+                << "Failed to receive event for field 0x" << std::hex << (multi_field_service_.fields_[0].event_id_ + i)
+                << "\nRecord: " << client->message_record_.to_string();
     }
 }
 }

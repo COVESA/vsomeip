@@ -892,7 +892,11 @@ bool routing_manager_impl::send_to(const std::shared_ptr<endpoint_definition>& _
             if (its_header.prepare(its_endpoint, true, _instance,
                                    its_endpoint->is_reliable() ? trace::protocol_e::tcp : trace::protocol_e::udp))
                 tc_->trace(its_header.data_, VSOMEIP_TRACE_HEADER_SIZE, _data, _size);
+        } else {
+            VSOMEIP_ERROR_P << "Failed to send message to target: " << _target->get_address();
         }
+    } else {
+        VSOMEIP_ERROR_P << "Failed to find endpoint for target: " << _target->get_address();
     }
     return is_sent;
 }

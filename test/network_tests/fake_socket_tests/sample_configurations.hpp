@@ -70,6 +70,7 @@ namespace boardnet {
 // ecu_one is the client side — no offered services, only routing + client port config
 inline const ecu_config ecu_one_config = []() {
     ecu_config cfg;
+    cfg.apps_ = {application_config{"router_one", 0x6310}};
     cfg.unicast_ip_ = boost::asio::ip::make_address("160.48.199.99");
     cfg.routing_config_ = local_tcp_config{.router_name_ = "router_one",
                                            .host_ = boost::asio::ip::make_address("160.48.199.253"),
@@ -81,7 +82,7 @@ inline const ecu_config ecu_one_config = []() {
 // ecu_two offers service_3344 on the boardnet
 inline const ecu_config ecu_two_config = []() {
     ecu_config cfg = {{interfaces::boardnet::service_3344}};
-
+    cfg.apps_ = {application_config{"router_two", 0x6311}};
     cfg.unicast_ip_ = boost::asio::ip::make_address("160.48.199.98");
     cfg.routing_config_ = local_tcp_config{.router_name_ = "router_two",
                                            .host_ = boost::asio::ip::make_address("160.48.199.181"),
