@@ -268,7 +268,8 @@ bool eventgroupinfo::update_remote_subscription(const std::shared_ptr<remote_sub
                         subscriptions_[id_] = _subscription;
                     } else {
                         if (!_subscription->is_pending()) {
-                            if (!_subscription->force_initial_events()) {
+                            // Ensure parent has sent the initial events
+                            if (!_subscription->force_initial_events() && !its_item.second->is_initial()) {
                                 _subscription->set_initial(false);
                             }
                         } else {
