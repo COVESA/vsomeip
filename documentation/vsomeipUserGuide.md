@@ -43,9 +43,9 @@ The stack consists out of:
 
 * A C++17 enabled compiler is needed
 * vSomeIP uses cmake as buildsystem.
-* vSomeIP uses Boost >= 1.74:
+* vSomeIP uses Boost >= 1.75:
     * Ubuntu 22.04:
-        * `sudo apt-get install libboost-filesystem1.74-dev`
+        * `sudo apt-get install libboost-filesystem1.75-dev`
 * For the tests Google's test framework
     https://github.com/google/googletest/releases
 * To build the documentation doxygen and graphviz are needed:

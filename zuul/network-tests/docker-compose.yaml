@@ -20,7 +20,7 @@ x-common:
       - https_proxy
       - no_proxy
       - BOOST_MAJOR=1
-      - BOOST_MINOR=74
+      - BOOST_MINOR=75
       - BOOST_PATCH=0
     context: ../../..
     dockerfile: vsomeip/zuul/network-tests/Dockerfile
