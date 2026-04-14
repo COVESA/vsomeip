@@ -2863,6 +2863,8 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
 
             init_pending_services();
 
+            VSOMEIP_INFO << VSOMEIP_EXTERNAL_ROUTING_READY_MESSAGE;
+
             {
                 std::scoped_lock its_lock(last_resume_mutex_);
                 last_resume_ = std::chrono::steady_clock::now();
