@@ -31,7 +31,7 @@ The stack consists out of:
 
 - A C++17 enabled compiler is needed.
 - vSomeIP uses CMake as buildsystem.
-- vSomeIP uses Boost >= 1.74.0:
+- vSomeIP uses Boost >= 1.75.0:
 
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
 -- URL: https://googletest.googlecode.com/files/gtest-<version>.zip
@@ -96,7 +96,7 @@ In the default setting, the application has to take care of shutting down vSomeI
 
 ###### Dependencies
 
-- vSomeIP uses Boost >= 1.74. The boost libraries (system and filesystem) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
+- vSomeIP uses Boost >= 1.75. The boost libraries (system and filesystem) must be included in the Android source tree and integrated into the build process with an appropriate Android.bp file.
 
 ###### Compilation
 
@@ -126,7 +126,7 @@ PRODUCT_PACKAGES += \
     - Windows 10/11 SDK
     - CMake for Windows
 - vSomeIP uses CMake as buildsystem.
-- vSomeIP uses Boost >= 1.74.0:
+- vSomeIP uses Boost >= 1.75.0:
 - GIT
 
 For the tests Google's test framework https://code.google.com/p/googletest/[gtest] is needed.
