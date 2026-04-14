@@ -463,7 +463,7 @@ void routing_manager_client::request_service(client_t _client, service_t _servic
 void routing_manager_client::release_service(client_t _client, service_t _service, instance_t _instance) {
     routing_manager_base::release_service(_client, _service, _instance);
     {
-        std::scoped_lock its_service_guard(available_services_mutex_);
+        std::scoped_lock its_service_guard(consumer_mutex_);
         auto found_service = available_services_history_.find(_service);
         if (found_service != available_services_history_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -474,9 +474,9 @@ void routing_manager_client::release_service(client_t _client, service_t _servic
                 }
             }
         }
+        remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT, its_service_guard);
     }
     {
-        remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT);
 
         // order matters:
         // 1. Remove the service from the requests
@@ -610,22 +610,22 @@ bool routing_manager_client::is_field(service_t _service, instance_t _instance, 
     return false;
 }
 
-void routing_manager_client::subscribe(client_t _client, const vsomeip_sec_client_t* _sec_client, service_t _service, instance_t _instance,
-                                       eventgroup_t _eventgroup, major_version_t _major, event_t _event,
-                                       const std::shared_ptr<debounce_filter_impl_t>& _filter) {
+void routing_manager_client::subscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                       major_version_t _major, event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter) {
 
     (void)_client;
 
-    // order matters:
-    // 1. Add the subscription to the set
-    // 2. Try to send the subscription if already registered
-    // otherwise the subscription might not be send at all
+    bool send{false};
     {
-        std::scoped_lock its_lock{pending_subscription_mutex_};
-        subscription_data_t subscription = {_service, _instance, _eventgroup, _major, _event, _filter, *_sec_client};
+        std::scoped_lock its_lock{consumer_mutex_};
+        subscription_data_t subscription = {_service, _instance, _eventgroup, _major, _event, _filter};
         pending_subscriptions_.insert(subscription);
+        if (state_machine_->state() == routing_client_state_e::ST_REGISTERED
+            && available_services_.is_available(_service, _instance, _major)) {
+            send = true;
+        }
     }
-    if (state_machine_->state() == routing_client_state_e::ST_REGISTERED && is_available(_service, _instance, _major)) {
+    if (send) {
         send_subscribe(get_client(), _service, _instance, _eventgroup, _major, _event, _filter);
     }
 }
@@ -799,7 +799,10 @@ void routing_manager_client::unsubscribe(client_t _client, service_t _service, i
     (void)_client;
 
     {
-        remove_pending_subscription(_service, _instance, _eventgroup, _event);
+        {
+            std::scoped_lock its_service_guard(consumer_mutex_);
+            remove_pending_subscription(_service, _instance, _eventgroup, _event, its_service_guard);
+        }
 
         if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
 
@@ -1584,8 +1587,9 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 }
             }
 
+            std::vector<subscription_data_t> collected_subscriptions;
             {
-                std::scoped_lock its_lock(available_services_mutex_);
+                std::scoped_lock its_lock(consumer_mutex_);
                 address_table_[its_client] = std::make_pair(its_address, its_port);
                 for (const auto& s : e.get_services()) {
                     const auto its_service(s.service_);
@@ -1599,10 +1603,11 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     host_->on_availability(its_service, its_instance, availability_state_e::AS_AVAILABLE, its_major, its_minor);
                     VSOMEIP_INFO << "ON_AVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
                                  << int(its_major) << "." << its_minor << "]";
+                    collect_pending_subscriptions(its_service, its_instance, its_major, collected_subscriptions, its_lock);
                 }
             }
-            for (const auto& s : e.get_services()) {
-                send_pending_subscriptions(s.service_, s.instance_, s.major_);
+            for (auto const& sub : collected_subscriptions) {
+                send_subscribe(get_client(), sub.service_, sub.instance_, sub.eventgroup_, sub.major_, sub.event_, sub.filter_);
             }
             break;
         }
@@ -1615,7 +1620,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 const auto its_minor(s.minor_);
 
                 {
-                    std::scoped_lock its_lock(available_services_mutex_);
+                    std::scoped_lock its_lock(consumer_mutex_);
                     if (available_services_.remove(its_service, its_instance)) {
                         available_services_history_[its_service][its_instance].insert(its_client);
                     }
@@ -2131,7 +2136,7 @@ void routing_manager_client::set_port(port_t _port) {
 }
 
 bool routing_manager_client::get_connection_param(client_t _client, boost::asio::ip::address& _address, port_t& _port) {
-    std::scoped_lock lock{available_services_mutex_};
+    std::scoped_lock lock{consumer_mutex_};
     if (auto const it = address_table_.find(_client); it != address_table_.end()) {
         _address = it->second.first;
         _port = it->second.second;
@@ -2141,7 +2146,7 @@ bool routing_manager_client::get_connection_param(client_t _client, boost::asio:
 }
 
 void routing_manager_client::add_connection_param(client_t _client, boost::asio::ip::address const& _address, port_t const& _port) {
-    std::scoped_lock lock{available_services_mutex_};
+    std::scoped_lock lock{consumer_mutex_};
     address_table_[_client] = std::make_pair(_address, _port);
 }
 
@@ -2452,7 +2457,7 @@ void routing_manager_client::remove_local(client_t _client,
     }
     ep_mgr_->remove_local(_client, true);
     {
-        std::scoped_lock its_lock(available_services_mutex_);
+        std::scoped_lock its_lock(consumer_mutex_);
         address_table_.erase(_client);
         auto removed = available_services_.remove_all_for_client(_client);
         for (auto const& [its_service, its_instance, its_major, its_minor, its_client] : removed) {
@@ -2491,7 +2496,7 @@ void routing_manager_client::remove_local(client_t _client,
 
 void routing_manager_client::cleanup_routing_data() {
     {
-        std::scoped_lock lock(available_services_mutex_);
+        std::scoped_lock lock(consumer_mutex_);
         auto removed = available_services_.clear();
         for (auto const& [service, instance, major, minor, client] : removed) {
             // call on_availability only under the same lock as the available_services_ to ensure
@@ -2539,7 +2544,7 @@ void routing_manager_client::cleanup_subscriber() {
     }
 }
 client_t routing_manager_client::get_client_by_address(const boost::asio::ip::address& _address, port_t _port) const {
-    std::scoped_lock lock{available_services_mutex_};
+    std::scoped_lock lock{consumer_mutex_};
     auto const it = std::find_if(address_table_.begin(), address_table_.end(),
                                  [&_address, &_port](const std::pair<client_t, std::pair<boost::asio::ip::address, port_t>>& p) {
                                      return p.second.first == _address && p.second.second == _port;
@@ -2548,7 +2553,7 @@ client_t routing_manager_client::get_client_by_address(const boost::asio::ip::ad
 }
 
 client_t routing_manager_client::find_local_client(service_t _service, instance_t _instance) const {
-    std::scoped_lock its_lock(available_services_mutex_);
+    std::scoped_lock its_lock(consumer_mutex_);
     return available_services_.find_client(_service, _instance);
 }
 
@@ -2559,7 +2564,7 @@ bool routing_manager_client::is_response_allowed(client_t _sender, service_t _se
     }
 
     {
-        std::scoped_lock its_lock(available_services_mutex_);
+        std::scoped_lock its_lock(consumer_mutex_);
         if (_sender == available_services_.find_client(_service, _instance)) {
             // sender is still offering the service
             return true;
@@ -2626,22 +2631,22 @@ bool routing_manager_client::send(client_t _client, std::shared_ptr<message> _me
 }
 
 bool routing_manager_client::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
-    std::scoped_lock its_lock(available_services_mutex_);
+    std::scoped_lock its_lock(consumer_mutex_);
     return available_services_.is_available(_service, _instance, _major);
 }
 
-void routing_manager_client::send_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major) {
-    std::scoped_lock its_lock(pending_subscription_mutex_);
+void routing_manager_client::collect_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major,
+                                                           std::vector<subscription_data_t>& _collected_subscriptions,
+                                                           std::scoped_lock<std::mutex> const&) {
     for (auto& ps : pending_subscriptions_) {
         if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
-            send_subscribe(get_client(), ps.service_, ps.instance_, ps.eventgroup_, ps.major_, ps.event_, ps.filter_);
+            _collected_subscriptions.push_back(ps);
         }
     }
 }
 
-void routing_manager_client::remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
-                                                         event_t _event) {
-    std::scoped_lock its_lock(pending_subscription_mutex_);
+void routing_manager_client::remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                                         std::scoped_lock<std::mutex> const&) {
     if (_eventgroup == 0xFFFF) {
         for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
             if (it->service_ == _service && it->instance_ == _instance) {
