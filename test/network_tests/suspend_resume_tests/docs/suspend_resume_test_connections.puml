@@ -1,0 +1,37 @@
+@startuml
+participant Master
+participant Slave
+
+Master -> Slave : Offer TEST_SERVICE (UDP + TCP)
+Slave -> Master : Find TEST_SERVICE
+Master -> Slave : Service available (TEST_SERVICE)
+Slave -> Master : Offer TEST_SERVICE_SLAVE (UDP + TCP)
+Master -> Slave : Find TEST_SERVICE
+note over Master
+    Wait for TEST_SERVICE_SLAVE availability
+end note
+Slave -> Master : Service available (TEST_SERVICE_SLAVE)
+
+Slave -> Master : Suspend request
+Master -> Master : set_routing_state(RS_SUSPENDED)
+Master -> Slave : Service unavailable (TEST_SERVICE)
+
+note over Master
+    EXPECT: UDP sockets closed (≤ 100ms)
+    EXPECT: TCP connections closed (≤ 100ms)
+end note
+
+Master -> Master : Network interface down
+
+Master -> Master : Wait 3 seconds
+Master -> Master : Network interface up
+Master -> Master : set_routing_state(RS_RESUMED)
+Master -> Slave : Service available (TEST_SERVICE)
+
+note over Slave
+    EXPECT: suspension_duration > 2000ms
+end note
+
+Slave -> Master : Stop request
+
+@enduml

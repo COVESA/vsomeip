@@ -1,0 +1,42 @@
+#!/bin/bash -x
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+# Purpose: This script is needed to start the services with
+# one command. This is necessary as ctest - which is used to run the
+# tests - isn't able to start multiple binaries for one testcase. Therefore
+# the testcase simply executes this script. This script then runs the services
+# and checks that all exit successfully.
+
+FAIL=0
+
+# Start the service
+export VSOMEIP_APPLICATION_NAME=suspend_resume_test_master
+export VSOMEIP_CONFIGURATION=suspend_resume_test_connections_master.json
+
+# start the service
+./suspend_resume_test_connections_master &
+PID_MASTER=$!
+echo -e "\n\n[TEST-sh]: Started Service with PID=$PID_MASTER \n\n"
+
+exec_slave "./suspend_resume_test_connections_slave_starter.sh"
+PID_SLAVE=$!
+
+# wait until client exits successfully
+wait $PID_MASTER || FAIL=$(($FAIL+1))
+wait $PID_SLAVE || FAIL=$(($FAIL+1))
+
+# Restore network configuration
+ip link set eth0 up
+ip addr add 169.254.87.2/24 dev eth0
+ip route add 169.254.87.0/24 src 169.254.87.2 dev eth0
+ip route add 224.0.0.0/4 dev eth0
+
+exit $FAIL
