@@ -2443,7 +2443,7 @@ void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const
                                 << "s ago.";
             }
         }
-        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << its_last_resume.str();
+        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " (" << VSOMEIP_GIT_COMMIT << ") " << its_last_resume.str();
 
         ep_mgr_impl_->log_client_states();
         ep_mgr_impl_->log_server_states();

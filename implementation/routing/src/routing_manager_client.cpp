@@ -165,7 +165,7 @@ void routing_manager_client::version_log_timer_cbk(boost::system::error_code con
     if (!_error) {
         const uint32_t its_interval = configuration_->get_version_log_interval(host_->get_name(), false);
 
-        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " | ";
+        VSOMEIP_INFO << "vSomeIP " << VSOMEIP_VERSION << " (" << VSOMEIP_GIT_COMMIT << ") | ";
 
         log_network_state(true, false);
 

@@ -102,6 +102,7 @@ LOCAL_CFLAGS :=  \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
     -DVSOMEIP_VERSION=\"3.7.2\" \
+    -DVSOMEIP_GIT_COMMIT=\"unknown\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
@@ -161,6 +162,7 @@ LOCAL_CFLAGS := \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
     -DVSOMEIP_VERSION=\"3.7.2\" \
+    -DVSOMEIP_GIT_COMMIT=\"unknown\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
     -Wno-non-virtual-dtor \
