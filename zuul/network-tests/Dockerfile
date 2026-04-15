@@ -8,6 +8,7 @@ RUN apt-get update;\
         cmake\
         g++\
         gdb\
+        git\
         googletest\
         iptables\
         iproute2\
@@ -66,6 +67,8 @@ RUN chown root:root /root/.ssh/config && chmod 600 /root/.ssh/config
 RUN ln -s /home/build /vsomeip_lib
 
 # Place stuff in a known place
+RUN git config --global --add safe.directory /home/source
+
 WORKDIR /home/source
 
 # Declare bind-mounts
