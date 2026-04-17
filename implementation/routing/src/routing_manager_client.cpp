@@ -1022,7 +1022,13 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                             // With the refactoring towards client-server we have to temporarily "lie"
                             // to security about the port we received the message from...
                             auto sec_client = _peer_data.sec_client_;
-                            sec_client.port = htons(ntohs(_peer_data.sec_client_.port) - 1);
+
+                            // If port is VSOMEIP_SEC_PORT_UNUSED (0) the connection is over UDS.
+                            // Subtracting 1 from 0 would wrap around to VSOMEIP_SEC_PORT_UNSET
+                            // (0xFFFF) which is not a valid registered port
+                            if (ntohs(_peer_data.sec_client_.port) != VSOMEIP_SEC_PORT_UNUSED) {
+                                sec_client.port = htons(ntohs(_peer_data.sec_client_.port) - 1);
+                            }
 
                             // Verifies security offer rule for messages (notifications and
                             // responses)
