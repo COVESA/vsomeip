@@ -298,9 +298,10 @@ public:
                                     socket_role _sender = socket_role::unspecified);
 
     /**
-     * Invoked by a connected socket upon closing the connection
+     * Invoked by a connected socket upon closing the connection, if the connection
+     * does no longer contain connected sockets connection drop will be notified
      **/
-    void close_connection(std::string const& _one, std::string const& _two, socket_role _closing);
+    void check_connection(std::string const& _one, std::string const& _two, socket_role _closing);
 
     /**
      * @brief Adds member @param _fd to virtual multicast group @param _multicast.

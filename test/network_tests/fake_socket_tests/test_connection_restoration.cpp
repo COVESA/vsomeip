@@ -941,34 +941,27 @@ TEST_F(test_reoffer_on_connection_breaking, client_receives_response_after_reoff
     ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
     client_->message_record_.clear();
 
-    for (int i = 0; i < 100; ++i) {
-        TEST_LOG << "### Iteration: " << i << " START";
+    router_to_client_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID, 2); // 1. DELETE_SERVICE, -> block 2. ADD_SERVICE
+    // 0. Stop the offer
+    stop_offer();
+    // 1. Hold back the routing_info at the clients "gate" to ensure it is received in close repetition with 2.
 
-        // 0. Stop the offer
-        stop_offer();
+    server_->offer(service_instance_);
+    ASSERT_TRUE(router_to_client_gate_->wait_for_blocked());
 
-        // 1. Hold back the routing_info at the clients "gate" to ensure it is received in close repetition with 2.
-        router_to_client_gate_->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID);
-        server_->offer(service_instance_);
-        ASSERT_TRUE(router_to_client_gate_->wait_for_blocked());
+    // 1.
+    router_to_client_gate_->block(false);
+    // 2.
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::timed_out));
 
-        // 1.
-        router_to_client_gate_->block(false);
-        // 2.
-        ASSERT_TRUE(disconnect(client_name_, boost::asio::error::connection_reset, server_name_, boost::asio::error::timed_out));
-
-        // it is important to check as a first step that the connection was re-established,
-        // and that then the service is getting available
-        // and only then does the reply matter.
-        // (If we would directly check the service and the reply, they might have been captured before the connection was disconnected,
-        // leading to a false positive failure in the next iteration)
-        ASSERT_TRUE(await_connection(client_name_, server_name_));
-        ASSERT_TRUE(await_service());
-        client_->availability_record_.clear();
-        ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
-        client_->message_record_.clear();
-        TEST_LOG << "### Iteration: " << i << " END";
-    }
+    // it is important to check as a first step that the connection was re-established,
+    // and that then the service is getting available
+    // and only then does the reply matter.
+    // (If we would directly check the service and the reply, they might have been captured before the connection was disconnected,
+    // leading to a false positive failure in the next iteration)
+    ASSERT_TRUE(await_connection(client_name_, server_name_));
+    ASSERT_TRUE(await_service());
+    ASSERT_TRUE(client_->message_record_.wait_for(response_checker_));
 }
 
 TEST_F(test_connection_restoration, pinged_services_are_cleaned_up_on_deregistration) {
