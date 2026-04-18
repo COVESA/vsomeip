@@ -597,7 +597,7 @@ void socket_manager::set_custom_command_handler(std::string const& _client, std:
     auto connection = get_or_create_connection(_client, _server);
     connection->set_custom_command_handler(_handler, _sender);
 }
-void socket_manager::close_connection(std::string const& _one, std::string const& _two, socket_role _closing) {
+void socket_manager::check_connection(std::string const& _one, std::string const& _two, socket_role _closing) {
     auto connection = _closing == socket_role::server ? get_or_create_connection(_two, _one) : get_or_create_connection(_one, _two);
     connection->notify();
 }
