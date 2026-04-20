@@ -73,9 +73,9 @@
 
     // setup timeout
     if (_timeout.count() > 0) {
-        timeout_detector timeout(static_cast<uint32_t>(_timeout.count()));
+        timeout_detector timeout(_argc, _argv, static_cast<uint32_t>(_timeout.count()));
     } else {
-        timeout_detector timeout;
+        timeout_detector timeout(_argc, _argv);
     }
 #endif
 
