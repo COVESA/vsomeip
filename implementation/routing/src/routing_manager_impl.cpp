@@ -106,12 +106,12 @@ void routing_manager_impl::set_client_host(const std::string& _client_host) {
 }
 
 std::set<client_t> routing_manager_impl::find_local_clients(service_t _service, instance_t _instance) {
-    std::scoped_lock its_lock(local_services_mutex_);
+    std::scoped_lock its_lock(services_state_mutex_);
     return local_services_table_.find_clients(_service, _instance);
 }
 
 client_t routing_manager_impl::find_local_client(service_t _service, instance_t _instance) {
-    std::scoped_lock its_lock(local_services_mutex_);
+    std::scoped_lock its_lock(services_state_mutex_);
     return local_services_table_.find_client(_service, _instance);
 }
 
@@ -1253,7 +1253,7 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
     VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec
                  << static_cast<int>(_major) << "." << _minor << "]";
     {
-        std::scoped_lock its_lock{local_services_mutex_};
+        std::scoped_lock its_lock{services_state_mutex_};
         if (auto entry = local_services_table_.find_entry(_service, _instance); entry) {
             auto [stored_service, stored_instance, stored_major, stored_minor, stored_client] = *entry;
             if (stored_major != _major || stored_minor != _minor || stored_client != _client) {
@@ -1591,7 +1591,7 @@ void routing_manager_impl::remove_local(client_t _client) {
         unsubscribe(_client, service, instance, eventgroup, ANY_EVENT);
     }
     {
-        std::scoped_lock its_lock(local_services_mutex_);
+        std::scoped_lock its_lock(services_state_mutex_);
         // Finally remove all services that are implemented by the client.
         auto removed = local_services_table_.remove_all_for_client(_client);
     }
@@ -2470,7 +2470,7 @@ void routing_manager_impl::version_log_timer_cbk(boost::system::error_code const
 bool routing_manager_impl::handle_local_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                       minor_version_t _minor) {
     {
-        std::scoped_lock its_lock{local_services_mutex_};
+        std::scoped_lock its_lock{services_state_mutex_};
         if (auto const prior_entry = local_services_table_.find_entry(_service, _instance); prior_entry) {
             auto const& [its_service, its_instance, its_stored_major, its_stored_minor, its_stored_client] = *prior_entry;
 
@@ -2482,7 +2482,6 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                 // check if previous offering application is still alive
                 bool already_pinged(false);
                 {
-                    std::scoped_lock its_lock_inner{pending_commands_mutex_};
                     auto found_service2 = pending_offers_.find(_service);
                     if (found_service2 != pending_offers_.end()) {
                         auto found_instance2 = found_service2->second.find(_instance);
@@ -2504,7 +2503,6 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                 if (!already_pinged) {
                     // find out endpoint of previously offering application
                     if (auto its_old_endpoint = find_routing_endpoint(its_stored_client); its_old_endpoint) {
-                        std::scoped_lock its_lock_inner{pending_commands_mutex_};
                         if (stub_->send_ping(its_stored_client)) {
                             pending_offers_[_service][_instance] = std::make_tuple(_major, _minor, _client, its_stored_client);
                             VSOMEIP_WARNING << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
@@ -2546,17 +2544,14 @@ bool routing_manager_impl::handle_service_rerequest(client_t _client, service_t 
     client_t offering_client{VSOMEIP_CLIENT_UNSET};
 
     {
-        std::scoped_lock local_services_lock{local_services_mutex_};
+        std::scoped_lock its_lock{services_state_mutex_};
         offering_client = local_services_table_.find_client(_service, _instance);
-    }
 
-    // Service is not being offered -> process the request anyway
-    if (offering_client == VSOMEIP_CLIENT_UNSET) {
-        return true;
-    }
+        // Service is not being offered -> process the request anyway
+        if (offering_client == VSOMEIP_CLIENT_UNSET) {
+            return true;
+        }
 
-    {
-        std::scoped_lock pending_requests_lock{pending_commands_mutex_};
         auto its_key = service_instance_t{_service, _instance};
         if (auto found_pending = pending_requests_.find(its_key); found_pending != pending_requests_.end()) {
             auto& [pending_offering_client, requesting_clients] = found_pending->second;
@@ -2592,8 +2587,9 @@ bool routing_manager_impl::handle_service_rerequest(client_t _client, service_t 
 }
 
 void routing_manager_impl::on_pong(client_t _client) {
+    std::vector<std::pair<service_instance_t, std::set<client_t>>> requests_to_process;
     {
-        std::scoped_lock its_lock{pending_commands_mutex_};
+        std::scoped_lock its_lock{services_state_mutex_};
         for (auto service_iter = pending_offers_.begin(); service_iter != pending_offers_.end();) {
             for (auto instance_iter = service_iter->second.begin(); instance_iter != service_iter->second.end();) {
                 auto [major, minor, new_client, old_client] = instance_iter->second;
@@ -2610,7 +2606,7 @@ void routing_manager_impl::on_pong(client_t _client) {
                 }
             }
 
-            if (service_iter->second.size() == 0) {
+            if (service_iter->second.empty()) {
                 service_iter = pending_offers_.erase(service_iter);
             } else {
                 ++service_iter;
@@ -2619,32 +2615,36 @@ void routing_manager_impl::on_pong(client_t _client) {
 
         for (auto iter = pending_requests_.begin(); iter != pending_requests_.end();) {
             const auto& its_key = iter->first;
-            auto service_id = its_key.service();
-            auto instance_id = its_key.instance();
-            auto [offering_client, requesting_clients] = iter->second;
+            auto& [offering_client, requesting_clients] = iter->second;
 
             if (offering_client == _client) {
-                // received pong from an application were another application wants
-                // to request its service, processing the request
-
-                protocol::service its_request(service_id, instance_id, ANY_MAJOR, ANY_MINOR);
-                std::set<protocol::service> requests;
-                requests.insert(its_request);
-
-                for (auto client_id : requesting_clients) {
-                    request_service(client_id, service_id, instance_id, ANY_MAJOR, ANY_MINOR);
-                    if (configuration_->is_security_enabled()) {
-                        stub_->handle_credentials(client_id, requests);
-                    }
-                    stub_->handle_requests(client_id, requests);
-                    VSOMEIP_INFO << "REQUEST(" << hex4(client_id) << "): [" << hex4(service_id) << "." << hex4(instance_id)
-                                 << "] processed";
-                }
-
+                // Received pong from an application where another application wants to request its service. Defer request processing until
+                // after pending_commands_mutex_ is released to keep lock ordering consistent with request/release paths.
+                requests_to_process.emplace_back(its_key, std::move(requesting_clients));
                 iter = pending_requests_.erase(iter);
             } else {
                 ++iter;
             }
+        }
+    }
+
+    // The requests_to_process is a local stack copy extracted under lock.
+    // Only this thread can access it, and no other thread can obtain a reference to it.
+    // This defers processing outside the critical section to maintain lock ordering.
+    for (const auto& [service_instance, requesting_clients] : requests_to_process) {
+        auto service_id = service_instance.service();
+        auto instance_id = service_instance.instance();
+        protocol::service its_request(service_id, instance_id, ANY_MAJOR, ANY_MINOR);
+        std::set<protocol::service> requests;
+        requests.insert(its_request);
+
+        for (auto client_id : requesting_clients) {
+            request_service(client_id, service_id, instance_id, ANY_MAJOR, ANY_MINOR);
+            if (configuration_->is_security_enabled()) {
+                stub_->handle_credentials(client_id, requests);
+            }
+            stub_->handle_requests(client_id, requests);
+            VSOMEIP_INFO << "REQUEST(" << hex4(client_id) << "): [" << hex4(service_id) << "." << hex4(instance_id) << "] processed";
         }
     }
 }
@@ -2660,7 +2660,7 @@ void routing_manager_impl::cleanup_client(client_t _client) {
 
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t, minor_version_t>> its_offers;
     {
-        std::scoped_lock its_lock{pending_commands_mutex_};
+        std::scoped_lock its_lock{services_state_mutex_};
         remove_pending_requests_unlocked(pending_request_removal_type_e::BOTH, _client);
         if (pending_offers_.size() == 0) {
             return;
@@ -3023,7 +3023,7 @@ bool routing_manager_impl::is_external_routing_ready() const {
 }
 
 bool routing_manager_impl::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
-    std::scoped_lock its_lock(local_services_mutex_);
+    std::scoped_lock its_lock(services_state_mutex_);
     return local_services_table_.is_available(_service, _instance, _major);
 }
 
@@ -3774,7 +3774,7 @@ const char* routing_manager_impl::routing_state_tostring(routing_state_e _state)
 
 void routing_manager_impl::remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service,
                                                    instance_t _instance) {
-    std::scoped_lock its_lock{pending_commands_mutex_};
+    std::scoped_lock its_lock{services_state_mutex_};
     remove_pending_requests_unlocked(_removal_type, _client, _service, _instance);
 }
 
