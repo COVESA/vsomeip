@@ -95,17 +95,7 @@ public:
         app_->start();
     }
 
-    ~subscribe_notify_one_test_service() {
-        offer_thread_.join();
-        stop_thread_.join();
-    }
-
-    void offer() { app_->offer_service(service_info_.service_id, service_info_.instance_id); }
-
-    void stop_offer() {
-        app_->stop_offer_event(service_info_.service_id, service_info_.instance_id, service_info_.event_id);
-        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
-    }
+    ~subscribe_notify_one_test_service() { stop_thread_.join(); }
 
     void on_state(vsomeip::state_type_e _state) {
         VSOMEIP_DEBUG << "Application " << app_->get_name() << " is "
@@ -171,8 +161,8 @@ public:
             subscribers_.erase(_client);
         }
 
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] "
-                      << "Client: " << _client << " subscribed, now have " << std::dec << subscribers_.size() << " subscribers. Expecting "
+        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] " << "Client: " << _client
+                      << " subscribed, now have " << std::dec << subscribers_.size() << " subscribers. Expecting "
                       << subscribe_notify_one_test::service_infos.size() - 2;
 
         if (subscribers_.size() == subscribe_notify_one_test::service_infos.size() - 2) {
@@ -265,13 +255,12 @@ public:
     }
 
     void run() {
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
         std::unique_lock<std::mutex> its_lock(mutex_);
         EXPECT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(5), [this] { return !wait_until_registered_; }))
                 << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Service registration timeout";
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
-        offer();
+        app_->offer_service(service_info_.service_id, service_info_.instance_id);
 
         EXPECT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(15), [this] { return !wait_until_other_services_available_; }))
                 << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
@@ -308,6 +297,22 @@ public:
         } else {
             VSOMEIP_ERROR << "Subscription state handler check skipped: CallCount=" << std::dec << subscription_state_handler_called_;
         }
+
+        // Send shutdown coordination message to all other services
+        send_shutdown_messages();
+
+        // magic sleep to ensure that all shutdown messages and responses are sent
+        // TODO: FIXME
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+
+        // Wait for shutdown acknowledgments from all other services
+        {
+            std::unique_lock<std::mutex> its_shutdown_lock(shutdown_mutex_);
+            EXPECT_TRUE(
+                    shutdown_condition_.wait_for(its_shutdown_lock, std::chrono::seconds(15), [this] { return !wait_for_shutdown_acks_; }))
+                    << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
+                    << "] Shutdown coordination timeout";
+        }
     }
 
     void notify_one() {
@@ -336,7 +341,6 @@ public:
                               << "] Notifying client: " << client << " : " << i + 1;
                 app_->notify_one(service_info_.service_id, service_info_.instance_id, service_info_.event_id, its_payload, client);
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 
@@ -350,21 +354,6 @@ public:
         // wait until all notifications have been sent out
         notify_thread_.join();
 
-        // Send shutdown coordination message to all other services
-        send_shutdown_messages();
-
-        // Wait for shutdown acknowledgments from all other services
-        {
-            std::unique_lock<std::mutex> its_shutdown_lock(shutdown_mutex_);
-            EXPECT_TRUE(
-                    shutdown_condition_.wait_for(its_shutdown_lock, std::chrono::seconds(15), [this] { return !wait_for_shutdown_acks_; }))
-                    << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
-                    << "] Shutdown coordination timeout";
-        }
-
-        VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
-                      << "] Received all shutdown acknowledgments, going down";
-
         // let offer thread exit
         {
             std::scoped_lock its_lock(mutex_);
@@ -372,7 +361,10 @@ public:
             condition_.notify_one();
         }
 
-        stop_offer();
+        offer_thread_.join();
+
+        app_->stop_offer_event(service_info_.service_id, service_info_.instance_id, service_info_.event_id);
+        app_->stop_offer_service(service_info_.service_id, service_info_.instance_id);
 
         // ensure that the service which hosts the routing doesn't exit to early
         if (app_->is_routing()) {
