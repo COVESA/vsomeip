@@ -1145,6 +1145,44 @@ TEST_P(test_single_connection_breakdown, ensure_that_every_dropped_connection_is
     EXPECT_TRUE(client_->message_record_.wait_for_any(some_expected_message)) << some_expected_message;
 }
 
+TEST_F(test_connection_restoration, process_offer_service_during_on_pong_processment) {
+
+    std::shared_ptr<command_gate> router_to_server_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(server_name_, routingmanager_name_, socket_role::server, router_to_server_gate->get_data_pipe()));
+
+    start_apps();
+    create_app(server_name_two_);
+    ASSERT_TRUE(subscribe_to_field());
+    client_->availability_record_.clear();
+
+    // Step 1: Start second server
+    // Required to increase the odds of coming into a potential lock inversion during offer processing+PONG processing from the first server
+    auto second_server = start_client(server_name_two_);
+    ASSERT_NE(second_server, nullptr);
+    ASSERT_TRUE(second_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // Block PONG to increase the odds of the offer processing and the PONG processing to come into a potential lock inversion
+    router_to_server_gate->block_at(vsomeip_v3::protocol::id_e::PONG_ID);
+
+    // Step 3: Break connection to trigger PING from router to first server
+    ASSERT_TRUE(disconnect(client_name_, boost::asio::error::timed_out, server_name_, boost::asio::error::connection_reset));
+
+    // Step 4: Ensure PONG is sent and blocked
+    ASSERT_TRUE(router_to_server_gate->wait_for_blocked());
+
+    // Step 6: Release PONG processing
+    router_to_server_gate->block(false);
+
+    // CRITICAL point where the offer processing and the PONG processing can come into a potential lock inversion,
+    // therefore we need to increase the odds of this by offering during the PONG processing
+    // required, otherwise won't trigger the pending offer processing, which is needed to potential deadlock
+    second_server->offer(service_instance_);
+
+    // Step 7: Verify no deadlock - system should recover
+    ASSERT_TRUE(await_connection(client_name_, server_name_));
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+}
+
 INSTANTIATE_TEST_SUITE_P(test_all_permutations, test_single_connection_breakdown,
                          ::testing::Values(std::pair{client_name_, routingmanager_name_}, std::pair{server_name_, routingmanager_name_},
                                            std::pair{client_name_, server_name_}));

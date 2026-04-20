@@ -189,7 +189,6 @@ private:
     bool is_socket_activated_;
     routing_mode_e const routing_mode_;
 
-    std::map<client_t, std::pair<boost::asio::ip::address, port_t>> internal_client_ports_;
     const std::chrono::milliseconds configured_watchdog_timeout_;
     boost::asio::steady_timer pinged_clients_timer_;
     std::mutex pinged_clients_mutex_;
