@@ -103,6 +103,8 @@ struct test_client_lifecycle : public base_fake_socket_fixture {
                                           field_payload_};
     message_checker const field_checker_{std::nullopt, service_instance_, offered_field_.event_id_,
                                          vsomeip::message_type_e::MT_NOTIFICATION, field_payload_};
+    message_checker const event_checker_{std::nullopt, service_instance_, offered_event_.event_id_,
+                                         vsomeip::message_type_e::MT_NOTIFICATION, std::vector<unsigned char>{}};
 
     vsomeip_v3::method_t method_{0x1111};
     request request_{service_instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
@@ -651,6 +653,76 @@ TEST_F(test_client_lifecycle, service_re_request_does_not_block_new_request) {
     ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_two_)));
 
     ASSERT_TRUE(delay_message_processing(server_name_, routingmanager_name_, false, socket_role::server));
+}
+
+TEST_F(test_client_lifecycle, subscribe_before_event_offering) {
+    /**
+     * 0. start router and client
+     * 1. client requests service and subscribes to field and event
+     * 2. start server and offer service
+     * 3. ensure server received the subscription and sent initial event
+     * 4. only after, offer and send field
+     * 5. ensure client receives field message
+     */
+
+    start_router();
+    start_client_app();
+
+    // first subscribe to the field that will be offered late
+    client_->request_service(service_instance_);
+    client_->subscribe_field(offered_field_);
+    client_->subscribe_field(offered_event_);
+
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    server_->offer(service_instance_);
+    // ensure server received the subscription of the first event
+    ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_field_)));
+    // and tried to send the initial event out already
+    ASSERT_TRUE(client_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_event_)));
+
+    // only now offer the field
+    server_->offer_field(offered_field_);
+    send_field_message();
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker_)) << client_->message_record_;
+}
+
+TEST_F(test_client_lifecycle, self_subscribe) {
+    /**
+     * 0. start router and server
+     * 1. server offers and requests service and subscribes to field and event
+     * 2. ensure server received the subscription and sent initial event
+     */
+
+    start_router();
+    start_server();
+
+    server_->request_service(service_instance_);
+    server_->subscribe_field(offered_field_);
+    server_->subscribe_field(offered_event_);
+
+    ASSERT_TRUE(server_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_field_)));
+    ASSERT_TRUE(server_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_event_)));
+
+    send_field_message();
+    send_first_message();
+    EXPECT_TRUE(server_->message_record_.wait_for(field_checker_)) << server_->message_record_;
+    EXPECT_TRUE(server_->message_record_.wait_for(event_checker_)) << server_->message_record_;
+}
+
+TEST_F(test_client_lifecycle, late_self_subscribe) {
+    start_router();
+    start_server();
+
+    send_field_message();
+
+    server_->request_service(service_instance_);
+    server_->subscribe_field(offered_field_);
+
+    ASSERT_TRUE(server_->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(offered_field_)));
+    EXPECT_TRUE(server_->message_record_.wait_for(field_checker_)) << server_->message_record_;
 }
 
 TEST_F(test_restart_clients, test_assignment_timeout_recover) {

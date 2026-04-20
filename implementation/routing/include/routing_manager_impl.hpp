@@ -265,8 +265,6 @@ private:
 
     void init_service_info(service_t _service, instance_t _instance, bool _is_local_service);
 
-    bool is_field(service_t _service, instance_t _instance, event_t _event) const;
-
     std::shared_ptr<boardnet_endpoint> find_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
 
     std::shared_ptr<boardnet_endpoint> create_remote_client(service_t _service, instance_t _instance, bool _reliable, client_t _client);
