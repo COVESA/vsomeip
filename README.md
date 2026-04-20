@@ -29,7 +29,7 @@ The stack consists out of:
 
 ###### Dependencies
 
-- A C++17 enabled compiler is needed.
+- A C++20 enabled compiler is needed.
 - vSomeIP uses CMake as buildsystem.
 - vSomeIP uses Boost >= 1.75.0:
 

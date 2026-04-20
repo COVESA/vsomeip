@@ -97,7 +97,7 @@ LOCAL_SHARED_LIBRARIES := \
     libboost_filesystem \
 
 LOCAL_CFLAGS :=  \
-    -std=c++17 \
+    -std=c++20 \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
@@ -157,7 +157,7 @@ LOCAL_SHARED_LIBRARIES := \
     libvsomeip3_dlt \
 
 LOCAL_CFLAGS := \
-    -std=c++17 \
+    -std=c++20 \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
