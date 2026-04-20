@@ -58,13 +58,13 @@ void endpoint_manager_impl::start() {
 #endif
         utility::set_thread_niceness(configuration_->get_io_thread_nice_level(router_->get_name()));
 
-        VSOMEIP_INFO << "emi::endpoint_manager_impl: Started thread m_multicast " << std::hex << std::this_thread::get_id()
+        VSOMEIP_INFO << "Started thread m_multicast " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                      << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
                 ;
         process_multicast_options();
-        VSOMEIP_INFO << "emi::endpoint_manager_impl: Stopped thread m_multicast " << std::hex << std::this_thread::get_id()
+        VSOMEIP_INFO << "Stopped thread m_multicast " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                      << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -128,7 +128,7 @@ void endpoint_manager_impl::stop() {
 
     try {
         options_thread_.join();
-        VSOMEIP_INFO_P << "Joined thread " << "m_multicast " << std::hex << std::this_thread::get_id();
+        VSOMEIP_INFO_P << "Joined thread m_multicast " << std::hex << std::this_thread::get_id();
     } catch (...) {
         // Ignore exception if thread already joined
     }
@@ -141,7 +141,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_remote_
     std::shared_ptr<boardnet_endpoint> its_endpoint;
     bool start_endpoint(false);
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         its_endpoint = find_remote_client(_service, _instance, _reliable);
         if (!its_endpoint) {
             its_endpoint = create_remote_client(_service, _instance, _reliable);
@@ -160,7 +160,7 @@ void endpoint_manager_impl::find_or_create_remote_client(service_t _service, ins
     bool start_reliable_endpoint(false);
     bool start_unreliable_endpoint(false);
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         its_reliable_endpoint = find_remote_client(_service, _instance, true);
         if (!its_reliable_endpoint) {
             its_reliable_endpoint = create_remote_client(_service, _instance, true);
@@ -189,7 +189,7 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                                                     const boost::asio::ip::address& _unreliable_address, uint16_t _unreliable_port,
                                                     bool* _unreliable_known) const {
 
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = remote_service_info_.find(_service);
     if (found_service != remote_service_info_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -234,7 +234,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     std::shared_ptr<boardnet_endpoint> its_endpoint;
     bool must_report(false);
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         remote_service_info_[_service][_instance][_ep_definition->is_reliable()] = _ep_definition;
 
         its_endpoint = find_remote_client(_service, _instance, _ep_definition->is_reliable());
@@ -255,7 +255,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
     bool must_report(false);
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         remote_service_info_[_service][_instance][false] = _ep_definition_unreliable;
         remote_service_info_[_service][_instance][true] = _ep_definition_reliable;
 
@@ -276,7 +276,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
 }
 
 void endpoint_manager_impl::clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable) {
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     const auto found_service = remote_service_info_.find(_service);
     if (found_service != remote_service_info_.end()) {
         const auto found_instance = found_service->second.find(_instance);
@@ -299,7 +299,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
     boost::asio::ip::address its_unicast{configuration_->get_unicast_address()};
     const std::string its_unicast_str{its_unicast.to_string()};
 
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     if (_start) {
         if (_reliable) {
             bool its_magic_cookies_enabled = configuration_->has_enabled_magic_cookies(its_unicast_str, _port)
@@ -342,7 +342,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_server_endpoint
 
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_server_endpoint(uint16_t _port, bool _reliable) const {
     std::shared_ptr<boardnet_endpoint> its_endpoint;
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     auto found_port = server_endpoints_.find(_port);
     if (found_port != server_endpoints_.end()) {
         auto found_endpoint = found_port->second.find(_reliable);
@@ -364,7 +364,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_or_create_server_
         _is_found = true;
     }
     if (its_endpoint) {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         if (!_is_multicast) {
             service_instances_[_service][its_endpoint.get()] = _instance;
         }
@@ -376,7 +376,7 @@ bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliabl
 
     std::shared_ptr<boardnet_endpoint> its_endpoint;
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         auto found_port = server_endpoints_.find(_port);
         if (found_port != server_endpoints_.end()) {
             auto found_reliable = found_port->second.find(_reliable);
@@ -387,7 +387,7 @@ bool endpoint_manager_impl::remove_server_endpoint(uint16_t _port, bool _reliabl
     }
 
     if (!is_used_endpoint(its_endpoint.get())) {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         auto found_port = server_endpoints_.find(_port);
         if (found_port != server_endpoints_.end()) {
             if (found_port->second.erase(_reliable)) {
@@ -413,7 +413,7 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
     bool other_services_reachable_through_endpoint(false);
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         // Clear client endpoints for remote services (generic and specific ones)
         const auto found_service = remote_services_.find(_service);
         if (found_service != remote_services_.end()) {
@@ -512,7 +512,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
                                                               const boost::asio::ip::address& _address, uint16_t _port) {
     bool is_known_multicast(false);
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         const auto found_service = multicast_info_.find(_service);
         if (found_service != multicast_info_.end()) {
             const auto found_instance = found_service->second.find(_instance);
@@ -534,14 +534,14 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
         // Only save multicast info if we created a new endpoint
         // to be able to delete the new endpoint
         // as soon as the instance stops offering its service
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         std::shared_ptr<endpoint_definition> endpoint_def = endpoint_definition::get(_address, _port, false, _service, _instance);
         multicast_info_[_service][_instance] = endpoint_def;
     }
 
     if (its_endpoint) {
         if (!is_known_multicast) {
-            std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+            std::scoped_lock its_lock(endpoint_mutex_);
             service_instances_multicast_[_service][_sender] = _instance;
         }
 
@@ -558,7 +558,7 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
     std::string its_address;
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         // Clear multicast info and endpoint and multicast instance (remote service)
         if (multicast_info_.find(_service) != multicast_info_.end()) {
             if (multicast_info_[_service].find(_instance) != multicast_info_[_service].end()) {
@@ -595,7 +595,7 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
 
 bool endpoint_manager_impl::supports_selective(service_t _service, instance_t _instance) const {
     bool supports_selective(false);
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     const auto its_service = remote_service_info_.find(_service);
     if (its_service != remote_service_info_.end()) {
         const auto its_instance = its_service->second.find(_instance);
@@ -623,7 +623,7 @@ void endpoint_manager_impl::print_status() const {
         client_endpoints_t its_client_endpoints;
         server_endpoints_t its_server_endpoints;
         {
-            std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+            std::scoped_lock its_lock(endpoint_mutex_);
             its_client_endpoints = client_endpoints_;
             its_server_endpoints = server_endpoints_;
         }
@@ -835,7 +835,7 @@ bool endpoint_manager_impl::create_routing_root(std::shared_ptr<local_server>& _
 
 instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_endpoint* const _endpoint) const {
     instance_t its_instance(0xFFFF);
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_.find(_service);
     if (found_service != service_instances_.end()) {
         auto found_endpoint = found_service->second.find(_endpoint);
@@ -848,7 +848,7 @@ instance_t endpoint_manager_impl::find_instance(service_t _service, boardnet_end
 
 instance_t endpoint_manager_impl::find_instance_multicast(service_t _service, const boost::asio::ip::address& _sender) const {
     instance_t its_instance(0xFFFF);
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_multicast_.find(_service);
     if (found_service != service_instances_multicast_.end()) {
         auto found_sender = found_service->second.find(_sender);
@@ -861,7 +861,7 @@ instance_t endpoint_manager_impl::find_instance_multicast(service_t _service, co
 
 bool endpoint_manager_impl::remove_instance(service_t _service, boardnet_endpoint* const _endpoint) {
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         auto found_service = service_instances_.find(_service);
         if (found_service != service_instances_.end()) {
             if (found_service->second.erase(_endpoint)) {
@@ -875,7 +875,7 @@ bool endpoint_manager_impl::remove_instance(service_t _service, boardnet_endpoin
 }
 
 bool endpoint_manager_impl::remove_instance_multicast(service_t _service, instance_t _instance) {
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     auto found_service = service_instances_multicast_.find(_service);
     if (found_service != service_instances_multicast_.end()) {
         for (auto& its_sender : found_service->second) {
@@ -911,7 +911,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
     std::forward_list<struct service_info> services_to_report_;
     {
         const bool endpoint_is_reliable = _endpoint->is_reliable();
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         for (auto& its_service : remote_services_) {
             for (auto& its_instance : its_service.second) {
                 auto found_endpoint = its_instance.second.find(endpoint_is_reliable);
@@ -945,7 +945,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
 
 void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _endpoint) {
     // Is called when endpoint->connect fails!
-    std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+    std::scoped_lock its_lock(endpoint_mutex_);
     for (auto& its_service : remote_services_) {
         for (auto& its_instance : its_service.second) {
             const bool is_reliable = _endpoint->is_reliable();
@@ -1183,7 +1183,7 @@ void endpoint_manager_impl::log_client_states() const {
     std::vector<std::pair<std::tuple<boost::asio::ip::address, uint16_t, bool>, size_t>> its_client_queue_sizes;
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         its_client_endpoints = client_endpoints_;
     }
 
@@ -1223,7 +1223,7 @@ void endpoint_manager_impl::log_server_states() const {
     std::vector<std::pair<std::pair<uint16_t, bool>, size_t>> its_client_queue_sizes;
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         its_server_endpoints = server_endpoints_;
     }
 
@@ -1265,7 +1265,7 @@ void endpoint_manager_impl::process_multicast_options() {
     constexpr unsigned INITIAL_REPEAT_DELAY_MS = 1;
     unsigned repeat_delay_ms = INITIAL_REPEAT_DELAY_MS;
 
-    std::unique_lock<std::mutex> its_lock(options_mutex_);
+    std::unique_lock its_lock(options_mutex_);
     while (is_processing_options_) {
         options_condition_.wait(its_lock, [this] { return !options_queue_.empty() || !is_processing_options_; });
 
@@ -1314,7 +1314,7 @@ void endpoint_manager_impl::process_multicast_options() {
 bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint) const {
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
         // Do we still use the endpoint to offer a service instance?
         for (const auto& si : service_instances_)
             if (si.second.find(_endpoint) != si.second.end())
@@ -1484,7 +1484,7 @@ void endpoint_manager_impl::resume() {
     std::vector<std::tuple<uint16_t, bool>> servers;
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+        std::scoped_lock its_lock(endpoint_mutex_);
 
         // restart client endpoints
 
@@ -1511,7 +1511,7 @@ void endpoint_manager_impl::resume() {
         std::shared_ptr<boardnet_endpoint> its_endpoint;
 
         {
-            std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+            std::scoped_lock its_lock(endpoint_mutex_);
 
             const auto& ports = client_endpoints_.find(its_address);
             if (ports == client_endpoints_.end()) {
@@ -1548,7 +1548,7 @@ void endpoint_manager_impl::resume() {
         std::shared_ptr<boardnet_endpoint> its_endpoint;
 
         {
-            std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+            std::scoped_lock its_lock(endpoint_mutex_);
 
             const auto& ports = server_endpoints_.find(its_port);
             if (ports == server_endpoints_.end()) {
@@ -1571,7 +1571,7 @@ void endpoint_manager_impl::resume() {
         std::shared_ptr<boardnet_endpoint> its_check_endpoint;
 
         {
-            std::scoped_lock<std::recursive_mutex> its_lock(endpoint_mutex_);
+            std::scoped_lock its_lock(endpoint_mutex_);
 
             const auto& ports = server_endpoints_.find(its_port);
             if (ports != server_endpoints_.end()) {

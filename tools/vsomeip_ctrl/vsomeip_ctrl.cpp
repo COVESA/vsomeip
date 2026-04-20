@@ -133,7 +133,7 @@ public:
     }
 
     void send() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         if (!condition_.wait_for(its_lock, std::chrono::seconds(6), [this] { return !wait_service_available_; })) {
             VSOMEIP_INFO << "Service [" << std::setw(4) << std::setfill('0') << std::hex << service_id_ << "." << instance_
                          << "] isn't available. Exiting";

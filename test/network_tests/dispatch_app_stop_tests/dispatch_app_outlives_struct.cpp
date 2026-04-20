@@ -85,7 +85,7 @@ TEST(dispatch_app_stop, outlives_struct) {
     holder.app->register_state_handler([cv, mt, registered](vsomeip_v3::state_type_e state) {
         if (state == vsomeip_v3::state_type_e::ST_REGISTERED) {
             // Signal that initialization and registration completed.
-            std::lock_guard<std::mutex> lock(*mt);
+            std::scoped_lock lock(*mt);
             *registered = true;
             cv->notify_one();
         }
@@ -96,7 +96,7 @@ TEST(dispatch_app_stop, outlives_struct) {
 
     // Wait until the application reaches ST_REGISTERED.
     // The timeout prevents indefinite blocking in case of failure.
-    std::unique_lock<std::mutex> lock{*mt};
+    std::unique_lock lock{*mt};
     EXPECT_TRUE(cv->wait_for(lock, std::chrono::seconds(5), [registered] { return *registered; }))
             << "Application did not reach ST_REGISTERED";
 

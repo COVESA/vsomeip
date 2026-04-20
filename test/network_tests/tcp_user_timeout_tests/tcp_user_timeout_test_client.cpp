@@ -51,7 +51,7 @@ TEST(TcpUserTimeoutTest, ClientSubscribesToService) {
     std::vector<vsomeip::state_type_e> expected_register_sequence{
             vsomeip_v3::state_type_e::ST_REGISTERED, vsomeip_v3::state_type_e::ST_DEREGISTERED, vsomeip_v3::state_type_e::ST_REGISTERED};
     {
-        std::unique_lock<std::mutex> its_lock(client_register_mutex);
+        std::unique_lock its_lock(client_register_mutex);
         client_register_cv.wait(its_lock, [&client_register_state, &expected_register_sequence] {
             return client_register_state == expected_register_sequence;
         });

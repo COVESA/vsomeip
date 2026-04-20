@@ -113,10 +113,10 @@ void routing_restart_test_service::on_message_shutdown(const std::shared_ptr<vso
 }
 
 void routing_restart_test_service::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock(mutex_);
     condition_.wait(its_lock, [this] { return blocked_; });
     offer();
-    std::unique_lock<std::mutex> its_shutdown_lock(shutdown_mutex_);
+    std::unique_lock its_shutdown_lock(shutdown_mutex_);
     init_shutdown_condition_.wait(its_shutdown_lock, [this] { return init_shutdown_; });
     if (!execute_shutdown_condition_.wait_for(its_shutdown_lock, std::chrono::milliseconds(5000), [this] { return all_received_; })) {
         VSOMEIP_WARNING << "Timeout reached : Not all clients requested shutdown. Stopping Service anyway";

@@ -31,7 +31,7 @@ void vsomeip_v3::auxiliary_context::start() {
         pthread_setname_np(pthread_self(), "m_auxiliary");
 #endif
         utility::set_thread_niceness(thread_niceness_);
-        VSOMEIP_INFO << "ac::auxiliary_context: Started thread m_auxiliary " << std::hex << std::this_thread::get_id()
+        VSOMEIP_INFO << "Started thread m_auxiliary, id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                      << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -39,7 +39,7 @@ void vsomeip_v3::auxiliary_context::start() {
         boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard(context_.get_executor());
         context_.run();
 
-        VSOMEIP_INFO << "ac::auxiliary_context: Stopped thread m_auxiliary " << std::hex << std::this_thread::get_id()
+        VSOMEIP_INFO << "Stopped thread m_auxiliary, id " << std::hex << std::this_thread::get_id()
 #if defined(__linux__)
                      << ", tid " << std::dec << static_cast<int>(syscall(SYS_gettid))
 #endif
@@ -54,7 +54,7 @@ void vsomeip_v3::auxiliary_context::stop() {
         auto thread_id = thread_.get_id();
         if (std::this_thread::get_id() != thread_id && thread_.joinable()) {
             thread_.join();
-            VSOMEIP_INFO << "ac::auxiliary_context: Joined thread m_auxiliary " << std::hex << thread_id;
+            VSOMEIP_INFO << "Joined thread m_auxiliary, id " << std::hex << thread_id;
         }
     } catch (...) {
         // Ignore exception if thread already joined

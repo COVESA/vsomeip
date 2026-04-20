@@ -186,9 +186,9 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
             auto local_ep = boost::asio::ip::tcp::endpoint(its_address, its_port);
             its_tmp->init(local_ep, its_error);
             if (!its_error) {
-                VSOMEIP_INFO << "Listening @ " << its_address.to_string() << ":" << std::dec << its_port;
+                VSOMEIP_INFO << "Listening @ " << its_address.to_string() << ":" << its_port;
                 local_port_ = port_t(its_port + 1);
-                VSOMEIP_INFO << "Connecting to other clients from " << its_address.to_string() << ":" << std::dec << local_port_;
+                VSOMEIP_INFO << "Connecting to other clients from " << its_address.to_string() << ":" << local_port_;
 
                 host_.set_port(local_port_);
 
@@ -212,8 +212,8 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
 
         if (tcp_acceptor && _client != VSOMEIP_ROUTING_CLIENT) {
             host_.add_connection_param(_client, its_address, its_port);
-            VSOMEIP_INFO_P << "Adds guest for client 0x" << hex4(_client) << " with address " << its_address.to_string() << " and port "
-                           << std::dec << its_port;
+            VSOMEIP_INFO << "Adds guest for client 0x" << hex4(_client) << " with address " << its_address.to_string() << " and port "
+                         << its_port;
         } else {
             VSOMEIP_ERROR_P << "Local TCP server endpoint initialization failed. Client 0x" << hex4(_client)
                             << " Reason: No local port available!";

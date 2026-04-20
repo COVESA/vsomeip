@@ -108,7 +108,7 @@ void external_local_routing_test_service::on_message(const std::shared_ptr<vsome
 }
 
 void external_local_routing_test_service::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock(mutex_);
     condition_.wait(its_lock, [this] { return blocked_; });
     blocked_ = false;
     if (use_static_routing_) {

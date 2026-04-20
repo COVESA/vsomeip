@@ -51,7 +51,7 @@ TEST(TcpUserTimeoutTest, ServerOffersService) {
     // Don't notify before application is registered
     // (prevents race condition on sec client)
     {
-        std::unique_lock<std::mutex> its_lock(service_register_mutex);
+        std::unique_lock its_lock(service_register_mutex);
         service_register_cv.wait_for(its_lock, std::chrono::seconds(30),
                                      [&service_register_state] { return service_register_state == true; });
     }

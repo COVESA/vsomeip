@@ -339,7 +339,7 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         } else {
             std::scoped_lock its_lock_inner(pending_sd_offers_mutex_);
             pending_sd_offers_.emplace(_service, _instance);
-            VSOMEIP_INFO_P << "Added service 0x" << hex4(_service) << " to pending_sd_offers_.size = " << pending_sd_offers_.size();
+            VSOMEIP_INFO << "Added service 0x" << hex4(_service) << " to pending_sd_offers[" << pending_sd_offers_.size() << "]";
         }
     }
 
@@ -390,8 +390,8 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
             for (auto it = pending_sd_offers_.begin(); it != pending_sd_offers_.end();) {
                 if (it->first == _service && it->second == _instance) {
                     it = pending_sd_offers_.erase(it);
-                    VSOMEIP_INFO_P << "Removed service 0x" << hex4(_service)
-                                   << " from pending_sd_offers_.size = " << pending_sd_offers_.size();
+                    VSOMEIP_INFO_P << "Removed service 0x" << hex4(_service) << " from pending_sd_offers[" << pending_sd_offers_.size()
+                                   << "]";
                     break;
                 } else {
                     ++it;
@@ -400,8 +400,8 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
         }
 
         on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
-        VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec
-                     << int(_major) << "." << _minor << "] (" << std::boolalpha << _must_queue << ")";
+        VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
+                     << _minor << "] (" << std::boolalpha << _must_queue << ")";
     } else {
         VSOMEIP_WARNING_P << "Received STOP_OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                           << int(_major) << "." << _minor << "] for remote service --> ignore";
@@ -527,7 +527,7 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
             // run concurrently to a call to on_subscribe_ack. Therefore the lock is acquired
             // before calling insert_subscription and released after the call to
             // handle_subscription_state.
-            std::unique_lock<std::mutex> its_critical(remote_subscription_state_mutex_);
+            std::unique_lock its_critical(remote_subscription_state_mutex_);
             bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
             if (const client_t its_local_client = find_local_client(_service, _instance); inserted) {
                 if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
@@ -1250,7 +1250,7 @@ void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _se
 void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance,
                                                           major_version_t _major, minor_version_t _minor) {
 
-    VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << std::dec
+    VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                  << static_cast<int>(_major) << "." << _minor << "]";
     {
         std::scoped_lock its_lock{services_state_mutex_};
@@ -2042,7 +2042,7 @@ void routing_manager_impl::on_remote_subscribe(std::shared_ptr<remote_subscripti
     // not exist or is still (partly) pending.
     remote_subscription_id_t its_id;
     std::set<client_t> its_added;
-    std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
+    std::unique_lock its_update_lock{update_remote_subscription_mutex_};
     if (_subscription->is_expired()) {
         VSOMEIP_WARNING_P << "Remote subscription already expired";
         return;
@@ -2127,7 +2127,7 @@ void routing_manager_impl::on_remote_unsubscribe(std::shared_ptr<remote_subscrip
 
     remote_subscription_id_t its_id(0);
     std::set<client_t> its_removed;
-    std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
+    std::unique_lock its_update_lock{update_remote_subscription_mutex_};
     auto its_result = its_info->update_remote_subscription(_subscription, std::chrono::steady_clock::now(), its_removed, its_id, false);
 
     if (its_result) {
@@ -2381,7 +2381,7 @@ std::chrono::steady_clock::time_point routing_manager_impl::expire_subscriptions
             auto its_eventgroup = its_info->get_eventgroup();
 
             remote_subscription_id_t its_id;
-            std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
+            std::unique_lock its_update_lock{update_remote_subscription_mutex_};
             auto its_result = its_info->update_remote_subscription(subscription, std::chrono::steady_clock::now(), clients, its_id, false);
             if (its_result) {
                 const client_t its_offering_client = find_local_client(its_service, its_instance);
@@ -3014,7 +3014,7 @@ void routing_manager_impl::init_pending_services() {
         }
         pending_sd_offers_.clear();
 
-        VSOMEIP_INFO_P << "Pending services cleared.";
+        VSOMEIP_INFO_P << "pending_sd_offers cleared.";
     }
 }
 
@@ -3431,7 +3431,7 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
                                               remote_subscription_id_t _id) {
     std::shared_ptr<eventgroupinfo> its_info = find_eventgroup(_service, _instance, _eventgroup);
     if (its_info) {
-        std::unique_lock<std::mutex> its_update_lock{update_remote_subscription_mutex_};
+        std::unique_lock its_update_lock{update_remote_subscription_mutex_};
         const auto its_subscription = its_info->get_remote_subscription(_id);
         if (its_subscription) {
             its_info->remove_remote_subscription(_id);

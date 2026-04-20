@@ -240,7 +240,7 @@ public:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_availability_lock(availability_mutex_);
+        std::unique_lock its_availability_lock(availability_mutex_);
         wait_on_condition(its_availability_lock, &wait_availability_, availability_condition_, 300);
         // service is available now
 
@@ -248,11 +248,11 @@ public:
             // set value
             set_field_at_service(0x1);
             {
-                std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
+                std::unique_lock its_set_value_lock(set_value_mutex_);
                 wait_on_condition(its_set_value_lock, &wait_set_value_, set_value_condition_, 30);
             }
             // subscribe
-            std::unique_lock<std::mutex> its_events_lock(events_mutex_);
+            std::unique_lock its_events_lock(events_mutex_);
             subscribe_at_service();
             wait_for_initial_events(its_events_lock, events_condition_);
             check_received_events_payload(0x1);
@@ -271,7 +271,7 @@ public:
 
             its_events_lock.unlock();
             {
-                std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
+                std::unique_lock its_set_value_lock(set_value_mutex_);
                 wait_on_condition(its_set_value_lock, &wait_set_value_, set_value_condition_, 30);
             }
             its_events_lock.lock();
@@ -290,7 +290,7 @@ public:
 
             its_events_lock.unlock();
             {
-                std::unique_lock<std::mutex> its_set_value_lock(set_value_mutex_);
+                std::unique_lock its_set_value_lock(set_value_mutex_);
                 wait_on_condition(its_set_value_lock, &wait_set_value_, set_value_condition_, 30);
             }
             its_events_lock.lock();
@@ -310,7 +310,7 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             its_events_lock.lock();
         }
-        std::unique_lock<std::mutex> its_shutdown_lock(shutdown_response_mutex_);
+        std::unique_lock its_shutdown_lock(shutdown_response_mutex_);
         call_method_at_service(subscribe_notify_test::shutdown_method_id);
         wait_on_condition(its_shutdown_lock, &wait_shutdown_response_, shutdown_response_condition_, 30);
         stop();

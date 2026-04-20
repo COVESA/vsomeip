@@ -67,7 +67,7 @@ TEST(MulticastGroupTest, SecondClientSubscribesToService) {
                     return;
                 }
 
-                std::lock_guard lock(sync);
+                std::scoped_lock lock(sync);
 
                 auto payload = _message->get_payload();
                 int current_payload = vsomeip_v3::bithelper::read_uint16_le(payload->get_data());
@@ -120,7 +120,7 @@ TEST(MulticastGroupTest, SecondClientSubscribesToService) {
 
     {
         // The test continues to run; we must pause it during validation.
-        std::lock_guard lock(sync);
+        std::scoped_lock lock(sync);
 
         EXPECT_NE(unicast_count, 0) << "Failed to receive unicast notification!";
         EXPECT_NE(multicast_count, 0) << "Failed to receive multicast notification!";

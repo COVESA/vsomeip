@@ -52,7 +52,7 @@ protected:
     }
 
     bool wait_for_error(int initial_count, std::chrono::milliseconds timeout = 2000ms) {
-        std::unique_lock<std::mutex> lock(error_mutex_);
+        std::unique_lock lock(error_mutex_);
         if (error_count_ > initial_count) {
             return true;
         }

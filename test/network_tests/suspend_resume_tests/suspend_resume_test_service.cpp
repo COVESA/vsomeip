@@ -46,7 +46,7 @@ public:
         {
             VSOMEIP_DEBUG << "[TEST] Process: waiting test end";
 
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             EXPECT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(120)), std::cv_status::no_timeout);
         }
 
@@ -98,7 +98,7 @@ private:
         for (unsigned iteration = 1; is_running_; ++iteration) {
             {
                 VSOMEIP_DEBUG << "[TEST] STR simulation: waiting signal, iteration#" << iteration;
-                std::unique_lock<std::mutex> its_lock(sr_mutex_);
+                std::unique_lock its_lock(sr_mutex_);
                 sr_cv_.wait(its_lock, [this] { return is_suspend_requested_.load() || !is_running_; });
                 is_suspend_requested_ = false;
             }

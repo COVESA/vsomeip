@@ -103,7 +103,7 @@ public:
     void join() { runner_.join(); }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         if (!condition_.wait_for(its_lock, std::chrono::seconds(5), [this] { return is_blocked_; })) {
             GTEST_FATAL_FAILURE_("Service didn't become available within 5s.");
         }

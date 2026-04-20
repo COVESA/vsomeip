@@ -52,7 +52,7 @@ TEST(ConnectionTimeoutSubAckTest, ClientSubscribesToService) {
                     std::ofstream file(filename);
                     ASSERT_TRUE(file) << "Failed to create client subscribed file!";
                 } else {
-                    std::unique_lock<std::mutex> its_lock(client_resubscribed_mutex);
+                    std::unique_lock its_lock(client_resubscribed_mutex);
                     client_resubscribed = true;
                     client_resubscribed_cv.notify_one();
                 }
@@ -64,7 +64,7 @@ TEST(ConnectionTimeoutSubAckTest, ClientSubscribesToService) {
 
     // Wait until the client resubscribes to the service
     {
-        std::unique_lock<std::mutex> its_lock(client_resubscribed_mutex);
+        std::unique_lock its_lock(client_resubscribed_mutex);
         client_resubscribed_cv.wait_for(its_lock, std::chrono::seconds(30), [&client_resubscribed] { return client_resubscribed == true; });
     }
 

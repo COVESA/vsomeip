@@ -51,14 +51,14 @@ memory_test_service::memory_test_service(const char* app_name_) : vsomeip_utilit
     _app->offer_service(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_MAJOR, MEMORY_MINOR);
 }
 void memory_test_service::on_start(const std::shared_ptr<vsomeip::message> /*&_message*/) {
-    std::unique_lock<std::mutex> lk(start_mutex);
+    std::unique_lock lk(start_mutex);
     received_message = true;
     condition_wait_start.notify_one();
 }
 
 void memory_test_service::on_stop(const std::shared_ptr<vsomeip::message> /*&_message*/) {
     {
-        std::unique_lock<std::mutex> lk(stop_mutex);
+        std::unique_lock lk(stop_mutex);
         condition_wait_stop.notify_one();
     }
     VSOMEIP_INFO << "Received a STOP command.";
@@ -90,7 +90,7 @@ void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {
 // wait for the start message, run the threads to send messages
 // and receive the stop message in the end
 void memory_test_service::setup_app(const std::function<void(void)> executionHandler_) {
-    std::unique_lock<std::mutex> lk(start_mutex);
+    std::unique_lock lk(start_mutex);
     if (condition_wait_start.wait_for(lk, WAIT_START_MESSAGE, [this] { return received_message; })) {
 
         // If executionHandler_ is set / not nullptr
@@ -101,7 +101,7 @@ void memory_test_service::setup_app(const std::function<void(void)> executionHan
 
         {
             // 3. Wait for client to send stop message
-            std::unique_lock<std::mutex> lk(stop_mutex);
+            std::unique_lock lk(stop_mutex);
             condition_wait_stop.wait_for(lk, WAIT_STOP_MESSAGE);
             std::cout << "service: exiting" << std::endl;
         }

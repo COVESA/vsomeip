@@ -102,7 +102,7 @@ void security_test_client::on_availability(vsomeip::service_t _service, vsomeip:
     }
 
     if (vsomeip_test::TEST_SERVICE_SERVICE_ID == _service && vsomeip_test::TEST_SERVICE_INSTANCE_ID == _instance) {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         if (is_available_ && !_is_available) {
             is_available_ = false;
         } else if (_is_available && !is_available_) {
@@ -141,7 +141,7 @@ void security_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
 
 void security_test_client::run() {
     {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return is_available_; });
     }
     for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS; ++i) {

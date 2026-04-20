@@ -294,7 +294,7 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
 
         VSOMEIP_WARNING_P << instance_name_
                           << " flush incoming TCP connections (blocking SOME/IP-SD), for: " << _endpoint->get_address().to_string() << ":"
-                          << std::dec << _endpoint->get_port() << ", retry = " << retry_count;
+                          << _endpoint->get_port() << ", retry = " << retry_count;
 
         {
             std::mutex mutex;
@@ -319,7 +319,7 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
 
     if (!its_connected) {
         VSOMEIP_ERROR_P << instance_name_ << " Didn't find TCP connection: Subscription "
-                        << "rejected for: " << _endpoint->get_address().to_string() << ":" << std::dec << _endpoint->get_port();
+                        << "rejected for: " << _endpoint;
     }
 
     return its_connected;
@@ -375,7 +375,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shar
         boost::system::error_code its_error;
         const endpoint_type remote(*_remote_ep);
         {
-            std::unique_lock<std::mutex> its_socket_lock(_connection->get_socket_lock());
+            std::unique_lock its_socket_lock(_connection->get_socket_lock());
             socket_type& new_connection_socket = _connection->get_socket();
             _connection->set_remote_info(remote);
             // Nagle algorithm off
@@ -512,7 +512,7 @@ tcp_server_endpoint_impl::socket_type& tcp_server_endpoint_impl::connection::get
 }
 
 std::unique_lock<std::mutex> tcp_server_endpoint_impl::connection::get_socket_lock() {
-    return std::unique_lock<std::mutex>(socket_mutex_);
+    return std::unique_lock(socket_mutex_);
 }
 
 void tcp_server_endpoint_impl::connection::start() {
@@ -1001,7 +1001,7 @@ void tcp_server_endpoint_impl::print_status() {
         std::size_t its_queue_size(0);
         std::size_t its_recv_size(0);
         {
-            std::unique_lock<std::mutex> c_s_lock(c.second->get_socket_lock());
+            std::unique_lock c_s_lock(c.second->get_socket_lock());
             its_recv_size = c.second->get_recv_buffer_capacity();
         }
         auto found_queue = targets_.find(c.first);

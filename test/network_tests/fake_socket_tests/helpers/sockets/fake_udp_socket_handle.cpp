@@ -184,7 +184,7 @@ void fake_udp_socket_handle::async_connect(boost::asio::ip::udp::endpoint const&
 }
 
 void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer, rw_handler _handler) {
-    auto lock = std::unique_lock<std::mutex>(mtx_);
+    auto lock = std::unique_lock(mtx_);
     if (auto bsm = socket_manager_.lock(); bsm && local_ep_ && connected_ep_) {
         auto src = *local_ep_;
         auto dst = *connected_ep_;

@@ -211,7 +211,7 @@ void routing_manager_client::stop() {
         status_log_timer_.cancel();
     }
     {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->stop(false);
         }
@@ -280,7 +280,7 @@ void routing_manager_client::ping_host() {
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -362,7 +362,7 @@ bool routing_manager_client::send_offer_service(client_t _client, service_t _ser
     std::vector<byte_t> its_buffer;
     its_offer.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
         return true;
     }
@@ -416,7 +416,7 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
         std::vector<byte_t> its_buffer;
         its_command.serialize(its_buffer);
 
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
@@ -593,7 +593,7 @@ void routing_manager_client::unregister_event(client_t _client, service_t _servi
 
         std::vector<byte_t> its_buffer;
         its_command.serialize(its_buffer);
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
@@ -679,7 +679,7 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
             cleanup_client(its_target_client);
         }
     } else {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
@@ -713,7 +713,7 @@ void routing_manager_client::send_subscribe_nack(client_t _subscriber, service_t
         }
     }
     {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
@@ -747,7 +747,7 @@ void routing_manager_client::send_subscribe_ack(client_t _subscriber, service_t 
         }
     }
     {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
@@ -825,7 +825,7 @@ void routing_manager_client::unsubscribe(client_t _client, service_t _service, i
                 if (_client != VSOMEIP_ROUTING_CLIENT) {
                     VSOMEIP_WARNING_P << "Could not find endpoint for client 0x" << hex4(_client) << ", sending to the router";
                 }
-                std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+                std::scoped_lock its_sender_lock{sender_mutex_};
                 if (sender_) {
                     sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
                 } else {
@@ -904,7 +904,7 @@ bool routing_manager_client::send(client_t _client, const byte_t* _data, length_
         // or for notifications ~> route to routing_manager_stub
         bool message_to_stub(false);
         if (!its_target) {
-            std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+            std::scoped_lock its_sender_lock{sender_mutex_};
             if (sender_) {
                 its_target = sender_;
                 message_to_stub = true;
@@ -1761,7 +1761,7 @@ void routing_manager_client::send_pong() const {
 
     if (auto state = state_machine_->state();
         is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING)) {
-        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+        std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
             sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
         } else {
@@ -1784,7 +1784,7 @@ bool routing_manager_client::send_request_services(const std::set<protocol::serv
 
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_ && sender_->send(&its_buffer[0], uint32_t(its_buffer.size()))) {
         return true;
     }
@@ -1804,7 +1804,7 @@ void routing_manager_client::send_release_service(client_t _client, service_t _s
 
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -1865,7 +1865,7 @@ void routing_manager_client::send_register_event(client_t _client, service_t _se
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -1978,7 +1978,7 @@ void routing_manager_client::init_receiver_side([[maybe_unused]] std::unique_loc
         if (_receiver) {
             std::uint16_t its_port = _receiver->get_local_port();
             if (its_port != ILLEGAL_PORT && _protocol == transport_protocol_e::TCP)
-                VSOMEIP_INFO_P << "Reusing local server endpoint @" << its_port << " endpoint: " << _receiver;
+                VSOMEIP_INFO << "Reusing local server endpoint @" << its_port << " endpoint: " << _receiver;
             return;
         }
         _receiver = ep_mgr_->create_local_server(_protocol);
@@ -2016,7 +2016,7 @@ void routing_manager_client::notify_remote_initially(service_t _service, instanc
                 std::shared_ptr<serializer> its_serializer(get_serializer());
                 if (its_serializer->serialize(its_notification.get())) {
                     {
-                        std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+                        std::scoped_lock its_sender_lock{sender_mutex_};
                         if (sender_) {
                             send_local(sender_, VSOMEIP_ROUTING_CLIENT, its_serializer->get_data(), its_serializer->get_size(), _instance,
                                        false, protocol::id_e::NOTIFY_ID, 0, get_client());
@@ -2192,7 +2192,7 @@ void routing_manager_client::send_get_offered_services_info(client_t _client, of
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -2213,7 +2213,7 @@ void routing_manager_client::send_unsubscribe_ack(service_t _service, instance_t
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -2240,7 +2240,7 @@ void routing_manager_client::send_resend_provided_event_response(pending_remote_
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -2258,7 +2258,7 @@ void routing_manager_client::send_update_security_policy_response(pending_securi
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
@@ -2275,7 +2275,7 @@ void routing_manager_client::send_remove_security_policy_response(pending_securi
     std::vector<byte_t> its_buffer;
     its_command.serialize(its_buffer);
 
-    std::scoped_lock<std::recursive_mutex> its_sender_lock{sender_mutex_};
+    std::scoped_lock its_sender_lock{sender_mutex_};
     if (sender_) {
         sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
     } else {
