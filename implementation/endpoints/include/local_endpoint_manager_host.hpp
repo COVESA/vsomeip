@@ -7,6 +7,7 @@
 
 #include <vsomeip/primitive_types.hpp>
 
+#include <utility> // asio misses std::exchange
 #include <boost/asio.hpp>
 
 #include <memory>

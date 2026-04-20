@@ -65,9 +65,9 @@ Webkit style guidelines can be found here [Webkit.org](https://www.webkit.org/co
 #### Standard
 
 ```yaml
-Standard: c++17
+Standard: c++20
 ```
-The C++ standard to be used, in this case, C++17.
+The C++ standard to be used, in this case, C++20.
 
 Below is the configuration option used in our Clang Format setup:
 
@@ -75,7 +75,7 @@ Below is the configuration option used in our Clang Format setup:
 
 ```yaml
 BasedOnStyle: WebKit
-Standard: c++17
+Standard: c++20
 ColumnLimit: 100
 PointerAlignment: Left
 SpaceAfterTemplateKeyword: false

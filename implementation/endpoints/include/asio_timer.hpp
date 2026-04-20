@@ -6,6 +6,8 @@
 #pragma once
 
 #include "abstract_timer.hpp"
+
+#include <utility> // asio misses std::exchange
 #include <boost/asio.hpp>
 
 namespace vsomeip_v3 {

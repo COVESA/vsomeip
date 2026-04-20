@@ -69,7 +69,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # OS
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -341,7 +341,7 @@ if (VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS EQUAL 0)
 
     add_library(${VSOMEIP_NAME}-cfg SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-cfg-internal>)
     set_target_properties (${VSOMEIP_NAME}-cfg PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
-    target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_17)
+    target_compile_features(${VSOMEIP_NAME}-cfg PRIVATE cxx_std_20)
     if (MSVC)
         set_target_properties(${VSOMEIP_NAME}-cfg-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
         set_target_properties(${VSOMEIP_NAME}-cfg PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -385,7 +385,7 @@ add_library(${VSOMEIP_NAME} SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-internal>)
 # libvsomeip also `dlopens` other libs (cfg, sd, ..) so leave a rpath hint
 set_target_properties(${VSOMEIP_NAME} PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}")
 set_target_properties(${VSOMEIP_NAME} PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
-target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_17)
+target_compile_features(${VSOMEIP_NAME} PRIVATE cxx_std_20)
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
     set_target_properties(${VSOMEIP_NAME}-internal PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -428,7 +428,7 @@ target_include_directories(${VSOMEIP_NAME}-sd-internal PRIVATE ${VSOMEIP_INTERNA
 target_link_libraries(${VSOMEIP_NAME}-sd-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(${VSOMEIP_NAME}-sd SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-sd-internal>)
-target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_17)
+target_compile_features(${VSOMEIP_NAME}-sd PRIVATE cxx_std_20)
 set_target_properties (${VSOMEIP_NAME}-sd PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-sd-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
@@ -451,7 +451,7 @@ target_include_directories(${VSOMEIP_NAME}-e2e-internal PRIVATE ${VSOMEIP_INTERN
 target_link_libraries(${VSOMEIP_NAME}-e2e-internal ${VSOMEIP_NAME}-internal ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${SystemD_LIBRARIES})
 
 add_library(${VSOMEIP_NAME}-e2e SHARED $<TARGET_OBJECTS:${VSOMEIP_NAME}-e2e-internal>)
-target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_17)
+target_compile_features(${VSOMEIP_NAME}-e2e PRIVATE cxx_std_20)
 set_target_properties (${VSOMEIP_NAME}-e2e PROPERTIES VERSION ${VSOMEIP_VERSION} SOVERSION ${VSOMEIP_MAJOR_VERSION})
 if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-e2e-internal PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION_PLUGIN")
