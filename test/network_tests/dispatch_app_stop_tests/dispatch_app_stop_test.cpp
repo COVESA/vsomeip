@@ -68,7 +68,7 @@ TEST(dispatch_app_stop, deadlock) {
             // Wait for the start thread to finish, and notify that we are done to the test thread.
             t0.join(); // NOTE: This operation takes a while, around 1s locally.
             // From here on out, t0 has joined which proves no deadlock. Finish the test.
-            auto lock = std::lock_guard<std::mutex>(finished_mutex);
+            auto lock = std::scoped_lock(finished_mutex);
             done = true;
             finished.notify_one();
         }

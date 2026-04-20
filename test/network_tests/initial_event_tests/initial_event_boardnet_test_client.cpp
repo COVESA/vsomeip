@@ -87,7 +87,7 @@ public:
     }
 
     bool wait_for_initial_event(uint32_t expected_counter_value) {
-        std::unique_lock<std::mutex> lock{mutex_};
+        std::unique_lock lock{mutex_};
         return condition_.wait_for(lock, std::chrono::seconds(5), [&]() { return expected_counter_value == initial_event_counter; });
     }
 

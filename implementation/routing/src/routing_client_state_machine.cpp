@@ -118,7 +118,7 @@ void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mut
 }
 
 void routing_client_state_machine::change_state_unlocked(routing_client_state_e _state) {
-    VSOMEIP_INFO_P << "Client 0x" << hex4(client_) << ", state " << state_ << " -> " << _state;
+    VSOMEIP_INFO << "Client 0x" << hex4(client_) << ", state " << state_ << " -> " << _state;
     state_ = _state;
     if (is_value(state_).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_DEREGISTERED)) {
         cv_.notify_one();

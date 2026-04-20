@@ -304,7 +304,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
         return;
     }
 
-    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -432,7 +432,7 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
 
     boost::asio::ip::address its_address;
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -506,7 +506,7 @@ void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _ins
     boost::asio::ip::address its_address;
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -542,7 +542,7 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
     std::map<boost::asio::ip::address, std::vector<std::shared_ptr<message_impl>>> its_stopsubscribes;
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock its_lock(subscribed_mutex_);
         for (auto its_service : subscribed_) {
             for (auto its_instance : its_service.second) {
                 for (auto& its_eventgroup : its_instance.second) {
@@ -581,7 +581,7 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
 
 void service_discovery_impl::remove_subscriptions(service_t _service, instance_t _instance) {
 
-    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         found_service->second.erase(_instance);
@@ -1030,7 +1030,7 @@ void service_discovery_impl::on_message(const byte_t* _data, length_t _length, c
                                         bool _is_multicast) {
     std::scoped_lock its_lock(check_ttl_mutex_);
     std::scoped_lock its_session_lock(sessions_received_mutex_);
-    std::scoped_lock<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);
+    std::scoped_lock its_subscribed_lock(subscribed_mutex_);
 
     // Print KPI on first message from host.
     observed_host(_sender, _is_multicast);
@@ -1377,8 +1377,8 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
                                                                                             std::uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
             if (_sd_ac_state.expired_ports_.find(its_port_pair) == _sd_ac_state.expired_ports_.end()) {
-                VSOMEIP_WARNING_P << "Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "] from "
-                                  << _address.to_string() << ":" << _port << " reliable=" << _reliable;
+                VSOMEIP_WARNING << "sdi::Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "] from "
+                                << _address.to_string() << ":" << _port << " reliable=" << _reliable;
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
                 host_->expire_subscriptions(_address, _port, _reliable);
                 host_->expire_services(_address, _port, _reliable);
@@ -1555,7 +1555,7 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
         get_subscription_address(its_dummy, _endpoint, its_address);
 
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+        std::scoped_lock its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -2182,7 +2182,7 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
                                                                  uint8_t _counter, const std::set<client_t>& _clients) {
     (void)_counter;
 
-    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2212,7 +2212,7 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(service_t _servi
     (void)_ttl;
     (void)_counter;
 
-    std::scoped_lock<std::recursive_mutex> its_lock(subscribed_mutex_);
+    std::scoped_lock its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2321,7 +2321,7 @@ void service_discovery_impl::check_ttl(const boost::system::error_code& _error) 
     if (!_error) {
         int timeout{0};
         {
-            std::unique_lock<std::mutex> its_lock(check_ttl_mutex_, std::try_to_lock);
+            std::unique_lock its_lock(check_ttl_mutex_, std::try_to_lock);
             if (its_lock.owns_lock()) {
                 host_->update_routing_info(ttl_timer_runtime_);
             } else {
@@ -3378,7 +3378,7 @@ reliability_type_e service_discovery_impl::get_eventgroup_reliability(service_t 
 }
 
 void service_discovery_impl::deserialize_data(const byte_t* _data, const length_t& _size, std::shared_ptr<message_impl>& _message) {
-    std::lock_guard its_lock(deserialize_mutex_);
+    std::scoped_lock its_lock(deserialize_mutex_);
     deserializer_->set_data(_data, _size);
     _message = std::shared_ptr<message_impl>(deserializer_->deserialize_sd_message());
     deserializer_->reset();

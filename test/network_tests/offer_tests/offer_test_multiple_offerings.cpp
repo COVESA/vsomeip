@@ -78,7 +78,7 @@ public:
     void run() { app_->start(); }
 
     bool was_message_received() {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::unique_lock lock(mutex_);
         condition_message_received_.wait(lock, [this] { return message_received_.load(); });
         return message_received_.load();
     }
@@ -89,7 +89,7 @@ public:
     }
 
     bool wait_availability() {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::unique_lock lock(mutex_);
         condition_availability_.wait(lock, [this] { return availability_.load(); });
         return availability_.load();
     }
@@ -104,7 +104,7 @@ public:
         request->set_payload(runtime::get()->create_payload(_outgoing_payload));
         app_->send(request);
 
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::unique_lock lock(mutex_);
         condition_message_sent_.wait(lock, [this] { return msg_sent_.load(); });
     }
 
@@ -185,7 +185,7 @@ public:
     bool is_available() { return app_->is_available(service_id_, instance_id_); }
 
     bool wait_availability() {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::unique_lock lock(mutex_);
         condition_availability_.wait(lock, [this] { return availability_.load(); });
         return availability_.load();
     }

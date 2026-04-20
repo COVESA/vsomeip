@@ -39,7 +39,7 @@ public:
         start();
 
         {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             auto r = availability_cv_.wait_for(its_lock, std::chrono::seconds(10));
             ASSERT_EQ(r, std::cv_status::no_timeout);
             VSOMEIP_DEBUG << "[TEST] Process: service available";
@@ -50,7 +50,7 @@ public:
         toggle();
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             if (!has_received_) {
                 auto r = cv_.wait_for(its_lock, std::chrono::seconds(10));
                 ASSERT_EQ(r, std::cv_status::no_timeout);
@@ -74,7 +74,7 @@ public:
             // Wait for availability to become false
             std::chrono::steady_clock::time_point unavailable_time;
             {
-                std::unique_lock<std::mutex> its_lock(availability_mutex_);
+                std::unique_lock its_lock(availability_mutex_);
                 // Ensure that was_unavailable_ is only set in this iteration instead of coming already set from the previous iteration
                 was_unavailable_ = false;
                 VSOMEIP_DEBUG << "[TEST] Process: waiting availability=false event, iteration#" << std::dec << i
@@ -88,7 +88,7 @@ public:
             // Wait for availability to become true again
             std::chrono::steady_clock::time_point available_time;
             {
-                std::unique_lock<std::mutex> its_lock(availability_mutex_);
+                std::unique_lock its_lock(availability_mutex_);
                 VSOMEIP_DEBUG << "[TEST] Process: waiting availability=true event, iteration#" << std::dec << i
                               << ", is_available=" << std::boolalpha << is_available_.load();
                 ASSERT_TRUE(availability_cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return is_available_.load(); }));
@@ -105,7 +105,7 @@ public:
 
             // Wait for event value notification
             {
-                std::unique_lock<std::mutex> its_lock(mutex_);
+                std::unique_lock its_lock(mutex_);
                 VSOMEIP_DEBUG << "[TEST] Process: waiting event value notification, iteration#" << std::dec << i
                               << ", is_available=" << std::boolalpha << is_available_;
                 ASSERT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(20)), std::cv_status::no_timeout);
@@ -157,7 +157,7 @@ private:
         VSOMEIP_DEBUG << "[TEST] vSomeIP application: waiting ready signal";
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             cv_.wait(its_lock, [this] { return started_.load(); });
         }
 
@@ -196,7 +196,7 @@ private:
                       << ", has_received=" << std::boolalpha << has_received_ << ", is_registered_=" << std::boolalpha << is_registered_;
 
         if (_service == TEST_SERVICE && _instance == TEST_INSTANCE && _is_available != is_available_) {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
 
             if (_is_available) {
                 VSOMEIP_DEBUG << "[TEST] Availability triggers signal";
@@ -221,7 +221,7 @@ private:
                       << ", has_received=" << std::boolalpha << has_received_ << ", is_registered_=" << std::boolalpha << is_registered_;
 
         if (_message->get_service() == TEST_SERVICE && _message->get_instance() == TEST_INSTANCE && _message->get_method() == TEST_EVENT) {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
 
             if (!is_available_) {
                 VSOMEIP_ERROR << "[TEST] Notification ignored because received out-of-order";

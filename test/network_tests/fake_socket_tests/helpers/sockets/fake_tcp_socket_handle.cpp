@@ -330,7 +330,7 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
 size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception) {
     size_t const incoming_size =
             std::accumulate(_buffer.begin(), _buffer.end(), size_t{0}, [](size_t last, auto const& bf) { return last + bf.size(); });
-    std::unique_lock<std::mutex> lock(mtx_);
+    std::unique_lock lock(mtx_);
     std::vector<unsigned char> input;
     input.reserve(incoming_size);
     for (auto const& buffer : _buffer) {

@@ -766,7 +766,7 @@ void event::set_payload_filled(const bool value) {
     const bool is_internal_provider = is_provided_ != is_shadow_;
     const bool is_field = type_ == event_type_e::ET_FIELD;
     if (has_changed && is_internal_provider && is_field) {
-        VSOMEIP_INFO_P << "event [id=" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
+        VSOMEIP_INFO_P << "event [" << hex4(current_->get_service()) << "." << hex4(current_->get_instance()) << "."
                        << hex4(current_->get_method()) << "]:: value=" << std::boolalpha << value;
     }
 }

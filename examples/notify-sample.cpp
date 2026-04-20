@@ -127,7 +127,7 @@ public:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return blocked_; });
 
         bool is_offer(true);
@@ -150,7 +150,7 @@ public:
         uint32_t its_size = 1;
 
         while (running_) {
-            std::unique_lock<std::mutex> its_lock(notify_mutex_);
+            std::unique_lock its_lock(notify_mutex_);
             notify_condition_.wait(its_lock, [this] { return is_offered_ || !running_; });
 
             while (is_offered_ && running_) {

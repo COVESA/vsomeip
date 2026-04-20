@@ -130,7 +130,7 @@ public:
         {
             VSOMEIP_DEBUG << "[TEST] Process: waiting test end";
 
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             EXPECT_EQ(cv_.wait_for(its_lock, std::chrono::seconds(30)), std::cv_status::no_timeout);
         }
 
@@ -182,7 +182,7 @@ private:
         // Wait until the master has an active connection to TEST_SERVICE_SLAVE (offered by the slave with UDP+TCP) to increase the number
         // of active sockets present before the suspend check.
         {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             VSOMEIP_DEBUG << "[TEST] Process: waiting service available";
             ASSERT_EQ(availability_cv_.wait_for(its_lock, std::chrono::seconds(10), [this]() { return is_available_.load(); }), true);
             VSOMEIP_INFO << "[TEST] Process: service available";
@@ -190,7 +190,7 @@ private:
 
         {
             VSOMEIP_DEBUG << "[TEST] STR simulation: waiting signal";
-            std::unique_lock<std::mutex> its_lock(sr_mutex_);
+            std::unique_lock its_lock(sr_mutex_);
             sr_cv_.wait(its_lock, [this] { return is_suspend_requested_.load() || !is_running_; });
             is_suspend_requested_ = false;
         }
@@ -307,7 +307,7 @@ private:
         VSOMEIP_DEBUG << "[TEST] on_availability " << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4)
                       << _instance << ", is_available=" << std::boolalpha << _is_available;
         if (_service == TEST_SERVICE_SLAVE && _instance == TEST_INSTANCE && _is_available != is_available_) {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             is_available_ = _is_available;
             availability_cv_.notify_one();
         }

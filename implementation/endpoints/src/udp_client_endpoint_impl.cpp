@@ -47,7 +47,7 @@ bool udp_client_endpoint_impl::is_local() const {
 }
 
 void udp_client_endpoint_impl::connect() {
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
     if (!its_error || its_error == boost::asio::error::already_open) {
@@ -168,7 +168,7 @@ void udp_client_endpoint_impl::restart(bool _force) {
         return;
     }
     {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         queue_.clear();
     }
     was_not_connected_ = true;
@@ -373,7 +373,7 @@ void udp_client_endpoint_impl::print_status() {
     std::size_t its_data_size(0);
     std::size_t its_queue_size(0);
     {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }
@@ -390,7 +390,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                                         const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
     if (!_error) {
-        std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (queue_.size() > 0) {
             queue_size_ -= queue_.front().first->size();
             queue_.pop_front();
@@ -410,7 +410,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
     } else if (_error == boost::asio::error::broken_pipe) {
         bool stopping(false);
         {
-            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             stopping = sending_blocked_;
             if (stopping) {
                 queue_.clear();
@@ -441,7 +441,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                || _error == boost::asio::error::no_permission) {
         if (_error == boost::asio::error::no_permission) {
             VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information();
-            std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
         }
@@ -480,7 +480,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         print_status();
     }
 
-    std::lock_guard<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     is_sending_ = false;
 }
 

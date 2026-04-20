@@ -255,7 +255,7 @@ public:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         EXPECT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(5), [this] { return !wait_until_registered_; }))
                 << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Service registration timeout";
 
@@ -316,7 +316,7 @@ public:
     }
 
     void notify_one() {
-        std::unique_lock<std::mutex> its_lock(notify_mutex_);
+        std::unique_lock its_lock(notify_mutex_);
         EXPECT_TRUE(notify_condition_.wait_for(its_lock, std::chrono::seconds(15), [this] { return !wait_for_notify_; }))
                 << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Notify one timeout";
 
@@ -345,7 +345,7 @@ public:
     }
 
     void wait_for_stop() {
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
+        std::unique_lock its_lock(stop_mutex_);
         EXPECT_TRUE(stop_condition_.wait_for(its_lock, std::chrono::seconds(15), [this] { return !wait_for_stop_; }))
                 << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Stop timeout";
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id

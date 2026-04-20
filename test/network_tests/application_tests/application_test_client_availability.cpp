@@ -94,7 +94,7 @@ public:
 
     void run() {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             condition_.wait(its_lock, [this] { return !wait_until_registered_; });
         }
         while (!app_->is_available(service_info_.service_id, service_info_.instance_id, service_info_.major_version,
@@ -133,7 +133,7 @@ public:
             EXPECT_TRUE(found);
         }
         {
-            std::unique_lock<std::mutex> its_lock(availability_handler_called_mutex_);
+            std::unique_lock its_lock(availability_handler_called_mutex_);
             availability_condition_.wait(its_lock, [this] {
                 return std::all_of(availability_handler_called_.cbegin(), availability_handler_called_.cend(),
                                    [](const bool& v) { return v; });

@@ -45,7 +45,7 @@ TEST(OfferTestExternal, OfferTestExternalLocalClient) {
                                                [&service_available, &service_available_mutex,
                                                 &service_available_cv](vsomeip::service_t, vsomeip::instance_t, const bool is_available) {
                                                    {
-                                                       std::unique_lock<std::mutex> its_lock(service_available_mutex);
+                                                       std::unique_lock its_lock(service_available_mutex);
                                                        if (is_available) {
                                                            service_available = true;
                                                            std::filesystem::path filename =
@@ -75,7 +75,7 @@ TEST(OfferTestExternal, OfferTestExternalLocalClient) {
     {
         // After the client subscribes to the service, wait until service provider
         // stops which will lead to the service becoming unavailable
-        std::unique_lock<std::mutex> its_lock(service_available_mutex);
+        std::unique_lock its_lock(service_available_mutex);
         ASSERT_TRUE(service_available_cv.wait_for(its_lock, std::chrono::seconds(15), [&service_available] { return !service_available; }));
     }
 

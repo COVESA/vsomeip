@@ -81,7 +81,7 @@ void local_routing_test_client::send() {
 }
 
 void local_routing_test_client::run() {
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock(mutex_);
     condition_.wait(its_lock, [this] { return blocked_; });
     blocked_ = false;
     request_->set_service(vsomeip_test::TEST_SERVICE_SERVICE_ID);

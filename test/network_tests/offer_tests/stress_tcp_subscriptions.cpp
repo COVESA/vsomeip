@@ -41,7 +41,7 @@ static bool send_subscribe(uint16_t port) {
     static int udp_client_socket{-1};
     static struct sockaddr_in server_addr { };
     static struct sockaddr_in client_addr { };
-    std::lock_guard lock{sync};
+    std::scoped_lock lock{sync};
 
     if (port == 0) {
         if (udp_client_socket > 0) {

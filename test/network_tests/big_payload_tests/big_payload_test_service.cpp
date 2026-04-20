@@ -90,7 +90,7 @@ void big_payload_test_service::stop() {
 }
 
 void big_payload_test_service::on_stop() {
-    std::unique_lock<std::mutex> lk(mutex_);
+    std::unique_lock lk(mutex_);
     to_stop = true;
     condition_.notify_one();
 }
@@ -140,7 +140,7 @@ void big_payload_test_service::on_message(const std::shared_ptr<vsomeip::message
 
 void big_payload_test_service::run() {
     {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return blocked_; });
 
         offer();
@@ -218,7 +218,7 @@ void big_payload_test_service::run() {
         EXPECT_EQ(expected_messages_, number_of_received_messages_);
     }
 
-    std::unique_lock<std::mutex> its_lock(mutex_);
+    std::unique_lock its_lock(mutex_);
     EXPECT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(10), [&] { return to_stop; }));
 
     stop();

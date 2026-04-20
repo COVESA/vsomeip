@@ -69,8 +69,8 @@ void tcp_client_endpoint_impl::restart(bool _force) {
                 self->aborted_restart_count_++;
                 return;
             } else {
-                VSOMEIP_WARNING_P << "Maximum number of aborted restarts [" << self->tcp_restart_aborts_max_
-                                  << "] reached! its_connect_duration: " << its_connect_duration;
+                VSOMEIP_WARNING << "Maximum number of aborted restarts [" << self->tcp_restart_aborts_max_
+                                << "] reached! its_connect_duration: " << its_connect_duration;
             }
         }
         std::string address_port_local;
@@ -84,7 +84,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
         self->was_not_connected_ = true;
         self->reconnect_counter_ = 0;
         {
-            std::scoped_lock<std::recursive_mutex> its_lock(self->mutex_);
+            std::scoped_lock its_lock(self->mutex_);
             for (const auto& q : self->queue_) {
                 const service_t its_service = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_SERVICE_POS_MIN]);
                 const method_t its_method = bithelper::read_uint16_be(&(*q.first)[VSOMEIP_METHOD_POS_MIN]);
@@ -108,7 +108,7 @@ void tcp_client_endpoint_impl::restart(bool _force) {
 
 void tcp_client_endpoint_impl::connect() {
     start_connecting_timer();
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock(socket_mutex_);
     boost::system::error_code its_error;
     socket_->open(remote_.protocol(), its_error);
 
@@ -424,7 +424,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         return;
     }
 
-    std::unique_lock<std::mutex> its_lock(socket_mutex_);
+    std::unique_lock its_lock(socket_mutex_);
 
     if (std::shared_ptr<boardnet_routing_host> its_host = routing_host_.lock(); its_host) {
         std::uint32_t its_missing_capacity(0);
@@ -685,7 +685,7 @@ void tcp_client_endpoint_impl::handle_recv_buffer_exception(const std::exception
     VSOMEIP_ERROR_P << its_message.str();
     _recv_buffer->clear();
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         sending_blocked_ = true;
     }
     {
@@ -706,7 +706,7 @@ void tcp_client_endpoint_impl::print_status() {
     std::size_t its_queue_size(0);
     std::size_t its_receive_buffer_capacity(0);
     {
-        std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         its_queue_size = queue_.size();
         its_data_size = queue_size_;
     }
@@ -729,7 +729,7 @@ void tcp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
                                         const message_buffer_ptr_t& _sent_msg) {
     (void)_bytes;
 
-    std::scoped_lock<std::recursive_mutex> its_lock(mutex_);
+    std::scoped_lock its_lock(mutex_);
     sent_timer_.cancel();
 
     if (!_error) {

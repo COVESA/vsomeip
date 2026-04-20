@@ -51,7 +51,7 @@ base_vsip_app::base_vsip_app(const char* app_name_) {
 
 void base_vsip_app::run() {
 
-    std::unique_lock<std::mutex> lock{greenlight_mutex_};
+    std::unique_lock lock{greenlight_mutex_};
     greenlight_.wait(lock, [this] { return greenlight_ready_; });
     greenlight_ready_ = false;
     _app->init();
@@ -62,7 +62,7 @@ void base_vsip_app::run() {
 }
 
 void base_vsip_app::greenlight() {
-    std::unique_lock<std::mutex> lock{greenlight_mutex_};
+    std::unique_lock lock{greenlight_mutex_};
     greenlight_ready_ = true;
     greenlight_.notify_one();
 }

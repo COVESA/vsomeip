@@ -38,7 +38,7 @@ public:
         start();
 
         {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             VSOMEIP_DEBUG << "[TEST] Process: waiting service available";
             ASSERT_EQ(availability_cv_.wait_for(its_lock, std::chrono::seconds(10), [this]() { return is_available_.load(); }), true);
             VSOMEIP_INFO << "[TEST] Process: service available";
@@ -54,7 +54,7 @@ public:
         // Wait for availability to become false
         std::chrono::steady_clock::time_point unavailable_time;
         {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             VSOMEIP_DEBUG << "[TEST] Process: waiting availability=false event, is_available=" << std::boolalpha << is_available_.load();
             ASSERT_TRUE(availability_cv_.wait_for(its_lock, std::chrono::seconds(20), [this]() { return !is_available_.load(); }));
             unavailable_time = std::chrono::steady_clock::now();
@@ -64,7 +64,7 @@ public:
         // Wait for availability to become true again
         std::chrono::steady_clock::time_point available_time;
         {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             VSOMEIP_DEBUG << "[TEST] Process: waiting availability=true event, is_available=" << std::boolalpha << is_available_.load();
             ASSERT_TRUE(availability_cv_.wait_for(its_lock, std::chrono::seconds(30), [this]() { return is_available_.load(); }));
             available_time = std::chrono::steady_clock::now();
@@ -110,7 +110,7 @@ private:
         VSOMEIP_DEBUG << "[TEST] vSomeIP application: waiting ready signal";
 
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             cv_.wait(its_lock, [this] { return started_.load(); });
         }
 
@@ -150,7 +150,7 @@ private:
                       << is_registered_;
 
         if (_service == TEST_SERVICE && _instance == TEST_INSTANCE && _is_available != is_available_) {
-            std::unique_lock<std::mutex> its_lock(availability_mutex_);
+            std::unique_lock its_lock(availability_mutex_);
             is_available_ = _is_available;
             availability_cv_.notify_one();
         }

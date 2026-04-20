@@ -1562,7 +1562,7 @@ void routing_manager_stub::get_requester_policies(uid_t _uid, gid_t _gid, std::s
 void routing_manager_stub::add_pending_security_update_handler(pending_security_update_id_t _id,
                                                                const security_update_handler_t& _handler) {
 
-    std::scoped_lock<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+    std::scoped_lock its_lock(security_update_handlers_mutex_);
     security_update_handlers_[_id] = _handler;
 }
 
@@ -1664,7 +1664,7 @@ void routing_manager_stub::on_security_update_timeout(const boost::system::error
         }
 
         // call handler with error on timeout or with SUCCESS if missing clients are not connected
-        std::scoped_lock<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+        std::scoped_lock its_lock(security_update_handlers_mutex_);
         const auto found_handler = security_update_handlers_.find(_id);
         if (found_handler != security_update_handlers_.end()) {
             found_handler->second(its_state);
@@ -1857,7 +1857,7 @@ void routing_manager_stub::on_security_update_response(pending_security_update_i
 
             // call handler
             {
-                std::scoped_lock<std::recursive_mutex> its_lock(security_update_handlers_mutex_);
+                std::scoped_lock its_lock(security_update_handlers_mutex_);
                 auto found_handler = security_update_handlers_.find(_id);
                 if (found_handler != security_update_handlers_.end()) {
                     found_handler->second(security_update_state_e::SU_SUCCESS);

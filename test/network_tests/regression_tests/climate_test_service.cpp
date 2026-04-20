@@ -117,11 +117,11 @@ public:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return blocked_; });
 
         offer();
-        std::unique_lock<std::mutex> its_lock_message(message_mutex_);
+        std::unique_lock its_lock_message(message_mutex_);
         notify_condition_.wait(its_lock_message, [this] { return !running_ || is_second_; });
 
         // Offer and stop offer service with 1 second interval
@@ -143,7 +143,7 @@ public:
         uint32_t its_size = 5;
 
         while (running_) {
-            std::unique_lock<std::mutex> its_lock(notify_mutex_);
+            std::unique_lock its_lock(notify_mutex_);
             notify_condition_.wait(its_lock, [this] { return is_offered_ || !running_; });
             while (is_offered_ && running_) {
                 {

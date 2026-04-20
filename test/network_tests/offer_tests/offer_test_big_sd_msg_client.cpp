@@ -110,7 +110,7 @@ public:
     }
 
     void send_shutdown() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return !wait_until_subscribed_; });
 
         std::shared_ptr<vsomeip::message> its_req = vsomeip::runtime::get()->create_request();

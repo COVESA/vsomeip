@@ -41,7 +41,7 @@ TEST(ConnectionTimeoutSubAckTest, ServerOffersService) {
 
     // Only begin notifying after application is registered
     {
-        std::unique_lock<std::mutex> its_lock(service_register_mutex);
+        std::unique_lock its_lock(service_register_mutex);
         service_register_cv.wait_for(its_lock, std::chrono::seconds(30),
                                      [&service_register_state] { return service_register_state == true; });
     }

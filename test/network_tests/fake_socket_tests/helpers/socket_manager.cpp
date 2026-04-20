@@ -635,7 +635,7 @@ void socket_manager::send_someip(boost::asio::const_buffer const& _buffer, boost
         LOCAL_LOG << " trying to send multicast message from " << _src << " to " << _dst;
         std::vector<std::shared_ptr<fake_socket_handle>> multicast_group;
         {
-            auto lock = std::unique_lock<std::mutex>(mtx_);
+            auto lock = std::unique_lock(mtx_);
             if (auto it_multicast = multicast_to_fds_.find(_dst.address()); it_multicast != multicast_to_fds_.end()) {
                 for (auto const& fd : it_multicast->second) {
                     if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
@@ -655,7 +655,7 @@ void socket_manager::send_someip(boost::asio::const_buffer const& _buffer, boost
     } else {
         LOCAL_LOG << " trying to send unicast message from " << _src << " to " << _dst;
         std::shared_ptr<fake_socket_handle> shared_handle;
-        auto lock = std::unique_lock<std::mutex>(mtx_);
+        auto lock = std::unique_lock(mtx_);
         fd_t fd{0};
         if (auto endpoint_it = endpoint_udp_to_fd_.find(_dst); endpoint_it != endpoint_udp_to_fd_.end()) {
             fd = endpoint_it->second;

@@ -45,7 +45,7 @@ void routing_restart_test_client::on_availability(vsomeip::service_t _service, v
                  << _service << "." << _instance << "] is " << (_is_available ? "available." : "NOT available.");
 
     if (vsomeip_test::TEST_SERVICE_SERVICE_ID == _service && vsomeip_test::TEST_SERVICE_INSTANCE_ID == _instance) {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         if (is_available_ && !_is_available) {
             is_available_ = false;
         } else if (_is_available && !is_available_) {
@@ -115,7 +115,7 @@ void routing_restart_test_client::run() {
     bool its_availability_timeout = false;
     while (its_sent_requests < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_ROUTING_RESTART_TESTS) {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             while (!is_available_) {
                 if (!condition_.wait_for(its_lock, std::chrono::milliseconds(10000), [this] { return is_available_; })) {
                     VSOMEIP_WARNING << "Service not available for 10s. Quit waiting";

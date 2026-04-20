@@ -128,7 +128,7 @@ public:
             return;
         }
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             condition_.wait(its_lock, [this] { return !wait_until_registered_; });
             condition_.wait(its_lock, [this] { return !wait_until_service_available_; });
         }
@@ -228,7 +228,7 @@ public:
 
     void wait_for_stop() {
 
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
+        std::unique_lock its_lock(stop_mutex_);
         stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
 
         VSOMEIP_INFO << "going down";

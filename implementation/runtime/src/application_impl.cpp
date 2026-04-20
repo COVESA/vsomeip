@@ -1294,7 +1294,7 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
         }
     }
     {
-        std::unique_lock<std::mutex> handlers_lock(handlers_mutex_);
+        std::unique_lock handlers_lock(handlers_mutex_);
         for (auto& handler : handlers) {
             auto its_sync_handler = std::make_shared<sync_handler>([handler, _service, _instance, _eventgroup, _event, _error]() {
                 handler(_service, _instance, _eventgroup, _event, _error);
@@ -1753,7 +1753,7 @@ void application_impl::main_dispatch() {
 #endif
             ;
 
-    std::unique_lock<std::mutex> its_lock(handlers_mutex_);
+    std::unique_lock its_lock(handlers_mutex_);
     while (is_dispatching_) {
         if (handlers_.empty() || !is_active_dispatcher(its_id)) {
             // Cancel other waiting dispatcher
@@ -1803,7 +1803,7 @@ void application_impl::dispatch() {
 #endif
             ;
 
-    std::unique_lock<std::mutex> its_lock(handlers_mutex_);
+    std::unique_lock its_lock(handlers_mutex_);
     while (is_active_dispatcher(its_id)) {
         if (is_dispatching_ && handlers_.empty()) {
             dispatcher_condition_.wait(its_lock, [this] { return !is_dispatching_ || !handlers_.empty() || elapse_unactive_dispatchers_; });

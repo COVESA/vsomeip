@@ -23,7 +23,7 @@ public:
     shutdown_test_service();
 
     void run_test() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         ASSERT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(10), [&] { return is_registered_; }))
                 << "Service not registered in time";
 
@@ -76,7 +76,7 @@ public:
 
         reply_ = vsomeip::runtime::get()->create_response(_message);
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         to_stop = true;
         condition_.notify_one();
     }
@@ -87,7 +87,7 @@ public:
         VSOMEIP_INFO << "Application " << app_->get_name() << " is "
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (_state == vsomeip::state_type_e::ST_REGISTERED) {
             if (!is_registered_) {
                 is_registered_ = true;

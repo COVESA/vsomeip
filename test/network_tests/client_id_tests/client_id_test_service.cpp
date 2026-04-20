@@ -149,7 +149,7 @@ public:
     }
 
     void run() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return blocked_; });
         blocked_ = false;
 
@@ -183,7 +183,7 @@ public:
     }
 
     void wait_for_stop() {
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
+        std::unique_lock its_lock(stop_mutex_);
         stop_condition_.wait(its_lock, [this] { return stopped_; });
         VSOMEIP_INFO << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id
                      << "] Received responses and requests from all other services, going down";

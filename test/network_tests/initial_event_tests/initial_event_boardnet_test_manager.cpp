@@ -99,18 +99,18 @@ public:
     }
 
     void wait_for_registration() {
-        std::unique_lock<std::mutex> lock{mutex_};
+        std::unique_lock lock{mutex_};
         condition_.wait_for(lock, std::chrono::seconds(2),
                             [this]() { return registration_status_ == vsomeip::state_type_e::ST_REGISTERED; });
     }
 
     void wait_for_subscription() {
-        std::unique_lock<std::mutex> lock{mutex_};
+        std::unique_lock lock{mutex_};
         condition_.wait_for(lock, std::chrono::seconds(2), [this]() { return client_subscribed_; });
     }
 
     bool wait_for_message() {
-        std::unique_lock<std::mutex> lock{mutex_};
+        std::unique_lock lock{mutex_};
         return condition_.wait_for(lock, std::chrono::seconds(10), [this]() { return message_received_; });
     }
 

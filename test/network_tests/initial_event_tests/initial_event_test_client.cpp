@@ -303,7 +303,7 @@ public:
         its_call_number++;
 
         {
-            std::unique_lock<std::mutex> its_lock(state_mutex_);
+            std::unique_lock its_lock(state_mutex_);
             stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
         }
         VSOMEIP_ERROR << "(" << std::dec << its_call_number << ") [" << std::hex << std::setfill('0') << std::setw(4) << client_number_

@@ -134,7 +134,7 @@ public:
 
     void wait_for_shutdown() {
         {
-            std::unique_lock<std::mutex> its_lock(shutdown_mutex_);
+            std::unique_lock its_lock(shutdown_mutex_);
             shutdown_condition_.wait(its_lock, [this] { return !wait_for_shutdown_; });
             wait_for_shutdown_ = true;
         }

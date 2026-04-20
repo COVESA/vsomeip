@@ -570,7 +570,7 @@ TEST_P(someip_tp, send_in_mode) {
             // send SOMEIP-TP message fragmented into 6 parts to service:
             boost::asio::ip::udp::socket::endpoint_type target_service(address_remote_, 30001);
 
-            std::unique_lock<std::mutex> its_lock(all_fragments_received_mutex_);
+            std::unique_lock its_lock(all_fragments_received_mutex_);
             for (const order_e mode : {order_e::ASCENDING, order_e::DESCENDING}) {
                 create_fragments(someip_tp_test::number_of_fragments, someip_tp_test::service.service_id,
                                  someip_tp_test::service.instance_id, someip_tp_test::service.method_id,
@@ -855,7 +855,7 @@ TEST_P(someip_tp, send_in_mode) {
     std::atomic<std::uint16_t> remote_client_request_port(0);
 
     std::thread udp_server_send_thread([&]() {
-        std::unique_lock<std::mutex> all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
+        std::unique_lock all_fragments_received_as_server_lock(all_fragments_received_as_server_mutex_);
         // wait until client subscribed
         if (std::future_status::timeout == remote_client_subscribed.get_future().wait_for(std::chrono::seconds(10))) {
             ADD_FAILURE() << "Client didn't subscribe within time";

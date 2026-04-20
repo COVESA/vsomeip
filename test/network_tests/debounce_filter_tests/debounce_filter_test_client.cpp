@@ -48,7 +48,7 @@ void debounce_test_client::stop() {
 
 void debounce_test_client::run() {
     {
-        std::unique_lock<std::mutex> its_lock(run_mutex_);
+        std::unique_lock its_lock(run_mutex_);
         if (!run_condition_.wait_for(its_lock, std::chrono::seconds(15), [this] { return is_available_; })) {
             GTEST_FATAL_FAILURE_("Debounce service did not become available after 15s.");
             stop();
@@ -67,7 +67,7 @@ void debounce_test_client::run() {
     // Wait for service to become unavailable before stopping client
     // This ensures the service has completed its cleanup before the next test starts
     {
-        std::unique_lock<std::mutex> its_lock(run_mutex_);
+        std::unique_lock its_lock(run_mutex_);
         if (!run_condition_.wait_for(its_lock, std::chrono::seconds(2), [this] { return !is_available_; })) {
             VSOMEIP_WARNING << "Service did not become unavailable within timeout";
         }

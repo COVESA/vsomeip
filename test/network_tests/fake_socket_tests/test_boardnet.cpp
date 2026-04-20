@@ -37,14 +37,14 @@ public:
 
     // Register a promise to block a specific client
     void block_client(uint16_t client_id) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::scoped_lock lock(mtx_);
         client_releases_[client_id] = std::make_shared<std::promise<void>>();
         client_order_.push_back(client_id);
     }
 
     // Release a specific client
     void release_client(uint16_t client_id) {
-        std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock lock(mtx_);
         auto it = client_releases_.find(client_id);
         if (it != client_releases_.end()) {
             it->second->set_value();
@@ -54,13 +54,13 @@ public:
 
     // Wait until a specific client is blocked
     bool wait_for_client_blocked(uint16_t client_id, std::chrono::milliseconds timeout = std::chrono::milliseconds(3000)) {
-        std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock lock(mtx_);
         return cv_.wait_for(lock, timeout, [this, client_id]() { return blocked_clients_.find(client_id) != blocked_clients_.end(); });
     }
 
     // Wait until N SUBSCRIBE messages have been received (without blocking them)
     bool wait_for_subscribe_count(size_t count, std::chrono::milliseconds timeout = std::chrono::milliseconds(3000)) {
-        std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock lock(mtx_);
         return cv_subscribe_.wait_for(lock, timeout, [this, count]() { return subscribe_counter_ >= count; });
     }
 
@@ -70,7 +70,7 @@ public:
             return false; // Does not block, continues processing
         }
 
-        std::unique_lock<std::mutex> lock(mtx_);
+        std::unique_lock lock(mtx_);
 
         // Map ACK by order: 1st ACK -> client_order_[0], 2nd ACK -> client_order_[1], etc.
         size_t ack_index = ack_counter_++;
@@ -742,7 +742,7 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
             [&blocker](command_message const& _cmd) {
                 if (_cmd.id_ == protocol::id_e::SUBSCRIBE_ID) {
                     {
-                        std::lock_guard<std::mutex> lock(blocker.mtx_);
+                        std::scoped_lock lock(blocker.mtx_);
                         ++blocker.subscribe_counter_;
                         blocker.cv_subscribe_.notify_all();
                     }

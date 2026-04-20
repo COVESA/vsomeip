@@ -68,7 +68,7 @@ public:
     }
 
     void stop() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return stop_; });
 
         std::this_thread::sleep_for(std::chrono::seconds(5));

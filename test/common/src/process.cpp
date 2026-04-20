@@ -31,7 +31,7 @@ process_manager_t::~process_manager_t() {
 
 void process_manager_t::spawn() {
     {
-        std::unique_lock<std::mutex> lock{process_mutex_};
+        std::unique_lock lock{process_mutex_};
         // Build environment map for TinyProcessLib
         TinyProcessLib::Process::environment_type env;
         for (const auto& [key, value] : env_vars_) {

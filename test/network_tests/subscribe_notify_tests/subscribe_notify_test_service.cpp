@@ -209,7 +209,7 @@ public:
 
     void run() {
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Running";
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         condition_.wait(its_lock, [this] { return !wait_until_registered_; });
 
         VSOMEIP_DEBUG << "[" << std::hex << std::setfill('0') << std::setw(4) << service_info_.service_id << "] Offering";
@@ -249,7 +249,7 @@ public:
     }
 
     void notify() {
-        std::unique_lock<std::mutex> its_lock(notify_mutex_);
+        std::unique_lock its_lock(notify_mutex_);
         notify_condition_.wait(its_lock, [this] { return !wait_for_notify_; });
 
         // sleep a while before starting to notify this is necessary as it's not
@@ -276,7 +276,7 @@ public:
     }
 
     void wait_for_stop() {
-        std::unique_lock<std::mutex> its_lock(stop_mutex_);
+        std::unique_lock its_lock(stop_mutex_);
         stop_condition_.wait(its_lock, [this] { return !wait_for_stop_; });
 
         // wait until all notifications have been sent out

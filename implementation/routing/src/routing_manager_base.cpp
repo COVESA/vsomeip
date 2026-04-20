@@ -198,7 +198,7 @@ bool routing_manager_base::send_local(std::shared_ptr<local_endpoint>& _target, 
 
 std::shared_ptr<serializer> routing_manager_base::get_serializer() {
 
-    std::unique_lock<std::mutex> its_lock(serializer_mutex_);
+    std::unique_lock its_lock(serializer_mutex_);
     while (serializers_.empty()) {
         VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " has no available serializer. Waiting...";
         serializer_condition_.wait(its_lock, [this] { return !serializers_.empty(); });
@@ -220,7 +220,7 @@ void routing_manager_base::put_serializer(const std::shared_ptr<serializer>& _se
 
 std::shared_ptr<deserializer> routing_manager_base::get_deserializer() {
 
-    std::unique_lock<std::mutex> its_lock(deserializer_mutex_);
+    std::unique_lock its_lock(deserializer_mutex_);
     while (deserializers_.empty()) {
         VSOMEIP_INFO_P << ": Client 0x" << hex4(get_client()) << "~> all in use!";
         deserializer_condition_.wait(its_lock, [this] { return !deserializers_.empty(); });

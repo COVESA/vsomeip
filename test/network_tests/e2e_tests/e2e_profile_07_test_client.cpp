@@ -76,7 +76,7 @@ void e2e_profile_07_test_client::on_availability(vsomeip::service_t _service, vs
     }
 
     if (PROFILE_07_SERVICE == _service && PROFILE_07_INSTANCE == _instance) {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         if (is_available_ != !_is_available) {
             is_available_ = false;
         } else if (_is_available && !is_available_) {
@@ -141,7 +141,7 @@ void e2e_profile_07_test_client::run() {
 
     for (int i = 0; i < PROFILE_07_NUM_MESSAGES; ++i) {
         {
-            std::unique_lock<std::mutex> its_lock(mutex_);
+            std::unique_lock its_lock(mutex_);
             condition_.wait(its_lock, [this] { return is_available_; });
         }
 

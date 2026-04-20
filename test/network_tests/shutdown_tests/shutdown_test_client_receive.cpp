@@ -25,7 +25,7 @@ public:
     shutdown_test_client();
 
     void run_test() {
-        std::unique_lock<std::mutex> its_lock(mutex_);
+        std::unique_lock its_lock(mutex_);
         ASSERT_TRUE(condition_.wait_for(its_lock, std::chrono::seconds(10), [this] { return is_available_; }))
                 << "Service not available in time";
 
@@ -75,7 +75,7 @@ public:
         VSOMEIP_INFO << "Shutdown message " << n_messages_received_ << " received.";
         if (n_messages_received_ == shutdown_test::SHUTDOWN_NUMBER_MESSAGES) {
             VSOMEIP_INFO << "All shutdown messages received, preparing to stop.";
-            std::lock_guard<std::mutex> its_lock(mutex_);
+            std::scoped_lock its_lock(mutex_);
             to_stop = true;
             condition_.notify_one();
         }
@@ -87,7 +87,7 @@ public:
         VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << _instance << "] is "
                      << (_is_available ? "available." : "NOT available.");
 
-        std::lock_guard<std::mutex> its_lock(mutex_);
+        std::scoped_lock its_lock(mutex_);
         if (is_available_ && !_is_available) {
             is_available_ = false;
         } else if (_is_available && !is_available_) {

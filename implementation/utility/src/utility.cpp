@@ -100,7 +100,7 @@ bool utility::is_routing_manager(const std::string& _network) {
     // Only the first caller can become routing manager.
     // Therefore, subsequent calls can be immediately answered...
 
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     if (data.find(_network) != data.end())
         return false;
@@ -207,7 +207,7 @@ bool utility::is_routing_manager(const std::string& _network) {
 }
 
 void utility::remove_lockfile(const std::string& _network) {
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
 
     auto r = data.find(_network);
@@ -275,7 +275,7 @@ std::string utility::get_base_path(const std::string& _network) {
 }
 
 client_t utility::request_client_id(const std::shared_ptr<configuration>& _config, const std::string& _name, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     static const std::uint16_t its_max_num_clients = get_max_client_number(_config);
 
@@ -345,7 +345,7 @@ client_t utility::request_client_id(const std::shared_ptr<configuration>& _confi
 }
 
 std::string utility::get_client_name(const std::shared_ptr<configuration>& _config, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     auto r = data.find(_config->get_network());
     if (r == data.end()) {
@@ -360,7 +360,7 @@ std::string utility::get_client_name(const std::shared_ptr<configuration>& _conf
 }
 
 void utility::release_client_id(const std::string& _network, client_t _client) {
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     auto r = data.find(_network);
     if (r != data.end())
@@ -368,7 +368,7 @@ void utility::release_client_id(const std::string& _network, client_t _client) {
 }
 
 std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     std::set<client_t> its_used_clients;
     auto r = data.find(_network);
@@ -380,7 +380,7 @@ std::set<client_t> utility::get_used_client_ids(const std::string& _network) {
 }
 
 void utility::reset_client_ids(const std::string& _network) {
-    std::lock_guard<std::mutex> its_lock(get_utility_mutex());
+    std::scoped_lock its_lock(get_utility_mutex());
     auto& data = get_utility_data();
     auto r = data.find(_network);
     if (r != data.end()) {
