@@ -1602,20 +1602,6 @@ void routing_manager_impl::remove_local(client_t _client) {
     ep_mgr_impl_->remove_routing_endpoint(_client);
 }
 
-bool routing_manager_impl::is_field(service_t _service, instance_t _instance, event_t _event) const {
-    std::scoped_lock its_lock{events_mutex_};
-    const auto search = events_.find(service_instance_t{_service, _instance});
-
-    if (search != events_.end()) {
-        const auto find_event = search->second.find(_event);
-        if (find_event != search->second.end()) {
-            return find_event->second->is_field();
-        }
-    }
-
-    return false;
-}
-
 // only called from the SD
 void routing_manager_impl::add_routing_info(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                             ttl_t _ttl, const boost::asio::ip::address& _reliable_address, uint16_t _reliable_port,

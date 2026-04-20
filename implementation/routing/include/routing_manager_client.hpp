@@ -109,7 +109,7 @@ public:
 
     // that this function is provided to the application_impl feels pretty strange
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const override;
-    std::set<std::shared_ptr<event>> find_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
+    std::set<std::shared_ptr<event>> find_consumed_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
     void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
                     bool _force);
     void notify(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, bool _force);
@@ -119,7 +119,8 @@ public:
      * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription insertion + subscription ack/nack
      */
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-    std::shared_ptr<event> find_event(service_t _service, instance_t _instance, event_t _event) const;
+    std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event) const;
+    std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event) const;
     std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
 
 private:
@@ -157,8 +158,6 @@ private:
 
     bool send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
                                  uint8_t _status_check, bool _force);
-
-    bool is_field(service_t _service, instance_t _instance, event_t _event) const;
 
     void on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
@@ -232,7 +231,6 @@ private:
     bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
     void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
-    std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
     /**
      * @brief insert subscription into events/eventgroups
      *
@@ -330,10 +328,6 @@ private:
     using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
     eventgroups_t eventgroups_;
 
-    // Events (part of one or more eventgroups)
-    mutable std::mutex events_mutex_;
-    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> events_;
-
     // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
     std::mutex subscription_mutex;
 
@@ -352,6 +346,7 @@ private:
     mutable std::mutex provider_mutex_;
     // Set of services provided by this client
     services_t provided_services_;
+    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
 
     // This mutex should be used whenever the client
     // is trying to access data relevant for its "consumer" side
@@ -359,6 +354,8 @@ private:
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
     local_service_table available_services_;
     std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
+    mutable std::mutex consumed_events_mutex_;
+    service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> consumed_events_;
 
     struct subscription_data_t {
         service_t service_;

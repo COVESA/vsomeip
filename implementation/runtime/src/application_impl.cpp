@@ -2069,7 +2069,7 @@ bool application_impl::is_routing() const {
 }
 
 void application_impl::send_back_cached_event(service_t _service, instance_t _instance, event_t _event) {
-    std::shared_ptr<event> its_event = routing_->find_event(_service, _instance, _event);
+    std::shared_ptr<event> its_event = routing_->find_consumed_event(_service, _instance, _event);
     if (its_event && its_event->is_field() && its_event->is_set()) {
         std::shared_ptr<message> its_message = runtime_->create_notification();
         its_message->set_service(_service);
@@ -2084,7 +2084,7 @@ void application_impl::send_back_cached_event(service_t _service, instance_t _in
 }
 
 void application_impl::send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
-    std::set<std::shared_ptr<event>> its_events = routing_->find_events(_service, _instance, _eventgroup);
+    std::set<std::shared_ptr<event>> its_events = routing_->find_consumed_events(_service, _instance, _eventgroup);
     for (const auto& its_event : its_events) {
         if (its_event && its_event->is_field() && its_event->is_set()) {
             std::shared_ptr<message> its_message = runtime_->create_notification();
@@ -2224,7 +2224,7 @@ bool application_impl::check_for_active_subscription(service_t _service, instanc
                 auto found_any_event = found_instance->second.find(ANY_EVENT);
                 if (found_any_event != found_instance->second.end()) {
                     if (routing_) {
-                        std::shared_ptr<event> its_event = routing_->find_event(_service, _instance, _event);
+                        std::shared_ptr<event> its_event = routing_->find_consumed_event(_service, _instance, _event);
                         if (its_event) {
                             for (const auto eg : its_event->get_eventgroups()) {
                                 auto found_eventgroup = found_any_event->second.find(eg);
