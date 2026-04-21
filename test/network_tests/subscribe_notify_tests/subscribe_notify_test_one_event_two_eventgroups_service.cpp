@@ -5,6 +5,9 @@
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #include <csignal>
+#if defined(__linux__) || defined(__QNX__)
+#include <pthread.h>
+#endif
 #endif
 #include <chrono>
 #include <condition_variable>
@@ -31,7 +34,11 @@ public:
         app_(vsomeip::runtime::get()->create_application()), wait_for_shutdown_(true), info_(_info),
         notify_thread_(std::bind(&subscribe_notify_test_one_event_two_eventgroups_service::wait_for_shutdown, this)), use_tcp_(_use_tcp) { }
 
-    ~subscribe_notify_test_one_event_two_eventgroups_service() { notify_thread_.join(); }
+    ~subscribe_notify_test_one_event_two_eventgroups_service() {
+        if (notify_thread_.joinable()) {
+            notify_thread_.join();
+        }
+    }
 
     bool init() {
         if (!app_->init()) {
@@ -79,9 +86,6 @@ public:
     void start() { app_->start(); }
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    /*
-     * Handle signal to shutdown
-     */
     void stop() {
         {
             std::scoped_lock its_lock(shutdown_mutex_);
@@ -91,7 +95,9 @@ public:
 
         app_->clear_all_handler();
         stop_offer();
-        notify_thread_.join();
+        if (notify_thread_.joinable()) {
+            notify_thread_.join();
+        }
         app_->stop();
     }
 #endif
@@ -165,26 +171,48 @@ private:
     bool use_tcp_;
 };
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-subscribe_notify_test_one_event_two_eventgroups_service* its_service_ptr(nullptr);
-void handle_signal(int _signal) {
-    if (its_service_ptr != nullptr && (_signal == SIGINT || _signal == SIGTERM))
-        its_service_ptr->stop();
-}
-#endif
-
 static bool use_tcp;
 
 TEST(someip_subscribe_notify_test_one_event_two_eventgroups, wait_for_attribute_set) {
     subscribe_notify_test_one_event_two_eventgroups_service its_service(subscribe_notify_test::service_info_subscriber_based_notification,
                                                                         use_tcp);
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    its_service_ptr = &its_service;
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
+#if defined(__linux__) || defined(__QNX__)
+    sigset_t its_signals;
+    sigemptyset(&its_signals);
+    sigaddset(&its_signals, SIGINT);
+    sigaddset(&its_signals, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, &its_signals, nullptr);
+#endif
 #endif
     if (its_service.init()) {
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#if defined(__linux__) || defined(__QNX__)
+        std::thread signal_watcher([&its_service]() {
+            sigset_t its_wait_set;
+            sigemptyset(&its_wait_set);
+            sigaddset(&its_wait_set, SIGINT);
+            sigaddset(&its_wait_set, SIGTERM);
+
+            int its_signal = 0;
+            while (sigwait(&its_wait_set, &its_signal) == 0) {
+                if (its_signal == SIGINT || its_signal == SIGTERM) {
+                    its_service.stop();
+                    return;
+                }
+            }
+        });
+#endif
+#endif
         its_service.start();
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#if defined(__linux__) || defined(__QNX__)
+        if (signal_watcher.joinable()) {
+            pthread_cancel(signal_watcher.native_handle());
+            signal_watcher.join();
+        }
+#endif
+#endif
     }
 }
 
