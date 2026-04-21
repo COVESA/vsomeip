@@ -4,6 +4,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <signal.h>
+#if defined(__linux__) || defined(__QNX__)
+#include <pthread.h>
+#endif
 
 #include <chrono>
 #include <condition_variable>
@@ -141,19 +144,41 @@ TEST(someip_offer_test, notify_increasing_counter) {
 }
 
 #if defined(__linux__) || defined(__QNX__)
-static void sigusr1_handler(int /*signum*/) {
-    sigusr1_raised.store(true);
-}
-
 int main(int argc, char** argv) {
-    signal(SIGUSR1, sigusr1_handler);
+    sigset_t its_signals;
+    sigemptyset(&its_signals);
+    sigaddset(&its_signals, SIGUSR1);
+    sigaddset(&its_signals, SIGTERM);
+    sigaddset(&its_signals, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &its_signals, nullptr);
 
     if (argc < 2) {
         std::cerr << "Please specify a service number, like: " << argv[0] << " 2" << std::endl;
         return 1;
     }
 
+    std::thread signal_watcher([]() {
+        sigset_t its_wait_set;
+        sigemptyset(&its_wait_set);
+        sigaddset(&its_wait_set, SIGUSR1);
+        sigaddset(&its_wait_set, SIGTERM);
+        sigaddset(&its_wait_set, SIGINT);
+
+        int its_signal = 0;
+        while (sigwait(&its_wait_set, &its_signal) == 0) {
+            if (its_signal == SIGUSR1 || its_signal == SIGTERM || its_signal == SIGINT) {
+                sigusr1_raised.store(true);
+                return;
+            }
+        }
+    });
+
     service_number = static_cast<uint8_t>(std::stoi(argv[1]));
-    return test_main(argc, argv);
+    const int its_result = test_main(argc, argv);
+    if (signal_watcher.joinable()) {
+        (void)pthread_cancel(signal_watcher.native_handle());
+        signal_watcher.join();
+    }
+    return its_result;
 }
 #endif

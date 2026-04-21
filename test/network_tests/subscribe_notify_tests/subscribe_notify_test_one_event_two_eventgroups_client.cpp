@@ -5,6 +5,9 @@
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #include <csignal>
+#if defined(__linux__) || defined(__QNX__)
+#include <pthread.h>
+#endif
 #endif
 #include <chrono>
 #include <condition_variable>
@@ -341,26 +344,48 @@ private:
     std::thread run_thread_;
 };
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-subscribe_notify_test_one_event_two_eventgroups_client* its_client_ptr(nullptr);
-void handle_signal(int _signal) {
-    if (its_client_ptr != nullptr && (_signal == SIGINT || _signal == SIGTERM))
-        its_client_ptr->stop();
-}
-#endif
-
 static bool use_tcp;
 
 TEST(someip_subscribe_notify_test_one_event_two_eventgroups, subscribe_to_service) {
     subscribe_notify_test_one_event_two_eventgroups_client its_client(subscribe_notify_test::service_info_subscriber_based_notification,
                                                                       use_tcp);
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    its_client_ptr = &its_client;
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
+#if defined(__linux__) || defined(__QNX__)
+    sigset_t its_signals;
+    sigemptyset(&its_signals);
+    sigaddset(&its_signals, SIGINT);
+    sigaddset(&its_signals, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, &its_signals, nullptr);
+#endif
 #endif
     if (its_client.init()) {
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#if defined(__linux__) || defined(__QNX__)
+        std::thread signal_watcher([&its_client]() {
+            sigset_t its_wait_set;
+            sigemptyset(&its_wait_set);
+            sigaddset(&its_wait_set, SIGINT);
+            sigaddset(&its_wait_set, SIGTERM);
+
+            int its_signal = 0;
+            while (sigwait(&its_wait_set, &its_signal) == 0) {
+                if (its_signal == SIGINT || its_signal == SIGTERM) {
+                    its_client.stop();
+                    return;
+                }
+            }
+        });
+#endif
+#endif
         its_client.start();
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#if defined(__linux__) || defined(__QNX__)
+        if (signal_watcher.joinable()) {
+            pthread_cancel(signal_watcher.native_handle());
+            signal_watcher.join();
+        }
+#endif
+#endif
     }
 }
 

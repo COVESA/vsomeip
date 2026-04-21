@@ -5,6 +5,9 @@
 
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
 #include <csignal>
+#if defined(__linux__) || defined(__QNX__)
+#include <pthread.h>
+#endif
 #endif
 #include <chrono>
 #include <condition_variable>
@@ -136,14 +139,6 @@ private:
     std::thread offer_thread_;
 };
 
-#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-service_sample* its_sample_ptr(nullptr);
-void handle_signal(int _signal) {
-    if (its_sample_ptr != nullptr && (_signal == SIGINT || _signal == SIGTERM))
-        its_sample_ptr->stop();
-}
-#endif
-
 int main(int argc, char** argv) {
     bool use_static_routing(false);
 
@@ -155,16 +150,46 @@ int main(int argc, char** argv) {
         }
     }
 
-    service_sample its_sample(use_static_routing);
 #ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
-    its_sample_ptr = &its_sample;
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
+#if defined(__linux__) || defined(__QNX__)
+    sigset_t its_signals;
+    sigemptyset(&its_signals);
+    sigaddset(&its_signals, SIGINT);
+    sigaddset(&its_signals, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, &its_signals, nullptr);
 #endif
+#endif
+
+    service_sample its_sample(use_static_routing);
     if (its_sample.init()) {
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#if defined(__linux__) || defined(__QNX__)
+        std::thread signal_watcher([&its_sample]() {
+            sigset_t its_wait_set;
+            sigemptyset(&its_wait_set);
+            sigaddset(&its_wait_set, SIGINT);
+            sigaddset(&its_wait_set, SIGTERM);
+
+            int its_signal = 0;
+            while (sigwait(&its_wait_set, &its_signal) == 0) {
+                if (its_signal == SIGINT || its_signal == SIGTERM) {
+                    its_sample.stop();
+                    return;
+                }
+            }
+        });
+#endif
+#endif
         its_sample.start();
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
         its_sample.stop();
+#endif
+#ifndef VSOMEIP_ENABLE_SIGNAL_HANDLING
+#if defined(__linux__) || defined(__QNX__)
+        if (signal_watcher.joinable()) {
+            signal_watcher.join();
+        }
+#endif
 #endif
         return 0;
     } else {
