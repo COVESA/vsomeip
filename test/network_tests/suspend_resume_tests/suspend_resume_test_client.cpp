@@ -26,6 +26,8 @@ public:
         app_(vsomeip::runtime::get()->create_application(name_)), started_{false}, has_received_(false),
         runner_(std::bind(&suspend_resume_test_client::run, this)) { }
 
+    ~suspend_resume_test_client() { stop(); }
+
     void run_test() {
 
         VSOMEIP_DEBUG << "[TEST] Process: entry";
@@ -169,8 +171,10 @@ private:
 
     void stop() {
 
-        app_->stop();
-        runner_.join();
+        if (runner_.joinable()) {
+            app_->stop();
+            runner_.join();
+        }
     }
 
     void on_state(vsomeip::state_type_e _state) {
