@@ -180,6 +180,15 @@ public:
 
     [[nodiscard]] bool setup_data_pipe(std::string const& _client, std::string const& _server, socket_role _applied_on,
                                        std::shared_ptr<data_pipe> const& _pipe);
+
+    /**
+     * Replaces a data pipe for udp endpoints.
+     * Application name needs to be parameterized to identify multicast endpoints.
+     * If socket role is set as client, the receiving pipe is replaced, otherwise the change is applied to the endpoint sending pipe.
+     **/
+    bool setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
+                         std::shared_ptr<data_pipe> const& _pipe);
+
     /**
      * Waits for _id to be received in the _client -> _server connection for _timeout amount of time.
      * @return false, if the _id was not received within time.
@@ -255,7 +264,7 @@ public:
      **/
     [[nodiscard]] bool bind_socket(fake_tcp_socket_handle const& _handle, boost::asio::ip::tcp::endpoint const& _ep, fd_t _fd);
 
-    [[nodiscard]] bool bind_socket(fake_udp_socket_handle const& _handle, boost::asio::ip::udp::endpoint const& _ep, fd_t _fd);
+    [[nodiscard]] bool bind_socket(std::shared_ptr<fake_udp_socket_handle> _handle, boost::asio::ip::udp::endpoint const& _ep, fd_t _fd);
 
     /**
      * Searches for a fake_tcp_acceptor_handle @see socket_manager::bind_acceptor(),
@@ -320,7 +329,7 @@ public:
      */
     void leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd);
 
-    void send_someip(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+    void send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
 
     /*
      * Inserts an error into the next receive operation performed by the given endpoint.
@@ -349,6 +358,12 @@ public:
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
     std::shared_ptr<app_connection> get_or_create_connection(std::string const& _client, std::string const& _server);
+
+    struct pending_someip_pipe {
+        std::shared_ptr<data_pipe> pipe_;
+        socket_role applied_on_;
+    };
+
     std::mutex mtx_;
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
@@ -374,8 +389,10 @@ private:
     std::map<boost::asio::ip::address, std::set<fd_t>> multicast_to_fds_;
     std::map<boost::asio::ip::tcp::endpoint, fd_t> endpoint_tcp_to_fd_;
     std::map<boost::asio::ip::udp::endpoint, fd_t> endpoint_udp_to_fd_;
+    std::map<std::string, std::set<std::pair<boost::asio::ip::udp::endpoint, fd_t>>> binded_multicast_endpoints_;
     // persisted delay state per sending endpoint; applied immediately if already bound, or on bind otherwise
     std::map<boost::asio::ip::udp::endpoint, bool> udp_sending_delay_;
+    std::map<std::string, std::map<boost::asio::ip::udp::endpoint, pending_someip_pipe>> pending_someip_pipe_;
     std::set<std::string> connections_to_ignore_;
     std::set<std::string> fail_on_bind_;
     std::set<std::string> fail_on_uds_bind_;

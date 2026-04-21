@@ -26,12 +26,13 @@ add_library (fake_socket_helpers OBJECT
     helpers/command_gate.cpp
     helpers/ecu_config.cpp
     helpers/ecu_setup.cpp
+    helpers/sd_gate.cpp
     helpers/service_state.cpp
     helpers/socket_manager.cpp
     helpers/sockets/fake_tcp_socket_handle.cpp
     helpers/sockets/fake_udp_socket_handle.cpp
-    helpers/to_string.cpp
     helpers/someip_message.cpp
+    helpers/to_string.cpp
     main.cpp
 )
 target_link_libraries(fake_socket_helpers

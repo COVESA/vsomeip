@@ -13,12 +13,13 @@ command_gate::command_gate(hidden) { }
 
 std::shared_ptr<command_gate> command_gate::create() {
     auto ptr = std::make_shared<command_gate>(hidden{});
-    ptr->pipe_ = std::make_shared<data_pipe>([weak_self = std::weak_ptr<command_gate>(ptr)](auto const& _cmd) {
-        if (auto self = weak_self.lock(); self) {
-            return (*self)(_cmd);
-        }
-        return data_pipe_state::OPEN;
-    });
+    ptr->pipe_ = std::make_shared<data_pipe>(
+            static_cast<data_pipe::local_message_checker_t>([weak_self = std::weak_ptr<command_gate>(ptr)](auto const& _cmd) {
+                if (auto self = weak_self.lock(); self) {
+                    return (*self)(_cmd);
+                }
+                return data_pipe_state::OPEN;
+            }));
     return ptr;
 }
 

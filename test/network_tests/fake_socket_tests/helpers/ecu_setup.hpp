@@ -91,6 +91,8 @@ struct ecu_setup {
     ///       revisited once a cleaner ecu_setup / base_fake_socket_fixture integration exists.
     [[nodiscard]] bool await_connectable(std::string const& name, std::chrono::milliseconds timeout = std::chrono::seconds(3));
 
+    [[nodiscard]] boost::asio::ip::udp::endpoint sd_endpoint();
+
 private:
     ecu_config config_;
     std::string name_;

@@ -52,6 +52,34 @@ namespace vsomeip_v3::testing {
     return _message.size();
 }
 
+[[nodiscard]] size_t parse_sequential_someip(unsigned char* _message, size_t _message_size, someip_message& _out_message) {
+    if (_message_size < VSOMEIP_FULL_HEADER_SIZE) {
+        TEST_LOG << "Message not long enough to contain someip header";
+        return 0;
+    }
+
+    vsomeip_v3::deserializer des{_message, _message_size, VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD};
+    auto msg = des.deserialize_message();
+
+    if (!msg || !msg->get_payload()) {
+        TEST_LOG << "Failure during message deserialization";
+        return 0;
+    }
+
+    if (msg->get_service() == VSOMEIP_SD_SERVICE && msg->get_method() == VSOMEIP_SD_METHOD) {
+        std::vector<unsigned char> sd_vector(_message, _message + msg->get_payload()->get_length() + VSOMEIP_FULL_HEADER_SIZE);
+        auto sd_msg = parse_sd(sd_vector);
+        if (sd_msg) {
+            _out_message.sd_ = sd_msg;
+
+            return msg->get_payload()->get_length() + VSOMEIP_FULL_HEADER_SIZE;
+        }
+    }
+    _out_message.msg_ = msg;
+
+    return msg->get_payload()->get_length() + VSOMEIP_FULL_HEADER_SIZE;
+}
+
 [[nodiscard]] std::shared_ptr<vsomeip_v3::sd::message_impl> parse_sd(std::vector<unsigned char>& _message) {
     if (_message.size() < VSOMEIP_FULL_HEADER_SIZE) {
         TEST_LOG << "Message not long enough to contain someip header";

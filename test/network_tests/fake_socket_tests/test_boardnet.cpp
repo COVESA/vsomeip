@@ -13,6 +13,7 @@
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/service_state.hpp"
+#include "helpers/sd_gate.hpp"
 
 #include <boost/asio/error.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -917,5 +918,79 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
                 << "Failed to receive event for field 0x" << std::hex << (multi_field_service_.fields_[0].event_id_ + i)
                 << "\nRecord: " << client->message_record_.to_string();
     }
+}
+
+TEST_F(server_offering_multiple_fields, test_sd_unicat_gate_early_loading) {
+    // Depict example where we setup a sending sd gate for unicast early loading (app not started).
+    ecu_one_.add_guest({"guest_client", std::nullopt});
+    ecu_two_.add_guest({"guest_server", std::nullopt});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // Create the gate and prepare the pipe, will be exchanged as soon as the SD unicast endpoint from ecu two is binded.
+    std::shared_ptr<sd_gate> router_two_sd_gate = sd_gate::create();
+    ASSERT_TRUE(setup_data_pipe(ecu_two_.sd_endpoint(), router_two_name_, socket_role::server, router_two_sd_gate->get_data_pipe()));
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    auto* server = ecu_two_.apps_["guest_server"];
+
+    // Block the pipe when ecu two tries to send an offer.
+    router_two_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+    client->request_service(multi_field_service_.instance_);
+    client->subscribe(multi_field_service_);
+    server->offer(multi_field_service_);
+
+    // Guarantee the gate has been blocked.
+    ASSERT_TRUE(router_two_sd_gate->wait_for_blocked());
+    // Check that no offer has been received.
+    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+    // Release the gate, message pushes through.
+    router_two_sd_gate->block(false);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+}
+
+TEST_F(server_offering_multiple_fields, test_sd_multicast_gate_late_loading) {
+    // Depict example where we setup a receiving sd gate for multicast with late loading (app already started).
+    ecu_one_.add_guest({"guest_client", std::nullopt});
+    ecu_two_.add_guest({"guest_server", std::nullopt});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* server = ecu_two_.apps_["guest_server"];
+    auto* client = ecu_one_.apps_["guest_client"];
+
+    // Create the gate and exchange the pipe immediatly.
+    std::shared_ptr<sd_gate> router_one_sd_gate = sd_gate::create();
+    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
+                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+
+    // Block the pipe when ecu one receved an offer.
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+
+    client->request_service(multi_field_service_.instance_);
+    client->subscribe(multi_field_service_);
+    server->offer(multi_field_service_);
+
+    // Guarantee the gate has been blocked.
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked());
+    // Check that no offer has been received.
+    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+    // Release the gate, message is consumed and processed.
+    router_one_sd_gate->block(false);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 }
 }

@@ -49,9 +49,6 @@ void fake_udp_socket_handle::cancel() {
         });
         receptor_ = std::nullopt;
     }
-    if (!input_.empty()) {
-        input_.clear();
-    }
 
     protocol_type_ = std::nullopt;
     connected_ep_ = std::nullopt;
@@ -98,14 +95,7 @@ void fake_udp_socket_handle::close() {
         return nullptr;
     }();
 
-    if (_ep.address() == boost::asio::ip::address_v4::any()) {
-        LOCAL_LOG << "binding multicast local endpoint: " << _ep;
-        auto const lock = std::scoped_lock(mtx_);
-        local_ep_ = _ep;
-        return true;
-    }
-
-    if (bsm && bsm->bind_socket(*this, _ep, socket_id_.fd_)) {
+    if (bsm && bsm->bind_socket(std::dynamic_pointer_cast<fake_udp_socket_handle>(shared_from_this()), _ep, socket_id_.fd_)) {
         auto const lock = std::scoped_lock(mtx_);
         local_ep_ = _ep;
         return true;
@@ -188,8 +178,9 @@ void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer
     if (auto bsm = socket_manager_.lock(); bsm && local_ep_ && connected_ep_) {
         auto src = *local_ep_;
         auto dst = *connected_ep_;
+        auto pipe = sender_pipe_;
         lock.unlock();
-        bsm->send_someip(_buffer, src, dst);
+
         boost::asio::post(io_, [handler = std::move(_handler), size = _buffer.size()] {
             if (!handler) {
                 return;
@@ -197,6 +188,12 @@ void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer
             handler(boost::system::error_code(), size);
             return;
         });
+
+        auto data = prepare_control_data(_buffer, src, dst);
+        if (pipe) {
+            pipe->add_data(data);
+            update_sending();
+        }
     } else {
         boost::asio::post(io_, [handler = std::move(_handler)] {
             if (!handler) {
@@ -220,7 +217,7 @@ void fake_udp_socket_handle::async_send_to(boost::asio::const_buffer const& _buf
 
         {
             std::scoped_lock lock(mtx_);
-            delayed_messages_.push_back({std::move(data), *local_ep_, _dst});
+            delayed_messages_.push_back({std::move(data), std::optional<addresses>{{*local_ep_, _dst}}});
             LOCAL_LOG << "delaying message from " << *local_ep_ << " to " << _dst << " (total delayed: " << delayed_messages_.size() << ")";
         }
 
@@ -234,23 +231,6 @@ void fake_udp_socket_handle::async_send_to(boost::asio::const_buffer const& _buf
         return;
     }
 
-    auto type_sm = [&]() -> std::pair<boost::asio::ip::udp, std::shared_ptr<socket_manager>> {
-        auto const lock = std::scoped_lock(mtx_);
-        return std::make_pair(local_ep_->protocol(), socket_manager_.lock());
-    }();
-
-    if (!type_sm.second) {
-        boost::asio::post(io_, [handler = std::move(_handler)] {
-            if (!handler) {
-                return;
-            }
-            handler(boost::asio::error::make_error_code(boost::asio::error::no_protocol_option), 0);
-            return;
-        });
-        return;
-    }
-
-    type_sm.second->send_someip(_buffer, *local_ep_, _dst);
     boost::asio::post(io_, [handler = std::move(_handler), size = _buffer.size()] {
         if (!handler) {
             return;
@@ -258,20 +238,19 @@ void fake_udp_socket_handle::async_send_to(boost::asio::const_buffer const& _buf
         handler(boost::system::error_code(), size);
         return;
     });
+
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        auto data = prepare_control_data(_buffer, *local_ep_, _dst);
+        sender_pipe_->add_data(data);
+    }
+    update_sending();
 }
 
-void fake_udp_socket_handle::consume(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src,
+void fake_udp_socket_handle::consume(std::vector<unsigned char> _buffer, boost::asio::ip::udp::endpoint _src,
                                      boost::asio::ip::udp::endpoint _dst) {
     auto const lock = std::scoped_lock(mtx_);
-    std::vector<unsigned char> input;
-    input.reserve(_buffer.size());
-    auto first = static_cast<const char*>(_buffer.data());
-    auto const last = first + _buffer.size();
-    for (; first != last; ++first) {
-        input.push_back(static_cast<unsigned char>(*first));
-    }
-
-    if (someip_message message; parse(input, message) > 0) {
+    if (someip_message message; parse(_buffer, message) > 0) {
         LOCAL_LOG << socket_id_ << " @ " << *local_ep_ << " received message from " << _src.address() << " data: " << message;
         if (message.sd_) {
             for (auto const& entry : message.sd_->get_entries()) {
@@ -279,11 +258,8 @@ void fake_udp_socket_handle::consume(boost::asio::const_buffer const& _buffer, b
                 received_sd_record_.record(received_entry);
             }
         }
-        control_data data{};
-        data.buffer_ = input;
-        data.src_ = _src;
-        data.dst_ = _dst;
-        input_.emplace_back(data);
+        control_data_t data = {.buffer_ = _buffer, .addresses_ = std::optional<addresses>{{_src, _dst}}};
+        receiver_pipe_->add_data(data);
         update_reception_unlocked();
     } else {
         LOCAL_LOG << "Failure parsing data";
@@ -306,8 +282,7 @@ void fake_udp_socket_handle::async_receive_from(boost::asio::mutable_buffer _buf
 void fake_udp_socket_handle::update_reception_unlocked() {
     // Check if a receptor is configured.
     if (!receptor_) {
-        LOCAL_LOG << "No receptor for unicast data. input.size=" << input_.size()
-                  << " ec=" << stashed_ec_.value_or(boost::system::error_code());
+        LOCAL_LOG << "No receptor" << " ec=" << stashed_ec_.value_or(boost::system::error_code());
         return;
     }
 
@@ -323,14 +298,18 @@ void fake_udp_socket_handle::update_reception_unlocked() {
     }
 
     // Check if there is data to process.
-    if (!input_.empty()) {
-        // Copy data to the buffer.
-        auto unicast_it = input_.begin();
-        auto writable_length = std::min(receptor_->buffer_.size(), unicast_it->buffer_.size());
-        std::memcpy(receptor_->buffer_.data(), unicast_it->buffer_.data(), writable_length);
+    if (receiver_pipe_->size() != 0) {
+        control_data_t input;
+        if (!receiver_pipe_->fetch_data(input)) {
+            return;
+        }
+
+        // Copy buffer.
+        auto writable_length = std::min(receptor_->buffer_.size(), input.buffer_.size());
+        std::memcpy(receptor_->buffer_.data(), input.buffer_.data(), writable_length);
 
         // Update the source endpoint.
-        receptor_->endpoint_ = unicast_it->src_;
+        receptor_->endpoint_ = input.addresses_->src_;
 
         // Post the handler to the event loop.
         boost::asio::post(io_, [handler = std::move(receptor_->rw_handler_), written = writable_length] {
@@ -338,8 +317,22 @@ void fake_udp_socket_handle::update_reception_unlocked() {
         });
 
         // Clean-up data.
-        input_.pop_front();
         receptor_.reset();
+    }
+}
+
+void fake_udp_socket_handle::update_sending() {
+    auto sm_pipe = [&]() -> std::pair<std::shared_ptr<socket_manager>, std::shared_ptr<data_pipe>> {
+        auto const lock = std::scoped_lock(mtx_);
+        return std::make_pair(socket_manager_.lock(), sender_pipe_);
+    }();
+
+    if (sm_pipe.first && sm_pipe.second->size() != 0) {
+        control_data_t input;
+        if (!sm_pipe.second->fetch_data(input)) {
+            return;
+        }
+        sm_pipe.first->send_someip(input.buffer_, input.addresses_->src_, input.addresses_->dst_);
     }
 }
 
@@ -358,7 +351,7 @@ bool fake_udp_socket_handle::delay_message_processing(bool _delay) {
 }
 
 void fake_udp_socket_handle::process_delayed_messages() {
-    std::vector<control_data> messages_to_send;
+    std::vector<control_data_t> messages_to_send;
 
     {
         std::scoped_lock lock(mtx_);
@@ -368,16 +361,18 @@ void fake_udp_socket_handle::process_delayed_messages() {
 
     if (!messages_to_send.empty()) {
         std::shared_ptr<socket_manager> bsm;
+        std::shared_ptr<data_pipe> sender;
         {
             std::scoped_lock its_lock(mtx_);
             LOCAL_LOG << "processing " << messages_to_send.size() << " delayed messages on fd: " << socket_id_.fd_;
             bsm = socket_manager_.lock();
+            sender = sender_pipe_;
         }
 
-        if (bsm) {
-            for (auto const& [data, src, dst] : messages_to_send) {
-                boost::asio::const_buffer buffer(data.data(), data.size());
-                bsm->send_someip(buffer, src, dst);
+        if (bsm && sender) {
+            for (auto& data : messages_to_send) {
+                sender->add_data(data);
+                update_sending();
             }
         }
     }
@@ -387,5 +382,51 @@ void fake_udp_socket_handle::stash_ec(boost::system::error_code _ec) {
     std::scoped_lock lock{mtx_};
     stashed_ec_ = {_ec};
     update_reception_unlocked();
+}
+
+void fake_udp_socket_handle::replace_pipe(std::shared_ptr<data_pipe> _pipe, socket_role _applied_on) {
+    auto lock = std::unique_lock(mtx_);
+    if (_applied_on == socket_role::client) {
+        // receiving pipe
+        _pipe->init([weak_self = weak_from_this(), this] {
+            if (auto self = weak_self.lock(); self) {
+                auto const lock = std::scoped_lock(mtx_);
+                update_reception_unlocked();
+            }
+        });
+        receiver_pipe_->exchange_queues(*_pipe);
+        receiver_pipe_ = _pipe;
+        if (local_ep_) {
+            update_reception_unlocked();
+        }
+    } else {
+        // sending pipe
+        _pipe->init([weak_self = weak_from_this(), this] {
+            if (auto self = weak_self.lock(); self) {
+                update_sending();
+            }
+        });
+        sender_pipe_->exchange_queues(*_pipe);
+        sender_pipe_ = _pipe;
+        bool binded = local_ep_.has_value();
+        lock.unlock();
+        if (binded) {
+            update_sending();
+        }
+    }
+}
+
+control_data_t fake_udp_socket_handle::prepare_control_data(boost::asio::const_buffer const& _buffer,
+                                                            boost::asio::ip::udp::endpoint const& _src,
+                                                            boost::asio::ip::udp::endpoint const& _dst) {
+    std::vector<unsigned char> input;
+    input.reserve(_buffer.size());
+    auto first = static_cast<const char*>(_buffer.data());
+    auto const last = first + _buffer.size();
+    for (; first != last; ++first) {
+        input.push_back(static_cast<unsigned char>(*first));
+    }
+
+    return {.buffer_ = input, .addresses_ = std::optional<addresses>{{.src_ = _src, .dst_ = _dst}}};
 }
 }
