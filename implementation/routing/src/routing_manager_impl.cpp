@@ -2698,6 +2698,8 @@ routing_state_e routing_manager_impl::get_routing_state() {
 }
 
 void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
+    std::scoped_lock its_lock(on_state_change_mutex_);
+
     if (routing_state_ == _routing_state) {
         VSOMEIP_INFO_P << "No routing state change --> do nothing.";
         return;
@@ -2792,14 +2794,11 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             break;
         }
         case routing_state_e::RS_RESUMED: {
-            {
-                std::scoped_lock its_lock(on_state_change_mutex_);
-                if (!is_external_routing_ready()) {
-                    VSOMEIP_INFO_P << "Network not running, delaying the resume of routing manager (if_state_running_: "
-                                   << if_state_running_ << ", sd_route_set_: " << sd_route_set_ << ")";
-                    routing_state_ = routing_state_e::RS_DELAYED_RESUME;
-                    return;
-                }
+            if (!is_external_routing_ready()) {
+                VSOMEIP_INFO_P << "Network not running, delaying the resume of routing manager (if_state_running_: " << if_state_running_
+                               << ", sd_route_set_: " << sd_route_set_ << ")";
+                routing_state_ = routing_state_e::RS_DELAYED_RESUME;
+                return;
             }
 
             VSOMEIP_INFO_P << "Set routing to RS_RESUMED";
@@ -2871,32 +2870,7 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
             VSOMEIP_INFO_P << "Set routing to RS_DIAGNOSIS, not supported since 3.7.2 --> do nothing.";
             break;
         case routing_state_e::RS_RUNNING:
-            VSOMEIP_INFO_P << "Set routing to RS_RUNNING";
-
-            // Reset relevant in service info
-            for (const auto& its_service : get_offered_services()) {
-                for (const auto& its_instance : its_service.second) {
-                    if (host_->get_configuration()->is_someip(its_service.first, its_instance.first)) {
-                        its_instance.second->set_ttl(DEFAULT_TTL);
-                        its_instance.second->set_is_in_mainphase(false);
-                    }
-                }
-            }
-
-            // Trigger initial phase for relevant services
-            for (const auto& its_service : get_offered_services()) {
-                for (const auto& its_instance : its_service.second) {
-                    if (host_->get_configuration()->is_someip(its_service.first, its_instance.first)) {
-                        discovery_->offer_service(its_instance.second);
-                    }
-                }
-            }
-
-            if (routing_state_handler_) {
-                routing_state_handler_(_routing_state);
-            }
-
-            VSOMEIP_INFO_P << "Set routing to RS_RUNNING done";
+            VSOMEIP_INFO_P << "Set routing to RS_RUNNING, not supported since 3.7.3 --> do nothing.";
             break;
         case routing_state_e::RS_DELAYED_RESUME:
             if (routing_state_handler_) {
@@ -3741,8 +3715,6 @@ void routing_manager_impl::try_to_send_before_stop() {
 
 const char* routing_manager_impl::routing_state_tostring(routing_state_e _state) {
     switch (_state) {
-    case routing_state_e::RS_RUNNING:
-        return "RS_RUNNING";
     case routing_state_e::RS_SUSPENDED:
         return "RS_SUSPENDED";
     case routing_state_e::RS_RESUMED:

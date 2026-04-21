@@ -43,7 +43,7 @@ enum class return_code_e : uint8_t {
 };
 
 enum class routing_state_e : uint8_t {
-    RS_RUNNING = 0x00,
+    RS_RUNNING = 0x00, // (not supported since 3.7.3)
     RS_SUSPENDED = 0x01,
     RS_RESUMED = 0x02,
     RS_SHUTDOWN = 0x03,

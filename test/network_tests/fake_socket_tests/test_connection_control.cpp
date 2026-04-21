@@ -326,29 +326,26 @@ TEST_F(test_connection_control, set_routing_state) {
     routingmanagerd_->get_application()->register_routing_state_handler(
             [&routing_state_record](vsomeip::routing_state_e _state) { routing_state_record.record(_state); });
 
-    // set routing state to suspended
-    routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
+    // stress test with multiple state transitions
+    for (int i = 0; i < 100; ++i) {
+        // set routing state to suspended
+        routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_SUSPENDED);
 
-    // handler must have been called with RS_SUSPENDED
-    ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_SUSPENDED));
+        // handler must have been called with RS_SUSPENDED
+        ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_SUSPENDED));
 
-    // set routing state to delayed resume
-    routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_DELAYED_RESUME);
+        // set routing state to delayed resume
+        routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_DELAYED_RESUME);
 
-    // handler must have been called with RS_DELAYED_RESUME
-    ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_DELAYED_RESUME));
+        // handler must have been called with RS_DELAYED_RESUME
+        ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_DELAYED_RESUME));
 
-    // set routing state to resumed
-    routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
+        // set routing state to resumed
+        routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_RESUMED);
 
-    // handler must have been called with RS_RESUMED
-    ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_RESUMED));
-
-    // set routing state to running
-    routingmanagerd_->set_routing_state(vsomeip::routing_state_e::RS_RUNNING);
-
-    // handler must have been called with RS_RUNNING
-    ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_RUNNING));
+        // handler must have been called with RS_RESUMED
+        ASSERT_TRUE(routing_state_record.wait_for_last(vsomeip::routing_state_e::RS_RESUMED));
+    }
 
     {
         // need to manually stop all clients, in order to ::unsetenv later
