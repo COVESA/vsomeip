@@ -9,6 +9,7 @@
 #include "fake_socket_handle.hpp"
 #include "../someip_message.hpp"
 #include "../attribute_recorder.hpp"
+#include "../data_pipe.hpp"
 
 #include <boost/asio.hpp>
 
@@ -103,7 +104,7 @@ struct fake_udp_socket_handle : public fake_socket_handle {
      */
     void async_receive_from(boost::asio::mutable_buffer _buffer, boost::asio::ip::udp::endpoint& _endpoint, rw_handler _handler);
 
-    void consume(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
+    void consume(std::vector<unsigned char> _buffer, boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst);
 
     /**
      * if _delay == true, will not send messages, but stores them in the internal
@@ -121,16 +122,20 @@ struct fake_udp_socket_handle : public fake_socket_handle {
      */
     void stash_ec(boost::system::error_code _ec);
 
+    /**
+     * Replaces either the sending or receiving data pipe, used to control flow of messages.
+     */
+    void replace_pipe(std::shared_ptr<data_pipe> _pipe, socket_role _applied_on);
+
     attribute_recorder<someip_sd_record_message> received_sd_record_;
 
 private:
     void update_reception_unlocked();
 
-    struct control_data {
-        std::vector<unsigned char> buffer_;
-        boost::asio::ip::udp::endpoint src_;
-        boost::asio::ip::udp::endpoint dst_;
-    };
+    void update_sending();
+
+    control_data_t prepare_control_data(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint const& _src,
+                                        boost::asio::ip::udp::endpoint const& _dst);
 
     struct unicast_receptor {
         unicast_receptor(rw_handler _handler, boost::asio::mutable_buffer _buffer, boost::asio::ip::udp::endpoint& _endpoint) :
@@ -144,18 +149,19 @@ private:
     std::weak_ptr<socket_manager> socket_manager_;
     std::optional<boost::asio::ip::udp::endpoint::protocol_type> protocol_type_;
     std::optional<unicast_receptor> receptor_;
-    std::deque<control_data> input_;
     std::optional<boost::asio::ip::udp::endpoint> local_ep_;
     std::optional<boost::asio::ip::udp::endpoint> connected_ep_;
     mutable std::mutex mtx_;
     socket_id socket_id_;
     std::atomic<bool> delay_messages_{false};
-    std::vector<control_data> delayed_messages_;
-
+    std::vector<control_data_t> delayed_messages_;
     /*
      *  Error code to be delivered during the next receive operation.
      */
     std::optional<boost::system::error_code> stashed_ec_;
+
+    std::shared_ptr<data_pipe> receiver_pipe_ = std::make_shared<data_pipe>();
+    std::shared_ptr<data_pipe> sender_pipe_ = std::make_shared<data_pipe>();
 };
 
 }

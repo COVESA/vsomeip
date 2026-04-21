@@ -379,6 +379,7 @@ void fake_tcp_socket_handle::update_reception() {
     if (!receptor_ || delay_processing_) {
         return;
     }
+
     auto bytes = pipe_->fetch_data(receptor_->buffer_);
     if (bytes == 0) {
         return;

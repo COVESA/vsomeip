@@ -237,4 +237,7 @@ bool ecu_setup::await_connectable(std::string const& name, std::chrono::millisec
     return sm_.await_connectable(name, timeout);
 }
 
+boost::asio::ip::udp::endpoint ecu_setup::sd_endpoint() {
+    return {config_.unicast_ip_, 30490};
+}
 } // namespace vsomeip_v3::testing

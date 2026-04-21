@@ -6,6 +6,7 @@
 #pragma once
 
 #include "command_message.hpp"
+#include "someip_message.hpp"
 
 #include <utility>
 #include <boost/asio.hpp>
@@ -15,8 +16,20 @@
 #include <memory>
 #include <mutex>
 #include <functional>
+#include <optional>
 
 namespace vsomeip_v3::testing {
+
+/// Struct to hold the source and destination addresses of a UDP packet.
+struct addresses {
+    boost::asio::ip::udp::endpoint src_;
+    boost::asio::ip::udp::endpoint dst_;
+};
+
+struct control_data_t {
+    std::vector<unsigned char> buffer_;
+    std::optional<addresses> addresses_;
+};
 
 enum class data_pipe_state {
     OPEN, ///< Data flows through to the consumer.
@@ -30,17 +43,26 @@ enum class data_pipe_state {
  * without a checker all data passes through unconditionally.
  *
  * Typical layering:
- *   fake_tcp_socket_handle  owns a data_pipe  (transport)
- *   command_gate            wraps a data_pipe with a command-level policy
+ *   fake_*_socket_handle  owns a data_pipe  (transport)
+ *   *_gate                wraps a data_pipe with a command-level policy
  */
 class data_pipe {
 public:
     /// Called once per incoming command message; return CLOSED to stop forwarding.
     using local_message_checker_t = std::function<data_pipe_state(command_message const&)>;
+    using external_message_checker_t = std::function<data_pipe_state(someip_message const&)>;
     /// Called (outside the internal lock) when the pipe transitions to OPEN and
     /// buffered data has been promoted to the forward queue.
     using open_reaction_t = std::function<void()>;
-    explicit data_pipe(local_message_checker_t _checker = nullptr);
+
+    /// Default constructor, checkers are nullptr and the pipe is OPEN, so all data will be forwarded as-is.
+    data_pipe() = default;
+
+    /// Local message checker constructor, used for command gates.
+    explicit data_pipe(local_message_checker_t _checker);
+
+    /// External message checker constructor, used for someip gates.
+    explicit data_pipe(external_message_checker_t _external_checker);
 
     /**
      * Resets the pipe for reuse on a new socket:
@@ -57,18 +79,25 @@ public:
      */
     void exchange_queues(data_pipe& _pipe);
 
-    /// Returns the number of bytes ready to be consumed (data_to_forward_ only).
+    /// Returns the number of segments ready to be consumed (data_to_forward_ only).
     /// input_data_ held behind a closed gate is excluded: it cannot be consumed
     /// and must not suppress connection-reset injection in async_receive.
     size_t size() const;
 
     /// Appends _data and, if OPEN, immediately promotes any complete messages
-    /// through the checker into the forward queue.
+    /// through the checker into the forward queue. Used for someip messages.
+    void add_data(control_data_t& _data);
+
+    /// Appends _data and, if OPEN, immediately promotes any complete messages
+    /// through the checker into the forward queue. Used for vsomeip commands.
     void add_data(std::vector<unsigned char> _data);
 
     /// Copies up to _out.size() bytes from the forward queue into _out.
     /// Returns the number of bytes written (0 if nothing ready).
     [[nodiscard]] size_t fetch_data(boost::asio::mutable_buffer _out);
+
+    /// Copies an element from the forward queue into out.
+    [[nodiscard]] bool fetch_data(control_data_t& _out);
 
     /// Transitions the pipe to _input. Switching to OPEN promotes any buffered
     /// input_data_ and fires the open_reaction_ callback.
@@ -76,16 +105,16 @@ public:
 
 private:
     void push_data(std::scoped_lock<std::mutex> const&);
-    void push_local_data(std::scoped_lock<std::mutex> const&);
+    void push_checked_data(std::scoped_lock<std::mutex> const&);
     void push_through(std::scoped_lock<std::mutex> const&);
 
     data_pipe_state state_{data_pipe_state::OPEN};
-    local_message_checker_t checker_;
+    local_message_checker_t checker_{nullptr};
+    external_message_checker_t external_checker_{nullptr};
     open_reaction_t open_reaction_;
-    std::vector<unsigned char> input_data_;
-    std::vector<unsigned char> data_to_forward_;
+    std::vector<control_data_t> input_data_;
+    std::vector<control_data_t> data_to_forward_;
 
     mutable std::mutex mtx_;
 };
-
 }

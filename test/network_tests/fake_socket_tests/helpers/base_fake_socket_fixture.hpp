@@ -180,6 +180,12 @@ struct base_fake_socket_fixture : ::testing::Test {
                                        std::shared_ptr<data_pipe> const& _pipe);
 
     /**
+     * @see socket_manager::setup_data_pipe
+     */
+    [[nodiscard]] bool setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
+                                       std::shared_ptr<data_pipe> const& _pipe);
+
+    /**
      * @see socket_manager::wait_for_command
      **/
     [[nodiscard]] bool wait_for_command(std::string const& _client, std::string const& _server, protocol::id_e _id, socket_role _waiting,

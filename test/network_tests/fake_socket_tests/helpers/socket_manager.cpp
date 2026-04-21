@@ -102,6 +102,21 @@ void socket_manager::remove(fd_t fd) {
         ++it;
     }
 
+    for (auto it_apps = binded_multicast_endpoints_.begin(); it_apps != binded_multicast_endpoints_.end();) {
+        for (auto it_endpoints = it_apps->second.begin(); it_endpoints != it_apps->second.end();) {
+            if (it_endpoints->second == fd) {
+                it_endpoints = it_apps->second.erase(it_endpoints);
+                continue;
+            }
+            ++it_endpoints;
+        }
+        if (it_apps->second.size() == 0) {
+            it_apps = binded_multicast_endpoints_.erase(it_apps);
+            continue;
+        }
+        ++it_apps;
+    }
+
     auto it_udp = std::find_if(endpoint_udp_to_fd_.begin(), endpoint_udp_to_fd_.end(), [fd](const auto& _fd) { return _fd.second == fd; });
     if (it_udp != endpoint_udp_to_fd_.end()) {
         endpoint_udp_to_fd_.erase(it_udp);
@@ -237,32 +252,58 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
     return false;
 }
 
-[[nodiscard]] bool socket_manager::bind_socket(fake_udp_socket_handle const& _handle, boost::asio::ip::udp::endpoint const& _ep, fd_t _fd) {
-    std::shared_ptr<fake_udp_socket_handle> udp_handle;
+[[nodiscard]] bool socket_manager::bind_socket(std::shared_ptr<fake_udp_socket_handle> _handle, boost::asio::ip::udp::endpoint const& _ep,
+                                               fd_t _fd) {
     bool pending_delay{false};
+    bool pending_pipe{false};
+    pending_someip_pipe pipe{};
+
     {
         auto const lock = std::scoped_lock(mtx_);
-        if (fail_on_bind_.count(_handle.get_app_name()) != 0) {
+        if (!_handle) {
             return false;
         }
-        endpoint_udp_to_fd_[_ep] = _fd;
-        if (auto const it = udp_sending_delay_.find(_ep); it != udp_sending_delay_.end()) {
-            pending_delay = it->second;
-            if (auto const h_it = fd_to_handle_.find(_fd); h_it != fd_to_handle_.end()) {
-                udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+
+        if (fail_on_bind_.count(_handle->get_app_name()) != 0) {
+            return false;
+        }
+
+        if (_ep.address() == boost::asio::ip::address_v4::any()) {
+            // Multicast udp endpoint
+            binded_multicast_endpoints_[_handle->get_app_name()].insert({_ep, _fd});
+        } else {
+            // Unicast udp endpoint
+            endpoint_udp_to_fd_[_ep] = _fd;
+            if (auto const it = udp_sending_delay_.find(_ep); it != udp_sending_delay_.end()) {
+                pending_delay = it->second;
+            }
+        }
+
+        if (auto app_it = pending_someip_pipe_.find(_handle->get_app_name()); app_it != pending_someip_pipe_.end()) {
+            if (auto ep_it = app_it->second.find(_ep); ep_it != app_it->second.end()) {
+                pending_pipe = true;
+                pipe = ep_it->second;
+                app_it->second.erase(ep_it);
+                if (app_it->second.size() == 0) {
+                    pending_someip_pipe_.erase(app_it);
+                }
             }
         }
     }
-    if (pending_delay && !udp_handle) {
-        LOCAL_LOG << "invalid handler for fd: " << _fd << ", endpoint: " << _ep;
-        return false;
-    }
-    if (udp_handle) {
+
+    if (pending_delay) {
         LOCAL_LOG << "applying pending sending delay (" << pending_delay << ") on bind for sender endpoint: " << _ep;
-        udp_handle->delay_message_processing(pending_delay);
+        _handle->delay_message_processing(pending_delay);
     }
+
+    if (pending_pipe) {
+        LOCAL_LOG << "Applying pending pipe to endpoint: " << _ep << " from application " << _handle->get_app_name();
+        _handle->replace_pipe(pipe.pipe_, pipe.applied_on_);
+    }
+
     return true;
 }
+
 void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _connecting, connect_handler _handler) {
     // while the acceptor is only assigned when we find the "right" acceptor, scoped_acc will be set
     // as soon as a weak_ptr is promoted to guarantee that the d'tor is only called without locking the mutex
@@ -526,6 +567,48 @@ void socket_manager::clear_command_record(std::string const& _client, std::strin
     connection->clear_command_record();
 }
 
+bool socket_manager::setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
+                                     std::shared_ptr<data_pipe> const& _pipe) {
+    std::shared_ptr<fake_udp_socket_handle> udp_handle;
+    {
+        std::scoped_lock lock(mtx_);
+        fd_t fd{0};
+
+        if (_ep.address() == boost::asio::ip::address_v4::any()) {
+            if (auto const ep_it = binded_multicast_endpoints_.find(_app_name); ep_it != binded_multicast_endpoints_.end()) {
+                for (const auto& multicast_ep : ep_it->second) {
+                    if (multicast_ep.first == _ep) {
+                        fd = multicast_ep.second;
+                        break;
+                    }
+                }
+            }
+        } else if (auto const ep_it = endpoint_udp_to_fd_.find(_ep); ep_it != endpoint_udp_to_fd_.end()) {
+            fd = ep_it->second;
+        }
+
+        if (fd == 0) {
+            // endpoint not yet binded.
+            pending_someip_pipe_[_app_name][_ep] = {_pipe, _applied_on};
+            return true;
+        }
+
+        auto const h_it = fd_to_handle_.find(fd);
+        if (h_it == fd_to_handle_.end()) {
+            LOCAL_LOG << "No handle associated with the fd: " << fd;
+            return false;
+        }
+        udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock());
+    }
+
+    if (!udp_handle) {
+        return false;
+    }
+    udp_handle->replace_pipe(_pipe, _applied_on);
+
+    return true;
+}
+
 bool socket_manager::setup_data_pipe(std::string const& _client, std::string const& _server, socket_role _applied_on,
                                      std::shared_ptr<data_pipe> const& _pipe) {
     auto connection = get_or_create_connection(_client, _server);
@@ -629,7 +712,7 @@ void socket_manager::leave_multicast_group(boost::asio::ip::address _multicast, 
     }
 }
 
-void socket_manager::send_someip(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _src,
+void socket_manager::send_someip(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint _src,
                                  boost::asio::ip::udp::endpoint _dst) {
     if (_dst.address().is_multicast()) {
         LOCAL_LOG << " trying to send multicast message from " << _src << " to " << _dst;
