@@ -27,12 +27,16 @@ npdu_test_client::npdu_test_client(bool _use_tcp, std::array<std::array<std::chr
     number_of_acknowledged_messages_{{{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}}, current_payload_size_({0, 0, 0, 0}),
     all_msg_acknowledged_(
             {{{false, false, false, false}, {false, false, false, false}, {false, false, false, false}, {false, false, false, false}}}),
-    applicative_debounce_(_applicative_debounce), finished_waiter_(&npdu_test_client::wait_for_all_senders, this),
-    shutdown_service_available_(false) {
+    applicative_debounce_(_applicative_debounce), shutdown_service_available_(false) {
+    for (auto& flag : finished_) {
+        flag = false;
+    }
     senders_[0] = std::thread(&npdu_test_client::run<0>, this);
     senders_[1] = std::thread(&npdu_test_client::run<1>, this);
     senders_[2] = std::thread(&npdu_test_client::run<2>, this);
     senders_[3] = std::thread(&npdu_test_client::run<3>, this);
+
+    finished_waiter_ = std::thread(&npdu_test_client::wait_for_all_senders, this);
 }
 
 npdu_test_client::~npdu_test_client() {
