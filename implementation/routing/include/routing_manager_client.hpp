@@ -121,7 +121,6 @@ public:
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
     std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event) const;
     std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event) const;
-    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
 
 private:
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
@@ -230,7 +229,7 @@ private:
     client_t find_local_client(service_t _service, instance_t _instance) const;
     bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
     bool send_event(client_t _client, std::shared_ptr<message> _message, bool _force) override;
-    void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    void remove_eventgroup_info(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _is_provided);
     /**
      * @brief insert subscription into events/eventgroups
      *
@@ -241,7 +240,7 @@ private:
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
-                                           instance_t _instance, eventgroup_t _eventgroup);
+                                           instance_t _instance, eventgroup_t _eventgroup, bool _is_provided);
     void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                  minor_version_t _minor);
 
@@ -265,6 +264,13 @@ private:
 
     void collect_pending_subscriptions(service_t _service, instance_t _instance, major_version_t _major,
                                        std::vector<subscription_data_t>& _collected_subscriptions, std::scoped_lock<std::mutex> const&);
+
+    // Eventgroups
+    using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
+    std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                                    bool _is_provided) const;
+    std::shared_ptr<eventgroupinfo> find_eventgroup(const eventgroups_t& _eventgroups, service_t _service, instance_t _instance,
+                                                    eventgroup_t _eventgroup, std::scoped_lock<std::mutex> const&) const;
 
 private:
     boost::asio::steady_timer keepalive_timer_;
@@ -323,11 +329,6 @@ private:
 
     std::shared_ptr<routing_client_state_machine> state_machine_;
 
-    // Eventgroups
-    mutable std::mutex eventgroups_mutex_;
-    using eventgroups_t = service_instance_map<std::unordered_map<eventgroup_t, std::shared_ptr<eventgroupinfo>>>;
-    eventgroups_t eventgroups_;
-
     // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
     std::mutex subscription_mutex;
 
@@ -347,6 +348,7 @@ private:
     // Set of services provided by this client
     services_t provided_services_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
+    eventgroups_t provided_eventgroups_;
 
     // This mutex should be used whenever the client
     // is trying to access data relevant for its "consumer" side
@@ -356,6 +358,7 @@ private:
     std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
     mutable std::mutex consumed_events_mutex_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> consumed_events_;
+    eventgroups_t consumed_eventgroups_;
 
     struct subscription_data_t {
         service_t service_;
