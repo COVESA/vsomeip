@@ -72,8 +72,6 @@ public:
 
     virtual void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) = 0;
 
-    virtual void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) = 0;
-
     virtual std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance) const = 0;
 
     std::string const& get_name() const;

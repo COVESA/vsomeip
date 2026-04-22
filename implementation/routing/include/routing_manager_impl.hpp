@@ -83,7 +83,7 @@ public:
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
-    bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
+    bool send_notification(client_t _client, std::shared_ptr<message> _message, bool _force);
 
     bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
               const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force);
@@ -113,9 +113,6 @@ public:
     void on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                         minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
-
-    void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                         minor_version_t _minor);
 
     void on_pong(client_t _client);
 
@@ -175,11 +172,6 @@ public:
     connection_control_response_e change_connection_control(connection_control_request_e _control,
                                                             const boost::asio::ip::address& _guest_address);
 
-    void send_get_offered_services_info(client_t _client, offer_type_e _offer_type) {
-        (void)_client;
-        (void)_offer_type;
-    }
-
     void send_initial_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                              const std::shared_ptr<endpoint_definition>& _subscriber);
 
@@ -216,8 +208,6 @@ public:
 
     std::vector<protocol::service> get_requested_services(client_t _client) const;
 
-    bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
-
     bool is_external_routing_ready() const;
 
     bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance);
@@ -249,6 +239,8 @@ public:
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
 private:
+    bool is_locally_available(service_t _service, instance_t _instance, major_version_t _major) const;
+
     [[nodiscard]] bool is_local_client(client_t _client) const override;
 
     bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,

@@ -37,7 +37,7 @@ public:
     virtual services_t get_offered_services() const = 0;
     virtual std::shared_ptr<eventgroupinfo> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const = 0;
 
-    virtual bool send(client_t _client, std::shared_ptr<message> _message, bool _force) = 0;
+    virtual bool send_notification(client_t _client, std::shared_ptr<message> _message, bool _force) = 0;
 
     virtual bool send_via_sd(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size,
                              uint16_t _sd_port) = 0;

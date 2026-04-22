@@ -956,10 +956,6 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
                     if (!its_info) {
                         return;
                     }
-                    if (!is_reliable) {
-                        router_->on_availability(its_service.first, its_instance.first, availability_state_e::AS_UNAVAILABLE,
-                                                 its_info->get_major(), its_info->get_minor());
-                    }
                     router_->service_endpoint_disconnected(its_service.first, its_instance.first, its_info->get_major(),
                                                            its_info->get_minor(), _endpoint);
                 }
