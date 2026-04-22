@@ -120,6 +120,16 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
     void write(std::vector<boost::asio::const_buffer> const& _buffer, rw_handler _handler);
 
     /**
+     * Tries to write to a connected handle. If no handle is connected injects
+     * a broken_pipe error into the passed in handler.
+     * Note at the moment all bytes are always consumed, storing them in an internal
+     * buffer of the connected handle.
+     * If successful injects a success + the number of transmitted bytes into the handler.
+     * Used by the fake_tcp_socket.
+     **/
+    void write_boardnet(boost::asio::const_buffer const& _buffer, rw_handler _handler);
+
+    /**
      * Stores the passed in buffer and handler.
      * As soon as the internal buffer has some data to be read, it will be forwarded
      * to the handed in buffer until either the internal
@@ -199,6 +209,8 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
 
     size_t consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception = false);
 
+    size_t consume_boardnet(boost::asio::const_buffer const& _buffer);
+
     /**
      * Forces the delivery of a vsomeip command @param _buffer to be added to io executor work queue.
      */
@@ -221,6 +233,9 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
 
     attribute_recorder<protocol::id_e> received_command_record_;
 
+public:
+    boost::asio::io_context& io_;
+
 private:
     void update_reception();
     void inner_close();
@@ -234,7 +249,6 @@ private:
     bool delay_processing_{false};
     bool is_open_{false};
     socket_id socket_id_;
-    boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
     std::weak_ptr<fake_tcp_socket_handle> connected_socket_;
     std::optional<Receptor> receptor_;

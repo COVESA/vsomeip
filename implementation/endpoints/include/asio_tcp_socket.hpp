@@ -98,12 +98,22 @@ private:
     }
 
 #if defined(__linux__)
+    [[nodiscard]] bool set_reuse_port() override {
+        int flag = 1;
+        return setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) != -1;
+    }
+
     [[nodiscard]] bool set_native_option_free_bind() override {
         int opt = 1;
         return setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) == 0;
     }
 #endif
-
+#if defined(__linux__) || defined(__QNX__)
+    [[nodiscard]] bool bind_to_device(std::string const& _device) override {
+        return setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(), static_cast<socklen_t>(_device.size()))
+                != -1;
+    }
+#endif
     void async_accept(tcp_socket& socket, boost::asio::ip::tcp::endpoint& peer_ep, connect_handler handler) override {
         auto* socket_impl = dynamic_cast<asio_tcp_socket*>(&socket);
         if (!socket_impl) {

@@ -993,4 +993,87 @@ TEST_F(server_offering_multiple_fields, test_sd_multicast_gate_late_loading) {
     server->stop_offer(multi_field_service_.instance_);
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 }
+
+struct tcp_notifications : public base_fake_socket_fixture {
+
+    // Custom interface with a service that has events being notified via tcp and udp
+    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    interface both_interface{0x3345, {}, event_specs_both_};
+    // Second service to check if offering two services via tcp does not cause issues
+    interface second_interface{0x3346, {}, event_specs_both_};
+
+    ecu_config ecu_one_config_tcp_cfg{boardnet::ecu_one_config};
+    ecu_config ecu_two_config_tcp_cfg{boardnet::ecu_two_config};
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_config_tcp_cfg, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_two_config_tcp_cfg.add_interface({both_interface, second_interface}), *socket_manager_};
+
+    event_ids tcp_offered_field{both_interface.fields_[0]};
+    event_ids udp_offered_field{both_interface.fields_[1]};
+
+    event_ids second_interface_tcp_offered_field{second_interface.fields_[0]};
+};
+
+TEST_F(tcp_notifications, test_tcp_and_udp_boardnet_initial_event) {
+
+    // Test steps:
+    // 1. start applications (ECU one (Router+Client) , ECU two (Router+Server))
+    // 2. Server offers the TCP+UDP boardnet interface and notifies
+    // 3. Both ECU one apps (Router+Client) subscribe to the service,
+    //    with the router subscribing via TCP and the client via UDP
+    // 4. Both client should receive the notification
+
+    // 1.
+    ecu_one_.add_app(ecu_one_client_name_);
+    ecu_two_.add_app(ecu_two_server_name_);
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one_ = ecu_one_.router_;
+    auto* ecu_one_client_ = ecu_one_.apps_[ecu_one_client_name_];
+    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
+
+    // 2.
+    std::vector<unsigned char> event_payload = {0x5, 0x3};
+
+    // This function is needed when offering a service that
+    // has an event that will notify via boardnet tcp
+    ASSERT_TRUE(ecu_two_.offer_via_tcp(ecu_two_server_name_, both_interface));
+
+    ecu_two_server_->send_event(tcp_offered_field, event_payload);
+    ecu_two_server_->send_event(udp_offered_field, event_payload);
+    ASSERT_TRUE(ecu_two_.offer_via_tcp(ecu_two_server_name_, second_interface));
+    ecu_two_server_->send_event(second_interface_tcp_offered_field, event_payload);
+
+    // 3.
+    router_one_->request_service(both_interface.instance_);
+    ecu_one_client_->request_service(both_interface.instance_);
+    ecu_one_client_->request_service(second_interface.instance_);
+
+    router_one_->subscribe_event({tcp_offered_field});
+    ecu_one_client_->subscribe_event({udp_offered_field});
+    ecu_one_client_->subscribe_event({second_interface_tcp_offered_field});
+
+    // 4.
+    message_checker tcp_checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_,
+                                vsomeip::message_type_e::MT_NOTIFICATION, event_payload};
+    EXPECT_TRUE(router_one_->message_record_.wait_for(tcp_checker))
+            << "Failed to receive tcp field" << "\nRecord: " << router_one_->message_record_;
+
+    message_checker udp_checker{std::nullopt, both_interface.instance_, udp_offered_field.event_id_,
+                                vsomeip::message_type_e::MT_NOTIFICATION, event_payload};
+
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(udp_checker))
+            << "Failed to receive udp field" << "\nRecord: " << ecu_one_client_->message_record_;
+
+    message_checker second_checker{std::nullopt, second_interface.instance_, second_interface_tcp_offered_field.event_id_,
+                                   vsomeip::message_type_e::MT_NOTIFICATION, event_payload};
+
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(second_checker))
+            << "Failed to receive second field" << "\nRecord: " << ecu_one_client_->message_record_;
+}
 }

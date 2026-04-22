@@ -88,18 +88,14 @@ void app::subscribe(interface const& _interface) {
 }
 
 void app::subscribe_event(event_ids const& _ei) {
-    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
     subscribe(_ei, vsomeip::event_type_e::ET_EVENT);
 }
 
 void app::subscribe_field(event_ids const& _ei) {
-    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
     subscribe(_ei, vsomeip::event_type_e::ET_FIELD);
 }
 
 void app::subscribe_selective(event_ids const& _ei) {
-    TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei
-             << " with event_type: vsomeip::event_type_e::ET_SELECTIVE_EVENT";
     subscribe(_ei, vsomeip::event_type_e::ET_SELECTIVE_EVENT);
 }
 
@@ -223,9 +219,9 @@ void app::subscribe(event_ids const& _ei, vsomeip::event_type_e _et) {
                                                          std::placeholders::_5));
 
     its_eventgroups.insert(_ei.eventgroup_id_);
+
     app_->request_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_, its_eventgroups, _et, _ei.reliability_);
     TEST_LOG << "[app] \"" << app_->get_name() << "\" is subscribing to: " << _ei;
-
     app_->subscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _ei.si_.major_, _ei.event_id_);
 }
 

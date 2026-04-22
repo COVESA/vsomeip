@@ -8,12 +8,12 @@
 #include <map>
 #include <memory>
 
-#include <boost/asio/ip/tcp.hpp>
-
 #include <vsomeip/defines.hpp>
 #include <vsomeip/export.hpp>
 #include "server_endpoint_impl.hpp"
 #include "auxiliary_context.hpp"
+
+#include "tcp_socket.hpp"
 
 #include <chrono>
 
@@ -69,7 +69,7 @@ private:
 
         ~connection();
 
-        socket_type& get_socket();
+        tcp_socket& get_socket();
         std::unique_lock<std::mutex> get_socket_lock();
 
         void start();
@@ -99,7 +99,7 @@ private:
         void wait_until_sent(const boost::system::error_code& _error);
 
         std::mutex socket_mutex_;
-        tcp_server_endpoint_impl::socket_type socket_;
+        std::unique_ptr<tcp_socket> socket_;
         std::weak_ptr<tcp_server_endpoint_impl> server_;
 
         const uint32_t max_message_size_;
@@ -129,7 +129,7 @@ private:
 
     const bool use_magic_cookies_ = false;
     std::mutex acceptor_mutex_;
-    boost::asio::ip::tcp::acceptor acceptor_;
+    std::unique_ptr<tcp_acceptor> acceptor_;
     std::mutex connections_mutex_;
     typedef std::map<endpoint_type, connection::ptr> connections_t;
     connections_t connections_;

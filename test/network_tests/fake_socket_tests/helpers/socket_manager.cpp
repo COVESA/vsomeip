@@ -191,6 +191,8 @@ void socket_manager::try_add(boost::asio::io_context* _io, fd_t _fd, char const*
                 it->second->async_wait([spy = std::make_unique<io_stop_spy>(weak_from_this(), pair.first)](auto ec) {
                     LOCAL_LOG << "[ERROR] io_spy timer expired. Reporting ec: " << ec.message() << " for app: " << spy->app_name_;
                 });
+                break; // Prevents assigning the io context to more than one application, relevant in case a tcp server boardnet endpoint is
+                       // created
             }
         }
     } else {
