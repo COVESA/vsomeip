@@ -103,7 +103,8 @@ std::ostream& operator<<(std::ostream& o, service_state const& s) {
 
 std::ostream& operator<<(std::ostream& o, event_ids const& s) {
     return o << "[" << std::hex << std::setfill('0') << std::setw(4) << s.si_.service_ << "." << std::setw(4) << s.si_.instance_ << '.'
-             << std::setw(4) << s.eventgroup_id_ << '.' << std::setw(4) << s.event_id_ << "]" << std::dec;
+             << std::setw(4) << s.eventgroup_id_ << '.' << std::setw(4) << s.event_id_ << std::dec
+             << ":reliable=" << static_cast<unsigned int>(static_cast<uint8_t>(s.reliability_)) << "]";
 }
 
 std::ostream& operator<<(std::ostream& o, event_subscription const& s) {

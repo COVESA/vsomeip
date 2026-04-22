@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <stdexcept>
+
 #include "../../../implementation/endpoints/include/tcp_socket.hpp"
 
 #include "fake_tcp_socket_handle.hpp"
@@ -35,8 +37,7 @@ private:
         // this function should not be called within a test execution. Otherwise a proper
         // indirection is missing. Because this function is only required to be called when using
         // native system calls, something that should be avoided when using fake sockets
-        throw std::runtime_error("native_handle is not allowed to be called within a test. A "
-                                 "proper abstraction is missing");
+        // TO DO: By now this is needed for tcp acceptor, but later cleanup
         return -1;
     }
 
@@ -133,7 +134,19 @@ private:
         state_->write(_buffer, std::move(_handler));
     }
 
-    virtual void async_write(boost::asio::const_buffer const&, completion_condition, rw_handler) override { }
+    virtual void async_write(boost::asio::const_buffer const& _buffer, completion_condition _cc, rw_handler _handler) override {
+
+        auto rw_handler = [cc = std::move(_cc), rw = std::move(_handler), state = state_](boost::system::error_code const& ec,
+                                                                                          size_t size) {
+            auto value = cc(ec, size);
+            if (value != 0) {
+                throw std::runtime_error("fake_tcp_socket::async_write: completion condition did not return 0!");
+            }
+            boost::asio::post(state->io_, [rw = std::move(rw), ec, size] { rw(ec, size); });
+        };
+
+        state_->write_boardnet(_buffer, std::move(rw_handler));
+    }
 
     friend struct fake_tcp_acceptor_handle;
     friend class fake_tcp_acceptor;
@@ -169,8 +182,7 @@ private:
         // this function should not be called within a test execution. Otherwise a proper
         // indirection is missing. Because this function is only required to be called when using
         // native system calls, something that should be avoided when using fake sockets
-        throw std::runtime_error("native_handle is not allowed to be called within a test. A "
-                                 "proper abstraction is missing");
+        // TO DO: By now this is needed for tcp acceptor, but later cleanup
         return -1;
     }
 
@@ -200,7 +212,14 @@ private:
     }
 
 #if defined(__linux__)
+    [[nodiscard]] virtual bool set_reuse_port() override { return true; }
     [[nodiscard]] virtual bool set_native_option_free_bind() override { return true; }
+#endif
+#if defined(__linux__) || defined(__QNX__)
+    [[nodiscard]] virtual bool bind_to_device(std::string const& _device) override {
+        (void)_device;
+        return true;
+    }
 #endif
 
     virtual void listen(int, boost::system::error_code& _ec) override { _ec = boost::system::error_code(); }
@@ -220,5 +239,4 @@ private:
 
     std::shared_ptr<fake_tcp_acceptor_handle> state_;
 };
-
 }

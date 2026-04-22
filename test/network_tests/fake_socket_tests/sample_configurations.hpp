@@ -90,6 +90,5 @@ inline const ecu_config ecu_two_config = []() {
     cfg.network_ = "vsomeip-two";
     return cfg;
 }();
-
 }
 }

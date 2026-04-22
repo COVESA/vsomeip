@@ -39,7 +39,7 @@ std::string derive_router_name(ecu_config const& cfg) {
 } // namespace
 
 ecu_setup::ecu_setup(std::string name, ecu_config cfg, socket_manager& sm) :
-    config_{std::move(cfg)}, name_{std::move(name)}, router_name_{derive_router_name(config_)}, sm_{sm} { }
+    config_{std::move(cfg)}, name_{std::move(name)}, router_name_{derive_router_name(config_)}, sm_{sm}, offered_tcp_(false) { }
 
 ecu_setup::~ecu_setup() {
     for (auto const& var : set_env_vars_) {
@@ -201,6 +201,28 @@ void ecu_setup::start_apps() {
             start_one(app_cfg.name_);
         }
     }
+}
+
+bool ecu_setup::offer_via_tcp(std::string const& offering_app_name_, interface const& offered_service_) {
+    auto it = owned_apps_.find(offering_app_name_);
+    if (it == owned_apps_.end()) {
+        TEST_LOG << "App with name:" << offering_app_name_ << " was not found, will not offer service";
+        return false;
+    }
+    if (!offered_tcp_) {
+        sm_.add(router_name_ + "_auxiliary_context_");
+        it->second->offer(offered_service_);
+
+        if (!sm_.await_assignment(router_name_ + "_auxiliary_context_")) {
+            LOCAL_LOG << router_name_ << " could not be assigned to an auxiliary_context";
+            return false;
+        }
+        LOCAL_LOG << router_name_ << " is assigned to an auxiliary_context";
+        offered_tcp_ = true;
+    } else {
+        it->second->offer(offered_service_);
+    }
+    return true;
 }
 
 void ecu_setup::stop_apps() {

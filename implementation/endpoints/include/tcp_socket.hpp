@@ -99,7 +99,7 @@ public:
 #endif
 #if defined(__linux__) || defined(__QNX__)
     /**
-     * abstraction for setting the linux specific option
+     * abstraction for setting the linux/QNX specific option
      * SO_BINDTODEVICE.
      * On error errno will be set.
      **/
@@ -126,11 +126,26 @@ public:
 
 #if defined(__linux__)
     /**
+     * abstraction for setting the linux specific tcp option
+     * SO_REUSEPORT.
+     * On error errno will be set.
+     **/
+    [[nodiscard]] virtual bool set_reuse_port() = 0;
+
+    /**
      * abstraction for setting the linux specific option
      * IP_FREEBIND.
      * On error errno will be set.
      **/
     [[nodiscard]] virtual bool set_native_option_free_bind() = 0;
+#endif
+#if defined(__linux__) || defined(__QNX__)
+    /**
+     * abstraction for setting the linux specific option
+     * SO_BINDTODEVICE.
+     * On error errno will be set.
+     **/
+    [[nodiscard]] virtual bool bind_to_device(std::string const&) = 0;
 #endif
 
     virtual void listen(int, boost::system::error_code&) = 0;

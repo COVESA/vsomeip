@@ -25,16 +25,14 @@ ecu_config& ecu_config::add_interface(std::vector<interface> offered, vsomeip::p
         for (auto const& e : iface.events_) {
             if (e.reliability_ == vsomeip::reliability_type_e::RT_UNRELIABLE) {
                 needs_unreliable = true;
-            }
-            if (e.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE) {
+            } else if (e.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE) {
                 needs_reliable = true;
             }
         }
         for (auto const& f : iface.fields_) {
             if (f.reliability_ == vsomeip::reliability_type_e::RT_UNRELIABLE) {
                 needs_unreliable = true;
-            }
-            if (f.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE) {
+            } else if (f.reliability_ == vsomeip::reliability_type_e::RT_RELIABLE) {
                 needs_reliable = true;
             }
         }

@@ -14,6 +14,7 @@
 #ifdef _WIN32
 #include <Winsock2.h>
 #endif
+#include "../include/abstract_socket_factory.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../include/boardnet_endpoint_host.hpp"
 #include "../../routing/include/boardnet_routing_host.hpp"
@@ -32,7 +33,7 @@ tcp_server_endpoint_impl::tcp_server_endpoint_impl(const std::shared_ptr<boardne
                                                    boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration,
                                                    auxiliary_context& _auxiliary, bool _use_magic_cookies) :
     tcp_server_endpoint_base_impl(_boardnet_endpoint_host, _routing_host, _io, _configuration), auxiliary_ctxt_(_auxiliary),
-    use_magic_cookies_(_use_magic_cookies), acceptor_(_auxiliary.get_context()),
+    use_magic_cookies_(_use_magic_cookies), acceptor_(abstract_socket_factory::get()->create_tcp_acceptor(_auxiliary.get_context())),
     buffer_shrink_threshold_(configuration_->get_buffer_shrink_threshold()),
     // send timeout after 2/3 of configured ttl, warning after 1/3
     send_timeout_(configuration_->get_sd_ttl() * 666) {
@@ -54,20 +55,20 @@ bool tcp_server_endpoint_impl::is_local() const {
 void tcp_server_endpoint_impl::init(const endpoint_type& _local, boost::system::error_code& _error) {
     VSOMEIP_INFO_P << instance_name_ << " " << _local.address() << ":" << _local.port();
 
-    acceptor_.open(_local.protocol(), _error);
+    acceptor_->open(_local.protocol(), _error);
     if (_error) {
         VSOMEIP_ERROR_P << instance_name_ << "Failed to open socket, " << _error.message();
         return;
     }
 
 #if defined(__linux__)
-    int enable = 1;
-    if (setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(enable)) != 0) {
+    if (!(acceptor_->set_reuse_port())) {
         VSOMEIP_WARNING_P << instance_name_ << "Failed to set option SO_REUSEPORT, errno=" << errno;
     }
+
 #endif
 
-    acceptor_.set_option(boost::asio::socket_base::reuse_address(true), _error);
+    acceptor_->set_option(boost::asio::socket_base::reuse_address(true), _error);
     if (_error) {
         VSOMEIP_ERROR_P << instance_name_ << "Failed to set option SO_REUSEADDR, " << _error.message();
         return;
@@ -76,22 +77,18 @@ void tcp_server_endpoint_impl::init(const endpoint_type& _local, boost::system::
 #if defined(__linux__) || defined(__QNX__)
     // If specified, bind to device
     std::string its_device(configuration_->get_device());
-    if (its_device != "") {
-        if (setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, its_device.c_str(),
-                       static_cast<socklen_t>(its_device.size()))
-            == -1) {
-            VSOMEIP_WARNING_P << instance_name_ << "Could not bind to device \"" << its_device << "\"";
-        }
+    if (its_device != "" && !acceptor_->bind_to_device(its_device)) {
+        VSOMEIP_WARNING_P << instance_name_ << "Could not bind to device \"" << its_device << "\"";
     }
 #endif
 
-    acceptor_.bind(_local, _error);
+    acceptor_->bind(_local, _error);
     if (_error) {
         VSOMEIP_ERROR_P << instance_name_ << "Failed to bind, " << _error.message();
         return;
     }
 
-    acceptor_.listen(boost::asio::socket_base::max_listen_connections, _error);
+    acceptor_->listen(boost::asio::socket_base::max_listen_connections, _error);
     if (_error) {
         VSOMEIP_ERROR_P << instance_name_ << "Failed to listen, " << _error.message();
         return;
@@ -116,23 +113,23 @@ void tcp_server_endpoint_impl::start() {
     VSOMEIP_INFO_P << instance_name_;
 
     std::scoped_lock its_lock(acceptor_mutex_);
-    if (acceptor_.is_open()) {
+    if (acceptor_->is_open()) {
         connection::ptr new_connection =
                 connection::create(std::dynamic_pointer_cast<tcp_server_endpoint_impl>(shared_from_this()), max_message_size_,
                                    buffer_shrink_threshold_, use_magic_cookies_, io_, send_timeout_);
+
+        tcp_socket& tmp_socket = new_connection->get_socket();
 
         // Use the peer-endpoint overload so the remote address is captured by the kernel
         // at accept() time.  If the client disconnects immediately after connecting, calling
         // remote_endpoint() on the socket in the callback would fail (returning an unspecified
         // address), which would later cause messages to be dropped in on_message.
         auto its_remote_ep = std::make_shared<endpoint_type>();
-        acceptor_.async_accept(
-                io_.get_executor(), *its_remote_ep,
-                [self = shared_from_this(), new_connection, its_remote_ep](const boost::system::error_code& _ec, socket_type _socket) {
-                    new_connection->get_socket() = std::move(_socket);
-
-                    std::dynamic_pointer_cast<tcp_server_endpoint_impl>(self)->accept_cbk(new_connection, its_remote_ep, _ec);
-                });
+        acceptor_->async_accept(tmp_socket, *its_remote_ep,
+                                [self = shared_from_this(), new_connection, its_remote_ep](const boost::system::error_code& _ec) {
+                                    std::dynamic_pointer_cast<tcp_server_endpoint_impl>(self)->accept_cbk(new_connection, its_remote_ep,
+                                                                                                          _ec);
+                                });
     } else {
         VSOMEIP_ERROR_P << instance_name_ << "Start failed, acceptor is closed";
     }
@@ -148,9 +145,9 @@ void tcp_server_endpoint_impl::stop(bool /*_due_to_error*/) {
     {
         std::scoped_lock first_lock(acceptor_mutex_);
 
-        if (acceptor_.is_open()) {
+        if (acceptor_->is_open()) {
             boost::system::error_code its_error;
-            acceptor_.close(its_error);
+            acceptor_->close(its_error);
             VSOMEIP_INFO_P << instance_name_ << "Acceptor closed, " << its_error.message();
         }
 
@@ -242,7 +239,7 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
 #else
         pollfd pfds;
 #endif
-        pfds.fd = acceptor_.native_handle();
+        pfds.fd = acceptor_->native_handle();
         pfds.events = POLLIN;
         pfds.revents = 0;
 
@@ -376,15 +373,15 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shar
         const endpoint_type remote(*_remote_ep);
         {
             std::unique_lock its_socket_lock(_connection->get_socket_lock());
-            socket_type& new_connection_socket = _connection->get_socket();
+            tcp_socket& connection_socket_ = _connection->get_socket();
             _connection->set_remote_info(remote);
             // Nagle algorithm off
-            new_connection_socket.set_option(ip::tcp::no_delay(true), its_error);
+            connection_socket_.set_option(ip::tcp::no_delay(true), its_error);
             if (its_error) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option TCP_NODELAY failed, " << its_error.message();
             }
 
-            new_connection_socket.set_option(boost::asio::socket_base::keep_alive(true), its_error);
+            connection_socket_.set_option(boost::asio::socket_base::keep_alive(true), its_error);
             if (its_error) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option SO_KEEPALIVE failed, " << its_error.message();
             }
@@ -393,7 +390,7 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shar
             // 1) avoid issues with TIME_WAIT, which otherwise lasts for 120 secs with a
             // non-responding endpoint (see also 4396812d2)
             // 2) handle by default what needs to happen at suspend/shutdown
-            new_connection_socket.set_option(boost::asio::socket_base::linger(true, 0), its_error);
+            connection_socket_.set_option(boost::asio::socket_base::linger(true, 0), its_error);
             if (its_error) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option SO_LINGER failed, " << its_error.message();
             }
@@ -401,24 +398,20 @@ void tcp_server_endpoint_impl::accept_cbk(connection::ptr _connection, std::shar
 #if defined(__linux__)
             // set a user timeout
             // along the keep alives, this ensures connection closes if endpoint is unreachable
-            unsigned int opt = configuration_->get_external_tcp_user_timeout();
-            if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_USER_TIMEOUT, &opt, sizeof(opt)) == -1) {
+            if (!connection_socket_.set_user_timeout(configuration_->get_external_tcp_user_timeout())) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option TCP_USER_TIMEOUT failed, errno=" << errno;
             }
 
             // override kernel settings
             // unfortunate, but there are plenty of custom keep-alive settings, and need to
             // enforce some sanity here
-            auto opt2 = static_cast<int>(configuration_->get_external_tcp_keepidle());
-            if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPIDLE, &opt2, sizeof(opt2)) == -1) {
+            if (!connection_socket_.set_keepidle(configuration_->get_external_tcp_keepidle())) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option TCP_KEEPIDLE failed, errno=" << errno;
             }
-            opt2 = static_cast<int>(configuration_->get_external_tcp_keepintvl());
-            if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPINTVL, &opt2, sizeof(opt2)) == -1) {
+            if (!connection_socket_.set_keepintvl(configuration_->get_external_tcp_keepintvl())) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option TCP_KEEPINTVL failed, errno=" << errno;
             }
-            opt2 = static_cast<int>(configuration_->get_external_tcp_keepcnt());
-            if (setsockopt(new_connection_socket.native_handle(), IPPROTO_TCP, TCP_KEEPCNT, &opt2, sizeof(opt2)) == -1) {
+            if (!connection_socket_.set_keepcnt(configuration_->get_external_tcp_keepcnt())) {
                 VSOMEIP_ERROR_P << instance_name_ << "Set option TCP_KEEPCNT failed, errno=" << errno;
             }
 #endif
@@ -473,11 +466,11 @@ tcp_server_endpoint_impl::connection::connection(const std::weak_ptr<tcp_server_
                                                  std::uint32_t _recv_buffer_size_initial, std::uint32_t _buffer_shrink_threshold,
                                                  bool _use_magic_cookies, boost::asio::io_context& _io,
                                                  std::chrono::milliseconds _send_timeout) :
-    socket_(_io), server_(_server), max_message_size_(_max_message_size), recv_buffer_size_initial_(_recv_buffer_size_initial),
-    recv_buffer_(_recv_buffer_size_initial, 0), recv_buffer_size_(0), missing_capacity_(0), shrink_count_(0),
-    buffer_shrink_threshold_(_buffer_shrink_threshold), remote_port_(0), use_magic_cookies_(_use_magic_cookies),
-    last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)), send_timeout_(_send_timeout),
-    send_timeout_warning_(_send_timeout / 2) {
+    socket_(abstract_socket_factory::get()->create_tcp_socket(_io)), server_(_server), max_message_size_(_max_message_size),
+    recv_buffer_size_initial_(_recv_buffer_size_initial), recv_buffer_(_recv_buffer_size_initial, 0), recv_buffer_size_(0),
+    missing_capacity_(0), shrink_count_(0), buffer_shrink_threshold_(_buffer_shrink_threshold), remote_port_(0),
+    use_magic_cookies_(_use_magic_cookies), last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)),
+    send_timeout_(_send_timeout), send_timeout_warning_(_send_timeout / 2) {
     auto its_server(_server.lock());
     instance_name_ = its_server->instance_name_;
 }
@@ -507,8 +500,8 @@ tcp_server_endpoint_impl::connection::create(const std::weak_ptr<tcp_server_endp
                               _magic_cookies_enabled, _io, _send_timeout));
 }
 
-tcp_server_endpoint_impl::socket_type& tcp_server_endpoint_impl::connection::get_socket() {
-    return socket_;
+tcp_socket& tcp_server_endpoint_impl::connection::get_socket() {
+    return *socket_;
 }
 
 std::unique_lock<std::mutex> tcp_server_endpoint_impl::connection::get_socket_lock() {
@@ -521,7 +514,7 @@ void tcp_server_endpoint_impl::connection::start() {
 
 void tcp_server_endpoint_impl::connection::receive() {
     std::unique_lock its_lock(socket_mutex_);
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
         const std::size_t its_capacity(recv_buffer_.capacity());
         if (recv_buffer_size_ > its_capacity) {
             VSOMEIP_ERROR_P << "Received buffer size is greater than the buffer capacity! recv_buffer_size_: " << recv_buffer_size_
@@ -561,18 +554,19 @@ void tcp_server_endpoint_impl::connection::receive() {
             // don't start receiving again
             return;
         }
-        socket_.async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
-                              std::bind(&tcp_server_endpoint_impl::connection::receive_cbk, shared_from_this(), std::placeholders::_1,
-                                        std::placeholders::_2));
+
+        socket_->async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
+                               std::bind(&tcp_server_endpoint_impl::connection::receive_cbk, shared_from_this(), std::placeholders::_1,
+                                         std::placeholders::_2));
     }
 }
 
 void tcp_server_endpoint_impl::connection::stop() {
     std::scoped_lock its_lock(socket_mutex_);
 
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
         boost::system::error_code its_error;
-        socket_.close(its_error);
+        socket_->close(its_error);
         if (its_error) {
             VSOMEIP_WARNING_P << instance_name_ << get_address_port_remote() << " closing socket failed (" << its_error.message() << ")";
         }
@@ -610,8 +604,8 @@ bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
 
     _it->second.is_sending_ = true;
 
-    boost::asio::async_write(
-            socket_, boost::asio::buffer(*its_buffer),
+    socket_->async_write(
+            boost::asio::buffer(*its_buffer),
             std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition, shared_from_this(), std::placeholders::_1,
                       std::placeholders::_2, its_buffer->size(), its_service, its_method, its_client, its_session,
                       std::chrono::steady_clock::now()),
@@ -898,8 +892,8 @@ std::string tcp_server_endpoint_impl::connection::get_address_port_local() const
     std::string its_address_port;
     its_address_port.reserve(21);
     boost::system::error_code ec;
-    if (socket_.is_open()) {
-        endpoint_type its_local_endpoint = socket_.local_endpoint(ec);
+    if (socket_->is_open()) {
+        endpoint_type its_local_endpoint = socket_->local_endpoint(ec);
         if (!ec) {
             its_address_port += its_local_endpoint.address().to_string();
             its_address_port += ":";
@@ -924,9 +918,9 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const st
     }
     VSOMEIP_ERROR_P << its_message.str();
     recv_buffer_.clear();
-    if (socket_.is_open()) {
+    if (socket_->is_open()) {
         boost::system::error_code its_error;
-        socket_.close(its_error);
+        socket_->close(its_error);
     }
     std::shared_ptr<tcp_server_endpoint_impl> its_server = server_.lock();
     if (its_server) {

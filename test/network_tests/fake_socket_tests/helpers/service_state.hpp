@@ -48,6 +48,10 @@ struct event_ids {
         return si_ == rhs.si_ && event_id_ == rhs.event_id_ && eventgroup_id_ == rhs.eventgroup_id_;
     }
     [[nodiscard]] bool operator!=(event_ids const& rhs) const { return !(*this == rhs); }
+    event_ids& with(vsomeip::reliability_type_e _new_value) {
+        reliability_ = _new_value;
+        return *this;
+    }
 };
 
 struct event_subscription {

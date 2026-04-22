@@ -309,6 +309,31 @@ void fake_tcp_socket_handle::write(std::vector<boost::asio::const_buffer> const&
             io_, [handler = std::move(_handler)] { handler(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), 0); });
 }
 
+void fake_tcp_socket_handle::write_boardnet(boost::asio::const_buffer const& _buffer, rw_handler _handler) {
+    auto receiver = [&]() -> std::shared_ptr<fake_tcp_socket_handle> {
+        auto const lock = std::scoped_lock(mtx_);
+        return connected_socket_.lock();
+    }();
+
+    if (receiver) {
+        size_t size = receiver->consume_boardnet(_buffer);
+        boost::asio::post(io_, [size, handler = std::move(_handler)] { handler(boost::system::error_code(), size); });
+        return;
+    }
+
+    auto sm = [&]() -> std::shared_ptr<socket_manager> {
+        auto const lock = std::scoped_lock(mtx_);
+        return socket_manager_.lock();
+    }();
+
+    if (sm && sm->ignore_broken_pipe(*this)) {
+        return;
+    }
+
+    boost::asio::post(
+            io_, [handler = std::move(_handler)] { handler(boost::asio::error::make_error_code(boost::asio::error::broken_pipe), 0); });
+}
+
 void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, rw_handler _handler) {
     auto const lock = std::scoped_lock(mtx_);
     if (stashed_ec_) {
@@ -369,6 +394,19 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
             break;
         }
     }
+
+    pipe_->add_data(raw_message);
+    update_reception();
+    return incoming_size;
+}
+
+size_t fake_tcp_socket_handle::consume_boardnet(boost::asio::const_buffer const& _buffer) {
+    std::scoped_lock<std::mutex> lock(mtx_);
+    size_t const incoming_size = _buffer.size();
+    std::vector<unsigned char> raw_message;
+    raw_message.reserve(incoming_size);
+    auto first = static_cast<const char*>(_buffer.data());
+    std::copy(first, first + incoming_size, std::back_inserter(raw_message));
 
     pipe_->add_data(raw_message);
     update_reception();
