@@ -110,13 +110,6 @@ public:
 
     void send_suspend() const;
 
-    /**
-     * @brief Checks on the routing_info map if a service is being offered by an external peer.
-     *
-     * @return True if offered, false otherwise.
-     */
-    bool is_remotely_available(service_t _service, instance_t _instance, major_version_t _major) const;
-
 private:
     void broadcast(const std::vector<byte_t>& _command) const;
 

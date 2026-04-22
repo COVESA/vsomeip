@@ -62,9 +62,6 @@ public:
     virtual void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                        minor_version_t _minor) = 0;
 
-    virtual void on_availability(service_t _service, instance_t _instance, availability_state_e _state, major_version_t _major,
-                                 minor_version_t _minor) = 0;
-
     /// @brief Remove local client
     ///
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it

@@ -351,9 +351,6 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     }
 
     stub_->on_offer_service(_client, _service, _instance, _major, _minor);
-    // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed before
-    // starting the next one, otherwise, we may have the availability being reported in the wrong order
-    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
     erase_offer_command(_service, _instance);
 
     VSOMEIP_INFO << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
@@ -609,48 +606,19 @@ void routing_manager_impl::unsubscribe(client_t _client, service_t _service, ins
     }
 }
 
-bool routing_manager_impl::send(client_t _client, std::shared_ptr<message> _message, bool _force) {
-    if (utility::is_request(_message->get_message_type())) {
-        if (!stub_->is_remotely_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
-            VSOMEIP_WARNING_P << "[Client=" << hex4(_client) << " _message=" << hex4(_message->get_service()) << "."
-                              << hex4(_message->get_method()) << "." << hex2(static_cast<uint8_t>(_message->get_message_type())) << "."
-                              << hex2(static_cast<uint8_t>(_message->get_return_code())) << " _force=" << _force
-                              << "]: Remote service not available. instance=" << hex4(_message->get_instance())
-                              << " version=" << _message->get_interface_version();
-            if (!_force) {
-                return false;
-            }
-        }
+bool routing_manager_impl::send_notification(client_t _client, std::shared_ptr<message> _message, bool _force) {
+    bool is_sent(false);
+    std::shared_ptr<serializer> its_serializer(get_serializer());
+    if (its_serializer->serialize(_message.get())) {
+        auto const sec_client = get_sec_client();
+        is_sent = send(_client, its_serializer->get_data(), its_serializer->get_size(), _message->get_instance(), _message->is_reliable(),
+                       get_client(), &sec_client, 0, false, _force);
+        its_serializer->reset();
+        put_serializer(its_serializer);
+    } else {
+        VSOMEIP_ERROR_P << "Failed to serialize message. Check message size!";
     }
-    {
-        bool is_sent(false);
-        if (utility::is_request(_message->get_message_type())) {
-            _message->set_client(_client);
-            if (!host_->is_routing()
-                && !is_available(_message->get_service(), _message->get_instance(), _message->get_interface_version())) {
-                VSOMEIP_WARNING_P << "this=" << this << "}::send{_client=" << _client << " _message=" << hex4(_message->get_service())
-                                  << "." << hex4(_message->get_method()) << "." << static_cast<int>(_message->get_message_type()) << "."
-                                  << static_cast<int>(_message->get_return_code()) << " _force=" << _force
-                                  << "}: Service not available. instance=" << hex4(_message->get_instance())
-                                  << " version=" << hex4(_message->get_interface_version());
-                if (!_force) {
-                    return is_sent;
-                }
-            }
-        }
-
-        std::shared_ptr<serializer> its_serializer(get_serializer());
-        if (its_serializer->serialize(_message.get())) {
-            auto const sec_client = get_sec_client();
-            is_sent = send(_client, its_serializer->get_data(), its_serializer->get_size(), _message->get_instance(),
-                           _message->is_reliable(), get_client(), &sec_client, 0, false, _force);
-            its_serializer->reset();
-            put_serializer(its_serializer);
-        } else {
-            VSOMEIP_ERROR_P << "Failed to serialize message. Check message size!";
-        }
-        return is_sent;
-    }
+    return is_sent;
 }
 
 bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t _size, instance_t _instance, bool _reliable,
@@ -969,15 +937,11 @@ void routing_manager_impl::notify_one(service_t _service, instance_t _instance, 
     }
 }
 
-void routing_manager_impl::on_availability([[maybe_unused]] service_t _service, [[maybe_unused]] instance_t _instance,
-                                           [[maybe_unused]] availability_state_e _state, [[maybe_unused]] major_version_t _major,
-                                           [[maybe_unused]] minor_version_t _minor) { }
-
 bool routing_manager_impl::offer_service_remotely(service_t _service, instance_t _instance, std::uint16_t _port, bool _reliable,
                                                   bool _magic_cookies_enabled) {
     bool ret = true;
 
-    if (!is_available(_service, _instance, ANY_MAJOR)) {
+    if (!is_locally_available(_service, _instance, ANY_MAJOR)) {
         VSOMEIP_ERROR_P << "Service [" << hex4(_service) << "." << hex4(_instance) << "] is not offered locally! Won't offer it remotely.";
         ret = false;
     } else {
@@ -1318,9 +1282,6 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
         }
     }
 
-    // NOTE: Order matters. The 'erase_offer_command' must be done after the on_availability to ensure that the process has completed
-    // before starting the next one, otherwise, we may have the availability being reported in the wrong order
-    on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
     stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
     erase_offer_command(_service, _instance);
 }
@@ -1685,7 +1646,6 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                          its_info->get_minor())) {
                     stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
-                    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(), its_info->get_minor());
                     if (discovery_) {
                         discovery_->on_endpoint_connected(_service, _instance, ep);
                     }
@@ -1700,8 +1660,6 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     its_info->add_client(its_client);
                 }
             }
-        } else {
-            on_availability(_service, _instance, availability_state_e::AS_OFFERED, its_info->get_major(), its_info->get_minor());
         }
     }
 
@@ -1733,8 +1691,6 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                 if (ep) {
                     if (ep->is_established()) {
                         stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
-                        on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, its_info->get_major(),
-                                        its_info->get_minor());
                         if (discovery_) {
                             discovery_->on_endpoint_connected(_service, _instance, ep);
                         }
@@ -1750,8 +1706,6 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                     }
                 }
             }
-        } else {
-            on_availability(_service, _instance, availability_state_e::AS_OFFERED, _major, _minor);
         }
     }
 }
@@ -1764,7 +1718,6 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
         return;
 
     if (_trigger_availability) {
-        on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, its_info->get_major(), its_info->get_minor());
         stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(), its_info->get_minor());
     }
 
@@ -2982,7 +2935,7 @@ bool routing_manager_impl::is_external_routing_ready() const {
     return if_state_running_ && (!configuration_->is_sd_enabled() || (configuration_->is_sd_enabled() && sd_route_set_));
 }
 
-bool routing_manager_impl::is_available(service_t _service, instance_t _instance, major_version_t _major) const {
+bool routing_manager_impl::is_locally_available(service_t _service, instance_t _instance, major_version_t _major) const {
     std::scoped_lock its_lock(services_state_mutex_);
     return local_services_table_.is_available(_service, _instance, _major);
 }
@@ -3494,7 +3447,6 @@ void routing_manager_impl::on_resend_provided_events_response(pending_remote_off
 void routing_manager_impl::service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major,
                                                       minor_version_t _minor, const std::shared_ptr<boardnet_endpoint>& _endpoint) {
     stub_->on_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
-    on_availability(_service, _instance, availability_state_e::AS_AVAILABLE, _major, _minor);
 
     auto its_timer = std::make_shared<boost::asio::steady_timer>(io_);
     its_timer->expires_after(std::chrono::milliseconds(3));
@@ -3508,7 +3460,6 @@ void routing_manager_impl::service_endpoint_connected(service_t _service, instan
 void routing_manager_impl::service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major,
                                                          minor_version_t _minor, const std::shared_ptr<boardnet_endpoint>& _endpoint) {
     (void)_endpoint;
-    on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
     stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
 
     {
@@ -3810,7 +3761,7 @@ bool routing_manager_impl::is_valid_client_id(const client_t _client, const mess
 }
 
 bool routing_manager_impl::send_event(client_t _client, std::shared_ptr<message> _message, bool _force) {
-    return send(_client, _message, _force);
+    return send_notification(_client, _message, _force);
 }
 
 services_t routing_manager_impl::get_services_remote() const {

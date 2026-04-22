@@ -1323,42 +1323,34 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
     std::vector<protocol::routing_info_entry> its_entries;
     std::scoped_lock its_guard{routing_info_mutex_};
 
-    for (auto request : _requests) {
+    for (auto const& request : _requests) {
         service_requests_[_client][request.service_][request.instance_] = std::make_pair(request.major_, request.minor_);
-        if (request.instance_ == ANY_INSTANCE) {
-            std::set<client_t> its_clients = host_->find_local_clients(request.service_, request.instance_);
-            // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
-            its_clients.insert(VSOMEIP_ROUTING_CLIENT);
-            for (const client_t c : its_clients) {
-                if (_client != VSOMEIP_ROUTING_CLIENT) {
-                    const auto found_client = routing_info_.find(c);
-                    if (found_client != routing_info_.end()) {
-                        const auto found_service = found_client->second.second.find(request.service_);
-                        if (found_service != found_client->second.second.end()) {
-                            for (auto instance : found_service->second) {
-                                protocol::routing_info_entry its_entry;
-                                its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
-                                its_entry.set_client(c);
-                                if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
-                                    its_entry.set_address(its_address);
-                                    its_entry.set_port(its_port);
-                                }
-                                its_entry.add_service({request.service_, instance.first, instance.second.first, instance.second.second});
-                                its_entries.emplace_back(its_entry);
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            const client_t c = host_->find_local_client(request.service_, request.instance_);
+        if (_client == VSOMEIP_ROUTING_CLIENT) {
+            continue;
+        }
+        std::set<client_t> its_clients = host_->find_local_clients(request.service_, request.instance_);
+        // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
+        its_clients.insert(VSOMEIP_ROUTING_CLIENT);
+        for (const client_t c : its_clients) {
             const auto found_client = routing_info_.find(c);
             if (found_client != routing_info_.end()) {
                 const auto found_service = found_client->second.second.find(request.service_);
                 if (found_service != found_client->second.second.end()) {
-                    const auto found_instance = found_service->second.find(request.instance_);
-                    if (found_instance != found_service->second.end()) {
-                        if (_client != VSOMEIP_ROUTING_CLIENT) {
+                    if (request.instance_ == ANY_INSTANCE) {
+                        for (auto instance : found_service->second) {
+                            protocol::routing_info_entry its_entry;
+                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
+                            its_entry.set_client(c);
+                            if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
+                                its_entry.set_address(its_address);
+                                its_entry.set_port(its_port);
+                            }
+                            its_entry.add_service({request.service_, instance.first, instance.second.first, instance.second.second});
+                            its_entries.emplace_back(its_entry);
+                        }
+                    } else {
+                        const auto found_instance = found_service->second.find(request.instance_);
+                        if (found_instance != found_service->second.end()) {
                             protocol::routing_info_entry its_entry;
                             its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                             its_entry.set_client(c);
@@ -1883,28 +1875,6 @@ void routing_manager_stub::send_suspend() const {
     broadcast(its_buffer);
 }
 
-bool routing_manager_stub::is_remotely_available(service_t _service, instance_t _instance, major_version_t _major) const {
-    std::scoped_lock its_lock{routing_info_mutex_};
-    for (const auto& [client, its_info] : routing_info_) {
-        auto its_service = its_info.second.find(_service);
-        if (its_service != its_info.second.end()) {
-            if (_instance == ANY_INSTANCE) {
-                return true;
-            }
-            auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                if (_major == ANY_MAJOR || _major == DEFAULT_MAJOR) {
-                    return true;
-                }
-                if (_major == std::get<0>(its_instance->second)) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
-}
 std::shared_ptr<local_endpoint> routing_manager_stub::find_local_routing_endpoint(client_t _client) const {
     if (auto epm = host_->get_endpoint_manager(); epm) {
         return epm->find_routing_endpoint(_client);

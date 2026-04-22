@@ -2256,7 +2256,7 @@ bool service_discovery_impl::send(const std::vector<std::shared_ptr<message_impl
             std::pair<session_t, bool> its_session = get_session(unicast_);
             m->set_session(its_session.first);
             m->set_reboot_flag(its_session.second);
-            if (host_->send(VSOMEIP_SD_CLIENT, m, true)) {
+            if (host_->send_notification(VSOMEIP_SD_CLIENT, m, true)) {
                 increment_session(unicast_);
             }
         } else {
