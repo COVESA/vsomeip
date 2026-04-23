@@ -12,6 +12,7 @@
 
 #include <vsomeip/internal/logger.hpp>
 
+#include "../include/capture.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/tp.hpp"
 #include "../../routing/include/routing_host.hpp"
@@ -20,6 +21,17 @@
 #include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
+
+namespace {
+
+template <typename Socket, typename Endpoint>
+Endpoint get_local_endpoint_or(Socket& _socket, const Endpoint& _fallback) {
+    boost::system::error_code its_error;
+    Endpoint its_local_endpoint = _socket.local_endpoint(its_error);
+    return its_error ? _fallback : its_local_endpoint;
+}
+
+} // namespace
 
 udp_client_endpoint_impl::udp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
@@ -224,9 +236,19 @@ void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
             last_sent_ = std::chrono::steady_clock::time_point();
         }
         // Send
-        socket_->async_send(boost::asio::buffer(*_entry.first),
-                            std::bind(&udp_client_endpoint_base_impl::send_cbk, shared_from_this(), std::placeholders::_1,
-                                      std::placeholders::_2, _entry.first));
+        const endpoint_type its_local_endpoint = get_local_endpoint_or(*socket_, local_);
+        const capture_metadata_t its_capture_metadata{
+                capture_direction_e::TX, capture_transport_e::UDP, its_local_endpoint.address(), its_local_endpoint.port(),
+                remote_address_, remote_port_, std::nullopt};
+        socket_->async_send(
+                boost::asio::buffer(*_entry.first),
+                [self = shared_from_this(), sent_msg = _entry.first, capture_metadata = its_capture_metadata](
+                        const boost::system::error_code& _error, std::size_t _bytes) {
+                    if (_bytes > 0) {
+                        capture(sent_msg->data(), _bytes, capture_metadata);
+                    }
+                    self->send_cbk(_error, _bytes, sent_msg);
+                });
     }
 }
 
@@ -273,6 +295,11 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     }
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
     if (!_error && 0 < _bytes && its_host) {
+        const endpoint_type its_local_endpoint = get_local_endpoint_or(*socket_, local_);
+        const capture_metadata_t its_capture_metadata{
+                capture_direction_e::RX, capture_transport_e::UDP, its_local_endpoint.address(), its_local_endpoint.port(),
+                remote_address_, remote_port_, std::nullopt};
+        capture(_recv_buffer->data(), _bytes, its_capture_metadata);
 #if 0
         std::stringstream msg;
         msg << "ucei::rcb(" << _error.message() << "): ";

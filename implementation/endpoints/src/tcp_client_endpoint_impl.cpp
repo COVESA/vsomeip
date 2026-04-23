@@ -13,6 +13,7 @@
 #include <vsomeip/defines.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "../include/capture.hpp"
 #include "../include/tcp_socket.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../../routing/include/routing_host.hpp"
@@ -21,6 +22,17 @@
 #include "../../utility/include/bithelper.hpp"
 
 namespace vsomeip_v3 {
+
+namespace {
+
+template <typename Socket, typename Endpoint>
+Endpoint get_local_endpoint_or(Socket& _socket, const Endpoint& _fallback) {
+    boost::system::error_code its_error;
+    Endpoint its_local_endpoint = _socket.local_endpoint(its_error);
+    return its_error ? _fallback : its_local_endpoint;
+}
+
+} // namespace
 
 tcp_client_endpoint_impl::tcp_client_endpoint_impl(const std::shared_ptr<endpoint_host>& _endpoint_host,
                                                    const std::shared_ptr<routing_host>& _routing_host, const endpoint_type& _local,
@@ -350,6 +362,10 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
 #endif
     {
         if (socket_->is_open()) {
+            const endpoint_type its_local_endpoint = get_local_endpoint_or(*socket_, local_);
+            const capture_metadata_t its_capture_metadata{
+                    capture_direction_e::TX, capture_transport_e::TCP, its_local_endpoint.address(), its_local_endpoint.port(),
+                    remote_address_, remote_port_, std::nullopt};
             socket_->async_write(
                     boost::asio::buffer(*_entry.first),
                     [this, self = shared_from_this(), to_be_send_length = _entry.first->size(), when = std::chrono::steady_clock::now(),
@@ -360,7 +376,13 @@ void tcp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint3
                     },
                     strand_.wrap(
                             // copy the buffer into the callback to keep the buffer itself alive
-                            [this, self = shared_from_this(), buffer = _entry.first](auto ec, auto size) { send_cbk(ec, size, buffer); }));
+                            [this, self = shared_from_this(), buffer = _entry.first,
+                             capture_metadata = its_capture_metadata](auto ec, auto size) {
+                                if (size > 0) {
+                                    capture(buffer->data(), size, capture_metadata);
+                                }
+                                send_cbk(ec, size, buffer);
+                            }));
         } else {
             VSOMEIP_WARNING << "tcei::" << __func__ << ": try to send while socket was not open | endpoint > " << this;
             was_not_connected_ = true;
@@ -463,12 +485,18 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
     std::shared_ptr<routing_host> its_host = routing_host_.lock();
     if (its_host) {
         std::uint32_t its_missing_capacity(0);
+        const std::size_t its_received_offset = _recv_buffer_size;
         if (!_error && 0 < _bytes) {
             if (_recv_buffer_size + _bytes > _recv_buffer->size()) {
                 VSOMEIP_ERROR << "receive buffer overflow in tcp client endpoint ~> abort!";
                 return;
             }
             _recv_buffer_size += _bytes;
+            const endpoint_type its_local_endpoint = get_local_endpoint_or(*socket_, local_);
+            const capture_metadata_t its_capture_metadata{
+                    capture_direction_e::RX, capture_transport_e::TCP, its_local_endpoint.address(), its_local_endpoint.port(),
+                    remote_address_, remote_port_, std::nullopt};
+            capture(&(*_recv_buffer)[its_received_offset], _bytes, its_capture_metadata);
 
             size_t its_iteration_gap = 0;
             bool has_full_message(false);

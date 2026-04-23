@@ -16,6 +16,7 @@
 #include <vsomeip/constants.hpp>
 #include <vsomeip/internal/logger.hpp>
 
+#include "../include/capture.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../include/endpoint_host.hpp"
 #include "../include/tp.hpp"
@@ -491,8 +492,15 @@ bool udp_server_endpoint_impl::send_queued_unlocked(const target_data_iterator_t
 
     if (auto its_me{std::dynamic_pointer_cast<udp_server_endpoint_impl>(shared_from_this())}) {
         _it->second.is_sending_ = true;
+        const capture_metadata_t its_capture_metadata{
+                capture_direction_e::TX, capture_transport_e::UDP, local_.address(), local_.port(), _it->first.address(),
+                _it->first.port(), std::nullopt};
         unicast_socket_->async_send_to(boost::asio::buffer(*its_entry.first), _it->first,
-                                       [its_me, _it, its_entry](const boost::system::error_code& _error, std::size_t _bytes) {
+                                       [its_me, _it, its_entry, its_capture_metadata](const boost::system::error_code& _error,
+                                                                                      std::size_t _bytes) {
+                                           if (_bytes > 0) {
+                                               capture(its_entry.first->data(), _bytes, its_capture_metadata);
+                                           }
                                            if (!_error && its_me->on_unicast_sent_ && !_it->first.address().is_multicast()) {
                                                its_me->on_unicast_sent_(&(its_entry.first)->at(0), static_cast<uint32_t>(_bytes),
                                                                         _it->first.address());
@@ -631,6 +639,15 @@ void udp_server_endpoint_impl::on_unicast_received(const boost::system::error_co
     if (_error) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": " << _error.message();
     } else {
+        capture_metadata_t its_capture_metadata{};
+        {
+            std::scoped_lock its_lock(sync_);
+            its_capture_metadata = {capture_direction_e::RX, capture_transport_e::UDP, local_.address(), local_.port(),
+                                    unicast_remote_.address(), unicast_remote_.port(), std::nullopt};
+        }
+        if (_bytes > 0) {
+            capture(_unicast_recv_buffer.data(), _bytes, its_capture_metadata);
+        }
         on_message_received_unlocked(_error, _bytes, false, unicast_remote_, _unicast_recv_buffer);
     }
 }
@@ -644,6 +661,16 @@ void udp_server_endpoint_impl::on_multicast_received(const boost::system::error_
     if (_error) {
         VSOMEIP_ERROR << instance_name_ << __func__ << ": " << _error.message();
     } else {
+        capture_metadata_t its_capture_metadata{};
+        {
+            std::scoped_lock its_lock(sync_);
+            its_capture_metadata = {capture_direction_e::RX, capture_transport_e::UDP, local_.address(), local_.port(),
+                                    _sender.address(), _sender.port(),
+                                    _destination.is_unspecified() ? std::nullopt : std::optional<boost::asio::ip::address>(_destination)};
+        }
+        if (_bytes > 0) {
+            capture(_multicast_recv_buffer.data(), _bytes, its_capture_metadata);
+        }
         bool own_message = false;
         bool own_subnet = false;
         on_sent_multicast_received_cbk_t own_callback = nullptr;
