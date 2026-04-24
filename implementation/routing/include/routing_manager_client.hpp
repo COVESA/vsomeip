@@ -72,7 +72,8 @@ public:
                    event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter);
 
     void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
-    void unsubscribe_base(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+    void unsubscribe_base(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                          std::scoped_lock<std::mutex> const& _lock);
 
     bool send(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable, client_t _bound_client,
               const vsomeip_sec_client_t* _sec_client, uint8_t _status_check, bool _sent_from_remote, bool _force);
@@ -87,7 +88,6 @@ public:
                         epsilon_change_func_t _epsilon_change_func, bool _is_provided);
 
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier, bool _is_provided);
-    void unregister_event_base(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
 
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
@@ -116,13 +116,18 @@ public:
     /**
      * @brief Notify current value for event/eventgroup
      *
-     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription insertion + subscription ack/nack
+     * Caller *MUST* hold `provider_mutex_` through not only call, but also during the subscription insertion + subscription ack/nack
      */
-    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
+    void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                  std::scoped_lock<std::mutex> const& _lock);
     std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event) const;
     std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event) const;
 
 private:
+    void unregister_event_base(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
+
+    std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event,
+                                               std::scoped_lock<std::mutex> const& _lock) const;
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                      std::scoped_lock<std::mutex> const&);
 
@@ -155,9 +160,6 @@ private:
     void send_subscribe_ack(client_t _subscriber, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                             remote_subscription_id_t _id);
 
-    bool send_local_notification(client_t _client, const byte_t* _data, uint32_t _size, instance_t _instance, bool _reliable,
-                                 uint8_t _status_check, bool _force);
-
     void on_subscribe_nack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
     void on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
@@ -170,13 +172,16 @@ private:
 
     void init_receiver_side([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock);
 
-    void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
+    void notify_remote_initially(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
+                                 std::scoped_lock<std::mutex> const& _lock);
 
-    uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _increment);
-    void clear_remote_subscriber_count(service_t _service, instance_t _instance);
+    uint32_t get_remote_subscriber_count(service_t _service, instance_t _instance, eventgroup_t _eventgroup, bool _increment,
+                                         std::scoped_lock<std::mutex> const& _lock);
+    void clear_remote_subscriber_count(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const& _lock);
 
     bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _notifier,
-                                                const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
+                                                const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
+                                                std::scoped_lock<std::mutex> const& _lock);
 
     void request_debounce_timeout_cbk(boost::system::error_code const& _error);
 
@@ -233,23 +238,29 @@ private:
     /**
      * @brief insert subscription into events/eventgroups
      *
-     * Caller *MUST* hold `subscription_mutex` through not only call, but also during the subscription ack/nack and initial events
+     * Caller *MUST* hold `provider_mutex_` through not only call, but also during the subscription ack/nack and initial events
      */
     bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
+                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
+                             std::scoped_lock<std::mutex> const& _lock);
 
     std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                            instance_t _instance, eventgroup_t _eventgroup, bool _is_provided);
-    void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                 minor_version_t _minor);
+    void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                                 std::scoped_lock<std::mutex> const& _lock);
 
-    void clear_service_info(service_t _service, instance_t _instance);
+    void clear_service_info(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const& _lock);
     std::shared_ptr<serviceinfo> find_service(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
-    void register_event_base(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
-                             const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
-                             std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                             epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_cache_placeholder);
+    void register_provider_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
+                                 const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
+                                 std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
+                                 epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder,
+                                 std::scoped_lock<std::mutex> const& _lock);
+    void register_consumer_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
+                                 const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
+                                 std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
+                                 epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder);
 
     // event_dispatcher iface
     session_t get_event_session() override;
@@ -316,9 +327,6 @@ private:
     std::mutex pending_event_registrations_mutex_;
     std::set<event_data_t> pending_event_registrations_;
 
-    std::mutex remote_subscriber_count_mutex_;
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, uint32_t>>> remote_subscriber_count_;
-
     boost::asio::steady_timer request_debounce_timer_;
     std::atomic<bool> request_debounce_timer_running_;
 
@@ -329,12 +337,8 @@ private:
 
     std::shared_ptr<routing_client_state_machine> state_machine_;
 
-    // covers subscriptions (e.g., state in `insert_subscription`) and anything that uses subscription state, namely `notify`
-    std::mutex subscription_mutex;
-
     std::mutex event_registration_mutex_;
 
-    std::mutex stop_mutex_;
     std::mutex lazy_load_mtx_;
 
     std::shared_ptr<timer> sender_debounce_;
@@ -349,6 +353,7 @@ private:
     services_t provided_services_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
     eventgroups_t provided_eventgroups_;
+    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, uint32_t>>> remote_subscriber_count_;
 
     // This mutex should be used whenever the client
     // is trying to access data relevant for its "consumer" side

@@ -30,10 +30,11 @@
 
 namespace vsomeip_v3 {
 
-event::event(boost::asio::io_context& _io, event_dispatcher& _dispatcher, bool _is_shadow) :
-    dispatcher_(_dispatcher), current_(runtime::get()->create_notification()), update_(runtime::get()->create_notification()),
-    type_(event_type_e::ET_EVENT), cycle_timer_(_io), cycle_(std::chrono::milliseconds::zero()), change_resets_cycle_(false),
-    is_updating_on_change_(true), is_set_(false), is_provided_(false), is_shadow_(_is_shadow), is_cache_placeholder_(false),
+event::event(boost::asio::io_context& _io, event_dispatcher& _dispatcher, bool _is_shadow, bool _is_router_event) :
+    is_router_event_(_is_router_event), dispatcher_(_dispatcher), current_(runtime::get()->create_notification()),
+    update_(runtime::get()->create_notification()), type_(event_type_e::ET_EVENT), cycle_timer_(_io),
+    cycle_(std::chrono::milliseconds::zero()), change_resets_cycle_(false), is_updating_on_change_(true), is_set_(false),
+    is_provided_(false), is_shadow_(_is_shadow), is_cache_placeholder_(false),
     epsilon_change_func_(std::bind(&event::has_changed, this, std::placeholders::_1, std::placeholders::_2)),
     has_default_epsilon_change_func_(true), reliability_(reliability_type_e::RT_UNKNOWN) { }
 
@@ -313,7 +314,13 @@ void event::notify(bool _force) {
 
     if (is_set_) {
         set_session();
-        dispatcher_.send_event(VSOMEIP_ROUTING_CLIENT, update_, _force);
+        if (is_router_event_) {
+            dispatcher_.send_event(VSOMEIP_ROUTING_CLIENT, update_, _force);
+        } else {
+            for (client_t subscriber : get_filtered_subscribers(_force)) {
+                dispatcher_.send_event(subscriber, update_, _force);
+            }
+        }
     } else {
         VSOMEIP_INFO_P << "Notifying" << hex4(get_service()) << "." << hex4(get_instance()) << "." << hex4(get_event())
                        << " failed. Event payload not (yet) set!";
