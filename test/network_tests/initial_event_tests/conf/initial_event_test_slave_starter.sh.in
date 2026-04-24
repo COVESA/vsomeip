@@ -84,12 +84,10 @@ done
 echo "Starting stop service | Slave"
 # wait until all clients exited on master side
 export VSOMEIP_APPLICATION_NAME=slave_initial_event_test_stop_service
-./initial_event_test_stop_service SLAVE || FAIL=$(($FAIL+1))
+./initial_event_test_stop_service SLAVE $REMAINING_OPTIONS $PID_SERVICE_FIVE $PID_SERVICE_SIX || FAIL=$(($FAIL+1))
 
 # shutdown all clients/services
 kill $FIRST_PID
-kill $PID_SERVICE_SIX
-kill $PID_SERVICE_FIVE
 
 wait $FIRST_PID || FAIL=$(($FAIL+1))
 wait $PID_SERVICE_SIX || FAIL=$(($FAIL+1))
