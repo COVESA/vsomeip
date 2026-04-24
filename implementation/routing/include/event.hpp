@@ -31,7 +31,7 @@ struct debounce_filter_impl_t;
 
 class event : public std::enable_shared_from_this<event> {
 public:
-    event(boost::asio::io_context& _io, event_dispatcher& _dispatcher, bool _is_shadow = false);
+    event(boost::asio::io_context& _io, event_dispatcher& _dispatcher, bool _is_shadow, bool _is_router_event);
 
     service_t get_service() const;
     void set_service(service_t _service);
@@ -138,6 +138,10 @@ private:
     void set_payload_filled(const bool value);
 
 private:
+    // If true, notify() forwards to VSOMEIP_ROUTING_CLIENT for central dispatch
+    // (used by routing_manager_impl). If false, notify() iterates subscribers
+    /// directly (used by routing_manager_client for local delivery)
+    bool const is_router_event_;
     event_dispatcher& dispatcher_;
     mutable std::mutex mutex_;
 

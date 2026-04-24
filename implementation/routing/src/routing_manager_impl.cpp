@@ -3953,7 +3953,7 @@ void routing_manager_impl::register_event(client_t _client, service_t _service, 
             its_event->set_update_cycle(_cycle);
         }
     } else {
-        its_event = std::make_shared<event>(io_, *this, _is_shadow);
+        its_event = std::make_shared<event>(io_, *this, _is_shadow, true);
         its_event->set_service(_service);
         its_event->set_instance(_instance);
         its_event->set_event(_notifier);
