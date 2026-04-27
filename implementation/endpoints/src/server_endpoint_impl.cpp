@@ -517,14 +517,12 @@ void server_endpoint_impl<Protocol>::send_cbk(const endpoint_type _key, boost::s
     };
 
     message_buffer_ptr_t its_buffer;
-    if (its_data.queue_.size()) {
+    if (its_data.queue_.empty()) {
+        VSOMEIP_FATAL_P << "send_cbk called with empty queue for " << get_remote_information(_key) << " - skipping send";
+        its_data.is_sending_ = false;
+        return;
+    } else {
         its_buffer = its_data.queue_.front().first;
-    }
-
-    if (!its_buffer) {
-        // Pointer not initialized.
-        its_buffer = std::make_shared<message_buffer_t>();
-        VSOMEIP_WARNING_P << "Prevented nullptr de-reference by initializing queue buffer";
     }
 
     service_t its_service(0);
