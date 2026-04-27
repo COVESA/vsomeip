@@ -174,8 +174,8 @@ private:
 
     std::mutex lazy_load_mtx_;
 
-    std::map<client_t, std::pair<uint8_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>>>
-            routing_info_;
+    std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>> routing_info_;
+    std::map<client_t, uint8_t> watchdog_ping_counts_; // protected by routing_info_mutex_
     mutable std::mutex routing_info_mutex_;
     std::shared_ptr<configuration> configuration_;
 

@@ -617,7 +617,7 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
     std::unique_lock its_lock{routing_info_mutex_};
     auto its_info = routing_info_.find(_client);
     if (its_info != routing_info_.end()) {
-        for (const auto& its_service : its_info->second.second) {
+        for (const auto& its_service : its_info->second) {
             for (const auto& its_instance : its_service.second) {
                 const auto its_version = its_instance.second;
                 services_to_report.push_back(std::make_tuple(its_service.first, its_instance.first, its_version.first, its_version.second));
@@ -635,6 +635,7 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 
     its_lock.lock();
     routing_info_.erase(_client);
+    watchdog_ping_counts_.erase(_client);
 }
 
 void routing_manager_stub::on_offered_service_request(client_t _client, offer_type_e _offer_type) {
@@ -646,7 +647,7 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     for (const auto& found_client : routing_info_) {
         // skip services which are offered on remote hosts
         if (found_client.first != VSOMEIP_ROUTING_CLIENT) {
-            for (const auto& s : found_client.second.second) {
+            for (const auto& s : found_client.second) {
                 for (const auto& i : s.second) {
                     uint16_t its_reliable_port = configuration_->get_reliable_port(s.first, i.first);
                     uint16_t its_unreliable_port = configuration_->get_unreliable_port(s.first, i.first);
@@ -685,7 +686,8 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
     // Find or create a local endpoint.
     {
         std::scoped_lock its_lock{routing_info_mutex_};
-        routing_info_[_client].first = 0;
+        routing_info_[_client]; // ensure entry exists
+        watchdog_ping_counts_[_client] = 0;
     }
 #ifndef VSOMEIP_DISABLE_SECURITY
     // distribute updated security config to new clients
@@ -746,7 +748,7 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
                  << static_cast<int>(_major) << "." << _minor << "]";
 
     std::scoped_lock its_guard{routing_info_mutex_};
-    routing_info_[_client].second[_service][_instance] = std::make_pair(_major, _minor);
+    routing_info_[_client][_service][_instance] = std::make_pair(_major, _minor);
     if (configuration_->is_security_enabled()) {
         distribute_credentials(_client, _service, _instance);
     }
@@ -762,22 +764,22 @@ void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _se
     std::scoped_lock its_guard{routing_info_mutex_};
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {
-        auto found_service = found_client->second.second.find(_service);
-        if (found_service != found_client->second.second.end()) {
+        auto found_service = found_client->second.find(_service);
+        if (found_service != found_client->second.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 auto found_version = found_instance->second;
                 if (_major == found_version.first && _minor == found_version.second) {
                     found_service->second.erase(_instance);
                     if (0 == found_service->second.size()) {
-                        found_client->second.second.erase(_service);
+                        found_client->second.erase(_service);
                     }
                     inform_requesters(_client, _service, _instance, _major, _minor,
                                       protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
                 } else if (_major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR) {
                     found_service->second.erase(_instance);
                     if (0 == found_service->second.size()) {
-                        found_client->second.second.erase(_service);
+                        found_client->second.erase(_service);
                     }
                     inform_requesters(_client, _service, _instance, _major, _minor,
                                       protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
@@ -1042,8 +1044,8 @@ bool routing_manager_stub::contained_in_routing_info(client_t _client, service_t
     std::scoped_lock its_guard{routing_info_mutex_};
     auto found_client = routing_info_.find(_client);
     if (found_client != routing_info_.end()) {
-        auto found_service = found_client->second.second.find(_service);
-        if (found_service != found_client->second.second.end()) {
+        auto found_service = found_client->second.find(_service);
+        if (found_service != found_client->second.end()) {
             auto found_instance = found_service->second.find(_instance);
             if (found_instance != found_service->second.end()) {
                 if (found_instance->second.first == _major && found_instance->second.second == _minor) {
@@ -1085,7 +1087,7 @@ void routing_manager_stub::on_pong(client_t _client) {
         std::scoped_lock its_lock{routing_info_mutex_};
         auto found_info = routing_info_.find(_client);
         if (found_info != routing_info_.end()) {
-            found_info->second.first = 0;
+            watchdog_ping_counts_[_client] = 0;
         } else {
             VSOMEIP_ERROR_P << "Received PONG from unregistered application: " << hex4(_client);
         }
@@ -1114,7 +1116,7 @@ void routing_manager_stub::check_watchdog() {
     {
         std::scoped_lock its_guard{routing_info_mutex_};
         for (auto i = routing_info_.begin(); i != routing_info_.end(); ++i) {
-            i->second.first++;
+            watchdog_ping_counts_[i->first]++;
         }
     }
     broadcast_ping();
@@ -1125,7 +1127,7 @@ void routing_manager_stub::check_watchdog() {
             std::scoped_lock its_lock{routing_info_mutex_};
             for (const auto& i : routing_info_) {
                 if (i.first > 0) {
-                    if (i.second.first > configuration_->get_allowed_missing_pongs()) {
+                    if (watchdog_ping_counts_[i.first] > configuration_->get_allowed_missing_pongs()) {
                         VSOMEIP_WARNING << "Lost contact to application " << hex4(i.first);
                         // Trigger the error under the routing_info_mutex_, to ensure that a concurrent clean-up
                         // of the client is not racing with this watchdog.
@@ -1334,8 +1336,8 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
         for (const client_t c : its_clients) {
             const auto found_client = routing_info_.find(c);
             if (found_client != routing_info_.end()) {
-                const auto found_service = found_client->second.second.find(request.service_);
-                if (found_service != found_client->second.second.end()) {
+                const auto found_service = found_client->second.find(request.service_);
+                if (found_service != found_client->second.end()) {
                     if (request.instance_ == ANY_INSTANCE) {
                         for (auto instance : found_service->second) {
                             protocol::routing_info_entry its_entry;
