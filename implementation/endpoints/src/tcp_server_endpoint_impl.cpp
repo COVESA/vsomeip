@@ -183,11 +183,7 @@ bool tcp_server_endpoint_impl::send_error(const std::shared_ptr<endpoint_definit
         its_data.queue_size_ += _size;
 
         if (!its_data.is_sending_) { // no writing in progress
-            bool must_erase = send_queued(its_target_iterator);
-            if (must_erase) {
-                targets_.erase(its_target_iterator);
-            }
-            return must_erase;
+            return send_queued(its_target_iterator);
         }
     }
     return false;
@@ -604,12 +600,15 @@ bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
 
     _it->second.is_sending_ = true;
 
-    socket_->async_write(
-            boost::asio::buffer(*its_buffer),
-            std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition, shared_from_this(), std::placeholders::_1,
-                      std::placeholders::_2, its_buffer->size(), its_service, its_method, its_client, its_session,
-                      std::chrono::steady_clock::now()),
-            std::bind(&tcp_server_endpoint_base_impl::send_cbk, its_server, _it->first, std::placeholders::_1, std::placeholders::_2));
+    socket_->async_write(boost::asio::buffer(*its_buffer),
+                         std::bind(&tcp_server_endpoint_impl::connection::write_completion_condition, shared_from_this(),
+                                   std::placeholders::_1, std::placeholders::_2, its_buffer->size(), its_service, its_method, its_client,
+                                   its_session, std::chrono::steady_clock::now()),
+                         // Capture its_buffer by value to guarantee the vector stays alive for the entire
+                         // duration of the async write.
+                         [its_buffer, its_server, remote = _it->first](const boost::system::error_code& _error, std::size_t _bytes) {
+                             its_server->send_cbk(remote, _error, _bytes);
+                         });
 
     return true;
 }
