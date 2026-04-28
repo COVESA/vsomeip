@@ -2204,6 +2204,11 @@ void application_impl::remove_subscription(service_t _service, instance_t _insta
 }
 
 bool application_impl::check_for_active_subscription(service_t _service, instance_t _instance, event_t _event) {
+
+    // Call find_consumed_event before acquiring subscriptions_mutex_ to avoid
+    // lock-order-inversion: consumer_mutex_ (inside find_consumed_event) vs
+    // subscriptions_mutex_ (acquired below).
+    auto its_event = routing_->find_consumed_event(_service, _instance, _event);
     std::scoped_lock its_lock{subscriptions_mutex_};
     auto found_service = subscriptions_.find(_service);
     if (found_service != subscriptions_.end()) {
@@ -2223,18 +2228,15 @@ bool application_impl::check_for_active_subscription(service_t _service, instanc
                 // the received event's eventgroups
                 auto found_any_event = found_instance->second.find(ANY_EVENT);
                 if (found_any_event != found_instance->second.end()) {
-                    if (routing_) {
-                        std::shared_ptr<event> its_event = routing_->find_consumed_event(_service, _instance, _event);
-                        if (its_event) {
-                            for (const auto eg : its_event->get_eventgroups()) {
-                                auto found_eventgroup = found_any_event->second.find(eg);
-                                if (found_eventgroup != found_any_event->second.end()) {
-                                    // set the flag for initial event received to true
-                                    // even if we might not already received all of the
-                                    // eventgroups events.
-                                    found_eventgroup->second = true;
-                                    return true;
-                                }
+                    if (its_event) {
+                        for (const auto eg : its_event->get_eventgroups()) {
+                            auto found_eventgroup = found_any_event->second.find(eg);
+                            if (found_eventgroup != found_any_event->second.end()) {
+                                // set the flag for initial event received to true
+                                // even if we might not already received all of the
+                                // eventgroups events.
+                                found_eventgroup->second = true;
+                                return true;
                             }
                         }
                     }

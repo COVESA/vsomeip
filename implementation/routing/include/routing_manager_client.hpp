@@ -128,6 +128,8 @@ private:
 
     std::shared_ptr<event> find_provided_event(service_t _service, instance_t _instance, event_t _event,
                                                std::scoped_lock<std::mutex> const& _lock) const;
+    std::shared_ptr<event> find_consumed_event(service_t _service, instance_t _instance, event_t _event,
+                                               std::scoped_lock<std::mutex> const& _lock) const;
     void remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                      std::scoped_lock<std::mutex> const&);
 
@@ -260,7 +262,8 @@ private:
     void register_consumer_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                                  const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                                  std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                                 epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder);
+                                 epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder,
+                                 std::scoped_lock<std::mutex> const& _lock);
 
     // event_dispatcher iface
     session_t get_event_session() override;
@@ -337,8 +340,6 @@ private:
 
     std::shared_ptr<routing_client_state_machine> state_machine_;
 
-    std::mutex event_registration_mutex_;
-
     std::mutex lazy_load_mtx_;
 
     std::shared_ptr<timer> sender_debounce_;
@@ -361,7 +362,6 @@ private:
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
     local_service_table available_services_;
     std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
-    mutable std::mutex consumed_events_mutex_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> consumed_events_;
     eventgroups_t consumed_eventgroups_;
 

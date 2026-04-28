@@ -544,8 +544,9 @@ void routing_manager_client::register_event(client_t _client, service_t _service
         register_provider_event(_client, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle, _change_resets_cycle,
                                 _update_on_change, _epsilon_change_func, false, its_lock);
     } else if (is_first) {
+        std::scoped_lock its_lock{consumer_mutex_};
         register_consumer_event(_client, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle, _change_resets_cycle,
-                                _update_on_change, _epsilon_change_func, false);
+                                _update_on_change, _epsilon_change_func, false, its_lock);
     }
     if (state_machine_->state() == routing_client_state_e::ST_REGISTERED && is_first) {
         send_register_event(get_client(), _service, _instance, _notifier, _eventgroups, _type, _reliability, _is_provided, is_cyclic);
@@ -1865,23 +1866,24 @@ void routing_manager_client::cache_event_payload(const std::shared_ptr<message>&
     const service_t its_service(_message->get_service());
     const instance_t its_instance(_message->get_instance());
     const method_t its_method(_message->get_method());
-    std::shared_ptr<event> its_event = find_consumed_event(its_service, its_instance, its_method);
+
+    bool is_new_placeholder(false);
+    std::scoped_lock its_lock(consumer_mutex_);
+    auto its_event = find_consumed_event(its_service, its_instance, its_method, its_lock);
+    if (!its_event) {
+        // we received an event which was not yet requested.
+        // create a placeholder until someone requests this event with
+        // full information like eventgroup, field or not etc.
+        std::set<eventgroup_t> its_eventgroups;
+        register_consumer_event(host_->get_client(), its_service, its_instance, its_method, its_eventgroups, event_type_e::ET_UNKNOWN,
+                                reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, true, its_lock);
+        its_event = find_consumed_event(its_service, its_instance, its_method, its_lock);
+        is_new_placeholder = true;
+    }
     if (its_event) {
-        if (its_event->is_field()) {
+        if (is_new_placeholder || its_event->is_field()) {
             its_event->prepare_update_payload(_message->get_payload(), true);
             its_event->update_payload();
-        }
-    } else {
-        // we received a event which was not yet requested
-        std::set<eventgroup_t> its_eventgroups;
-        // create a placeholder field until someone requests this event with
-        // full information like eventgroup, field or not etc.
-        register_consumer_event(host_->get_client(), its_service, its_instance, its_method, its_eventgroups, event_type_e::ET_UNKNOWN,
-                                reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, true);
-        std::shared_ptr<event> its_event_inner = find_consumed_event(its_service, its_instance, its_method);
-        if (its_event_inner) {
-            its_event_inner->prepare_update_payload(_message->get_payload(), true);
-            its_event_inner->update_payload();
         }
     }
 }
@@ -1890,21 +1892,16 @@ void routing_manager_client::on_stop_offer_service(service_t _service, instance_
                                                    minor_version_t _minor) {
     (void)_major;
     (void)_minor;
-    std::map<event_t, std::shared_ptr<event>> events;
-    {
-        std::scoped_lock its_lock{consumed_events_mutex_};
-        const auto search = consumed_events_.find(service_instance_t{_service, _instance});
-        if (search != consumed_events_.end()) {
-            for (const auto& [event_id, event_ptr] : search->second) {
-                events[event_id] = event_ptr;
-            }
-        }
+    std::scoped_lock its_lock{consumer_mutex_};
+    const auto search = consumed_events_.find(service_instance_t{_service, _instance});
+    if (search == consumed_events_.end()) {
+        return;
     }
-    for (auto& e : events) {
-        if (e.second->is_set()) {
-            VSOMEIP_INFO_P << "Unsetting payload for [" << hex4(_service) << "." << _instance << "." << e.first << "]";
+    for (const auto& [event_id, event_ptr] : search->second) {
+        if (event_ptr->is_set()) {
+            VSOMEIP_INFO_P << "Unsetting payload for [" << hex4(_service) << "." << _instance << "." << event_id << "]";
         }
-        e.second->unset_payload();
+        event_ptr->unset_payload();
     }
 }
 
@@ -2639,9 +2636,8 @@ void routing_manager_client::register_consumer_event(client_t _client, service_t
                                                      const std::set<eventgroup_t>& _eventgroups, const event_type_e _type,
                                                      reliability_type_e _reliability, std::chrono::milliseconds _cycle,
                                                      bool _change_resets_cycle, bool _update_on_change,
-                                                     epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder) {
-
-    std::scoped_lock its_registration_lock(event_registration_mutex_);
+                                                     epsilon_change_func_t _epsilon_change_func, bool _is_cache_placeholder,
+                                                     std::scoped_lock<std::mutex> const& _lock) {
 
     auto determine_event_reliability = [this, &_service, &_instance, &_notifier, &_reliability]() {
         reliability_type_e its_reliability = configuration_->get_event_reliability(_service, _instance, _notifier);
@@ -2656,7 +2652,7 @@ void routing_manager_client::register_consumer_event(client_t _client, service_t
         }
     };
 
-    auto its_event = find_consumed_event(_service, _instance, _notifier);
+    auto its_event = find_consumed_event(_service, _instance, _notifier, _lock);
     bool transfer_subscriptions_from_any_event(false);
     if (its_event) {
         if (!its_event->is_cache_placeholder()) {
@@ -2725,7 +2721,8 @@ void routing_manager_client::register_consumer_event(client_t _client, service_t
         // check if someone subscribed to ANY_EVENT and the subscription
         // was stored in the cache placeholder. Move the subscribers
         // into new event
-        auto its_any_event = find_consumed_event(_service, _instance, ANY_EVENT);
+
+        auto its_any_event = find_consumed_event(_service, _instance, ANY_EVENT, _lock);
         if (its_any_event) {
             std::set<eventgroup_t> any_events_eventgroups = its_any_event->get_eventgroups();
             for (eventgroup_t eventgroup : _eventgroups) {
@@ -2744,20 +2741,17 @@ void routing_manager_client::register_consumer_event(client_t _client, service_t
     }
 
     for (auto eg : _eventgroups) {
-        auto its_eventgroupinfo = find_eventgroup(_service, _instance, eg, false);
+        auto its_eventgroupinfo = find_eventgroup(consumed_eventgroups_, _service, _instance, eg, _lock);
         if (!its_eventgroupinfo) {
             its_eventgroupinfo = std::make_shared<eventgroupinfo>();
             its_eventgroupinfo->set_service(_service);
             its_eventgroupinfo->set_instance(_instance);
             its_eventgroupinfo->set_eventgroup(eg);
             its_eventgroupinfo->set_max_remote_subscribers(configuration_->get_max_remote_subscribers());
-            std::scoped_lock lck(consumer_mutex_);
             consumed_eventgroups_[service_instance_t{_service, _instance}][eg] = its_eventgroupinfo;
         }
         its_eventgroupinfo->add_event(its_event);
     }
-
-    std::scoped_lock its_lock(consumed_events_mutex_);
     consumed_events_[service_instance_t{_service, _instance}][_notifier] = its_event;
 }
 
@@ -2926,7 +2920,7 @@ void routing_manager_client::unregister_event_base(client_t _client, service_t _
         std::scoped_lock its_lock(provider_mutex_);
         remove_client_ref(provided_events_);
     } else {
-        std::scoped_lock its_lock(consumed_events_mutex_);
+        std::scoped_lock its_lock(consumer_mutex_);
         remove_client_ref(consumed_events_);
     }
 
@@ -3159,7 +3153,11 @@ std::shared_ptr<event> routing_manager_client::find_provided_event(service_t _se
 }
 
 std::shared_ptr<event> routing_manager_client::find_consumed_event(service_t _service, instance_t _instance, event_t _event) const {
-    std::scoped_lock its_lock(consumed_events_mutex_);
+    std::scoped_lock its_lock(consumer_mutex_);
+    return find_consumed_event(_service, _instance, _event, its_lock);
+}
+std::shared_ptr<event> routing_manager_client::find_consumed_event(service_t _service, instance_t _instance, event_t _event,
+                                                                   [[maybe_unused]] std::scoped_lock<std::mutex> const& _lock) const {
     std::shared_ptr<event> its_event;
     if (const auto search = consumed_events_.find(service_instance_t{_service, _instance}); search != consumed_events_.end()) {
         const auto found_event = search->second.find(_event);
