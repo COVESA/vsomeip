@@ -4,119 +4,65 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <cstdlib>
-#include <iomanip>
 #include "common/test_main.hpp"
 
 #include "header_factory_test_service.hpp"
 
-header_factory_test_service::header_factory_test_service(bool _use_static_routing) :
-    app_(vsomeip::runtime::get()->create_application()), is_registered_(false), use_static_routing_(_use_static_routing), blocked_(false),
-    number_of_received_messages_(0), offer_thread_(std::bind(&header_factory_test_service::run, this)) { }
+header_factory_test_service::header_factory_test_service() :
+    app_(vsomeip::runtime::get()->create_application()), number_of_received_messages_(0) { }
 
-bool header_factory_test_service::init() {
-    std::scoped_lock its_lock(mutex_);
-
+void header_factory_test_service::start() {
     if (!app_->init()) {
         ADD_FAILURE() << "Couldn't initialize application";
-        return false;
+        return;
     }
     app_->register_message_handler(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID,
                                    vsomeip_test::TEST_SERVICE_METHOD_ID,
                                    std::bind(&header_factory_test_service::on_message, this, std::placeholders::_1));
 
-    app_->register_state_handler(std::bind(&header_factory_test_service::on_state, this, std::placeholders::_1));
-
-    VSOMEIP_INFO << "Static routing " << (use_static_routing_ ? "ON" : "OFF");
-    return true;
-}
-
-void header_factory_test_service::start() {
-    VSOMEIP_INFO << "Starting...";
+    app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
     app_->start();
 }
 
-void header_factory_test_service::join_offer_thread() {
-    offer_thread_.join();
-}
-
-void header_factory_test_service::offer() {
-    app_->offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-}
-
-void header_factory_test_service::stop_offer() {
-    app_->stop_offer_service(vsomeip_test::TEST_SERVICE_SERVICE_ID, vsomeip_test::TEST_SERVICE_INSTANCE_ID);
-}
-
-void header_factory_test_service::on_state(vsomeip::state_type_e _state) {
-    VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-                 << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
-
-    if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-        if (!is_registered_) {
-            is_registered_ = true;
-            std::scoped_lock its_lock(mutex_);
-            blocked_ = true;
-            // "start" the run method thread
-            condition_.notify_one();
-        }
-    } else {
-        is_registered_ = false;
-    }
-}
-
 void header_factory_test_service::on_message(const std::shared_ptr<vsomeip::message>& _request) {
-    VSOMEIP_INFO << "Received a message with Client/Session [" << std::hex << std::setfill('0') << std::setw(4) << _request->get_client()
-                 << "/" << std::setw(4) << _request->get_session() << "]";
+    bool stop = false;
+    {
+        std::scoped_lock its_lock(sync_mtx_);
+        VSOMEIP_INFO << "Received a message with Client/Session [" << std::hex << std::setfill('0') << std::setw(4)
+                     << _request->get_client() << "/" << std::setw(4) << _request->get_session() << "]";
 
-    number_of_received_messages_++;
+        number_of_received_messages_++;
 
-    ASSERT_EQ(_request->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
-    ASSERT_EQ(_request->get_method(), vsomeip_test::TEST_SERVICE_METHOD_ID);
+        ASSERT_EQ(_request->get_service(), vsomeip_test::TEST_SERVICE_SERVICE_ID);
+        ASSERT_EQ(_request->get_method(), vsomeip_test::TEST_SERVICE_METHOD_ID);
 
-    // Check the protocol version this shall be set to 0x01 according to the spec.
-    // TR_SOMEIP_00052
-    ASSERT_EQ(_request->get_protocol_version(), 0x01);
-    // Check the message type this shall be 0xx (REQUEST) according to the spec.
-    // TR_SOMEIP_00055
-    ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
+        // Check the protocol version this shall be set to 0x01 according to the spec.
+        // TR_SOMEIP_00052
+        ASSERT_EQ(_request->get_protocol_version(), 0x01);
+        // Check the message type this shall be 0x00 (REQUEST) according to the spec.
+        // TR_SOMEIP_00055
+        ASSERT_EQ(_request->get_message_type(), vsomeip::message_type_e::MT_REQUEST);
 
-    // check the session id.
-    ASSERT_EQ(_request->get_session(), static_cast<vsomeip::session_t>(number_of_received_messages_));
+        // check the session id.
+        ASSERT_EQ(_request->get_session(), static_cast<vsomeip::session_t>(number_of_received_messages_));
 
-    // send response
-    std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_request);
+        // send response
+        std::shared_ptr<vsomeip::message> its_response = vsomeip::runtime::get()->create_response(_request);
 
-    app_->send(its_response);
+        app_->send(its_response);
 
-    if (number_of_received_messages_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND) {
-        std::scoped_lock its_lock(mutex_);
-        blocked_ = true;
-        condition_.notify_one();
+        if (number_of_received_messages_ >= vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND) {
+            stop = true;
+        }
     }
-    ASSERT_LT(number_of_received_messages_, vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND + 1);
-}
-
-void header_factory_test_service::run() {
-    std::unique_lock its_lock(mutex_);
-    condition_.wait(its_lock, [this] { return blocked_; });
-    blocked_ = false;
-    if (use_static_routing_) {
-        offer();
+    if (stop) {
+        app_->stop();
     }
-    condition_.wait(its_lock, [this] { return blocked_; });
-
-    VSOMEIP_INFO << "Stopping...";
-
-    app_->stop();
 }
 
 TEST(someip_header_factory_test, receive_message_ten_times_test) {
-    bool use_static_routing = true;
-    header_factory_test_service test_service(use_static_routing);
-    if (test_service.init()) {
-        test_service.start();
-        test_service.join_offer_thread();
-    }
+    header_factory_test_service test_service;
+    test_service.start();
 }
 
 #if defined(__linux__) || defined(__QNX__)

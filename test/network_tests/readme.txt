@@ -104,38 +104,6 @@ The expected result is an output like this on service side:
 2015-02-10 08:42:07.361672 [error] Detected Magic Cookie within message data. Resyncing.
 2015-02-10 08:42:07.361761 [info] Received a message with Client/Session [1343/000f]
 
-Header Factory Tests
---------------------
-
-The following things are tested:
-a) create request
-    --> check  "Protocol Version" / "Message Type" / "Return Type" fields
-b) create request, fill header, create response
-    --> compare header fields of request & response
-c) create notification
-    --> check  "Protocol Version" / "Message Type" / "Return Type" fields
-d) create message, fill header (service/instance/method/interface version/message type)
-    --> send message 10 times
-    --> receive message and check client id / session id
-
-a) to c) are combined in one binary. d) is composed out of a client and service.
-
-To start the header factory tests from the build directory do:
-
-Automatic start from build directory:
-ctest -V -R header_factory_test
-
-Manual start from build directory:
-cd test
-./header_factory_test
-# Start client and service separately
-./header_factory_test_service_start.sh &
-./header_factory_test_client_start.sh
-# Alternatively start client and service with one script
-./header_factory_test_send_receive_starter.sh
-
-All tests should be marked as "passed".
-
 Routing Tests
 -------------
 

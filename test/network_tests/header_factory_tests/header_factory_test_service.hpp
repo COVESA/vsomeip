@@ -8,34 +8,19 @@
 
 #include <vsomeip/vsomeip.hpp>
 
-#include <thread>
 #include <mutex>
-#include <condition_variable>
-#include <functional>
 
 #include "../someip_test_globals.hpp"
 #include <common/vsomeip_app_utilities.hpp>
 
 class header_factory_test_service {
 public:
-    header_factory_test_service(bool _use_static_routing);
-    bool init();
+    header_factory_test_service();
     void start();
-    void offer();
-    void stop_offer();
-    void join_offer_thread();
-    void on_state(vsomeip::state_type_e _state);
     void on_message(const std::shared_ptr<vsomeip::message>& _request);
-    void run();
 
 private:
     std::shared_ptr<vsomeip::application> app_;
-    bool is_registered_;
-    bool use_static_routing_;
-
-    std::mutex mutex_;
-    std::condition_variable condition_;
-    bool blocked_;
+    std::mutex sync_mtx_;
     std::uint32_t number_of_received_messages_;
-    std::thread offer_thread_;
 };
