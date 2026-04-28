@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-cmake_minimum_required(VERSION 3.4...3.22)
+cmake_minimum_required(VERSION 3.13...3.28)
 project (vsomeip)
 
 set (VSOMEIP_NAME vsomeip3)
@@ -299,9 +299,9 @@ add_definitions(-DVSOMEIP_GIT_COMMIT="${VSOMEIP_GIT_COMMIT}@${VSOMEIP_GIT_BRANCH
 if (MSVC)
     message("using MSVC Compiler")
     # add_definitions(-DVSOMEIP_DLL_COMPILATION) now it is controlled per target
-    SET(BOOST_WINDOWS_VERSION "0x600" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (normaly 0x600 is for Windows 7 and 0x501 is for Windows XP)")
+    SET(BOOST_WINDOWS_VERSION "0x0A00" CACHE STRING "Set the same Version as the Version with which Boost was built, otherwise there will be errors. (0x0A00 is for Windows 10 and 0x0601 is for Windows 7)")
     # Disable warning C4250 since it warns that the compiler is correctly following the C++ Standard. It's a "We-Are-Doing-Things-By-The-Book" notice, not a real warning.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -D_WIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /wd4250")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS -D_WIN32_WINNT=${BOOST_WINDOWS_VERSION} -DWIN32 -D_WIN32 -DBOOST_ASIO_DISABLE_IOCP /EHsc /wd4250")
     set(USE_RT "")
     link_directories(${Boost_LIBRARY_DIR_DEBUG})
     add_compile_options(/MD$<$<CONFIG:Debug>:d>)
@@ -391,6 +391,9 @@ if (MSVC)
     set_target_properties(${VSOMEIP_NAME}-internal PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
     set_target_properties(${VSOMEIP_NAME} PROPERTIES COMPILE_DEFINITIONS "VSOMEIP_DLL_COMPILATION")
     set_target_properties(${VSOMEIP_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    # Boost.Asio 1.75 emits boost::asio::dummy_return<void>() as a non-inline
+    # symbol in every TU when BOOST_ASIO_DISABLE_IOCP is defined, causing LNK2005.
+    target_link_options(${VSOMEIP_NAME} PRIVATE "/FORCE:MULTIPLE")
 else ()
     if(${CMAKE_SYSTEM_NAME} MATCHES "QNX")
         # add syscall wrappers to deal with CLOEXEC

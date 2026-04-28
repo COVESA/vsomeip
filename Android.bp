@@ -55,6 +55,10 @@ cc_defaults {
     cflags: [
         "-DVSOMEIP_BOOST_VERSION=107500",
         "-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED",
+        // std::result_of was removed in C++20; force Boost.Asio 1.75 to use
+        // std::invoke_result instead (supported since Boost 1.74).
+        // Can be removed when upgrading to boost >= 1.78
+        "-DBOOST_ASIO_HAS_STD_INVOKE_RESULT",
     ],
 
     local_include_dirs: [
