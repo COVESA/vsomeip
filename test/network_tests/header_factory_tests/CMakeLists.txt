@@ -7,11 +7,8 @@ project(header_factory_tests LANGUAGES CXX)
 
 # Configure necessary files into the build directory.
 set(configuration_files
-    header_factory_test_client.json
-    header_factory_test_client_start.sh
+    header_factory_test.json
     header_factory_test_send_receive_starter.sh
-    header_factory_test_service.json
-    header_factory_test_service_start.sh
 )
 configure_files("${configuration_files}")
 
