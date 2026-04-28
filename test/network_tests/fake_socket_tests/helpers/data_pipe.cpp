@@ -186,7 +186,6 @@ void data_pipe::push_checked_data(std::scoped_lock<std::mutex> const&) {
 }
 
 void data_pipe::push_through(std::scoped_lock<std::mutex> const&) {
-    data_to_forward_.reserve(data_to_forward_.size() + input_data_.size());
     std::copy(input_data_.begin(), input_data_.end(), std::back_inserter(data_to_forward_));
     input_data_.clear();
 }

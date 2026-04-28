@@ -17,6 +17,7 @@
 #include <mutex>
 #include <functional>
 #include <optional>
+#include <deque>
 
 namespace vsomeip_v3::testing {
 
@@ -112,8 +113,8 @@ private:
     local_message_checker_t checker_{nullptr};
     external_message_checker_t external_checker_{nullptr};
     open_reaction_t open_reaction_;
-    std::vector<control_data_t> input_data_;
-    std::vector<control_data_t> data_to_forward_;
+    std::deque<control_data_t> input_data_;
+    std::deque<control_data_t> data_to_forward_;
 
     mutable std::mutex mtx_;
 };

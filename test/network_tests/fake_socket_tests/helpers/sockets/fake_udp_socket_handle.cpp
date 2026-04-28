@@ -327,11 +327,12 @@ void fake_udp_socket_handle::update_sending() {
         return std::make_pair(socket_manager_.lock(), sender_pipe_);
     }();
 
-    if (sm_pipe.first && sm_pipe.second->size() != 0) {
-        control_data_t input;
-        if (!sm_pipe.second->fetch_data(input)) {
-            return;
-        }
+    if (!sm_pipe.first || !sm_pipe.second) {
+        return;
+    }
+
+    control_data_t input;
+    while (sm_pipe.second->fetch_data(input)) {
         sm_pipe.first->send_someip(input.buffer_, input.addresses_->src_, input.addresses_->dst_);
     }
 }
