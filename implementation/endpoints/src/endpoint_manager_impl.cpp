@@ -21,6 +21,7 @@
 #include "../include/virtual_server_endpoint_impl.hpp"
 #include "../include/endpoint_definition.hpp"
 #include "../../protocol/include/config_command.hpp"
+#include "../../protocol/include/logging.hpp"
 #include "../../routing/include/routing_manager_base.hpp"
 #include "../../routing/include/routing_manager_impl.hpp"
 #include "../../routing/include/routing_host.hpp"
@@ -1602,5 +1603,21 @@ bool endpoint_manager_impl::get_guest(client_t _client, boost::asio::ip::address
         }
     }
     return false;
+}
+
+void endpoint_manager_impl::broadcast_locally(const std::vector<byte_t>& _command) {
+    if (_command.empty()) {
+        return;
+    }
+    if (std::numeric_limits<uint32_t>::max() < _command.size()) {
+        VSOMEIP_ERROR_P << "Failed to broadcast command: " << protocol::read_command_id(_command.data(), _command.size())
+                        << ", as the message exceeded the max length";
+        return;
+    }
+    std::scoped_lock its_lock{routing_endpoint_mtx_};
+    auto const size = static_cast<uint32_t>(_command.size());
+    for (auto const& [id, ep] : routing_endpoints_) {
+        ep->send(&_command[0], size);
+    }
 }
 } // namespace vsomeip_v3

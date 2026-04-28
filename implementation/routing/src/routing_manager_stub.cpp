@@ -902,15 +902,8 @@ bool routing_manager_stub::has_client_requested(client_t _client, service_t _ser
 }
 
 void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const {
-    std::scoped_lock its_guard{routing_info_mutex_};
-    for (const auto& a : routing_info_) {
-        if (a.first != VSOMEIP_ROUTING_CLIENT) {
-            if (auto its_endpoint = find_local_routing_endpoint(a.first); its_endpoint) {
-                send_local(its_endpoint, _command);
-            } else {
-                VSOMEIP_WARNING_P << "Failed for client 0x" << hex4(a.first) << ", as no routing connection was given";
-            }
-        }
+    if (auto epm = host_->get_endpoint_manager(); epm) {
+        epm->broadcast_locally(_command);
     }
 }
 
@@ -1085,9 +1078,8 @@ void routing_manager_stub::on_ping(client_t _client) {
 void routing_manager_stub::on_pong(client_t _client) {
     {
         std::scoped_lock its_lock{routing_info_mutex_};
-        auto found_info = routing_info_.find(_client);
-        if (found_info != routing_info_.end()) {
-            watchdog_ping_counts_[_client] = 0;
+        if (auto found_info = watchdog_ping_counts_.find(_client); found_info != watchdog_ping_counts_.end()) {
+            found_info->second = 0;
         } else {
             VSOMEIP_ERROR_P << "Received PONG from unregistered application: " << hex4(_client);
         }
@@ -1115,8 +1107,8 @@ void routing_manager_stub::start_watchdog() {
 void routing_manager_stub::check_watchdog() {
     {
         std::scoped_lock its_guard{routing_info_mutex_};
-        for (auto i = routing_info_.begin(); i != routing_info_.end(); ++i) {
-            watchdog_ping_counts_[i->first]++;
+        for (auto& [id, count] : watchdog_ping_counts_) {
+            ++count;
         }
     }
     broadcast_ping();
@@ -1125,13 +1117,13 @@ void routing_manager_stub::check_watchdog() {
         (void)_error;
         {
             std::scoped_lock its_lock{routing_info_mutex_};
-            for (const auto& i : routing_info_) {
-                if (i.first > 0) {
-                    if (watchdog_ping_counts_[i.first] > configuration_->get_allowed_missing_pongs()) {
-                        VSOMEIP_WARNING << "Lost contact to application " << hex4(i.first);
+            for (const auto& [id, count] : watchdog_ping_counts_) {
+                if (id > 0) {
+                    if (count > configuration_->get_allowed_missing_pongs()) {
+                        VSOMEIP_WARNING << "Lost contact to application " << hex4(id);
                         // Trigger the error under the routing_info_mutex_, to ensure that a concurrent clean-up
                         // of the client is not racing with this watchdog.
-                        if (auto ep = host_->get_endpoint_manager()->find_routing_endpoint(i.first); ep) {
+                        if (auto ep = host_->get_endpoint_manager()->find_routing_endpoint(id); ep) {
                             ep->trigger_error();
                         }
                     }
