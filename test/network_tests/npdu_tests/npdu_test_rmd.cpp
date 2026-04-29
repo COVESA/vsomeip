@@ -100,12 +100,12 @@ void npdu_test_rmd::on_message_shutdown(const std::shared_ptr<vsomeip::message>&
     app_->stop_offer_service(npdu_test::RMD_SERVICE_ID_SERVICE_SIDE, npdu_test::RMD_INSTANCE_ID);
 
     VSOMEIP_INFO << "Wait a few seconds until all services are shutdown.";
-    std::atomic<bool> finished(false);
-    for (int i = 0; !finished && i < 200; i++) {
+    auto finished = std::make_shared<std::atomic<bool>>(false);
+    for (int i = 0; !*finished && i < 200; i++) {
         app_->get_offered_services_async(vsomeip::offer_type_e::OT_REMOTE,
-                                         [&finished](const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>>& _services) {
+                                         [finished](const std::vector<std::pair<vsomeip::service_t, vsomeip::instance_t>>& _services) {
                                              if (_services.empty()) {
-                                                 finished = true;
+                                                 *finished = true;
                                              }
                                          });
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
