@@ -9,6 +9,7 @@
 
 #include <boost/asio/ip/address.hpp>
 
+#include <cstdint>
 #include <string>
 #include <variant>
 #include <optional>
@@ -56,6 +57,11 @@ struct client_port_config {
     port_range client_ports_;
 };
 
+struct service_discovery_config {
+    std::uint32_t initial_delay_min_{10};
+    std::uint32_t initial_delay_max_{100};
+};
+
 struct ecu_config {
     /// Construct an ecu_config from the list of interfaces to offer on the boardnet.
     /// offered:      interfaces this ECU offers on the boardnet (ports auto-assigned from base_port)
@@ -72,6 +78,7 @@ struct ecu_config {
     std::optional<std::variant<local_tcp_config, std::string>> routing_config_ = std::string("routingmanagerd"); // defaults to uds
     std::optional<client_port_config> client_ports_ = client_port_config{.remote_ports_ = {30501, 30599}, .client_ports_ = {30491, 30499}};
     bool sd_{true};
+    service_discovery_config service_discovery_;
     bool uds_preferred_{false};
 };
 

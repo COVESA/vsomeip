@@ -2704,13 +2704,12 @@ void service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinf
 
                         if (!collected_offers_[its_service].size()) {
                             collected_offers_.erase(its_service_it);
+                            stop_offer_required = true;
                         }
                     }
                 }
             }
         }
-        // No need to sent out a stop offer message here as all services
-        // instances contained in the collected offers weren't broadcasted yet
     }
 
     // Delete from repetition phase offers

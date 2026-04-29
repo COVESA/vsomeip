@@ -157,14 +157,14 @@ void write_client_ports(std::ostringstream& o, const client_port_config& cp) {
     o << R"( } ])";
 }
 
-void write_service_discovery(std::ostringstream& o, bool enabled) {
+void write_service_discovery(std::ostringstream& o, bool enabled, const service_discovery_config& sd) {
     o << R"("service-discovery" : { "enable" : ")" << (enabled ? "true" : "false") << "\"";
     if (enabled) {
         o << R"(, "multicast" : "224.244.224.245")";
         o << R"(, "port" : "30490")";
         o << R"(, "protocol" : "udp")";
-        o << R"(, "initial_delay_min" : "10")";
-        o << R"(, "initial_delay_max" : "100")";
+        o << R"(, "initial_delay_min" : ")" << sd.initial_delay_min_ << "\"";
+        o << R"(, "initial_delay_max" : ")" << sd.initial_delay_max_ << "\"";
         o << R"(, "repetitions_base_delay" : "200")";
         o << R"(, "repetitions_max" : "3")";
         o << R"(, "ttl" : "3")";
@@ -225,7 +225,7 @@ std::string to_json_string(const ecu_config& cfg) {
     }
 
     o << " ";
-    write_service_discovery(o, cfg.sd_);
+    write_service_discovery(o, cfg.sd_, cfg.service_discovery_);
 
     o << " }";
 

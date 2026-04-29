@@ -20,6 +20,7 @@
 #include <vsomeip/vsomeip.hpp>
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <cstdlib>
 
 namespace vsomeip_v3::testing {
@@ -1075,5 +1076,50 @@ TEST_F(tcp_notifications, test_tcp_and_udp_boardnet_initial_event) {
 
     EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(second_checker))
             << "Failed to receive second field" << "\nRecord: " << ecu_one_client_->message_record_;
+}
+
+ecu_config configure_initial_delay(ecu_config cfg, std::uint32_t min, std::uint32_t max) {
+    cfg.service_discovery_.initial_delay_min_ = min;
+    cfg.service_discovery_.initial_delay_max_ = max;
+    return cfg;
+}
+
+struct increased_initial_delay : public base_fake_socket_fixture {
+    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", configure_initial_delay(boardnet::ecu_two_config, 10000, 10000), *socket_manager_};
+};
+
+// This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait or not.
+// To ensure we never leave the initial_phase, we configure the initial_delay to 10 seconds.
+TEST_F(increased_initial_delay, sends_stop_offer_after_find_triggered_offer) {
+    ecu_one_.add_guest({"guest_client", 0x1338});
+    ecu_two_.add_guest({"guest_server", 0x1337});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    auto* server = ecu_two_.apps_["guest_server"];
+
+    // Offer and request the service
+    server->offer(interfaces::boardnet::service_3344);
+    client->request_service(interfaces::boardnet::service_3344.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_),
+                                                           std::chrono::seconds(2)));
+
+    // Prepare Service Discovery Gate
+    std::shared_ptr<sd_gate> router_one_sd_gate = sd_gate::create();
+    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
+                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
+
+    // Stop offering the service
+    server->stop_offer(interfaces::boardnet::service_3344.instance_);
+
+    // Verify whether a StopService message was blocked or not, if it wasn't, we can safely assume it was not sent either.
+    EXPECT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
 }
 }
