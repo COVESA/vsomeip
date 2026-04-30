@@ -9,18 +9,59 @@ if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
     exit 1
 fi
 
+FLAMEGRAPH_DIR=/opt/flamegraph/
+VALGRIND_TYPE=@VALGRIND_TYPE@
+PERF_TOOL=$(find /usr/lib/linux-tools* -type f -name "perf" | head -n 1)
+
+if [ ! -f "$PERF_TOOL" ]; then
+    echo "Failed to find installation of perf."; exit 1;
+fi
+
 FAIL=0
 
-export VSOMEIP_CONFIGURATION=memory_test_client.json
-export VSOMEIP_APPLICATION_NAME="client-sample"
-./memory_test_client &
+export VSOMEIP_CONFIGURATION=memory_test_service.json
+export VSOMEIP_APPLICATION_NAME="service-sample"
+
+# If VALGRIND_TYPE is empty, run under perf; otherwise run normally
+if [ -z "${VALGRIND_TYPE}" ]; then
+    echo "[flamegraph] Starting memory_test_service under perf recording..."
+    $PERF_TOOL record -F 99 -g -o memory_test_service.perf.data -- ./memory_test_service &
+else
+    ./memory_test_service &
+fi
 PID_MASTER=$!
+echo "[flamegraph] memory_test_service started with PID=$PID_MASTER"
 
 exec_slave "./memory_test_slave_starter.sh"
 PID_SLAVE=$!
 
 wait $PID_MASTER || FAIL=$(($FAIL+1))
 wait $PID_SLAVE || FAIL=$(($FAIL+1))
+
+# Generate flamegraph from recorded perf data (only if VALGRIND_TYPE is empty)
+if [ -z "${VALGRIND_TYPE}" ] && [ -f memory_test_service.perf.data ]; then
+    echo "[flamegraph] Perf data found, generating flamegraph..."
+    # Generate interactive SVG flamegraph (open directly in any browser)
+    $PERF_TOOL script -i memory_test_service.perf.data \
+        | $FLAMEGRAPH_DIR/stackcollapse-perf.pl \
+        | $FLAMEGRAPH_DIR/flamegraph.pl > memory_test_service_flamegraph.svg
+    if [ $? -eq 0 ]; then
+        echo "[flamegraph] SVG flamegraph generated: memory_test_service_flamegraph.svg"
+    else
+        echo "[flamegraph] ERROR: SVG flamegraph generation failed!" >&2
+    fi
+
+    # Generate perf script text file for import into Firefox Profiler
+    # (profiler.firefox.com -> "Load a profile from file")
+    $PERF_TOOL script -i memory_test_service.perf.data > memory_test_service_firefox_profiler.perf
+    if [ $? -eq 0 ]; then
+        echo "[flamegraph] Firefox Profiler file generated: memory_test_service_firefox_profiler.perf"
+    else
+        echo "[flamegraph] ERROR: Firefox Profiler file generation failed!" >&2
+    fi
+elif [ -n "${VALGRIND_TYPE}" ]; then
+    echo "[flamegraph] VALGRIND_TYPE is set to '${VALGRIND_TYPE}', skipping flamegraph generation."
+fi
 
 # Check if everything went well
 exit $FAIL
