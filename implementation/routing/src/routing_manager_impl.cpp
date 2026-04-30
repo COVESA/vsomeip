@@ -524,15 +524,21 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
             // run concurrently to a call to on_subscribe_ack. Therefore the lock is acquired
             // before calling insert_subscription and released after the call to
             // handle_subscription_state.
-            std::unique_lock its_critical(remote_subscription_state_mutex_);
-            bool inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client);
-            if (const client_t its_local_client = find_local_client(_service, _instance); inserted) {
+            const client_t its_local_client = find_local_client(_service, _instance);
+            bool inserted = false;
+            {
+                std::scoped_lock its_critical(event_registration_mutex_);
+                inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, its_critical);
+                if (inserted && VSOMEIP_ROUTING_CLIENT == its_local_client) {
+                    // must be done inside lock
+                    handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
+                }
+            }
+            if (inserted) {
                 if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
                     // TODO this should be an impossible branch by now, because this would need to be offered locally
                     // by the router,
-                    handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
-                    its_critical.unlock();
-                    static const ttl_t configured_ttl(configuration_->get_sd_ttl());
+                    // lock can't be held here
                     notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
 
                     auto its_info = find_eventgroup(_service, _instance, _eventgroup);
@@ -540,17 +546,15 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
                     // is available before subscribing via SD otherwise we sent
                     // a StopSubscribe/Subscribe once the first offer is received
                     if (its_info && find_service(_service, _instance)) {
+                        static const ttl_t configured_ttl(configuration_->get_sd_ttl());
                         discovery_->subscribe(_service, _instance, _eventgroup, _major, configured_ttl,
                                               its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT, its_info);
                     }
                 } else {
-                    its_critical.unlock();
                     VSOMEIP_ERROR_P << "Router received subscription for local service from client: 0x" << hex4(_client) << ": ["
                                     << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(_event) << ":"
                                     << static_cast<int>(_major) << "]";
                 }
-            } else {
-                its_critical.unlock();
             }
         } else {
             VSOMEIP_ERROR << "SOME/IP eventgroups require SD to be enabled!";
@@ -889,9 +893,10 @@ void routing_manager_impl::register_shadow_event(client_t _client, service_t _se
                                                  const std::set<eventgroup_t>& _eventgroups, event_type_e _type,
                                                  reliability_type_e _reliability, bool _is_provided, bool _is_cyclic) {
 
+    std::scoped_lock lck(event_registration_mutex_);
     register_event(_client, _service, _instance, _notifier, _eventgroups, _type, _reliability,
                    (_is_cyclic ? std::chrono::milliseconds(1) : std::chrono::milliseconds::zero()), false, true, nullptr, _is_provided,
-                   true);
+                   true, false, lck);
 }
 
 void routing_manager_impl::unregister_shadow_event(client_t _client, service_t _service, instance_t _instance, event_t _event,
@@ -1308,6 +1313,7 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
                                                 [[maybe_unused]] const vsomeip_sec_client_t* _sec_client, uint8_t _status_check,
                                                 bool _is_from_remote) {
 
+    std::scoped_lock lck(event_registration_mutex_);
     event_t its_event_id = bithelper::read_uint16_be(&_data[VSOMEIP_METHOD_POS_MIN]);
     client_t its_client_id = bithelper::read_uint16_be(&_data[VSOMEIP_CLIENT_POS_MIN]);
 
@@ -1370,7 +1376,6 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
                 }
             }
         }
-
     } else {
         if (has_subscribed_eventgroup(_service, _instance)) {
             if (!is_suppress_event(_service, _instance, its_event_id)) {
@@ -1380,7 +1385,7 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
 
             register_event(host_->get_client(), _service, _instance, its_event_id, {}, event_type_e::ET_UNKNOWN,
                            _reliable ? reliability_type_e::RT_RELIABLE : reliability_type_e::RT_UNRELIABLE,
-                           std::chrono::milliseconds::zero(), false, true, nullptr, true, true, true);
+                           std::chrono::milliseconds::zero(), false, true, nullptr, true, true, true, lck);
 
             its_event = find_event(_service, _instance, its_event_id);
             if (its_event) {
@@ -2083,7 +2088,10 @@ void routing_manager_impl::on_subscribe_ack_with_multicast(service_t _service, i
 
 void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                             event_t _event, remote_subscription_id_t _id) {
-    std::unique_lock its_lock{remote_subscription_state_mutex_, std::defer_lock}; // only lock if received an external subscribe_ack
+    // have to lock event_registration_mutex_ to prevent parallel execution with subscribe
+    // as to not miss any acknowledgement for a subscription that is currently being processed
+    // (insert_subscription/handle_subscription_state)
+    std::scoped_lock its_lock{event_registration_mutex_};
     auto its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
     if (its_eventgroup) {
         auto its_subscription = its_eventgroup->get_remote_subscription(_id);
@@ -2110,7 +2118,7 @@ void routing_manager_impl::on_subscribe_ack(client_t _client, service_t _service
                 return;
             }
         } else {
-            its_lock.lock();
+            std::scoped_lock its_inner_lock{remote_subscription_state_mutex_};
             const auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, _client);
             const auto its_state = remote_subscription_state_.find(its_tuple);
             if (its_state != remote_subscription_state_.end()) {
@@ -3196,8 +3204,7 @@ void routing_manager_impl::call_sd_endpoint_connected(const boost::system::error
 
 bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                                   event_t _event, const std::shared_ptr<debounce_filter_impl_t>& _filter,
-                                                                  client_t _client) {
-
+                                                                  client_t _client, std::scoped_lock<std::mutex> const& _lck) {
     bool is_inserted(false);
     // we received a event which was not yet requested/offered
     // create a placeholder field until someone requests/offers this event with
@@ -3208,7 +3215,7 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _ser
         // received subscription for event of a service instance hosted on
         // this node register with client id of local_client and set shadow to true
         register_event(its_local_client, _service, _instance, _event, its_eventgroups, event_type_e::ET_UNKNOWN,
-                       reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, false, true, true);
+                       reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, false, true, true, _lck);
     } else {
         // received subscription for event of a unknown or remote service instance
         std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
@@ -3216,7 +3223,7 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _ser
             // remote service, register shadow event with client ID of subscriber
             // which should have called register_event
             register_event(_client, _service, _instance, _event, its_eventgroups, event_type_e::ET_UNKNOWN, reliability_type_e::RT_UNKNOWN,
-                           std::chrono::milliseconds::zero(), false, true, nullptr, false, true, true);
+                           std::chrono::milliseconds::zero(), false, true, nullptr, false, true, true, _lck);
         } else {
             VSOMEIP_WARNING_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
                               << "." << hex4(_event) << "] received subscription for unknown service instance.";
@@ -3232,7 +3239,7 @@ bool routing_manager_impl::create_placeholder_event_and_subscribe(service_t _ser
 
 void routing_manager_impl::handle_subscription_state(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                      event_t _event) {
-    // Note: remote_subscription_state_mutex_ is already locked as this
+    // Note: event_registration_mutex_ is already locked as this
     // method builds a critical section together with insert_subscription
     // from routing_manager_base.
     // Todo: Improve this situation...
@@ -3243,6 +3250,7 @@ void routing_manager_impl::handle_subscription_state(client_t _client, service_t
     }
 
     auto its_tuple = std::make_tuple(_service, _instance, _eventgroup, its_client);
+    std::scoped_lock lck(remote_subscription_state_mutex_);
     auto its_state = remote_subscription_state_.find(its_tuple);
     if (its_state != remote_subscription_state_.end()) {
         if (its_state->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
@@ -3458,8 +3466,7 @@ void routing_manager_impl::service_endpoint_connected(service_t _service, instan
 }
 
 void routing_manager_impl::service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major,
-                                                         minor_version_t _minor, const std::shared_ptr<boardnet_endpoint>& _endpoint) {
-    (void)_endpoint;
+                                                         minor_version_t _minor) {
     stub_->on_stop_offer_service(VSOMEIP_ROUTING_CLIENT, _service, _instance, _major, _minor);
 
     {
@@ -3873,9 +3880,7 @@ void routing_manager_impl::register_event(client_t _client, service_t _service, 
                                           const std::set<eventgroup_t>& _eventgroups, const event_type_e _type,
                                           reliability_type_e _reliability, std::chrono::milliseconds _cycle, bool _change_resets_cycle,
                                           bool _update_on_change, epsilon_change_func_t _epsilon_change_func, bool _is_provided,
-                                          bool _is_shadow, bool _is_cache_placeholder) {
-    std::scoped_lock its_registration_lock(event_registration_mutex_);
-
+                                          bool _is_shadow, bool _is_cache_placeholder, std::scoped_lock<std::mutex> const&) {
     auto determine_event_reliability = [this, &_service, &_instance, &_notifier, &_reliability]() {
         reliability_type_e its_reliability = configuration_->get_event_reliability(_service, _instance, _notifier);
         if (its_reliability != reliability_type_e::RT_UNKNOWN) {
@@ -4246,7 +4251,8 @@ std::vector<event_t> routing_manager_impl::find_events(service_t _service, insta
 }
 
 bool routing_manager_impl::insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                               const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client) {
+                                               const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
+                                               std::scoped_lock<std::mutex> const& _lck) {
 
     bool is_inserted(false);
     if (_event != ANY_EVENT) { // subscribe to specific event
@@ -4257,7 +4263,7 @@ bool routing_manager_impl::insert_subscription(service_t _service, instance_t _i
             VSOMEIP_WARNING_P << "(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
                               << "." << hex4(_event) << "] received subscription for unknown (unrequested /unoffered) event. Creating"
                               << " placeholder event holding subscription until event is requested/offered.";
-            is_inserted = create_placeholder_event_and_subscribe(_service, _instance, _eventgroup, _event, _filter, _client);
+            is_inserted = create_placeholder_event_and_subscribe(_service, _instance, _eventgroup, _event, _filter, _client, _lck);
         }
     } else { // subscribe to all events of the eventgroup
         std::shared_ptr<eventgroupinfo> its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
@@ -4278,7 +4284,7 @@ bool routing_manager_impl::insert_subscription(service_t _service, instance_t _i
             VSOMEIP_WARNING_P << ":(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup)
                               << "." << hex4(_event) << "] received subscription for unknown (unrequested /unoffered) eventgroup. Creating"
                               << " placeholder event holding subscription until event is requested/offered.";
-            is_inserted = create_placeholder_event_and_subscribe(_service, _instance, _eventgroup, _event, _filter, _client);
+            is_inserted = create_placeholder_event_and_subscribe(_service, _instance, _eventgroup, _event, _filter, _client, _lck);
         }
     }
     return is_inserted;
