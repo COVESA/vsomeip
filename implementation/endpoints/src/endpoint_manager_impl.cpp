@@ -958,7 +958,7 @@ void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _en
                         return;
                     }
                     router_->service_endpoint_disconnected(its_service.first, its_instance.first, its_info->get_major(),
-                                                           its_info->get_minor(), _endpoint);
+                                                           its_info->get_minor());
                 }
             }
         }

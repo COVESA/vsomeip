@@ -179,8 +179,7 @@ public:
                     boardnet_endpoint* const _receiver, const boost::asio::ip::address& _remote_address, std::uint16_t _remote_port);
     void service_endpoint_connected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                     const std::shared_ptr<boardnet_endpoint>& _endpoint);
-    void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
-                                       const std::shared_ptr<boardnet_endpoint>& _endpoint);
+    void service_endpoint_disconnected(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) const;
     void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) const;
@@ -223,8 +222,9 @@ public:
     void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                         const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                         std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,
-                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow = false,
-                        bool _is_cache_placeholder = false);
+                        epsilon_change_func_t _epsilon_change_func, bool _is_provided, bool _is_shadow, bool _is_cache_placeholder,
+                        std::scoped_lock<std::mutex> const& _lck);
+
     void unset_all_eventpayloads(service_t _service, instance_t _instance);
     void unset_all_eventpayloads(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
     void unregister_event(client_t _client, service_t _service, instance_t _instance, event_t _event, bool _is_provided);
@@ -234,7 +234,8 @@ public:
     std::vector<event_t> find_events(service_t _service, instance_t _instance) const;
 
     bool insert_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
+                             const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
+                             std::scoped_lock<std::mutex> const& _lck);
 
     void notify_one_current_value(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
@@ -299,7 +300,8 @@ private:
                                     const std::shared_ptr<boardnet_endpoint>& _endpoint, std::shared_ptr<boost::asio::steady_timer> _timer);
 
     bool create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
-                                                const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client);
+                                                const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
+                                                std::scoped_lock<std::mutex> const&);
 
     void handle_subscription_state(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
 
