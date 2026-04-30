@@ -1,5 +1,5 @@
 {
-  "unicast" : "@TEST_IP_MASTER@",
+  "unicast" : "@TEST_IP_SLAVE@",
   "logging": {
     "level": "trace",
     "console": "true"
@@ -13,7 +13,7 @@
     {
       "service" : "0xb519",
       "instance" : "0x0001",
-      "unicast" : "@TEST_IP_SLAVE@",
+      "unicast" : "@TEST_IP_MASTER@",
       "unreliable" : "30503",
       "someip-tp" : {
         "client-to-service": [ "0x8008", "0x8009", "0x800a", "0x800b", "0x800c", "0x800d", "0x800e", "0x800f", "0x8010", "0x8011", "0x8012", "0x8013", "0x8014", "0x8015", "0x8016", "0x8017", "0x8018", "0x8019", "0x801a", "0x801b"]

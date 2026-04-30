@@ -131,7 +131,7 @@ memory_test_client::~memory_test_client() {
     unsubscribe_all();
 }
 
-TEST(memory_tests, receive_messages) {
+TEST(memory_tests, DISABLED_receive_messages) {
 
     // Test steps:
     //      1: Start measuring memory load

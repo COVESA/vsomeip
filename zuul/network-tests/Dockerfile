@@ -29,10 +29,16 @@ RUN apt-get update;\
         wget\
         socat \
         strace \
+        linux-tools-common \
+        linux-tools-generic \
+        perl \
         ;\
     apt-get autoremove --purge --yes;\
     apt-get clean;\
     pip3 install --break-system-packages gcovr NetfilterQueue
+
+# FlameGraph for perf-based flamegraph generation
+RUN git clone --depth 1 https://github.com/brendangregg/FlameGraph /opt/flamegraph
 
 # Default GCC-13 from Noble
 ENV CC=gcc
@@ -70,6 +76,5 @@ RUN ln -s /home/build /vsomeip_lib
 RUN git config --global --add safe.directory /home/source
 
 WORKDIR /home/source
-
 # Declare bind-mounts
 VOLUME ["/home/build", "/home/logs", "/home/source"]

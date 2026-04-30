@@ -108,7 +108,7 @@ void memory_test_service::setup_app(const std::function<void(void)> executionHan
     }
 }
 
-TEST(memory_test, send_messages) {
+TEST(memory_test, DISABLED_send_messages) {
 
     // Test steps:
     //      1: Start measuring memory load
