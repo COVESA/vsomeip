@@ -208,6 +208,7 @@ TEST_F(test_client_lifecycle, router_consumes_field_after_service_tries_to_offer
     ASSERT_TRUE(routingmanagerd_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
     EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(field_checker_));
 }
+
 TEST_F(test_client_lifecycle, router_consumes_field_after_service_tries_to_offer_after_registration) {
 
     start_apps();
@@ -261,6 +262,40 @@ TEST_F(test_client_lifecycle, mutual_offerings_and_consumptions_with_router) {
     server_->subscribe(interfaces::beef);
     EXPECT_TRUE(routingmanagerd_->message_record_.wait_for(cafe_checker));
     EXPECT_TRUE(server_->message_record_.wait_for(beef_checker));
+}
+TEST_F(test_client_lifecycle, cached_field) {
+    start_apps();
+
+    // offering
+    service_instance other_service = service_instance_;
+    other_service.service_ += 2;
+    event_ids field_one{other_service, 0x8010, 0x2};
+    event_ids field_two{other_service, 0x8011, 0x2};
+    server_->offer_event(field_one);
+    server_->offer_field(field_two);
+    server_->offer(other_service);
+
+    // subscribing on the server side for both fields,
+    // but only handling the first
+    client_->request_service(other_service);
+    client_->subscribe_eventgroup_field(field_one);
+    ASSERT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(field_one)));
+
+    std::vector<unsigned char> p1 = {0x1, 0x2};
+    std::vector<unsigned char> p2 = {0x2, 0x3};
+    std::vector<unsigned char> p3 = {0x2, 0x7};
+
+    server_->send_event(field_two, p2);
+    server_->send_event(field_two, p3);
+    server_->send_event(field_one, p1);
+
+    message_checker const field_checker1{std::nullopt, other_service, field_one.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, p1};
+    message_checker const field_checker3{std::nullopt, other_service, field_two.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, p3};
+
+    ASSERT_TRUE(client_->message_record_.wait_for(field_checker1)) << client_->message_record_;
+    client_->subscribe_eventgroup_field(field_two);
+
+    EXPECT_TRUE(client_->message_record_.wait_for(field_checker3)) << client_->message_record_;
 }
 
 TEST_F(test_client_lifecycle, ensure_unavail_after_stop_offer) {

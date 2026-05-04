@@ -1867,7 +1867,6 @@ void routing_manager_client::cache_event_payload(const std::shared_ptr<message>&
     const instance_t its_instance(_message->get_instance());
     const method_t its_method(_message->get_method());
 
-    bool is_new_placeholder(false);
     std::scoped_lock its_lock(consumer_mutex_);
     auto its_event = find_consumed_event(its_service, its_instance, its_method, its_lock);
     if (!its_event) {
@@ -1878,10 +1877,9 @@ void routing_manager_client::cache_event_payload(const std::shared_ptr<message>&
         register_consumer_event(host_->get_client(), its_service, its_instance, its_method, its_eventgroups, event_type_e::ET_UNKNOWN,
                                 reliability_type_e::RT_UNKNOWN, std::chrono::milliseconds::zero(), false, true, nullptr, true, its_lock);
         its_event = find_consumed_event(its_service, its_instance, its_method, its_lock);
-        is_new_placeholder = true;
     }
     if (its_event) {
-        if (is_new_placeholder || its_event->is_field()) {
+        if (its_event->is_field() || its_event->get_type() == event_type_e::ET_UNKNOWN) {
             its_event->prepare_update_payload(_message->get_payload(), true);
             its_event->update_payload();
         }
