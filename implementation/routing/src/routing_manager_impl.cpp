@@ -546,7 +546,7 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
                     // is available before subscribing via SD otherwise we sent
                     // a StopSubscribe/Subscribe once the first offer is received
                     if (its_info && find_service(_service, _instance)) {
-                        static const ttl_t configured_ttl(configuration_->get_sd_ttl());
+                        const ttl_t configured_ttl(configuration_->get_sd_ttl());
                         discovery_->subscribe(_service, _instance, _eventgroup, _major, configured_ttl,
                                               its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT, its_info);
                     }
@@ -3291,7 +3291,7 @@ void routing_manager_impl::memory_log_timer_cbk(boost::system::error_code const&
     }
 
 #if defined(__linux__) || defined(__QNX__)
-    static const std::uint32_t its_pagesize = static_cast<std::uint32_t>(getpagesize() / 1024);
+    const std::uint32_t its_pagesize = static_cast<std::uint32_t>(getpagesize() / 1024);
 
     std::FILE* its_file = std::fopen("/proc/self/statm", "r");
     if (!its_file) {
@@ -3535,7 +3535,7 @@ bool routing_manager_impl::remove_security_policy_configuration(uid_t _uid, gid_
 
 bool routing_manager_impl::insert_event_statistics(service_t _service, instance_t _instance, method_t _method, length_t _length) {
 
-    static uint32_t its_max_messages = configuration_->get_statistics_max_messages();
+    uint32_t its_max_messages = configuration_->get_statistics_max_messages();
     std::scoped_lock its_lock{message_statistics_mutex_};
     const auto its_tuple = std::make_tuple(_service, _instance, _method);
     const auto its_main_s = message_statistics_.find(its_tuple);
