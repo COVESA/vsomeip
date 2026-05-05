@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <utility>
 
 namespace vsomeip_v3::testing {
 
@@ -1084,14 +1085,25 @@ ecu_config configure_initial_delay(ecu_config cfg, std::uint32_t min, std::uint3
     return cfg;
 }
 
-struct increased_initial_delay : public base_fake_socket_fixture {
+const interface service_3344_instance_2{0x3344,
+                                        {interface::event_spec{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                                        {interface::event_spec{0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}},
+                                        0x2};
+
+ecu_config configure_initial_delay_with_second_instance(ecu_config cfg, std::uint32_t min, std::uint32_t max) {
+    cfg = configure_initial_delay(std::move(cfg), min, max);
+    cfg.add_interface({service_3344_instance_2}, 30502);
+    return cfg;
+}
+
+struct increased_initial_delay_with_multiple_instances : public base_fake_socket_fixture {
     ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
-    ecu_setup ecu_two_{"ecu_two", configure_initial_delay(boardnet::ecu_two_config, 10000, 10000), *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", configure_initial_delay_with_second_instance(boardnet::ecu_two_config, 10000, 10000), *socket_manager_};
 };
 
 // This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait or not.
 // To ensure we never leave the initial_phase, we configure the initial_delay to 10 seconds.
-TEST_F(increased_initial_delay, sends_stop_offer_after_find_triggered_offer) {
+TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_find_triggered_offer) {
     ecu_one_.add_guest({"guest_client", 0x1338});
     ecu_two_.add_guest({"guest_server", 0x1337});
 
@@ -1121,5 +1133,46 @@ TEST_F(increased_initial_delay, sends_stop_offer_after_find_triggered_offer) {
 
     // Verify whether a StopService message was blocked or not, if it wasn't, we can safely assume it was not sent either.
     EXPECT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+}
+
+// This test verifies whether vSomeIP properly sents StopOffer messages during the initial_phase_wait for each service-instance.
+TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_each_service_instance) {
+    ecu_one_.add_guest({"guest_client", 0x1338});
+    ecu_two_.add_guest({"guest_server", 0x1337});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    auto* server = ecu_two_.apps_["guest_server"];
+
+    const auto first_instance = interfaces::boardnet::service_3344.instance_;
+    const auto second_instance = service_3344_instance_2.instance_;
+
+    server->offer(interfaces::boardnet::service_3344);
+    server->offer(service_3344_instance_2);
+    client->request_service(first_instance);
+    client->request_service(second_instance);
+    ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(first_instance)));
+    ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(second_instance)));
+
+    std::shared_ptr<sd_gate> router_one_sd_gate = sd_gate::create();
+    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
+                                router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
+
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
+    server->stop_offer(first_instance);
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    router_one_sd_gate->block(false);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(first_instance)));
+
+    router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
+    server->stop_offer(second_instance);
+    ASSERT_TRUE(router_one_sd_gate->wait_for_blocked(std::chrono::seconds(2)));
+    router_one_sd_gate->block(false);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(second_instance)));
 }
 }

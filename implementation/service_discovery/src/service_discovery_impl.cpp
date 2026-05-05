@@ -2701,10 +2701,9 @@ void service_discovery_impl::stop_offer_service(const std::shared_ptr<serviceinf
                 if (its_instance_it != its_service_it->second.end()) {
                     if (its_instance_it->second == _info) {
                         its_service_it->second.erase(its_instance_it);
-
+                        stop_offer_required = true;
                         if (!collected_offers_[its_service].size()) {
                             collected_offers_.erase(its_service_it);
-                            stop_offer_required = true;
                         }
                     }
                 }
