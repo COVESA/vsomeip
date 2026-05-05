@@ -8,6 +8,7 @@ project(dispatch_app_stop_tests LANGUAGES CXX)
 # Configure test-specific files into the build folder.
 set(configuration_files
     dispatch_app.json
+    dispatch_app_secondary.json
 )
 configure_files("${configuration_files}")
 
@@ -52,6 +53,12 @@ add_executable(dispatch_app_interdependent_program
     tools/tools.cpp
 )
 
+# Add test executable.
+add_executable(dispatch_app_secondary_dispatchers_test
+    dispatch_app_secondary_dispatchers_test.cpp
+    tools/tools.cpp
+)
+
 # Add build dependencies and link libraries to executables.
 set(executables
     dispatch_app_stop_test
@@ -61,6 +68,7 @@ set(executables
     dispatch_app_multiple_program
     dispatch_app_multiple_global
     dispatch_app_interdependent_program
+    dispatch_app_secondary_dispatchers_test
 )
 
 targets_link_default_libraries("${executables}")
@@ -106,4 +114,10 @@ add_custom_test(
     NAME dispatch_app_interdependent_program
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/dispatch_app_interdependent_program
     ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/dispatch_app.json"
+)
+
+add_custom_test(
+    NAME dispatch_app_secondary_dispatchers_test
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/dispatch_app_secondary_dispatchers_test
+    ENVIRONMENT "VSOMEIP_CONFIGURATION=${CMAKE_CURRENT_BINARY_DIR}/dispatch_app_secondary.json"
 )
