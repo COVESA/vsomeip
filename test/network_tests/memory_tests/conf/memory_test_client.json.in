@@ -20,6 +20,8 @@
       }
     }
   ],
+  "endpoint-queue-limit-local" : "20971520",
+  "endpoint-queue-limit-external" : "20971520",
   "service-discovery" :
    {
       "enable" : "true",

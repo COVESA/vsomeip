@@ -134,9 +134,15 @@ function(add_custom_test)
     )
 
     # Set a timeout for the test.
-    set_tests_properties(${MY_TEST_NAME}
-        PROPERTIES TIMEOUT 210
-    )
+    if(MY_TEST_TIMEOUT)
+        set_tests_properties(${MY_TEST_NAME}
+            PROPERTIES TIMEOUT ${MY_TEST_TIMEOUT}
+        )
+    else()
+        set_tests_properties(${MY_TEST_NAME}
+            PROPERTIES TIMEOUT 210
+        )
+    endif()
 
     if (MY_TEST_SEQUENTIAL)
         set_tests_properties(${MY_TEST_NAME} PROPERTIES LABELS SEQUENTIAL)
