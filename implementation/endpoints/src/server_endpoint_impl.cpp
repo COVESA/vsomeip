@@ -126,21 +126,20 @@ bool server_endpoint_impl<Protocol>::send(const std::vector<byte_t>& _cmd_header
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::send_intern(endpoint_type _target, const byte_t* _data, uint32_t _size) {
-
-    if (!check_message_size(_size)) {
-        return segment_message(_data, _size, _target) == endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
-    }
-
     const auto its_target_iterator = find_or_create_target_unlocked(_target);
     auto& its_data(its_target_iterator->second);
-
-    bool must_depart(false);
-    auto its_now(std::chrono::steady_clock::now());
 
     // STEP 1: Check queue limit
     if (!check_queue_limit(_data, _size, its_data)) {
         return false;
     }
+
+    if (!check_message_size(_size)) {
+        return segment_message(_data, _size, _target) == endpoint_impl<Protocol>::cms_ret_e::MSG_WAS_SPLIT;
+    }
+
+    bool must_depart(false);
+    auto its_now(std::chrono::steady_clock::now());
 
     // STEP 2: Cancel the dispatch timer
     cancel_dispatch_timer(its_target_iterator);
