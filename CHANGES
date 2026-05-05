@@ -1,5 +1,64 @@
 Changes
 =======
+v3.7.3
+- global
+  - Upgrade to C++20
+  - Bump boost to 1.75
+  - Log commit hash and branch
+  - Minor fixes and clean-ups
+  - Replace finds with contains
+  - remove live-loops in dispatcher code
+
+- endpoints
+  - Use endpoint_manager_impl for local broadcast
+  - Do not erase from targets_ on send_error
+  - TCP boardnet fake socket implementation
+  - fix deliver_notification/register_event race
+  - fix queue limit check
+
+- Service Discovery
+  - Send StopOffer during initial wait phase
+  - Send StopOffer per service instance
+
+- routing
+  - Separate the watchdog from the routing_info_
+  - Synchronize consumed event promotion with subscription
+  - Sync subscriptions with provided_event updates
+  - Avoid rmi->rms for availability
+  - Split eventgroups_ map
+  - Separate events_ map
+  - Make set_routing_state fully atomic
+  - Fix lock inversion in rmi
+  - Synchronize pending events with available services
+  - Ensure parent subscription has sent initial events
+  - Fix wrap around to VSOMEIP_SEC_PORT_UNSET on UDS
+  - remove static from variables
+  - Update placeholder cache
+
+- tests
+  - Fix and simplify header_factory_test_send_receive
+  - Fix test_connection_restoration
+  - Flush when releasing gate
+  - Modify stop_service contract
+  - Avoid race in npdu_test_client
+  - Add someip sd control gate
+  - Follow-up clean-up/fix signal handlers
+  - Fix suspend_resume_test_client with debug build
+  - Fix subscribe_notify_one tests
+  - Add arguments to timeout log
+  - Stabilize fake_socket test
+  - TCP user timeout new fix
+  - Fix hybrid_mode_test_with_fake_socket
+  - Add suspend_resume_test_connections
+  - Make reuse client id test as a sequential test
+  - Fix npdu_test_udp memcheck errors
+  - Adds perf+flamegraph to docker memory_test
+  - Enables and fixes mem test
+
+- ci
+  - Fix gcovr tracefile expansion removing quotes
+
+
 v3.7.2
 - global
   - Internal header w/ cmake instead of using macros in the header files
