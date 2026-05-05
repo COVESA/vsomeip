@@ -742,7 +742,7 @@ availability_state_e application_impl::are_available_unlocked(available_t& _avai
         }
     } else {
         // check if specific service is available
-        if (available_.find(_service) != available_.end()) {
+        if (available_.contains(_service)) {
             _available[_service];
         }
     }
@@ -760,7 +760,7 @@ availability_state_e application_impl::are_available_unlocked(available_t& _avai
                     _available[its_available_services_it->first][its_available_instances_it->first];
                 }
             } else {
-                if (found_available_service->second.find(_instance) != found_available_service->second.end()) {
+                if (found_available_service->second.contains(_instance)) {
                     _available[its_available_services_it->first][_instance];
                 }
             }
@@ -786,7 +786,7 @@ availability_state_e application_impl::are_available_unlocked(available_t& _avai
                             _available[its_available_services_it->first][its_available_instances_it->first][its_available_major_it->first];
                         }
                     } else {
-                        if (found_available_instance->second.find(_major) != found_available_instance->second.end()) {
+                        if (found_available_instance->second.contains(_major)) {
                             _available[its_available_services_it->first][its_available_instances_it->first][_major];
                         }
                     }
@@ -1990,8 +1990,7 @@ bool application_impl::has_active_dispatcher() {
     while (is_dispatching_) {
         if (dispatcher_mutex_.try_lock()) {
             for (const auto& d : dispatchers_) {
-                if (running_dispatchers_.find(d.first) == running_dispatchers_.end()
-                    && elapsed_dispatchers_.find(d.first) == elapsed_dispatchers_.end()) {
+                if (!running_dispatchers_.contains(d.first) && !elapsed_dispatchers_.contains(d.first)) {
                     dispatcher_mutex_.unlock();
                     return true;
                 }
@@ -2008,8 +2007,7 @@ bool application_impl::is_active_dispatcher(const std::thread::id& _id) const {
     while (is_dispatching_) {
         if (dispatcher_mutex_.try_lock()) {
             for (const auto& d : dispatchers_) {
-                if (d.first != _id && running_dispatchers_.find(d.first) == running_dispatchers_.end()
-                    && elapsed_dispatchers_.find(d.first) == elapsed_dispatchers_.end()) {
+                if (d.first != _id && !running_dispatchers_.contains(d.first) && !elapsed_dispatchers_.contains(d.first)) {
                     dispatcher_mutex_.unlock();
                     return false;
                 }

@@ -971,7 +971,7 @@ void configuration_impl::load_application_data(const boost::property_tree::ptree
         }
     }
     if (its_name != "") {
-        if (applications_.find(its_name) == applications_.end()) {
+        if (!applications_.contains(its_name)) {
             if (its_id != VSOMEIP_CLIENT_UNSET) {
                 if (!is_configured_client_id(its_id)) {
                     client_identifiers_.insert(its_id);
@@ -2972,7 +2972,7 @@ client_t configuration_impl::get_id(const std::string& _name) const {
 }
 
 bool configuration_impl::is_configured_client_id(client_t _id) const {
-    return (client_identifiers_.find(_id) != client_identifiers_.end());
+    return (client_identifiers_.contains(_id));
 }
 
 uint32_t configuration_impl::get_version_log_interval(const std::string& _name, bool _is_host) const {
@@ -3190,7 +3190,7 @@ bool configuration_impl::find_port(uint16_t& _port, uint16_t _remote, bool _reli
                 }
             }
             while (its_port <= (*it)->client_ports_[_reliable].second) {
-                if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+                if (!_used_client_ports[_reliable].contains(its_port)) {
                     _port = its_port;
                     (*it)->last_used_client_port_[_reliable] = its_port;
                     return true;
@@ -3213,7 +3213,7 @@ bool configuration_impl::find_port(uint16_t& _port, uint16_t _remote, bool _reli
             uint16_t its_port(ILLEGAL_PORT);
             its_port = (*it)->client_ports_[_reliable].first;
             while (its_port <= (*it)->client_ports_[_reliable].second) {
-                if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+                if (!_used_client_ports[_reliable].contains(its_port)) {
                     _port = its_port;
                     (*it)->last_used_client_port_[_reliable] = its_port;
                     return true;
@@ -3248,7 +3248,7 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
             }
         }
         while (it != its_client->ports_[_reliable].end()) {
-            if (_used_client_ports[_reliable].find(*it) == _used_client_ports[_reliable].end()) {
+            if (!_used_client_ports[_reliable].contains(*it)) {
                 _port = *it;
                 its_client->last_used_specific_client_port_[_reliable] = *it;
                 VSOMEIP_INFO_P << "#1: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << _reliable
@@ -3261,7 +3261,7 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
             // no free port was found
             // ensure that all configured client ports are checked from beginning
             for (auto its_port : _used_client_ports[_reliable]) {
-                if (_used_client_ports[_reliable].find(its_port) == _used_client_ports[_reliable].end()) {
+                if (!_used_client_ports[_reliable].contains(its_port)) {
                     _port = its_port;
                     its_client->last_used_specific_client_port_[_reliable] = its_port;
                     VSOMEIP_INFO_P << "#2: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << _reliable
@@ -3395,7 +3395,7 @@ std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {
 }
 
 bool configuration_impl::supports_selective_broadcasts(const boost::asio::ip::address& _address) const {
-    return supported_selective_addresses.find(_address.to_string()) != supported_selective_addresses.end();
+    return supported_selective_addresses.contains(_address.to_string());
 }
 
 bool configuration_impl::log_version() const {
@@ -4460,7 +4460,7 @@ std::uint32_t configuration_impl::get_max_tcp_connect_time() const {
 
 bool configuration_impl::is_protected_device(const boost::asio::ip::address& _address) const {
     std::scoped_lock its_lock(sd_acceptance_required_ips_mutex_);
-    return (sd_acceptance_rules_active_.find(_address) != sd_acceptance_rules_active_.end());
+    return (sd_acceptance_rules_active_.contains(_address));
 }
 
 bool configuration_impl::is_protected_port(const boost::asio::ip::address& _address, std::uint16_t _port, bool _reliable) const {
@@ -4522,7 +4522,7 @@ void configuration_impl::set_sd_acceptance_rule(const boost::asio::ip::address& 
     const auto its_secure_client_spare = boost::icl::interval<std::uint16_t>::closed(32898, 32998);
     const auto its_secure_server = boost::icl::interval<std::uint16_t>::closed(32501, 32599);
 
-    const bool rules_active = (sd_acceptance_rules_active_.find(_address) != sd_acceptance_rules_active_.end());
+    const bool rules_active = (sd_acceptance_rules_active_.contains(_address));
 
     const auto found_address = sd_acceptance_rules_.find(_address);
     if (found_address != sd_acceptance_rules_.end()) {
@@ -4638,7 +4638,7 @@ bool configuration_impl::is_secure_service(service_t _service, instance_t _insta
     std::scoped_lock its_lock(secure_services_mutex_);
     const auto its_service = secure_services_.find(_service);
     if (its_service != secure_services_.end())
-        return (its_service->second.find(_instance) != its_service->second.end());
+        return (its_service->second.contains(_instance));
     return false;
 }
 
@@ -4654,7 +4654,7 @@ bool configuration_impl::is_tp_client(service_t _service, instance_t _instance, 
     const auto its_service = find_service(_service, _instance);
 
     if (its_service) {
-        ret = (its_service->tp_client_config_.find(_method) != its_service->tp_client_config_.end());
+        ret = (its_service->tp_client_config_.contains(_method));
     }
 
     return ret;
@@ -4665,7 +4665,7 @@ bool configuration_impl::is_tp_service(service_t _service, instance_t _instance,
     bool ret(false);
     const auto its_service = find_service(_service, _instance);
     if (its_service) {
-        ret = (its_service->tp_service_config_.find(_method) != its_service->tp_service_config_.end());
+        ret = (its_service->tp_service_config_.contains(_method));
     }
 
     return ret;

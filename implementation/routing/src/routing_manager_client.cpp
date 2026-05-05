@@ -515,7 +515,7 @@ void routing_manager_client::register_event(client_t _client, service_t _service
     bool is_first(false);
     {
         std::scoped_lock its_lock(pending_event_registrations_mutex_);
-        is_first = pending_event_registrations_.find(registration) == pending_event_registrations_.end();
+        is_first = !pending_event_registrations_.contains(registration);
         if (is_first) {
             pending_event_registrations_.insert(registration);
         }

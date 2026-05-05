@@ -834,8 +834,7 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     for (auto its_requesting_client : service_requests_) {
         auto its_service = its_requesting_client.second.find(_service);
         if (its_service != its_requesting_client.second.end()) {
-            if (its_service->second.find(_instance) != its_service->second.end()
-                || its_service->second.find(ANY_INSTANCE) != its_service->second.end()) {
+            if (its_service->second.contains(_instance) || its_service->second.contains(ANY_INSTANCE)) {
                 its_requesting_clients.insert(its_requesting_client.first);
             }
         }
@@ -867,8 +866,7 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
     for (auto its_client : service_requests_) {
         auto its_service = its_client.second.find(_service);
         if (its_service != its_client.second.end()) {
-            if (its_service->second.find(_instance) != its_service->second.end()
-                || its_service->second.find(ANY_INSTANCE) != its_service->second.end()) {
+            if (its_service->second.contains(_instance) || its_service->second.contains(ANY_INSTANCE)) {
                 if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
                     protocol::routing_info_entry its_entry;
                     its_entry.set_type(_type);
@@ -1146,7 +1144,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
     if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
         std::scoped_lock its_lock{pinged_clients_mutex_};
 
-        if (pinged_clients_.find(_client) != pinged_clients_.end()) {
+        if (pinged_clients_.contains(_client)) {
             // client was already pinged: don't ping again and wait for answer
             // or timeout of previous ping.
             has_sent = true;
@@ -1251,7 +1249,7 @@ void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
 
 bool routing_manager_stub::is_registered(client_t _client) const {
     std::scoped_lock its_lock{routing_info_mutex_};
-    return (routing_info_.find(_client) != routing_info_.end());
+    return (routing_info_.contains(_client));
 }
 
 void routing_manager_stub::deregister_client(client_t _client) {
@@ -1390,7 +1388,7 @@ bool routing_manager_stub::send_provided_event_resend_request(client_t _client, 
 bool routing_manager_stub::is_policy_cached(uid_t _uid) {
     {
         std::scoped_lock its_lock{updated_security_policies_mutex_};
-        if (updated_security_policies_.find(_uid) != updated_security_policies_.end()) {
+        if (updated_security_policies_.contains(_uid)) {
             VSOMEIP_INFO_P << "Policy for UID: " << _uid << " was already updated before!";
             return true;
         } else {

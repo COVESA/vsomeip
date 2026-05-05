@@ -1369,7 +1369,7 @@ bool routing_manager_impl::deliver_notification(service_t _service, instance_t _
                 }
             }
         } else {
-            if (its_subscribers.find(its_client_id) != its_subscribers.end()) {
+            if (its_subscribers.contains(its_client_id)) {
                 if (std::shared_ptr<local_endpoint> its_local_target = find_routing_endpoint(its_client_id); its_local_target) {
                     send_local(its_local_target, VSOMEIP_ROUTING_CLIENT, _data, _length, _instance, _reliable, protocol::id_e::SEND_ID,
                                _status_check, VSOMEIP_ROUTING_CLIENT);
@@ -3033,7 +3033,7 @@ std::vector<protocol::service> routing_manager_impl::get_requested_services(clie
             minor_version_t its_minor = ANY_MINOR;
             for (const auto& [major, minors] : majors) {
                 for (const auto& [minor, clients] : minors) {
-                    if (clients.find(_client) != clients.end()) {
+                    if (clients.contains(_client)) {
                         requested = true;
                         its_minor = minor;
                         break;
