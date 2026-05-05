@@ -1918,30 +1918,20 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
                 std::scoped_lock its_lock{handlers_mutex_};
                 dispatcher_condition_.notify_all();
             } else {
+                std::scoped_lock its_lock{dispatcher_mutex_};
                 // If possible, create a new dispatcher thread to unblock.
                 // If this is _not_ possible, dispatching is blocked until
                 // at least one of the active handler calls returns.
-                while (is_dispatching_) {
-                    if (dispatcher_mutex_.try_lock()) {
-                        if (dispatchers_.size() < max_dispatchers_) {
-                            if (is_dispatching_) {
-                                std::packaged_task<void()> dispatcher_task_(std::bind(&application_impl::dispatch, shared_from_this()));
-                                std::future<void> dispatcher_future_ = dispatcher_task_.get_future();
-                                auto its_dispatcher = std::make_shared<std::thread>(std::move(dispatcher_task_));
-
-                                dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
-                            } else {
-                                VSOMEIP_INFO << "Won't start new dispatcher thread as Client=" << hex4(get_client()) << " is shutting down";
-                            }
-                        } else {
-                            VSOMEIP_ERROR << "Maximum number of dispatchers exceeded. Configuration: Max dispatchers: " << max_dispatchers_
-                                          << " Max dispatch time: " << max_dispatch_time_;
-                        }
-                        dispatcher_mutex_.unlock();
-                        break;
+                if (dispatchers_.size() < max_dispatchers_) {
+                    if (is_dispatching_) {
+                        auto its_dispatcher = std::make_shared<std::thread>([self = shared_from_this()]() { self->dispatch(); });
+                        dispatchers_[its_dispatcher->get_id()] = its_dispatcher;
                     } else {
-                        std::this_thread::yield();
+                        VSOMEIP_INFO << "Won't start new dispatcher thread as Client=" << hex4(get_client()) << " is shutting down";
                     }
+                } else {
+                    VSOMEIP_ERROR << "Maximum number of dispatchers exceeded. Configuration: Max dispatchers: " << max_dispatchers_
+                                  << " Max dispatch time: " << max_dispatch_time_;
                 }
             }
         }
@@ -1956,13 +1946,9 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
                      << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
     }
 
-    while (is_dispatching_) {
-        if (dispatcher_mutex_.try_lock()) {
-            running_dispatchers_.insert(its_id);
-            dispatcher_mutex_.unlock();
-            break;
-        }
-        std::this_thread::yield();
+    {
+        std::scoped_lock its_lock{dispatcher_mutex_};
+        running_dispatchers_.insert(its_id);
     }
 
     if (is_dispatching_) {
@@ -1975,62 +1961,58 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
     }
 
     its_dispatcher_timer.cancel();
-
-    while (is_dispatching_) {
-        if (dispatcher_mutex_.try_lock()) {
-            running_dispatchers_.erase(its_id);
-            dispatcher_mutex_.unlock();
-            return;
-        }
-        std::this_thread::yield();
+    {
+        std::scoped_lock its_lock{dispatcher_mutex_};
+        running_dispatchers_.erase(its_id);
     }
 }
 
 bool application_impl::has_active_dispatcher() {
-    while (is_dispatching_) {
-        if (dispatcher_mutex_.try_lock()) {
-            for (const auto& d : dispatchers_) {
-                if (!running_dispatchers_.contains(d.first) && !elapsed_dispatchers_.contains(d.first)) {
-                    dispatcher_mutex_.unlock();
-                    return true;
-                }
-            }
-            dispatcher_mutex_.unlock();
-            return false;
-        }
-        std::this_thread::yield();
+    std::scoped_lock its_lock{dispatcher_mutex_};
+    if (!is_dispatching_) {
+        return false;
     }
-    return false;
+    return std::ranges::any_of(dispatchers_, [this](const auto& d) {
+        return !running_dispatchers_.contains(d.first) && !elapsed_dispatchers_.contains(d.first);
+    });
 }
 
 bool application_impl::is_active_dispatcher(const std::thread::id& _id) const {
-    while (is_dispatching_) {
-        if (dispatcher_mutex_.try_lock()) {
-            for (const auto& d : dispatchers_) {
-                if (d.first != _id && !running_dispatchers_.contains(d.first) && !elapsed_dispatchers_.contains(d.first)) {
-                    dispatcher_mutex_.unlock();
-                    return false;
-                }
-            }
-            dispatcher_mutex_.unlock();
-            return true;
-        }
-        std::this_thread::yield();
+    std::scoped_lock its_lock{dispatcher_mutex_};
+    if (!is_dispatching_) {
+        return false;
     }
-    return false;
+    if (!dispatchers_.contains(_id)) {
+        return false;
+    }
+    return std::ranges::none_of(dispatchers_, [&](const auto& d) {
+        return d.first != _id && !running_dispatchers_.contains(d.first) && !elapsed_dispatchers_.contains(d.first);
+    });
 }
 
 void application_impl::remove_elapsed_dispatchers() {
-    if (is_dispatching_) {
+    std::vector<std::shared_ptr<std::thread>> elapsed;
+    {
         std::scoped_lock its_lock{dispatcher_mutex_};
+        if (!is_dispatching_) {
+            return;
+        }
         for (auto id : elapsed_dispatchers_) {
-            if (auto its_dispatcher = dispatchers_.find(id); its_dispatcher->second->joinable()) {
-                its_dispatcher->second->join();
+            auto it = dispatchers_.find(id);
+            if (it != dispatchers_.end()) {
+                elapsed.push_back(it->second);
+                dispatchers_.erase(it);
             }
-
-            dispatchers_.erase(id);
         }
         elapsed_dispatchers_.clear();
+    }
+    for (auto& dispatcher : elapsed) {
+        const auto id = dispatcher->get_id();
+        VSOMEIP_INFO << "Joining dispatcher thread. client=" << hex4(client_) << " id=" << std::hex << id;
+        if (dispatcher->joinable()) {
+            dispatcher->join();
+        }
+        VSOMEIP_INFO << "Joined dispatcher thread. client=" << hex4(client_) << " id=" << std::hex << id;
     }
 }
 
