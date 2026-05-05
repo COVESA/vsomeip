@@ -17,7 +17,17 @@ constexpr vsomeip::major_version_t MEMORY_MAJOR = 0x01;
 constexpr vsomeip::minor_version_t MEMORY_MINOR = 0x01;
 
 constexpr auto MEMORY_CHECKER_INTERVAL = std::chrono::seconds(5);
-constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(5);
+// Target throughput: ~12 MB/s
+// Each iteration sends: 40 messages × 4000 bytes = 160,000 bytes
+// Required rate: 12,000,000 / 160,000 = 75 iterations/sec
+// → 1 iteration ≈ 13.33 ms
+//
+// We use 7 ms + 7 ms = 14 ms per iteration (~71.4 iterations/sec)
+// → ~11.4 MB/s
+//
+// Slightly below target to account for timing inaccuracies of sleep_for()
+// and avoid overshooting the bandwidth.
+constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(7);
 constexpr auto WATCHDOG_INTERVAL = std::chrono::seconds(2);
 constexpr auto WAIT_AVAILABILITY = std::chrono::milliseconds(15000);
 constexpr auto WAIT_START_MESSAGE = std::chrono::milliseconds(10000);

@@ -14,7 +14,7 @@ VALGRIND_TYPE=@VALGRIND_TYPE@
 PERF_TOOL=$(find /usr/lib/linux-tools* -type f -name "perf" | head -n 1)
 
 if [ ! -f "$PERF_TOOL" ]; then
-    echo "Failed to find installation of perf."; exit 1;
+    echo "WARNING: Failed to find installation of perf. Running test without profiling."
 fi
 
 FAIL=0
@@ -22,8 +22,8 @@ FAIL=0
 export VSOMEIP_CONFIGURATION=memory_test_service.json
 export VSOMEIP_APPLICATION_NAME="service-sample"
 
-# If VALGRIND_TYPE is empty, run under perf; otherwise run normally
-if [ -z "${VALGRIND_TYPE}" ]; then
+# If VALGRIND_TYPE is empty and perf is available, run under perf; otherwise run normally
+if [ -z "${VALGRIND_TYPE}" ] && [ -f "$PERF_TOOL" ]; then
     echo "[flamegraph] Starting memory_test_service under perf recording..."
     $PERF_TOOL record -F 99 -g -o memory_test_service.perf.data -- ./memory_test_service &
 else

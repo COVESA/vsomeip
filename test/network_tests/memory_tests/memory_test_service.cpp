@@ -108,7 +108,7 @@ void memory_test_service::setup_app(const std::function<void(void)> executionHan
     }
 }
 
-TEST(memory_test, DISABLED_send_messages) {
+TEST(memory_test, send_messages) {
 
     // Test steps:
     //      1: Start measuring memory load
@@ -155,5 +155,5 @@ TEST(memory_test, DISABLED_send_messages) {
     }
 }
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(240));
+    return test_main(argc, argv, std::chrono::seconds(300));
 }

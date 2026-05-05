@@ -102,12 +102,34 @@ void memory_test_client::send_request(std::atomic<bool>& stop_checking_) {
     EXPECT_TRUE(availability) << "Events expected by the client were not available for 15 seconds ";
 
     bool stop_watchdog{false};
+    uint64_t prev_counter{0};
+    auto prev_time = std::chrono::steady_clock::now();
 
     // 3. Wait for service to send all the messages
     while (!stop_watchdog) {
         std::this_thread::sleep_for(WATCHDOG_INTERVAL);
-        std::scoped_lock lk(event_counter_mutex);
-        if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - sec).count() > 10) {
+        auto now = std::chrono::steady_clock::now();
+        double elapsed_s = std::chrono::duration<double>(now - prev_time).count();
+
+        uint64_t current_counter{0};
+        bool timed_out{false};
+        {
+            std::scoped_lock lk(event_counter_mutex);
+            current_counter = received_messages_counter;
+            timed_out = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - sec).count() > 10;
+        }
+
+        uint64_t delta = current_counter - prev_counter;
+        double throughput_mbs = (static_cast<double>(delta) * NOTIFY_PAYLOAD_SIZE) / elapsed_s / (1024.0 * 1024.0);
+
+        VSOMEIP_INFO << "[watchdog] messages in last " << std::fixed << std::setprecision(1) << elapsed_s << "s: " << delta
+                     << " | throughput: " << std::fixed << std::setprecision(2) << throughput_mbs << " MB/s"
+                     << " | total received: " << current_counter;
+
+        prev_counter = current_counter;
+        prev_time = now;
+
+        if (timed_out) {
             stop_watchdog = true;
         }
     }
@@ -131,7 +153,7 @@ memory_test_client::~memory_test_client() {
     unsubscribe_all();
 }
 
-TEST(memory_tests, DISABLED_receive_messages) {
+TEST(memory_tests, receive_messages) {
 
     // Test steps:
     //      1: Start measuring memory load
@@ -182,5 +204,5 @@ TEST(memory_tests, DISABLED_receive_messages) {
 }
 
 int main(int argc, char** argv) {
-    return test_main(argc, argv, std::chrono::seconds(240));
+    return test_main(argc, argv, std::chrono::seconds(300));
 }
