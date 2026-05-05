@@ -146,7 +146,7 @@ std::shared_ptr<channel> connector_impl::add_channel(const trace_channel_t& _id,
         std::scoped_lock its_channels_lock(channels_mutex_);
 
         // check whether we already know the requested channel
-        if (channels_.find(_id) != channels_.end())
+        if (channels_.contains(_id))
             return nullptr;
 
         // create new channel

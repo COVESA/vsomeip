@@ -125,7 +125,7 @@ bool remote_subscription::has_client() const {
 
 bool remote_subscription::has_client(const client_t _client) const {
     std::scoped_lock its_lock(mutex_);
-    return (clients_.find(_client) != clients_.end());
+    return (clients_.contains(_client));
 }
 
 void remote_subscription::remove_client(const client_t _client) {

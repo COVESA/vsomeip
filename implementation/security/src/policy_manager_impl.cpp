@@ -217,7 +217,7 @@ bool policy_manager_impl::is_client_allowed(const vsomeip_sec_client_t* _sec_cli
         std::shared_lock its_cache_lock(is_client_allowed_cache_mutex_);
         const auto its_iter = is_client_allowed_cache_.find(its_credentials);
         if (its_iter != is_client_allowed_cache_.end()) {
-            if (its_iter->second.find(its_key) != its_iter->second.end()) {
+            if (its_iter->second.contains(its_key)) {
                 return true;
             }
         }
@@ -1205,7 +1205,7 @@ bool policy_manager_impl::get_client_to_sec_client_mapping(client_t _client, vso
     {
         // get the UID / GID of the client
         std::scoped_lock its_lock(ids_mutex_);
-        if (ids_.find(_client) != ids_.end()) {
+        if (ids_.contains(_client)) {
             _sec_client = ids_[_client];
             return true;
         }

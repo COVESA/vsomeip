@@ -472,7 +472,7 @@ bool udp_server_endpoint_impl::is_joined(const std::string& _address, bool& _rec
 //
 bool udp_server_endpoint_impl::is_joined_unlocked(const std::string& _address) const {
 
-    return (joined_.find(_address) != joined_.end());
+    return (joined_.contains(_address));
 }
 
 bool udp_server_endpoint_impl::is_joined_unlocked(const std::string& _address, bool& _received) const {
@@ -834,7 +834,7 @@ void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::addre
         return;
     }
 
-    bool has_joined = multicast_socket_ && join_status_.find(_address.to_string()) != join_status_.end();
+    bool has_joined = multicast_socket_ && join_status_.contains(_address.to_string());
 
     if (_is_join && has_joined) {
         // We can skip the join operation, but we don't skip the leave operation

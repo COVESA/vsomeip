@@ -561,8 +561,8 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
     {
         std::scoped_lock its_lock(endpoint_mutex_);
         // Clear multicast info and endpoint and multicast instance (remote service)
-        if (multicast_info_.find(_service) != multicast_info_.end()) {
-            if (multicast_info_[_service].find(_instance) != multicast_info_[_service].end()) {
+        if (multicast_info_.contains(_service)) {
+            if (multicast_info_[_service].contains(_instance)) {
                 its_address = multicast_info_[_service][_instance]->get_address().to_string();
                 uint16_t its_port = multicast_info_[_service][_instance]->get_port();
                 auto found_port = server_endpoints_.find(its_port);
@@ -572,7 +572,7 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
                         its_multicast_endpoint = found_unreliable->second;
                         server_endpoints_[its_port].erase(false);
                     }
-                    if (found_port->second.find(true) == found_port->second.end()) {
+                    if (!found_port->second.contains(true)) {
                         server_endpoints_.erase(its_port);
                     }
                 }
@@ -1314,7 +1314,7 @@ bool endpoint_manager_impl::is_used_endpoint(boardnet_endpoint* const _endpoint)
         std::scoped_lock its_lock(endpoint_mutex_);
         // Do we still use the endpoint to offer a service instance?
         for (const auto& si : service_instances_)
-            if (si.second.find(_endpoint) != si.second.end())
+            if (si.second.contains(_endpoint))
                 return true;
     }
 

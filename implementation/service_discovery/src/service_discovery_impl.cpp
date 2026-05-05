@@ -1376,7 +1376,7 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
         auto expire_subscriptions_and_services = [this, &_sd_ac_state, _service, _instance](const boost::asio::ip::address& _address,
                                                                                             std::uint16_t _port, bool _reliable) {
             const auto its_port_pair = std::make_pair(_reliable, _port);
-            if (_sd_ac_state.expired_ports_.find(its_port_pair) == _sd_ac_state.expired_ports_.end()) {
+            if (!_sd_ac_state.expired_ports_.contains(its_port_pair)) {
                 VSOMEIP_WARNING << "sdi::Do not accept offer [" << hex4(_service) << "." << hex4(_instance) << "] from "
                                 << _address.to_string() << ":" << _port << " reliable=" << _reliable;
                 remove_remote_offer_type_by_ip(_address, _port, _reliable);
@@ -3409,7 +3409,7 @@ void service_discovery_impl::check_offer_services(const boost::system::error_cod
 
 void service_discovery_impl::observed_host(const boost::asio::ip::address& _host, const bool _multicast) {
     // Add en entry if it doesn't already exist.
-    if (observed_hosts.find(_host) == observed_hosts.end()) {
+    if (!observed_hosts.contains(_host)) {
         observed_hosts[_host] = std::make_tuple(false, false);
     }
 
