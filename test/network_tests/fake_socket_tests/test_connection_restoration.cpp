@@ -273,6 +273,7 @@ TEST_F(test_connection_restoration, reproduction_allow_reconnects_on_first_try_b
 
     // simulating a suspend of a client:
     set_ignore_connections(client_name_, true);
+    set_ignore_nothing_to_read_from(client_name_, routingmanager_name_, socket_role::client, true);
     ASSERT_TRUE(disconnect(client_name_, std::nullopt, routingmanager_name_, boost::asio::error::timed_out));
 
     client_->subscription_record_.clear();
@@ -281,7 +282,7 @@ TEST_F(test_connection_restoration, reproduction_allow_reconnects_on_first_try_b
 
     // resume of the client:
     set_ignore_connections(client_name_, false);
-    // resume of the client:
+    set_ignore_nothing_to_read_from(client_name_, routingmanager_name_, socket_role::client, false);
     std::ignore = disconnect(client_name_, boost::asio::error::connection_reset, routingmanager_name_, std::nullopt);
 
     // in order for the server to be able to send an event, the server needs to connect back
