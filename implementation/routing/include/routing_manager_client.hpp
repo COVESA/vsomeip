@@ -98,7 +98,6 @@ public:
     client_t get_client_id() override;
     void set_port(port_t _port) override;
     bool get_connection_param(client_t _client, boost::asio::ip::address& _address, port_t& _port) override;
-    void add_connection_param(client_t _client, boost::asio::ip::address const& _address, port_t const& _port) override;
     void register_error_handler(client_t _client, std::shared_ptr<local_endpoint> _ep) override;
 
     void on_offered_services_info(protocol::offered_services_response_command& _command);
@@ -170,7 +169,7 @@ private:
 
     void on_stop_offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
-    [[nodiscard]] bool send_pending_commands();
+    [[nodiscard]] bool send_pending_commands(std::scoped_lock<std::mutex> const& _consumer_lock);
 
     void init_receiver_side([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock);
 
@@ -306,10 +305,6 @@ private:
 
     std::mutex pending_offers_mutex_;
     std::set<protocol::service> pending_offers_;
-    std::mutex requests_mutex_;
-    std::set<protocol::service> requests_;
-    std::mutex requests_to_debounce_mutex_;
-    std::set<protocol::service> requests_to_debounce_;
 
     struct event_data_t {
         service_t service_;
@@ -329,9 +324,6 @@ private:
     };
     std::mutex pending_event_registrations_mutex_;
     std::set<event_data_t> pending_event_registrations_;
-
-    boost::asio::steady_timer request_debounce_timer_;
-    std::atomic<bool> request_debounce_timer_running_;
 
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
@@ -359,6 +351,12 @@ private:
     // This mutex should be used whenever the client
     // is trying to access data relevant for its "consumer" side
     mutable std::mutex consumer_mutex_;
+
+    bool request_debounce_timer_running_;
+    boost::asio::steady_timer request_debounce_timer_;
+
+    std::set<protocol::service> requests_;
+    std::set<protocol::service> requests_to_debounce_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
     local_service_table available_services_;
     std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;

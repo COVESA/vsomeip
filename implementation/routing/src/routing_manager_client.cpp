@@ -87,11 +87,11 @@ routing_manager_client::routing_manager_client(routing_manager_host* _host, bool
                                                const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter) :
     routing_manager_base(_host), keepalive_timer_(io_), status_log_timer_(io_), version_log_timer_(_host->get_io()),
     keepalive_active_(false), keepalive_is_alive_(false), sender_(nullptr), tcp_receiver_(nullptr), uds_receiver_(nullptr),
-    request_debounce_timer_(io_), request_debounce_timer_running_(false), client_side_logging_(_client_side_logging),
-    client_side_logging_filter_(_client_side_logging_filter),
+    client_side_logging_(_client_side_logging), client_side_logging_filter_(_client_side_logging_filter),
     routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
                           : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP
-                                                               : routing_mode_e::TCP_ONLY) {
+                                                               : routing_mode_e::TCP_ONLY),
+    request_debounce_timer_running_(false), request_debounce_timer_(io_) {
 
     if (char its_hostname[1024]; gethostname(its_hostname, sizeof(its_hostname)) == 0) {
         set_client_host(its_hostname);
@@ -189,7 +189,7 @@ void routing_manager_client::stop() {
     state_machine_->deregistered();
 
     {
-        std::scoped_lock its_lock(requests_to_debounce_mutex_);
+        std::scoped_lock its_lock{consumer_mutex_};
         request_debounce_timer_.cancel();
     }
 
@@ -414,29 +414,29 @@ void routing_manager_client::stop_offer_service(client_t _client, service_t _ser
     }
 }
 
-void routing_manager_client::request_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                             minor_version_t _minor) {
-    routing_manager_base::request_service(_client, _service, _instance, _major, _minor);
+void routing_manager_client::request_service([[maybe_unused]] client_t _client, service_t _service, instance_t _instance,
+                                             major_version_t _major, minor_version_t _minor) {
+
     {
         size_t request_debouncing_time = configuration_->get_request_debounce_time(host_->get_name());
         protocol::service request = {_service, _instance, _major, _minor};
+        std::scoped_lock its_lock{consumer_mutex_};
+        if (requests_.contains(request) || requests_to_debounce_.contains(request)) {
+            return;
+        }
         if (!request_debouncing_time) {
             // order matters:
             // 1. Ensure that the set contains this request
             // 2. Try to send if we are registered
             // If exchanged the sending after the registration is going to race with
             // the subsequent logic.
-            {
-                std::scoped_lock its_lock(requests_mutex_);
-                requests_.insert(request);
-            }
+            requests_.insert(request);
             if (state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
                 std::set<protocol::service> requests;
                 requests.insert(request);
                 send_request_services(requests);
             }
         } else {
-            std::scoped_lock its_lock{requests_to_debounce_mutex_};
             requests_to_debounce_.insert(request);
             if (!request_debounce_timer_running_) {
                 request_debounce_timer_running_ = true;
@@ -450,7 +450,7 @@ void routing_manager_client::request_service(client_t _client, service_t _servic
 }
 
 void routing_manager_client::release_service(client_t _client, service_t _service, instance_t _instance) {
-    routing_manager_base::release_service(_client, _service, _instance);
+    bool pending(false);
     {
         std::scoped_lock its_service_guard(consumer_mutex_);
         auto found_service = available_services_history_.find(_service);
@@ -464,43 +464,37 @@ void routing_manager_client::release_service(client_t _client, service_t _servic
             }
         }
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT, its_service_guard);
-    }
-    {
+        auto it = requests_to_debounce_.begin();
+        while (it != requests_to_debounce_.end()) {
+            if (it->service_ == _service && it->instance_ == _instance) {
+                pending = true;
+                break;
+            }
+            it++;
+        }
+        if (it != requests_to_debounce_.end()) {
+            requests_to_debounce_.erase(it);
+        }
 
         // order matters:
         // 1. Remove the service from the requests
         // 2. Send the release when we are registered
         // otherwise we might not send the release, but request the service
         // when being registered
-        {
-            std::scoped_lock its_lock(requests_mutex_);
-            auto it = requests_.begin();
-            while (it != requests_.end()) {
-                if (it->service_ == _service && it->instance_ == _instance) {
-                    break;
-                }
-                it++;
+        auto it_requests = requests_.begin();
+        while (it_requests != requests_.end()) {
+            if (it_requests->service_ == _service && it_requests->instance_ == _instance) {
+                pending = false;
+                break;
             }
-            if (it != requests_.end())
-                requests_.erase(it);
+            it_requests++;
         }
-        bool pending(false);
-        {
-            std::scoped_lock its_lock(requests_to_debounce_mutex_);
-            auto it = requests_to_debounce_.begin();
-            while (it != requests_to_debounce_.end()) {
-                if (it->service_ == _service && it->instance_ == _instance) {
-                    pending = true;
-                    break;
-                }
-                it++;
-            }
-            if (it != requests_to_debounce_.end())
-                requests_to_debounce_.erase(it);
+        if (it_requests != requests_.end()) {
+            requests_.erase(it_requests);
         }
-        if (!pending && state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
-            send_release_service(_client, _service, _instance);
-        }
+    }
+    if (!pending && state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+        send_release_service(_client, _service, _instance);
     }
 }
 
@@ -1690,16 +1684,14 @@ void routing_manager_client::register_application(client_t _client) {
     }
 #endif
     // when changing the state we need to ensure that the debounce timer is not dispatching + altering the request set
-    if (std::unique_lock its_lock(requests_to_debounce_mutex_); state_machine_->registered(_client)) {
+    if (std::scoped_lock its_lock{consumer_mutex_}; state_machine_->registered(_client)) {
         VSOMEIP_INFO << "Application/Client " << hex4(get_client()) << " (" << host_->get_name() << ") is registered.";
 
         start_keepalive();
-        if (!send_pending_commands()) {
+        if (!send_pending_commands(its_lock)) {
             VSOMEIP_WARNING_P << ": Application/Client 0x" << hex4(get_client()) << " (" << host_->get_name()
                               << ") could not send pending offers";
         }
-        its_lock.unlock();
-        // inform host about its own registration state changes
         host_->on_state(state_type_e::ST_REGISTERED);
     }
 }
@@ -1903,7 +1895,7 @@ void routing_manager_client::on_stop_offer_service(service_t _service, instance_
     }
 }
 
-bool routing_manager_client::send_pending_commands() {
+bool routing_manager_client::send_pending_commands([[maybe_unused]] std::scoped_lock<std::mutex> const& _consumer_lock) {
     {
         std::scoped_lock its_lock(pending_offers_mutex_);
         for (auto& po : pending_offers_) {
@@ -1913,10 +1905,7 @@ bool routing_manager_client::send_pending_commands() {
         }
     }
 
-    {
-        std::scoped_lock its_lock(requests_mutex_);
-        return send_pending_event_registrations(get_client()) && send_request_services(requests_);
-    }
+    return send_pending_event_registrations(get_client()) && send_request_services(requests_);
 }
 
 void routing_manager_client::init_receiver_side([[maybe_unused]] std::unique_lock<std::mutex> const& _receive_lock) {
@@ -2050,7 +2039,7 @@ bool routing_manager_client::create_placeholder_event_and_subscribe(service_t _s
 }
 
 void routing_manager_client::request_debounce_timeout_cbk(boost::system::error_code const& _error) {
-    std::scoped_lock its_lock{requests_to_debounce_mutex_, requests_mutex_};
+    std::scoped_lock its_lock{consumer_mutex_};
     if (!_error) {
         if (requests_to_debounce_.size()) {
             if (auto state = state_machine_->state(); state == routing_client_state_e::ST_REGISTERED) {
@@ -2092,11 +2081,6 @@ bool routing_manager_client::get_connection_param(client_t _client, boost::asio:
         return true;
     }
     return false;
-}
-
-void routing_manager_client::add_connection_param(client_t _client, boost::asio::ip::address const& _address, port_t const& _port) {
-    std::scoped_lock lock{consumer_mutex_};
-    address_table_[_client] = std::make_pair(_address, _port);
 }
 
 void routing_manager_client::register_error_handler(client_t _client, std::shared_ptr<local_endpoint> _ep) {
@@ -2346,7 +2330,7 @@ void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<st
         VSOMEIP_WARNING_P << "(" << hex4(get_client()) << ") Non-Deregistered State Set (" << state_machine_->state() << "). Returning";
         return;
     }
-    sender_ = ep_mgr_->create_local_client(VSOMEIP_ROUTING_CLIENT);
+    sender_ = ep_mgr_->create_routing_client();
     if (sender_) {
         sender_->start();
         sender_debounce_active_ = true;

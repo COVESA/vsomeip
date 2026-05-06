@@ -211,7 +211,6 @@ std::shared_ptr<local_acceptor> endpoint_manager_base::create_tcp_local_acceptor
         }
 
         if (tcp_acceptor && _client != VSOMEIP_ROUTING_CLIENT) {
-            host_.add_connection_param(_client, its_address, its_port);
             VSOMEIP_INFO << "Adds guest for client 0x" << hex4(_client) << " with address " << its_address.to_string() << " and port "
                          << its_port;
         } else {
@@ -290,68 +289,56 @@ void endpoint_manager_base::log_client_states() const {
         VSOMEIP_WARNING << "ICQ: " << its_client_queue_sizes.size() << " [" << its_log.str() << "]";
 }
 
-std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unlocked(client_t _client) {
-
-    std::stringstream its_path;
-    its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
+std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_endpoint(client_t _client, client_t _own_id,
+                                                                                    boost::asio::ip::address const& _remote_address,
+                                                                                    port_t _remote_port, bool _is_guest) {
     std::shared_ptr<local_endpoint> its_endpoint;
+    boost::asio::ip::address const its_local_address = configuration_->get_routing_guest_address();
+    bool const same_address = _is_guest && its_local_address == _remote_address;
 
-    boost::asio::ip::address its_local_address, its_remote_address;
-    port_t its_remote_port;
-
-    bool is_guest = host_.get_connection_param(_client, its_remote_address, its_remote_port);
-
-    // VSOMEIP_ROUTING_CLIENT never registers as a guest, so get_connection_param always returns false for it
-    if (_client == VSOMEIP_ROUTING_CLIENT) {
-        its_remote_address = configuration_->get_routing_host_address();
-        its_remote_port = configuration_->get_routing_host_port();
-        is_guest = !its_remote_address.is_unspecified();
-    }
-
-    bool const same_address = is_guest && its_remote_address == configuration_->get_routing_guest_address();
+    local_endpoint_context const context{io_, configuration_, local_message_handler_};
 
 #if defined(__linux__) || defined(__QNX__)
     if (is_local_routing_ || (is_uds_preferred_ && same_address)) {
+        std::stringstream its_path;
+        its_path << utility::get_base_path(configuration_->get_network()) << std::hex << _client;
         its_endpoint = local_endpoint::create_client_ep(
-                local_endpoint_context{io_, configuration_, local_message_handler_},
-                local_endpoint_params{_client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(), "",
+                context,
+                local_endpoint_params{_client, _own_id, "",
                                       std::make_shared<local_socket_uds_impl>(io_, boost::asio::local::stream_protocol::endpoint(""),
                                                                               boost::asio::local::stream_protocol::endpoint(its_path.str()),
                                                                               socket_role_e::CLIENT)});
-        VSOMEIP_INFO << "Client [" << hex4(get_client_id()) << "] is connecting to [" << hex4(_client) << "] at " << its_path.str()
+        VSOMEIP_INFO << "Client [" << hex4(_own_id) << "] is connecting to [" << hex4(_client) << "] at " << its_path.str()
                      << " endpoint > " << its_endpoint;
     } else {
 #else
     {
 #endif
 
-        if (is_guest) {
+        if (_is_guest) {
             try {
-                its_local_address = configuration_->get_routing_guest_address();
-
                 its_endpoint = local_endpoint::create_client_ep(
-                        local_endpoint_context{io_, configuration_, local_message_handler_},
+                        context,
                         local_endpoint_params{
-                                _client, _client == VSOMEIP_ROUTING_CLIENT ? client_t{VSOMEIP_CLIENT_UNSET} : get_client_id(), "",
+                                _client, _own_id, "",
                                 std::make_shared<local_socket_tcp_impl>(io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
-                                                                        boost::asio::ip::tcp::endpoint(its_remote_address, its_remote_port),
+                                                                        boost::asio::ip::tcp::endpoint(_remote_address, _remote_port),
                                                                         socket_role_e::CLIENT)});
 
-                VSOMEIP_INFO << "Client [" << hex4(get_client_id()) << "] @ " << its_local_address.to_string() << ":" << local_port_
-                             << " is connecting to [" << hex4(_client) << "] @ " << its_remote_address.to_string() << ":" << its_remote_port
+                VSOMEIP_INFO << "Client [" << hex4(_own_id) << "] @ " << its_local_address.to_string() << ":" << local_port_
+                             << " is connecting to [" << hex4(_client) << "] @ " << _remote_address.to_string() << ":" << _remote_port
                              << " endpoint > " << its_endpoint;
 
             } catch (...) { }
         } else {
-            VSOMEIP_ERROR_P << "self 0x" << hex4(get_client_id()) << " cannot get guest address of client 0x" << hex4(_client);
+            VSOMEIP_ERROR_P << "self 0x" << hex4(_own_id) << " cannot get guest address of client 0x" << hex4(_client);
         }
     }
 
     if (its_endpoint) {
         // need to send some initial info, and it must be done before the _caller_ code sends something else
         protocol::config_command config_command;
-        client_t const id_to_be_sent = _client == VSOMEIP_ROUTING_CLIENT ? VSOMEIP_CLIENT_UNSET : get_client_id();
-        config_command.set_client(id_to_be_sent);
+        config_command.set_client(_own_id);
         config_command.insert("hostname", get_client_env());
         auto id_str = std::string(sizeof(_client), '0');
         std::memcpy(id_str.data(), &_client, sizeof(_client));
@@ -362,28 +349,40 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unloc
 
         its_endpoint->send(&config_buffer[0], static_cast<uint32_t>(config_buffer.size()));
 
-        if (_client == VSOMEIP_ROUTING_CLIENT) {
-            protocol::assign_client_command assign_command;
-            assign_command.set_client(get_client_id());
-            assign_command.set_name(name_);
-
-            assign_command.set_address(configuration_->get_routing_guest_address());
-            assign_command.set_port(local_port_);
-
-            std::vector<byte_t> assign_buffer;
-            assign_command.serialize(assign_buffer);
-
-            its_endpoint->send(&assign_buffer[0], static_cast<uint32_t>(assign_buffer.size()));
-        } else {
-            // Messages sent to the VSOMEIP_ROUTING_CLIENT are meant to be routed to
-            // external devices. Therefore, its local endpoint must not be found by
-            // a call to find_local_client. Thus it must not be inserted to the list of local
-            // clients.
-            local_client_endpoints_[_client] = its_endpoint;
-        }
         host_.register_error_handler(_client, its_endpoint);
     } else {
-        VSOMEIP_WARNING_P << "0x" << hex4(get_client_id()) << " not connected. Ignoring client assignment";
+        VSOMEIP_WARNING_P << "0x" << hex4(_own_id) << " not connected. Ignoring client assignment";
+    }
+    return its_endpoint;
+}
+
+std::shared_ptr<local_endpoint> endpoint_manager_base::create_routing_client() {
+    auto its_endpoint = create_local_client_endpoint(VSOMEIP_ROUTING_CLIENT, VSOMEIP_CLIENT_UNSET,
+                                                     configuration_->get_routing_host_address(), configuration_->get_routing_host_port(),
+                                                     !configuration_->get_routing_host_address().is_unspecified());
+    if (its_endpoint) {
+        protocol::assign_client_command assign_command;
+        assign_command.set_client(get_client_id());
+        assign_command.set_name(name_);
+
+        assign_command.set_address(configuration_->get_routing_guest_address());
+        assign_command.set_port(local_port_);
+
+        std::vector<byte_t> assign_buffer;
+        assign_command.serialize(assign_buffer);
+
+        its_endpoint->send(&assign_buffer[0], static_cast<uint32_t>(assign_buffer.size()));
+    }
+    return its_endpoint;
+}
+
+std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_unlocked(client_t _client) {
+    boost::asio::ip::address its_remote_address;
+    port_t its_remote_port;
+    bool is_guest = host_.get_connection_param(_client, its_remote_address, its_remote_port);
+    auto its_endpoint = create_local_client_endpoint(_client, get_client_id(), its_remote_address, its_remote_port, is_guest);
+    if (its_endpoint) {
+        local_client_endpoints_[_client] = its_endpoint;
     }
     return its_endpoint;
 }

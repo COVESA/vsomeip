@@ -38,6 +38,7 @@ public:
 
     std::shared_ptr<local_server> create_local_server(transport_protocol_e _transport_protocol);
 
+    std::shared_ptr<local_endpoint> create_routing_client();
     std::shared_ptr<local_endpoint> create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_local_client(client_t _client);
@@ -62,6 +63,9 @@ private:
     void add_local_server_endpoint(std::shared_ptr<local_endpoint> _connection);
     void add_local_server_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _connection);
 
+    std::shared_ptr<local_endpoint> create_local_client_endpoint(client_t _client, client_t _own_id,
+                                                                 boost::asio::ip::address const& _remote_address, port_t _remote_port,
+                                                                 bool _is_guest);
     std::shared_ptr<local_endpoint> create_local_client_unlocked(client_t _client);
     std::shared_ptr<local_endpoint> find_local_client_unlocked(client_t _client);
 
