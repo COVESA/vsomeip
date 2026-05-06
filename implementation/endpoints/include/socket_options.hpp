@@ -17,7 +17,8 @@ namespace vsomeip_v3 {
 
 template<typename Protocol>
 struct bind_to_device {
-    explicit bind_to_device(std::string const& _device) : data_(static_cast<const void*>(_device.data())), size_(_device.size()) { }
+    // The size has a +1 since std::string.size does not take into account the null terminator
+    explicit bind_to_device(std::string const& _device) : data_(static_cast<const void*>(_device.data())), size_(_device.size() + 1) { }
     static int level(Protocol const&) { return SOL_SOCKET; };
     static int name(Protocol const&) { return SO_BINDTODEVICE; };
     const void* data(Protocol const&) const { return data_; }

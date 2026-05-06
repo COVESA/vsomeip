@@ -467,8 +467,11 @@ tcp_server_endpoint_impl::connection::connection(const std::weak_ptr<tcp_server_
     missing_capacity_(0), shrink_count_(0), buffer_shrink_threshold_(_buffer_shrink_threshold), remote_port_(0),
     use_magic_cookies_(_use_magic_cookies), last_cookie_sent_(std::chrono::steady_clock::now() - std::chrono::seconds(11)),
     send_timeout_(_send_timeout), send_timeout_warning_(_send_timeout / 2) {
-    auto its_server(_server.lock());
-    instance_name_ = its_server->instance_name_;
+    if (auto its_server = _server.lock()) {
+        instance_name_ = its_server->instance_name_;
+    } else {
+        instance_name_ = "";
+    }
 }
 
 tcp_server_endpoint_impl::connection::~connection() {

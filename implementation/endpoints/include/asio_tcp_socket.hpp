@@ -57,7 +57,8 @@ private:
 #endif
 #if defined(__linux__) || defined(__QNX__)
     [[nodiscard]] bool bind_to_device(std::string const& _device) override {
-        return setsockopt(socket_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(), static_cast<socklen_t>(_device.size()))
+        // +1 since std::string.size does not take into account the null terminator
+        return setsockopt(socket_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(), static_cast<socklen_t>(_device.size() + 1))
                 != -1;
     }
     [[nodiscard]] bool can_read_fd_flags() override { return fcntl(socket_.native_handle(), F_GETFD) != -1; }
@@ -105,12 +106,14 @@ private:
 
     [[nodiscard]] bool set_native_option_free_bind() override {
         int opt = 1;
-        return setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) == 0;
+        return setsockopt(acceptor_.native_handle(), IPPROTO_IP, IP_FREEBIND, &opt, sizeof(opt)) != -1;
     }
 #endif
 #if defined(__linux__) || defined(__QNX__)
     [[nodiscard]] bool bind_to_device(std::string const& _device) override {
-        return setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(), static_cast<socklen_t>(_device.size()))
+        // +1 since std::string.size does not take into account the null terminator
+        return setsockopt(acceptor_.native_handle(), SOL_SOCKET, SO_BINDTODEVICE, _device.c_str(),
+                          static_cast<socklen_t>(_device.size() + 1))
                 != -1;
     }
 #endif
