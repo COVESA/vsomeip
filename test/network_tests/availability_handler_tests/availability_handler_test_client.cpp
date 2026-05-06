@@ -99,20 +99,21 @@ private:
     }
 
     void stop() {
-        {
-            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
+        app_->release_service(SERVICE_ID, INSTANCE_ID);
 
-            app_->release_service(SERVICE_ID, INSTANCE_ID);
-
-            availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
-
-            app_->clear_all_handler();
-            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
-        }
+        app_->clear_all_handler();
 
         app_->stop();
 
         application_thread_.join();
+
+        {
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
+
+            availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
+
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
+        }
     }
 
     void register_availability_handler() {
@@ -133,23 +134,26 @@ private:
     }
 
     void on_state(vsomeip::state_type_e _state) {
-        std::scoped_lock local_lock(local_client_mutex_);
-        state_ = _state;
+        {
+            std::scoped_lock local_lock(local_client_mutex_);
 
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-                     << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
+            state_ = _state;
 
-        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
+            VSOMEIP_INFO << "Application " << app_->get_name() << " is "
+                         << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
-        if (_state == vsomeip::state_type_e::ST_REGISTERED) {
-            availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_REGISTERED;
-        } else {
-            availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_NOT_REGISTERED;
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->client_mutex_);
+
+            if (_state == vsomeip::state_type_e::ST_REGISTERED) {
+                availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_REGISTERED;
+            } else {
+                availability_handler_shared_->client_status_ = availability_handler::availability_handler_test_steps::STATE_NOT_REGISTERED;
+            }
+
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
         }
 
         local_client_cv_.notify_one();
-
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->client_cv_, lock);
     }
 
     void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {

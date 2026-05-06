@@ -25,6 +25,7 @@
 
 #include "availability_handler_test_globals.hpp"
 #include "../someip_test_globals.hpp"
+#include <common/process_manager.hpp>
 #include <common/vsomeip_app_utilities.hpp>
 #include "common/test_main.hpp"
 
@@ -32,9 +33,22 @@ namespace vt = vsomeip_test;
 
 class availability_handler_test_manager : public testing::Test {
 protected:
-    void SetUp() { VSOMEIP_INFO << "Setting up availability_handler_test_manager"; }
+    void SetUp() {
+        boost::interprocess::shared_memory_object::remove("AvailabilityHandlerSteps");
+        VSOMEIP_INFO << "Setting up availability_handler_test_manager";
+    }
 
-    void TearDown() { VSOMEIP_INFO << "Tearing down availability_handler_test_manager"; }
+    void TearDown() {
+        boost::interprocess::shared_memory_object::remove("AvailabilityHandlerSteps");
+        VSOMEIP_INFO << "Tearing down availability_handler_test_manager";
+    }
+
+    static void remove(availability_handler::availability_handler_test_steps* ptr) { ptr->~availability_handler_test_steps(); };
+};
+
+auto custom_env = [](const std::string config, const std::string app_name) {
+    std::map<std::string, std::string> app_env{{"VSOMEIP_CONFIGURATION", config}, {"VSOMEIP_APPLICATION_NAME", app_name}};
+    return app_env;
 };
 
 /**
@@ -60,9 +74,9 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                                                   boost::interprocess::read_write // read-write mode
     );
 
-    int seconds_to_timeout = 5;
+    int seconds_to_timeout = 15;
 
-    ASSERT_NO_THROW({
+    ASSERT_NO_THROW(([&] {
         // Set size
         shm.truncate(sizeof(availability_handler::availability_handler_test_steps));
 
@@ -73,18 +87,22 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
 
         void* addr = region.get_address();
 
-        availability_handler::availability_handler_test_steps* availability_handler_shared_ =
-                new (addr) availability_handler::availability_handler_test_steps;
+        std::unique_ptr<availability_handler::availability_handler_test_steps,
+                        void (*)(availability_handler::availability_handler_test_steps*)>
+                availability_handler_shared_ = {new (addr) availability_handler::availability_handler_test_steps, &remove};
 
         std::string exec_cmd_service = "./availability_handler_test_service_starter.sh";
         std::string exec_cmd_client = "./availability_handler_test_client_starter.sh";
+
+        process_manager service_provider{exec_cmd_service, custom_env("availaibility_handler_test.json", "AVAILABILITY_HANDLER_SERVICE")};
+        process_manager service_consumer{exec_cmd_client, custom_env("availaibility_handler_test.json", "AVAILABILITY_HANDLER_CLIENT")};
 
         {
             boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(
                     availability_handler_shared_->service_mutex_);
 
             std::cout << "S1 Launching Service" << std::endl;
-            ASSERT_EQ(system(exec_cmd_service.c_str()), 0);
+            service_provider.run();
 
             std::cout << "S1 - Waiting for service to register..." << std::endl;
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
@@ -106,7 +124,7 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                     availability_handler_shared_->client_mutex_);
 
             std::cout << "C1 Launching client and register the availability handler" << std::endl;
-            ASSERT_EQ(system(exec_cmd_client.c_str()), 0);
+            service_consumer.run();
 
             ASSERT_TRUE(vt::interprocess_utils::wait_and_check_unlocked(
                     availability_handler_shared_->client_cv_, client_lock, seconds_to_timeout, availability_handler_shared_->client_status_,
@@ -249,9 +267,9 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
             vt::interprocess_utils::notify_component_unlocked(availability_handler_shared_->service_cv_);
         }
 
-        // Explicitly destroy the object that was created with placement new
-        availability_handler_shared_->~availability_handler_test_steps();
-    });
+        ASSERT_EQ(service_consumer.wait(), 0);
+        ASSERT_EQ(service_provider.wait(), 0);
+    }()));
 }
 
 #if defined(__linux__) || defined(__QNX__)
