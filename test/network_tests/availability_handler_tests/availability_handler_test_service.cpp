@@ -106,37 +106,41 @@ private:
     void stop() {
         send_stop_offers();
 
-        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->service_mutex_);
-
-        availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
-
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
-
         app_->clear_all_handler();
 
         app_->stop();
 
         application_thread_.join();
+
+        {
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->service_mutex_);
+
+            availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_DEREGISTERED;
+
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
+        }
     }
 
     void on_state(vsomeip::state_type_e _state) {
-        std::scoped_lock local_lock(local_service_mutex_);
-        state_ = _state;
+        {
+            std::scoped_lock local_lock(local_service_mutex_);
+            state_ = _state;
 
-        VSOMEIP_INFO << "Application " << app_->get_name() << " is "
-                     << (state_ == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
+            VSOMEIP_INFO << "Application " << app_->get_name() << " is "
+                         << (state_ == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
 
-        boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->service_mutex_);
+            boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> lock(availability_handler_shared_->service_mutex_);
 
-        if (state_ == vsomeip::state_type_e::ST_REGISTERED) {
-            availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_REGISTERED;
-        } else {
-            availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_NOT_REGISTERED;
+            if (state_ == vsomeip::state_type_e::ST_REGISTERED) {
+                availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_REGISTERED;
+            } else {
+                availability_handler_shared_->service_status_ = availability_handler::availability_handler_test_steps::STATE_NOT_REGISTERED;
+            }
+
+            vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
         }
 
         local_service_cv_.notify_one();
-
-        vt::interprocess_utils::notify_and_wait_unlocked(availability_handler_shared_->service_cv_, lock);
     }
 
     void send_offers() {
