@@ -28,7 +28,6 @@ public:
     virtual client_t get_client_id() = 0;
 
     [[nodiscard]] virtual bool get_connection_param(client_t _client, boost::asio::ip::address& _address, port_t& _port) = 0;
-    virtual void add_connection_param(client_t _client, boost::asio::ip::address const& _address, port_t const& _port) = 0;
 
     virtual void register_error_handler(client_t _client, std::shared_ptr<local_endpoint> _ep) = 0;
 };
