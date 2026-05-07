@@ -2349,6 +2349,12 @@ bool service_discovery_impl::check_static_header_fields(const std::shared_ptr<co
         VSOMEIP_ERROR << "Invalid return code in SD header";
         return false;
     }
+    // PRS_SOMEIPSD_00154
+    // SD messages shall have Client-ID set to 0x0000
+    if (_message->get_client() != VSOMEIP_SD_CLIENT) {
+        VSOMEIP_ERROR << "Invalid client ID in SD header: expected 0x0000, got 0x" << hex4(_message->get_client());
+        return false;
+    }
     return true;
 }
 

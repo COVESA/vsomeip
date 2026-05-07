@@ -1175,4 +1175,57 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_eac
     router_one_sd_gate->block(false);
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(second_instance)));
 }
+
+struct sd_header_validation : public base_fake_socket_fixture {
+    ecu_setup ecu_one_{"ecu_one", boardnet::ecu_one_config, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", boardnet::ecu_two_config, *socket_manager_};
+
+    void prepare_ecus_and_apps() {
+        ecu_one_.add_guest({"guest_client", 0x1338});
+        ecu_two_.add_guest({"guest_server", 0x1337});
+
+        ecu_one_.prepare();
+        ecu_two_.prepare();
+
+        ecu_one_.start_apps();
+        ecu_two_.start_apps();
+    }
+};
+
+TEST_F(sd_header_validation, prs_someipsd_00154_sd_offer_with_nonzero_client_id_is_rejected) {
+    // SD messages shall have a Client-ID set to 0x0000.
+    // Verify that an incoming SD OFFER message carrying a non-zero Client-ID is silently
+    // discarded by the receiver (ECU one), while an identical message with Client-ID = 0x0000
+    // is accepted and causes normal service availability signalling.
+
+    prepare_ecus_and_apps();
+
+    auto* client = ecu_one_.apps_["guest_client"];
+    client->request_service(interfaces::boardnet::service_3344.instance_);
+
+    // construct_offer() builds a well-formed SD OFFER with Client-ID = 0x0000.
+    // We then overwrite bytes 8–9 (VSOMEIP_CLIENT_POS_MIN) with a non-zero value to
+    // simulate a non-compliant sender.
+    auto malformed_offer = construct_offer(interfaces::boardnet::service_3344.events_[0], boardnet::ecu_two_config.unicast_ip_, 30501);
+    // SOME/IP header: bytes 8–9 are the Client-ID (big-endian).
+    malformed_offer[VSOMEIP_CLIENT_POS_MIN] = 0xDE;
+    malformed_offer[VSOMEIP_CLIENT_POS_MIN + 1] = 0xAD;
+
+    send_someip_sd_message(malformed_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
+
+    // ECU one must NOT process the offer; service availability must NOT be reported.
+    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
+            << "SD OFFER with non-zero Client-ID (0xDEAD) was incorrectly accepted";
+    ;
+
+    // --- Valid offer: Client-ID = 0x0000 ---
+    // The identical offer with the correct Client-ID must be accepted and trigger
+    // service availability on ECU one.
+    auto valid_offer = construct_offer(interfaces::boardnet::service_3344.events_[0], boardnet::ecu_two_config.unicast_ip_, 30501);
+
+    send_someip_sd_message(valid_offer, ecu_two_.sd_endpoint(), ecu_one_.sd_endpoint());
+
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
+            << "SD OFFER with Client-ID = 0x0000 was not accepted";
+}
 }
