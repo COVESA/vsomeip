@@ -165,24 +165,45 @@ bool application_impl::init() {
     std::string config_module = "";
     const char* its_config_module = getenv(VSOMEIP_ENV_CONFIGURATION_MODULE);
     if (nullptr != its_config_module) {
+        std::cerr << "[vsomeip][configuration-debug] Environment variable " << VSOMEIP_ENV_CONFIGURATION_MODULE << " is set to \""
+                  << its_config_module << "\". Custom configuration module loading is currently not implemented in this path."
+                  << std::endl;
         // TODO: Add loading of custom configuration module
     } else { // load default module
+        std::cerr << "[vsomeip][configuration-debug] Environment variable " << VSOMEIP_ENV_CONFIGURATION_MODULE
+                  << " is not set. Trying to load the default configuration plugin \"" << VSOMEIP_CFG_LIBRARY << "\"."
+                  << std::endl;
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
         auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
         if (its_plugin) {
+            std::cerr << "[vsomeip][configuration-debug] Plugin manager returned a plugin for \"" << VSOMEIP_CFG_LIBRARY
+                      << "\". Verifying that it implements configuration_plugin." << std::endl;
             auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
             if (its_configuration_plugin) {
+                std::cerr << "[vsomeip][configuration-debug] Configuration plugin cast succeeded. Loading configuration for application \""
+                          << name_ << "\" with configuration path \"" << path_ << "\"." << std::endl;
                 configuration_ = its_configuration_plugin->get_configuration(name_, path_);
                 VSOMEIP_INFO << "Configuration module loaded.";
             } else {
+                std::cerr << "[vsomeip][configuration-debug] Plugin manager returned a plugin, but dynamic_pointer_cast<configuration_plugin> "
+                             "failed. The plugin has an unexpected concrete type."
+                          << std::endl;
                 std::cerr << "Invalid configuration module!" << std::endl;
                 std::exit(EXIT_FAILURE);
             }
         } else {
+            std::cerr << "[vsomeip][configuration-debug] Plugin manager returned nullptr for the default configuration plugin \""
+                      << VSOMEIP_CFG_LIBRARY
+                      << "\". This means no valid static configuration plugin was registered/created and no valid dynamic plugin "
+                         "could be loaded from that library name."
+                      << std::endl;
             std::cerr << "1 Configuration module could not be loaded!" << std::endl;
             std::exit(EXIT_FAILURE);
         }
 #else
+        std::cerr << "[vsomeip][configuration-debug] VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS is enabled. Bypassing the configuration "
+                     "plugin manager and constructing cfg::configuration_impl directly."
+                  << std::endl;
         configuration_ =
                 std::dynamic_pointer_cast<configuration>(std::make_shared<vsomeip_v3::cfg::configuration_impl>(configuration_path));
         if (configuration_path.length()) {
