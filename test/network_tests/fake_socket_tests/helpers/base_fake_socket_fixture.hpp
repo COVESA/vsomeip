@@ -260,6 +260,12 @@ struct base_fake_socket_fixture : ::testing::Test {
      **/
     void clear_sd_message_record(boost::asio::ip::udp::endpoint const& _ep);
 
+    /**
+     * @see socket_manager::send_someip
+     */
+    void send_someip_sd_message(std::vector<unsigned char> const& _buffer, boost::asio::ip::udp::endpoint const& _src,
+                                boost::asio::ip::udp::endpoint const& _dst);
+
 protected:
     std::shared_ptr<socket_manager> socket_manager_{std::make_shared<socket_manager>()};
 
