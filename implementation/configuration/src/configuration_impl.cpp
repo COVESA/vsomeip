@@ -3227,52 +3227,66 @@ bool configuration_impl::find_port(uint16_t& _port, uint16_t _remote, bool _reli
 
 bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service, instance_t _instance, bool _reliable,
                                             std::map<bool, std::set<uint16_t>>& _used_client_ports) const {
-    bool is_configured(false);
-    bool check_all(false);
     auto its_client = find_client(_service, _instance);
 
-    // Check for service, instance specific port configuration
-    if (its_client && !its_client->ports_[_reliable].empty()) {
-        is_configured = true;
-        std::set<uint16_t>::const_iterator it;
-        if (its_client->last_used_specific_client_port_[_reliable] == ILLEGAL_PORT) {
-            it = its_client->ports_[_reliable].begin();
-        } else {
-            it = its_client->ports_[_reliable].find(its_client->last_used_specific_client_port_[_reliable]);
-            auto it_next = std::next(it, 1);
-            if (it_next != its_client->ports_[_reliable].end()) {
-                check_all = true;
-                it = it_next;
-            } else {
-                it = its_client->ports_[_reliable].begin();
+    // no service, instance specific port configuration available,
+    // return false to check for generic port configuration
+    if (!its_client || its_client->ports_[_reliable].empty()) {
+        return false;
+    }
+
+    auto& configured_ports = its_client->ports_[_reliable];
+    auto& last_used_port = its_client->last_used_specific_client_port_[_reliable];
+
+    auto begin = configured_ports.begin();
+    auto end = configured_ports.end();
+
+    auto start = begin; // determines start position for port search
+
+    if (last_used_port != ILLEGAL_PORT) {
+        auto it = configured_ports.find(last_used_port);
+        if (it != end) {
+            start = std::next(it);
+            if (start == end) {
+                start = begin;
             }
         }
-        while (it != its_client->ports_[_reliable].end()) {
+    }
+
+    auto try_allocate = [&](auto from, auto to) -> bool {
+        for (auto it = from; it != to; ++it) {
             if (!_used_client_ports[_reliable].contains(*it)) {
                 _port = *it;
-                its_client->last_used_specific_client_port_[_reliable] = *it;
-                VSOMEIP_INFO_P << "#1: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << _reliable
+                last_used_port = *it;
+                VSOMEIP_INFO_P << "service/instance: [" << hex4(_service) << "." << hex4(_instance) << "] reliable: " << _reliable
                                << " return specific port: " << static_cast<uint32_t>(_port);
                 return true;
             }
-            ++it;
         }
-        if (check_all) {
-            // no free port was found
-            // ensure that all configured client ports are checked from beginning
-            for (auto its_port : _used_client_ports[_reliable]) {
-                if (!_used_client_ports[_reliable].contains(its_port)) {
-                    _port = its_port;
-                    its_client->last_used_specific_client_port_[_reliable] = its_port;
-                    VSOMEIP_INFO_P << "#2: service: " << hex4(_service) << " instance: " << hex4(_instance) << " reliable: " << _reliable
-                                   << " return specific port: " << static_cast<uint32_t>(_port);
-                    return true;
-                }
-            }
-        }
-        its_client->last_used_specific_client_port_[_reliable] = ILLEGAL_PORT;
+        return false;
+    };
+
+    // First pass: [start, end)
+    if (try_allocate(start, end)) {
+        return true;
     }
-    return is_configured;
+
+    // Wraparound pass: [begin, start)
+    if (try_allocate(begin, start)) {
+        return true;
+    }
+
+    // No free configured ports
+    last_used_port = ILLEGAL_PORT;
+
+    VSOMEIP_WARNING << "No free configured client ports available for service/instance [" << hex4(_service) << "." << hex4(_instance)
+                    << "] reliable: " << _reliable;
+
+    // Return true to indicate that a specific port configuration exists for this
+    // service/instance, but all configured ports are currently in use. The caller
+    // checks _port == ILLEGAL_PORT to detect this case and must not fall back to
+    // generic/dynamic port allocation.
+    return true;
 }
 
 reliability_type_e configuration_impl::get_event_reliability(service_t _service, instance_t _instance, event_t _event) const {
