@@ -28,6 +28,13 @@ constexpr auto MEMORY_CHECKER_INTERVAL = std::chrono::seconds(5);
 // Slightly below target to account for timing inaccuracies of sleep_for()
 // and avoid overshooting the bandwidth.
 constexpr auto MESSAGE_SENDER_INTERVAL = std::chrono::milliseconds(7);
+// Under Valgrind (memcheck/massif) the whole system slows down ~30x.
+// Therefore interval is scaled up and the message count down to keep total duration
+// roughly the same (~120s) and avoid hitting test timeouts.
+// Normal:   9000 iter × 14 ms  = 126 s
+// Valgrind:  200 iter × 500 ms = 100 s  (within the 300 s timeout)
+constexpr auto MESSAGE_SENDER_INTERVAL_VALGRIND = std::chrono::milliseconds(250);
+constexpr uint16_t TEST_MESSAGE_NUMBER_VALGRIND = 200;
 constexpr auto WATCHDOG_INTERVAL = std::chrono::seconds(2);
 constexpr auto WAIT_AVAILABILITY = std::chrono::milliseconds(15000);
 constexpr auto WAIT_START_MESSAGE = std::chrono::milliseconds(10000);
