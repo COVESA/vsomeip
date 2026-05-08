@@ -83,7 +83,14 @@ void routing_info_entry::deserialize(const std::vector<byte_t>& _buffer, size_t&
     uint32_t its_size;
     uint32_t its_client_size;
 
-    if (_buffer.size() < _index + sizeof(type_) + sizeof(its_size) + sizeof(client_)) {
+    // The four fixed-width reads at the top of this function consume
+    // sizeof(type_) + sizeof(its_size) + sizeof(its_client_size) +
+    // sizeof(client_) = 1 + 4 + 4 + 2 = 11 bytes. The bound check must
+    // cover all four; missing sizeof(its_client_size) lets a 7-byte
+    // buffer through and allows the its_client_size and client_
+    // memcpy()s to read up to 6 bytes of adjacent heap memory.
+    if (_buffer.size() < _index + sizeof(type_) + sizeof(its_size)
+                         + sizeof(its_client_size) + sizeof(client_)) {
 
         _error = error_e::ERROR_NOT_ENOUGH_BYTES;
         return;
@@ -107,7 +114,37 @@ void routing_info_entry::deserialize(const std::vector<byte_t>& _buffer, size_t&
 
     if (its_client_size > sizeof(client_)) {
 
+        // its_client_size came off the wire from a peer routing client.
+        // Reject values that would underflow the address-size subtraction
+        // below before computing it.
+        if (its_client_size < uint32_t(sizeof(client_t) + sizeof(port_))) {
+
+            _error = error_e::ERROR_MALFORMED;
+            return;
+        }
+
         uint32_t its_address_size = its_client_size - uint32_t(sizeof(client_t) + sizeof(port_));
+
+        // Only IPv4 (4-byte) and IPv6 (16-byte) address sizes are valid;
+        // anything else is malformed input. Validate here so the bounds
+        // check below can rely on a sane its_address_size, and so the
+        // address+port memcpy()s never run with a wire-controlled size.
+        if (its_address_size != sizeof(boost::asio::ip::address_v4::bytes_type)
+                && its_address_size != sizeof(boost::asio::ip::address_v6::bytes_type)) {
+
+            _error = error_e::ERROR_MALFORMED;
+            return;
+        }
+
+        // The address and port reads were previously unguarded — a peer
+        // could set its_client_size to 8 (v4) or 20 (v6) and force the
+        // memcpy()s to read 4–16 bytes plus 2 more for the port from
+        // beyond the buffer end. Bounds-check before any memcpy.
+        if (_buffer.size() < _index + its_address_size + sizeof(port_)) {
+
+            _error = error_e::ERROR_NOT_ENOUGH_BYTES;
+            return;
+        }
 
         if (its_address_size == sizeof(boost::asio::ip::address_v4::bytes_type)) {
 
@@ -116,17 +153,14 @@ void routing_info_entry::deserialize(const std::vector<byte_t>& _buffer, size_t&
             address_ = boost::asio::ip::address_v4(its_array);
             _index += its_array.size();
 
-        } else if (its_address_size == sizeof(boost::asio::ip::address_v6::bytes_type)) {
+        } else {
 
+            // its_address_size is sizeof(address_v6::bytes_type) by the
+            // validation above.
             boost::asio::ip::address_v6::bytes_type its_array;
             std::memcpy(&its_array, &_buffer[_index], its_array.size());
             address_ = boost::asio::ip::address_v6(its_array);
             _index += its_array.size();
-
-        } else {
-
-            _error = error_e::ERROR_MALFORMED;
-            return;
         }
 
         std::memcpy(&port_, &_buffer[_index], sizeof(port_));
