@@ -10,6 +10,8 @@
 #include "runtime.hpp"
 
 namespace vsomeip_v3 {
+class plugin_manager_impl;
+
 namespace sd {
 
 class runtime_impl : public runtime, public plugin_impl<runtime_impl> {
@@ -20,6 +22,8 @@ public:
     std::shared_ptr<service_discovery> create_service_discovery(service_discovery_host* _host,
                                                                 std::shared_ptr<configuration> _configuration) const;
 };
+
+void register_static_sd_runtime_plugin(plugin_manager_impl& _manager);
 
 } // namespace sd
 } // namespace vsomeip_v3

@@ -14,6 +14,8 @@
 #include "configuration_plugin.hpp"
 
 namespace vsomeip_v3 {
+class plugin_manager_impl;
+
 namespace cfg {
 
 class configuration_impl;
@@ -32,6 +34,8 @@ private:
     std::mutex mutex_;
     std::map<std::string, std::shared_ptr<cfg::configuration_impl>> configurations_;
 };
+
+void register_static_configuration_plugin(plugin_manager_impl& _manager);
 
 } // namespace vsomeip_v3
 
