@@ -21,8 +21,6 @@
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 #include <vsomeip/internal/logger.hpp>
 
-#include "../../configuration/include/configuration_plugin_impl.hpp"
-#include "../../service_discovery/include/runtime_impl.hpp"
 #include "../include/plugin_manager_impl.hpp"
 
 #ifdef ANDROID
@@ -58,13 +56,8 @@ const char* plugin_type_to_string(plugin_type_e _type) {
 
 std::shared_ptr<plugin_manager_impl> plugin_manager_impl::get() {
     static std::once_flag initialization_flag;
-    static std::once_flag builtin_plugin_registration_flag;
     std::call_once(initialization_flag, []() {
         the_plugin_manager__ = std::make_shared<plugin_manager_impl>();
-    });
-    std::call_once(builtin_plugin_registration_flag, []() {
-        register_static_configuration_plugin(*the_plugin_manager__);
-        sd::register_static_sd_runtime_plugin(*the_plugin_manager__);
     });
     return the_plugin_manager__;
 }

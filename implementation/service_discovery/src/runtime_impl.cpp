@@ -7,7 +7,6 @@
 #include <vsomeip/message.hpp>
 #include <vsomeip/internal/plugin_manager.hpp>
 
-#include "../../plugin/include/plugin_manager_impl.hpp"
 #include "../include/constants.hpp"
 #include "../include/defines.hpp"
 #include "../include/message_impl.hpp"
@@ -25,10 +24,6 @@ runtime_impl::~runtime_impl() { }
 std::shared_ptr<service_discovery> runtime_impl::create_service_discovery(service_discovery_host* _host,
                                                                           std::shared_ptr<configuration> _configuration) const {
     return std::make_shared<service_discovery_impl>(_host, _configuration);
-}
-
-void register_static_sd_runtime_plugin(plugin_manager_impl& _manager) {
-    _manager.register_static_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, runtime_impl::get_plugin);
 }
 
 } // namespace sd

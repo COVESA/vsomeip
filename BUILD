@@ -44,6 +44,18 @@ apex_cc_library(
 
 # interface library, use this target to depend on vsomeip
 apex_cc_library(
+    name = "vsomeip3_builtin_plugins",
+    srcs = ["src/plugin_init.cpp"],
+    alwayslink = True,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":vsomeip3_config_plugin",
+        ":vsomeip3_sd_plugin",
+        "//interface",
+    ],
+)
+
+apex_cc_library(
     name = "vsomeip3",
     linkopts = select({
         "@platforms//os:linux": ["-lpthread"],
@@ -52,6 +64,7 @@ apex_cc_library(
     linkstatic = True,  # no object files
     visibility = ["//visibility:public"],
     deps = [
+        ":vsomeip3_builtin_plugins",
         ":vsomeip3_config_plugin",
         # ":vsomeip3_import",
         ":vsomeip3_sd_plugin",

@@ -10,7 +10,6 @@
 
 #include "../include/configuration_plugin_impl.hpp"
 #include "../include/configuration_impl.hpp"
-#include "../../plugin/include/plugin_manager_impl.hpp"
 
 namespace vsomeip_v3 {
 
@@ -44,13 +43,6 @@ std::shared_ptr<configuration> configuration_plugin_impl::get_configuration(cons
 bool configuration_plugin_impl::remove_configuration(const std::string& _name) {
     std::scoped_lock its_lock(mutex_);
     return configurations_.erase(_name) > 0;
-}
-
-void register_static_configuration_plugin(plugin_manager_impl& _manager) {
-    std::cerr << "[vsomeip][configuration-debug] Explicit configuration plugin registration is running. Registering "
-                 "CONFIGURATION_PLUGIN factory with plugin_manager."
-              << std::endl;
-    _manager.register_static_plugin(plugin_type_e::CONFIGURATION_PLUGIN, configuration_plugin_impl::get_plugin);
 }
 
 namespace {
