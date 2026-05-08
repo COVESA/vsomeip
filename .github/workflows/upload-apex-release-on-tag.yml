@@ -45,7 +45,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           files: /tmp/${{ github.ref_name }}.tar.gz
-          draft: true
+          draft: false
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

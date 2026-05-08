@@ -2,7 +2,7 @@ load("//bazel:expand_template.bzl", "expand_template")
 load("@apex//common/bazel/rules_cc:defs.bzl", "apex_cc_library")
 load("@vsomeip//bazel:version.bzl", "version_dict_from_string")
 
-APEX_VSOMEIP_VERSION_TAG = "3.6.1-apex8-force-static-8"  # Must match the git tag version.
+APEX_VSOMEIP_VERSION_TAG = "3.6.1-apex8-force-static-10"  # Must match the git tag version.
 
 expand_template(
     name = "config",
