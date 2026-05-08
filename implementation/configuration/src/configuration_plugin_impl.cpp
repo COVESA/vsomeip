@@ -47,9 +47,9 @@ bool configuration_plugin_impl::remove_configuration(const std::string& _name) {
 
 namespace {
 
-struct configuration_plugin_static_registrar {
-    configuration_plugin_static_registrar() {
-        std::cerr << "[vsomeip][configuration-debug] Static configuration plugin registrar is running. Registering "
+struct configuration_plugin_static_registration {
+    configuration_plugin_static_registration() {
+        std::cerr << "[vsomeip][configuration-debug] Static configuration plugin registration is running. Registering "
                      "CONFIGURATION_PLUGIN factory with plugin_manager."
                   << std::endl;
         plugin_manager::register_static_plugin(plugin_type_e::CONFIGURATION_PLUGIN,
@@ -57,7 +57,7 @@ struct configuration_plugin_static_registrar {
     }
 };
 
-const configuration_plugin_static_registrar configuration_plugin_static_registrar_{};
+const configuration_plugin_static_registration configuration_plugin_static_registration_{};
 
 } // namespace
 } // namespace vsomeip_v3

@@ -102,52 +102,7 @@ std::shared_ptr<plugin> plugin_manager_impl::load_plugin(const std::string& _lib
         return its_plugin;
     }
     std::cerr << "[vsomeip][plugin-debug] Static plugin lookup failed for type=" << plugin_type_to_string(_type)
-              << ". Falling back to dynamic library loading for \"" << _library << "\"." << std::endl;
-    void* handle = load_library(_library);
-    if (!handle) {
-        std::cerr << "[vsomeip][plugin-debug] Dynamic library loading returned nullptr for \"" << _library
-                  << "\". No plugin init symbol can be loaded from this library." << std::endl;
-    }
-    plugin_init_func its_init_func = reinterpret_cast<plugin_init_func>(load_symbol(handle, VSOMEIP_PLUGIN_INIT_SYMBOL));
-    if (its_init_func) {
-        std::cerr << "[vsomeip][plugin-debug] Found plugin init symbol \"" << VSOMEIP_PLUGIN_INIT_SYMBOL << "\" in \"" << _library
-                  << "\". Calling it to obtain the create_plugin function." << std::endl;
-        create_plugin_func its_create_func = (*its_init_func)();
-        if (its_create_func) {
-            std::cerr << "[vsomeip][plugin-debug] Plugin init function returned a create_plugin function for \"" << _library
-                      << "\". Creating plugin instance." << std::endl;
-            handles_[_type][_library] = handle;
-            auto its_plugin = (*its_create_func)();
-            if (its_plugin) {
-                std::cerr << "[vsomeip][plugin-debug] Dynamic plugin instance created: name=\"" << its_plugin->get_plugin_name()
-                          << "\", type=" << plugin_type_to_string(its_plugin->get_plugin_type()) << " ("
-                          << static_cast<int>(its_plugin->get_plugin_type()) << "), version=" << its_plugin->get_plugin_version()
-                          << "." << std::endl;
-                if (its_plugin->get_plugin_type() == _type && its_plugin->get_plugin_version() == _version) {
-                    std::cerr << "[vsomeip][plugin-debug] Dynamic plugin type/version match. Adding plugin \"" << _library
-                              << "\" to cache." << std::endl;
-                    add_plugin(its_plugin, _library);
-                    return its_plugin;
-                } else {
-                    std::cerr << "[vsomeip][plugin-debug] Dynamic plugin type/version mismatch. Expected type="
-                              << plugin_type_to_string(_type) << " (" << static_cast<int>(_type) << "), version=" << _version
-                              << "; got type=" << plugin_type_to_string(its_plugin->get_plugin_type()) << " ("
-                              << static_cast<int>(its_plugin->get_plugin_type()) << "), version="
-                              << its_plugin->get_plugin_version() << "." << std::endl;
-                    VSOMEIP_ERROR << "Plugin version mismatch. Ignoring plugin " << its_plugin->get_plugin_name();
-                }
-            } else {
-                std::cerr << "[vsomeip][plugin-debug] Dynamic create_plugin function returned nullptr for \"" << _library << "\"."
-                          << std::endl;
-            }
-        } else {
-            std::cerr << "[vsomeip][plugin-debug] Plugin init symbol returned a nullptr create_plugin function for \"" << _library
-                      << "\"." << std::endl;
-        }
-    } else {
-        std::cerr << "[vsomeip][plugin-debug] Plugin init symbol \"" << VSOMEIP_PLUGIN_INIT_SYMBOL << "\" was not available for \""
-                  << _library << "\"." << std::endl;
-    }
+              << ". Shared-library plugin loading is disabled, so \"" << _library << "\" will not be dlopen'ed." << std::endl;
     std::cerr << "[vsomeip][plugin-debug] load_plugin failed for library=\"" << _library << "\", expected type="
               << plugin_type_to_string(_type) << " (" << static_cast<int>(_type) << "), expected version=" << _version
               << ". Returning nullptr." << std::endl;
@@ -162,7 +117,7 @@ std::shared_ptr<plugin> plugin_manager_impl::load_static_plugin(plugin_type_e _t
     if (its_factory == static_factories_.end()) {
         std::cerr << "[vsomeip][plugin-debug] No static plugin factory registered for type=" << plugin_type_to_string(_type)
                   << ". For the configuration plugin, this usually means the object containing register_static_plugin was not linked "
-                     "or its static registrar did not run."
+                     "or its static registration did not run."
                   << std::endl;
         return nullptr;
     }
@@ -200,6 +155,9 @@ bool plugin_manager_impl::unload_plugin(plugin_type_e _type) {
     const auto found_handle = handles_.find(_type);
     if (found_handle != handles_.end()) {
         for (const auto& its_name : found_handle->second) {
+            if (!its_name.second) {
+                continue;
+            }
 #ifdef _WIN32
             FreeLibrary((HMODULE)its_name.second);
 #else
@@ -232,84 +190,21 @@ void plugin_manager_impl::register_static_plugin(plugin_type_e _type, create_plu
 }
 
 void* plugin_manager_impl::load_library(const std::string& _path) {
-    std::cerr << "[vsomeip][plugin-debug] Attempting to load dynamic plugin library \"" << _path << "\"." << std::endl;
-#ifdef _WIN32
-    void* handle = LoadLibrary(_path.c_str());
-    if (handle == nullptr) {
-        std::cerr << "[vsomeip][plugin-debug] LoadLibrary failed for \"" << _path << "\" with error code " << GetLastError()
-                  << "." << std::endl;
-    } else {
-        std::cerr << "[vsomeip][plugin-debug] LoadLibrary succeeded for \"" << _path << "\"." << std::endl;
-    }
-    return handle;
-#else
-    void* handle = dlopen(_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
-    if (handle == nullptr) {
-        const char* its_error = dlerror();
-        std::cerr << "[vsomeip][plugin-debug] dlopen failed for \"" << _path << "\" due to: "
-                  << (its_error ? its_error : "<no dlerror available>") << "." << std::endl;
-        VSOMEIP_ERROR << "Could not dlopen \"" << _path << "\" due to err: " << (its_error ? its_error : "<no dlerror available>");
-    } else {
-        std::cerr << "[vsomeip][plugin-debug] dlopen succeeded for \"" << _path << "\"." << std::endl;
-    }
-
-    return handle;
-#endif
+    std::cerr << "[vsomeip][plugin-debug] Shared-library loading is disabled. Refusing to load \"" << _path << "\"."
+              << std::endl;
+    return nullptr;
 }
 
 void* plugin_manager_impl::load_symbol(void* _handle, const std::string& _symbol_name) {
-    void* symbol = nullptr;
-    if (_handle) {
-        std::cerr << "[vsomeip][plugin-debug] Attempting to load symbol \"" << _symbol_name << "\" from dynamic plugin handle."
-                  << std::endl;
-#ifdef _WIN32
-        symbol = GetProcAddress(reinterpret_cast<HMODULE>(_handle), _symbol_name.c_str());
-#else
-        symbol = dlsym(_handle, _symbol_name.c_str());
-#endif
-
-        if (!symbol) {
-            char* error_message = nullptr;
-
-#ifdef _WIN32
-            DWORD error_code = GetLastError();
-            FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error_code,
-                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast<LPSTR>(&error_message), 0, nullptr);
-#else
-            error_message = dlerror();
-#endif
-
-#ifdef __QNX__
-            VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name.c_str()) << " because: " << error_message;
-#else
-            VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name) << " because: " << error_message;
-#endif
-            std::cerr << "[vsomeip][plugin-debug] Loading symbol \"" << _symbol_name
-                      << "\" failed because: " << (error_message ? error_message : "<no symbol error available>") << "."
-                      << std::endl;
-
-#ifdef _WIN32
-            // Required to release memory allocated by FormatMessageA()
-            LocalFree(error_message);
-#endif
-        } else {
-            std::cerr << "[vsomeip][plugin-debug] Loading symbol \"" << _symbol_name << "\" succeeded." << std::endl;
-        }
-    } else {
-        std::cerr << "[vsomeip][plugin-debug] Skipping symbol lookup for \"" << _symbol_name
-                  << "\" because the dynamic library handle is nullptr." << std::endl;
-    }
-    return symbol;
+    (void)_handle;
+    std::cerr << "[vsomeip][plugin-debug] Shared-library loading is disabled. Refusing to load symbol \"" << _symbol_name
+              << "\"." << std::endl;
+    return nullptr;
 }
 
 void plugin_manager_impl::unload_library(void* _handle) {
-    if (_handle) {
-#ifdef _WIN32
-        FreeLibrary(reinterpret_cast<HMODULE>(_handle));
-#else
-        dlclose(_handle);
-#endif
-    }
+    (void)_handle;
+    std::cerr << "[vsomeip][plugin-debug] Shared-library loading is disabled. Ignoring unload_library request." << std::endl;
 }
 
 } // namespace vsomeip_v3

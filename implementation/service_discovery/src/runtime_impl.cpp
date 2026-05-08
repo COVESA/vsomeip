@@ -30,13 +30,13 @@ std::shared_ptr<service_discovery> runtime_impl::create_service_discovery(servic
 
 namespace {
 
-struct sd_plugin_registrar {
-    sd_plugin_registrar() {
+struct sd_plugin_registration {
+    sd_plugin_registration() {
         plugin_manager::register_static_plugin(plugin_type_e::SD_RUNTIME_PLUGIN, sd::runtime_impl::get_plugin);
     }
 };
 
-const sd_plugin_registrar sd_plugin_registrar_{};
+const sd_plugin_registration sd_plugin_registration_{};
 
 } // namespace
 
