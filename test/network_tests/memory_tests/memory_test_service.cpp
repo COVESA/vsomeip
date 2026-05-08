@@ -6,7 +6,11 @@
 #include <vsomeip/internal/logger.hpp>
 #include <cstring>
 #include "common/test_main.hpp"
-
+#if defined(__has_include) && __has_include(<valgrind/valgrind.h>)
+#include <valgrind/valgrind.h>
+#else
+#define RUNNING_ON_VALGRIND 0
+#endif
 #include "memory_test_service.hpp"
 
 void check_memory(std::vector<std::uint64_t>& test_memory_, std::atomic<bool>& stop_checking_) {
@@ -70,18 +74,25 @@ void memory_test_service::message_sender(std::atomic<bool>& stop_checking_) {
 
     its_payload->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 20));
     its_payload2->set_data(std::vector<uint8_t>(NOTIFY_PAYLOAD_SIZE, 10));
+
+    const auto send_interval = RUNNING_ON_VALGRIND ? MESSAGE_SENDER_INTERVAL_VALGRIND : MESSAGE_SENDER_INTERVAL;
+    const int message_number = RUNNING_ON_VALGRIND ? TEST_MESSAGE_NUMBER_VALGRIND : TEST_MESSAGE_NUMBER;
+    if (RUNNING_ON_VALGRIND) {
+        VSOMEIP_INFO << "message_sender: running under Valgrind — interval " << send_interval.count() << " ms, " << message_number
+                     << " iterations";
+    }
     int count{0};
-    for (int message_no = 0; message_no <= TEST_MESSAGE_NUMBER; message_no++) {
+    for (int message_no = 0; message_no <= message_number; message_no++) {
         for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
             _app->notify(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, its_payload);
             count++;
         }
-        std::this_thread::sleep_for(MESSAGE_SENDER_INTERVAL);
+        std::this_thread::sleep_for(send_interval);
         for (uint16_t i = 0; i < TEST_EVENT_NUMBER; i++) {
             _app->notify(MEMORY_SERVICE, MEMORY_INSTANCE, MEMORY_EVENT + i, its_payload2);
             count++;
         }
-        std::this_thread::sleep_for(MESSAGE_SENDER_INTERVAL);
+        std::this_thread::sleep_for(send_interval);
     }
     stop_checking_ = true;
     VSOMEIP_INFO << "sent " << count << " messages";
