@@ -89,39 +89,83 @@ bool configuration_option_impl::serialize(vsomeip_v3::serializer* _to) const {
 
 bool configuration_option_impl::deserialize(vsomeip_v3::deserializer* _from) {
     bool is_successful = option_impl::deserialize(_from);
+    if (!is_successful) {
+        return false;
+    }
+
+    // option_impl::deserialize has consumed length_ + type + reserved.
+    // length_ covers the reserved byte (already consumed) plus the
+    // configuration items plus the trailing '\0' terminator
+    // (SWS_SD_00292). Bytes that still belong to *this* option, and
+    // which the loop below is allowed to consume, are length_ - 1.
+    //
+    // Without the bytes_remaining budget tracked here, the loop would
+    // only stop on a 0-length item or when the outer deserializer's
+    // remaining_ ran out — i.e. it could greedily consume bytes from
+    // subsequent SD options if a multicast peer sent a CONFIGURATION
+    // option that omitted its trailing terminator or claimed an
+    // item-length larger than the option's declared payload.
+    if (length_ < 1) {
+        // length_ is too small to even cover the already-consumed
+        // reserved byte; the option is malformed.
+        return false;
+    }
+    std::size_t bytes_remaining = static_cast<std::size_t>(length_) - 1u;
+
     uint8_t l_itemLength = 0;
     std::string l_item(256, 0), l_key, l_value;
 
-    do {
+    while (bytes_remaining > 0) {
         l_itemLength = 0;
         l_key.clear();
         l_value.clear();
         l_item.assign(256, '\0');
 
-        is_successful = is_successful && _from->deserialize(l_itemLength);
-        if (l_itemLength > 0) {
-            is_successful = is_successful && _from->deserialize(l_item, static_cast<std::size_t>(l_itemLength));
-
-            if (is_successful) {
-                size_t l_eqPos = l_item.find('='); // SWS_SD_00292
-                l_key = l_item.substr(0, l_eqPos);
-
-                // if no "=" is found, no value is present for key (SWS_SD_00466)
-                if (l_eqPos != std::string::npos)
-                    l_value = l_item.substr(l_eqPos + 1);
-                if (configuration_.end() == configuration_.find(l_key)) {
-                    configuration_[l_key] = l_value;
-                } else {
-                    // TODO: log reason for failing deserialization
-                    is_successful = false;
-                }
-            }
-        } else {
-            break;
+        if (!_from->deserialize(l_itemLength)) {
+            return false;
         }
-    } while (is_successful && _from->get_remaining() > 0);
+        bytes_remaining -= 1;
 
-    return is_successful;
+        if (l_itemLength == 0) {
+            // The terminating empty entry per SWS_SD_00292. Any bytes
+            // left over (bytes_remaining > 0 here) are option padding
+            // not described by the spec — leave them alone; the parent
+            // dispatcher's set_remaining bookkeeping will keep the
+            // overall option-stream walk honest, and being lenient
+            // about trailing padding matches the previous behaviour
+            // for well-formed inputs.
+            return true;
+        }
+
+        if (l_itemLength > bytes_remaining) {
+            // The item declares more bytes than fit inside the option's
+            // declared payload; reject before the read so the loop can
+            // never consume bytes that belong to the next option.
+            return false;
+        }
+
+        if (!_from->deserialize(l_item, static_cast<std::size_t>(l_itemLength))) {
+            return false;
+        }
+        bytes_remaining -= l_itemLength;
+
+        size_t l_eqPos = l_item.find('='); // SWS_SD_00292
+        l_key = l_item.substr(0, l_eqPos);
+
+        // if no "=" is found, no value is present for key (SWS_SD_00466)
+        if (l_eqPos != std::string::npos)
+            l_value = l_item.substr(l_eqPos + 1);
+        if (configuration_.end() == configuration_.find(l_key)) {
+            configuration_[l_key] = l_value;
+        } else {
+            // TODO: log reason for failing deserialization
+            return false;
+        }
+    }
+
+    // Ran out of bytes within the option without seeing the terminator;
+    // malformed.
+    return false;
 }
 
 } // namespace sd
