@@ -37,6 +37,18 @@ bool message_impl::deserialize(deserializer* _from) {
     payload_ = runtime::get()->create_payload();
     bool is_successful = header_.deserialize(_from);
     if (is_successful) {
+        // header_.length_ is wire-controlled and covers the SOME/IP
+        // fields after the length itself (the 8-byte trailer:
+        // request_id + proto version + iface version + msg type +
+        // return code) plus the payload. A valid message therefore has
+        // length >= VSOMEIP_SOMEIP_HEADER_SIZE; values below that wrap
+        // the unsigned subtraction to ~0xFFFFFFF8 and make
+        // payload_impl::set_capacity request a ~4GB std::vector::reserve
+        // per malformed message (memory-pressure DoS, even though the
+        // subsequent payload_->deserialize correctly refuses the read).
+        if (header_.length_ < VSOMEIP_SOMEIP_HEADER_SIZE) {
+            return false;
+        }
         payload_->set_capacity(header_.length_ - VSOMEIP_SOMEIP_HEADER_SIZE);
         is_successful = payload_->deserialize(_from);
     }
