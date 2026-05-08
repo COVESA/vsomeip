@@ -1,7 +1,8 @@
 load("//bazel:expand_template.bzl", "expand_template")
+load("@apex//common/bazel/rules_cc:defs.bzl", "apex_cc_library")
 load("@vsomeip//bazel:version.bzl", "version_dict_from_string")
 
-APEX_VSOMEIP_VERSION_TAG = "3.6.1-apex8-force-static-2"  # Must match the git tag version.
+APEX_VSOMEIP_VERSION_TAG = "3.6.1-apex8-force-static-3"  # Must match the git tag version.
 
 expand_template(
     name = "config",
@@ -24,13 +25,13 @@ expand_template(
     template = "configuration/include/internal.hpp.in",
 )
 
-cc_library(
+apex_cc_library(
     name = "generated_config",
     hdrs = [":config"],
     strip_include_prefix = "configuration/include",
 )
 
-cc_library(
+apex_cc_library(
     name = "helper",
     hdrs = glob(
         [
@@ -49,7 +50,7 @@ cc_library(
     ],
 )
 
-cc_library(
+apex_cc_library(
     name = "configuration",
     srcs = glob(
         [
@@ -63,7 +64,7 @@ cc_library(
     ],
 )
 
-cc_library(
+apex_cc_library(
     name = "service_discovery",
     srcs = glob(
         [
@@ -76,7 +77,7 @@ cc_library(
     ],
 )
 
-cc_library(
+apex_cc_library(
     name = "implementation",
     srcs = glob(
         [
