@@ -185,6 +185,7 @@ public:
      * Replaces a data pipe for udp endpoints.
      * Application name needs to be parameterized to identify multicast endpoints.
      * If socket role is set as client, the receiving pipe is replaced, otherwise the change is applied to the endpoint sending pipe.
+     * @note See @ref sd_gate class documentation for multicast gate lifecycle details.
      **/
     bool setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, std::string const& _app_name, socket_role _applied_on,
                          std::shared_ptr<data_pipe> const& _pipe);

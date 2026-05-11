@@ -285,9 +285,11 @@ void socket_manager::remove_acceptor(fd_t _fd, uds_endpoint _ep) {
             if (auto ep_it = app_it->second.find(_ep); ep_it != app_it->second.end()) {
                 pending_pipe = true;
                 pipe = ep_it->second;
-                app_it->second.erase(ep_it);
-                if (app_it->second.size() == 0) {
-                    pending_someip_pipe_.erase(app_it);
+                if (_ep.address() != boost::asio::ip::address_v4::any()) {
+                    app_it->second.erase(ep_it);
+                    if (app_it->second.size() == 0) {
+                        pending_someip_pipe_.erase(app_it);
+                    }
                 }
             }
         }
@@ -589,9 +591,14 @@ bool socket_manager::setup_data_pipe(boost::asio::ip::udp::endpoint const& _ep, 
             fd = ep_it->second;
         }
 
-        if (fd == 0) {
+        if (fd == 0 || _ep.address() == boost::asio::ip::address_v4::any()) {
             // endpoint not yet binded.
+            // Multicast endpoints will always remain in the pending pipe, as the endpoint can be restarted while processing multicast
+            // options.
             pending_someip_pipe_[_app_name][_ep] = {_pipe, _applied_on};
+        }
+
+        if (fd == 0) {
             return true;
         }
 

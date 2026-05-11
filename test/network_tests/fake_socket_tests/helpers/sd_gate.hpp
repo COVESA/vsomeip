@@ -25,6 +25,13 @@ enum class gate_state { BLOCKED, UNBLOCKED };
  * The pipe is inspected message-by-message, iterating through all sd entries of each message and
  * once the configured trigger fires the gate blocks further forwarding until explicitly
  * re-opened via block(false).
+ *
+ * @note The gate design has an inherant fault from the SD module, in which multicast endpoints will have the custom gate applied to
+ * corresponding endpoint throughout the entire test lifecycle, even if the endpoint is re-created/restarted. This is due to the fact that
+ * the SD multicast endpoint can be restarted if it doesn't receive any messages for a certain amount of time (110% of the
+ * cyclic_offer_delay_) and for test consistency it has been decided to abstract this fact from the test and handle the gate being applied
+ * after each endpoint restart internally. To avoid any unexpected behavior, it is important to call block(false) to unblock the gate after
+ * the test part that requires the gate to be blocked is finished.
  */
 class sd_gate : public std::enable_shared_from_this<sd_gate> {
     struct hidden { };
@@ -49,11 +56,13 @@ public:
 
     /**
      * @see command_gate::block_at
+     * @note See @ref sd_gate class documentation for multicast gate lifecycle details.
      */
     void block_at(someip_sd_record_message _sd_msg, uint32_t _count = 1);
 
     /**
      * @see command_gate::block
+     * @note See @ref sd_gate class documentation for multicast gate lifecycle details.
      */
     void block(bool _block = false);
 
