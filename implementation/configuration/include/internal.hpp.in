@@ -156,7 +156,7 @@ namespace vsomeip_v3 {
 
 typedef enum { SUBSCRIPTION_ACKNOWLEDGED, SUBSCRIPTION_NOT_ACKNOWLEDGED, IS_SUBSCRIBING } subscription_state_e;
 
-inline constexpr std::uint32_t MESSAGE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
+inline constexpr std::uint32_t DEFAULT_MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MiB
 
 inline constexpr std::uint32_t QUEUE_SIZE_UNLIMITED = (std::numeric_limits<std::uint32_t>::max)();
 

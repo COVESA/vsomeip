@@ -523,8 +523,9 @@ void tcp_server_endpoint_impl::connection::receive() {
         size_t left_buffer_size = its_capacity - recv_buffer_size_;
         try {
             if (missing_capacity_) {
-                if (missing_capacity_ > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR_P << instance_name_ << "Missing receive buffer capacity exceeds allowed maximum!";
+                if (missing_capacity_ > max_message_size_) {
+                    VSOMEIP_ERROR_P << instance_name_ << "Missing receive buffer capacity exceeds allowed maximum: " << missing_capacity_
+                                    << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                     return;
                 }
                 const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
@@ -617,8 +618,7 @@ bool tcp_server_endpoint_impl::connection::send_queued(const target_data_iterato
 }
 
 bool tcp_server_endpoint_impl::connection::send_magic_cookie(message_buffer_ptr_t& _buffer) {
-    if (max_message_size_ == MESSAGE_SIZE_UNLIMITED
-        || max_message_size_ - _buffer->size() >= VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
+    if (max_message_size_ - _buffer->size() >= VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
         _buffer->insert(_buffer->begin(), SERVICE_COOKIE, SERVICE_COOKIE + sizeof(SERVICE_COOKIE));
         return true;
     }
@@ -654,8 +654,9 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
             bool has_full_message;
             do {
                 uint64_t read_message_size = utility::get_message_size(&recv_buffer_[its_iteration_gap], recv_buffer_size_);
-                if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR_P << instance_name_ << "Message size exceeds allowed maximum!";
+                if (read_message_size > max_message_size_) {
+                    VSOMEIP_ERROR_P << instance_name_ << "Message size exceeds allowed maximum: " << read_message_size
+                                    << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                     return;
                 }
                 uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
@@ -783,7 +784,7 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                         its_lock.unlock();
                         wait_until_sent(boost::asio::error::operation_aborted);
                         return;
-                    } else if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && current_message_size > max_message_size_) {
+                    } else if (current_message_size > max_message_size_) {
                         recv_buffer_size_ = 0;
                         recv_buffer_.resize(recv_buffer_size_initial_, 0x0);
                         recv_buffer_.shrink_to_fit();
