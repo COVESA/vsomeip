@@ -62,8 +62,21 @@ void app::offer(interface const& _interface) {
 }
 
 void app::offer(service_instance _si) {
-    TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _si;
-    app_->offer_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
+    auto offer_impl = [this, _si]() {
+        TEST_LOG << "[app] \"" << app_->get_name() << "\" is offering: " << _si;
+
+        app_->offer_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
+    };
+
+    if (offer_service_hook_) {
+        offer_service_hook_(offer_impl, _si);
+    } else {
+        offer_impl();
+    }
+}
+
+void app::set_offer_service_hook(offer_service_hook_t hook) {
+    offer_service_hook_ = std::move(hook);
 }
 
 void app::offer_event(event_ids const& _ei) {

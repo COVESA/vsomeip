@@ -113,7 +113,7 @@ TEST_F(stress_server_reconnects, request_reply_works_after_server_reconnects) {
         // which would be fine for this test, but we would like to check that when the service is finally available,
         // that the routing info is also given
         if (client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_),
-                                                        std::chrono::milliseconds(10))) {
+                                                        std::chrono::milliseconds(20))) {
             ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
         }
 

@@ -1042,13 +1042,11 @@ TEST_F(tcp_notifications, test_tcp_and_udp_boardnet_initial_event) {
     // 2.
     std::vector<unsigned char> event_payload = {0x5, 0x3};
 
-    // This function is needed when offering a service that
-    // has an event that will notify via boardnet tcp
-    ASSERT_TRUE(ecu_two_.offer_via_tcp(ecu_two_server_name_, both_interface));
+    ecu_two_server_->offer(both_interface);
 
     ecu_two_server_->send_event(tcp_offered_field, event_payload);
     ecu_two_server_->send_event(udp_offered_field, event_payload);
-    ASSERT_TRUE(ecu_two_.offer_via_tcp(ecu_two_server_name_, second_interface));
+    ecu_two_server_->offer(second_interface);
     ecu_two_server_->send_event(second_interface_tcp_offered_field, event_payload);
 
     // 3.
@@ -1077,6 +1075,83 @@ TEST_F(tcp_notifications, test_tcp_and_udp_boardnet_initial_event) {
 
     EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(second_checker))
             << "Failed to receive second field" << "\nRecord: " << ecu_one_client_->message_record_;
+}
+
+static ecu_config change_ecu_one_cfg_name(std::string name) {
+    ecu_config cfg{boardnet::ecu_one_config};
+    std::get<local_tcp_config>(*cfg.routing_config_).router_name_ = name;
+    cfg.apps_[0].name_ = name;
+    return cfg;
+}
+
+struct tcp_offers : public base_fake_socket_fixture {
+
+    // Custom interface with a service that has events being notified via tcp and udp
+    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    interface both_interface{0x3345, {}, event_specs_both_};
+    // Second service to check if offering two services via tcp does not cause issues
+    interface second_interface{0x3346, {}, event_specs_both_};
+
+    ecu_config ecu_one_config_tcp_cfg{change_ecu_one_cfg_name("rrouter_one")};
+    ecu_config ecu_two_config_tcp_cfg{boardnet::ecu_two_config};
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_config_tcp_cfg, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_two_config_tcp_cfg.add_interface({both_interface, second_interface}), *socket_manager_};
+
+    event_ids tcp_offered_field{both_interface.fields_[0]};
+    event_ids udp_offered_field{both_interface.fields_[1]};
+
+    event_ids second_interface_tcp_offered_field{second_interface.fields_[0]};
+};
+
+// Regression test for the auxiliary io_context pre-reservation bug.
+//
+// Root cause:
+//   ecu_setup::start_one() calls sm_.add(router_name_ + "_auxiliary_context_") immediately
+//   after the router is assigned, leaving a nullptr slot in the alphabetically-sorted
+//   std::map<std::string, io_context*> inside socket_manager.
+//   socket_manager::try_add() always picks the *first* nullptr entry it finds.
+//   If ECU two starts first, the map looks like:
+//
+//     "router_two"                    -> <ptr>   (assigned)
+//     "router_two_auxiliary_context_" -> nullptr (reserved — waiting for ECU two's aux context)
+//     "rrouter_one"                   -> nullptr (registered for ECU one's router)
+//
+//   When ECU one's router ("rrouter_one") creates its first socket, try_add() finds
+//   "router_two_auxiliary_context_" (nullptr) before "rrouter_one" (nullptr) because
+//   at position 1: 'o' (0x6f) < 'r' (0x72).  ECU one's io_context is mis-assigned to
+//   the auxiliary slot; await_assignment("rrouter_one") times out; ecu_one_.router_ = nullptr.
+//
+//   WHY "rrouter_one" AND NOT "router_one":
+//     "router_one" shares the prefix "router_" and then 'o' < 't', so it sorts BEFORE
+//     "router_two_auxiliary_context_" → unaffected by the bug.
+//     "rrouter_one" has 'r' at position 1 vs 'o' in "router_..." → sorts AFTER the slot
+//     → its io_context is stolen → bug is deterministically exposed.
+TEST_F(tcp_offers, auxiliary_context_slot_does_not_steal_router_io_context) {
+    // ECU two starts FIRST: router_two is assigned, then immediately pre-registers the
+    // "router_two_auxiliary_context_" nullptr slot.
+    ecu_two_.add_app(ecu_two_server_name_);
+    ecu_two_.prepare();
+    ecu_two_.start_apps();
+    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
+
+    // ECU one starts SECOND: "rrouter_one"'s io_context arrives in try_add() and — with
+    // the bug — is stolen into "router_two_auxiliary_context_" instead.
+    ecu_one_.add_app(ecu_one_client_name_);
+    ecu_one_.prepare();
+    ecu_one_.start_apps();
+
+    auto* router_one_ = ecu_one_.router_;
+
+    ecu_two_server_->offer(both_interface);
+
+    // Verify end-to-end: router_one_ must be able to see the offered service.
+    router_one_->request_service(both_interface.instance_);
+
+    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(both_interface.instance_)))
+            << "router_one_ (\"rrouter_one\") did not receive service availability — "
+               "likely because its io_context was not properly assigned.";
 }
 
 ecu_config configure_initial_delay(ecu_config cfg, std::uint32_t min, std::uint32_t max) {
