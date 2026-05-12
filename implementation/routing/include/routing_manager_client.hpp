@@ -167,7 +167,8 @@ private:
 
     void cache_event_payload(const std::shared_ptr<message>& _message);
 
-    void on_stop_offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
+    void on_stop_offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                               std::scoped_lock<std::mutex> const& _consumer_lock);
 
     [[nodiscard]] bool send_pending_commands(std::scoped_lock<std::mutex> const& _consumer_lock);
 
