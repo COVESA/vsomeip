@@ -1570,14 +1570,8 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     if (available_services_.remove(its_service, its_instance)) {
                         available_services_history_[{its_service, its_instance}].insert(its_client);
                     }
-                    // call on_availability only under the same lock as the available_services_ to ensure
-                    // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
-                    // dispatcher queue)
-                    host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
-                    VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance)
-                                 << ":" << static_cast<int>(its_major) << "." << its_minor << "]";
+                    on_stop_offer_service(its_service, its_instance, its_major, its_minor, its_lock);
                 }
-                on_stop_offer_service(its_service, its_instance, its_major, its_minor);
             }
             break;
         }
@@ -1872,11 +1866,14 @@ void routing_manager_client::cache_event_payload(const std::shared_ptr<message>&
     }
 }
 
-void routing_manager_client::on_stop_offer_service(service_t _service, instance_t _instance, major_version_t _major,
-                                                   minor_version_t _minor) {
-    (void)_major;
-    (void)_minor;
-    std::scoped_lock its_lock{consumer_mutex_};
+void routing_manager_client::on_stop_offer_service(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
+                                                   [[maybe_unused]] std::scoped_lock<std::mutex> const& _consumer_lock) {
+    // call on_availability only under the same lock as the available_services_ to ensure
+    // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
+    // dispatcher queue)
+    host_->on_availability(_service, _instance, availability_state_e::AS_UNAVAILABLE, _major, _minor);
+    VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
+                 << static_cast<int>(_major) << "." << _minor << "]";
     const auto search = consumed_events_.find(service_instance_t{_service, _instance});
     if (search == consumed_events_.end()) {
         return;
@@ -2382,12 +2379,7 @@ void routing_manager_client::remove_local(client_t _client,
             if (_requested_services) {
                 _requested_services->emplace(its_service, its_instance, its_major, its_minor);
             }
-            // call on_availability only under the same lock as the available_services_ to ensure
-            // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
-            // dispatcher queue)
-            host_->on_availability(its_service, its_instance, availability_state_e::AS_UNAVAILABLE, its_major, its_minor);
-            VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(its_service) << "." << hex4(its_instance) << ":"
-                         << static_cast<int>(its_major) << "." << static_cast<int>(its_minor) << "]";
+            on_stop_offer_service(its_service, its_instance, its_major, its_minor, its_lock);
         }
 
         // remove disconnected client from offer service history
@@ -2415,12 +2407,7 @@ void routing_manager_client::cleanup_routing_data() {
         std::scoped_lock lock(consumer_mutex_);
         auto removed = available_services_.clear();
         for (auto const& [service, instance, major, minor, client] : removed) {
-            // call on_availability only under the same lock as the available_services_ to ensure
-            // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
-            // dispatcher queue)
-            host_->on_availability(service, instance, availability_state_e::AS_UNAVAILABLE, major, minor);
-            VSOMEIP_INFO << "ON_UNAVAILABLE(" << hex4(get_client()) << "): [" << hex4(service) << "." << hex4(instance) << ":"
-                         << static_cast<int>(major) << "." << static_cast<int>(minor) << "]";
+            on_stop_offer_service(service, instance, major, minor, lock);
         }
         available_services_history_.clear();
         address_table_.clear();
