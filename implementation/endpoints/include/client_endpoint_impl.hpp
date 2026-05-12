@@ -18,6 +18,7 @@
 #include <boost/asio/ip/udp.hpp>
 #include <boost/utility.hpp>
 #include <vsomeip/constants.hpp>
+#include "../../utility/include/service_instance_map.hpp"
 
 #include "buffer.hpp"
 #include "endpoint_impl.hpp"
@@ -145,7 +146,7 @@ protected:
 
 private:
     virtual std::string get_remote_information() const = 0;
-    virtual bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const;
+    virtual bool tp_segmentation_enabled(service_instance_t _si, method_t _method) const;
     virtual std::uint32_t get_max_allowed_reconnects() const = 0;
     virtual void max_allowed_reconnects_reached() = 0;
     void send_segments(const tp::tp_split_messages_t& _segments, std::uint32_t _separation_time);

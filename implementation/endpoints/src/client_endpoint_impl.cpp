@@ -253,7 +253,7 @@ bool client_endpoint_impl<Protocol>::send(const uint8_t* _data, uint32_t _size) 
 }
 
 template<typename Protocol>
-bool client_endpoint_impl<Protocol>::tp_segmentation_enabled(service_t /*_service*/, instance_t /*_instance*/, method_t /*_method*/) const {
+bool client_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t /*_si*/, method_t /*_method*/) const {
 
     return false;
 }
@@ -751,7 +751,7 @@ typename endpoint_impl<Protocol>::cms_ret_e client_endpoint_impl<Protocol>::segm
         instance_t its_instance = this->get_instance(its_service);
 
         if (its_instance != ANY_INSTANCE) {
-            if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
+            if (tp_segmentation_enabled({its_service, its_instance}, its_method)) {
                 std::uint16_t its_max_segment_length;
                 std::uint32_t its_separation_time;
                 this->configuration_->get_tp_configuration(its_service, its_instance, its_method, true, its_max_segment_length,

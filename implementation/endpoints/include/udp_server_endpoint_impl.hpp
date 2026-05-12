@@ -96,7 +96,7 @@ private:
     std::string get_remote_information(const endpoint_type& _remote) const override;
 
     std::string get_address_port_local_unlocked() const;
-    bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const override;
+    bool tp_segmentation_enabled(service_instance_t _si, method_t _method) const override;
 
     void on_unicast_received(const boost::system::error_code& _error, std::size_t _bytes, const message_buffer_t& _unicast_recv_buffer);
 

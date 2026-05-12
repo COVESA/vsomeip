@@ -24,6 +24,7 @@
 #if defined(__QNX__)
 #include "../../utility/include/qnx_helper.hpp"
 #endif
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -135,7 +136,7 @@ protected:
 private:
     virtual std::string get_remote_information(const target_data_iterator_type _queue_iterator) const = 0;
     virtual std::string get_remote_information(const endpoint_type& _remote) const = 0;
-    virtual bool tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const;
+    virtual bool tp_segmentation_enabled(service_instance_t _si, method_t _method) const;
 
     void schedule_train(endpoint_data_type& _target);
     void update_last_departure(endpoint_data_type& _data);

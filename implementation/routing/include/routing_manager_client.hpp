@@ -307,8 +307,7 @@ private:
     std::set<protocol::service> pending_offers_;
 
     struct event_data_t {
-        service_t service_;
-        instance_t instance_;
+        service_instance_t service_instance_;
         event_t notifier_;
         event_type_e type_;
         reliability_type_e reliability_;
@@ -317,9 +316,15 @@ private:
         std::set<eventgroup_t> eventgroups_;
 
         bool operator<(const event_data_t& _other) const {
-            return std::tie(service_, instance_, notifier_, type_, reliability_, is_provided_, is_cyclic_, eventgroups_)
-                    < std::tie(_other.service_, _other.instance_, _other.notifier_, _other.type_, _other.reliability_, _other.is_provided_,
-                               _other.is_cyclic_, _other.eventgroups_);
+            if (service_instance_.service() != _other.service_instance_.service()) {
+                return service_instance_.service() < _other.service_instance_.service();
+            }
+            if (service_instance_.instance() != _other.service_instance_.instance()) {
+                return service_instance_.instance() < _other.service_instance_.instance();
+            }
+            return std::tie(notifier_, type_, reliability_, is_provided_, is_cyclic_, eventgroups_)
+                    < std::tie(_other.notifier_, _other.type_, _other.reliability_, _other.is_provided_, _other.is_cyclic_,
+                               _other.eventgroups_);
         }
     };
     std::mutex pending_event_registrations_mutex_;
@@ -346,7 +351,7 @@ private:
     services_t provided_services_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
     eventgroups_t provided_eventgroups_;
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, uint32_t>>> remote_subscriber_count_;
+    service_instance_map<std::map<eventgroup_t, uint32_t>> remote_subscriber_count_;
 
     // This mutex should be used whenever the client
     // is trying to access data relevant for its "consumer" side
@@ -359,23 +364,28 @@ private:
     std::set<protocol::service> requests_to_debounce_;
     std::map<client_t, std::pair<boost::asio::ip::address, port_t>> address_table_;
     local_service_table available_services_;
-    std::map<service_t, std::map<instance_t, std::set<client_t>>> available_services_history_;
+    service_instance_map<std::set<client_t>> available_services_history_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> consumed_events_;
     eventgroups_t consumed_eventgroups_;
 
     struct subscription_data_t {
-        service_t service_;
-        instance_t instance_;
+        service_instance_t service_instance_;
         eventgroup_t eventgroup_;
         major_version_t major_;
         event_t event_;
         std::shared_ptr<debounce_filter_impl_t> filter_;
 
         bool operator<(const subscription_data_t& _other) const {
-            return (service_ < _other.service_ || (service_ == _other.service_ && instance_ < _other.instance_)
-                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ < _other.eventgroup_)
-                    || (service_ == _other.service_ && instance_ == _other.instance_ && eventgroup_ == _other.eventgroup_
-                        && event_ < _other.event_));
+            if (service_instance_.service() != _other.service_instance_.service()) {
+                return service_instance_.service() < _other.service_instance_.service();
+            }
+            if (service_instance_.instance() != _other.service_instance_.instance()) {
+                return service_instance_.instance() < _other.service_instance_.instance();
+            }
+            if (eventgroup_ != _other.eventgroup_) {
+                return eventgroup_ < _other.eventgroup_;
+            }
+            return event_ < _other.event_;
         }
     };
     std::set<subscription_data_t> pending_subscriptions_;

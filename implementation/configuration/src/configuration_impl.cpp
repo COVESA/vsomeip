@@ -383,9 +383,7 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
     if (!is_loaded_) {
         VSOMEIP_ERROR_P << "Shall only be called after normal configuration has been parsed";
     } else {
-        auto its_service = std::make_shared<service>();
-        its_service->service_ = _service;
-        its_service->instance_ = _instance;
+        auto its_service = std::make_shared<service>(_service, _instance);
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         _reliable ? its_service->reliable_ = _port : its_service->unreliable_ = _port;
         its_service->unicast_address_ = default_unicast_;
@@ -394,10 +392,9 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
         {
             std::scoped_lock its_lock(services_mutex_);
             bool updated(false);
-            const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
-            if (search != services_.end()) {
-                VSOMEIP_INFO << "Updating remote configuration for service [" << hex4(its_service->service_) << "."
-                             << hex4(its_service->instance_) << "]";
+            if (const auto search = services_.find(its_service->service_instance_); search != services_.end()) {
+                VSOMEIP_INFO << "Updating remote configuration for service [" << hex4(its_service->service_instance_.service()) << "."
+                             << hex4(its_service->service_instance_.instance()) << "]";
                 if (_reliable) {
                     search->second->reliable_ = its_service->reliable_;
                 } else {
@@ -407,9 +404,9 @@ bool configuration_impl::remote_offer_info_add(service_t _service, instance_t _i
             }
 
             if (!updated) {
-                services_[service_instance_t{_service, _instance}] = its_service;
-                VSOMEIP_INFO << "Added new remote configuration for service [" << hex4(its_service->service_) << "."
-                             << hex4(its_service->instance_) << "]";
+                services_[its_service->service_instance_] = its_service;
+                VSOMEIP_INFO << "Added new remote configuration for service [" << hex4(its_service->service_instance_.service()) << "."
+                             << hex4(its_service->service_instance_.instance()) << "]";
             }
             if (_magic_cookies_enabled) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
@@ -430,7 +427,7 @@ bool configuration_impl::remote_offer_info_remove(service_t _service, instance_t
     } else {
         std::scoped_lock its_lock(services_mutex_);
         const auto search = services_.find(service_instance_t{_service, _instance});
-        if (search != services_.end()) {
+        if (services_.contains(service_instance_t{_service, _instance})) {
             VSOMEIP_INFO << "Removing remote configuration for service [" << hex4(_service) << "." << hex4(_instance) << "]";
             if (_reliable) {
                 search->second->reliable_ = ILLEGAL_PORT;
@@ -1886,8 +1883,10 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
     try {
         bool is_loaded(true);
         bool use_magic_cookies(false);
+        service_t service_id(0);
+        instance_t instance_id(0);
 
-        auto its_service = std::make_shared<service>();
+        auto its_service = std::make_shared<service>(service_id, instance_id);
         its_service->reliable_ = its_service->unreliable_ = ILLEGAL_PORT;
         its_service->unicast_address_ = _unicast_address;
         its_service->protocol_ = "someip";
@@ -1942,22 +1941,24 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
                 }
 
                 if (its_key == "service") {
-                    its_converter >> its_service->service_;
+                    its_converter >> service_id;
                 } else if (its_key == "instance") {
-                    its_converter >> its_service->instance_;
+                    its_converter >> instance_id;
                 }
             }
         }
 
-        const auto search = services_.find(service_instance_t{its_service->service_, its_service->instance_});
-        if (search != services_.end()) {
-            VSOMEIP_WARNING << "Multiple configurations for service [" << hex4(its_service->service_) << "." << hex4(its_service->instance_)
-                            << "]";
+        // Initialize service_instance_ from the loaded service and instance values
+        its_service->service_instance_ = service_instance_t(service_id, instance_id);
+
+        if (services_.contains(its_service->service_instance_)) {
+            VSOMEIP_WARNING << "Multiple configurations for service [" << hex4(its_service->service_instance_.service()) << "."
+                            << hex4(its_service->service_instance_.instance()) << "]";
             is_loaded = false;
         }
 
         if (is_loaded) {
-            services_[service_instance_t{its_service->service_, its_service->instance_}] = its_service;
+            services_[its_service->service_instance_] = its_service;
             if (use_magic_cookies) {
                 magic_cookies_[its_service->unicast_address_].insert(its_service->reliable_);
             }
@@ -1965,24 +1966,28 @@ void configuration_impl::load_service(const boost::property_tree::ptree& _tree, 
             if (its_service->unicast_address_ == default_unicast_) {
                 // local services
                 if (its_service->reliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[unicast_.to_string()][its_service->reliable_][its_service->service_] = its_service;
+                    services_by_ip_port_[unicast_.to_string()][its_service->reliable_][its_service->service_instance_.service()] =
+                            its_service;
                 }
                 if (its_service->unreliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[unicast_.to_string()][its_service->unreliable_][its_service->service_] = its_service;
+                    services_by_ip_port_[unicast_.to_string()][its_service->unreliable_][its_service->service_instance_.service()] =
+                            its_service;
                     // This is necessary as all udp server endpoints listen on
                     // INADDR_ANY instead of a specific address
-                    services_by_ip_port_[boost::asio::ip::address_v4::any().to_string()][its_service->unreliable_][its_service->service_] =
-                            its_service;
-                    services_by_ip_port_[boost::asio::ip::address_v6::any().to_string()][its_service->unreliable_][its_service->service_] =
-                            its_service;
+                    services_by_ip_port_[boost::asio::ip::address_v4::any().to_string()][its_service->unreliable_]
+                                        [its_service->service_instance_.service()] = its_service;
+                    services_by_ip_port_[boost::asio::ip::address_v6::any().to_string()][its_service->unreliable_]
+                                        [its_service->service_instance_.service()] = its_service;
                 }
             } else {
                 // remote services
                 if (its_service->reliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[its_service->unicast_address_][its_service->reliable_][its_service->service_] = its_service;
+                    services_by_ip_port_[its_service->unicast_address_][its_service->reliable_][its_service->service_instance_.service()] =
+                            its_service;
                 }
                 if (its_service->unreliable_ != ILLEGAL_PORT) {
-                    services_by_ip_port_[its_service->unicast_address_][its_service->unreliable_][its_service->service_] = its_service;
+                    services_by_ip_port_[its_service->unicast_address_][its_service->unreliable_]
+                                        [its_service->service_instance_.service()] = its_service;
                 }
             }
         }
@@ -2034,8 +2039,8 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
         if (its_event_id > 0) {
             auto found_event = _service->events_.find(its_event_id);
             if (found_event != _service->events_.end()) {
-                VSOMEIP_INFO << "Multiple configurations for event [" << hex4(_service->service_) << "." << hex4(_service->instance_) << "."
-                             << hex4(its_event_id) << "].";
+                VSOMEIP_INFO << "Multiple configurations for event [" << hex4(_service->service_instance_.service()) << "."
+                             << hex4(_service->service_instance_.instance()) << "." << hex4(its_event_id) << "].";
             } else {
                 // If event reliability type was not configured,
                 if (its_reliability == reliability_type_e::RT_UNKNOWN) {
@@ -2044,8 +2049,9 @@ void configuration_impl::load_event(std::shared_ptr<service>& _service, const bo
                     } else if (_service->reliable_ != ILLEGAL_PORT) {
                         its_reliability = reliability_type_e::RT_RELIABLE;
                     }
-                    VSOMEIP_WARNING << "Reliability type for event [" << hex4(_service->service_) << "." << hex4(_service->instance_) << "."
-                                    << hex4(its_event_id) << "] was not configured Using : "
+                    VSOMEIP_WARNING << "Reliability type for event [" << hex4(_service->service_instance_.service()) << "."
+                                    << hex4(_service->service_instance_.instance()) << "." << hex4(its_event_id)
+                                    << "] was not configured Using : "
                                     << ((its_reliability == reliability_type_e::RT_RELIABLE) ? "RT_RELIABLE" : "RT_UNRELIABLE");
                 }
 
@@ -2771,8 +2777,8 @@ vsomeip_v3::logger::level_e configuration_impl::get_loglevel() const {
 
 std::string configuration_impl::get_unicast_address(service_t _service, instance_t _instance) const {
     std::string its_unicast_address("");
-    auto its_service = find_service(_service, _instance);
-    if (its_service) {
+
+    if (auto its_service = find_service({_service, _instance}); its_service) {
         its_unicast_address = its_service->unicast_address_;
     }
 
@@ -2785,9 +2791,10 @@ std::string configuration_impl::get_unicast_address(service_t _service, instance
 uint16_t configuration_impl::get_reliable_port(service_t _service, instance_t _instance) const {
     std::scoped_lock its_lock(services_mutex_);
     uint16_t its_reliable(ILLEGAL_PORT);
-    auto its_service = find_service_unlocked(_service, _instance);
-    if (its_service)
+
+    if (auto its_service = find_service_unlocked({_service, _instance}); its_service) {
         its_reliable = its_service->reliable_;
+    }
 
     return its_reliable;
 }
@@ -2795,9 +2802,10 @@ uint16_t configuration_impl::get_reliable_port(service_t _service, instance_t _i
 uint16_t configuration_impl::get_unreliable_port(service_t _service, instance_t _instance) const {
     std::scoped_lock its_lock(services_mutex_);
     uint16_t its_unreliable = ILLEGAL_PORT;
-    auto its_service = find_service_unlocked(_service, _instance);
-    if (its_service)
+
+    if (auto its_service = find_service_unlocked({_service, _instance}); its_service) {
         its_unreliable = its_service->unreliable_;
+    }
 
     return its_unreliable;
 }
@@ -2810,8 +2818,7 @@ void configuration_impl::get_configured_timing_requests(service_t _service, cons
         return;
     }
 
-    auto its_service = find_service(_service, _ip_target, _port_target);
-    if (its_service) {
+    if (auto its_service = find_service(_service, _ip_target, _port_target); its_service) {
         auto find_method = its_service->debounce_times_requests_.find(_method);
         if (find_method != its_service->debounce_times_requests_.end()) {
             *_debounce_time = find_method->second[0];
@@ -2846,8 +2853,7 @@ void configuration_impl::get_configured_timing_responses(service_t _service, con
 }
 
 bool configuration_impl::is_someip(service_t _service, instance_t _instance) const {
-    auto its_service = find_service(_service, _instance);
-    if (its_service)
+    if (auto its_service = find_service({_service, _instance}); its_service)
         return (its_service->protocol_ == "someip");
     return true; // we need to explicitely configure a service to
                  // be something else than SOME/IP
@@ -3117,7 +3123,7 @@ bool configuration_impl::is_remote(const std::shared_ptr<service>& _service) con
 
 bool configuration_impl::get_multicast(service_t _service, instance_t _instance, eventgroup_t _eventgroup, std::string& _address,
                                        uint16_t& _port) const {
-    std::shared_ptr<eventgroup> its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+    std::shared_ptr<eventgroup> its_eventgroup = find_eventgroup({_service, _instance}, _eventgroup);
     if (!its_eventgroup)
         return false;
 
@@ -3130,16 +3136,16 @@ bool configuration_impl::get_multicast(service_t _service, instance_t _instance,
 }
 
 uint8_t configuration_impl::get_threshold(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const {
-    std::shared_ptr<eventgroup> its_eventgroup = find_eventgroup(_service, _instance, _eventgroup);
+    std::shared_ptr<eventgroup> its_eventgroup = find_eventgroup({_service, _instance}, _eventgroup);
     return (its_eventgroup ? its_eventgroup->threshold_ : 0);
 }
 
-std::shared_ptr<client> configuration_impl::find_client(service_t _service, instance_t _instance) const {
+std::shared_ptr<client> configuration_impl::find_client(service_instance_t _si) const {
     std::list<std::shared_ptr<client>>::const_iterator it;
 
     for (it = clients_.begin(); it != clients_.end(); ++it) {
         // client was configured for specific service / instance
-        if ((*it)->service_ == _service && (*it)->instance_ == _instance) {
+        if ((*it)->service_ == _si.service() && (*it)->instance_ == _si.instance()) {
             return *it;
         }
     }
@@ -3227,7 +3233,8 @@ bool configuration_impl::find_port(uint16_t& _port, uint16_t _remote, bool _reli
 
 bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service, instance_t _instance, bool _reliable,
                                             std::map<bool, std::set<uint16_t>>& _used_client_ports) const {
-    auto its_client = find_client(_service, _instance);
+
+    auto its_client = find_client({_service, _instance});
 
     // no service, instance specific port configuration available,
     // return false to check for generic port configuration
@@ -3253,7 +3260,7 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
         }
     }
 
-    auto try_allocate = [&](auto from, auto to) -> bool {
+    auto try_allocate = [&](auto from, auto to) {
         for (auto it = from; it != to; ++it) {
             if (!_used_client_ports[_reliable].contains(*it)) {
                 _port = *it;
@@ -3292,10 +3299,9 @@ bool configuration_impl::find_specific_port(uint16_t& _port, service_t _service,
 reliability_type_e configuration_impl::get_event_reliability(service_t _service, instance_t _instance, event_t _event) const {
     std::scoped_lock its_lock(services_mutex_);
     reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
-    auto its_service = find_service_unlocked(_service, _instance);
-    if (its_service) {
-        auto its_event = its_service->events_.find(_event);
-        if (its_event != its_service->events_.end()) {
+
+    if (auto its_service = find_service_unlocked({_service, _instance}); its_service) {
+        if (auto its_event = its_service->events_.find(_event); its_event != its_service->events_.end()) {
             its_reliability = its_event->second->reliability_;
         }
     }
@@ -3305,8 +3311,8 @@ reliability_type_e configuration_impl::get_event_reliability(service_t _service,
 reliability_type_e configuration_impl::get_service_reliability(service_t _service, instance_t _instance) const {
     std::scoped_lock its_lock(services_mutex_);
     reliability_type_e its_reliability(reliability_type_e::RT_UNKNOWN);
-    auto its_service = find_service_unlocked(_service, _instance);
-    if (its_service) {
+
+    if (auto its_service = find_service_unlocked({_service, _instance}); its_service) {
         if (its_service->reliable_ != ILLEGAL_PORT) {
             if (its_service->unreliable_ != ILLEGAL_PORT) {
                 its_reliability = reliability_type_e::RT_BOTH;
@@ -3320,15 +3326,14 @@ reliability_type_e configuration_impl::get_service_reliability(service_t _servic
     return its_reliability;
 }
 
-std::shared_ptr<service> configuration_impl::find_service(service_t _service, instance_t _instance) const {
+std::shared_ptr<service> configuration_impl::find_service(service_instance_t _si) const {
     std::scoped_lock its_lock(services_mutex_);
-    return find_service_unlocked(_service, _instance);
+    return find_service_unlocked(_si);
 }
 
-std::shared_ptr<service> configuration_impl::find_service_unlocked(service_t _service, instance_t _instance) const {
+std::shared_ptr<service> configuration_impl::find_service_unlocked(service_instance_t _si) const {
 
-    const auto search = services_.find(service_instance_t{_service, _instance});
-    if (search != services_.end()) {
+    if (const auto search = services_.find(_si); search != services_.end()) {
         return search->second;
     }
 
@@ -3353,12 +3358,11 @@ std::shared_ptr<service> configuration_impl::find_service(service_t _service, co
     return its_service;
 }
 
-std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const {
+std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(service_instance_t _si, eventgroup_t _eventgroup) const {
     std::shared_ptr<eventgroup> its_eventgroup;
-    auto its_service = find_service(_service, _instance);
-    if (its_service) {
-        auto find_eventgroup = its_service->eventgroups_.find(_eventgroup);
-        if (find_eventgroup != its_service->eventgroups_.end()) {
+
+    if (auto its_service = find_service(_si); its_service) {
+        if (auto find_eventgroup = its_service->eventgroups_.find(_eventgroup); find_eventgroup != its_service->eventgroups_.end()) {
             its_eventgroup = find_eventgroup->second;
         }
     }
@@ -3423,8 +3427,8 @@ bool configuration_impl::is_offered_remote(service_t _service, instance_t _insta
 }
 
 bool configuration_impl::is_local_service(service_t _service, instance_t _instance) const {
-    std::shared_ptr<service> s = find_service(_service, _instance);
-    if (s && !is_remote(s)) {
+
+    if (std::shared_ptr<service> s = find_service({_service, _instance}); s && !is_remote(s)) {
         return true;
     }
     if (is_internal_service(_service, _instance)) {
@@ -4237,18 +4241,20 @@ void configuration_impl::load_someip_tp_for_service(const std::shared_ptr<servic
                     if (its_entry == _service->tp_client_config_.end()) {
                         _service->tp_client_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method [" << hex4(_service->service_) << "."
-                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << its_entry->second.first
-                                        << ", " << its_entry->second.second << ")";
+                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple client configurations for method ["
+                                        << hex4(_service->service_instance_.service()) << "."
+                                        << hex4(_service->service_instance_.instance()) << "." << hex4(its_method) << "]: using ("
+                                        << its_entry->second.first << ", " << its_entry->second.second << ")";
                     }
                 } else {
                     const auto its_entry = _service->tp_service_config_.find(its_method);
                     if (its_entry == _service->tp_service_config_.end()) {
                         _service->tp_service_config_[its_method] = std::make_pair(its_max_segment_length, its_separation_time);
                     } else {
-                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method [" << hex4(_service->service_) << "."
-                                        << hex4(_service->instance_) << "." << hex4(its_method) << "]: using (" << its_entry->second.first
-                                        << ", " << its_entry->second.second << ")";
+                        VSOMEIP_WARNING << "SOME/IP-TP: Multiple service configurations for method ["
+                                        << hex4(_service->service_instance_.service()) << "."
+                                        << hex4(_service->service_instance_.instance()) << "." << hex4(its_method) << "]: using ("
+                                        << its_entry->second.first << ", " << its_entry->second.second << ")";
                     }
                 }
             } else {
@@ -4665,9 +4671,7 @@ bool configuration_impl::is_tp_client(service_t _service, instance_t _instance, 
 
     bool ret(false);
 
-    const auto its_service = find_service(_service, _instance);
-
-    if (its_service) {
+    if (auto its_service = find_service({_service, _instance}); its_service) {
         ret = (its_service->tp_client_config_.contains(_method));
     }
 
@@ -4677,8 +4681,7 @@ bool configuration_impl::is_tp_client(service_t _service, instance_t _instance, 
 bool configuration_impl::is_tp_service(service_t _service, instance_t _instance, method_t _method) const {
 
     bool ret(false);
-    const auto its_service = find_service(_service, _instance);
-    if (its_service) {
+    if (auto its_service = find_service({_service, _instance}); its_service) {
         ret = (its_service->tp_service_config_.contains(_method));
     }
 
@@ -4688,8 +4691,7 @@ bool configuration_impl::is_tp_service(service_t _service, instance_t _instance,
 void configuration_impl::get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
                                               std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const {
 
-    const auto its_info = find_service(_service, _instance);
-    if (its_info) {
+    if (auto its_info = find_service({_service, _instance}); its_info) {
         if (_is_client) {
             auto its_method = its_info->tp_client_config_.find(_method);
 

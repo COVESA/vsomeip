@@ -691,7 +691,7 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
                         instance_t its_instance = this->get_instance(its_service);
 
                         if (its_instance != ANY_INSTANCE) {
-                            if (!tp_segmentation_enabled(its_service, its_instance, its_method)) {
+                            if (!tp_segmentation_enabled({its_service, its_instance}, its_method)) {
                                 VSOMEIP_WARNING_P << instance_name_ << "SomeIP/TP message for service: 0x" << hex4(its_service)
                                                   << " method: 0x" << hex4(its_method) << " which is not configured for TP:"
                                                   << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address
@@ -817,9 +817,9 @@ std::string udp_server_endpoint_impl::get_address_port_local_unlocked() const {
     return its_address_port;
 }
 
-bool udp_server_endpoint_impl::tp_segmentation_enabled(service_t _service, instance_t _instance, method_t _method) const {
+bool udp_server_endpoint_impl::tp_segmentation_enabled(service_instance_t _si, method_t _method) const {
 
-    return configuration_->is_tp_service(_service, _instance, _method);
+    return configuration_->is_tp_service(_si.service(), _si.instance(), _method);
 }
 
 void udp_server_endpoint_impl::set_multicast_option(const boost::asio::ip::address& _address, bool _is_join,

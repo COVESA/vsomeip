@@ -2429,21 +2429,16 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                 // check if previous offering application is still alive
                 bool already_pinged(false);
                 {
-                    auto found_service2 = pending_offers_.find(_service);
-                    if (found_service2 != pending_offers_.end()) {
-                        auto found_instance2 = found_service2->second.find(_instance);
-                        if (found_instance2 != found_service2->second.end()) {
-                            if (std::get<2>(found_instance2->second) == _client) {
-                                already_pinged = true;
-                            } else {
-                                VSOMEIP_ERROR_P
-                                        << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
-                                        << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "."
-                                        << _minor << "] current pending offer by application: " << hex4(its_stored_client) << ": ["
-                                        << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(its_stored_major)
-                                        << "." << its_stored_minor << "]";
-                                return false;
-                            }
+                    if (auto found_pending = pending_offers_.find({_service, _instance}); found_pending != pending_offers_.end()) {
+                        if (std::get<2>(found_pending->second) == _client) {
+                            already_pinged = true;
+                        } else {
+                            VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
+                                            << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "."
+                                            << _minor << "] current pending offer by application: " << hex4(its_stored_client) << ": ["
+                                            << hex4(_service) << "." << hex4(_instance) << "."
+                                            << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor << "]";
+                            return false;
                         }
                     }
                 }
@@ -2451,7 +2446,7 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     // find out endpoint of previously offering application
                     if (auto its_old_endpoint = find_routing_endpoint(its_stored_client); its_old_endpoint) {
                         if (stub_->send_ping(its_stored_client)) {
-                            pending_offers_[_service][_instance] = std::make_tuple(_major, _minor, _client, its_stored_client);
+                            pending_offers_[{_service, _instance}] = std::make_tuple(_major, _minor, _client, its_stored_client);
                             VSOMEIP_WARNING << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                                             << int(_major) << "." << _minor
                                             << "] is now pending. Waiting for pong from application: " << hex4(its_stored_client);
@@ -2537,28 +2532,19 @@ void routing_manager_impl::on_pong(client_t _client) {
     std::vector<std::pair<service_instance_t, std::set<client_t>>> requests_to_process;
     {
         std::scoped_lock its_lock{services_state_mutex_};
-        for (auto service_iter = pending_offers_.begin(); service_iter != pending_offers_.end();) {
-            for (auto instance_iter = service_iter->second.begin(); instance_iter != service_iter->second.end();) {
-                auto [major, minor, new_client, old_client] = instance_iter->second;
-                if (old_client == _client) {
-                    // received pong from an application were another application wants
-                    // to offer its service, delete the other applications offer as
-                    // the current offering application is still alive
-                    VSOMEIP_ERROR << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "."
-                                  << hex4(instance_iter->first) << ":" << std::uint32_t(major) << "." << minor
-                                  << "] was rejected as application: " << hex4(_client) << " is still alive";
-                    instance_iter = service_iter->second.erase(instance_iter);
-                } else {
-                    ++instance_iter;
-                }
+        std::erase_if(pending_offers_, [_client](const auto& service_iter) {
+            auto [major, minor, new_client, old_client] = service_iter.second;
+            if (old_client == _client) {
+                // received pong from an application were another application wants
+                // to offer its service, delete the other applications offer as
+                // the current offering application is still alive
+                VSOMEIP_ERROR << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter.first.service()) << "."
+                              << hex4(service_iter.first.instance()) << ":" << std::uint32_t(major) << "." << minor
+                              << "] was rejected as application: " << hex4(_client) << " is still alive";
+                return true;
             }
-
-            if (service_iter->second.empty()) {
-                service_iter = pending_offers_.erase(service_iter);
-            } else {
-                ++service_iter;
-            }
-        }
+            return false;
+        });
 
         for (auto iter = pending_requests_.begin(); iter != pending_requests_.end();) {
             const auto& its_key = iter->first;
@@ -2613,26 +2599,18 @@ void routing_manager_impl::cleanup_client(client_t _client) {
             return;
         }
 
-        for (auto service_iter = pending_offers_.begin(); service_iter != pending_offers_.end();) {
-            for (auto instance_iter = service_iter->second.begin(); instance_iter != service_iter->second.end();) {
-                auto [major, minor, new_client, old_client] = instance_iter->second;
-                if (old_client == _client) {
-                    VSOMEIP_WARNING << "OFFER(" << hex4(new_client) << "): [" << hex4(service_iter->first) << "."
-                                    << hex4(instance_iter->first) << ":" << std::uint32_t(major) << "." << minor
-                                    << "] is not pending anymore as application: " << hex4(old_client) << " is dead. Offering again!";
-                    its_offers.push_front(std::make_tuple(new_client, service_iter->first, instance_iter->first, major, minor));
-                    instance_iter = service_iter->second.erase(instance_iter);
-                } else {
-                    ++instance_iter;
-                }
+        std::erase_if(pending_offers_, [&its_offers, _client](const auto& pending_offer) {
+            const auto& [service_instance, offer_info] = pending_offer;
+            const auto& [major, minor, new_client, old_client] = offer_info;
+            if (old_client == _client) {
+                VSOMEIP_WARNING << "OFFER(" << hex4(new_client) << "): [" << hex4(service_instance.service()) << "."
+                                << hex4(service_instance.instance()) << ":" << std::uint32_t(major) << "." << minor
+                                << "] is not pending anymore as application: " << hex4(old_client) << " is dead. Offering again!";
+                its_offers.push_front(std::make_tuple(new_client, service_instance.service(), service_instance.instance(), major, minor));
+                return true;
             }
-
-            if (service_iter->second.size() == 0) {
-                service_iter = pending_offers_.erase(service_iter);
-            } else {
-                ++service_iter;
-            }
-        }
+            return false;
+        });
     }
     for (const auto& [client, service, instance, major, minor] : its_offers) {
         offer_service(client, service, instance, major, minor, true);

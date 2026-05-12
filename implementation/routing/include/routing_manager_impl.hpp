@@ -410,7 +410,7 @@ private:
     // map to store pending offers.
     // 1st client id in tuple: client id of new offering application
     // 2nd client id in tuple: client id of previously/stored offering application
-    std::map<service_t, std::map<instance_t, std::tuple<major_version_t, minor_version_t, client_t, client_t>>> pending_offers_;
+    service_instance_map<std::tuple<major_version_t, minor_version_t, client_t, client_t>> pending_offers_;
     // map to store pending requests
     // 1st client id corresponds to the id of the offering application
     // 2nd set of client id corresponds to the ids of the requesting applications

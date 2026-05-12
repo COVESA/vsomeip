@@ -60,7 +60,7 @@ class serviceentry_impl;
 class service_discovery_host;
 class subscription;
 
-typedef std::map<service_t, std::map<instance_t, std::shared_ptr<request>>> requests_t;
+typedef service_instance_map<std::shared_ptr<request>> requests_t;
 
 struct entry_data_t {
     std::shared_ptr<entry_impl> entry_;
@@ -339,7 +339,7 @@ private:
 
     requests_t requested_;
     std::mutex requested_mutex_;
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::shared_ptr<subscription>>>> subscribed_;
+    service_instance_map<std::map<eventgroup_t, std::shared_ptr<subscription>>> subscribed_;
     std::recursive_mutex subscribed_mutex_;
 
     std::mutex serialize_mutex_;

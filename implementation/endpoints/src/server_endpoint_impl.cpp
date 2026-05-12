@@ -248,7 +248,7 @@ std::optional<typename Protocol::endpoint> server_endpoint_impl<Protocol>::get_c
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_t /*_service*/, instance_t /*_instance*/, method_t /*_method*/) const {
+bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t /*service_instance_*/, method_t /*_method*/) const {
 
     return false;
 }
@@ -339,7 +339,7 @@ server_endpoint_impl<Protocol>::segment_message(const std::uint8_t* const _data,
         instance_t its_instance = this->get_instance(its_service);
 
         if (its_instance != ANY_INSTANCE) {
-            if (tp_segmentation_enabled(its_service, its_instance, its_method)) {
+            if (tp_segmentation_enabled({its_service, its_instance}, its_method)) {
                 std::uint16_t its_max_segment_length;
                 std::uint32_t its_separation_time;
 

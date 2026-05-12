@@ -617,11 +617,8 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
     std::unique_lock its_lock{routing_info_mutex_};
     auto its_info = routing_info_.find(_client);
     if (its_info != routing_info_.end()) {
-        for (const auto& its_service : its_info->second) {
-            for (const auto& its_instance : its_service.second) {
-                const auto its_version = its_instance.second;
-                services_to_report.push_back(std::make_tuple(its_service.first, its_instance.first, its_version.first, its_version.second));
-            }
+        for (const auto& [si, version] : its_info->second) {
+            services_to_report.push_back(std::make_tuple(si.service(), si.instance(), version.first, version.second));
         }
     }
 
@@ -647,18 +644,16 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     for (const auto& found_client : routing_info_) {
         // skip services which are offered on remote hosts
         if (found_client.first != VSOMEIP_ROUTING_CLIENT) {
-            for (const auto& s : found_client.second) {
-                for (const auto& i : s.second) {
-                    uint16_t its_reliable_port = configuration_->get_reliable_port(s.first, i.first);
-                    uint16_t its_unreliable_port = configuration_->get_unreliable_port(s.first, i.first);
-                    bool has_port = (its_reliable_port != ILLEGAL_PORT || its_unreliable_port != ILLEGAL_PORT);
+            for (const auto& [si, version] : found_client.second) {
+                uint16_t its_reliable_port = configuration_->get_reliable_port(si.service(), si.instance());
+                uint16_t its_unreliable_port = configuration_->get_unreliable_port(si.service(), si.instance());
+                bool has_port = (its_reliable_port != ILLEGAL_PORT || its_unreliable_port != ILLEGAL_PORT);
 
-                    if (_offer_type == offer_type_e::OT_ALL || (_offer_type == offer_type_e::OT_LOCAL && !has_port)
-                        || (_offer_type == offer_type_e::OT_REMOTE && has_port)) {
+                if (_offer_type == offer_type_e::OT_ALL || (_offer_type == offer_type_e::OT_LOCAL && !has_port)
+                    || (_offer_type == offer_type_e::OT_REMOTE && has_port)) {
 
-                        protocol::service its_service(s.first, i.first, i.second.first, i.second.second);
-                        its_command.add_service(its_service);
-                    }
+                    protocol::service its_service(si.service(), si.instance(), version.first, version.second);
+                    its_command.add_service(its_service);
                 }
             }
         }
@@ -748,7 +743,7 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
                  << static_cast<int>(_major) << "." << _minor << "]";
 
     std::scoped_lock its_guard{routing_info_mutex_};
-    routing_info_[_client][_service][_instance] = std::make_pair(_major, _minor);
+    routing_info_[_client][{_service, _instance}] = std::make_pair(_major, _minor);
     if (configuration_->is_security_enabled()) {
         distribute_credentials(_client, _service, _instance);
     }
@@ -762,28 +757,14 @@ void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _se
                  << static_cast<int>(_major) << "." << _minor << "]";
 
     std::scoped_lock its_guard{routing_info_mutex_};
-    auto found_client = routing_info_.find(_client);
-    if (found_client != routing_info_.end()) {
-        auto found_service = found_client->second.find(_service);
-        if (found_service != found_client->second.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_version = found_instance->second;
-                if (_major == found_version.first && _minor == found_version.second) {
-                    found_service->second.erase(_instance);
-                    if (0 == found_service->second.size()) {
-                        found_client->second.erase(_service);
-                    }
-                    inform_requesters(_client, _service, _instance, _major, _minor,
-                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
-                } else if (_major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR) {
-                    found_service->second.erase(_instance);
-                    if (0 == found_service->second.size()) {
-                        found_client->second.erase(_service);
-                    }
-                    inform_requesters(_client, _service, _instance, _major, _minor,
-                                      protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
-                }
+
+    if (auto found_client = routing_info_.find(_client); found_client != routing_info_.end()) {
+        if (auto found_si = found_client->second.find({_service, _instance}); found_si != found_client->second.end()) {
+            const auto& [found_major, found_minor] = found_si->second;
+            if ((_major == found_major && _minor == found_minor) || (_major == DEFAULT_MAJOR && _minor == DEFAULT_MINOR)) {
+                found_client->second.erase(found_si);
+                inform_requesters(_client, _service, _instance, _major, _minor,
+                                  protocol::routing_info_entry_type_e::RIE_DELETE_SERVICE_INSTANCE);
             }
         }
     }
@@ -832,11 +813,9 @@ void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _s
     std::set<client_t> its_requesting_clients;
     // search for clients which shall receive the credentials
     for (auto its_requesting_client : service_requests_) {
-        auto its_service = its_requesting_client.second.find(_service);
-        if (its_service != its_requesting_client.second.end()) {
-            if (its_service->second.contains(_instance) || its_service->second.contains(ANY_INSTANCE)) {
-                its_requesting_clients.insert(its_requesting_client.first);
-            }
+        if (its_requesting_client.second.contains({_service, _instance})
+            || its_requesting_client.second.contains({_service, ANY_INSTANCE})) {
+            its_requesting_clients.insert(its_requesting_client.first);
         }
     }
 
@@ -864,21 +843,18 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
     port_t its_port;
 
     for (auto its_client : service_requests_) {
-        auto its_service = its_client.second.find(_service);
-        if (its_service != its_client.second.end()) {
-            if (its_service->second.contains(_instance) || its_service->second.contains(ANY_INSTANCE)) {
-                if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
-                    protocol::routing_info_entry its_entry;
-                    its_entry.set_type(_type);
-                    its_entry.set_client(_hoster);
-                    if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
-                        && host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port)) {
-                        its_entry.set_address(its_address);
-                        its_entry.set_port(its_port);
-                    }
-                    its_entry.add_service({_service, _instance, _major, _minor});
-                    send_client_routing_info(its_client.first, its_entry);
+        if (its_client.second.contains({_service, _instance}) || its_client.second.contains({_service, ANY_INSTANCE})) {
+            if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
+                protocol::routing_info_entry its_entry;
+                its_entry.set_type(_type);
+                its_entry.set_client(_hoster);
+                if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
+                    && host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port)) {
+                    its_entry.set_address(its_address);
+                    its_entry.set_port(its_port);
                 }
+                its_entry.add_service({_service, _instance, _major, _minor});
+                send_client_routing_info(its_client.first, its_entry);
             }
         }
     }
@@ -887,12 +863,8 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
 bool routing_manager_stub::has_client_requested(client_t _client, service_t _service, instance_t _instance) const {
     std::scoped_lock its_lock(routing_info_mutex_);
     if (auto found_client = service_requests_.find(_client); found_client != service_requests_.end()) {
-        auto found_service = found_client->second.find(_service);
-        if (found_service != found_client->second.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                return true;
-            }
+        if (found_client->second.contains({_service, _instance})) {
+            return true;
         }
     }
 
@@ -1033,15 +1005,11 @@ void routing_manager_stub::send_subscribe_nack(client_t _client, service_t _serv
 bool routing_manager_stub::contained_in_routing_info(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                      minor_version_t _minor) const {
     std::scoped_lock its_guard{routing_info_mutex_};
-    auto found_client = routing_info_.find(_client);
-    if (found_client != routing_info_.end()) {
-        auto found_service = found_client->second.find(_service);
-        if (found_service != found_client->second.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                if (found_instance->second.first == _major && found_instance->second.second == _minor) {
-                    return true;
-                }
+
+    if (auto found_client = routing_info_.find(_client); found_client != routing_info_.end()) {
+        if (auto found_si = found_client->second.find({_service, _instance}); found_si != found_client->second.end()) {
+            if (found_si->second.first == _major && found_si->second.second == _minor) {
+                return true;
             }
         }
     }
@@ -1316,7 +1284,7 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
     std::scoped_lock its_guard{routing_info_mutex_};
 
     for (auto const& request : _requests) {
-        service_requests_[_client][request.service_][request.instance_] = std::make_pair(request.major_, request.minor_);
+        service_requests_[_client][{request.service_, request.instance_}] = std::make_pair(request.major_, request.minor_);
         if (_client == VSOMEIP_ROUTING_CLIENT) {
             continue;
         }
@@ -1324,12 +1292,10 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
         // insert VSOMEIP_ROUTING_CLIENT to check whether service is remotely offered
         its_clients.insert(VSOMEIP_ROUTING_CLIENT);
         for (const client_t c : its_clients) {
-            const auto found_client = routing_info_.find(c);
-            if (found_client != routing_info_.end()) {
-                const auto found_service = found_client->second.find(request.service_);
-                if (found_service != found_client->second.end()) {
-                    if (request.instance_ == ANY_INSTANCE) {
-                        for (auto instance : found_service->second) {
+            if (const auto found_client = routing_info_.find(c); found_client != routing_info_.end()) {
+                if (request.instance_ == ANY_INSTANCE) {
+                    for (const auto& [si, version] : found_client->second) {
+                        if (si.service() == request.service_) {
                             protocol::routing_info_entry its_entry;
                             its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
                             its_entry.set_client(c);
@@ -1337,23 +1303,22 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
                                 its_entry.set_address(its_address);
                                 its_entry.set_port(its_port);
                             }
-                            its_entry.add_service({request.service_, instance.first, instance.second.first, instance.second.second});
+                            its_entry.add_service({request.service_, si.instance(), version.first, version.second});
                             its_entries.emplace_back(its_entry);
                         }
-                    } else {
-                        const auto found_instance = found_service->second.find(request.instance_);
-                        if (found_instance != found_service->second.end()) {
-                            protocol::routing_info_entry its_entry;
-                            its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
-                            its_entry.set_client(c);
-                            if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
-                                its_entry.set_address(its_address);
-                                its_entry.set_port(its_port);
-                            }
-                            its_entry.add_service(
-                                    {request.service_, request.instance_, found_instance->second.first, found_instance->second.second});
-                            its_entries.emplace_back(its_entry);
+                    }
+                } else {
+                    if (auto found_si = found_client->second.find({request.service_, request.instance_});
+                        found_si != found_client->second.end()) {
+                        protocol::routing_info_entry its_entry;
+                        its_entry.set_type(protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE);
+                        its_entry.set_client(c);
+                        if (host_->get_endpoint_manager()->get_guest(c, its_address, its_port)) {
+                            its_entry.set_address(its_address);
+                            its_entry.set_port(its_port);
                         }
+                        its_entry.add_service({request.service_, request.instance_, found_si->second.first, found_si->second.second});
+                        its_entries.emplace_back(its_entry);
                     }
                 }
             }

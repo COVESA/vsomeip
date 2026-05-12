@@ -614,13 +614,7 @@ void application_impl::request_service(service_t _service, instance_t _instance,
 void application_impl::release_service(service_t _service, instance_t _instance) {
     {
         std::scoped_lock its_subscriptions_state_guard{subscriptions_state_mutex_};
-        auto found_service = subscriptions_state_.find(_service);
-        if (found_service != subscriptions_state_.end()) {
-            found_service->second.erase(_instance);
-            if (found_service->second.empty()) {
-                subscriptions_state_.erase(_service);
-            }
-        }
+        subscriptions_state_.erase({_service, _instance});
     }
     if (routing_)
         routing_->release_service(client_, _service, _instance);
@@ -921,35 +915,31 @@ void application_impl::invoke_availability_handler(service_t _service, instance_
                                                    minor_version_t _minor) {
 
     std::scoped_lock availability_lock{availability_mutex_};
-    auto found_service = availability_.find(_service);
-    if (found_service != availability_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_major = found_instance->second.find(_major);
-            if (found_major == found_instance->second.end()) {
-                found_major = found_instance->second.find(ANY_MAJOR);
+    if (auto found_si = availability_.find({_service, _instance}); found_si != availability_.end()) {
+        auto found_major = found_si->second.find(_major);
+        if (found_major == found_si->second.end()) {
+            found_major = found_si->second.find(ANY_MAJOR);
+        }
+        if (found_major != found_si->second.end()) {
+            auto found_minor = found_major->second.find(_minor);
+            if (found_minor == found_major->second.end()) {
+                found_minor = found_major->second.find(ANY_MINOR);
             }
-            if (found_major != found_instance->second.end()) {
-                auto found_minor = found_major->second.find(_minor);
-                if (found_minor == found_major->second.end()) {
-                    found_minor = found_major->second.find(ANY_MINOR);
-                }
-                if (found_minor != found_major->second.end()) {
-                    auto its_state{is_available_unlocked(_service, _instance, _major, _minor)};
-                    if (availability_state_e::AS_UNKNOWN != its_state
-                        && get_availability_state(found_minor->second.second, _service, _instance, _major, _minor) != its_state) {
-                        auto its_handler{found_minor->second.first};
-                        set_availability_state(found_minor->second.second, _service, _instance, _major, _minor, its_state);
+            if (found_minor != found_major->second.end()) {
+                auto its_state{is_available_unlocked(_service, _instance, _major, _minor)};
+                if (availability_state_e::AS_UNKNOWN != its_state
+                    && get_availability_state(found_minor->second.second, _service, _instance, _major, _minor) != its_state) {
+                    auto its_handler{found_minor->second.first};
+                    set_availability_state(found_minor->second.second, _service, _instance, _major, _minor, its_state);
 
-                        std::scoped_lock handlers_lock{handlers_mutex_};
-                        auto its_sync_handler = std::make_shared<sync_handler>(
-                                [its_handler, _service, _instance, its_state]() { its_handler(_service, _instance, its_state); });
-                        its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
-                        its_sync_handler->service_id_ = _service;
-                        its_sync_handler->instance_id_ = _instance;
-                        handlers_.push_back(its_sync_handler);
-                        dispatcher_condition_.notify_one();
-                    }
+                    std::scoped_lock handlers_lock{handlers_mutex_};
+                    auto its_sync_handler = std::make_shared<sync_handler>(
+                            [its_handler, _service, _instance, its_state]() { its_handler(_service, _instance, its_state); });
+                    its_sync_handler->handler_type_ = handler_type_e::AVAILABILITY;
+                    its_sync_handler->service_id_ = _service;
+                    its_sync_handler->instance_id_ = _instance;
+                    handlers_.push_back(its_sync_handler);
+                    dispatcher_condition_.notify_one();
                 }
             }
         }
@@ -965,7 +955,7 @@ void application_impl::register_availability_handler_unlocked(service_t _service
     availability_state_t its_availability_state;
     set_availability_state(its_availability_state, _service, _instance, _major, _minor, its_state);
 
-    availability_[_service][_instance][_major][_minor] = std::make_pair(_handler, its_availability_state);
+    availability_[{_service, _instance}][_major][_minor] = std::make_pair(_handler, its_availability_state);
 
     auto add_sync_handler = [&](service_t _srvc, instance_t _nstnc, const availability_state_handler_t& _hndlr, availability_state_e _stt) {
         auto its_sync_handler = std::make_shared<sync_handler>([_hndlr, _srvc, _nstnc, _stt]() { _hndlr(_srvc, _nstnc, _stt); });
@@ -995,24 +985,15 @@ void application_impl::register_availability_handler_unlocked(service_t _service
 void application_impl::unregister_availability_handler(service_t _service, instance_t _instance, major_version_t _major,
                                                        minor_version_t _minor) {
     std::scoped_lock its_lock{availability_mutex_};
-    auto found_service = availability_.find(_service);
-    if (found_service != availability_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_major = found_instance->second.find(_major);
-            if (found_major != found_instance->second.end()) {
-                auto found_minor = found_major->second.find(_minor);
-                if (found_minor != found_major->second.end()) {
-                    found_major->second.erase(_minor);
 
-                    if (!found_major->second.size()) {
-                        found_instance->second.erase(_major);
-                        if (!found_instance->second.size()) {
-                            found_service->second.erase(_instance);
-                            if (!found_service->second.size()) {
-                                availability_.erase(_service);
-                            }
-                        }
+    if (auto found_si = availability_.find({_service, _instance}); found_si != availability_.end()) {
+        if (auto found_major = found_si->second.find(_major); found_major != found_si->second.end()) {
+            if (auto found_minor = found_major->second.find(_minor); found_minor != found_major->second.end()) {
+                found_major->second.erase(_minor);
+                if (!found_major->second.size()) {
+                    found_si->second.erase(_major);
+                    if (!found_si->second.size()) {
+                        availability_.erase(found_si);
                     }
                 }
             }
@@ -1028,15 +1009,10 @@ void application_impl::on_subscription(service_t _service, instance_t _instance,
     std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t> its_handlers;
     {
         std::scoped_lock its_lock{subscription_mutex_};
-        auto found_service = subscription_.find(_service);
-        if (found_service != subscription_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    its_handlers = found_eventgroup->second;
-                    handler_found = true;
-                }
+        if (auto found_si = subscription_.find({_service, _instance}); found_si != subscription_.end()) {
+            if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
+                its_handlers = found_eventgroup->second;
+                handler_found = true;
             }
         }
     }
@@ -1086,18 +1062,16 @@ void application_impl::register_subscription_handler(service_t _service, instanc
     VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = std::make_pair(_handler, nullptr);
+    subscription_[{_service, _instance}][_eventgroup] = std::make_pair(_handler, nullptr);
 }
 
 void application_impl::unregister_subscription_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup) {
     std::scoped_lock its_lock{subscription_mutex_};
-    auto found_service = subscription_.find(_service);
-    if (found_service != subscription_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                found_instance->second.erase(_eventgroup);
+    if (auto found_si = subscription_.find({_service, _instance}); found_si != subscription_.end()) {
+        if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
+            found_si->second.erase(_eventgroup);
+            if (found_si->second.empty()) {
+                subscription_.erase(found_si);
             }
         }
     }
@@ -1109,36 +1083,27 @@ void application_impl::on_subscription_status(service_t _service, instance_t _in
     bool entry_found(false);
     {
         std::scoped_lock its_lock{subscriptions_state_mutex_};
-        auto its_service = subscriptions_state_.find(_service);
-        if (its_service == subscriptions_state_.end()) {
-            its_service = subscriptions_state_.find(ANY_SERVICE);
-        }
-        if (its_service != subscriptions_state_.end()) {
-            auto its_instance = its_service->second.find(_instance);
-            if (its_instance == its_service->second.end()) {
-                its_instance = its_service->second.find(ANY_INSTANCE);
+        if (auto its_si = subscriptions_state_.find({_service, _instance}); its_si != subscriptions_state_.end()
+            || (its_si = subscriptions_state_.find({ANY_SERVICE, _instance})) != subscriptions_state_.end()) {
+            auto its_eventgroup = its_si->second.find(_eventgroup);
+            if (its_eventgroup == its_si->second.end()) {
+                its_eventgroup = its_si->second.find(ANY_EVENTGROUP);
             }
-            if (its_instance != its_service->second.end()) {
-                auto its_eventgroup = its_instance->second.find(_eventgroup);
-                if (its_eventgroup == its_instance->second.end()) {
-                    its_eventgroup = its_instance->second.find(ANY_EVENTGROUP);
+            if (its_eventgroup != its_si->second.end()) {
+                auto its_event = its_eventgroup->second.find(_event);
+                if (its_event == its_eventgroup->second.end()) {
+                    its_event = its_eventgroup->second.find(ANY_EVENT);
                 }
-                if (its_eventgroup != its_instance->second.end()) {
-                    auto its_event = its_eventgroup->second.find(_event);
-                    if (its_event == its_eventgroup->second.end()) {
-                        its_event = its_eventgroup->second.find(ANY_EVENT);
-                    }
-                    if (its_event != its_eventgroup->second.end()) {
-                        entry_found = true;
-                        its_event->second = (_error ? subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED
+                if (its_event != its_eventgroup->second.end()) {
+                    entry_found = true;
+                    its_event->second = (_error ? subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED
+                                                : subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED);
+                }
+                auto its_any_event = its_eventgroup->second.find(ANY_EVENT);
+                if (its_any_event != its_eventgroup->second.end()) {
+                    entry_found = true;
+                    its_any_event->second = (_error ? subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED
                                                     : subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED);
-                    }
-                    auto its_any_event = its_eventgroup->second.find(ANY_EVENT);
-                    if (its_any_event != its_eventgroup->second.end()) {
-                        entry_found = true;
-                        its_any_event->second = (_error ? subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED
-                                                        : subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED);
-                    }
                 }
             }
         }
@@ -1154,143 +1119,38 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
     std::vector<subscription_status_handler_t> handlers;
     {
         std::scoped_lock its_lock{subscription_status_handlers_mutex_};
-        auto found_service = subscription_status_handlers_.find(_service);
-        if (found_service != subscription_status_handlers_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_eventgroup->second.find(_event);
-                    if (found_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
-                    }
-                }
-                auto found_any_eventgroup = found_instance->second.find(ANY_EVENTGROUP);
-                if (found_any_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_any_eventgroup->second.find(_event);
-                    if (found_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_any_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
-                    }
-                }
+
+        auto collect_handlers = [&](const service_instance_t& si) {
+            auto found_si = subscription_status_handlers_.find(si);
+            if (found_si == subscription_status_handlers_.end()) {
+                return;
             }
-            found_instance = found_service->second.find(ANY_INSTANCE);
-            if (found_instance != found_service->second.end()) {
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_eventgroup->second.find(_event);
-                    if (found_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
+            auto& si_handlers = found_si->second;
+
+            auto do_eventgroup = [&](auto& found_eg) {
+                if (auto found_event = found_eg->second.find(_event); found_event != found_eg->second.end()) {
+                    if (!_error || (_error && found_event->second.second)) {
+                        handlers.push_back(found_event->second.first);
                     }
                 }
-                auto found_any_eventgroup = found_instance->second.find(ANY_EVENTGROUP);
-                if (found_any_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_any_eventgroup->second.find(_event);
-                    if (found_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_any_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
+                if (auto found_any_event = found_eg->second.find(ANY_EVENT); found_any_event != found_eg->second.end()) {
+                    if (!_error || (_error && found_any_event->second.second)) {
+                        handlers.push_back(found_any_event->second.first);
                     }
                 }
+            };
+
+            if (auto found_eg = si_handlers.find(_eventgroup); found_eg != si_handlers.end()) {
+                do_eventgroup(found_eg);
             }
-        }
-        found_service = subscription_status_handlers_.find(ANY_SERVICE);
-        if (found_service != subscription_status_handlers_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_eventgroup->second.find(_event);
-                    if (found_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
-                    }
-                }
-                auto found_any_eventgroup = found_instance->second.find(ANY_EVENTGROUP);
-                if (found_any_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_any_eventgroup->second.find(_event);
-                    if (found_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_any_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
-                    }
-                }
+            if (auto found_any_eg = si_handlers.find(ANY_EVENTGROUP); found_any_eg != si_handlers.end()) {
+                do_eventgroup(found_any_eg);
             }
-            found_instance = found_service->second.find(ANY_INSTANCE);
-            if (found_instance != found_service->second.end()) {
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_eventgroup->second.find(_event);
-                    if (found_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
-                    }
-                }
-                auto found_any_eventgroup = found_instance->second.find(ANY_EVENTGROUP);
-                if (found_any_eventgroup != found_instance->second.end()) {
-                    auto found_event = found_any_eventgroup->second.find(_event);
-                    if (found_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_event->second.second)) {
-                            handlers.push_back(found_event->second.first);
-                        }
-                    }
-                    auto found_any_event = found_any_eventgroup->second.find(ANY_EVENT);
-                    if (found_any_event != found_any_eventgroup->second.end()) {
-                        if (!_error || (_error && found_any_event->second.second)) {
-                            handlers.push_back(found_any_event->second.first);
-                        }
-                    }
-                }
-            }
+        };
+
+        for (const service_instance_t si : {service_instance_t{_service, _instance}, service_instance_t{_service, ANY_INSTANCE},
+                                            service_instance_t{ANY_SERVICE, _instance}, service_instance_t{ANY_SERVICE, ANY_INSTANCE}}) {
+            collect_handlers(si);
         }
     }
     {
@@ -1316,7 +1176,7 @@ void application_impl::register_subscription_status_handler(service_t _service, 
                                                             event_t _event, subscription_status_handler_t _handler, bool _is_selective) {
     std::scoped_lock its_lock{subscription_status_handlers_mutex_};
     if (_handler) {
-        subscription_status_handlers_[_service][_instance][_eventgroup][_event] = std::make_pair(_handler, _is_selective);
+        subscription_status_handlers_[{_service, _instance}][_eventgroup][_event] = std::make_pair(_handler, _is_selective);
     } else {
         VSOMEIP_WARNING_P << "_handler is null, for unregistration please use application_impl::unregister_subscription_status_handler ["
                           << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "." << hex4(_event) << "]";
@@ -1326,21 +1186,14 @@ void application_impl::register_subscription_status_handler(service_t _service, 
 void application_impl::unregister_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                               event_t _event) {
     std::scoped_lock its_lock{subscription_status_handlers_mutex_};
-    auto its_service = subscription_status_handlers_.find(_service);
-    if (its_service != subscription_status_handlers_.end()) {
-        auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            auto its_eventgroup = its_instance->second.find(_eventgroup);
-            if (its_eventgroup != its_instance->second.end()) {
-                its_eventgroup->second.erase(_event);
-                if (its_eventgroup->second.empty()) {
-                    its_instance->second.erase(_eventgroup);
-                    if (its_instance->second.empty()) {
-                        its_service->second.erase(_instance);
-                        if (its_service->second.empty()) {
-                            subscription_status_handlers_.erase(_service);
-                        }
-                    }
+
+    if (auto its_si = subscription_status_handlers_.find({_service, _instance}); its_si != subscription_status_handlers_.end()) {
+        if (auto its_eventgroup = its_si->second.find(_eventgroup); its_eventgroup != its_si->second.end()) {
+            its_eventgroup->second.erase(_event);
+            if (its_eventgroup->second.empty()) {
+                its_si->second.erase(_eventgroup);
+                if (its_si->second.empty()) {
+                    subscription_status_handlers_.erase(its_si);
                 }
             }
         }
@@ -1610,26 +1463,10 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
             }
         };
 
-        auto found_service = availability_.find(_service);
-        if (found_service != availability_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                find_matching_handler(found_instance->second);
-            }
-            found_instance = found_service->second.find(ANY_INSTANCE);
-            if (found_instance != found_service->second.end()) {
-                find_matching_handler(found_instance->second);
-            }
-        }
-        found_service = availability_.find(ANY_SERVICE);
-        if (found_service != availability_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                find_matching_handler(found_instance->second);
-            }
-            found_instance = found_service->second.find(ANY_INSTANCE);
-            if (found_instance != found_service->second.end()) {
-                find_matching_handler(found_instance->second);
+        for (const service_instance_t si : {service_instance_t{_service, _instance}, service_instance_t{_service, ANY_INSTANCE},
+                                            service_instance_t{ANY_SERVICE, _instance}, service_instance_t{ANY_SERVICE, ANY_INSTANCE}}) {
+            if (auto found = availability_.find(si); found != availability_.end()) {
+                find_matching_handler(found->second);
             }
         }
         {
@@ -1647,28 +1484,21 @@ void application_impl::on_availability(service_t _service, instance_t _instance,
     if (_state == availability_state_e::AS_UNAVAILABLE) {
         {
             std::scoped_lock its_lock{subscriptions_mutex_};
-            auto found_service = subscriptions_.find(_service);
-            if (found_service != subscriptions_.end()) {
-                auto found_instance = found_service->second.find(_instance);
-                if (found_instance != found_service->second.end()) {
-                    for (auto& event : found_instance->second) {
-                        for (auto& eventgroup : event.second) {
-                            eventgroup.second = false;
-                        }
+
+            if (auto found_si = subscriptions_.find({_service, _instance}); found_si != subscriptions_.end()) {
+                for (auto& [its_eventgroup_id, its_eventgroup] : found_si->second) {
+                    for (auto& [its_event_id, its_state] : its_eventgroup) {
+                        its_state = false;
                     }
                 }
             }
         }
         {
             std::scoped_lock its_lock{subscriptions_state_mutex_};
-            auto its_service = subscriptions_state_.find(_service);
-            if (its_service != subscriptions_state_.end()) {
-                auto its_instance = its_service->second.find(_instance);
-                if (its_instance != its_service->second.end()) {
-                    for (auto& its_eventgroup : its_instance->second) {
-                        for (auto& its_event : its_eventgroup.second) {
-                            its_event.second = subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
-                        }
+            if (const auto its_si = subscriptions_state_.find({_service, _instance}); its_si != subscriptions_state_.end()) {
+                for (auto& [its_eventgroup_id, its_eventgroup] : its_si->second) {
+                    for (auto& [its_event_id, its_state] : its_eventgroup) {
+                        its_state = subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED;
                     }
                 }
             }
@@ -2104,23 +1934,17 @@ void application_impl::check_send_back_cached_event(service_t _service, instance
     *_send_back_cached_event = false;
     *_send_back_cached_eventgroup = false;
     bool already_subscribed(false);
-    auto found_service = subscriptions_.find(_service);
-    if (found_service != subscriptions_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_event = found_instance->second.find(_event);
-            if (found_event != found_instance->second.end()) {
-                auto found_eventgroup = found_event->second.find(_eventgroup);
-                if (found_eventgroup != found_event->second.end()) {
-                    already_subscribed = true;
-                    if (found_eventgroup->second) {
-                        // initial values for this event have already been
-                        // received, send back cached value
-                        if (_event == ANY_EVENT) {
-                            *_send_back_cached_eventgroup = true;
-                        } else {
-                            *_send_back_cached_event = true;
-                        }
+    if (auto found_si = subscriptions_.find({_service, _instance}); found_si != subscriptions_.end()) {
+        if (auto found_event = found_si->second.find(_event); found_event != found_si->second.end()) {
+            if (auto found_eventgroup = found_event->second.find(_eventgroup); found_eventgroup != found_event->second.end()) {
+                already_subscribed = true;
+                if (found_eventgroup->second) {
+                    // initial values for this event have already been
+                    // received, send back cached value
+                    if (_event == ANY_EVENT) {
+                        *_send_back_cached_eventgroup = true;
+                    } else {
+                        *_send_back_cached_event = true;
                     }
                 }
             }
@@ -2128,7 +1952,7 @@ void application_impl::check_send_back_cached_event(service_t _service, instance
     }
 
     if (!already_subscribed) {
-        subscriptions_[_service][_instance][_event][_eventgroup] = false;
+        subscriptions_[{_service, _instance}][_event][_eventgroup] = false;
     }
 }
 
@@ -2136,46 +1960,31 @@ void application_impl::remove_subscription(service_t _service, instance_t _insta
 
     {
         std::scoped_lock its_lock{subscriptions_state_mutex_};
-        auto its_service = subscriptions_state_.find(_service);
-        if (its_service != subscriptions_state_.end()) {
-            auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                if (_event == ANY_EVENT) {
-                    its_instance->second.erase(_eventgroup);
-                } else {
-                    auto its_eventgroup = its_instance->second.find(_eventgroup);
-                    if (its_eventgroup != its_instance->second.end()) {
-                        its_eventgroup->second.erase(_event);
-                        if (its_eventgroup->second.empty()) {
-                            its_instance->second.erase(_eventgroup);
-                        }
+        if (auto its_si = subscriptions_state_.find({_service, _instance}); its_si != subscriptions_state_.end()) {
+            if (_event == ANY_EVENT) {
+                its_si->second.erase(_eventgroup);
+            } else {
+                if (auto its_eventgroup = its_si->second.find(_eventgroup); its_eventgroup != its_si->second.end()) {
+                    its_eventgroup->second.erase(_event);
+                    if (its_eventgroup->second.empty()) {
+                        its_si->second.erase(_eventgroup);
                     }
                 }
-                if (its_instance->second.empty())
-                    its_service->second.erase(its_instance);
             }
-            if (its_service->second.empty())
-                subscriptions_state_.erase(its_service);
+            if (its_si->second.empty())
+                subscriptions_state_.erase(its_si);
         }
     }
 
     std::scoped_lock its_lock{subscriptions_mutex_};
 
-    auto found_service = subscriptions_.find(_service);
-    if (found_service != subscriptions_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_event = found_instance->second.find(_event);
-            if (found_event != found_instance->second.end()) {
-                if (found_event->second.erase(_eventgroup)) {
-                    if (!found_event->second.size()) {
-                        found_instance->second.erase(_event);
-                        if (!found_instance->second.size()) {
-                            found_service->second.erase(_instance);
-                            if (!found_service->second.size()) {
-                                subscriptions_.erase(_service);
-                            }
-                        }
+    if (auto found_si = subscriptions_.find({_service, _instance}); found_si != subscriptions_.end()) {
+        if (auto found_event = found_si->second.find(_event); found_event != found_si->second.end()) {
+            if (found_event->second.erase(_eventgroup)) {
+                if (!found_event->second.size()) {
+                    found_si->second.erase(_event);
+                    if (!found_si->second.size()) {
+                        subscriptions_.erase(found_si);
                     }
                 }
             }
@@ -2190,34 +1999,27 @@ bool application_impl::check_for_active_subscription(service_t _service, instanc
     // subscriptions_mutex_ (acquired below).
     auto its_event = routing_->find_consumed_event(_service, _instance, _event);
     std::scoped_lock its_lock{subscriptions_mutex_};
-    auto found_service = subscriptions_.find(_service);
-    if (found_service != subscriptions_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_event = found_instance->second.find(_event);
-            if (found_event != found_instance->second.end()) {
-                if (found_event->second.size()) {
-                    for (auto& eventgroup : found_event->second) {
-                        eventgroup.second = true;
-                    }
-                    return true;
+    if (auto found_si = subscriptions_.find({_service, _instance}); found_si != subscriptions_.end()) {
+        if (auto found_event = found_si->second.find(_event); found_event != found_si->second.end()) {
+            if (found_event->second.size()) {
+                for (auto& eventgroup : found_event->second) {
+                    eventgroup.second = true;
                 }
-            } else {
-                // Received a event which nobody yet explicitly subscribed to.
-                // Check if someone subscribed to ANY_EVENT for one of
-                // the received event's eventgroups
-                auto found_any_event = found_instance->second.find(ANY_EVENT);
-                if (found_any_event != found_instance->second.end()) {
-                    if (its_event) {
-                        for (const auto eg : its_event->get_eventgroups()) {
-                            auto found_eventgroup = found_any_event->second.find(eg);
-                            if (found_eventgroup != found_any_event->second.end()) {
-                                // set the flag for initial event received to true
-                                // even if we might not already received all of the
-                                // eventgroups events.
-                                found_eventgroup->second = true;
-                                return true;
-                            }
+                return true;
+            }
+        } else {
+            // Received a event which nobody yet explicitly subscribed to.
+            // Check if someone subscribed to ANY_EVENT for one of
+            // the received event's eventgroups
+            if (auto found_any_event = found_si->second.find(ANY_EVENT); found_any_event != found_si->second.end()) {
+                if (its_event) {
+                    for (const auto eg : its_event->get_eventgroups()) {
+                        if (auto found_eventgroup = found_any_event->second.find(eg); found_eventgroup != found_any_event->second.end()) {
+                            // set the flag for initial event received to true
+                            // even if we might not already received all of the
+                            // eventgroups events.
+                            found_eventgroup->second = true;
+                            return true;
                         }
                     }
                 }
@@ -2240,23 +2042,17 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
         bool has_found(false);
 
         std::scoped_lock its_lock{subscriptions_state_mutex_};
-        auto its_service = subscriptions_state_.find(_service);
-        if (its_service != subscriptions_state_.end()) {
-            auto its_instance = its_service->second.find(_instance);
-            if (its_instance != its_service->second.end()) {
-                auto its_eventgroup = its_instance->second.find(_eventgroup);
-                if (its_eventgroup != its_instance->second.end()) {
-                    auto its_event = its_eventgroup->second.find(_event);
-                    if (its_event != its_eventgroup->second.end()) {
-                        if (its_event->second != subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED) {
-                            has_found = true;
+        if (auto its_si = subscriptions_state_.find({_service, _instance}); its_si != subscriptions_state_.end()) {
+            if (auto its_eventgroup = its_si->second.find(_eventgroup); its_eventgroup != its_si->second.end()) {
+                if (auto its_event = its_eventgroup->second.find(_event); its_event != its_eventgroup->second.end()) {
+                    if (its_event->second != subscription_state_e::SUBSCRIPTION_NOT_ACKNOWLEDGED) {
+                        has_found = true;
 
-                            // only return true if subscription is NACK
-                            // as only then we need to subscribe!
-                            should_subscribe = false;
-                            if (its_event->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
-                                is_acknowledged = true;
-                            }
+                        // only return true if subscription is NACK
+                        // as only then we need to subscribe!
+                        should_subscribe = false;
+                        if (its_event->second == subscription_state_e::SUBSCRIPTION_ACKNOWLEDGED) {
+                            is_acknowledged = true;
                         }
                     }
                 }
@@ -2264,7 +2060,7 @@ bool application_impl::check_subscription_state(service_t _service, instance_t _
         }
 
         if (!has_found) {
-            subscriptions_state_[_service][_instance][_eventgroup][_event] = subscription_state_e::IS_SUBSCRIBING;
+            subscriptions_state_[{_service, _instance}][_eventgroup][_event] = subscription_state_e::IS_SUBSCRIBING;
         }
     }
 
@@ -2404,7 +2200,7 @@ void application_impl::register_async_subscription_handler(service_t _service, i
     VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
-    subscription_[_service][_instance][_eventgroup] = std::make_pair(nullptr, _handler);
+    subscription_[{_service, _instance}][_eventgroup] = std::make_pair(nullptr, _handler);
 }
 
 void application_impl::register_sd_acceptance_handler(const sd_acceptance_handler_t& _handler) {
