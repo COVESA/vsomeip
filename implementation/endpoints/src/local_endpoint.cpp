@@ -164,7 +164,7 @@ bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
                         << queue_limit_ << ") would be exceeded with the message size: " << _size << ", " << status_unlock();
         return false;
     }
-    if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && max_message_size_ < _size) {
+    if (max_message_size_ < _size) {
         VSOMEIP_ERROR_P << "Dropping message of type: " << protocol::read_command_id(_data, _size) << " because the message size (" << _size
                         << ") exceeded the limit (" << max_message_size_ << "), " << status_unlock();
         return false;

@@ -326,7 +326,7 @@ void server_endpoint_impl<Protocol>::schedule_train(endpoint_data_type& _data) {
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::check_message_size(std::uint32_t _size) const {
-    return !(endpoint_impl<Protocol>::max_message_size_ != MESSAGE_SIZE_UNLIMITED && _size > endpoint_impl<Protocol>::max_message_size_);
+    return !(_size > endpoint_impl<Protocol>::max_message_size_);
 }
 
 template<typename Protocol>

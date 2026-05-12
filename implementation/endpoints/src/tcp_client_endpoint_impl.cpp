@@ -270,8 +270,9 @@ void tcp_client_endpoint_impl::receive(message_buffer_ptr_t _recv_buffer, std::s
         size_t buffer_size = its_capacity - _recv_buffer_size;
         try {
             if (_missing_capacity) {
-                if (_missing_capacity > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum!";
+                if (_missing_capacity > max_message_size_) {
+                    VSOMEIP_ERROR << "Missing receive buffer capacity exceeds allowed maximum: " << _missing_capacity
+                                  << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
                     return;
                 }
                 const std::size_t its_required_capacity(_recv_buffer_size + _missing_capacity);
@@ -406,8 +407,8 @@ bool tcp_client_endpoint_impl::is_magic_cookie(const message_buffer_ptr_t& _recv
 }
 
 void tcp_client_endpoint_impl::send_magic_cookie(message_buffer_ptr_t& _buffer) {
-    if (max_message_size_ == MESSAGE_SIZE_UNLIMITED
-        || max_message_size_ - _buffer->size() >= VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
+    if (_buffer->size() <= max_message_size_
+        && max_message_size_ - _buffer->size() >= VSOMEIP_SOMEIP_HEADER_SIZE + VSOMEIP_SOMEIP_MAGIC_COOKIE_SIZE) {
         _buffer->insert(_buffer->begin(), CLIENT_COOKIE, CLIENT_COOKIE + sizeof(CLIENT_COOKIE));
         queue_size_ += sizeof(CLIENT_COOKIE);
     } else {
@@ -437,8 +438,9 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
             bool has_full_message(false);
             do {
                 uint64_t read_message_size = utility::get_message_size(&(*_recv_buffer)[its_iteration_gap], _recv_buffer_size);
-                if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR << "Message size exceeds allowed maximum!";
+                if (read_message_size > max_message_size_) {
+                    VSOMEIP_ERROR << "Message size exceeds allowed maximum: " << read_message_size << " local: " << get_address_port_local()
+                                  << " remote: " << get_address_port_remote();
                     return;
                 }
                 uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
@@ -531,7 +533,7 @@ void tcp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
                             return;
                         }
                     }
-                    if (max_message_size_ != MESSAGE_SIZE_UNLIMITED && current_message_size > max_message_size_) {
+                    if (current_message_size > max_message_size_) {
                         _recv_buffer_size = 0;
                         _recv_buffer->resize(recv_buffer_size_initial_, 0x0);
                         _recv_buffer->shrink_to_fit();

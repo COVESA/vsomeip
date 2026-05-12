@@ -56,7 +56,7 @@ Tests basic request-response communication between local service and client.
 
 ### 2. local_payload_test_huge_payload - Large Payload Stress Test
 
-Tests the system's ability to handle very large payloads.
+Tests the system's ability to handle very large payloads (10485700 just below limit of 10 MiB).
 
 **Test Flow:**
 1. Start local service offering the test service

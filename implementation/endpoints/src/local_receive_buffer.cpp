@@ -41,7 +41,6 @@ bool local_receive_buffer::next_message(next_message_result& _result) {
     uint32_t length = 0;
     if (size_t bytes = end_ - start_; bytes >= protocol::COMMAND_POSITION_SIZE + sizeof(length)) {
         memcpy(&length, &mem_[start_] + protocol::COMMAND_POSITION_SIZE, sizeof(length));
-        // MESSAGE_SIZE_UNLIMITED  is numerical limit of uin32_t therefore the subsequent check suffices
         if (length > max_message_length_) {
             VSOMEIP_ERROR_P << "Message length: " << length << " exceeded allowed max message size";
             VSOMEIP_ERROR_P << "Message: " << utility::dump(&mem_[start_], bytes);

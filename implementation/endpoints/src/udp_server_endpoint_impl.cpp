@@ -633,8 +633,10 @@ void udp_server_endpoint_impl::on_message_received_unlocked(const boost::system:
             const uint16_t its_remote_port(_remote.port());
             do {
                 uint64_t read_message_size = utility::get_message_size(&_buffer[i], remaining_bytes);
-                if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
-                    VSOMEIP_ERROR_P << instance_name_ << "Message size exceeds allowed maximum!";
+                if (read_message_size > max_message_size_) {
+                    VSOMEIP_ERROR_P << instance_name_ << "Message size exceeds allowed maximum: " << read_message_size
+                                    << " local: " << get_address_port_local_unlocked() << " remote: " << its_remote_address << ":"
+                                    << its_remote_port;
                     return;
                 }
                 auto current_message_size = static_cast<uint32_t>(read_message_size);

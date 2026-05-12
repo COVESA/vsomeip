@@ -113,7 +113,7 @@ public:
      * @brief Constructs a receive buffer with the specified limits.
      *
      * @param _max_message_length Maximum allowed message size in bytes.
-     *        Use MESSAGE_SIZE_UNLIMITED for no limit. Messages exceeding
+     *        Use DEFAULT_MAX_MESSAGE_SIZE for default. Messages exceeding
      *        this size cause `next_message()` to return an error.
      * @param _buffer_shrink_threshold Number of consecutive small messages
      *        after which the buffer should shrink. Set to 0 to disable shrinking.

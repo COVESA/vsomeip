@@ -3370,10 +3370,8 @@ std::shared_ptr<eventgroup> configuration_impl::find_eventgroup(service_instance
 }
 
 std::uint32_t configuration_impl::get_max_message_size_local() const {
-    if (max_local_message_size_ == 0 && (VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0 || VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0)) {
-        // no limit specified in configuration file and
-        // defines are set to unlimited
-        return MESSAGE_SIZE_UNLIMITED;
+    if (max_local_message_size_ == 0 && VSOMEIP_MAX_LOCAL_MESSAGE_SIZE == 0 && VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) {
+        return DEFAULT_MAX_MESSAGE_SIZE;
     }
 
     uint32_t its_max_message_size = max_local_message_size_;
@@ -3400,12 +3398,13 @@ std::uint32_t configuration_impl::get_max_message_size_reliable(const std::strin
             return its_port->second;
         }
     }
-    return (max_reliable_message_size_ == 0) ? ((VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ? MESSAGE_SIZE_UNLIMITED : VSOMEIP_MAX_TCP_MESSAGE_SIZE)
-                                             : max_reliable_message_size_;
+    return (max_reliable_message_size_ == 0)
+            ? ((VSOMEIP_MAX_TCP_MESSAGE_SIZE == 0) ? DEFAULT_MAX_MESSAGE_SIZE : VSOMEIP_MAX_TCP_MESSAGE_SIZE)
+            : max_reliable_message_size_;
 }
 
 std::uint32_t configuration_impl::get_max_message_size_unreliable() const {
-    return (max_unreliable_message_size_ == 0) ? MESSAGE_SIZE_UNLIMITED : max_unreliable_message_size_;
+    return (max_unreliable_message_size_ == 0) ? DEFAULT_MAX_MESSAGE_SIZE : max_unreliable_message_size_;
 }
 
 std::uint32_t configuration_impl::get_buffer_shrink_threshold() const {

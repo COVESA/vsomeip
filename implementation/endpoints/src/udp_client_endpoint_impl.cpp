@@ -273,8 +273,9 @@ void udp_client_endpoint_impl::receive_cbk(boost::system::error_code const& _err
         std::size_t i = 0;
         do {
             uint64_t read_message_size = utility::get_message_size(&(*_recv_buffer)[i], remaining_bytes);
-            if (read_message_size > MESSAGE_SIZE_UNLIMITED) {
-                VSOMEIP_ERROR_P << "Message size exceeds allowed maximum!";
+            if (read_message_size > max_message_size_) {
+                VSOMEIP_ERROR_P << "Message size exceeds allowed maximum: " << read_message_size << " local: " << get_address_port_local()
+                                << " remote: " << get_address_port_remote();
                 receive();
                 return;
             }

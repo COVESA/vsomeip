@@ -318,7 +318,7 @@ Define default settings for the maximum number of (additional) dispatchers and t
 
 ## Payload Sizes
 
-- **payload-sizes** (array) - Array to limit the maximum allowed payload sizes per IP and port. If not specified otherwise the allowed payload sizes are `unlimited`. The settings in this array only affect communication over TCP. To limit the local payload size `max-payload-size-local` can be used.
+- **payload-sizes** (array) - Array to limit the maximum allowed payload sizes per IP and port. If not specified otherwise the allowed payload sizes are `10 MiB`. The settings in this array only affect communication over TCP. To limit the local payload size `max-payload-size-local` can be used.
     - **unicast** - IP Address of:
         - `On client side`: the IP of the remote service for which the payload size should be limited.
         - `On service side`: the IP of the offered service for which the payload size for receiving and sending should be limited.
@@ -329,9 +329,9 @@ Define default settings for the maximum number of (additional) dispatchers and t
         - **max-payload-size** - The payload regarding:
             - `On client side`: the payload size limit in bytes of a message sent to the remote service hosted on beforehand specified IP and port.
             - `On service side`: the payload size limit in bytes of messages received and sent by the service offered on previously specified IP and port. If multiple services are hosted on the same port they all share the limit specified.
-- **max-payload-size-local** - The maximum allowed payload size for node internal communication in bytes. By default the payload size for node internal communication is `unlimited`. It can be limited via this setting.
-- **max-payload-size-reliable** - The maximum allowed payload size for TCP communication in bytes. By default the payload size for TCP communication is `unlimited`. It can be limited via this setting.
-- **max-payload-size-unreliable** - The maximum allowed payload size for UDP communication via SOME/IP-TP in bytes. By default the payload size for UDP via SOME/IP-TP communication is `unlimited`. It can be limited via this setting. This setting only applies for SOME/IP-TP enabled methods/events/fields (otherwise the UDP default of 1400 bytes applies). See SOME/IP-TP for an example configuration.
+- **max-payload-size-local** - The maximum allowed payload size for node internal communication in bytes. By default the payload size for node internal communication is `10 MiB`. It can be limited via this setting.
+- **max-payload-size-reliable** - The maximum allowed payload size for TCP communication in bytes. By default the payload size for TCP communication is `10 MiB`. It can be limited via this setting.
+- **max-payload-size-unreliable** - The maximum allowed payload size for UDP communication via SOME/IP-TP in bytes. By default the payload size for UDP via SOME/IP-TP communication is `10 MiB`. It can be limited via this setting. This setting only applies for SOME/IP-TP enabled methods/events/fields (otherwise the UDP default of 1400 bytes applies). See SOME/IP-TP for an example configuration.
 - **buffer-shrink-threshold** - The number of processed messages which are half the size or smaller than the allocated buffer used to process them before the memory for the buffer is released and starts to grow dynamically again. This setting can be useful in scenarios where only a small number of the overall messages are a lot bigger then the rest and the memory allocated to process them should be released in a timely manner. If the value is set to zero the buffer sizes aren't reset and are as big as the biggest processed message. The default value is `5`.
 
     - **Example**: `buffer-shrink-threshold` is set to `50`.
