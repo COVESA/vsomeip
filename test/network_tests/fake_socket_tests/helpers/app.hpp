@@ -12,6 +12,7 @@
 #include "test_logging.hpp"
 #include "attribute_recorder.hpp"
 
+#include <functional>
 #include <thread>
 
 namespace vsomeip_v3::testing {
@@ -79,8 +80,24 @@ public:
 
     /**
      * Forwards the request to the vsomeip::application::offer_service()
+     * If an offer_service_hook is set, the hook wraps the call.
+     * NOTE: offer_service no longer thread-safe when offer_service_hook_ is set
+     * (e.g. via ecu_setup with TCP services). Must be called from the test thread only;
+     * the hook may be hidden inside a fixture.
      */
     void offer(service_instance _si);
+
+    /**
+     * Hook type that wraps offer_service calls. The first argument is the
+     * function that performs the actual offer; the second is the service being offered.
+     **/
+    using offer_service_hook_t = std::function<void(std::function<void()>, service_instance)>;
+
+    /**
+     * Set a hook that wraps every offer_service call. Used by ecu_setup to
+     * handle the auxiliary io_context registration transparently.
+     **/
+    void set_offer_service_hook(offer_service_hook_t hook);
 
     /**
      * Forwards the request to the vsomeip::application::offer()
@@ -262,5 +279,6 @@ private:
     bool is_running_{false};
     std::shared_ptr<vsomeip::application> app_;
     std::thread runner_;
+    offer_service_hook_t offer_service_hook_;
 };
 }

@@ -56,11 +56,6 @@ struct ecu_setup {
     /// Populates apps_. Must call prepare() first.
     void start_apps();
 
-    /// Used when a tcp server boardnet endpoint is needed to offer a service
-    /// for the first time in a ECU, this function will assign the auxiliary context
-    /// to an application name, so that it is not tied incorrectly to another application.
-    [[nodiscard]] bool offer_via_tcp(std::string const& offering_app_name_, interface const& offered_service_);
-
     /// Start the routing manager app. Must call prepare() first.
     /// Called automatically by start_apps(); use directly when starting apps individually.
     void start_router();
@@ -107,7 +102,14 @@ private:
     std::filesystem::path config_file_;
     std::vector<std::string> set_env_vars_;
     std::map<std::string, std::unique_ptr<app>> owned_apps_;
-    bool offered_tcp_;
+    bool offered_tcp_{false};
+
+    /// Returns true if the given service_instance is configured with a reliable (TCP) port.
+    [[nodiscard]] bool is_tcp_service(service_instance const& si) const;
+
+    /// Sets up the offer-service hook on the given app so that the auxiliary
+    /// io_context is registered transparently on the first TCP service offer.
+    void setup_offer_hook(app* a);
 
     std::optional<ecu_config> guest_config_;
     std::string guest_config_name_;

@@ -10,6 +10,7 @@
 
 #include <boost/asio/ip/address_v4.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <stdexcept>
@@ -39,7 +40,7 @@ std::string derive_router_name(ecu_config const& cfg) {
 } // namespace
 
 ecu_setup::ecu_setup(std::string name, ecu_config cfg, socket_manager& sm) :
-    config_{std::move(cfg)}, name_{std::move(name)}, router_name_{derive_router_name(config_)}, sm_{sm}, offered_tcp_(false) { }
+    config_{std::move(cfg)}, name_{std::move(name)}, router_name_{derive_router_name(config_)}, sm_{sm} { }
 
 ecu_setup::~ecu_setup() {
     for (auto const& var : set_env_vars_) {
@@ -171,6 +172,7 @@ app* ecu_setup::start_one(std::string const& name) {
     if (name == router_name_) {
         router_ = apps_[router_name_];
     }
+    setup_offer_hook(apps_[name]);
     return apps_[name];
 }
 
@@ -203,26 +205,28 @@ void ecu_setup::start_apps() {
     }
 }
 
-bool ecu_setup::offer_via_tcp(std::string const& offering_app_name_, interface const& offered_service_) {
-    auto it = owned_apps_.find(offering_app_name_);
-    if (it == owned_apps_.end()) {
-        TEST_LOG << "App with name:" << offering_app_name_ << " was not found, will not offer service";
-        return false;
-    }
-    if (!offered_tcp_) {
-        sm_.add(router_name_ + "_auxiliary_context_");
-        it->second->offer(offered_service_);
+bool ecu_setup::is_tcp_service(service_instance const& si) const {
+    return std::any_of(config_.services_.begin(), config_.services_.end(),
+                       [&si](service_config const& svc) { return svc.si_ == si && svc.reliable_port_.has_value(); });
+}
 
-        if (!sm_.await_assignment(router_name_ + "_auxiliary_context_")) {
-            LOCAL_LOG << router_name_ << " could not be assigned to an auxiliary_context";
-            return false;
-        }
-        LOCAL_LOG << router_name_ << " is assigned to an auxiliary_context";
-        offered_tcp_ = true;
-    } else {
-        it->second->offer(offered_service_);
+void ecu_setup::setup_offer_hook(app* a) {
+    if (router_name_.empty()) {
+        return;
     }
-    return true;
+    a->set_offer_service_hook([this](std::function<void()> do_offer, service_instance si) {
+        if (!offered_tcp_ && is_tcp_service(si)) {
+            sm_.add(router_name_ + "_auxiliary_context_");
+            do_offer();
+            if (!sm_.await_assignment(router_name_ + "_auxiliary_context_")) {
+                TEST_LOG << router_name_ << " could not be assigned to an auxiliary_context";
+                return;
+            }
+            offered_tcp_ = true;
+        } else {
+            do_offer();
+        }
+    });
 }
 
 void ecu_setup::stop_apps() {
