@@ -392,11 +392,11 @@ private:
     void load_someip_tp_for_service(const std::shared_ptr<service>& _service, const boost::property_tree::ptree& _tree, bool _is_request);
 
     servicegroup* find_servicegroup(const std::string& _name) const;
-    std::shared_ptr<client> find_client(service_t _service, instance_t _instance) const;
-    std::shared_ptr<service> find_service(service_t _service, instance_t _instance) const;
-    std::shared_ptr<service> find_service_unlocked(service_t _service, instance_t _instance) const;
+    std::shared_ptr<client> find_client(service_instance_t _si) const;
+    std::shared_ptr<service> find_service(service_instance_t _si) const;
+    std::shared_ptr<service> find_service_unlocked(service_instance_t _si) const;
     std::shared_ptr<service> find_service(service_t _service, const std::string& _address, std::uint16_t _port) const;
-    std::shared_ptr<eventgroup> find_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
+    std::shared_ptr<eventgroup> find_eventgroup(service_instance_t _si, eventgroup_t _eventgroup) const;
     bool find_port(uint16_t& _port, uint16_t _remote, bool _reliable, std::map<bool, std::set<uint16_t>>& _used_client_ports) const;
     bool find_specific_port(uint16_t& _port, service_t _service, instance_t _instance, bool _reliable,
                             std::map<bool, std::set<uint16_t>>& _used_client_ports) const;

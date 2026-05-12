@@ -8,6 +8,7 @@
 #include <memory>
 
 #include <vsomeip/primitive_types.hpp>
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 namespace cfg {
@@ -16,8 +17,12 @@ struct event;
 struct eventgroup;
 
 struct service {
-    service_t service_;
-    instance_t instance_;
+    service() = delete;
+
+    explicit service(service_t _service, instance_t _instance) :
+        service_instance_(_service, _instance), reliable_(0), unreliable_(0), protocol_("someip") { }
+
+    service_instance_t service_instance_;
 
     std::string unicast_address_;
 

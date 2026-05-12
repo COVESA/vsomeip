@@ -453,16 +453,7 @@ void routing_manager_client::release_service(client_t _client, service_t _servic
     bool pending(false);
     {
         std::scoped_lock its_service_guard(consumer_mutex_);
-        auto found_service = available_services_history_.find(_service);
-        if (found_service != available_services_history_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                found_service->second.erase(_instance);
-                if (found_service->second.empty()) {
-                    available_services_history_.erase(_service);
-                }
-            }
-        }
+        available_services_history_.erase({_service, _instance});
         remove_pending_subscription(_service, _instance, 0xFFFF, ANY_EVENT, its_service_guard);
         auto it = requests_to_debounce_.begin();
         while (it != requests_to_debounce_.end()) {
@@ -505,7 +496,8 @@ void routing_manager_client::register_event(client_t _client, service_t _service
 
     bool is_cyclic(_cycle != std::chrono::milliseconds::zero());
 
-    const event_data_t registration = {_service, _instance, _notifier, _type, _reliability, _is_provided, is_cyclic, _eventgroups};
+    const event_data_t registration = {
+            service_instance_t{_service, _instance}, _notifier, _type, _reliability, _is_provided, is_cyclic, _eventgroups};
     bool is_first(false);
     {
         std::scoped_lock its_lock(pending_event_registrations_mutex_);
@@ -516,8 +508,8 @@ void routing_manager_client::register_event(client_t _client, service_t _service
         bool insert = true;
         if (is_first) {
             for (auto iter = pending_event_registrations_.begin(); iter != pending_event_registrations_.end();) {
-                if (iter->service_ == _service && iter->instance_ == _instance && iter->notifier_ == _notifier
-                    && iter->is_provided_ == _is_provided && iter->type_ == event_type_e::ET_EVENT
+                if (iter->service_instance_.service() == _service && iter->service_instance_.instance() == _instance
+                    && iter->notifier_ == _notifier && iter->is_provided_ == _is_provided && iter->type_ == event_type_e::ET_EVENT
                     && _type == event_type_e::ET_SELECTIVE_EVENT) {
                     iter = pending_event_registrations_.erase(iter);
                     iter = pending_event_registrations_.insert(registration).first;
@@ -559,8 +551,8 @@ void routing_manager_client::unregister_event(client_t _client, service_t _servi
     {
         std::scoped_lock its_lock(pending_event_registrations_mutex_);
         for (auto iter = pending_event_registrations_.begin(); iter != pending_event_registrations_.end();) {
-            if (iter->service_ == _service && iter->instance_ == _instance && iter->notifier_ == _notifier
-                && iter->is_provided_ == _is_provided) {
+            if (iter->service_instance_.service() == _service && iter->service_instance_.instance() == _instance
+                && iter->notifier_ == _notifier && iter->is_provided_ == _is_provided) {
                 pending_event_registrations_.erase(iter);
                 break;
             } else {
@@ -596,7 +588,7 @@ void routing_manager_client::subscribe(client_t _client, service_t _service, ins
     bool send{false};
     {
         std::scoped_lock its_lock{consumer_mutex_};
-        subscription_data_t subscription = {_service, _instance, _eventgroup, _major, _event, _filter};
+        subscription_data_t subscription = {service_instance_t{_service, _instance}, _eventgroup, _major, _event, _filter};
         pending_subscriptions_.insert(subscription);
         if (state_machine_->state() == routing_client_state_e::ST_REGISTERED
             && available_services_.is_available(_service, _instance, _major)) {
@@ -1560,7 +1552,8 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 }
             }
             for (auto const& sub : collected_subscriptions) {
-                send_subscribe(get_client(), sub.service_, sub.instance_, sub.eventgroup_, sub.major_, sub.event_, sub.filter_);
+                send_subscribe(get_client(), sub.service_instance_.service(), sub.service_instance_.instance(), sub.eventgroup_, sub.major_,
+                               sub.event_, sub.filter_);
             }
             break;
         }
@@ -1575,7 +1568,7 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                 {
                     std::scoped_lock its_lock(consumer_mutex_);
                     if (available_services_.remove(its_service, its_instance)) {
-                        available_services_history_[its_service][its_instance].insert(its_client);
+                        available_services_history_[{its_service, its_instance}].insert(its_client);
                     }
                     // call on_availability only under the same lock as the available_services_ to ensure
                     // that the client handlers are executed in the same order as our table (assuming the client doesn't block the
@@ -1767,8 +1760,9 @@ bool routing_manager_client::send_pending_event_registrations(client_t _client) 
     auto it = pending_event_registrations_.begin();
     while (it != pending_event_registrations_.end()) {
         for (; it != pending_event_registrations_.end(); it++) {
-            protocol::register_event reg(it->service_, it->instance_, it->notifier_, it->type_, it->is_provided_, it->reliability_,
-                                         it->is_cyclic_, static_cast<uint16_t>(it->eventgroups_.size()), it->eventgroups_);
+            protocol::register_event reg(it->service_instance_.service(), it->service_instance_.instance(), it->notifier_, it->type_,
+                                         it->is_provided_, it->reliability_, it->is_cyclic_, static_cast<uint16_t>(it->eventgroups_.size()),
+                                         it->eventgroups_);
             if (!its_command.add_registration(reg)) {
                 break;
             }
@@ -1974,27 +1968,23 @@ uint32_t routing_manager_client::get_remote_subscriber_count(service_t _service,
                                                              bool _increment, [[maybe_unused]] std::scoped_lock<std::mutex> const& _lock) {
     uint32_t count(0);
     bool found(false);
-    auto found_service = remote_subscriber_count_.find(_service);
-    if (found_service != remote_subscriber_count_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_group = found_instance->second.find(_eventgroup);
-            if (found_group != found_instance->second.end()) {
-                found = true;
-                if (_increment) {
-                    found_group->second = found_group->second + 1;
-                } else {
-                    if (found_group->second > 0) {
-                        found_group->second = found_group->second - 1;
-                    }
+
+    if (auto found_si = remote_subscriber_count_.find({_service, _instance}); found_si != remote_subscriber_count_.end()) {
+        if (auto found_group = found_si->second.find(_eventgroup); found_group != found_si->second.end()) {
+            found = true;
+            if (_increment) {
+                found_group->second = found_group->second + 1;
+            } else {
+                if (found_group->second > 0) {
+                    found_group->second = found_group->second - 1;
                 }
-                count = found_group->second;
             }
+            count = found_group->second;
         }
     }
     if (!found) {
         if (_increment) {
-            remote_subscriber_count_[_service][_instance][_eventgroup] = 1;
+            remote_subscriber_count_[{_service, _instance}][_eventgroup] = 1;
             count = 1;
         }
     }
@@ -2003,14 +1993,7 @@ uint32_t routing_manager_client::get_remote_subscriber_count(service_t _service,
 
 void routing_manager_client::clear_remote_subscriber_count(service_t _service, instance_t _instance,
                                                            [[maybe_unused]] std::scoped_lock<std::mutex> const& _lock) {
-    auto found_service = remote_subscriber_count_.find(_service);
-    if (found_service != remote_subscriber_count_.end()) {
-        if (found_service->second.erase(_instance)) {
-            if (!found_service->second.size()) {
-                remote_subscriber_count_.erase(found_service);
-            }
-        }
-    }
+    remote_subscriber_count_.erase({_service, _instance});
 }
 
 bool routing_manager_client::create_placeholder_event_and_subscribe(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
@@ -2152,8 +2135,8 @@ void routing_manager_client::resend_provided_event_registrations() {
     std::scoped_lock its_lock(pending_event_registrations_mutex_);
     for (const event_data_t& ed : pending_event_registrations_) {
         if (ed.is_provided_) {
-            send_register_event(get_client(), ed.service_, ed.instance_, ed.notifier_, ed.eventgroups_, ed.type_, ed.reliability_,
-                                ed.is_provided_, ed.is_cyclic_);
+            send_register_event(get_client(), ed.service_instance_.service(), ed.service_instance_.instance(), ed.notifier_,
+                                ed.eventgroups_, ed.type_, ed.reliability_, ed.is_provided_, ed.is_cyclic_);
         }
     }
 }
@@ -2303,11 +2286,9 @@ void routing_manager_client::clear_remote_subscriptions() {
     std::scoped_lock its_lock(provider_mutex_);
 
     // Unsubscribe everything that is left over.
-    for (const auto& s : remote_subscriber_count_) {
-        for (const auto& i : s.second) {
-            for (const auto& e : i.second)
-                unsubscribe_base(VSOMEIP_ROUTING_CLIENT, s.first, i.first, e.first, ANY_EVENT, its_lock);
-        }
+    for (const auto& [si, eventgroups] : remote_subscriber_count_) {
+        for (const auto& [eg, _] : eventgroups)
+            unsubscribe_base(VSOMEIP_ROUTING_CLIENT, si.service(), si.instance(), eg, ANY_EVENT, its_lock);
     }
 
     // Remove all entries.
@@ -2411,20 +2392,19 @@ void routing_manager_client::remove_local(client_t _client,
 
         // remove disconnected client from offer service history
         std::set<std::tuple<service_t, instance_t, client_t>> its_clients;
-        for (const auto& s : available_services_history_) {
-            for (const auto& i : s.second) {
-                for (const auto& c : i.second) {
-                    if (c == _client) {
-                        its_clients.insert(std::make_tuple(s.first, i.first, c));
-                    }
+        for (const auto& [si, clients] : available_services_history_) {
+            for (const auto& c : clients) {
+                if (c == _client) {
+                    its_clients.insert(std::make_tuple(si.service(), si.instance(), c));
                 }
             }
         }
 
         for (auto& sic : its_clients) {
-            available_services_history_[std::get<0>(sic)][std::get<1>(sic)].erase(std::get<2>(sic));
-            if (available_services_history_[std::get<0>(sic)][std::get<1>(sic)].size() == 0) {
-                available_services_history_.erase(std::get<0>(sic));
+            const service_instance_t si{std::get<0>(sic), std::get<1>(sic)};
+            available_services_history_[si].erase(std::get<2>(sic));
+            if (available_services_history_[si].empty()) {
+                available_services_history_.erase(si);
             }
         }
     }
@@ -2449,8 +2429,7 @@ void routing_manager_client::cleanup_routing_data() {
 
 void routing_manager_client::cleanup_subscriber() {
     struct unsub_data {
-        service_t service_;
-        instance_t instance_;
+        service_instance_t service_instance_;
         eventgroup_t eg_;
         client_t client_;
     };
@@ -2463,13 +2442,15 @@ void routing_manager_client::cleanup_subscriber() {
             for (auto const& [event_id, event] : evs) {
                 for (auto const group : event->get_eventgroups()) {
                     for (auto const client : event->get_subscribers(group)) {
-                        data.push_back({service, instance, group, client});
+                        data.push_back({service_instance_t{service, instance}, group, client});
                     }
                 }
             }
         }
     }
-    for (auto [service, instance, group, client] : data) {
+    for (auto [si, group, client] : data) {
+        auto const service = si.service();
+        auto const instance = si.instance();
         auto ep = ep_mgr_->find_local_server_endpoint(client);
         auto const env = ep ? ep->get_env() : "";
         auto const sec = ep ? ep->get_sec_client() : vsomeip_sec_client_t{};
@@ -2510,15 +2491,10 @@ bool routing_manager_client::is_response_allowed(client_t _sender, service_t _se
             return true;
         }
 
-        auto found_service = available_services_history_.find(_service);
-        if (found_service != available_services_history_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_client = found_instance->second.find(_sender);
-                if (found_client != found_instance->second.end()) {
-                    // sender was offering the service and is still connected
-                    return true;
-                }
+        if (auto found_si = available_services_history_.find({_service, _instance}); found_si != available_services_history_.end()) {
+            if (found_si->second.contains(_sender)) {
+                // sender was offering the service and is still connected
+                return true;
             }
         }
     }
@@ -2579,7 +2555,7 @@ void routing_manager_client::collect_pending_subscriptions(service_t _service, i
                                                            std::vector<subscription_data_t>& _collected_subscriptions,
                                                            std::scoped_lock<std::mutex> const&) {
     for (auto& ps : pending_subscriptions_) {
-        if (ps.service_ == _service && ps.instance_ == _instance && ps.major_ == _major) {
+        if (ps.service_instance_ == service_instance_t(_service, _instance) && ps.major_ == _major) {
             _collected_subscriptions.push_back(ps);
         }
     }
@@ -2588,32 +2564,20 @@ void routing_manager_client::collect_pending_subscriptions(service_t _service, i
 void routing_manager_client::remove_pending_subscription(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                                                          std::scoped_lock<std::mutex> const&) {
     if (_eventgroup == 0xFFFF) {
-        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
-            if (it->service_ == _service && it->instance_ == _instance) {
-                it = pending_subscriptions_.erase(it);
-            } else {
-                it++;
-            }
-        }
+        std::erase_if(pending_subscriptions_, [&_service, &_instance](const subscription_data_t& ps) {
+            return ps.service_instance_ == service_instance_t(_service, _instance);
+        });
     } else if (_event == ANY_EVENT) {
-        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
-            if (it->service_ == _service && it->instance_ == _instance && it->eventgroup_ == _eventgroup) {
-                it = pending_subscriptions_.erase(it);
-            } else {
-                it++;
-            }
-        }
+        std::erase_if(pending_subscriptions_, [&_service, &_instance, &_eventgroup](const subscription_data_t& ps) {
+            return ps.service_instance_ == service_instance_t(_service, _instance) && ps.eventgroup_ == _eventgroup;
+        });
     } else {
-        for (auto it = pending_subscriptions_.begin(); it != pending_subscriptions_.end();) {
-            if (it->service_ == _service && it->instance_ == _instance && it->eventgroup_ == _eventgroup && it->event_ == _event) {
-                it = pending_subscriptions_.erase(it);
-                break;
-            } else {
-                it++;
-            }
-        }
+        std::erase_if(pending_subscriptions_, [&_service, &_instance, &_eventgroup, &_event](const subscription_data_t& ps) {
+            return ps.service_instance_ == service_instance_t(_service, _instance) && ps.eventgroup_ == _eventgroup && ps.event_ == _event;
+        });
     }
 }
+
 void routing_manager_client::register_consumer_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                                                      const std::set<eventgroup_t>& _eventgroups, const event_type_e _type,
                                                      reliability_type_e _reliability, std::chrono::milliseconds _cycle,

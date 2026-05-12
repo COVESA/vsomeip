@@ -28,6 +28,7 @@
 #include "types.hpp"
 #include "../include/routing_host.hpp"
 #include "../../protocol/include/protocol.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 #include "../../protocol/include/routing_info_entry.hpp"
 
 namespace vsomeip_v3 {
@@ -174,7 +175,7 @@ private:
 
     std::mutex lazy_load_mtx_;
 
-    std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>> routing_info_;
+    std::map<client_t, service_instance_map<std::pair<major_version_t, minor_version_t>>> routing_info_;
     std::map<client_t, uint8_t> watchdog_ping_counts_; // protected by routing_info_mutex_
     mutable std::mutex routing_info_mutex_;
     std::shared_ptr<configuration> configuration_;
@@ -187,7 +188,7 @@ private:
     std::mutex pinged_clients_mutex_;
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
 
-    std::map<client_t, std::map<service_t, std::map<instance_t, std::pair<major_version_t, minor_version_t>>>> service_requests_;
+    std::map<client_t, service_instance_map<std::pair<major_version_t, minor_version_t>>> service_requests_;
 
     std::mutex pending_security_updates_mutex_;
     pending_security_update_id_t pending_security_update_id_;

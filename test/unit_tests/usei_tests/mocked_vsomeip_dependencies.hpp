@@ -116,8 +116,7 @@ std::optional<typename Protocol::endpoint> vsomeip_v3::server_endpoint_impl<Prot
 }
 
 template<typename Protocol>
-bool vsomeip_v3::server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_t /*_service*/, instance_t /*_instance*/,
-                                                                         method_t /*_method*/) const {
+bool vsomeip_v3::server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t /*_si*/, method_t /*_method*/) const {
     return false;
 }
 

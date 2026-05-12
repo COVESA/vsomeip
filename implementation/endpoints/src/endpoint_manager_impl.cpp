@@ -191,37 +191,31 @@ void endpoint_manager_impl::is_remote_service_known(service_t _service, instance
                                                     bool* _unreliable_known) const {
 
     std::scoped_lock its_lock(endpoint_mutex_);
-    auto found_service = remote_service_info_.find(_service);
-    if (found_service != remote_service_info_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            std::shared_ptr<endpoint_definition> its_definition;
-            if (_reliable_port != ILLEGAL_PORT) {
-                auto found_reliable = found_instance->second.find(true);
-                if (found_reliable != found_instance->second.end()) {
-                    its_definition = found_reliable->second;
-                    if (its_definition->get_address() == _reliable_address && its_definition->get_port() == _reliable_port) {
-                        *_reliable_known = true;
-                    } else {
-                        VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                        << static_cast<std::uint32_t>(_major) << "." << _minor
-                                        << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
-                                        << " new: " << _reliable_address.to_string() << ":" << _reliable_port;
-                    }
+    if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
+        std::shared_ptr<endpoint_definition> its_definition;
+        if (_reliable_port != ILLEGAL_PORT) {
+            if (auto found_reliable = found_si->second.find(true); found_reliable != found_si->second.end()) {
+                its_definition = found_reliable->second;
+                if (its_definition->get_address() == _reliable_address && its_definition->get_port() == _reliable_port) {
+                    *_reliable_known = true;
+                } else {
+                    VSOMEIP_WARNING << "Reliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
+                                    << static_cast<std::uint32_t>(_major) << "." << _minor
+                                    << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
+                                    << " new: " << _reliable_address.to_string() << ":" << _reliable_port;
                 }
             }
-            if (_unreliable_port != ILLEGAL_PORT) {
-                auto found_unreliable = found_instance->second.find(false);
-                if (found_unreliable != found_instance->second.end()) {
-                    its_definition = found_unreliable->second;
-                    if (its_definition->get_address() == _unreliable_address && its_definition->get_port() == _unreliable_port) {
-                        *_unreliable_known = true;
-                    } else {
-                        VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                        << static_cast<std::uint32_t>(_major) << "." << _minor
-                                        << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
-                                        << " new: " << _unreliable_address.to_string() << ":" << _unreliable_port;
-                    }
+        }
+        if (_unreliable_port != ILLEGAL_PORT) {
+            if (auto found_unreliable = found_si->second.find(false); found_unreliable != found_si->second.end()) {
+                its_definition = found_unreliable->second;
+                if (its_definition->get_address() == _unreliable_address && its_definition->get_port() == _unreliable_port) {
+                    *_unreliable_known = true;
+                } else {
+                    VSOMEIP_WARNING << "Unreliable service endpoint has changed: [" << hex4(_service) << "." << hex4(_instance) << "."
+                                    << static_cast<std::uint32_t>(_major) << "." << _minor
+                                    << "] old: " << its_definition->get_address().to_string() << ":" << its_definition->get_port()
+                                    << " new: " << _unreliable_address.to_string() << ":" << _unreliable_port;
                 }
             }
         }
@@ -236,7 +230,7 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     bool must_report(false);
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        remote_service_info_[_service][_instance][_ep_definition->is_reliable()] = _ep_definition;
+        remote_service_info_[{_service, _instance}][_ep_definition->is_reliable()] = _ep_definition;
 
         its_endpoint = find_remote_client(_service, _instance, _ep_definition->is_reliable());
         must_report = (its_endpoint && its_endpoint->is_established_or_connected());
@@ -257,8 +251,8 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
     bool must_report(false);
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        remote_service_info_[_service][_instance][false] = _ep_definition_unreliable;
-        remote_service_info_[_service][_instance][true] = _ep_definition_reliable;
+        remote_service_info_[{_service, _instance}][false] = _ep_definition_unreliable;
+        remote_service_info_[{_service, _instance}][true] = _ep_definition_reliable;
 
         its_unreliable = find_remote_client(_service, _instance, false);
         its_reliable = find_remote_client(_service, _instance, true);
@@ -278,17 +272,10 @@ void endpoint_manager_impl::add_remote_service_info(service_t _service, instance
 
 void endpoint_manager_impl::clear_remote_service_info(service_t _service, instance_t _instance, bool _reliable) {
     std::scoped_lock its_lock(endpoint_mutex_);
-    const auto found_service = remote_service_info_.find(_service);
-    if (found_service != remote_service_info_.end()) {
-        const auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            if (found_instance->second.erase(_reliable)) {
-                if (!found_instance->second.size()) {
-                    found_service->second.erase(found_instance);
-                    if (!found_service->second.size()) {
-                        remote_service_info_.erase(found_service);
-                    }
-                }
+    if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
+        if (found_si->second.erase(_reliable)) {
+            if (found_si->second.empty()) {
+                remote_service_info_.erase(found_si);
             }
         }
     }
@@ -416,21 +403,13 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
     {
         std::scoped_lock its_lock(endpoint_mutex_);
         // Clear client endpoints for remote services (generic and specific ones)
-        const auto found_service = remote_services_.find(_service);
-        if (found_service != remote_services_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                const auto found_reliability = found_instance->second.find(_reliable);
-                if (found_reliability != found_instance->second.end()) {
-                    service_instances_[_service].erase(found_reliability->second.get());
-                    its_endpoint = found_reliability->second;
-                    found_instance->second.erase(found_reliability);
-                    if (found_instance->second.empty()) {
-                        found_service->second.erase(found_instance);
-                        if (found_service->second.empty()) {
-                            remote_services_.erase(found_service);
-                        }
-                    }
+        if (auto found_si = remote_services_.find({_service, _instance}); found_si != remote_services_.end()) {
+            if (const auto found_reliability = found_si->second.find(_reliable); found_reliability != found_si->second.end()) {
+                service_instances_[_service].erase(found_reliability->second.get());
+                its_endpoint = found_reliability->second;
+                found_si->second.erase(found_reliability);
+                if (found_si->second.empty()) {
+                    remote_services_.erase(found_si);
                 }
             }
         }
@@ -438,15 +417,10 @@ void endpoint_manager_impl::clear_client_endpoints(service_t _service, instance_
         // Only stop and delete the endpoint if none of the services
         // reachable through it is online anymore.
         if (its_endpoint) {
-            for (const auto& service : remote_services_) {
-                for (const auto& instance : service.second) {
-                    const auto found_reliability = instance.second.find(_reliable);
-                    if (found_reliability != instance.second.end() && found_reliability->second == its_endpoint) {
-                        other_services_reachable_through_endpoint = true;
-                        break;
-                    }
-                }
-                if (other_services_reachable_through_endpoint) {
+            for (const auto& [its_si, its_reliability_map] : remote_services_) {
+                if (const auto found_reliability = its_reliability_map.find(_reliable);
+                    found_reliability != its_reliability_map.end() && found_reliability->second == its_endpoint) {
+                    other_services_reachable_through_endpoint = true;
                     break;
                 }
             }
@@ -514,16 +488,13 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
     bool is_known_multicast(false);
     {
         std::scoped_lock its_lock(endpoint_mutex_);
-        const auto found_service = multicast_info_.find(_service);
-        if (found_service != multicast_info_.end()) {
-            const auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                const auto& endpoint_def = found_instance->second;
-                if (endpoint_def->get_address() == _address && endpoint_def->get_port() == _port) {
-                    // Multicast info and endpoint already created before
-                    // This can happen when more than one client subscribe on the same instance!
-                    is_known_multicast = true;
-                }
+
+        if (const auto found_si = multicast_info_.find({_service, _instance}); found_si != multicast_info_.end()) {
+            const auto& endpoint_def = found_si->second;
+            if (endpoint_def->get_address() == _address && endpoint_def->get_port() == _port) {
+                // Multicast info and endpoint already created before
+                // This can happen when more than one client subscribe on the same instance!
+                is_known_multicast = true;
             }
         }
     }
@@ -537,7 +508,7 @@ void endpoint_manager_impl::find_or_create_multicast_endpoint(service_t _service
         // as soon as the instance stops offering its service
         std::scoped_lock its_lock(endpoint_mutex_);
         std::shared_ptr<endpoint_definition> endpoint_def = endpoint_definition::get(_address, _port, false, _service, _instance);
-        multicast_info_[_service][_instance] = endpoint_def;
+        multicast_info_[{_service, _instance}] = endpoint_def;
     }
 
     if (its_endpoint) {
@@ -561,27 +532,20 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
     {
         std::scoped_lock its_lock(endpoint_mutex_);
         // Clear multicast info and endpoint and multicast instance (remote service)
-        if (multicast_info_.contains(_service)) {
-            if (multicast_info_[_service].contains(_instance)) {
-                its_address = multicast_info_[_service][_instance]->get_address().to_string();
-                uint16_t its_port = multicast_info_[_service][_instance]->get_port();
-                auto found_port = server_endpoints_.find(its_port);
-                if (found_port != server_endpoints_.end()) {
-                    auto found_unreliable = found_port->second.find(false);
-                    if (found_unreliable != found_port->second.end()) {
-                        its_multicast_endpoint = found_unreliable->second;
-                        server_endpoints_[its_port].erase(false);
-                    }
-                    if (!found_port->second.contains(true)) {
-                        server_endpoints_.erase(its_port);
-                    }
+        if (auto found_si = multicast_info_.find({_service, _instance}); found_si != multicast_info_.end()) {
+            its_address = found_si->second->get_address().to_string();
+            uint16_t its_port = found_si->second->get_port();
+            if (auto found_port = server_endpoints_.find(its_port); found_port != server_endpoints_.end()) {
+                if (auto found_unreliable = found_port->second.find(false); found_unreliable != found_port->second.end()) {
+                    its_multicast_endpoint = found_unreliable->second;
+                    server_endpoints_[its_port].erase(false);
                 }
-                multicast_info_[_service].erase(_instance);
-                if (0 >= multicast_info_[_service].size()) {
-                    multicast_info_.erase(_service);
+                if (!found_port->second.contains(true)) {
+                    server_endpoints_.erase(its_port);
                 }
-                (void)remove_instance_multicast(_service, _instance);
             }
+            multicast_info_.erase(found_si);
+            (void)remove_instance_multicast(_service, _instance);
         }
     }
     if (its_multicast_endpoint) {
@@ -597,13 +561,10 @@ void endpoint_manager_impl::clear_multicast_endpoints(service_t _service, instan
 bool endpoint_manager_impl::supports_selective(service_t _service, instance_t _instance) const {
     bool supports_selective(false);
     std::scoped_lock its_lock(endpoint_mutex_);
-    const auto its_service = remote_service_info_.find(_service);
-    if (its_service != remote_service_info_.end()) {
-        const auto its_instance = its_service->second.find(_instance);
-        if (its_instance != its_service->second.end()) {
-            for (const auto& its_reliable : its_instance->second) {
-                supports_selective |= configuration_->supports_selective_broadcasts(its_reliable.second->get_address());
-            }
+
+    if (const auto its_si = remote_service_info_.find({_service, _instance}); its_si != remote_service_info_.end()) {
+        for (const auto& [is_reliable, its_ep_def] : its_si->second) {
+            supports_selective |= configuration_->supports_selective_broadcasts(its_ep_def->get_address());
         }
     }
     return supports_selective;
@@ -913,24 +874,21 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
     {
         const bool endpoint_is_reliable = _endpoint->is_reliable();
         std::scoped_lock its_lock(endpoint_mutex_);
-        for (auto& its_service : remote_services_) {
-            for (auto& its_instance : its_service.second) {
-                auto found_endpoint = its_instance.second.find(endpoint_is_reliable);
-                if (found_endpoint != its_instance.second.end()) {
-                    if (found_endpoint->second == _endpoint) {
-                        std::shared_ptr<serviceinfo> its_info(router_->find_service(its_service.first, its_instance.first));
-                        if (!its_info) {
-                            _endpoint->set_established(true);
-                            return;
-                        }
-                        // only report services offered via TCP+UDP when both
-                        // endpoints are connected
-                        const auto its_other_endpoint = its_info->get_endpoint(!endpoint_is_reliable);
+        for (auto& [its_si, its_reliability_map] : remote_services_) {
+            if (auto found_endpoint = its_reliability_map.find(endpoint_is_reliable); found_endpoint != its_reliability_map.end()) {
+                if (found_endpoint->second == _endpoint) {
+                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service(), its_si.instance()));
+                    if (!its_info) {
+                        _endpoint->set_established(true);
+                        return;
+                    }
+                    // only report services offered via TCP+UDP when both
+                    // endpoints are connected
+                    const auto its_other_endpoint = its_info->get_endpoint(!endpoint_is_reliable);
 
-                        if (!its_other_endpoint || (its_other_endpoint && its_other_endpoint->is_established_or_connected())) {
-                            services_to_report_.push_front(
-                                    {its_service.first, its_instance.first, its_info->get_major(), its_info->get_minor(), _endpoint});
-                        }
+                    if (!its_other_endpoint || (its_other_endpoint && its_other_endpoint->is_established_or_connected())) {
+                        services_to_report_.push_front(
+                                {its_si.service(), its_si.instance(), its_info->get_major(), its_info->get_minor(), _endpoint});
                     }
                 }
             }
@@ -947,19 +905,15 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
 void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _endpoint) {
     // Is called when endpoint->connect fails!
     std::scoped_lock its_lock(endpoint_mutex_);
-    for (auto& its_service : remote_services_) {
-        for (auto& its_instance : its_service.second) {
-            const bool is_reliable = _endpoint->is_reliable();
-            auto found_endpoint = its_instance.second.find(is_reliable);
-            if (found_endpoint != its_instance.second.end()) {
-                if (found_endpoint->second == _endpoint) {
-                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_service.first, its_instance.first));
-                    if (!its_info) {
-                        return;
-                    }
-                    router_->service_endpoint_disconnected(its_service.first, its_instance.first, its_info->get_major(),
-                                                           its_info->get_minor());
+    for (auto& [its_si, its_reliability_map] : remote_services_) {
+        const bool is_reliable = _endpoint->is_reliable();
+        if (auto found_endpoint = its_reliability_map.find(is_reliable); found_endpoint != its_reliability_map.end()) {
+            if (found_endpoint->second == _endpoint) {
+                std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service(), its_si.instance()));
+                if (!its_info) {
+                    return;
                 }
+                router_->service_endpoint_disconnected(its_si.service(), its_si.instance(), its_info->get_major(), its_info->get_minor());
             }
         }
     }
@@ -969,23 +923,20 @@ bool endpoint_manager_impl::on_bind_error(std::shared_ptr<boardnet_endpoint> _en
                                           std::uint16_t _remote_port, uint16_t& _local_port) {
 
     std::scoped_lock its_ep_lock{endpoint_mutex_};
-    for (auto& its_service : remote_services_) {
-        for (auto& its_instance : its_service.second) {
-            const bool is_reliable = _endpoint->is_reliable();
-            auto found_endpoint = its_instance.second.find(is_reliable);
-            if (found_endpoint != its_instance.second.end()) {
-                if (found_endpoint->second == _endpoint) {
-                    // get a new client port using service / instance / remote port
-                    uint16_t its_old_local_port = _endpoint->get_local_port();
-                    _local_port = ILLEGAL_PORT; // will be given as a new local port
+    for (auto& [its_si, its_reliability_map] : remote_services_) {
+        const bool is_reliable = _endpoint->is_reliable();
+        if (auto found_endpoint = its_reliability_map.find(is_reliable); found_endpoint != its_reliability_map.end()) {
+            if (found_endpoint->second == _endpoint) {
+                // get a new client port using service / instance / remote port
+                uint16_t its_old_local_port = _endpoint->get_local_port();
+                _local_port = ILLEGAL_PORT; // will be given as a new local port
 
-                    std::map<bool, std::set<port_t>> its_used_client_ports;
-                    get_used_client_ports(_remote_address, _remote_port, its_used_client_ports);
-                    if (configuration_->get_client_port(its_service.first, its_instance.first, _remote_port, is_reliable,
-                                                        its_used_client_ports, _local_port)) {
-                        release_used_client_port(_remote_address, _remote_port, _endpoint->is_reliable(), its_old_local_port);
-                        return true;
-                    }
+                std::map<bool, std::set<port_t>> its_used_client_ports;
+                get_used_client_ports(_remote_address, _remote_port, its_used_client_ports);
+                if (configuration_->get_client_port(its_si.service(), its_si.instance(), _remote_port, is_reliable, its_used_client_ports,
+                                                    _local_port)) {
+                    release_used_client_port(_remote_address, _remote_port, _endpoint->is_reliable(), its_old_local_port);
+                    return true;
                 }
             }
         }
@@ -1039,14 +990,9 @@ void endpoint_manager_impl::release_used_client_port(const boost::asio::ip::addr
 std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(service_t _service, instance_t _instance, bool _reliable) {
 
     std::shared_ptr<boardnet_endpoint> its_endpoint;
-    auto found_service = remote_services_.find(_service);
-    if (found_service != remote_services_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_reliability = found_instance->second.find(_reliable);
-            if (found_reliability != found_instance->second.end()) {
-                its_endpoint = found_reliability->second;
-            }
+    if (auto found_si = remote_services_.find({_service, _instance}); found_si != remote_services_.end()) {
+        if (auto found_reliability = found_si->second.find(_reliable); found_reliability != found_si->second.end()) {
+            its_endpoint = found_reliability->second;
         }
     }
     if (its_endpoint) {
@@ -1059,33 +1005,25 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::find_remote_client(ser
 
     // If another service within the same partition is hosted on the
     // same server_endpoint reuse the existing client_endpoint.
-    auto found_service_info = remote_service_info_.find(_service);
-    if (found_service_info != remote_service_info_.end()) {
-        auto found_instance = found_service_info->second.find(_instance);
-        if (found_instance != found_service_info->second.end()) {
-            auto found_reliable = found_instance->second.find(_reliable);
-            if (found_reliable != found_instance->second.end()) {
-                std::shared_ptr<endpoint_definition> its_ep_def = found_reliable->second;
-                auto found_address = client_endpoints_.find(its_ep_def->get_address());
-                if (found_address != client_endpoints_.end()) {
-                    auto found_port = found_address->second.find(its_ep_def->get_remote_port());
-                    if (found_port != found_address->second.end()) {
-                        auto found_reliable2 = found_port->second.find(_reliable);
-                        if (found_reliable2 != found_port->second.end()) {
-                            auto found_partition = found_reliable2->second.find(its_partition_id);
-                            if (found_partition != found_reliable2->second.end()) {
-                                its_endpoint = found_partition->second;
+    if (auto found_si_info = remote_service_info_.find({_service, _instance}); found_si_info != remote_service_info_.end()) {
+        if (auto found_reliable = found_si_info->second.find(_reliable); found_reliable != found_si_info->second.end()) {
+            std::shared_ptr<endpoint_definition> its_ep_def = found_reliable->second;
+            if (auto found_address = client_endpoints_.find(its_ep_def->get_address()); found_address != client_endpoints_.end()) {
+                if (auto found_port = found_address->second.find(its_ep_def->get_remote_port());
+                    found_port != found_address->second.end()) {
+                    if (auto found_reliable2 = found_port->second.find(_reliable); found_reliable2 != found_port->second.end()) {
+                        if (auto found_partition = found_reliable2->second.find(its_partition_id);
+                            found_partition != found_reliable2->second.end()) {
+                            its_endpoint = found_partition->second;
 
-                                // store the endpoint under this service/instance id
-                                // as well - needed for later cleanup
-                                remote_services_[_service][_instance][_reliable] = its_endpoint;
-                                service_instances_[_service][its_endpoint.get()] = _instance;
+                            // store the endpoint under this service/instance id
+                            // as well - needed for later cleanup
+                            remote_services_[{_service, _instance}][_reliable] = its_endpoint;
+                            service_instances_[_service][its_endpoint.get()] = _instance;
 
-                                // add endpoint to serviceinfo object
-                                auto found_service_info_inner = router_->find_service(_service, _instance);
-                                if (found_service_info_inner) {
-                                    found_service_info_inner->set_endpoint(its_endpoint, _reliable);
-                                }
+                            // add endpoint to serviceinfo object
+                            if (auto found_service_info_inner = router_->find_service(_service, _instance); found_service_info_inner) {
+                                found_service_info_inner->set_endpoint(its_endpoint, _reliable);
                             }
                         }
                     }
@@ -1105,16 +1043,11 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
     boost::asio::ip::address its_remote_address;
     uint16_t its_remote_port = ILLEGAL_PORT;
 
-    auto found_service = remote_service_info_.find(_service);
-    if (found_service != remote_service_info_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_reliability = found_instance->second.find(_reliable);
-            if (found_reliability != found_instance->second.end()) {
-                its_endpoint_def = found_reliability->second;
-                its_remote_address = its_endpoint_def->get_address();
-                its_remote_port = its_endpoint_def->get_port();
-            }
+    if (auto found_si = remote_service_info_.find({_service, _instance}); found_si != remote_service_info_.end()) {
+        if (auto found_reliability = found_si->second.find(_reliable); found_reliability != found_si->second.end()) {
+            its_endpoint_def = found_reliability->second;
+            its_remote_address = its_endpoint_def->get_address();
+            its_remote_port = its_endpoint_def->get_port();
         }
     }
 
@@ -1132,7 +1065,7 @@ std::shared_ptr<boardnet_endpoint> endpoint_manager_impl::create_remote_client(s
                 request_used_client_port(its_remote_address, its_remote_port, _reliable, its_local_port);
 
                 service_instances_[_service][its_endpoint.get()] = _instance;
-                remote_services_[_service][_instance][_reliable] = its_endpoint;
+                remote_services_[{_service, _instance}][_reliable] = its_endpoint;
 
                 partition_id_t its_partition = configuration_->get_partition_id(_service, _instance);
                 client_endpoints_[its_endpoint_def->get_address()][its_endpoint_def->get_port()][_reliable][its_partition] = its_endpoint;

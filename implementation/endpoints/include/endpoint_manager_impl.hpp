@@ -14,6 +14,7 @@
 #include "../include/endpoint_manager_base.hpp"
 #include "../include/auxiliary_context.hpp"
 #include "../include/endpoint_definition.hpp"
+#include "../../utility/include/service_instance_map.hpp"
 
 namespace vsomeip_v3 {
 
@@ -143,9 +144,9 @@ private:
 
     mutable std::recursive_mutex endpoint_mutex_;
     // Client endpoints for remote services
-    std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<endpoint_definition>>>> remote_service_info_;
+    service_instance_map<std::map<bool, std::shared_ptr<endpoint_definition>>> remote_service_info_;
 
-    typedef std::map<service_t, std::map<instance_t, std::map<bool, std::shared_ptr<boardnet_endpoint>>>> remote_services_t;
+    typedef service_instance_map<std::map<bool, std::shared_ptr<boardnet_endpoint>>> remote_services_t;
     remote_services_t remote_services_;
 
     using client_endpoints_t = std::map<boost::asio::ip::address,
@@ -162,7 +163,7 @@ private:
     server_endpoints_t server_endpoints_;
 
     // Multicast endpoint info (notifications)
-    std::map<service_t, std::map<instance_t, std::shared_ptr<endpoint_definition>>> multicast_info_;
+    service_instance_map<std::shared_ptr<endpoint_definition>> multicast_info_;
     auxiliary_context auxiliary_context_;
 
     // Socket option processing (join, leave)

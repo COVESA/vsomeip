@@ -326,7 +326,7 @@ private:
     // Availability handlers
     using stateful_availability_t = std::pair<availability_state_handler_t, availability_state_t>;
     using availability_major_minor_t = std::map<major_version_t, std::map<minor_version_t, stateful_availability_t>>;
-    std::map<service_t, std::map<instance_t, availability_major_minor_t>> availability_;
+    service_instance_map<availability_major_minor_t> availability_;
     mutable std::mutex availability_mutex_;
 
     // Availability
@@ -335,9 +335,7 @@ private:
     mutable available_ext_t available_;
 
     // Subscription handlers
-    std::map<service_t,
-             std::map<instance_t, std::map<eventgroup_t, std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t>>>>
-            subscription_;
+    service_instance_map<std::map<eventgroup_t, std::pair<subscription_handler_sec_t, async_subscription_handler_sec_t>>> subscription_;
     mutable std::mutex subscription_mutex_;
 
 #ifdef VSOMEIP_ENABLE_SIGNAL_HANDLING
@@ -375,16 +373,16 @@ private:
 
     // Event subscriptions
     std::mutex subscriptions_mutex_;
-    std::map<service_t, std::map<instance_t, std::map<event_t, std::map<eventgroup_t, bool>>>> subscriptions_;
+    service_instance_map<std::map<event_t, std::map<eventgroup_t, bool>>> subscriptions_;
 
     std::thread::id stop_caller_id_;
 
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool>>>>>
+    service_instance_map<std::map<eventgroup_t, std::map<event_t, std::pair<subscription_status_handler_t, bool>>>>
             subscription_status_handlers_;
     std::mutex subscription_status_handlers_mutex_;
 
     std::mutex subscriptions_state_mutex_;
-    std::map<service_t, std::map<instance_t, std::map<eventgroup_t, std::map<event_t, subscription_state_e>>>> subscriptions_state_;
+    service_instance_map<std::map<eventgroup_t, std::map<event_t, subscription_state_e>>> subscriptions_state_;
 
     std::mutex watchdog_timer_mutex_;
     boost::asio::steady_timer watchdog_timer_;

@@ -161,10 +161,8 @@ void service_discovery_impl::start() {
     if (is_suspended_) {
         // make sure to sent out FindService messages after resume
         std::scoped_lock its_lock(requested_mutex_);
-        for (const auto& s : requested_) {
-            for (const auto& i : s.second) {
-                i.second->set_sent_counter(0);
-            }
+        for (const auto& [si, req] : requested_) {
+            req->set_sent_counter(0);
         }
 
         // rejoin multicast group
@@ -238,15 +236,9 @@ void service_discovery_impl::request_service(service_t _service, instance_t _ins
     bool state_changed = false;
     {
         std::scoped_lock its_lock(requested_mutex_);
-        auto find_service = requested_.find(_service);
-        if (find_service != requested_.end()) {
-            auto find_instance = find_service->second.find(_instance);
-            if (find_instance == find_service->second.end()) {
-                find_service->second[_instance] = std::make_shared<request>(_major, _minor, _ttl);
-                state_changed = true;
-            }
-        } else {
-            requested_[_service][_instance] = std::make_shared<request>(_major, _minor, _ttl);
+        auto [it, inserted] = requested_.emplace(service_instance_t{_service, _instance}, std::shared_ptr<request>{});
+        if (inserted) {
+            it->second = std::make_shared<request>(_major, _minor, _ttl);
             state_changed = true;
         }
     }
@@ -260,10 +252,7 @@ void service_discovery_impl::release_service(service_t _service, instance_t _ins
     bool state_changed = false;
     {
         std::scoped_lock its_lock(requested_mutex_);
-        auto find_service = requested_.find(_service);
-        if (find_service != requested_.end()) {
-            state_changed = find_service->second.erase(_instance) > 0;
-        }
+        state_changed = requested_.erase({_service, _instance}) > 0;
     }
     if (state_changed) {
         VSOMEIP_INFO << "RELEASE SD: [" << hex4(_service) << "." << hex4(_instance) << "]";
@@ -272,23 +261,15 @@ void service_discovery_impl::release_service(service_t _service, instance_t _ins
 
 void service_discovery_impl::reset_request_sent_counter(service_t _service, instance_t _instance) {
     std::scoped_lock its_lock{requested_mutex_};
-    auto find_service = requested_.find(_service);
-    if (find_service != requested_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            find_instance->second->set_sent_counter(0);
-        }
+    if (auto find_instance = requested_.find({_service, _instance}); find_instance != requested_.end()) {
+        find_instance->second->set_sent_counter(0);
     }
 }
 
 void service_discovery_impl::update_request(service_t _service, instance_t _instance) {
     std::scoped_lock its_lock(requested_mutex_);
-    auto find_service = requested_.find(_service);
-    if (find_service != requested_.end()) {
-        auto find_instance = find_service->second.find(_instance);
-        if (find_instance != find_service->second.end()) {
-            find_instance->second->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
-        }
+    if (auto find_instance = requested_.find({_service, _instance}); find_instance != requested_.end()) {
+        find_instance->second->set_sent_counter(std::uint8_t(repetitions_max_ + 1));
     }
 }
 
@@ -305,23 +286,17 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
     }
 
     std::scoped_lock its_lock(subscribed_mutex_);
-    auto found_service = subscribed_.find(_service);
-    if (found_service != subscribed_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                auto its_subscription = found_eventgroup->second;
-                if (its_subscription->get_major() != _major) {
-                    VSOMEIP_ERROR << "Subscriptions to different versions of the same service instance are not supported!";
-                } else if (its_subscription->is_selective()) {
-                    if (its_subscription->add_client(_client)) {
-                        its_subscription->set_state(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
-                        send_subscription(its_subscription, _service, _instance, _eventgroup, _client);
-                    }
+    if (auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+        if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
+            if (auto its_subscription = found_eventgroup->second; its_subscription->get_major() != _major) {
+                VSOMEIP_ERROR << "Subscriptions to different versions of the same service instance are not supported!";
+            } else if (its_subscription->is_selective()) {
+                if (its_subscription->add_client(_client)) {
+                    its_subscription->set_state(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                    send_subscription(its_subscription, _service, _instance, _eventgroup, _client);
                 }
-                return;
             }
+            return;
         }
     }
 
@@ -336,7 +311,7 @@ void service_discovery_impl::subscribe(service_t _service, instance_t _instance,
         return;
     }
 
-    subscribed_[_service][_instance][_eventgroup] = its_subscription;
+    subscribed_[{_service, _instance}][_eventgroup] = its_subscription;
 
     its_subscription->add_client(_client);
     its_subscription->set_state(_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
@@ -433,57 +408,52 @@ void service_discovery_impl::unsubscribe(service_t _service, instance_t _instanc
     boost::asio::ip::address its_address;
     {
         std::scoped_lock its_lock(subscribed_mutex_);
-        auto found_service = subscribed_.find(_service);
-        if (found_service != subscribed_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                auto found_eventgroup = found_instance->second.find(_eventgroup);
-                if (found_eventgroup != found_instance->second.end()) {
-                    auto its_subscription = found_eventgroup->second;
-                    if (its_subscription->remove_client(_client)) {
-                        auto its_reliable = its_subscription->get_endpoint(true);
-                        auto its_unreliable = its_subscription->get_endpoint(false);
-                        get_subscription_address(its_reliable, its_unreliable, its_address);
-                        if (!its_subscription->has_client()) {
-                            its_subscription->set_ttl(0);
-                        } else if (its_subscription->is_selective()) {
-                            // create a dummy subscription object to unsubscribe
-                            // the single client.
-                            auto its_major = its_subscription->get_major();
-
-                            its_subscription = std::make_shared<subscription>();
-                            its_subscription->set_major(its_major);
-                            its_subscription->set_ttl(0);
-                            its_subscription->set_selective(true);
-                            its_subscription->set_endpoint(its_reliable, true);
-                            its_subscription->set_endpoint(its_unreliable, false);
-                        }
-                    }
-
-                    // For selective subscriptions, the client must be added again
-                    // to generate the selective option
-                    if (its_subscription->is_selective())
-                        its_subscription->add_client(_client);
-
-                    const reliability_type_e its_reliability_type =
-                            get_eventgroup_reliability(_service, _instance, _eventgroup, its_subscription);
-                    auto its_data = create_eventgroup_entry(_service, _instance, _eventgroup, its_subscription, its_reliability_type);
-                    if (its_data.entry_)
-                        its_current_message->add_entry_data(its_data.entry_, its_data.options_);
-
-                    // Remove it again before updating (only impacts last unsubscribe)
-                    if (its_subscription->is_selective())
-                        (void)its_subscription->remove_client(_client);
-
-                    // Ensure to update the "real" subscription
-                    its_subscription = found_eventgroup->second;
-
-                    // Finally update the subscriptions
+        if (auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+            if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
+                auto its_subscription = found_eventgroup->second;
+                if (its_subscription->remove_client(_client)) {
+                    auto its_reliable = its_subscription->get_endpoint(true);
+                    auto its_unreliable = its_subscription->get_endpoint(false);
+                    get_subscription_address(its_reliable, its_unreliable, its_address);
                     if (!its_subscription->has_client()) {
-                        found_instance->second.erase(found_eventgroup);
-                        if (found_instance->second.size() == 0) {
-                            found_service->second.erase(found_instance);
-                        }
+                        its_subscription->set_ttl(0);
+                    } else if (its_subscription->is_selective()) {
+                        // create a dummy subscription object to unsubscribe
+                        // the single client.
+                        auto its_major = its_subscription->get_major();
+
+                        its_subscription = std::make_shared<subscription>();
+                        its_subscription->set_major(its_major);
+                        its_subscription->set_ttl(0);
+                        its_subscription->set_selective(true);
+                        its_subscription->set_endpoint(its_reliable, true);
+                        its_subscription->set_endpoint(its_unreliable, false);
+                    }
+                }
+
+                // For selective subscriptions, the client must be added again
+                // to generate the selective option
+                if (its_subscription->is_selective())
+                    its_subscription->add_client(_client);
+
+                const reliability_type_e its_reliability_type =
+                        get_eventgroup_reliability(_service, _instance, _eventgroup, its_subscription);
+                auto its_data = create_eventgroup_entry(_service, _instance, _eventgroup, its_subscription, its_reliability_type);
+                if (its_data.entry_)
+                    its_current_message->add_entry_data(its_data.entry_, its_data.options_);
+
+                // Remove it again before updating (only impacts last unsubscribe)
+                if (its_subscription->is_selective())
+                    (void)its_subscription->remove_client(_client);
+
+                // Ensure to update the "real" subscription
+                its_subscription = found_eventgroup->second;
+
+                // Finally update the subscriptions
+                if (!its_subscription->has_client()) {
+                    found_si->second.erase(found_eventgroup);
+                    if (found_si->second.empty()) {
+                        subscribed_.erase(found_si);
                     }
                 }
             }
@@ -507,27 +477,22 @@ void service_discovery_impl::unsubscribe_all(service_t _service, instance_t _ins
 
     {
         std::scoped_lock its_lock(subscribed_mutex_);
-        auto found_service = subscribed_.find(_service);
-        if (found_service != subscribed_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                for (auto& its_eventgroup : found_instance->second) {
-                    auto its_subscription = its_eventgroup.second;
-                    its_subscription->set_ttl(0);
+        if (auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+            for (auto& [its_eventgroup_id, its_subscription] : found_si->second) {
+                its_subscription->set_ttl(0);
 
-                    const reliability_type_e its_reliability =
-                            get_eventgroup_reliability(_service, _instance, its_eventgroup.first, its_subscription);
+                const reliability_type_e its_reliability =
+                        get_eventgroup_reliability(_service, _instance, its_eventgroup_id, its_subscription);
 
-                    auto its_data = create_eventgroup_entry(_service, _instance, its_eventgroup.first, its_subscription, its_reliability);
-                    auto its_reliable = its_subscription->get_endpoint(true);
-                    auto its_unreliable = its_subscription->get_endpoint(false);
-                    get_subscription_address(its_reliable, its_unreliable, its_address);
-                    if (its_data.entry_) {
-                        its_current_message->add_entry_data(its_data.entry_, its_data.options_);
-                    }
+                auto its_data = create_eventgroup_entry(_service, _instance, its_eventgroup_id, its_subscription, its_reliability);
+                auto its_reliable = its_subscription->get_endpoint(true);
+                auto its_unreliable = its_subscription->get_endpoint(false);
+                get_subscription_address(its_reliable, its_unreliable, its_address);
+                if (its_data.entry_) {
+                    its_current_message->add_entry_data(its_data.entry_, its_data.options_);
                 }
-                found_instance->second.clear();
             }
+            found_si->second.clear();
         }
     }
 
@@ -543,31 +508,26 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
 
     {
         std::scoped_lock its_lock(subscribed_mutex_);
-        for (auto its_service : subscribed_) {
-            for (auto its_instance : its_service.second) {
-                for (auto& its_eventgroup : its_instance.second) {
-                    boost::asio::ip::address its_address;
-                    auto its_current_message = std::make_shared<message_impl>();
-                    auto its_subscription = its_eventgroup.second;
-                    its_subscription->set_ttl(0);
-                    const reliability_type_e its_reliability =
-                            get_eventgroup_reliability(its_service.first, its_instance.first, its_eventgroup.first, its_subscription);
-                    auto its_data = create_eventgroup_entry(its_service.first, its_instance.first, its_eventgroup.first, its_subscription,
-                                                            its_reliability);
-                    auto its_reliable = its_subscription->get_endpoint(true);
-                    auto its_unreliable = its_subscription->get_endpoint(false);
-                    get_subscription_address(its_reliable, its_unreliable, its_address);
-                    if (its_data.entry_ && its_current_message->add_entry_data(its_data.entry_, its_data.options_)) {
-                        its_stopsubscribes[its_address].push_back(its_current_message);
-                    } else {
-                        VSOMEIP_WARNING_P << "Failed to create StopSubscribe entry for: " << hex4(its_service.first) << "."
-                                          << hex4(its_instance.first) << "." << hex4(its_eventgroup.first)
-                                          << " address: " << its_address.to_string();
-                    }
+        for (auto& [its_si, its_eventgroups] : subscribed_) {
+            for (auto& [its_eventgroup_id, its_subscription] : its_eventgroups) {
+                boost::asio::ip::address its_address;
+                auto its_current_message = std::make_shared<message_impl>();
+                its_subscription->set_ttl(0);
+                const reliability_type_e its_reliability =
+                        get_eventgroup_reliability(its_si.service(), its_si.instance(), its_eventgroup_id, its_subscription);
+                auto its_data =
+                        create_eventgroup_entry(its_si.service(), its_si.instance(), its_eventgroup_id, its_subscription, its_reliability);
+                auto its_reliable = its_subscription->get_endpoint(true);
+                auto its_unreliable = its_subscription->get_endpoint(false);
+                get_subscription_address(its_reliable, its_unreliable, its_address);
+                if (its_data.entry_ && its_current_message->add_entry_data(its_data.entry_, its_data.options_)) {
+                    its_stopsubscribes[its_address].push_back(its_current_message);
+                } else {
+                    VSOMEIP_WARNING_P << "Failed to create StopSubscribe entry for: " << hex4(its_si.service()) << "."
+                                      << hex4(its_si.instance()) << "." << hex4(its_eventgroup_id)
+                                      << " address: " << its_address.to_string();
                 }
-                its_instance.second.clear();
             }
-            its_service.second.clear();
         }
         subscribed_.clear();
     }
@@ -582,13 +542,7 @@ void service_discovery_impl::unsubscribe_all_on_suspend() {
 void service_discovery_impl::remove_subscriptions(service_t _service, instance_t _instance) {
 
     std::scoped_lock its_lock(subscribed_mutex_);
-    auto found_service = subscribed_.find(_service);
-    if (found_service != subscribed_.end()) {
-        found_service->second.erase(_instance);
-        if (found_service->second.empty()) {
-            subscribed_.erase(found_service);
-        }
-    }
+    subscribed_.erase({_service, _instance});
 }
 
 std::pair<session_t, bool> service_discovery_impl::get_session(const boost::asio::ip::address& _address) {
@@ -706,36 +660,29 @@ void service_discovery_impl::insert_find_entries(std::vector<std::shared_ptr<mes
     entry_data_t its_data;
     its_data.entry_ = its_data.other_ = nullptr;
 
-    for (const auto& its_service : _requests) {
-        for (const auto& its_instance : its_service.second) {
-            std::scoped_lock its_lock(requested_mutex_);
-            auto its_request = its_instance.second;
+    for (const auto& [its_si, its_request] : _requests) {
+        std::scoped_lock its_lock(requested_mutex_);
 
-            // check if release_service was called / offer was received
-            auto the_service = requested_.find(its_service.first);
-            if (the_service != requested_.end()) {
-                auto the_instance = the_service->second.find(its_instance.first);
-                if (the_instance != the_service->second.end()) {
-                    uint8_t its_sent_counter = its_request->get_sent_counter();
-                    if (its_sent_counter != repetitions_max_ + 1) {
-                        auto its_entry = std::make_shared<serviceentry_impl>();
-                        if (its_entry) {
-                            its_entry->set_type(entry_type_e::FIND_SERVICE);
-                            its_entry->set_service(its_service.first);
-                            its_entry->set_instance(its_instance.first);
-                            its_entry->set_major_version(its_request->get_major());
-                            its_entry->set_minor_version(its_request->get_minor());
-                            its_entry->set_ttl(its_request->get_ttl());
-                            its_sent_counter++;
+        // check if release_service was called / offer was received
+        if (requested_.contains(its_si)) {
+            uint8_t its_sent_counter = its_request->get_sent_counter();
+            if (its_sent_counter != repetitions_max_ + 1) {
+                auto its_entry = std::make_shared<serviceentry_impl>();
+                if (its_entry) {
+                    its_entry->set_type(entry_type_e::FIND_SERVICE);
+                    its_entry->set_service(its_si.service());
+                    its_entry->set_instance(its_si.instance());
+                    its_entry->set_major_version(its_request->get_major());
+                    its_entry->set_minor_version(its_request->get_minor());
+                    its_entry->set_ttl(its_request->get_ttl());
+                    its_sent_counter++;
 
-                            its_request->set_sent_counter(its_sent_counter);
+                    its_request->set_sent_counter(its_sent_counter);
 
-                            its_data.entry_ = its_entry;
-                            add_entry_data(_messages, its_data);
-                        } else {
-                            VSOMEIP_ERROR_P << "Failed to create service entry!";
-                        }
-                    }
+                    its_data.entry_ = its_entry;
+                    add_entry_data(_messages, its_data);
+                } else {
+                    VSOMEIP_ERROR_P << "Failed to create service entry!";
                 }
             }
         }
@@ -1441,39 +1388,31 @@ void service_discovery_impl::process_offerservice_serviceentry(service_t _servic
 
     // No need to resubscribe for unicast offers
     if (_received_via_multicast) {
-        auto found_service = subscribed_.find(_service);
-        if (found_service != subscribed_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                if (0 < found_instance->second.size()) {
-                    for (const auto& its_eventgroup : found_instance->second) {
-                        auto its_subscription = its_eventgroup.second;
-                        std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
-                        get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
-                        its_subscription->set_endpoint(its_reliable, true);
-                        its_subscription->set_endpoint(its_unreliable, false);
-                        for (const auto& its_client : its_subscription->get_clients()) {
-                            if (its_subscription->get_state(its_client) == subscription_state_e::ST_ACKNOWLEDGED) {
-                                its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
-                            } else if (its_subscription->get_state(its_client) != subscription_state_e::ST_ACKNOWLEDGED
-                                       && was_previously_offered_by_unicast) {
-                                its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
-                            } else {
-                                its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
-                            }
-                        }
-                        const reliability_type_e its_reliability =
-                                get_eventgroup_reliability(_service, _instance, its_eventgroup.first, its_subscription);
-
-                        auto its_data =
-                                create_eventgroup_entry(_service, _instance, its_eventgroup.first, its_subscription, its_reliability);
-                        if (its_data.entry_) {
-                            add_entry_data(_resubscribes, its_data);
-                        }
-                        for (const auto its_client : its_subscription->get_clients()) {
-                            its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
-                        }
+        if (const auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+            for (const auto& [its_eventgroup_id, its_subscription] : found_si->second) {
+                std::shared_ptr<boardnet_endpoint> its_reliable, its_unreliable;
+                get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
+                its_subscription->set_endpoint(its_reliable, true);
+                its_subscription->set_endpoint(its_unreliable, false);
+                for (const auto& its_client : its_subscription->get_clients()) {
+                    if (its_subscription->get_state(its_client) == subscription_state_e::ST_ACKNOWLEDGED) {
+                        its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
+                    } else if (its_subscription->get_state(its_client) != subscription_state_e::ST_ACKNOWLEDGED
+                               && was_previously_offered_by_unicast) {
+                        its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING);
+                    } else {
+                        its_subscription->set_state(its_client, subscription_state_e::ST_RESUBSCRIBING_NOT_ACKNOWLEDGED);
                     }
+                }
+                const reliability_type_e its_reliability =
+                        get_eventgroup_reliability(_service, _instance, its_eventgroup_id, its_subscription);
+
+                if (auto its_data = create_eventgroup_entry(_service, _instance, its_eventgroup_id, its_subscription, its_reliability);
+                    its_data.entry_) {
+                    add_entry_data(_resubscribes, its_data);
+                }
+                for (const auto its_client : its_subscription->get_clients()) {
+                    its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
                 }
             }
         }
@@ -1556,57 +1495,47 @@ void service_discovery_impl::on_endpoint_connected(service_t _service, instance_
 
     {
         std::scoped_lock its_lock(subscribed_mutex_);
-        auto found_service = subscribed_.find(_service);
-        if (found_service != subscribed_.end()) {
-            auto found_instance = found_service->second.find(_instance);
-            if (found_instance != found_service->second.end()) {
-                if (0 < found_instance->second.size()) {
-                    for (const auto& its_eventgroup : found_instance->second) {
-                        std::shared_ptr<subscription> its_subscription(its_eventgroup.second);
-                        if (its_subscription) {
-                            if (!its_subscription->is_tcp_connection_established() || !its_subscription->is_udp_connection_established()) {
-                                const std::shared_ptr<const boardnet_endpoint> its_reliable_endpoint(its_subscription->get_endpoint(true));
-                                const std::shared_ptr<const boardnet_endpoint> its_unreliable_endpoint(
-                                        its_subscription->get_endpoint(false));
-                                if (its_reliable_endpoint && its_reliable_endpoint->is_established()) {
-                                    if (its_reliable_endpoint.get() == _endpoint.get()) {
-                                        // mark tcp as established
-                                        its_subscription->set_tcp_connection_established(true);
-                                    }
-                                }
-                                if (its_unreliable_endpoint && its_unreliable_endpoint->is_established()) {
-                                    if (its_unreliable_endpoint.get() == _endpoint.get()) {
-                                        // mark udp as established
-                                        its_subscription->set_udp_connection_established(true);
-                                    }
-                                }
+        if (const auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+            for (const auto& [its_eventgroup_id, its_subscription] : found_si->second) {
+                if (its_subscription) {
+                    if (!its_subscription->is_tcp_connection_established() || !its_subscription->is_udp_connection_established()) {
+                        const std::shared_ptr<const boardnet_endpoint> its_reliable_endpoint(its_subscription->get_endpoint(true));
+                        const std::shared_ptr<const boardnet_endpoint> its_unreliable_endpoint(its_subscription->get_endpoint(false));
+                        if (its_reliable_endpoint && its_reliable_endpoint->is_established()) {
+                            if (its_reliable_endpoint.get() == _endpoint.get()) {
+                                // mark tcp as established
+                                its_subscription->set_tcp_connection_established(true);
+                            }
+                        }
+                        if (its_unreliable_endpoint && its_unreliable_endpoint->is_established()) {
+                            if (its_unreliable_endpoint.get() == _endpoint.get()) {
+                                // mark udp as established
+                                its_subscription->set_udp_connection_established(true);
+                            }
+                        }
 
-                                if ((its_reliable_endpoint && its_unreliable_endpoint && its_subscription->is_tcp_connection_established()
-                                     && its_subscription->is_udp_connection_established())
-                                    || (its_reliable_endpoint && !its_unreliable_endpoint
-                                        && its_subscription->is_tcp_connection_established())
-                                    || (its_unreliable_endpoint && !its_reliable_endpoint
-                                        && its_subscription->is_udp_connection_established())) {
+                        if ((its_reliable_endpoint && its_unreliable_endpoint && its_subscription->is_tcp_connection_established()
+                             && its_subscription->is_udp_connection_established())
+                            || (its_reliable_endpoint && !its_unreliable_endpoint && its_subscription->is_tcp_connection_established())
+                            || (its_unreliable_endpoint && !its_reliable_endpoint && its_subscription->is_udp_connection_established())) {
 
-                                    std::shared_ptr<boardnet_endpoint> its_unreliable;
-                                    std::shared_ptr<boardnet_endpoint> its_reliable;
-                                    get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
-                                    get_subscription_address(its_reliable, its_unreliable, its_address);
+                            std::shared_ptr<boardnet_endpoint> its_unreliable;
+                            std::shared_ptr<boardnet_endpoint> its_reliable;
+                            get_subscription_endpoints(_service, _instance, its_reliable, its_unreliable);
+                            get_subscription_address(its_reliable, its_unreliable, its_address);
 
-                                    its_subscription->set_endpoint(its_reliable, true);
-                                    its_subscription->set_endpoint(its_unreliable, false);
-                                    for (const auto its_client : its_subscription->get_clients())
-                                        its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
+                            its_subscription->set_endpoint(its_reliable, true);
+                            its_subscription->set_endpoint(its_unreliable, false);
+                            for (const auto its_client : its_subscription->get_clients())
+                                its_subscription->set_state(its_client, subscription_state_e::ST_NOT_ACKNOWLEDGED);
 
-                                    const reliability_type_e its_reliability_type =
-                                            get_eventgroup_reliability(_service, _instance, its_eventgroup.first, its_subscription);
-                                    auto its_data = create_eventgroup_entry(_service, _instance, its_eventgroup.first, its_subscription,
-                                                                            its_reliability_type);
+                            const reliability_type_e its_reliability_type =
+                                    get_eventgroup_reliability(_service, _instance, its_eventgroup_id, its_subscription);
+                            auto its_data =
+                                    create_eventgroup_entry(_service, _instance, its_eventgroup_id, its_subscription, its_reliability_type);
 
-                                    if (its_data.entry_) {
-                                        add_entry_data(its_messages, its_data);
-                                    }
-                                }
+                            if (its_data.entry_) {
+                                add_entry_data(its_messages, its_data);
                             }
                         }
                     }
@@ -2183,22 +2112,17 @@ void service_discovery_impl::handle_eventgroup_subscription_nack(service_t _serv
     (void)_counter;
 
     std::scoped_lock its_lock(subscribed_mutex_);
-    auto found_service = subscribed_.find(_service);
-    if (found_service != subscribed_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                auto its_subscription = found_eventgroup->second;
-                for (const auto its_client : _clients) {
-                    host_->on_subscribe_nack(its_client, _service, _instance, _eventgroup, true, PENDING_SUBSCRIPTION_ID);
-                }
+    if (auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+        if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
+            auto its_subscription = found_eventgroup->second;
+            for (const auto its_client : _clients) {
+                host_->on_subscribe_nack(its_client, _service, _instance, _eventgroup, true, PENDING_SUBSCRIPTION_ID);
+            }
 
-                if (!its_subscription->is_selective()) {
-                    auto its_reliable = its_subscription->get_endpoint(true);
-                    if (its_reliable)
-                        its_reliable->restart();
-                }
+            if (!its_subscription->is_selective()) {
+                auto its_reliable = its_subscription->get_endpoint(true);
+                if (its_reliable)
+                    its_reliable->restart();
             }
         }
     }
@@ -2213,21 +2137,16 @@ void service_discovery_impl::handle_eventgroup_subscription_ack(service_t _servi
     (void)_counter;
 
     std::scoped_lock its_lock(subscribed_mutex_);
-    auto found_service = subscribed_.find(_service);
-    if (found_service != subscribed_.end()) {
-        auto found_instance = found_service->second.find(_instance);
-        if (found_instance != found_service->second.end()) {
-            auto found_eventgroup = found_instance->second.find(_eventgroup);
-            if (found_eventgroup != found_instance->second.end()) {
-                for (const auto its_client : _clients) {
-                    if (found_eventgroup->second->get_state(its_client) == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
-                        found_eventgroup->second->set_state(its_client, subscription_state_e::ST_ACKNOWLEDGED);
-                        host_->on_subscribe_ack(its_client, _service, _instance, _eventgroup, ANY_EVENT, PENDING_SUBSCRIPTION_ID);
-                    }
+    if (auto found_si = subscribed_.find({_service, _instance}); found_si != subscribed_.end()) {
+        if (auto found_eventgroup = found_si->second.find(_eventgroup); found_eventgroup != found_si->second.end()) {
+            for (const auto its_client : _clients) {
+                if (found_eventgroup->second->get_state(its_client) == subscription_state_e::ST_NOT_ACKNOWLEDGED) {
+                    found_eventgroup->second->set_state(its_client, subscription_state_e::ST_ACKNOWLEDGED);
+                    host_->on_subscribe_ack(its_client, _service, _instance, _eventgroup, ANY_EVENT, PENDING_SUBSCRIPTION_ID);
                 }
-                if (_address.is_multicast()) {
-                    host_->on_subscribe_ack_with_multicast(_service, _instance, _sender, _address, _port);
-                }
+            }
+            if (_address.is_multicast()) {
+                host_->on_subscribe_ack_with_multicast(_service, _instance, _sender, _address, _port);
             }
         }
     }
@@ -2470,11 +2389,9 @@ void service_discovery_impl::on_find_debounce_timer_expired(const boost::system:
     bool new_finds(false);
     {
         std::scoped_lock its_lock(requested_mutex_);
-        for (const auto& its_service : requested_) {
-            for (const auto& its_instance : its_service.second) {
-                if (its_instance.second->get_sent_counter() == 0) {
-                    repetition_phase_finds[its_service.first][its_instance.first] = its_instance.second;
-                }
+        for (const auto& [si, req] : requested_) {
+            if (req->get_sent_counter() == 0) {
+                repetition_phase_finds[si] = req;
             }
         }
         if (repetition_phase_finds.size()) {
