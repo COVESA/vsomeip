@@ -30,7 +30,7 @@ local_uds_client_endpoint_impl::local_uds_client_endpoint_impl(const std::shared
     local_uds_client_endpoint_base_impl(_endpoint_host, _routing_host, _remote, _remote, _io, _configuration),
     // Using _remote for the local(!) endpoint is ok,
     // because we have no bind for local endpoints!
-    recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0) {
+    recv_buffer_(VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE, 0), recv_buffer_size_(0) {
 
     this->max_message_size_ = _configuration->get_max_message_size_local();
     this->queue_limit_ = _configuration->get_endpoint_queue_limit_local();
@@ -50,6 +50,7 @@ void local_uds_client_endpoint_impl::restart(bool _force) {
         queue_.clear();
         queue_size_ = 0;
         is_sending_ = false;
+        recv_buffer_size_ = 0;
     }
     {
         std::lock_guard<std::mutex> its_lock(socket_mutex_);
@@ -175,7 +176,11 @@ void local_uds_client_endpoint_impl::connect() {
 void local_uds_client_endpoint_impl::receive() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
     if (socket_->is_open()) {
-        socket_->async_receive(boost::asio::buffer(recv_buffer_),
+        if (recv_buffer_size_ == recv_buffer_.size()) {
+            VSOMEIP_WARNING << "lucei::" << __func__ << ": receive buffer full before receive | endpoint > " << this;
+            recv_buffer_size_ = 0;
+        }
+        socket_->async_receive(boost::asio::buffer(&recv_buffer_[recv_buffer_size_], recv_buffer_.size() - recv_buffer_size_),
                                strand_.wrap(std::bind(&local_uds_client_endpoint_impl::receive_cbk,
                                                       std::dynamic_pointer_cast<local_uds_client_endpoint_impl>(shared_from_this()),
                                                       std::placeholders::_1, std::placeholders::_2)));
@@ -263,6 +268,7 @@ void local_uds_client_endpoint_impl::receive_cbk(boost::system::error_code const
             sending_blocked_ = false;
             queue_.clear();
             queue_size_ = 0;
+            recv_buffer_size_ = 0;
         } else if (_error == boost::asio::error::bad_descriptor) {
             restart(true);
             return;
@@ -279,16 +285,22 @@ void local_uds_client_endpoint_impl::receive_cbk(boost::system::error_code const
         VSOMEIP_INFO << msg.str();
 #endif
 
+        recv_buffer_size_ += _bytes;
+
         // We only handle a single message here. Check whether the message
         // format matches what we do expect.
         // TODO: Replace the magic numbers.
-        if (_bytes == VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE && recv_buffer_[0] == 0x67 && recv_buffer_[1] == 0x37
+        if (recv_buffer_size_ == VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE && recv_buffer_[0] == 0x67 && recv_buffer_[1] == 0x37
             && recv_buffer_[2] == 0x6d && recv_buffer_[3] == 0x07 && recv_buffer_[4] == byte_t(protocol::id_e::ASSIGN_CLIENT_ACK_ID)
             && recv_buffer_[15] == 0x07 && recv_buffer_[16] == 0x6d && recv_buffer_[17] == 0x37 && recv_buffer_[18] == 0x67) {
 
             auto its_routing_host = routing_host_.lock();
             if (its_routing_host)
                 its_routing_host->on_message(&recv_buffer_[4], static_cast<length_t>(recv_buffer_.size() - 8), this);
+            recv_buffer_size_ = 0;
+        } else if (recv_buffer_size_ == VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE) {
+            VSOMEIP_WARNING << "lucei::" << __func__ << ": received malformed assign client ack | endpoint > " << this;
+            recv_buffer_size_ = 0;
         }
 
         receive();

@@ -8,7 +8,13 @@
 
 #if defined(__linux__) || defined(__QNX__)
 
+#include <cerrno>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+
 #include <boost/asio/local/stream_protocol.hpp>
+#include <functional>
 #include <memory>
 
 namespace vsomeip_v3 {
@@ -36,7 +42,7 @@ inline std::function<void(boost::system::error_code _error)> receive_cb(std::sha
         if (!_error) {
             if (!_data->socket_.native_non_blocking())
                 _data->socket_.native_non_blocking(true, _error);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__QNX__)
             for (;;) {
                 ssize_t its_result;
                 int its_flags(0);

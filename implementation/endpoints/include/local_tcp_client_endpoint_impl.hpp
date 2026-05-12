@@ -6,6 +6,8 @@
 #ifndef VSOMEIP_V3_LOCAL_TCP_CLIENT_ENDPOINT_IMPL_HPP_
 #define VSOMEIP_V3_LOCAL_TCP_CLIENT_ENDPOINT_IMPL_HPP_
 
+#include <cstddef>
+
 #include <boost/asio/ip/tcp.hpp>
 
 #include <vsomeip/defines.hpp>
@@ -56,6 +58,7 @@ private:
     void max_allowed_reconnects_reached();
 
     message_buffer_t recv_buffer_;
+    std::size_t recv_buffer_size_;
 
     // send data
     message_buffer_ptr_t send_data_buffer_;
