@@ -56,6 +56,10 @@
                 "TEST_UID": {
                     "type": "STRING",
                     "value": "0"
+                },
+                "WITH_TEST_DISCOVERY": {
+                    "type": "BOOL",
+                    "value": "OFF"
                 }
             },
             "environment": {

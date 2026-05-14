@@ -101,6 +101,29 @@ Locate the CMakePresets.json file and add a "filter" entry inside the preset nam
     }
 ```
 
+By default the filter matches against the test binary name (e.g. `test_hybrid_mode_with_fake_sockets`), which runs all test cases inside that binary.
+To filter down to a **single test case**, enable test discovery in the configure preset first:
+
+```json
+"cacheVariables": {
+    "WITH_TEST_DISCOVERY": {
+        "type": "BOOL",
+        "value": "ON"
+    }
+}
+```
+
+With `WITH_TEST_DISCOVERY=ON`, each GTest case is registered as its own ctest entry under the name `<fixture>.<test_case>` (e.g. `test_hybrid_mode.test_connection_break_between_guests_and_router_recovers`).
+The `filter.include.name` regex then matches against those individual names:
+
+```json
+"filter": {
+    "include": {
+        "name": "test_connection_break_between_guests_and_router_recovers"
+    }
+}
+```
+
 **Question**: I'd like to run the tests multiple times
 
 Locate the CMakePresets.json file and adapt "execution" entry inside the preset named ci-network-tests:
