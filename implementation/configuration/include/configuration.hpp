@@ -275,9 +275,6 @@ public:
     virtual void get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
                                       std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const = 0;
 
-    // routing shutdown timeout
-    virtual std::uint32_t get_shutdown_timeout() const = 0;
-
     virtual bool log_statistics() const = 0;
     virtual uint32_t get_statistics_interval() const = 0;
     virtual uint32_t get_statistics_min_freq() const = 0;

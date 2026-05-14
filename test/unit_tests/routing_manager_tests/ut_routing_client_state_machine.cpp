@@ -37,12 +37,9 @@ protected:
         }
     }
 
-    std::shared_ptr<routing_client_state_machine> create_state_machine(std::chrono::milliseconds shutdown_timeout = 1000ms) {
+    std::shared_ptr<routing_client_state_machine> create_state_machine() {
 
-        routing_client_state_machine::configuration config;
-        config.shutdown_timeout_ = shutdown_timeout;
-
-        return routing_client_state_machine::create(config, [this] {
+        return std::make_shared<routing_client_state_machine>([this] {
             {
                 std::scoped_lock lock(error_mutex_);
                 ++error_count_;
@@ -209,56 +206,6 @@ TEST_F(routing_client_state_machine_test, cannot_mark_registered_from_non_regist
     // From ST_REGISTERED
     EXPECT_FALSE(sm->registered(0x1234));
     EXPECT_EQ(routing_client_state_e::ST_REGISTERED, sm->state());
-}
-
-// ============================================================================
-// Await Methods Tests
-// ============================================================================
-
-TEST_F(routing_client_state_machine_test, await_registered_succeeds_when_already_registered) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    ASSERT_TRUE(sm->start_registration());
-    ASSERT_TRUE(sm->registered(0x1234));
-
-    EXPECT_TRUE(sm->await_registered());
-}
-
-TEST_F(routing_client_state_machine_test, await_registered_waits_for_registration) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    ASSERT_TRUE(sm->start_registration());
-
-    // Start waiting in separate thread
-    std::atomic<bool> await_result{false};
-    std::thread waiter([&sm, &await_result] { await_result = sm->await_registered(); });
-
-    // Complete registration after a delay
-    std::this_thread::sleep_for(100ms);
-    ASSERT_TRUE(sm->registered(0x1234));
-
-    waiter.join();
-    EXPECT_TRUE(await_result.load());
-}
-
-TEST_F(routing_client_state_machine_test, await_registered_fails_from_wrong_state) {
-    auto sm = create_state_machine();
-    sm->target_running();
-
-    // Not in ST_REGISTERING
-    EXPECT_FALSE(sm->await_registered());
-}
-
-TEST_F(routing_client_state_machine_test, await_registered_times_out) {
-    auto sm = create_state_machine(200ms); // Short shutdown timeout
-    sm->target_running();
-
-    ASSERT_TRUE(sm->start_registration());
-
-    // Don't call registered(0x1234) - should timeout
-    EXPECT_FALSE(sm->await_registered());
 }
 
 // ============================================================================

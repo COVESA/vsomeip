@@ -13,7 +13,6 @@
 
 #include <memory>
 #include <mutex>
-#include <condition_variable>
 #include <ostream>
 
 namespace vsomeip_v3 {
@@ -52,14 +51,8 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  * The state machine enforces strict state transition rules. Attempts to
  * transition from invalid states will fail and return false.
  *
- * **Timeout Protection:**
- * The registration phase has a configurable timeout. If it doesn't complete
- * within the timeout period, the state machine automatically transitions to
- * ST_DEREGISTERED and invokes the error handler.
- *
  * **Error Handler Invocation:**
  * The error handler is called synchronously (on the io_context thread) when:
- * - An assignment timeout occurs while shall_run_ = true
  * - deregistered() is called manually while shall_run_ = true
  *
  * The error handler is NOT called when:
@@ -76,29 +69,23 @@ std::ostream& operator<<(std::ostream& out_, routing_client_state_e);
  *
  * **Usage Example:**
  * @code
- * routing_client_state_machine::configuration config;
- * config.shutdown_timeout_ = std::chrono::seconds(3);
+ * auto sm = routing_client_state_machine([this] { on_registration_error(); });
  *
- * auto sm = routing_client_state_machine::create(config,
- *     [this] { on_registration_error(); });
+ * sm.target_running();
  *
- * sm->target_running();
- *
- * if (sm->start_registration()) {
+ * if (sm.start_registration()) {
  *     dispatch_assign_client();
  *     // on ASSIGN_CLIENT_ACK:
- *     sm->registered(assigned_client_id);
+ *     sm.registered(assigned_client_id);
  * }
  *
  * // some time later for the shutdown:
- * sm->target_shutdown()
- * sm->deregistered();
+ * sm.target_shutdown()
+ * sm.deregistered();
  *
  * @endcode
  */
-class routing_client_state_machine : public std::enable_shared_from_this<routing_client_state_machine> {
-    struct hidden { };
-
+class routing_client_state_machine {
 public:
     /**
      * @brief Callback invoked when the state machine autonomously transitions
@@ -120,27 +107,11 @@ public:
     using error_handler = std::function<void()>;
 
     /**
-     * @brief Configuration for state machine timeouts.
-     */
-    struct configuration {
-        /// Timeout for await_registered() during the shutdown of the application
-        /// this is not the timeout for the registration process during the upstart.
-        std::chrono::milliseconds shutdown_timeout_{std::chrono::seconds(3)};
-    };
-
-    /**
-     * @brief Factory method to create a state machine instance.
+     * @brief Constructor
      *
-     * @param _configuration Timeout configuration
-     * @param _handler Callback invoked on autonomous deregistration (may be null)
-     * @return Shared pointer to the created state machine
+     * @param _handler Callback invoked on deregistration (may be null)
      */
-    static std::shared_ptr<routing_client_state_machine> create(configuration const& _configuration, error_handler _handler);
-
-    /**
-     * @brief Constructor (use create() factory method instead).
-     */
-    explicit routing_client_state_machine(hidden, configuration const& _configuration, error_handler _handler);
+    explicit routing_client_state_machine(error_handler _handler);
 
     /**
      * @brief Get the current state.
@@ -186,19 +157,6 @@ public:
      *         - Current state is not ST_REGISTERING
      */
     [[nodiscard]] bool registered(client_t _client);
-
-    /**
-     * @brief Wait for the state machine to reach ST_REGISTERED.
-     *
-     * This method blocks until either:
-     * - The state becomes ST_REGISTERED, or
-     * - The shutdown timeout expires
-     *
-     * @return true if successfully registered, false if:
-     *         - Current state is not ST_REGISTERING (not waiting for registration)
-     *         - Timeout occurred before registration completed
-     */
-    [[nodiscard]] bool await_registered();
 
     /**
      * @brief Mark deregistration as complete.
@@ -251,9 +209,6 @@ private:
     /// Controls whether new transitions are allowed
     bool shall_run_{true};
 
-    /// Timeout configuration
-    configuration const configuration_;
-
     /// Current registration state
     routing_client_state_e state_{routing_client_state_e::ST_DEREGISTERED};
 
@@ -268,9 +223,6 @@ private:
 
     /// Protects all state and timers
     mutable std::mutex mtx_;
-
-    /// Notified when state reaches ST_REGISTERED or ST_DEREGISTERED
-    std::condition_variable cv_;
 };
 
 } // namespace vsomeip_v3

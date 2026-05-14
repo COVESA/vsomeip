@@ -296,18 +296,6 @@ The following example assumes that different machines (i.e., with different IP a
 
 </details>
 
-## Shutdown
-
-- **shutdown_timeout** - Configures the time in milliseconds local clients wait for acknowledgement of their deregistration from the routing manager during shutdown. The default value is `5000` ms.
-
-<details><summary>Example of Shutdown configuration</summary>
-
-```json
-"shutdown_timeout" : 1000
-```
-
-</details>
-
 ## Dispatching
 
 Define default settings for the maximum number of (additional) dispatchers and the maximum dispatch time. These default values are overwritten by application specific definitions.

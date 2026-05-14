@@ -31,13 +31,7 @@ std::ostream& operator<<(std::ostream& _out, routing_client_state_e _state) {
     return _out << to_string(_state);
 }
 
-routing_client_state_machine::routing_client_state_machine(hidden, configuration const& _configuration, error_handler _handler) :
-    configuration_(_configuration), error_handler_(std::move(_handler)) { }
-
-std::shared_ptr<routing_client_state_machine> routing_client_state_machine::create(configuration const& _configuration,
-                                                                                   error_handler _handler) {
-    return std::make_shared<routing_client_state_machine>(hidden{}, _configuration, std::move(_handler));
-}
+routing_client_state_machine::routing_client_state_machine(error_handler _handler) : error_handler_(std::move(_handler)) { }
 
 routing_client_state_e routing_client_state_machine::state() const {
     std::scoped_lock lock{mtx_};
@@ -85,19 +79,6 @@ void routing_client_state_machine::deregistered() {
     deregister_unlocked(std::move(lock));
 }
 
-[[nodiscard]] bool routing_client_state_machine::await_registered() {
-    std::unique_lock lock{mtx_};
-    if (state_ == routing_client_state_e::ST_REGISTERED) {
-        return true;
-    }
-    if (state_ != routing_client_state_e::ST_REGISTERING) {
-        return false;
-    }
-    bool const result =
-            cv_.wait_for(lock, configuration_.shutdown_timeout_, [this] { return state_ != routing_client_state_e::ST_REGISTERING; });
-    return result ? state_ == routing_client_state_e::ST_REGISTERED : false;
-}
-
 void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mutex> _acquired_lock) {
     change_state_unlocked(routing_client_state_e::ST_DEREGISTERED);
     if (client_ != VSOMEIP_CLIENT_UNSET) {
@@ -120,8 +101,5 @@ void routing_client_state_machine::deregister_unlocked(std::unique_lock<std::mut
 void routing_client_state_machine::change_state_unlocked(routing_client_state_e _state) {
     VSOMEIP_INFO << "Client 0x" << hex4(client_) << ", state " << state_ << " -> " << _state;
     state_ = _state;
-    if (is_value(state_).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_DEREGISTERED)) {
-        cv_.notify_one();
-    }
 }
 }

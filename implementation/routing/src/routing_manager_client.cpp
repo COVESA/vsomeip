@@ -110,14 +110,12 @@ void routing_manager_client::init() {
         return false;
     });
     if (!state_machine_) {
-        state_machine_ = routing_client_state_machine::create(
-                routing_client_state_machine::configuration{std::chrono::milliseconds(configuration_->get_shutdown_timeout())},
-                [this, weak_self = weak_from_this()] {
-                    if (auto self = weak_self.lock(); self) {
-                        std::unique_lock<std::recursive_mutex> lock{sender_mutex_};
-                        restart_sender(lock);
-                    }
-                });
+        state_machine_ = std::make_unique<routing_client_state_machine>([this, weak_self = weak_from_this()] {
+            if (auto self = weak_self.lock(); self) {
+                std::unique_lock<std::recursive_mutex> lock{sender_mutex_};
+                restart_sender(lock);
+            }
+        });
     }
 }
 
@@ -180,10 +178,8 @@ void routing_manager_client::version_log_timer_cbk(boost::system::error_code con
 void routing_manager_client::stop() {
     state_machine_->target_shutdown();
     cancel_keepalive();
-    if (state_machine_->await_registered()) {
-        // Ensure pending messages are sent before shutdown
-        try_to_send_before_stop();
-    }
+    // Ensure pending messages are sent before shutdown
+    try_to_send_before_stop();
     // Transition to ST_DEREGISTERED so that a subsequent start() finds a clean state.
     // The error handler is suppressed because shall_run_ = false (target_shutdown was called above).
     state_machine_->deregistered();
