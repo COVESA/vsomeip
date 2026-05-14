@@ -63,8 +63,6 @@
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_RETRIES  10000
 #define VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL 10 // miliseconds
 
-#define VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT        5000
-
 #define VSOMEIP_DEFAULT_LOG_NETWORK             0 // milliseconds
 #define VSOMEIP_DEFAULT_LOG_NETWORK_HOST        10000 // milliseconds
 #define VSOMEIP_DEFAULT_LOG_STATUS              0 // milliseconds

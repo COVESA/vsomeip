@@ -258,8 +258,6 @@ public:
     VSOMEIP_EXPORT void get_tp_configuration(service_t _service, instance_t _instance, method_t _method, bool _is_client,
                                              std::uint16_t& _max_segment_length, std::uint32_t& _separation_time) const;
 
-    VSOMEIP_EXPORT std::uint32_t get_shutdown_timeout() const;
-
     VSOMEIP_EXPORT bool log_statistics() const;
     VSOMEIP_EXPORT uint32_t get_statistics_interval() const;
     VSOMEIP_EXPORT uint32_t get_statistics_min_freq() const;
@@ -341,7 +339,6 @@ private:
     void load_unicast_address(const configuration_element& _element);
     void load_netmask(const configuration_element& _element);
     void load_diagnosis_address(const configuration_element& _element);
-    void load_shutdown_timeout(const configuration_element& _element);
     void load_uds_preferred(const configuration_element& _element);
 
     void load_service_discovery(const configuration_element& _element);
@@ -561,7 +558,6 @@ protected:
         ET_NPDU_DEFAULT_TIMINGS,
         ET_PLUGIN_NAME,
         ET_PLUGIN_TYPE,
-        ET_SHUTDOWN_TIMEOUT,
         ET_MAX_REMOTE_SUBSCRIBERS,
         ET_PARTITIONS,
         ET_SECURITY_AUDIT_MODE,
@@ -625,8 +621,6 @@ protected:
     std::chrono::nanoseconds npdu_default_debounce_resp_;
     std::chrono::nanoseconds npdu_default_max_retention_requ_;
     std::chrono::nanoseconds npdu_default_max_retention_resp_;
-
-    std::uint32_t shutdown_timeout_;
 
     mutable std::mutex secure_services_mutex_;
     std::map<service_t, std::set<instance_t>> secure_services_;

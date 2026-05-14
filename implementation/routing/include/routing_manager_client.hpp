@@ -336,7 +336,7 @@ private:
 
     routing_mode_e const routing_mode_;
 
-    std::shared_ptr<routing_client_state_machine> state_machine_;
+    std::unique_ptr<routing_client_state_machine> state_machine_;
 
     std::mutex lazy_load_mtx_;
 

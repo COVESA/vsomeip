@@ -73,11 +73,10 @@ configuration_impl::configuration_impl(const std::string& _path) :
     has_issued_methods_warning_{false}, has_issued_clients_warning_{false}, udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
     npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO}, npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
     npdu_default_max_retention_requ_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
-    npdu_default_max_retention_resp_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO}, shutdown_timeout_{VSOMEIP_DEFAULT_SHUTDOWN_TIMEOUT},
-    log_statistics_{true}, statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL},
-    statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ}, statistics_max_messages_{VSOMEIP_DEFAULT_STATISTICS_MAX_MSG},
-    max_remote_subscribers_{VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS}, path_{_path}, is_security_enabled_{false},
-    is_security_external_{false}, is_security_audit_{false}, is_remote_access_allowed_{true},
+    npdu_default_max_retention_resp_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO}, log_statistics_{true},
+    statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL}, statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
+    statistics_max_messages_{VSOMEIP_DEFAULT_STATISTICS_MAX_MSG}, max_remote_subscribers_{VSOMEIP_DEFAULT_MAX_REMOTE_SUBSCRIBERS},
+    path_{_path}, is_security_enabled_{false}, is_security_external_{false}, is_security_audit_{false}, is_remote_access_allowed_{true},
     initial_routing_state_{routing_state_e::RS_UNKNOWN}, request_debounce_time_{VSOMEIP_REQUEST_DEBOUNCE_TIME},
     default_max_dispatch_time_{VSOMEIP_DEFAULT_MAX_DISPATCH_TIME}, default_max_dispatchers_{VSOMEIP_DEFAULT_MAX_DISPATCHERS} {
 
@@ -108,8 +107,8 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     udp_receive_buffer_size_{_other.udp_receive_buffer_size_}, npdu_default_debounce_requ_{_other.npdu_default_debounce_requ_},
     npdu_default_debounce_resp_{_other.npdu_default_debounce_resp_},
     npdu_default_max_retention_requ_{_other.npdu_default_max_retention_requ_},
-    npdu_default_max_retention_resp_{_other.npdu_default_max_retention_resp_}, shutdown_timeout_{_other.shutdown_timeout_},
-    path_{_other.path_}, initial_routing_state_{_other.initial_routing_state_}, request_debounce_time_{_other.request_debounce_time_},
+    npdu_default_max_retention_resp_{_other.npdu_default_max_retention_resp_}, path_{_other.path_},
+    initial_routing_state_{_other.initial_routing_state_}, request_debounce_time_{_other.request_debounce_time_},
     default_max_dispatch_time_{_other.default_max_dispatch_time_}, default_max_dispatchers_{_other.default_max_dispatchers_} {
 
     applications_.insert(_other.applications_.begin(), _other.applications_.end());
@@ -523,7 +522,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_uds_preferred(e);
             load_network(e);
             load_diagnosis_address(e);
-            load_shutdown_timeout(e);
             load_payload_sizes(e);
             load_endpoint_queue_sizes(e);
             load_network_options(e);
@@ -1549,30 +1547,6 @@ void configuration_impl::load_diagnosis_address(const configuration_element& _el
             VSOMEIP_WARNING << "Diagnosis mask masks bits of diagnosis prefix! Client IDs will start at 0x"
                             << hex4(static_cast<std::uint16_t>(diagnosis_ << 8) & diagnosis_mask_) << " not at 0x"
                             << hex4(static_cast<std::uint16_t>(diagnosis_ << 8));
-        }
-    } catch (...) {
-        // intentionally left empty
-    }
-}
-
-void configuration_impl::load_shutdown_timeout(const configuration_element& _element) {
-    const std::string shutdown_timeout("shutdown_timeout");
-    try {
-        if (_element.tree_.get_child_optional(shutdown_timeout)) {
-            std::string its_value = _element.tree_.get<std::string>("shutdown_timeout");
-            if (is_configured_[ET_SHUTDOWN_TIMEOUT]) {
-                VSOMEIP_WARNING << "Multiple definitions for shutdown_timeout. Ignoring definition from " << _element.name_;
-            } else {
-                std::stringstream its_converter;
-
-                if (its_value.size() > 1 && its_value[0] == '0' && its_value[1] == 'x') {
-                    its_converter << std::hex << its_value;
-                } else {
-                    its_converter << std::dec << its_value;
-                }
-                its_converter >> shutdown_timeout_;
-                is_configured_[ET_SHUTDOWN_TIMEOUT] = true;
-            }
         }
     } catch (...) {
         // intentionally left empty
@@ -4723,10 +4697,6 @@ void configuration_impl::get_tp_configuration(service_t _service, instance_t _in
     // No configuration defined --> set default values
     _max_segment_length = VSOMEIP_TP_MAX_SEGMENT_LENGTH_DEFAULT;
     _separation_time = 0;
-}
-
-std::uint32_t configuration_impl::get_shutdown_timeout() const {
-    return shutdown_timeout_;
 }
 
 bool configuration_impl::log_statistics() const {
