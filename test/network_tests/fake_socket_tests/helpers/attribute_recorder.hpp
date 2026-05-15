@@ -45,6 +45,23 @@ public:
     }
 
     /**
+     * @brief Wait for *any* record to equal `p`
+     */
+    template<typename Predicate>
+    [[nodiscard]] bool wait_for_any(Predicate p, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        return wait_for(p, timeout);
+    }
+
+    /**
+     * @brief Wait for last record to equal `p`
+     */
+    template<typename Predicate>
+    [[nodiscard]] bool wait_for_last(Predicate p, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        // auto lock = std::unique_lock(mtx_);
+        return wait_for([&](auto const& record) { return !record.empty() && p == record.back(); }, timeout);
+    }
+
+    /**
      * @brief Wait for *any* record to equal `_value`
      */
     [[nodiscard]] bool wait_for_any(Value const& _value, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {

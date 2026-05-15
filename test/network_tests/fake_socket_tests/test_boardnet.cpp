@@ -185,11 +185,8 @@ struct test_boardnet_helper : public base_fake_socket_fixture {
     event_ids offered_field_{boardnet_interface_.fields_[0]};
     event_ids offered_event_{boardnet_interface_.events_[0]};
 
-    message first_expected_message_{client_session{0, 1},
-                                    boardnet_interface_.instance_,
-                                    boardnet_interface_.fields_[0].event_id_,
-                                    vsomeip::message_type_e::MT_NOTIFICATION,
-                                    {}};
+    message_checker field_checker_{std::nullopt, boardnet_interface_.instance_, boardnet_interface_.fields_[0].event_id_,
+                                   vsomeip::message_type_e::MT_NOTIFICATION, std::vector<unsigned char>{}};
 
     boost::asio::ip::udp::endpoint const ecu_one_sd_comm_{boost::asio::ip::make_address("160.48.199.65"), 30490};
     boost::asio::ip::udp::endpoint const ecu_two_sd_comm_{boost::asio::ip::make_address("160.48.199.99"), 30490};
@@ -239,9 +236,9 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
 
     router_one_->subscribe_event(offered_field_);
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message));
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(router_one_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                            << "\nRecord: " << router_one_->message_record_;
 
     // restarting ecu_blue
     TEST_LOG << "Stopping router two";
@@ -252,7 +249,8 @@ TEST_F(test_boardnet_helper, test_boardnet_initial_event) {
     start_application(router_two_name_, "ecu_two.json");
 
     ASSERT_TRUE(await_service(router_one_));
-    EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message));
+    EXPECT_TRUE(router_one_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                            << "\nRecord: " << router_one_->message_record_;
 }
 
 TEST_F(test_boardnet_helper, property_mismatch_regression) {
@@ -305,7 +303,7 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
     expected_message.payload_ = {0x5, 0x3};
 
     // Client two should still be able to receive notification.
-    EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message));
+    EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message)) << ecu_one_client_two->message_record_;
 }
 
 TEST_F(test_boardnet_helper, subscription_without_own_offer) {
@@ -372,9 +370,9 @@ TEST_F(test_boardnet_helper, offer_service_before_event) {
     EXPECT_FALSE(wait_for_sd_message(ecu_one_sd_comm_, {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 0}, std::chrono::seconds(1)));
     EXPECT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)));
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                                << "\nRecord: " << ecu_one_client_->message_record_;
 }
 
 TEST_F(test_boardnet_helper, offer_event_before_service) {
@@ -408,9 +406,9 @@ TEST_F(test_boardnet_helper, offer_event_before_service) {
 
     ecu_two_server_->send_event(offered_field_, {0x5, 0x3});
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                                << "\nRecord: " << ecu_one_client_->message_record_;
 }
 
 struct test_field_routing : test_boardnet_helper { };
@@ -519,9 +517,9 @@ TEST_F(test_field_routing, server_router_router_client) {
 
     ASSERT_TRUE(await_service(ecu_one_client_));
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message));
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                                << "\nRecord: " << ecu_one_client_->message_record_;
 }
 TEST_F(test_field_routing, server_router_router) {
     router_two_ = start_application(router_two_name_, "ecu_two.json");
@@ -539,9 +537,9 @@ TEST_F(test_field_routing, server_router_router) {
 
     ASSERT_TRUE(await_service(router_one_));
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message));
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(router_one_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                            << "\nRecord: " << router_one_->message_record_;
 }
 TEST_F(test_field_routing, router_router_client) {
     router_two_ = start_application(router_two_name_, "ecu_two.json");
@@ -558,9 +556,9 @@ TEST_F(test_field_routing, router_router_client) {
 
     ASSERT_TRUE(await_service(ecu_one_client_));
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                                << "\nRecord: " << ecu_one_client_->message_record_;
 }
 TEST_F(test_field_routing, router_router) {
     router_two_ = start_application(router_two_name_, "ecu_two.json");
@@ -575,9 +573,9 @@ TEST_F(test_field_routing, router_router) {
 
     ASSERT_TRUE(await_service(router_one_));
 
-    auto next_expected_message = first_expected_message_;
-    next_expected_message.payload_ = {0x5, 0x3};
-    EXPECT_TRUE(router_one_->message_record_.wait_for_last(next_expected_message)) << next_expected_message;
+    field_checker_.payload_ = {0x5, 0x3};
+    EXPECT_TRUE(router_one_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
+                                                                            << "\nRecord: " << router_one_->message_record_;
 }
 
 struct test_shadow_events : test_boardnet_helper {
@@ -613,9 +611,11 @@ TEST_F(test_shadow_events, permute_eventgroup_sub_canonical_order) {
     subscribe_to_field();
 
     send_field();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(field_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(field_checker_)) << "Failed to receive field event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
     send_event();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(event_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(event_checker_)) << "Failed to receive event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 }
 TEST_F(test_shadow_events, permute_eventgroup_sub_subscribe_to_field_after_event) {
     start_all_apps();
@@ -628,11 +628,13 @@ TEST_F(test_shadow_events, permute_eventgroup_sub_subscribe_to_field_after_event
     ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 
     send_event();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(event_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(event_checker_)) << "Failed to receive event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 
     subscribe_to_field();
     send_field();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(field_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(field_checker_)) << "Failed to receive field event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 }
 
 TEST_F(test_shadow_events, permute_eventgroup_sub_subscribe_to_field_with_init_value_after_event) {
@@ -647,10 +649,12 @@ TEST_F(test_shadow_events, permute_eventgroup_sub_subscribe_to_field_with_init_v
     ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 
     send_event();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(event_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(event_checker_)) << "Failed to receive event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 
     subscribe_to_field();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(field_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(field_checker_)) << "Failed to receive field event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 }
 TEST_F(test_shadow_events, permute_eventgroup_sub_subscribe_before_offer) {
     GTEST_SKIP() << "This test fails sporadically. This feels like a bug";
@@ -668,8 +672,10 @@ TEST_F(test_shadow_events, permute_eventgroup_sub_subscribe_before_offer) {
 
     send_event();
     send_field();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(event_checker_));
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(field_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(event_checker_)) << "Failed to receive event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(field_checker_)) << "Failed to receive field event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 }
 
 TEST_F(test_shadow_events, permute_eventgroup_sub_late_field_offering) {
@@ -684,11 +690,14 @@ TEST_F(test_shadow_events, permute_eventgroup_sub_late_field_offering) {
     ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_event_)));
 
     send_event();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(event_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(event_checker_)) << "Failed to receive event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
 
     offer_field();
     send_field();
-    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(field_checker_));
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for_any(field_checker_)) << "Failed to receive field event."
+                                                                               << "\nRecord: " << ecu_one_client_->message_record_;
+    ;
 }
 TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
     /**
@@ -916,7 +925,7 @@ TEST_F(server_offering_multiple_fields, guests_provide_and_consume_multiple_fiel
         std::vector<unsigned char> expected_payload{static_cast<unsigned char>(0x10 + i), static_cast<unsigned char>(i)};
         message_checker checker{std::nullopt, multi_field_service_.instance_, multi_field_service_.fields_[i].event_id_,
                                 vsomeip::message_type_e::MT_NOTIFICATION, expected_payload};
-        EXPECT_TRUE(client->message_record_.wait_for(checker))
+        EXPECT_TRUE(client->message_record_.wait_for_any(checker))
                 << "Failed to receive event for field 0x" << std::hex << (multi_field_service_.fields_[0].event_id_ + i)
                 << "\nRecord: " << client->message_record_.to_string();
     }
@@ -1061,19 +1070,19 @@ TEST_F(tcp_notifications, test_tcp_and_udp_boardnet_initial_event) {
     // 4.
     message_checker tcp_checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_,
                                 vsomeip::message_type_e::MT_NOTIFICATION, event_payload};
-    EXPECT_TRUE(router_one_->message_record_.wait_for(tcp_checker))
+    EXPECT_TRUE(router_one_->message_record_.wait_for_any(tcp_checker))
             << "Failed to receive tcp field" << "\nRecord: " << router_one_->message_record_;
 
     message_checker udp_checker{std::nullopt, both_interface.instance_, udp_offered_field.event_id_,
                                 vsomeip::message_type_e::MT_NOTIFICATION, event_payload};
 
-    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(udp_checker))
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_any(udp_checker))
             << "Failed to receive udp field" << "\nRecord: " << ecu_one_client_->message_record_;
 
     message_checker second_checker{std::nullopt, second_interface.instance_, second_interface_tcp_offered_field.event_id_,
                                    vsomeip::message_type_e::MT_NOTIFICATION, event_payload};
 
-    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(second_checker))
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_any(second_checker))
             << "Failed to receive second field" << "\nRecord: " << ecu_one_client_->message_record_;
 }
 
