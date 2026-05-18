@@ -26,7 +26,7 @@ add_library (fake_socket_helpers OBJECT
     helpers/command_gate.cpp
     helpers/ecu_config.cpp
     helpers/ecu_setup.cpp
-    helpers/sd_gate.cpp
+    helpers/someip_gate.cpp
     helpers/service_state.cpp
     helpers/socket_manager.cpp
     helpers/sockets/fake_tcp_socket_handle.cpp

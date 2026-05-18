@@ -13,7 +13,7 @@
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/service_state.hpp"
-#include "helpers/sd_gate.hpp"
+#include "helpers/someip_gate.hpp"
 
 #include <boost/asio/error.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -940,7 +940,7 @@ TEST_F(server_offering_multiple_fields, test_sd_unicat_gate_early_loading) {
     ecu_two_.prepare();
 
     // Create the gate and prepare the pipe, will be exchanged as soon as the SD unicast endpoint from ecu two is binded.
-    std::shared_ptr<sd_gate> router_two_sd_gate = sd_gate::create();
+    std::shared_ptr<someip_gate> router_two_sd_gate = someip_gate::create();
     ASSERT_TRUE(setup_data_pipe(ecu_two_.sd_endpoint(), router_two_name_, socket_role::server, router_two_sd_gate->get_data_pipe()));
 
     ecu_one_.start_apps();
@@ -982,7 +982,7 @@ TEST_F(server_offering_multiple_fields, test_sd_multicast_gate_late_loading) {
     auto* client = ecu_one_.apps_["guest_client"];
 
     // Create the gate and exchange the pipe immediatly.
-    std::shared_ptr<sd_gate> router_one_sd_gate = sd_gate::create();
+    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
     ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
                                 router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
 
@@ -1163,6 +1163,263 @@ TEST_F(tcp_offers, auxiliary_context_slot_does_not_steal_router_io_context) {
                "likely because its io_context was not properly assigned.";
 }
 
+struct test_someip_gate : public base_fake_socket_fixture {
+    // TCP interface with one reliable field (0x8001) and one unreliable field (0x8002).
+    // Used by blocks_notification and blocks_notification_matching_payload.
+    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    interface both_interface{0x3345, {}, event_specs_both_};
+
+    // UDP-only service (0x3347). Used by blocks_request_then_response.
+    interface const udp_svc_{0x3347, {interface::event_spec{0x8001, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE}}, {}};
+
+    ecu_config ecu_one_cfg_{boardnet::ecu_one_config};
+    ecu_config ecu_two_cfg_{boardnet::ecu_two_config};
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_cfg_, *socket_manager_};
+    // both_interface gets unreliable=30501, reliable=30502; udp_svc_ gets unreliable=30503.
+    ecu_setup ecu_two_{"ecu_two", ecu_two_cfg_.add_interface({both_interface, udp_svc_}), *socket_manager_};
+
+    event_ids tcp_offered_field{both_interface.fields_[0]};
+
+    vsomeip::method_t const method_ = 0x0001;
+    service_instance const si_{udp_svc_.instance_};
+    // router_two's UDP unicast endpoint for udp_svc_ (port 30503).
+    boost::asio::ip::udp::endpoint const svc_ep_{boardnet::ecu_two_config.unicast_ip_, 30503};
+};
+
+TEST_F(test_someip_gate, blocks_notification) {
+    // Depict example where a someip_gate installed on the boardnet connection (early
+    // loading) blocks the first notification of a field, then releases it.
+    ecu_one_.add_app(ecu_one_client_name_);
+    ecu_two_.add_app(ecu_two_server_name_);
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // Install the gate before the connection forms so the pipe is in place
+    // once router_one connects to router_two's boardnet server.
+    auto gate = someip_gate::create();
+    ASSERT_TRUE(setup_data_pipe(router_one_name_, router_two_name_, socket_role::client, gate->get_data_pipe()));
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one = ecu_one_.router_;
+    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
+
+    std::vector<unsigned char> const payload{0x5, 0x3};
+
+    ecu_two_server_->offer(both_interface);
+    ecu_two_server_->send_event(tcp_offered_field, payload);
+
+    // Arm the gate: block the very first matching notification.
+    gate->block_at({.service_ = both_interface.instance_.service_,
+                    .method_ = tcp_offered_field.event_id_,
+                    .type_ = vsomeip::message_type_e::MT_NOTIFICATION});
+
+    router_one->request_service(both_interface.instance_);
+    router_one->subscribe_event({tcp_offered_field});
+
+    // The subscription triggers the initial field delivery — the gate must intercept it.
+    ASSERT_TRUE(gate->wait_for_blocked());
+
+    message_checker checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                            payload};
+
+    // Gate is holding the notification — it must not have arrived yet.
+    EXPECT_FALSE(router_one->message_record_.wait_for(checker, std::chrono::milliseconds(500)));
+
+    // Release the gate; the buffered notification is pushed through.
+    gate->block(false);
+    EXPECT_TRUE(router_one->message_record_.wait_for(checker));
+}
+
+TEST_F(test_someip_gate, blocks_notification_matching_payload) {
+    // Depict example where a someip_gate with a payload predicate is used to selectively
+    // block only notifications whose first payload byte is 0xFF, while letting others pass.
+    ecu_one_.add_app(ecu_one_client_name_);
+    ecu_two_.add_app(ecu_two_server_name_);
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // Install the gate in early loading — no block_at yet, so the gate is transparent.
+    auto gate = someip_gate::create();
+    ASSERT_TRUE(setup_data_pipe(router_one_name_, router_two_name_, socket_role::client, gate->get_data_pipe()));
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one = ecu_one_.router_;
+    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
+
+    std::vector<unsigned char> const payload_safe{0x5, 0x3};
+    std::vector<unsigned char> const payload_blocked{0xFF, 0x3};
+
+    // Let the initial field event (payload_safe) pass through with no active trigger.
+    ecu_two_server_->offer(both_interface);
+    ecu_two_server_->send_event(tcp_offered_field, payload_safe);
+    router_one->request_service(both_interface.instance_);
+    router_one->subscribe_event({tcp_offered_field});
+
+    message_checker safe_checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_,
+                                 vsomeip::message_type_e::MT_NOTIFICATION, payload_safe};
+    ASSERT_TRUE(router_one->message_record_.wait_for(safe_checker));
+
+    // Arm the gate with a payload predicate: only block notifications starting with 0xFF.
+    gate->block_at({.service_ = both_interface.instance_.service_,
+                    .method_ = tcp_offered_field.event_id_,
+                    .type_ = vsomeip::message_type_e::MT_NOTIFICATION,
+                    .payload_ = [](std::shared_ptr<vsomeip::payload> p) { return p && p->get_length() > 0 && p->get_data()[0] == 0xFF; }});
+
+    ecu_two_server_->send_event(tcp_offered_field, payload_blocked);
+
+    ASSERT_TRUE(gate->wait_for_blocked());
+
+    message_checker blocked_checker{std::nullopt, both_interface.instance_, tcp_offered_field.event_id_,
+                                    vsomeip::message_type_e::MT_NOTIFICATION, payload_blocked};
+
+    // Gate is holding the 0xFF notification — it must not have arrived yet.
+    EXPECT_FALSE(router_one->message_record_.wait_for(blocked_checker, std::chrono::milliseconds(500)));
+
+    // Release the gate; the buffered notification is pushed through.
+    gate->block(false);
+    EXPECT_TRUE(router_one->message_record_.wait_for(blocked_checker));
+}
+
+TEST_F(test_someip_gate, lets_through_n_notifications) {
+    // Verifies the count-based triggering: block_at(trigger, N) lets the first
+    // N-1 messages through and blocks on the Nth.
+    //
+    // 1. Arm gate with count=3 → lets 2 through, blocks on the 3rd.
+    // 2. Send 3 notifications with distinct payloads.
+    // 3. Client receives the first two.
+    // 4. Third is held back until gate is released.
+
+    ecu_one_.add_app(ecu_one_client_name_);
+    ecu_two_.add_app(ecu_two_server_name_);
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    auto gate = someip_gate::create();
+    ASSERT_TRUE(setup_data_pipe(router_one_name_, router_two_name_, socket_role::client, gate->get_data_pipe()));
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one = ecu_one_.router_;
+    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
+
+    ecu_two_server_->offer(both_interface);
+    router_one->request_service(both_interface.instance_);
+    router_one->subscribe_event({tcp_offered_field});
+    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(both_interface.instance_)));
+    ASSERT_TRUE(router_one->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_offered_field)));
+    router_one->message_record_.clear();
+
+    // 1. Arm: let first 2 through, block on the 3rd.
+    someip_gate::trigger const trigger{.service_ = both_interface.instance_.service_,
+                                       .method_ = tcp_offered_field.event_id_,
+                                       .type_ = vsomeip::message_type_e::MT_NOTIFICATION};
+    gate->block_at(trigger, 3);
+
+    const std::vector<unsigned char> p1{0x11}, p2{0x22}, p3{0x33};
+    const auto& ev = tcp_offered_field; // TCP (reliable) field
+    const auto& si = both_interface.instance_;
+
+    message_checker c1{std::nullopt, si, ev.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, p1};
+    message_checker c2{std::nullopt, si, ev.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, p2};
+    message_checker c3{std::nullopt, si, ev.event_id_, vsomeip::message_type_e::MT_NOTIFICATION, p3};
+
+    // 2. Send 3 notifications.
+    ecu_two_server_->send_event(ev, p1);
+    ecu_two_server_->send_event(ev, p2);
+    ecu_two_server_->send_event(ev, p3);
+
+    // Gate must have triggered on the 3rd.
+    ASSERT_TRUE(gate->wait_for_blocked());
+
+    // 3. First two must arrive.
+    EXPECT_TRUE(router_one->message_record_.wait_for(c1));
+    EXPECT_TRUE(router_one->message_record_.wait_for(c2));
+
+    // 4. Third is buffered — must not arrive yet.
+    EXPECT_FALSE(router_one->message_record_.wait_for(c3, std::chrono::milliseconds(300)));
+
+    // Release: 3rd notification is forwarded.
+    gate->block(false);
+    EXPECT_TRUE(router_one->message_record_.wait_for(c3));
+}
+
+TEST_F(test_someip_gate, blocks_request_then_response) {
+    // Verify that a someip_gate installed on router_two's service socket can first block
+    // an incoming REQUEST, and then, once the request is released, block the outgoing
+    // RESPONSE before it reaches the client.
+
+    ecu_one_.add_app(ecu_one_client_name_);
+    ecu_two_.add_app(ecu_two_server_name_);
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one = ecu_one_.router_;
+    auto* ecu_two_server_ = ecu_two_.apps_[ecu_two_server_name_];
+
+    std::vector<unsigned char> const req_payload{0x01};
+    std::vector<unsigned char> const rsp_payload{0x42};
+
+    request const req{si_, method_, vsomeip::message_type_e::MT_REQUEST, false /* UDP */, req_payload};
+
+    // Server offers the service and registers a handler that replies with rsp_payload.
+    ecu_two_server_->offer(si_);
+    ecu_two_server_->answer_request(req, [rsp_payload] { return rsp_payload; });
+
+    // Client discovers the service via SD.
+    router_one->request_service(si_);
+    ASSERT_TRUE(router_one->availability_record_.wait_for_last(service_availability::available(si_)));
+
+    // Install both gates after apps have started so that the UDP socket at svc_ep_ is
+    // already bound and replace_pipe is called directly (not deferred to pending map).
+    auto request_gate = someip_gate::create();
+    auto response_gate = someip_gate::create();
+
+    // request_gate on the receiver pipe: blocks REQUESTs arriving at router_two's socket.
+    ASSERT_TRUE(setup_data_pipe(svc_ep_, router_two_name_, socket_role::client, request_gate->get_data_pipe()));
+    // response_gate on the sender pipe: blocks RESPONSEs leaving router_two's socket.
+    ASSERT_TRUE(setup_data_pipe(svc_ep_, router_two_name_, socket_role::server, response_gate->get_data_pipe()));
+
+    // --- Phase 1: block the REQUEST ---
+    request_gate->block_at({.service_ = si_.service_, .method_ = method_, .type_ = vsomeip::message_type_e::MT_REQUEST});
+
+    router_one->send_request(req);
+    ASSERT_TRUE(request_gate->wait_for_blocked());
+
+    message_checker rsp_checker{std::nullopt, si_, method_, vsomeip::message_type_e::MT_RESPONSE, rsp_payload};
+    // Request is held at the gate — no response can have arrived at the client yet.
+    EXPECT_FALSE(router_one->message_record_.wait_for(rsp_checker, std::chrono::milliseconds(500)));
+
+    // --- Phase 2: arm the response gate, then release the request ---
+    // Arm response_gate before releasing the request to avoid a race where the response
+    // is sent before the gate is armed.
+    response_gate->block_at({.service_ = si_.service_, .method_ = method_, .type_ = vsomeip::message_type_e::MT_RESPONSE});
+
+    // Release the request: it reaches the server, which replies; the reply is intercepted
+    // by response_gate before it leaves router_two.
+    request_gate->block(false);
+    ASSERT_TRUE(response_gate->wait_for_blocked());
+
+    // Response is still held — client must not have received it.
+    EXPECT_FALSE(router_one->message_record_.wait_for(rsp_checker, std::chrono::milliseconds(500)));
+
+    // Release the response gate — the response is now forwarded to the client.
+    response_gate->block(false);
+    EXPECT_TRUE(router_one->message_record_.wait_for(rsp_checker));
+}
+
 ecu_config configure_initial_delay(ecu_config cfg, std::uint32_t min, std::uint32_t max) {
     cfg.service_discovery_.initial_delay_min_ = min;
     cfg.service_discovery_.initial_delay_max_ = max;
@@ -1207,7 +1464,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_after_f
                                                            std::chrono::seconds(2)));
 
     // Prepare Service Discovery Gate
-    std::shared_ptr<sd_gate> router_one_sd_gate = sd_gate::create();
+    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
     ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
                                 router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
     router_one_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 0}, 1);
@@ -1243,7 +1500,7 @@ TEST_F(increased_initial_delay_with_multiple_instances, sends_stop_offer_for_eac
     ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(first_instance)));
     ASSERT_TRUE(client->availability_record_.wait_for_any(service_availability::available(second_instance)));
 
-    std::shared_ptr<sd_gate> router_one_sd_gate = sd_gate::create();
+    std::shared_ptr<someip_gate> router_one_sd_gate = someip_gate::create();
     ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
                                 router_one_name_, socket_role::client, router_one_sd_gate->get_data_pipe()));
 
