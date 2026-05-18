@@ -1083,8 +1083,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             if (its_error == protocol::error_e::ERROR_OK)
                 its_assigned_client = its_ack_command.get_assigned();
 
-            on_client_assign_ack(its_assigned_client);
-
+            on_client_assign_ack(its_assigned_client, !_peer_data.routing_address_.is_unspecified());
             break;
         }
 
@@ -2204,7 +2203,7 @@ void routing_manager_client::on_update_security_credentials(const protocol::upda
 }
 #endif
 
-void routing_manager_client::on_client_assign_ack(const client_t& _client) {
+void routing_manager_client::on_client_assign_ack(const client_t& _client, bool _is_tcp) {
 
     if (_client == VSOMEIP_CLIENT_UNSET) {
         VSOMEIP_ERROR_P << "(" << host_->get_name() << ":" << hex4(_client) << ") Invalid clientID";
@@ -2254,9 +2253,8 @@ void routing_manager_client::on_client_assign_ack(const client_t& _client) {
         }
 
         if (is_started) {
-            const bool via_tcp = sender_ && !sender_->peer_endpoint().address().is_unspecified();
             VSOMEIP_INFO_P << "Client 0x" << hex4(get_client()) << " (" << host_->get_name() << ") successfully connected to routing via "
-                           << (via_tcp ? "TCP" : "UDS") << " ~> registering...";
+                           << (_is_tcp ? "TCP" : "UDS") << " ~> registering...";
             register_application(_client);
         }
     }
