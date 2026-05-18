@@ -200,7 +200,7 @@ private:
     void send_remove_security_policy_response(pending_security_update_id_t _update_id);
     void on_update_security_credentials(const protocol::update_security_credentials_command& _command);
 #endif
-    void on_client_assign_ack(const client_t& _client);
+    void on_client_assign_ack(const client_t& _client, bool _is_tcp);
 
     port_t get_routing_port();
 

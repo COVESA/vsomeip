@@ -319,11 +319,11 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::create_local_client_endpo
             try {
                 its_endpoint = local_endpoint::create_client_ep(
                         context,
-                        local_endpoint_params{
-                                _client, _own_id, "",
-                                std::make_shared<local_socket_tcp_impl>(io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
-                                                                        boost::asio::ip::tcp::endpoint(_remote_address, _remote_port),
-                                                                        socket_role_e::CLIENT)});
+                        local_endpoint_params{_client, _own_id, "",
+                                              std::make_shared<local_socket_tcp_impl>(
+                                                      io_, boost::asio::ip::tcp::endpoint(its_local_address, local_port_),
+                                                      boost::asio::ip::tcp::endpoint(_remote_address, _remote_port), socket_role_e::CLIENT),
+                                              _remote_address, _remote_port});
 
                 VSOMEIP_INFO << "Client [" << hex4(_own_id) << "] @ " << its_local_address.to_string() << ":" << local_port_
                              << " is connecting to [" << hex4(_client) << "] @ " << _remote_address.to_string() << ":" << _remote_port
