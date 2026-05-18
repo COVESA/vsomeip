@@ -1634,7 +1634,7 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
 
 - **request_debounce_time** - Service requests done by an application can be debounced to be more efficient
   if many services are requested simultaneously (e.g. at startup). This configuration variable specified the
-  maximum request debounce time in milliseconds. The default time is 10ms.
+  maximum request debounce time in milliseconds. The default time is 0ms (turned off).
 
 ## Acceptances
 
