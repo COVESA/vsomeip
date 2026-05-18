@@ -1,6 +1,7 @@
 // Copyright (C) 2024 Apex.AI, Inc.
 
 #include <mutex>
+#include <iostream>
 
 #include <vsomeip/internal/plugin_manager.hpp>
 
@@ -13,6 +14,7 @@ namespace {
 void initialize_builtin_plugins() {
     static std::once_flag registration_flag;
     std::call_once(registration_flag, []() {
+        std::cerr << "[vsomeip][plugin-debug] Explicit builtin plugin initialization is running." << std::endl;
         plugin_manager::register_static_plugin(plugin_type_e::CONFIGURATION_PLUGIN,
                                                configuration_plugin_impl::get_plugin);
         plugin_manager::register_static_plugin(plugin_type_e::SD_RUNTIME_PLUGIN,
