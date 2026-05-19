@@ -36,7 +36,9 @@ server_endpoint_impl<Protocol>::server_endpoint_impl(const std::shared_ptr<board
     endpoint_impl<Protocol>(_boardnet_endpoint_host, _routing_host, _io, _configuration) { }
 
 template<typename Protocol>
-void server_endpoint_impl<Protocol>::stop(bool /*_due_to_error*/) { }
+void server_endpoint_impl<Protocol>::stop(bool /*_due_to_error*/) {
+    clear_client_targets();
+}
 
 template<typename Protocol>
 bool server_endpoint_impl<Protocol>::is_client() const {
@@ -248,8 +250,13 @@ std::optional<typename Protocol::endpoint> server_endpoint_impl<Protocol>::get_c
 }
 
 template<typename Protocol>
-bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t /*service_instance_*/, method_t /*_method*/) const {
+void server_endpoint_impl<Protocol>::clear_client_targets() {
+    std::scoped_lock its_clients_lock{clients_mutex_};
+    clients_to_target_.clear();
+}
 
+template<typename Protocol>
+bool server_endpoint_impl<Protocol>::tp_segmentation_enabled(service_instance_t /*service_instance_*/, method_t /*_method*/) const {
     return false;
 }
 

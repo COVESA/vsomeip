@@ -129,6 +129,9 @@ protected:
     // Returns the target for the given client.
     std::optional<endpoint_type> get_client_target(const clients_key_t _client);
 
+    // Clears the target endpoints of all clients.
+    void clear_client_targets();
+
     target_data_type targets_;
 
     mutable std::mutex mutex_;
