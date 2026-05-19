@@ -87,7 +87,13 @@ endif()
     if(NOT DEFINED _FORTIFY_SOURCE)
         set(_FORTIFY_SOURCE 2)
     endif()
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -D_FORTIFY_SOURCE=${_FORTIFY_SOURCE} -Wformat -Wformat-security -Wpedantic -Werror -fPIE -Wno-inconsistent-missing-override")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -D_GLIBCXX_USE_NANOSLEEP -pthread -Wall -Wextra -Wformat -Wformat-security -Wconversion -fexceptions -fstrict-aliasing -fstack-protector-strong -fasynchronous-unwind-tables -fno-omit-frame-pointer -Wformat -Wformat-security -Wpedantic -Werror -fPIE -Wno-inconsistent-missing-override")
+
+    # _FORTIFY_SOURCE requires an optimized build; defining it under -O0
+    # is a no-op at best and a hard error with newer glibc + -Werror.
+    add_compile_options(
+        "$<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=${_FORTIFY_SOURCE}>"
+    )
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
