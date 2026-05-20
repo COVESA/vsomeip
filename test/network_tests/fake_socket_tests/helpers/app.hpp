@@ -202,6 +202,21 @@ public:
      */
     void subscribe_field_debounce(event_ids const& _ei, debounce_filter_t const& _filter);
 
+    /*
+     *  unsubscribes the application from the eventgroup that is part of the event_ids
+     */
+    void unsubscribe_from_group(event_ids const& _ei);
+
+    /*
+     * registers the subscription handler with the application
+     */
+    void register_group_subscription_handler(event_ids const& _ei, subscription_handler_ext_t const& _handler);
+
+    /*
+     * unregisters the subscription handler with the application
+     */
+    void unregister_group_subscription_handler(event_ids const& _ei);
+
     /**
      * registers a message handler that will
      * 1. record the incoming request in the
@@ -277,6 +292,7 @@ private:
     void offer(event_ids const& _ei, vsomeip::event_type_e _et);
 
     bool is_running_{false};
+    bool is_initialized_{false};
     std::shared_ptr<vsomeip::application> app_;
     std::thread runner_;
     offer_service_hook_t offer_service_hook_;

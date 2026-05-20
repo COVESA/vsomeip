@@ -209,7 +209,7 @@ private:
      * This action is performed when SIGUSR1 is handled by host or when the client detects the
      * connections towards host has somehow become broken.
      */
-    void clear_remote_subscriptions();
+    void clear_remote_subscriptions(std::scoped_lock<std::mutex> const& _provider_lock);
 
     void restart_sender(std::unique_lock<std::recursive_mutex> const& _sender_mutex);
     void debounce_restart_sender_done();
@@ -219,13 +219,11 @@ private:
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
     ///
     /// @param _client what client
-    /// @param _subscribed_eventgroups what eventgroups to unsubscribe to
-    /// @param _requested_services what services were requested by us and offered by client; will be filled if not nullptr
-    void remove_local(client_t _client, const std::set<std::tuple<service_t, instance_t, eventgroup_t>>& _subscribed_eventgroups,
-                      std::set<protocol::service>* _requested_services);
+    /// @param _requested_services what services were requested by us and offered by client;
+    void remove_local(client_t _client, std::set<protocol::service>& _requested_services);
 
     void cleanup_routing_data();
-    void cleanup_subscriber();
+    void cleanup_subscriber(std::scoped_lock<std::mutex> const& _provider_lock);
 
     client_t find_local_client(service_t _service, instance_t _instance) const;
     bool is_response_allowed(client_t _sender, service_t _service, instance_t _instance, method_t _method);
@@ -240,7 +238,8 @@ private:
                              const std::shared_ptr<debounce_filter_impl_t>& _filter, client_t _client,
                              std::scoped_lock<std::mutex> const& _lock);
 
-    std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client);
+    std::set<std::tuple<service_t, instance_t, eventgroup_t>> get_subscriptions(const client_t _client,
+                                                                                std::scoped_lock<std::mutex> const& _provider_lock) const;
     bool is_subscribe_to_any_event_allowed(const vsomeip_sec_client_t* _sec_client, client_t _client, service_t _service,
                                            instance_t _instance, eventgroup_t _eventgroup, bool _is_provided);
     void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
@@ -343,6 +342,12 @@ private:
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
     eventgroups_t provided_eventgroups_;
     service_instance_map<std::map<eventgroup_t, uint32_t>> remote_subscriber_count_;
+    // lc_count is bumped on every rmc::stop and on any reconnect invocation,
+    // protected by the provider_mutex_, but it may be read during a start of the
+    // sender at an arbitrary moment in time - although it shouldn't.
+    // These reads do not require synchronization with the subscription set,
+    // nor with the stopping - this needs to be guaranteed by the rmc book-keeping itself.
+    std::atomic<uint32_t> lc_count_{0};
 
     // This mutex should be used whenever the client
     // is trying to access data relevant for its "consumer" side

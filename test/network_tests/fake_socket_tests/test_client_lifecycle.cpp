@@ -6,6 +6,7 @@
 #include "helpers/app.hpp"
 #include "helpers/attribute_recorder.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
+#include "helpers/command_gate.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/message_checker.hpp"

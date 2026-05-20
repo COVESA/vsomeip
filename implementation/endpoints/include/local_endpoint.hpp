@@ -150,7 +150,7 @@ public:
      * For INIT state (senders): Initiates connection to peer.
      * For CONNECTED state (receivers): Starts send/receive operations.
      */
-    void start();
+    void start(uint32_t _lc_token = 0);
 
     /**
      * @brief Stops the endpoint and closes the connection.

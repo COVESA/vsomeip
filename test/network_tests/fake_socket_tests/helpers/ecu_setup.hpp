@@ -93,10 +93,11 @@ struct ecu_setup {
 
     [[nodiscard]] boost::asio::ip::udp::endpoint sd_endpoint();
 
+    std::string router_name_;
+
 private:
     ecu_config config_;
     std::string name_;
-    std::string router_name_;
     socket_manager& sm_;
     std::vector<std::string> extra_apps_;
     std::filesystem::path config_file_;

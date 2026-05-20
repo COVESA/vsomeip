@@ -19,6 +19,7 @@ namespace vsomeip_v3 {
 
 struct local_client_data {
     client_t id_{VSOMEIP_CLIENT_UNSET};
+    uint32_t lc_token_{0};
     std::string env_;
     vsomeip_sec_client_t sec_client_{};
     /// TCP endpoint the peer advertised during the assign_client handshake (server-side, routing clients only).
