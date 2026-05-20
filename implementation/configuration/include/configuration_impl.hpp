@@ -21,7 +21,6 @@
 #include "e2e.hpp"
 #include "routing.hpp"
 #include "watchdog.hpp"
-#include "local_clients_keepalive.hpp"
 #include "service_instance_range.hpp"
 #include "trace.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
@@ -38,7 +37,6 @@ struct servicegroup;
 struct event;
 struct eventgroup;
 struct watchdog;
-struct local_clients_keepalive;
 
 struct suppress_t {
     service_t service;
@@ -193,9 +191,6 @@ public:
     VSOMEIP_EXPORT bool is_watchdog_enabled() const;
     VSOMEIP_EXPORT uint32_t get_watchdog_timeout() const;
     VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
-
-    VSOMEIP_EXPORT bool is_local_clients_keepalive_enabled() const;
-    VSOMEIP_EXPORT std::chrono::milliseconds get_local_clients_keepalive_time() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
 
@@ -358,7 +353,6 @@ private:
     std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree& _tree);
 
     void load_watchdog(const configuration_element& _element);
-    void load_local_clients_keepalive(const configuration_element& _element);
 
     void load_request_debounce_time(const configuration_element& _element);
 
@@ -505,7 +499,6 @@ protected:
     std::unordered_set<std::string> supported_selective_addresses;
 
     std::shared_ptr<watchdog> watchdog_;
-    std::shared_ptr<local_clients_keepalive> local_clients_keepalive_;
 
     std::vector<service_instance_range> internal_service_ranges_;
 
@@ -537,8 +530,6 @@ protected:
         ET_WATCHDOG_ENABLE,
         ET_WATCHDOG_TIMEOUT,
         ET_WATCHDOG_ALLOWED_MISSING_PONGS,
-        ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE,
-        ET_LOCAL_CLIENTS_KEEPALIVE_TIME,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS,

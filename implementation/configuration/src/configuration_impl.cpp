@@ -61,17 +61,17 @@ configuration_impl::configuration_impl(const std::string& _path) :
     sd_stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME}, sd_offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME},
     max_configured_message_size_{0}, max_local_message_size_{0}, max_reliable_message_size_{0}, max_unreliable_message_size_{0},
     buffer_shrink_threshold_{VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD}, trace_{std::make_shared<trace>()},
-    watchdog_{std::make_shared<watchdog>()}, local_clients_keepalive_{std::make_shared<local_clients_keepalive>()}, log_version_{true},
-    log_version_interval_{VSOMEIP_DEFAULT_LOG_NETWORK_HOST}, permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_{"vsomeip"},
-    e2e_enabled_{false}, log_memory_{false}, log_memory_interval_{0}, log_status_interval_{VSOMEIP_DEFAULT_LOG_STATUS},
-    endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED}, endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED},
-    local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
-    local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
-    external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
-    external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
-    tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS}, tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME},
-    has_issued_methods_warning_{false}, has_issued_clients_warning_{false}, udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
-    npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO}, npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    watchdog_{std::make_shared<watchdog>()}, log_version_{true}, log_version_interval_{VSOMEIP_DEFAULT_LOG_NETWORK_HOST},
+    permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_{"vsomeip"}, e2e_enabled_{false}, log_memory_{false},
+    log_memory_interval_{0}, log_status_interval_{VSOMEIP_DEFAULT_LOG_STATUS}, endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED},
+    endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED}, local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT},
+    local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE}, local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL},
+    local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT}, external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT},
+    external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE}, external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL},
+    external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT}, tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS},
+    tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME}, has_issued_methods_warning_{false}, has_issued_clients_warning_{false},
+    udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE}, npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
     npdu_default_max_retention_requ_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
     npdu_default_max_retention_resp_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO}, log_statistics_{true},
     statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL}, statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
@@ -151,7 +151,6 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
     trace_ = std::make_shared<trace>(*_other.trace_);
     supported_selective_addresses = _other.supported_selective_addresses;
     watchdog_ = std::make_shared<watchdog>(*_other.watchdog_);
-    local_clients_keepalive_ = std::make_shared<local_clients_keepalive>(*_other.local_clients_keepalive_);
     internal_service_ranges_ = _other.internal_service_ranges_;
     log_version_ = _other.log_version_;
     log_version_interval_ = _other.log_version_interval_;
@@ -531,7 +530,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_tracing(e);
             load_udp_receive_buffer_size(e);
             load_services(e);
-            load_local_clients_keepalive(e);
             load_request_debounce_time(e);
             load_dispatch_defaults(e);
         }
@@ -2319,40 +2317,6 @@ void configuration_impl::load_watchdog(const configuration_element& _element) {
     }
 }
 
-void configuration_impl::load_local_clients_keepalive(const configuration_element& _element) {
-    try {
-        auto its_service_discovery = _element.tree_.get_child("local-clients-keepalive");
-        for (auto i = its_service_discovery.begin(); i != its_service_discovery.end(); ++i) {
-            std::string its_key(i->first);
-            std::string its_value(i->second.data());
-            std::stringstream its_converter;
-
-            if (its_key == "enable") {
-                if (is_configured_[ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of local-clients-keepalive.enable. Ignoring definition from "
-                                    << _element.name_;
-                } else {
-                    local_clients_keepalive_->is_enabled_ = (its_value == "true");
-                    is_configured_[ET_LOCAL_CLIENTS_KEEPALIVE_ENABLE] = true;
-                }
-            } else if (its_key == "time") {
-                if (is_configured_[ET_LOCAL_CLIENTS_KEEPALIVE_TIME]) {
-                    VSOMEIP_WARNING << "Multiple definitions of local-clients-keepalive.time. Ignoring definition from " << _element.name_;
-                } else {
-                    std::uint32_t time_in_ms;
-                    its_converter << std::dec << its_value;
-                    its_converter >> time_in_ms;
-
-                    local_clients_keepalive_->time_in_ms_ = std::chrono::milliseconds(time_in_ms);
-                    is_configured_[ET_LOCAL_CLIENTS_KEEPALIVE_TIME] = true;
-                }
-            }
-        }
-    } catch (...) {
-        // intentionally left empty
-    }
-}
-
 void configuration_impl::load_dispatch_defaults(const configuration_element& _element) {
     const std::string its_dispatching_key{"dispatching"};
     const std::string its_default_max_dispatch_time_key{"max_dispatch_time"};
@@ -3500,14 +3464,6 @@ uint32_t configuration_impl::get_watchdog_timeout() const {
 
 uint32_t configuration_impl::get_allowed_missing_pongs() const {
     return watchdog_->missing_pongs_allowed_;
-}
-
-bool configuration_impl::is_local_clients_keepalive_enabled() const {
-    return local_clients_keepalive_->is_enabled_;
-}
-
-std::chrono::milliseconds configuration_impl::get_local_clients_keepalive_time() const {
-    return local_clients_keepalive_->time_in_ms_;
 }
 
 std::uint32_t configuration_impl::get_permissions_uds() const {
