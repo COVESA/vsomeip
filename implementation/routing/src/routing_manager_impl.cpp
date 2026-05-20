@@ -74,7 +74,7 @@ routing_manager_impl::routing_manager_impl(routing_manager_host* _host) :
     routing_running_(false), routing_state_(configuration_->get_initial_routing_state()), status_log_timer_(_host->get_io()),
     memory_log_timer_(_host->get_io()), ep_mgr_impl_(std::make_shared<endpoint_manager_impl>(this, io_, configuration_)),
     pending_remote_offer_id_(0), last_resume_(std::chrono::steady_clock::time_point::min()), statistics_log_timer_(_host->get_io()),
-    ignored_statistics_counter_(0) {
+    ignored_statistics_counter_(0), stop_offer_graceful_timer_{_host->get_io()} {
 
     VSOMEIP_INFO << "Starting Routing Manager [Host] with state " << routing_state_tostring(routing_state_);
 }
@@ -137,6 +137,10 @@ void routing_manager_impl::init() {
             VSOMEIP_INFO << "Service Discovery module loaded.";
             discovery_ = std::dynamic_pointer_cast<sd::runtime>(its_plugin)->create_service_discovery(this, configuration_);
             discovery_->init();
+            // Only enable stop offer graceful timer if SD is enabled.
+            stop_offer_graceful_timer_.expires_after(std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay()));
+            stop_offer_graceful_timer_.async_wait(
+                    std::bind(&routing_manager_impl::stop_offer_graceful_timeout, shared_from_this(), std::placeholders::_1));
         } else {
             VSOMEIP_ERROR << "Service Discovery module could not be loaded!";
             std::exit(EXIT_FAILURE);
@@ -245,6 +249,12 @@ void routing_manager_impl::stop() {
         statistics_log_timer_.cancel();
     }
 
+    {
+        std::scoped_lock its_lock{offer_serialization_mutex_};
+        last_stop_offer_.clear();
+        stop_offer_graceful_timer_.cancel();
+    }
+
     if (discovery_)
         discovery_->stop();
 
@@ -313,6 +323,12 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
 
 bool routing_manager_impl::offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                          minor_version_t _minor, bool _must_queue) {
+    bool external_routing_ready{false};
+    {
+        std::scoped_lock its_lock(on_state_change_mutex_);
+        external_routing_ready = is_external_routing_ready();
+    }
+
     std::scoped_lock its_lock{offer_serialization_mutex_};
     // only queue commands if method was NOT called via erase_offer_command()
     if (_must_queue) {
@@ -333,20 +349,22 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
     }
 
     {
-        std::scoped_lock its_lock(on_state_change_mutex_);
-        if (is_external_routing_ready()) {
-            init_service_info(_service, _instance, true);
+        // offer_serialization_mutex_ locked.
+        // Search the time-point-keyed map for an entry matching this service instance.
+        const service_instance_t si{_service, _instance};
+        auto it = std::find_if(last_stop_offer_.begin(), last_stop_offer_.end(), [&si](const auto& kv) { return kv.second.first == si; });
+        if (it == last_stop_offer_.end()) {
+            offer_remote_service(_service, _instance, external_routing_ready);
         } else {
-            std::scoped_lock its_lock_inner(pending_sd_offers_mutex_);
-            pending_sd_offers_.emplace(_service, _instance);
-            VSOMEIP_INFO << "Added service 0x" << hex4(_service) << " to pending_sd_offers[" << pending_sd_offers_.size() << "]";
-        }
-    }
-
-    if (discovery_) {
-        std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
-        if (its_info) {
-            discovery_->offer_service(its_info);
+            /// Offering a service that has been stopped within milliseconds, can lead to a protocol race scenario in which combined with
+            /// high CPU contention, the daemon could processes incoming subscriptions out of order i.e., associated with offers sent
+            /// previously of the stop offer and process it after the re-offer while the service info is already set though still in the
+            /// initial wait phase. This specific sequence leads to the daemon responding with a SubscribeACK and sending the initial event
+            /// which will be ignored by the partner ECU.
+            VSOMEIP_ERROR
+                    << "Service 0x" << hex4(_service) << "." << hex4(_instance)
+                    << " was offered again within STOP_OFFER graceful timeout. Offer only assumed for internal vsomeip communication.";
+            it->second.second = true;
         }
     }
 
@@ -1266,8 +1284,22 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
         del_routing_info(_service, _instance, its_reliable_endpoint != nullptr, its_unreliable_endpoint != nullptr, false);
 
         if (discovery_) {
-            if (its_info->get_major() == _major && its_info->get_minor() == _minor)
+            if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
+                if (!is_suspended()) {
+                    service_instance_t si{_service, _instance};
+                    // Remove any existing entry for this service (stale window from a prior stop-offer).
+                    auto existing = std::find_if(last_stop_offer_.begin(), last_stop_offer_.end(),
+                                                 [&si](const auto& kv) { return kv.second.first == si; });
+                    if (existing != last_stop_offer_.end()) {
+                        last_stop_offer_.erase(existing);
+                    }
+                    // Record the expiry time point and insert into the ordered map.
+                    const auto expiry =
+                            std::chrono::steady_clock::now() + std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay());
+                    last_stop_offer_.emplace(expiry, std::make_pair(si, false /*offer_pending*/));
+                }
                 discovery_->stop_offer_service(its_info);
+            }
         }
 
         std::set<std::shared_ptr<eventgroupinfo>> its_eventgroup_info_set;
@@ -2650,6 +2682,13 @@ void routing_manager_impl::set_routing_state(routing_state_e _routing_state) {
         switch (_routing_state) {
         case routing_state_e::RS_SUSPENDED: {
             VSOMEIP_INFO_P << "Set routing to RS_SUSPENDED";
+
+            {
+                std::scoped_lock its_inner_lock{offer_serialization_mutex_};
+                // Remove all stop offers and cancel the shared graceful timer.
+                last_stop_offer_.clear();
+                stop_offer_graceful_timer_.cancel();
+            }
 
             // stop processing of incoming SD messages
             discovery_->suspend();
@@ -4424,4 +4463,59 @@ bool routing_manager_impl::send_event_to(const client_t _client, const std::shar
     return send_to(_client, _target, _message);
 }
 
+void routing_manager_impl::stop_offer_graceful_timeout(const boost::system::error_code& _ec) {
+    if (_ec == boost::asio::error::operation_aborted) {
+        return;
+    }
+
+    bool external_routing_ready{false};
+    {
+        std::scoped_lock its_lock(on_state_change_mutex_);
+        external_routing_ready = is_external_routing_ready();
+    }
+
+    std::scoped_lock its_lock(offer_serialization_mutex_);
+    // Drain all entries whose deadline has been reached.
+    const auto now = std::chrono::steady_clock::now();
+    for (auto it = last_stop_offer_.begin(); it != last_stop_offer_.end() && it->first <= now;) {
+        const service_instance_t si = it->second.first;
+        const bool offer_pending = it->second.second;
+
+        it = last_stop_offer_.erase(it);
+
+        if (offer_pending) {
+            VSOMEIP_INFO << "Graceful stop-offer window expired for service 0x" << hex4(si.service()) << "." << hex4(si.instance())
+                         << ". Service can be offered again.";
+            offer_remote_service(si.service(), si.instance(), external_routing_ready);
+        }
+    }
+
+    auto expiry_time = std::chrono::steady_clock::now() + std::chrono::milliseconds(configuration_->get_sd_cyclic_offer_delay());
+    if (!last_stop_offer_.empty() && last_stop_offer_.begin()->first < expiry_time) {
+        expiry_time = last_stop_offer_.begin()->first;
+    }
+    stop_offer_graceful_timer_.expires_at(expiry_time);
+    stop_offer_graceful_timer_.async_wait(
+            std::bind(&routing_manager_impl::stop_offer_graceful_timeout, shared_from_this(), std::placeholders::_1));
+}
+
+// Needs to be called with offer_serialization_mutex_ locked.
+void routing_manager_impl::offer_remote_service(service_t _service, instance_t _instance, bool _external_routing_ready) {
+    {
+        if (_external_routing_ready) {
+            init_service_info(_service, _instance, true);
+        } else {
+            std::scoped_lock its_lock_inner(pending_sd_offers_mutex_);
+            pending_sd_offers_.emplace(_service, _instance);
+            VSOMEIP_INFO << "Added service 0x" << hex4(_service) << " to pending_sd_offers[" << pending_sd_offers_.size() << "]";
+        }
+    }
+
+    if (discovery_) {
+        std::shared_ptr<serviceinfo> its_info = find_service(_service, _instance);
+        if (its_info) {
+            discovery_->offer_service(its_info);
+        }
+    }
+}
 } // namespace vsomeip_v3
