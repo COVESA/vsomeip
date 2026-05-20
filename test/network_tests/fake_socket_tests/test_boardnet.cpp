@@ -901,6 +901,76 @@ TEST_F(guest_offering, guests_provide_and_consume_interface) {
             event_subscription::successfully_subscribed_to(interfaces::boardnet::service_3344.fields_[0])));
 }
 
+TEST_F(guest_offering, replicate_vhal_behavior) {
+    // Replication of VHAL behavior, where a service is stopped and offered again during high CPU loads or whatever other situation that
+    // might introduce any kind of scheduling delay in vsomeip, the daemon could processes an incoming subscription request triggered by
+    // offers sent previously of the stop offer, and internally the service is offered again, but any offer have yet to be sent by SD,
+    // vsomeip would respond with a SubscribeACK and sends the initial event, though the other ecu will ignore it as at that moment it
+    // doesn't receive the offer.
+
+    // Create router and clients.
+    ecu_one_.add_guest({"guest_client", std::nullopt});
+    ecu_two_.add_guest({"guest_server", std::nullopt});
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* server = ecu_two_.apps_["guest_server"];
+    auto* client = ecu_one_.apps_["guest_client"];
+
+    // Create and setup sd gates to replicate high scheduling delays in network stack.
+    std::shared_ptr<someip_gate> router_one_multicast_sd_gate = someip_gate::create();
+    std::shared_ptr<someip_gate> router_one_sending_sd_gate = someip_gate::create();
+
+    ASSERT_TRUE(setup_data_pipe(boost::asio::ip::udp::endpoint(boost::asio::ip::address_v4::any(), ecu_one_.sd_endpoint().port()),
+                                router_one_name_, socket_role::client, router_one_multicast_sd_gate->get_data_pipe()));
+    ASSERT_TRUE(
+            setup_data_pipe(ecu_one_.sd_endpoint(), router_one_name_, socket_role::server, router_one_sending_sd_gate->get_data_pipe()));
+
+    // Block the offer to ensure the no client request is sent before the service is offered, as this would be the trigger a unicast offer,
+    // so offer and when the datagram reaches the "network stack", allow the client to request the service.
+    router_one_multicast_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+    // Server offers service.
+    server->offer(interfaces::boardnet::service_3344);
+    ASSERT_TRUE(router_one_multicast_sd_gate->wait_for_blocked());
+    router_one_multicast_sd_gate->block(false);
+    // Client requests service and subscriptions must be blocked.
+    router_one_sending_sd_gate->block_at({sd::entry_type_e::SUBSCRIBE_EVENTGROUP, 3}, 1);
+    client->request_service(interfaces::boardnet::service_3344.instance_);
+    client->subscribe(interfaces::boardnet::service_3344);
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)));
+    // Subscription has been blocked by sender gate.
+    ASSERT_TRUE(router_one_sending_sd_gate->wait_for_blocked());
+
+    // Server stops offering the service, client needs to see it.
+    server->stop_offer(interfaces::boardnet::service_3344.instance_);
+    EXPECT_TRUE(
+            client->availability_record_.wait_for_last(service_availability::unavailable(interfaces::boardnet::service_3344.instance_)));
+
+    // Server offers again the service, though it must be blocked as the client can not receive it.
+    router_one_multicast_sd_gate->block_at({sd::entry_type_e::OFFER_SERVICE, 3}, 1);
+    server->offer(interfaces::boardnet::service_3344);
+    // Set initial event.
+    server->send_event(interfaces::boardnet::service_3344.fields_[0], {0x5, 0x3});
+    // Offer blocked by receiving ecu one multicast sd endpoint.
+    ASSERT_TRUE(router_one_multicast_sd_gate->wait_for_blocked(std::chrono::seconds(3)));
+
+    // Release the client subscription and wait for the sub ack.
+    router_one_sending_sd_gate->block(false);
+    EXPECT_TRUE(wait_for_sd_message(ecu_one_.sd_endpoint(), {sd::entry_type_e::STOP_SUBSCRIBE_EVENTGROUP_ACK, 3}));
+
+    // Initial event never received as the client endpoint has been destroyed when the stop offer was received.
+    message expected_message{client_session{0, 1},
+                             interfaces::boardnet::service_3344.instance_,
+                             interfaces::boardnet::service_3344.fields_[0].event_id_,
+                             vsomeip::message_type_e::MT_NOTIFICATION,
+                             {0x5, 0x3}};
+    EXPECT_FALSE(client->message_record_.wait_for_last(expected_message));
+}
+
 struct server_offering_multiple_fields : public base_fake_socket_fixture {
 
     // Custom interface with 10 fields
