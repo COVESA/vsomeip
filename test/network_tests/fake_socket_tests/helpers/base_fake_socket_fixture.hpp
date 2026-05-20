@@ -238,6 +238,13 @@ struct base_fake_socket_fixture : ::testing::Test {
      */
     [[nodiscard]] bool insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec);
 
+    /*
+     * Inserts an error code in the send operation of the given `endpoint`.
+     *
+     * Returns true if successful.
+     */
+    [[nodiscard]] bool insert_udp_send_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec);
+
     /**
      * @see socket_manager::get_connection_socket_type
      * Returns the socket type used by the connection between _client and _server.
