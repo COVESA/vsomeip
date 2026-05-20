@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <boost/asio/error.hpp>
 #include <iomanip>
 #include <sstream>
 #include <thread>
@@ -182,6 +183,14 @@ void udp_client_endpoint_impl::restart(bool _force) {
 
 void udp_client_endpoint_impl::send_queued(std::pair<message_buffer_ptr_t, uint32_t>& _entry) {
     std::scoped_lock its_socket_lock(socket_mutex_);
+
+    if (!socket_->is_open()) {
+        VSOMEIP_WARNING_P << "socket is closed";
+        state_ = cei_state_e::CLOSED;
+        was_not_connected_ = true;
+        is_sending_ = false;
+        return;
+    }
 
     // Check whether we need to wait (SOME/IP-TP separation time)
     if (_entry.second > 0) {
@@ -440,8 +449,8 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         boost::asio::dispatch(strand_, std::bind(&client_endpoint_impl::connect, this->shared_from_this()));
     } else if (_error == boost::asio::error::not_connected || _error == boost::asio::error::bad_descriptor
                || _error == boost::asio::error::no_permission) {
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information();
         if (_error == boost::asio::error::no_permission) {
-            VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information();
             std::scoped_lock its_lock(mutex_);
             queue_.clear();
             queue_size_ = 0;
@@ -455,6 +464,7 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
         sending_blocked_ = true;
         close_socket(false, false);
     } else {
+        VSOMEIP_WARNING_P << "Received error: " << _error.message() << " (" << _error.value() << ") " << get_remote_information();
         if (state_ == cei_state_e::CONNECTING) {
             VSOMEIP_WARNING_P << "Endpoint is already restarting:" << get_remote_information();
         } else {
@@ -462,8 +472,6 @@ void udp_client_endpoint_impl::send_cbk(boost::system::error_code const& _error,
             if (std::shared_ptr<boardnet_endpoint_host> its_host = endpoint_host_.lock(); its_host) {
                 its_host->on_disconnect(shared_from_this());
             }
-            state_ = cei_state_e::CONNECTING;
-            restart(true);
         }
         service_t its_service(0);
         method_t its_method(0);

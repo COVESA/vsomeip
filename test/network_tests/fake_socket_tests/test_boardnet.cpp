@@ -795,7 +795,7 @@ TEST_F(test_boardnet_helper, test_boardnet_subscription_selective_event) {
     ecu_one_server->stop_offer(service_instance_);
 }
 
-TEST_F(test_boardnet_helper, udp_connection_refused) {
+TEST_F(test_boardnet_helper, udp_connection_refused_recv) {
     // This test checks for a regression where vsomeip would be stuck in an availability loop when
     // an UDP endpoint would receive a connection refused error.
     //
@@ -817,6 +817,46 @@ TEST_F(test_boardnet_helper, udp_connection_refused) {
 
     // Insert a "Connection refused" error in the client-server connection.
     ASSERT_TRUE(insert_udp_recv_error(ecu_one_client_port_, boost::asio::error::connection_refused));
+
+    // Client receives unavailable.
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+
+    // Client does not receive available.
+    ASSERT_FALSE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // Offer the test service again.
+    ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, false));
+
+    // Client receives available.
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+}
+
+TEST_F(test_boardnet_helper, udp_connection_refused_send) {
+    // This test checks for a regression where vsomeip would be stuck in an availability loop when
+    // an UDP endpoint would fail to send with a connection refused error.
+    //
+    // This was usually caused by not observing the service provider's STOP OFFER and trying to send
+    // messages to the UDP port where the service was previously offered.
+
+    // Create client, server and routing hosts.
+    start_all_apps();
+
+    // Offer the test service.
+    ecu_two_server_->offer(service_instance_);
+
+    // Wait for it to become available.
+    ecu_one_client_->request_service(service_instance_);
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    // Stop SD communication, simulating a shutdown without STOP OFFERs.
+    ASSERT_TRUE(delay_boardnet_sending(ecu_two_sd_comm_, true));
+
+    // Insert a "Connection refused" error in the client-server connection.
+    ASSERT_TRUE(insert_udp_send_error(ecu_one_client_port_, boost::asio::error::connection_refused));
+
+    // Send a message to the service in order to trigger the error.
+    request request_ = {service_instance_, 0x1111, vsomeip_v3::message_type_e::MT_REQUEST, {}};
+    ecu_one_client_->send_request(request_);
 
     // Client receives unavailable.
     ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));

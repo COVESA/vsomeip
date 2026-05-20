@@ -120,7 +120,12 @@ struct fake_udp_socket_handle : public fake_socket_handle {
     /*
      * Stash an error code to be processed during the receive operation on this socket.
      */
-    void stash_ec(boost::system::error_code _ec);
+    void stash_recv_ec(boost::system::error_code _ec);
+
+    /*
+     * Stash an error code to be processed during the next send operation on this socket.
+     */
+    void stash_send_ec(boost::system::error_code _ec);
 
     /**
      * Replaces either the sending or receiving data pipe, used to control flow of messages.
@@ -158,7 +163,12 @@ private:
     /*
      *  Error code to be delivered during the next receive operation.
      */
-    std::optional<boost::system::error_code> stashed_ec_;
+    std::optional<boost::system::error_code> stashed_recv_ec_;
+
+    /*
+     *  Error code to be delivered during the next send operation.
+     */
+    std::optional<boost::system::error_code> stashed_send_ec_;
 
     std::shared_ptr<data_pipe> receiver_pipe_ = std::make_shared<data_pipe>();
     std::shared_ptr<data_pipe> sender_pipe_ = std::make_shared<data_pipe>();

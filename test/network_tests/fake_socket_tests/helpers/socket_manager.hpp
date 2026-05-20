@@ -339,6 +339,13 @@ public:
      */
     [[nodiscard]] bool insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec);
 
+    /*
+     * Inserts an error into the next send operation performed by the given endpoint.
+     *
+     * Returns `true` if successful.
+     */
+    [[nodiscard]] bool insert_udp_send_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec);
+
     /**
      * @brief Set control flag to prevent application @param _router to join any multicast group.
      */

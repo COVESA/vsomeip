@@ -175,6 +175,20 @@ void fake_udp_socket_handle::async_connect(boost::asio::ip::udp::endpoint const&
 
 void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer, rw_handler _handler) {
     auto lock = std::unique_lock(mtx_);
+
+    // Check if we have an error code to report.
+    if (stashed_send_ec_) {
+        auto ec = *stashed_send_ec_;
+        stashed_send_ec_.reset();
+        lock.unlock();
+        boost::asio::post(io_, [handler = std::move(_handler), ec] {
+            if (handler) {
+                handler(ec, 0);
+            }
+        });
+        return;
+    }
+
     if (auto bsm = socket_manager_.lock(); bsm && local_ep_ && connected_ep_) {
         auto src = *local_ep_;
         auto dst = *connected_ep_;
@@ -207,6 +221,21 @@ void fake_udp_socket_handle::async_send(boost::asio::const_buffer const& _buffer
 
 void fake_udp_socket_handle::async_send_to(boost::asio::const_buffer const& _buffer, boost::asio::ip::udp::endpoint _dst,
                                            rw_handler _handler) {
+    {
+        std::scoped_lock lock(mtx_);
+        // Check if we have an error code to report.
+        if (stashed_send_ec_) {
+            auto ec = *stashed_send_ec_;
+            stashed_send_ec_.reset();
+            boost::asio::post(io_, [handler = std::move(_handler), ec] {
+                if (handler) {
+                    handler(ec, 0);
+                }
+            });
+            return;
+        }
+    }
+
     // Check if we should delay this message
     if (delay_messages_.load(std::memory_order_acquire)) {
         std::vector<unsigned char> data;
@@ -282,17 +311,17 @@ void fake_udp_socket_handle::async_receive_from(boost::asio::mutable_buffer _buf
 void fake_udp_socket_handle::update_reception_unlocked() {
     // Check if a receptor is configured.
     if (!receptor_) {
-        LOCAL_LOG << "No receptor" << " ec=" << stashed_ec_.value_or(boost::system::error_code());
+        LOCAL_LOG << "No receptor" << " ec=" << stashed_recv_ec_.value_or(boost::system::error_code());
         return;
     }
 
     // Check if there is an error to deliver.
-    if (stashed_ec_) {
+    if (stashed_recv_ec_) {
         // Post the handler to the event loop.
-        boost::asio::post(io_, [handler = std::move(receptor_->rw_handler_), ec = *stashed_ec_] { handler(ec, 0); });
+        boost::asio::post(io_, [handler = std::move(receptor_->rw_handler_), ec = *stashed_recv_ec_] { handler(ec, 0); });
 
         // Clean-up data.
-        stashed_ec_.reset();
+        stashed_recv_ec_.reset();
         receptor_.reset();
         return;
     }
@@ -379,10 +408,15 @@ void fake_udp_socket_handle::process_delayed_messages() {
     }
 }
 
-void fake_udp_socket_handle::stash_ec(boost::system::error_code _ec) {
+void fake_udp_socket_handle::stash_recv_ec(boost::system::error_code _ec) {
     std::scoped_lock lock{mtx_};
-    stashed_ec_ = {_ec};
+    stashed_recv_ec_ = {_ec};
     update_reception_unlocked();
+}
+
+void fake_udp_socket_handle::stash_send_ec(boost::system::error_code _ec) {
+    std::scoped_lock lock{mtx_};
+    stashed_send_ec_ = {_ec};
 }
 
 void fake_udp_socket_handle::replace_pipe(std::shared_ptr<data_pipe> _pipe, socket_role _applied_on) {
