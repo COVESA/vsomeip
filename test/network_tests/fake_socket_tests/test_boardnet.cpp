@@ -1005,6 +1005,36 @@ TEST_F(server_offering_multiple_fields, test_sd_multicast_gate_late_loading) {
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
 }
 
+TEST_F(server_offering_multiple_fields, graceful_stop_offer) {
+    // Tests the graceful stop offer mechanism, where after a STOP OFFER, the routing manager starts a timer during which new offers
+    // for the same service are not propagated immediately, but deferred until the timer expires.
+
+    prepare_ecus_and_apps();
+    auto* server = ecu_one_.apps_["guest_server"];
+    auto* client = ecu_two_.apps_["guest_client"];
+
+    client->request_service(multi_field_service_.instance_);
+    server->offer(multi_field_service_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_)));
+
+    server->stop_offer(multi_field_service_.instance_);
+    ASSERT_TRUE(client->availability_record_.wait_for_last(service_availability::unavailable(multi_field_service_.instance_)));
+
+    client->availability_record_.clear();
+
+    // Offer inside the graceful stop offer window: must NOT propagate immediately.
+    server->offer(multi_field_service_);
+    EXPECT_FALSE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                            std::chrono::milliseconds(500)))
+            << "Offer must not propagate during graceful stop-offer window.";
+
+    // No further user-side calls: the routing manager must auto-emit the
+    // deferred offer when the timer expires. Wait for offer delay cycle + initial wait phase.
+    EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(multi_field_service_.instance_),
+                                                           std::chrono::milliseconds(2600)))
+            << "Pending in-window offer was not auto-emitted after graceful timeout.";
+}
+
 struct tcp_notifications : public base_fake_socket_fixture {
 
     // Custom interface with a service that has events being notified via tcp and udp

@@ -381,6 +381,16 @@ private:
     bool send_event_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target,
                        std::shared_ptr<message> _message) override;
 
+    /**
+     * @brief Expiry callback for the shared graceful stop-offer timer.
+     *
+     * Drains all entries in @ref last_stop_offer_ whose expiry has been reached,
+     * auto-emitting any pending deferred offer.
+     */
+    void stop_offer_graceful_timeout(const boost::system::error_code& _ec);
+
+    void offer_remote_service(service_t _service, instance_t _instance, bool _external_routing_ready);
+
 private:
     std::shared_ptr<routing_manager_stub> stub_;
     std::shared_ptr<sd::service_discovery> discovery_;
@@ -473,6 +483,10 @@ private:
     // Events (part of one or more eventgroups)
     mutable std::mutex events_mutex_;
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> events_;
+
+    /// Graceful stop-offer state ordered ascending by expiry so begin() always yields the soonest deadline.
+    std::map<std::chrono::steady_clock::time_point, std::pair<service_instance_t, bool /* service re-offered*/>> last_stop_offer_;
+    boost::asio::steady_timer stop_offer_graceful_timer_;
 
     std::mutex event_registration_mutex_;
 };
