@@ -112,17 +112,21 @@ do
 		fi
 
 		# look also inside output, report the individual test failures/successes
-		# CTestCostData.txt has output of this sort:
-		# availability_handler_test 0 0
-		# .. // other successful tests
-		# unit_tests_endpoint_tests 1 0.595361
-		# ---
-		# restart_routing_test
-		# ... // other failed tests
-		# availability_handler_test
-
-		# format: "testname exec_count cost" for passed tests
+		# CTestCostData.txt format:
+		#   NF==3 section: "testname exec_count cost" for ALL tests that ran (pass + fail)
+		#   NF==1 section: "testname" for FAILED tests (after "---" separator)
+		# A ctest-failing test appears in BOTH sections. We build two membership sets -
+		# _ctest_failed (NF==1) and _nf3_seen (NF==3) - then process every NF==3 test
+		# exactly once. A safety-net pass then handles any NF==1 tests not in NF==3
+		# (pathological ctest output: file truncated or test crashed before cost was written).
+		declare -A _ctest_failed
 		while read -r testcase; do
+			_ctest_failed["$testcase"]=1
+		done < <(awk 'NF==1 {print $1}' /home/build/Testing/Temporary/CTestCostData.txt | tail -n +2)
+
+		declare -A _nf3_seen
+		while read -r testcase; do
+			_nf3_seen["$testcase"]=1
 			valgrind_errors=0
 			if [[ "$VALGRIND_TYPE" ]]
 			then
@@ -133,28 +137,37 @@ do
 			then
 				update-result-file "$tests_result_file" "$testcase" "$valgrind_errors" "$VALGRIND_TYPE"
 				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
-			else
+			fi
+
+			if [[ "${_ctest_failed[$testcase]+x}" ]]
+			then
+				update-result-file "$tests_result_file" "$testcase" 1
+				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
+			elif ((valgrind_errors == 0))
+			then
 				update-result-file "$tests_result_file" "$testcase"
 			fi
 		done < <(awk 'NF==3 {print $1}' /home/build/Testing/Temporary/CTestCostData.txt)
 
-		# format: "testname" for failed tests, separated by "---" from passed tests
-		while read -r testcase; do
-			valgrind_errors=0
-			if [[ "$VALGRIND_TYPE" ]]
+		# Safety net: record any ctest-failed tests absent from the NF==3 section
+		for testcase in "${!_ctest_failed[@]}"
+		do
+			if [[ ! "${_nf3_seen[$testcase]+x}" ]]
 			then
-				valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$testcase")
-			fi
-
-			if ((valgrind_errors > 0))
-			then
-				update-result-file "$tests_result_file" "$testcase" "$valgrind_errors" "$VALGRIND_TYPE"
-				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
-			else
+				valgrind_errors=0
+				if [[ "$VALGRIND_TYPE" ]]
+				then
+					valgrind_errors=$(valgrind-errors "/home/logs/valgrind/$VALGRIND_TYPE" "$testcase")
+				fi
+				if ((valgrind_errors > 0))
+				then
+					update-result-file "$tests_result_file" "$testcase" "$valgrind_errors" "$VALGRIND_TYPE"
+				fi
 				update-result-file "$tests_result_file" "$testcase" 1
 				cp /home/logs/{junit/"$testcase".log,failed-junit/} 2>/dev/null || :
 			fi
-		done < <(awk 'NF==1 {print $1}' /home/build/Testing/Temporary/CTestCostData.txt | tail -n +2)
+		done
+		unset _ctest_failed _nf3_seen
 
 		break
 	done
