@@ -31,7 +31,6 @@
   - [Internal Services](#internal-services)
   - [Clients](#clients)
   - [Watchdog](#watchdog)
-  - [Local Clients Keepalive](#local-clients-keepalive)
   - [Selective Broadcasts Support](#selective-broadcasts-support)
   - [E2E](#e2e)
   - [Debounce](#debounce)
@@ -1351,12 +1350,6 @@ Debounce time for requests to the service on 192.168.1.9 should have a:
     - **enable** - Specifies whether the watchdog is enabled or disabled, valid values are `true`, `false`. The default value is `false`.
     - **timeout** - Specifies the timeout in ms the watchdog gets activated if a ping isn't answered with a pong by a local client within that time. (valid values: 2 - 2^32). The default value is `5000` ms.
     - **allowed_missing_pongs** - Specifies the amount of allowed missing pongs. (valid values: 1 - 2^32). The default value is `3`.
-
-## Local Clients Keepalive
-
-- **local-clients-keepalive** (optional) - The Local Clients Keepalive option activates the sending of periodic ping messages from the routing manager clients to the routing host. The routing manager host shall reply to the ping with a pong. The idea is to have a simpler alternetive to the TCP_KEEPALIVE, particularly for systems where this option can not be configured.
-    - **enable** - Specifies whether the Local Clients Keepalive is enabled or disabled, valid values are `true`, `false`. The default value is `false`.
-    - **time** - Specifies the time in ms the Local Clients Keepalive messages are sent. The default value is `5000` ms.
 
 ## Selective Broadcasts Support
 

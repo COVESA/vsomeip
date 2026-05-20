@@ -54,12 +54,6 @@ public:
 
     std::shared_ptr<configuration> get_configuration() const;
 
-    void start_keepalive();
-    void check_keepalive();
-    void cancel_keepalive();
-    void ping_host();
-    void on_pong(client_t _client);
-
     bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -287,13 +281,9 @@ private:
                                                     eventgroup_t _eventgroup, std::scoped_lock<std::mutex> const&) const;
 
 private:
-    boost::asio::steady_timer keepalive_timer_;
     std::mutex log_timer_mutex_;
     boost::asio::steady_timer status_log_timer_;
     boost::asio::steady_timer version_log_timer_;
-    bool keepalive_active_;
-    bool keepalive_is_alive_;
-    std::mutex keepalive_mutex_;
 
     mutable std::recursive_mutex sender_mutex_;
     bool sender_debounce_active_{false};

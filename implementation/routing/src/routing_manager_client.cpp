@@ -85,9 +85,8 @@ namespace vsomeip_v3 {
 
 routing_manager_client::routing_manager_client(routing_manager_host* _host, bool _client_side_logging,
                                                const std::set<std::tuple<service_t, instance_t>>& _client_side_logging_filter) :
-    routing_manager_base(_host), keepalive_timer_(io_), status_log_timer_(io_), version_log_timer_(_host->get_io()),
-    keepalive_active_(false), keepalive_is_alive_(false), sender_(nullptr), tcp_receiver_(nullptr), uds_receiver_(nullptr),
-    client_side_logging_(_client_side_logging), client_side_logging_filter_(_client_side_logging_filter),
+    routing_manager_base(_host), status_log_timer_(io_), version_log_timer_(_host->get_io()), sender_(nullptr), tcp_receiver_(nullptr),
+    uds_receiver_(nullptr), client_side_logging_(_client_side_logging), client_side_logging_filter_(_client_side_logging_filter),
     routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
                           : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP
                                                                : routing_mode_e::TCP_ONLY),
@@ -177,7 +176,6 @@ void routing_manager_client::version_log_timer_cbk(boost::system::error_code con
 
 void routing_manager_client::stop() {
     state_machine_->target_shutdown();
-    cancel_keepalive();
     // Ensure pending messages are sent before shutdown
     try_to_send_before_stop();
     // Transition to ST_DEREGISTERED so that a subsequent start() finds a clean state.
@@ -223,72 +221,6 @@ void routing_manager_client::stop() {
 
 std::shared_ptr<configuration> routing_manager_client::get_configuration() const {
     return host_->get_configuration();
-}
-
-void routing_manager_client::start_keepalive() {
-    std::scoped_lock lk{keepalive_mutex_};
-    if (!keepalive_active_ && configuration_->is_local_clients_keepalive_enabled()) {
-        VSOMEIP_INFO_P << "Local Clients Keepalive is enabled. Value is " << configuration_->get_local_clients_keepalive_time().count()
-                       << " ms.";
-
-        keepalive_active_ = true;
-        keepalive_is_alive_ = true;
-        keepalive_timer_.expires_after(configuration_->get_local_clients_keepalive_time());
-        keepalive_timer_.async_wait([this](boost::system::error_code const&) { this->check_keepalive(); });
-    }
-}
-
-void routing_manager_client::check_keepalive() {
-    bool send_probe{false};
-    {
-        std::scoped_lock lk{keepalive_mutex_};
-        if (keepalive_active_) {
-            if (keepalive_is_alive_) {
-                keepalive_is_alive_ = false;
-                send_probe = true;
-                keepalive_timer_.expires_after(configuration_->get_local_clients_keepalive_time());
-                keepalive_timer_.async_wait([this](boost::system::error_code const&) { this->check_keepalive(); });
-            } else {
-                VSOMEIP_WARNING_P << "Client 0x" << hex4(get_client()) << " didn't receive keepalive confirmation from HOST.";
-                boost::asio::post(io_, [this] { this->cleanup_client(VSOMEIP_ROUTING_CLIENT); });
-            }
-        }
-    }
-    // Can't send with keepalive_mutex_ due to lock inversion
-    if (send_probe) {
-        ping_host();
-    }
-}
-
-void routing_manager_client::cancel_keepalive() {
-    std::scoped_lock lk{keepalive_mutex_};
-    if (keepalive_active_ && configuration_->is_local_clients_keepalive_enabled()) {
-        VSOMEIP_INFO_P << " ";
-        keepalive_active_ = false;
-        keepalive_timer_.cancel();
-    }
-}
-
-void routing_manager_client::ping_host() {
-    protocol::ping_command its_command;
-    its_command.set_client(get_client());
-
-    std::vector<byte_t> its_buffer;
-    its_command.serialize(its_buffer);
-
-    std::scoped_lock its_sender_lock{sender_mutex_};
-    if (sender_) {
-        sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
-    } else {
-        VSOMEIP_ERROR_P << "Failed due to a missing sender";
-    }
-}
-
-void routing_manager_client::on_pong(client_t _client) {
-    if (_client == VSOMEIP_ROUTING_CLIENT) {
-        std::scoped_lock lk{keepalive_mutex_};
-        keepalive_is_alive_ = true;
-    }
 }
 
 bool routing_manager_client::offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
@@ -1108,20 +1040,6 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             break;
         }
 
-        case protocol::id_e::PONG_ID: {
-            protocol::pong_command its_command;
-            its_command.deserialize(its_buffer, its_error);
-
-            if (its_error == protocol::error_e::ERROR_OK) {
-                on_pong(its_client);
-                VSOMEIP_INFO << "PONG(" << hex4(get_client()) << ")";
-            } else {
-                VSOMEIP_ERROR_P << "Pong command deserialization failed (" << static_cast<int>(its_error) << ")";
-            }
-
-            break;
-        }
-
         case protocol::id_e::SUBSCRIBE_ID: {
             protocol::subscribe_command its_subscribe_command;
             its_subscribe_command.deserialize(its_buffer, its_error);
@@ -1669,7 +1587,6 @@ void routing_manager_client::register_application(client_t _client) {
     if (std::scoped_lock its_lock{consumer_mutex_}; state_machine_->registered(_client)) {
         VSOMEIP_INFO << "Application/Client " << hex4(get_client()) << " (" << host_->get_name() << ") is registered.";
 
-        start_keepalive();
         if (!send_pending_commands(its_lock)) {
             VSOMEIP_WARNING_P << ": Application/Client 0x" << hex4(get_client()) << " (" << host_->get_name()
                               << ") could not send pending offers";
@@ -2080,7 +1997,6 @@ void routing_manager_client::cleanup_client(client_t _client) {
 
     } else {
         VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of host 0x" << hex4(_client) << ", will reconnect";
-        cancel_keepalive();
         reconnect();
     }
 }
@@ -2287,7 +2203,6 @@ void routing_manager_client::clear_remote_subscriptions() {
 }
 
 void routing_manager_client::restart_sender([[maybe_unused]] std::unique_lock<std::recursive_mutex> const& _sender_mutex) {
-    cancel_keepalive();
     if (sender_) {
         sender_->stop(true);
         sender_ = nullptr;
