@@ -90,5 +90,16 @@ inline const ecu_config ecu_two_config = []() {
     cfg.network_ = "vsomeip-two";
     return cfg;
 }();
+
+inline const ecu_config ecu_three_config = []() {
+    ecu_config cfg;
+    cfg.apps_ = {application_config{"router_three", 0x6312}};
+    cfg.network_ = "vsomeip-three";
+    cfg.unicast_ip_ = boost::asio::ip::make_address("160.48.199.119");
+    cfg.routing_config_ = local_tcp_config{.router_name_ = "router_three",
+                                           .host_ = boost::asio::ip::make_address("160.48.199.153"),
+                                           .guest_ = boost::asio::ip::make_address("160.48.199.153")};
+    return cfg;
+}();
 }
 }

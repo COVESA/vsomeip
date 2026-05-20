@@ -40,7 +40,7 @@ std::string derive_router_name(ecu_config const& cfg) {
 } // namespace
 
 ecu_setup::ecu_setup(std::string name, ecu_config cfg, socket_manager& sm) :
-    config_{std::move(cfg)}, name_{std::move(name)}, router_name_{derive_router_name(config_)}, sm_{sm} { }
+    router_name_{derive_router_name(cfg)}, config_{std::move(cfg)}, name_{std::move(name)}, sm_{sm}, offered_tcp_(false) { }
 
 ecu_setup::~ecu_setup() {
     for (auto const& var : set_env_vars_) {

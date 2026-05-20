@@ -208,12 +208,12 @@ private:
 
         sync_handler(const std::function<void()>& _handler) :
             handler_(_handler), service_id_(ANY_SERVICE), instance_id_(ANY_INSTANCE), method_id_(ANY_METHOD), session_id_(0),
-            eventgroup_id_(0), handler_type_(handler_type_e::UNKNOWN) { }
+            eventgroup_id_(0), client_id_(ANY_CLIENT), handler_type_(handler_type_e::UNKNOWN) { }
 
         sync_handler(service_t _service_id, instance_t _instance_id, method_t _method_id, session_t _session_id,
-                     eventgroup_t _eventgroup_id, handler_type_e _handler_type) :
+                     eventgroup_t _eventgroup_id, client_t _client_id, handler_type_e _handler_type) :
             handler_(nullptr), service_id_(_service_id), instance_id_(_instance_id), method_id_(_method_id), session_id_(_session_id),
-            eventgroup_id_(_eventgroup_id), handler_type_(_handler_type) { }
+            eventgroup_id_(_eventgroup_id), client_id_(_client_id), handler_type_(_handler_type) { }
 
         std::function<void()> handler_;
         service_t service_id_;
@@ -221,6 +221,7 @@ private:
         method_t method_id_;
         session_t session_id_;
         eventgroup_t eventgroup_id_;
+        client_t client_id_;
         handler_type_e handler_type_;
     };
 
@@ -241,6 +242,7 @@ private:
     void invoke_handler(std::shared_ptr<sync_handler>& _handler);
     std::shared_ptr<sync_handler> get_next_handler();
     void reschedule_availability_handler(const std::shared_ptr<sync_handler>& _handler);
+    void reschedule_subscription_handler(const std::shared_ptr<sync_handler>& _handler);
     bool has_active_dispatcher();
     bool is_active_dispatcher(const std::thread::id& _id) const;
     void remove_elapsed_dispatchers();
@@ -346,6 +348,7 @@ private:
     // Handlers
     mutable std::deque<std::shared_ptr<sync_handler>> handlers_;
     service_instance_map<std::deque<std::shared_ptr<sync_handler>>> availability_handlers_;
+    std::map<client_t, std::deque<std::shared_ptr<sync_handler>>> subscription_handlers_;
     mutable std::mutex handlers_mutex_;
 
     // Dispatching

@@ -46,8 +46,10 @@ public:
     // server endpoint API (endpoints towards clients of this application)
     std::shared_ptr<local_endpoint> find_local_server_endpoint(client_t _client) const;
 
-    void remove_local(client_t _client, bool _remove_due_to_error);
-    void clear_local_endpoints(bool _remove_due_to_error = false);
+    void remove_provider_endpoint(client_t _client, bool _remove_due_to_error);
+    void remove_consumer_endpoint(client_t _client, bool _remove_due_to_error);
+    void clear_provider_endpoints(bool _remove_due_to_error);
+    void clear_consumer_endpoints(bool _remove_due_to_error);
     void stop_all_endpoints();
 
     void flush_local_endpoint_queues() const;
@@ -55,6 +57,8 @@ public:
     // Statistics
     void log_client_states() const;
     void print_status() const;
+
+    uint32_t provider_connection_token(client_t _client) const;
 
 private:
     client_t get_client_id() const;
@@ -78,7 +82,9 @@ private:
     std::shared_ptr<local_acceptor> create_uds_local_acceptor(const std::string& _path, client_t _client);
     std::shared_ptr<local_acceptor> create_tcp_local_acceptor(client_t _client);
 
-protected:
+    uint32_t bump_provider_token(client_t _client);
+
+private:
     local_endpoint_manager_host& host_;
     boost::asio::io_context& io_;
     std::shared_ptr<configuration> configuration_;
@@ -88,11 +94,11 @@ protected:
     port_t local_port_; // local (client) port when connecting to other
                         // vsomeip application via TCP
 
-private:
     mutable std::mutex mtx_;
     std::weak_ptr<routing_host> local_message_handler_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_client_endpoints_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_server_endpoints_;
+    std::map<client_t, uint32_t> provider_tokens_;
 
     const std::string name_;
     const std::string client_host_;

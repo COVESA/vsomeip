@@ -65,8 +65,12 @@ std::shared_ptr<local_endpoint> local_endpoint::create_client_ep(local_endpoint_
 
 local_endpoint::local_endpoint([[maybe_unused]] hidden, local_endpoint_context const& _context, local_endpoint_params _params,
                                std::shared_ptr<local_receive_buffer> _receive_buffer, state_e _initial_state) :
-    state_(_initial_state), own_(_params.own_),
-    peer_data_({_params.peer_, std::move(_params.env_), {}, std::move(_params.routing_address_), _params.routing_port_}),
+    state_(_initial_state), own_(_params.own_), peer_data_({.id_ = _params.peer_,
+                                                            .lc_token_ = 0,
+                                                            .env_ = std::move(_params.env_),
+                                                            .sec_client_ = {},
+                                                            .routing_address_ = std::move(_params.routing_address_),
+                                                            .routing_port_ = _params.routing_port_}),
     max_connection_attempts_(MAX_RECONNECTS_LOCAL), max_message_size_(_context.configuration_->get_max_message_size_local()),
     queue_limit_(_context.configuration_->get_endpoint_queue_limit_local()), receive_buffer_(std::move(_receive_buffer)), io_(_context.io_),
     socket_(std::move(_params.socket_)), configuration_(_context.configuration_), routing_host_(_context.routing_host_) { }
@@ -80,8 +84,9 @@ local_endpoint::~local_endpoint() {
     }
 }
 
-void local_endpoint::start() {
+void local_endpoint::start(uint32_t _lc_token) {
     std::unique_lock lock{mutex_};
+    peer_data_.lc_token_ = _lc_token;
     is_started_ = true;
     if (state_ == state_e::INIT) {
         connect_unlock();
@@ -357,8 +362,9 @@ std::string local_endpoint::status() const {
 }
 std::string local_endpoint::status_unlock() const {
     std::stringstream s;
-    s << "Client: " << hex4(peer_data_.id_) << ", connection : " << socket_->to_string() << ", send_queue: " << send_queue_.size()
-      << ", receive_buffer: " << *receive_buffer_ << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
+    s << "Client: " << hex4(peer_data_.id_) << " (" << peer_data_.lc_token_ << "), connection : " << socket_->to_string()
+      << ", send_queue: " << send_queue_.size() << ", receive_buffer: " << *receive_buffer_
+      << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
     return s.str();
 }
 

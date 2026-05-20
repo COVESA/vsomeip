@@ -16,9 +16,11 @@ app::~app() {
         return true;
     }
     is_running_ = true;
-    bool const result = app_->init();
-    if (!result) {
-        return false;
+    if (!is_initialized_) {
+        is_initialized_ = app_->init();
+        if (!is_initialized_) {
+            return false;
+        }
     }
     app_->register_state_handler(std::bind(&app::on_state, this, std::placeholders::_1));
     app_->register_message_handler(vsomeip::ANY_SERVICE, vsomeip::ANY_INSTANCE, vsomeip::ANY_METHOD,
@@ -41,7 +43,6 @@ void app::stop() {
     if (runner_.joinable()) {
         runner_.join();
     }
-    app_ = nullptr;
 }
 
 vsomeip::client_t app::get_client() {
@@ -132,6 +133,21 @@ void app::subscribe_field_debounce(event_ids const& _ei, debounce_filter_t const
     subscribe_with_debounce(_ei, vsomeip::event_type_e::ET_FIELD, _filter);
 }
 
+void app::unsubscribe_from_group(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is unsubscribing from: " << _ei;
+    app_->unsubscribe(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_);
+}
+
+void app::register_group_subscription_handler(event_ids const& _ei, subscription_handler_ext_t const& _handler) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is installing a custom handler for: " << _ei;
+    app_->register_subscription_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_, _handler);
+}
+
+void app::unregister_group_subscription_handler(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is uninstalling a custom handler for: " << _ei;
+    app_->unregister_subscription_handler(_ei.si_.service_, _ei.si_.instance_, _ei.eventgroup_id_);
+}
+
 void app::answer_request(request const& _r, std::function<std::vector<unsigned char>()> _payload_creator) {
     app_->register_message_handler(_r.service_instance_.service_, _r.service_instance_.instance_, _r.method_,
                                    [this, _payload_creator](auto const& message) {
@@ -185,7 +201,7 @@ void app::update_security_policy_configuration(uid_t _uid, gid_t _gid) {
     auto policy_ = std::make_shared<vsomeip::policy>();
     auto its_payload = vsomeip::runtime::get()->create_payload();
     app_->update_security_policy_configuration(_uid, _gid, policy_, its_payload,
-                                               [this](vsomeip_v3::security_update_state_e /*_status*/) {});
+                                               [this](vsomeip_v3::security_update_state_e /*_status*/) { /* no reaction required*/ });
 }
 
 void app::on_state(vsomeip::state_type_e _state) {
