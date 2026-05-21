@@ -76,6 +76,11 @@ struct base_fake_socket_fixture : ::testing::Test {
     app* start_client(std::string const& _name);
 
     /**
+     * Returns a pointer to a testing app.
+     */
+    app* get_client(std::string const& _name);
+
+    /**
      * Stops the client.
      * Note: the actual memory acquired before will be cleaned-up.
      **/

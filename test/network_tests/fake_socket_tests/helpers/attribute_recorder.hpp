@@ -89,6 +89,27 @@ public:
         return record_ == record;
     }
 
+    /**
+     * @brief Wait until all elements of the expected sequence appear in order within the record.
+     * The elements do not need to be contiguous — other entries may appear in between.
+     * Returns true if the ordered subsequence was found within the timeout.
+     */
+    [[nodiscard]] bool wait_for_sequence(std::vector<Value> const& _expected, std::chrono::milliseconds timeout = std::chrono::seconds(3)) {
+        return wait_for(
+                [&_expected](auto const& record) {
+                    auto it = record.begin();
+                    for (auto const& val : _expected) {
+                        it = std::find(it, record.end(), val);
+                        if (it == record.end()) {
+                            return false;
+                        }
+                        ++it;
+                    }
+                    return true;
+                },
+                timeout);
+    }
+
     std::string to_string() const {
         auto lock = std::scoped_lock(mtx_);
         std::stringstream s;

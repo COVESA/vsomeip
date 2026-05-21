@@ -1009,6 +1009,122 @@ TEST_F(test_connection_restoration, pinged_services_are_cleaned_up_on_deregistra
             client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_), std::chrono::seconds(5)));
 }
 
+TEST_F(test_connection_restoration, atomic_stop_offer_tests) {
+
+    // 1. Start router and server and a dummy client
+    // 2. Init and request the services on the client and dummy client
+    // 3. Offer the services on server and start the dummy client
+    // 4. Wait until all services are available on dummy client
+    // 5. Stop the service and start the client
+    // 6. We want the stop offers to be atomic, which means that either:
+    //    Either we receive AVAILABLE+UNAVAILABLE for all services
+    //    OR we receive UNAVAILABLE only for all services
+    //    What matters is that we receive the same availabilities for all services
+
+    int services_to_be_offered_num = 120;
+    std::vector<service_instance> services_to_be_offered;
+    std::shared_ptr<command_gate> dummy_client_to_router_gate = command_gate::create();
+
+    create_app("dummy_client");
+
+    ASSERT_TRUE(setup_data_pipe("dummy_client", routingmanager_name_, socket_role::client, dummy_client_to_router_gate->get_data_pipe()));
+
+    for (int i = 0; i < services_to_be_offered_num; ++i) {
+        services_to_be_offered.push_back({static_cast<vsomeip::service_t>(0x4000 + i), 0x1});
+    }
+
+    // 1.
+    start_router();
+    start_server();
+
+    // 2. Note: we request the services before starting the app
+    //    because we want all the requests to be sent together
+    client_ = get_client(client_name_);
+    client_->get_application()->init();
+    auto dummy_client_app_ = get_client("dummy_client");
+    dummy_client_app_->get_application()->init();
+
+    for (auto service : services_to_be_offered) {
+        client_->request_service(service);
+        dummy_client_app_->request_service(service);
+    }
+
+    // 3.
+    for (auto service : services_to_be_offered) {
+        server_->offer(service);
+    }
+
+    start_client("dummy_client");
+    ASSERT_NE(dummy_client_app_, nullptr);
+    ASSERT_TRUE(dummy_client_app_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // 4.
+    (void)dummy_client_app_->availability_record_.wait_for_any(service_availability::available(services_to_be_offered.front()));
+
+    for (const auto& si : services_to_be_offered) {
+        ASSERT_TRUE(dummy_client_app_->availability_record_.wait_for_any(service_availability::available(si)))
+                << "DEBUG:Dummy client did not receive availability for service:" << hex4(si.service_);
+    }
+
+    // 5.
+    // Stop the service first and then start the client
+    // To guarantee that client register is only done after
+    // deregister stop offers start being processed,
+    // use the dummy client gate to ensure that you have received
+    // at least the first stop offer
+    dummy_client_to_router_gate->block_at(vsomeip_v3::protocol::id_e::ROUTING_INFO_ID);
+
+    // Stop the service by breaking connection to the router
+    set_ignore_connections(server_name_, true);
+    ASSERT_TRUE(disconnect(server_name_, std::nullopt, routingmanager_name_, boost::asio::error::eof));
+
+    // When the dummy client receives the first stop offer the client is ready to start
+    ASSERT_TRUE(dummy_client_to_router_gate->wait_for_blocked());
+    dummy_client_to_router_gate->block(false);
+    start_client_app();
+
+    // 6.
+    // We want to EITHER receive AVAILABLE+UNAVAILABLE for all services
+    // OR receive UNAVAILABLE for all service
+    // So, set a bool indicating which was the case for the first service,
+    // and if the case is different for another service, fail the test
+    std::optional<bool> received_availability_for_any_service;
+
+    // Before we check availabilities for all services, make sure that the host has processed the requests.
+    // This allows a lower timeout when checking the availabilities, greatly reducing the time execution in case
+    // that we receive only UNAVAILABLEs.
+    // In the case the client gets the AVAILABLEs+UNAVAILABLEs, wait to receive both an availability and unavailability
+    // before checking. This reduces the risk of timeout when no error occurs
+    if (client_->availability_record_.wait_for_any(service_availability::available(services_to_be_offered.front()),
+                                                   std::chrono::milliseconds(services_to_be_offered_num * 10))) {
+        (void)client_->availability_record_.wait_for_any(service_availability::unavailable(services_to_be_offered.front()));
+    }
+
+    for (const auto& si : services_to_be_offered) {
+        if (client_->availability_record_.wait_for_sequence({service_availability::available(si), service_availability::unavailable(si)},
+                                                            std::chrono::milliseconds(5))) {
+            if (!received_availability_for_any_service.has_value()) {
+                received_availability_for_any_service = true;
+            }
+            ASSERT_TRUE(received_availability_for_any_service.value())
+                    << "Client received available->unavailable for service:" << hex4(si.service_)
+                    << " but previously only received unavailable for other services"
+                    << " record: " << client_->availability_record_;
+        } else {
+            ASSERT_FALSE(client_->availability_record_.wait_for_any(service_availability::available(si), std::chrono::milliseconds(1)))
+                    << "Client received availability without subsequent unavailability for service:" << hex4(si.service_)
+                    << " record: " << client_->availability_record_;
+            if (!received_availability_for_any_service.has_value()) {
+                received_availability_for_any_service = false;
+            }
+            ASSERT_FALSE(received_availability_for_any_service.value())
+                    << "Client did not receive available->unavailable for service:" << hex4(si.service_)
+                    << " but previously received available->unavailable for other services"
+                    << " record: " << client_->availability_record_;
+        }
+    }
+}
+
 TEST_F(test_connection_restoration, offer_and_stop_service_concurrency) {
 
     // 1. Setup applications (does not start second server just yet)
@@ -1157,7 +1273,8 @@ TEST_F(test_connection_restoration, process_offer_service_during_on_pong_process
     client_->availability_record_.clear();
 
     // Step 1: Start second server
-    // Required to increase the odds of coming into a potential lock inversion during offer processing+PONG processing from the first server
+    // Required to increase the odds of coming into a potential lock inversion during offer processing+PONG processing from the first
+    // server
     auto second_server = start_client(server_name_two_);
     ASSERT_NE(second_server, nullptr);
     ASSERT_TRUE(second_server->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));

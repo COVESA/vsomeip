@@ -64,6 +64,15 @@ app* base_fake_socket_fixture::start_client(std::string const& _name) {
     return it->second.get();
 }
 
+app* base_fake_socket_fixture::get_client(std::string const& _name) {
+    auto const it = name_to_client_.find(_name);
+    if (it == name_to_client_.end()) {
+        LOCAL_LOG << "no app created with this name";
+        return nullptr;
+    }
+    return it->second.get();
+}
+
 void base_fake_socket_fixture::stop_client(std::string const _name) {
     auto it = name_to_client_.find(_name);
     if (it == name_to_client_.end()) {

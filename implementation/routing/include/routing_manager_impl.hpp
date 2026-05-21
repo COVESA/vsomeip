@@ -110,8 +110,9 @@ public:
     std::shared_ptr<boardnet_endpoint> find_or_create_remote_client(service_t _service, instance_t _instance, bool _reliable);
 
     void remove_local(client_t _client);
+
     void on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
-                                        minor_version_t _minor);
+                                        minor_version_t _minor, bool _call_stub);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void on_pong(client_t _client);
