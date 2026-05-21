@@ -88,7 +88,7 @@
         "repetitions_base_delay" : "200",
         "repetitions_max" : "3",
         "ttl" : "3",
-        "cyclic_offer_delay" : "2000",
+        "cyclic_offer_delay" : "1000",
         "request_response_delay" : "1500"
     }
 }

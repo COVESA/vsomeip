@@ -543,36 +543,48 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
             // before calling insert_subscription and released after the call to
             // handle_subscription_state.
             const client_t its_local_client = find_local_client(_service, _instance);
-            bool inserted = false;
-            {
-                std::scoped_lock its_critical(event_registration_mutex_);
-                inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, its_critical);
-                if (inserted && VSOMEIP_ROUTING_CLIENT == its_local_client) {
-                    // must be done inside lock
-                    handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
+
+            if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
+                // Guard against stale ON_AVAILABLE and send StopSubscribe/Subscribe
+                // on SD once the first offer is received if the subscriber is the
+                // rm_host itself: hold event_registration_mutex_ across the check
+                // + insert so del_routing_info (which also takes this mutex) cannot
+                // race in between. If the service was already torn down, skip insertion;
+                // the subscription stays in pending_subscriptions_ and is re-sent
+                // on the next ADD_SERVICE.
+                std::shared_ptr<eventgroupinfo> its_info;
+                bool inserted = false;
+                {
+                    std::scoped_lock its_critical(event_registration_mutex_);
+
+                    its_info = find_eventgroup(_service, _instance, _eventgroup);
+                    if (!find_service(_service, _instance) || !its_info) {
+                        VSOMEIP_WARNING << "SUBSCRIBE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << "."
+                                        << hex4(_eventgroup) << "] ignored — service not available.";
+                        return;
+                    }
+
+                    inserted = insert_subscription(_service, _instance, _eventgroup, _event, _filter, _client, its_critical);
+                    if (inserted) {
+                        // must be done inside lock
+                        handle_subscription_state(_client, _service, _instance, _eventgroup, _event);
+                    }
                 }
-            }
-            if (inserted) {
-                if (VSOMEIP_ROUTING_CLIENT == its_local_client) {
-                    // TODO this should be an impossible branch by now, because this would need to be offered locally
-                    // by the router,
+                if (inserted) {
                     // lock can't be held here
                     notify_one_current_value(_client, _service, _instance, _eventgroup, _event);
 
-                    auto its_info = find_eventgroup(_service, _instance, _eventgroup);
-                    // if the subscriber is the rm_host itself: check if service
-                    // is available before subscribing via SD otherwise we sent
-                    // a StopSubscribe/Subscribe once the first offer is received
-                    if (its_info && find_service(_service, _instance)) {
-                        const ttl_t configured_ttl(configuration_->get_sd_ttl());
-                        discovery_->subscribe(_service, _instance, _eventgroup, _major, configured_ttl,
-                                              its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT, its_info);
-                    }
-                } else {
-                    VSOMEIP_ERROR_P << "Router received subscription for local service from client: 0x" << hex4(_client) << ": ["
-                                    << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(_event) << ":"
-                                    << static_cast<int>(_major) << "]";
+                    const ttl_t configured_ttl(configuration_->get_sd_ttl());
+                    discovery_->subscribe(_service, _instance, _eventgroup, _major, configured_ttl,
+                                          its_info->is_selective() ? _client : VSOMEIP_ROUTING_CLIENT, its_info);
                 }
+            } else {
+                // This branch should be unreachable: the routing manager only receives
+                // SUBSCRIBE for remote (boardnet) services, so its_local_client is
+                // always VSOMEIP_ROUTING_CLIENT.
+                VSOMEIP_ERROR_P << "Router received subscription for local service from client: 0x" << hex4(_client) << ": ["
+                                << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(_event) << ":"
+                                << static_cast<int>(_major) << "]";
             }
         } else {
             VSOMEIP_ERROR << "SOME/IP eventgroups require SD to be enabled!";
@@ -1764,6 +1776,9 @@ void routing_manager_impl::del_routing_info(service_t _service, instance_t _inst
 
     std::vector<std::shared_ptr<event>> its_events;
     {
+        // Acquire event_registration_mutex_ before eventgroups_mutex_ to serialize with
+        // subscribe()/on_subscribe_ack() and atomically clear subscribers with the service removal.
+        std::scoped_lock its_reg_lock{event_registration_mutex_};
         std::scoped_lock its_lock{eventgroups_mutex_};
         const auto search = eventgroups_.find(service_instance_t{_service, _instance});
 
