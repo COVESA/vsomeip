@@ -54,7 +54,7 @@ public:
                      << (_state == vsomeip::state_type_e::ST_REGISTERED ? "registered." : "deregistered.");
         {
             std::scoped_lock lock(mutex_);
-            registration_status_ = vsomeip::state_type_e::ST_REGISTERED;
+            registration_status_ = _state;
         }
         condition_.notify_all();
     }
