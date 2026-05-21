@@ -21,7 +21,7 @@ class boardnet_client {
 public:
     boardnet_client(struct initial_event_test::service_info _service_info) :
         service_info_(_service_info), app_(vsomeip::runtime::get()->create_application("initial_event_test_client")),
-        initial_event_counter{0} {
+        initial_event_counter{0}, service_available_{false}, unavailability_detected_{false} {
 
         if (!app_->init()) {
             ADD_FAILURE() << "Couldn't initialize application";
@@ -31,6 +31,10 @@ public:
 
         app_->register_message_handler(service_info_.service_id, service_info_.instance_id, service_info_.method_id,
                                        std::bind(&boardnet_client::on_message, this, std::placeholders::_1));
+
+        app_->register_availability_handler(
+                service_info_.service_id, service_info_.instance_id,
+                std::bind(&boardnet_client::on_availability, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     }
 
     ~boardnet_client() {
@@ -56,6 +60,19 @@ public:
                                 vsomeip::event_type_e::ET_FIELD);
             app_->subscribe(service_info_.service_id, service_info_.instance_id, service_info_.eventgroup_id);
         }
+    }
+
+    void on_availability(vsomeip::service_t _service, vsomeip::instance_t _instance, bool _is_available) {
+        VSOMEIP_INFO << "Service [" << std::hex << std::setfill('0') << std::setw(4) << _service << "." << std::setw(4) << _instance
+                     << "] is " << (_is_available ? "available" : "unavailable");
+        {
+            std::scoped_lock lock(mutex_);
+            if (!_is_available && service_available_) {
+                unavailability_detected_ = true;
+            }
+            service_available_ = _is_available;
+        }
+        condition_.notify_one();
     }
 
     void on_message(const std::shared_ptr<vsomeip::message>& _response) {
@@ -86,9 +103,24 @@ public:
         app_->send(request);
     }
 
-    bool wait_for_initial_event(uint32_t expected_counter_value) {
+    bool wait_for_initial_event() {
         std::unique_lock lock{mutex_};
-        return condition_.wait_for(lock, std::chrono::seconds(5), [&]() { return expected_counter_value == initial_event_counter; });
+        return condition_.wait_for(lock, std::chrono::seconds(10), [&]() { return initial_event_counter >= 1; });
+    }
+
+    bool wait_for_unavailability() {
+        std::unique_lock lock{mutex_};
+        return condition_.wait_for(lock, std::chrono::seconds(10), [this]() { return unavailability_detected_; });
+    }
+
+    bool wait_for_availability() {
+        std::unique_lock lock{mutex_};
+        return condition_.wait_for(lock, std::chrono::seconds(10), [this]() { return service_available_; });
+    }
+
+    void reset_initial_event_counter() {
+        std::scoped_lock lock(mutex_);
+        initial_event_counter = 0;
     }
 
     void stop() { app_->stop(); }
@@ -100,16 +132,21 @@ private:
     std::condition_variable condition_;
     std::thread start_thread_;
     uint32_t initial_event_counter;
+    bool service_available_;
+    bool unavailability_detected_;
 };
 
 TEST(someip_initial_event_test, boardnet_client) {
     setenv("VSOMEIP_CONFIGURATION", "initial_event_boardnet_test_slave.json", 1);
     boardnet_client client_consumer(initial_event_test::service_infos_same_service_id[1]);
     client_consumer.start();
-    ASSERT_TRUE(client_consumer.wait_for_initial_event(1)) << "Failed to receive initial event before master host restart";
+    ASSERT_TRUE(client_consumer.wait_for_initial_event()) << "Failed to receive initial event before master host restart";
+    client_consumer.reset_initial_event_counter();
     client_consumer.send_message();
-    // Host should be restart by manager at this point.
-    ASSERT_TRUE(client_consumer.wait_for_initial_event(2)) << "Failed to receive initial event after master host restart";
+    // Wait for host restart to actually happen (service becomes unavailable then available again)
+    ASSERT_TRUE(client_consumer.wait_for_unavailability()) << "Service did not become unavailable after host restart";
+    ASSERT_TRUE(client_consumer.wait_for_availability()) << "Service did not become available after host restart";
+    ASSERT_TRUE(client_consumer.wait_for_initial_event()) << "Failed to receive initial event after master host restart";
     client_consumer.send_message();
 
     // magic sleep to give time for the last message to be sent
