@@ -14,6 +14,7 @@
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/service_state.hpp"
 #include "helpers/someip_gate.hpp"
+#include "helpers/command_gate.hpp"
 
 #include <boost/asio/error.hpp>
 #include <vsomeip/enumeration_types.hpp>
@@ -409,6 +410,147 @@ TEST_F(test_boardnet_helper, offer_event_before_service) {
     field_checker_.payload_ = {0x5, 0x3};
     EXPECT_TRUE(ecu_one_client_->message_record_.wait_for_last(field_checker_)) << "Failed to receive field event."
                                                                                 << "\nRecord: " << ecu_one_client_->message_record_;
+}
+
+TEST_F(test_boardnet_helper, initial_event_received_after_availability_flap) {
+
+    /**
+     * Regression test for the race condition in routing_manager_impl::subscribe()
+     * where the `if (inserted)` guard around `discovery_->subscribe()` prevents
+     * the SD subscribe from being sent when the subscriber is already present in
+     * the eventgroups_ set (inserted=false).
+     *
+     * The subscriber ends up in the set WITHOUT a corresponding SD subscribe
+     * having been sent when subscribe() is called during a brief availability
+     * flap: add_routing_info adds the service → del_routing_info immediately
+     * removes it.  Between those two operations the ROUTING_INFO(ADD_SERVICE)
+     * is dispatched to the client.  When the client's pending subscription fires
+     * (on seeing ADD_SERVICE), the SUBSCRIBE command arrives at
+     * routing_manager_impl AFTER del_routing_info has already removed the
+     * service from services_.  So:
+     *   - add_subscriber()  → inserted=true  (set was cleared by del_routing_info)
+     *   - find_service()    → null            (service gone from services_)
+     *   - discovery_->subscribe() NOT called
+     *   - subscriber STUCK in eventgroups_ set
+     *
+     * When the service truly comes back and the client re-subscribes:
+     *   - add_subscriber()  → inserted=false  (already in set from the flap)
+     *   - if (inserted) block SKIPPED entirely
+     *   - discovery_->subscribe() NOT called  ← root cause
+     *   - server never delivers the initial event → timeout
+     *
+     * The gate defers ROUTING_INFO(ADD_SERVICE) delivery to the client until
+     * AFTER del_routing_info has removed the service from services_, making
+     * the race deterministic without valgrind.
+     */
+
+    // -------------------------------------------------------------------------
+    // Phase 1: establish baseline subscription and receive initial event
+    // -------------------------------------------------------------------------
+    router_two_ = start_application(router_two_name_, "ecu_two.json");
+    ecu_two_server_ = start_application(ecu_two_server_name_, "ecu_two.json");
+    router_one_ = start_application(router_one_name_, "ecu_one.json");
+
+    auto gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(ecu_one_client_name_, router_one_name_, socket_role::client, gate->get_data_pipe()));
+
+    ecu_one_client_ = start_application(ecu_one_client_name_, "ecu_one.json");
+
+    ASSERT_TRUE(successfully_registered(router_two_));
+    ASSERT_TRUE(successfully_registered(router_one_));
+    ASSERT_TRUE(successfully_registered(ecu_two_server_));
+    ASSERT_TRUE(successfully_registered(ecu_one_client_));
+
+    ecu_one_client_->request_service(service_instance_);
+    ecu_two_server_->offer(boardnet_interface_);
+    ecu_two_server_->send_event(offered_field_, {0x01});
+
+    ecu_one_client_->subscribe_field(offered_field_);
+    ASSERT_TRUE(ecu_one_client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(offered_field_)))
+            << "Initial subscription must be acknowledged";
+
+    message_checker const initial_checker{std::nullopt, service_instance_, offered_field_.event_id_,
+                                          vsomeip::message_type_e::MT_NOTIFICATION, std::vector<unsigned char>{0x01}};
+    ASSERT_TRUE(ecu_one_client_->message_record_.wait_for(initial_checker)) << "Client must receive initial event with value {0x01}";
+
+    // -------------------------------------------------------------------------
+    // Phase 2: trigger the availability flap
+    //
+    // Sequence at routing_manager_impl (router_one) side:
+    //   (a) stop_offer (first)  → del_routing_info: subscriber cleared, service gone
+    //       ROUTING_INFO(DEL_SERVICE) → client sees UNAVAILABLE  [delivered normally]
+    //       NOTE: we then wait > cyclic_offer_delay before (c). Otherwise the
+    //       SD STOP_OFFER graceful window would suppress the
+    //       second OFFER and router_one would never emit ADD_SERVICE.
+    //   (b) Arm gate to block on first ROUTING_INFO from router_one
+    //   (c) re-offer            → router_one calls add_routing_info:
+    //       service in services_; ROUTING_INFO(ADD_SERVICE) → blocked by gate
+    //   (d) wait_for_blocked()  → ADD_SERVICE held in gate; service IS in services_
+    //   (e) stop_offer (second) → del_routing_info: service GONE from services_;
+    //       ROUTING_INFO(DEL_SERVICE) also buffered in gate
+    //   (f) sleep(200ms)        → del_routing_info guaranteed to have completed
+    //   (g) gate releases → client processes ADD_SERVICE + DEL_SERVICE:
+    //       ADD_SERVICE → on_availability(true) → SUBSCRIBE sent
+    //         ↳ routing_manager_impl::subscribe():
+    //             inserted = add_subscriber()  → TRUE  (set cleared by del_routing_info (e))
+    //             find_service()               → NULL  (service gone from (e))
+    //             discovery_->subscribe()  NOT called
+    //             subscriber STUCK in eventgroups_ set
+    //       DEL_SERVICE → on_availability(false)
+    // -------------------------------------------------------------------------
+
+    ecu_one_client_->availability_record_.clear();
+    ecu_one_client_->message_record_.clear();
+
+    // (a) First stop_offer: DEL_SERVICE delivered to client normally.
+    ecu_two_server_->stop_offer(service_instance_);
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)))
+            << "Client must see service as unavailable after stop_offer";
+
+    // Wait out the SD STOP_OFFER graceful window: an offer within cyclic_offer_delay
+    // would be suppressed and no ADD_SERVICE would reach router_one (gate would never trigger).
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+    // (b) Arm gate to block on the first ROUTING_INFO from router_one.
+    gate->block_at(protocol::id_e::ROUTING_INFO_ID);
+
+    // (c) Re-offer: router_one calls add_routing_info and sends ADD_SERVICE.
+    ecu_two_server_->offer(boardnet_interface_);
+
+    // (d) Wait until ADD_SERVICE is captured inside the gate.
+    ASSERT_TRUE(gate->wait_for_blocked()) << "Gate must have captured the ADD_SERVICE ROUTING_INFO";
+
+    // (e) Stop again: del_routing_info runs; service is now GONE from services_.
+    ecu_two_server_->stop_offer(service_instance_);
+
+    // (f) Give router_one's SD thread time to process the STOP_OFFER and complete
+    // del_routing_info so the service is definitely absent from services_.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // (g) Release gate: client receives ADD_SERVICE (stale) + DEL_SERVICE.
+    //     ADD_SERVICE → on_availability(true) → SUBSCRIBE → inserted=true, find_service=null
+    //                                         → subscriber stuck, no SD subscribe sent
+    //     DEL_SERVICE → on_availability(false)
+    ecu_one_client_->availability_record_.clear();
+    gate->block(false);
+
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_any(service_availability::available(service_instance_)))
+            << "Client must briefly see stale availability (ADD_SERVICE processed)";
+    ASSERT_TRUE(ecu_one_client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)))
+            << "Client must end up unavailable (DEL_SERVICE processed)";
+
+    // -------------------------------------------------------------------------
+    // Phase 3: real offer — verify the initial event IS delivered
+    // -------------------------------------------------------------------------
+    ecu_one_client_->message_record_.clear();
+
+    ecu_two_server_->offer(boardnet_interface_);
+    ecu_two_server_->send_event(offered_field_, {0x02});
+
+    message_checker const resubscribe_checker{std::nullopt, service_instance_, offered_field_.event_id_,
+                                              vsomeip::message_type_e::MT_NOTIFICATION, std::vector<unsigned char>{0x02}};
+    EXPECT_TRUE(ecu_one_client_->message_record_.wait_for(resubscribe_checker))
+            << "Client must receive initial event after availability flap.";
 }
 
 struct test_field_routing : test_boardnet_helper { };
