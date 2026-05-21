@@ -73,9 +73,9 @@ struct local_endpoint_params {
  * CONNECTING -> CONNECTED  (connection established)
  * CONNECTING -> INIT       (retry after timeout/failure)
  * CONNECTING -> FAILED     (max retries exhausted)
- * CONNECTED  -> FAILED     (I/O error)
- * FAILED     -> STOPPED    (cleanup via error handler)
- * *          -> STOPPED    (explicit stop)
+ * CONNECTED  -> FAILED     (I/O error or cleanup_handler triggered with an error)
+ * FAILED     -> STOPPED    (cleanup via cleanup_handler with an error)
+ * *          -> STOPPED    (explicit stop, potentially called via the cleanup_handler without an error)
  * @endcode
  *
  * Roles:
@@ -83,11 +83,11 @@ struct local_endpoint_params {
  * - Receiver endpoints: Created via create_server_ep() from accepted connections (CONNECTED state)
  *
  * Thread-safety: All public methods are thread-safe. Callbacks to external code
- * (routing_host, error_handler) are invoked without holding internal locks
+ * (routing_host, cleanup_handler) are invoked without holding internal locks
  * to prevent deadlocks.
  *
  * Callback Guarantee: All public member functions guarantee that they will not
- * synchronously invoke any callbacks (error handlers, message handlers, etc.) except
+ * synchronously invoke any callbacks (cleanup_handler, message handlers, etc.) except
  * for destructors of promoted weak_ptr references that expire during the function call,
  * or the injected local_socket.
  * This ensures that:
@@ -118,7 +118,7 @@ class local_endpoint : public std::enable_shared_from_this<local_endpoint> {
     friend std::ostream& operator<<(std::ostream& _out, state_e _state);
 
 public:
-    using error_handler_t = std::function<void()>;
+    using cleanup_handler_t = std::function<void(bool)>;
     /**
      * @brief Creates a receiver endpoint from an accepted connection.
      * @param _context Shared infrastructure context.
@@ -184,10 +184,14 @@ public:
      */
     std::string const& name() const;
 
-    void flush_queue();
+    /**
+     * Sets an internal flag to reject any new send and trigger the
+     * cleanup_handler_ as soon as all data has been flushed.
+     **/
+    void start_flushing();
 
     /**
-     * @brief Triggers the error_handler of the endpoint.
+     * @brief Triggers the cleanup_handler of the endpoint with an error.
      */
     void trigger_error();
 
@@ -195,7 +199,7 @@ public:
     std::uint16_t get_local_port() const;
     boost::asio::ip::tcp::endpoint peer_endpoint() const;
 
-    void register_error_handler(const error_handler_t& _error);
+    void register_cleanup_handler(const cleanup_handler_t& _handler);
 
     void print_status();
     size_t get_queue_size() const;
@@ -205,14 +209,14 @@ public:
 
 private:
     /**
-     * @brief Transitions to FAILED state and invokes error handler.
+     * @brief Transitions to FAILED state and invokes cleanup_handler_ with an error.
      * @note Called internally when unrecoverable errors occur. Must not lock the mutex when invoking
      */
     void escalate();
 
     /**
      * @brief Internal part of escalate() with lock held
-     * @note `_lock` must be held, will be unlocked to invoke error handler, then locked again
+     * @note `_lock` must be held, will be unlocked to invoke cleanup_handler with an error, then locked again
      */
     void escalate_internal(std::unique_lock<std::mutex>& _lock);
 
@@ -247,6 +251,9 @@ private:
     // nothing should have been send.
     bool is_started_{false};
     bool is_sending_{false};
+    // this flag is stating whether a graceful shutdown is targeted (note that this flag can be set for an endpoint in any of the states
+    // INIT, CONNECTING, CONNECTED and can therefore not be easily represented as a state itself)
+    bool is_flushing_{false};
     state_e state_{state_e::STOPPED};
     client_t own_{VSOMEIP_CLIENT_UNSET};
     // holds the peer id, the peer env and the sec_client.
@@ -262,7 +269,7 @@ private:
 
     std::shared_ptr<local_receive_buffer> const receive_buffer_;
     std::vector<uint8_t> send_queue_;
-    error_handler_t error_handler_;
+    cleanup_handler_t cleanup_handler_;
 
     boost::asio::io_context& io_;
     // shared_ptr because the tcp local_socket needs to be aware of the life time of this socket

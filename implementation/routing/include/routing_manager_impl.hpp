@@ -345,8 +345,6 @@ private:
     void remove_pending_requests_unlocked(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,
                                           instance_t _instance = ANY_INSTANCE);
 
-    void try_to_send_before_stop();
-
     /// Whether the `_client` is valid for the given message `_type`.
     ///
     /// Returns `true` if:
