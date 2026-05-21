@@ -81,9 +81,6 @@ namespace vsomeip_v3::testing {
             TEST_LOG << "ERROR message could not be parsed";
             return 0;
         }
-    } else {
-        TEST_LOG << "ERROR message length surpasses 4B unsigned integer limit";
-        return 0;
     }
 
     return size;

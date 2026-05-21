@@ -43,6 +43,11 @@ public:
     [[nodiscard]] bool inject_command(std::vector<unsigned char> _payload) const;
 
     /**
+     * Injects a payload into the receiving socket (no parsing)
+     **/
+    [[nodiscard]] bool inject_message(std::vector<unsigned char> _payload) const;
+
+    /**
      * Clears the command record for both sockets
      **/
     void clear_command_record() const;

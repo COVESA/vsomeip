@@ -526,6 +526,8 @@ void tcp_server_endpoint_impl::connection::receive() {
                 if (missing_capacity_ > max_message_size_) {
                     VSOMEIP_ERROR_P << instance_name_ << "Missing receive buffer capacity exceeds allowed maximum: " << missing_capacity_
                                     << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
+                    its_lock.unlock();
+                    wait_until_sent(boost::asio::error::operation_aborted);
                     return;
                 }
                 const std::size_t its_required_capacity(recv_buffer_size_ + missing_capacity_);
@@ -549,9 +551,9 @@ void tcp_server_endpoint_impl::connection::receive() {
                 shrink_count_ = 0;
             }
         } catch (const std::exception& e) {
-            its_lock.unlock();
             handle_recv_buffer_exception(e);
-            // don't start receiving again
+            its_lock.unlock();
+            wait_until_sent(boost::asio::error::operation_aborted);
             return;
         }
 
@@ -657,6 +659,8 @@ void tcp_server_endpoint_impl::connection::receive_cbk(boost::system::error_code
                 if (read_message_size > max_message_size_) {
                     VSOMEIP_ERROR_P << instance_name_ << "Message size exceeds allowed maximum: " << read_message_size
                                     << " local: " << get_address_port_local() << " remote: " << get_address_port_remote();
+                    its_lock.unlock();
+                    wait_until_sent(boost::asio::error::operation_aborted);
                     return;
                 }
                 uint32_t current_message_size = static_cast<uint32_t>(read_message_size);
@@ -908,7 +912,7 @@ std::string tcp_server_endpoint_impl::connection::get_address_port_local() const
 
 void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const std::exception& _e) {
     std::stringstream its_message;
-    its_message << instance_name_ << "Catched exception" << _e.what() << " local: " << get_address_port_local()
+    its_message << instance_name_ << "Caught exception" << _e.what() << " local: " << get_address_port_local()
                 << " remote: " << get_address_port_remote() << " shutting down connection. Start of buffer: ";
 
     for (std::size_t i = 0; i < recv_buffer_size_ && i < 16; i++) {
@@ -921,14 +925,6 @@ void tcp_server_endpoint_impl::connection::handle_recv_buffer_exception(const st
     }
     VSOMEIP_ERROR_P << its_message.str();
     recv_buffer_.clear();
-    if (socket_->is_open()) {
-        boost::system::error_code its_error;
-        socket_->close(its_error);
-    }
-    std::shared_ptr<tcp_server_endpoint_impl> its_server = server_.lock();
-    if (its_server) {
-        its_server->remove_connection(remote_, this);
-    }
 }
 
 std::size_t tcp_server_endpoint_impl::connection::get_recv_buffer_capacity() const {

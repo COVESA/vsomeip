@@ -93,6 +93,12 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool await_connectable(std::string const& _name, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
+     * Waits until @param _multicast group has at least one socket joined, or @param _timeout elapses.
+     */
+    [[nodiscard]] bool await_multicast_join(boost::asio::ip::address const& _multicast,
+                                            std::chrono::milliseconds _timeout = std::chrono::seconds(3));
+
+    /**
      * Waits until _timeout expires or the application identified by _client and _server established a
      * connection. The direction matters. It is awaited that _client connects on an accepting _server.
      *
@@ -221,9 +227,25 @@ struct base_fake_socket_fixture : ::testing::Test {
     std::future<protocol::id_e> drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id);
 
     /**
-     * @see socket_manager::inject_command
+     * @see socket_manager::inject_command_tcp
      */
-    void inject_command(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
+    bool inject_command_tcp(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
+
+    /**
+     * @see socket_manager::inject_message_tcp
+     */
+    bool inject_message_tcp(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
+
+    /**
+     * @see socket_manager::inject_message_udp
+     */
+    bool inject_message_udp(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst, std::vector<unsigned char>& _payload);
+
+    /**
+     * @see socket_manager::inject_message_udp_multicast
+     */
+    bool inject_message_udp_multicast(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst,
+                                      std::vector<unsigned char>& _payload);
 
     /**
      * @see socket_manager::set_custom_command_handler

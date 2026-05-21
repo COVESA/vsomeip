@@ -1709,4 +1709,152 @@ TEST_F(sd_header_validation, prs_someipsd_00154_sd_offer_with_nonzero_client_id_
     EXPECT_TRUE(client->availability_record_.wait_for_last(service_availability::available(interfaces::boardnet::service_3344.instance_)))
             << "SD OFFER with Client-ID = 0x0000 was not accepted";
 }
+
+struct length_field_too_big : public base_fake_socket_fixture {
+    interface interface_tcp_{0x1234, {}, {{0x8002, 0x1, vsomeip::reliability_type_e::RT_RELIABLE}}};
+    interface interface_udp_{0x1235};
+
+    method_t method_ = 0x8001;
+    request request_tcp_{interface_tcp_.instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
+    message expected_reply_tcp_{
+            client_session{0x6310 /*client id*/, 1}, interface_tcp_.instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
+
+    request request_udp_{interface_udp_.instance_, method_, vsomeip::message_type_e::MT_REQUEST, {}};
+    message expected_reply_udp_{
+            client_session{0x6310 /*client id*/, 1}, interface_udp_.instance_, method_, vsomeip::message_type_e::MT_RESPONSE, {}};
+
+    ecu_config ecu_one_config_{boardnet::ecu_one_config};
+    ecu_config ecu_two_config_{boardnet::ecu_two_config};
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_config_, *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_two_config_.add_interface({interface_tcp_, interface_udp_}), *socket_manager_};
+
+    boost::asio::ip::udp::endpoint src_ep_ = boost::asio::ip::udp::endpoint(ecu_one_.config().unicast_ip_, 30491);
+    boost::asio::ip::udp::endpoint dst_ep_ = boost::asio::ip::udp::endpoint(ecu_two_.config().unicast_ip_, 30502);
+    boost::asio::ip::udp::endpoint multicast_ep_ =
+            boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string("224.244.224.245"), 30490);
+
+    [[nodiscard]] bool successfully_registered(app* _app) {
+        return _app && _app->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED);
+    }
+};
+
+TEST_F(length_field_too_big, length_field_too_big_tcp) {
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one_ = ecu_one_.router_;
+    auto* router_two_ = ecu_two_.router_;
+
+    router_two_->offer(interface_tcp_);
+    router_two_->answer_request(request_tcp_, [] { return std::vector<unsigned char>{}; });
+    router_one_->request_service(interface_tcp_.instance_);
+
+    auto bad_request_payload = construct_someip_raw_message(static_cast<uint16_t>(interface_tcp_.instance_.service_), // service id
+                                                            static_cast<uint16_t>(method_), // method id
+                                                            static_cast<uint32_t>(0x04000000), // spoofed length
+                                                            static_cast<uint16_t>(router_one_->get_client()), // client id
+                                                            static_cast<uint16_t>(0x0001), // session id
+                                                            static_cast<uint8_t>(0x01), // proto version
+                                                            static_cast<uint8_t>(0xff), // iface version
+                                                            static_cast<uint8_t>(0x00), // message type
+                                                            static_cast<uint8_t>(0x00) // return code
+    );
+
+    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_tcp_.instance_)));
+
+    inject_message_tcp("router_one", "router_two", bad_request_payload);
+
+    // will go AVAILABLE -> UNAVAILABLE -> AVAILABLE due to connection restart
+    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::unavailable(interface_tcp_.instance_)));
+    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_tcp_.instance_)));
+    ASSERT_FALSE(router_one_->message_record_.wait_for_last(expected_reply_tcp_, std::chrono::milliseconds(500)))
+            << router_one_->message_record_.to_string();
+
+    auto good_request_payload = construct_someip_raw_message(static_cast<uint16_t>(interface_tcp_.instance_.service_), // service id
+                                                             static_cast<uint16_t>(method_), // method id
+                                                             static_cast<uint32_t>(0x00000008), // correct length
+                                                             static_cast<uint16_t>(router_one_->get_client()), // client id
+                                                             static_cast<uint16_t>(0x0001), // session id
+                                                             static_cast<uint8_t>(0x01), // proto version
+                                                             static_cast<uint8_t>(0xff), // iface version
+                                                             static_cast<uint8_t>(0x00), // message type
+                                                             static_cast<uint8_t>(0x00) // return code
+    );
+    inject_message_tcp("router_one", "router_two", good_request_payload);
+    ASSERT_TRUE(router_one_->message_record_.wait_for_last(expected_reply_tcp_)) << router_one_->message_record_.to_string();
+}
+
+TEST_F(length_field_too_big, length_field_too_big_udp) {
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one_ = ecu_one_.router_;
+    auto* router_two_ = ecu_two_.router_;
+
+    router_two_->offer(interface_udp_);
+    router_two_->answer_request(request_udp_, [] { return std::vector<unsigned char>{}; });
+    router_one_->request_service(interface_udp_.instance_);
+
+    auto bad_request_payload = construct_someip_raw_message(static_cast<uint16_t>(interface_udp_.instance_.service_), // service id
+                                                            static_cast<uint16_t>(method_), // method id
+                                                            static_cast<uint32_t>(0x04000000), // spoofed length
+                                                            static_cast<uint16_t>(router_one_->get_client()), // client id
+                                                            static_cast<uint16_t>(0x0001), // session id
+                                                            static_cast<uint8_t>(0x01), // proto version
+                                                            static_cast<uint8_t>(0xff), // iface version
+                                                            static_cast<uint8_t>(0x00), // message type
+                                                            static_cast<uint8_t>(0x00) // return code
+    );
+
+    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_udp_.instance_)));
+
+    inject_message_udp(src_ep_, dst_ep_, bad_request_payload);
+
+    // no availability should be reported on UDP connections
+    ASSERT_FALSE(router_one_->availability_record_.wait_for_last(service_availability::unavailable(interface_udp_.instance_),
+                                                                 std::chrono::milliseconds(100)));
+    ASSERT_FALSE(router_one_->message_record_.wait_for_last(expected_reply_udp_, std::chrono::milliseconds(500)))
+            << router_one_->message_record_.to_string();
+
+    auto good_request_payload = construct_someip_raw_message(static_cast<uint16_t>(interface_udp_.instance_.service_), // service id
+                                                             static_cast<uint16_t>(method_), // method id
+                                                             static_cast<uint32_t>(0x00000008), // correct length
+                                                             static_cast<uint16_t>(router_one_->get_client()), // client id
+                                                             static_cast<uint16_t>(0x0001), // session id
+                                                             static_cast<uint8_t>(0x01), // proto version
+                                                             static_cast<uint8_t>(0xff), // iface version
+                                                             static_cast<uint8_t>(0x00), // message type
+                                                             static_cast<uint8_t>(0x00) // return code
+    );
+    inject_message_udp(src_ep_, dst_ep_, good_request_payload);
+    ASSERT_TRUE(router_one_->message_record_.wait_for_last(expected_reply_udp_)) << router_one_->message_record_.to_string();
+}
+
+TEST_F(length_field_too_big, direct_consume_multicast) {
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_apps();
+    ecu_two_.start_apps();
+
+    auto* router_one_ = ecu_one_.router_;
+    auto* router_two_ = ecu_two_.router_;
+
+    ASSERT_TRUE(successfully_registered(router_one_));
+    ASSERT_TRUE(successfully_registered(router_two_));
+
+    router_one_->request_service(interface_udp_.instance_);
+
+    ASSERT_TRUE(await_multicast_join(multicast_ep_.address()));
+    auto valid_offer = construct_offer(interface_udp_.events_[0], ecu_two_.config().unicast_ip_, 30501);
+    inject_message_udp_multicast(ecu_two_.sd_endpoint(), multicast_ep_, valid_offer);
+    ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_udp_.instance_)));
+}
 }

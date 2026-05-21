@@ -627,7 +627,7 @@ TEST_F(test_client_lifecycle, test_subscription_for_ghost_service) {
                                                             static_cast<event_t>(0x00), // event
                                                             static_cast<uint16_t>(0) // pending id
     );
-    inject_command(client_name_, server_name_, subscription_payload);
+    inject_command_tcp(client_name_, server_name_, subscription_payload);
     ASSERT_TRUE(wait_for_command(client_name_, server_name_, protocol::id_e::SUBSCRIBE_NACK_ID, socket_role::client));
 }
 

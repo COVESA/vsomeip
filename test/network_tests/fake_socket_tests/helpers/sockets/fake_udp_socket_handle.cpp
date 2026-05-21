@@ -279,6 +279,7 @@ void fake_udp_socket_handle::async_send_to(boost::asio::const_buffer const& _buf
 void fake_udp_socket_handle::consume(std::vector<unsigned char> _buffer, boost::asio::ip::udp::endpoint _src,
                                      boost::asio::ip::udp::endpoint _dst) {
     auto const lock = std::scoped_lock(mtx_);
+
     if (someip_message message; parse(_buffer, message) > 0) {
         LOCAL_LOG << socket_id_ << " @ " << *local_ep_ << " received message from " << _src.address() << " data: " << message;
         if (message.sd_) {
@@ -287,12 +288,13 @@ void fake_udp_socket_handle::consume(std::vector<unsigned char> _buffer, boost::
                 received_sd_record_.record(received_entry);
             }
         }
-        control_data_t data = {.buffer_ = _buffer, .addresses_ = std::optional<addresses>{{_src, _dst}}};
-        receiver_pipe_->add_data(data);
-        update_reception_unlocked();
     } else {
-        LOCAL_LOG << "Failure parsing data";
+        LOCAL_LOG << "Failure parsing data, not recording received message";
     }
+
+    control_data_t data = {.buffer_ = _buffer, .addresses_ = std::optional<addresses>{{_src, _dst}}};
+    receiver_pipe_->add_data(data);
+    update_reception_unlocked();
 }
 
 void fake_udp_socket_handle::async_receive_from(boost::asio::mutable_buffer _buffer, boost::asio::ip::udp::endpoint& _from,
@@ -305,6 +307,7 @@ void fake_udp_socket_handle::async_receive_from(boost::asio::mutable_buffer _buf
     }
 
     receptor_.emplace(std::move(_handler), _buffer, _from);
+
     update_reception_unlocked();
 }
 

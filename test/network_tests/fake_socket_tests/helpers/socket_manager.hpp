@@ -292,9 +292,25 @@ public:
     std::future<protocol::id_e> drop_command_once(std::string const& _from, std::string const& _to, protocol::id_e _id);
 
     /**
-     * Forces the delivery of a vsomeip message @param _payload from @param _client to @param _server.
+     * Forces the delivery of payload @param _payload from @param _client to @param _server with vsomeip message parsing
      */
-    bool inject_command(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
+    bool inject_command_tcp(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
+
+    /**
+     * Forces the delivery of payload @param _payload from @param _client to @param _server with no parsing
+     */
+    bool inject_message_tcp(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload);
+
+    /**
+     * Forces the delivery of a payload @param _payload from @param _src to @param _dst via udp.
+     */
+    bool inject_message_udp(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst, std::vector<unsigned char>& _payload);
+
+    /**
+     * Forces the delivery of a payload @param _payload from @param _src to @param _dst via udp multicast.
+     */
+    bool inject_message_udp_multicast(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst,
+                                      std::vector<unsigned char>& _payload);
 
     /**
      * Allows setting a custom vsomeip command controller @param _handler to be invoked every time a message
@@ -312,6 +328,12 @@ public:
      * does no longer contain connected sockets connection drop will be notified
      **/
     void check_connection(std::string const& _one, std::string const& _two, socket_role _closing);
+
+    /**
+     * @brief Waits until @param _multicast group has at least one socket joined, or @param _timeout elapses.
+     */
+    [[nodiscard]] bool await_multicast_join(boost::asio::ip::address const& _multicast,
+                                            std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
      * @brief Adds member @param _fd to virtual multicast group @param _multicast.
@@ -375,6 +397,7 @@ private:
     std::mutex mtx_;
     std::condition_variable assignment_cv_;
     std::condition_variable connectable_cv_;
+    std::condition_variable multicast_join_cv_;
     std::atomic<fd_t> next_fd_{1};
     std::map<fd_t, std::weak_ptr<fake_socket_handle>> fd_to_handle_;
     std::map<fd_t, std::weak_ptr<fake_tcp_acceptor_handle>> fd_to_acceptor_states_;

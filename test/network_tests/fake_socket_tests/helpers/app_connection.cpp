@@ -50,6 +50,18 @@ bool app_connection::inject_command(std::vector<unsigned char> _payload) const {
     }
 }
 
+bool app_connection::inject_message(std::vector<unsigned char> _payload) const {
+    auto [from, to] = promoted();
+    if (to) {
+        boost::asio::const_buffer buffer(_payload.data(), _payload.size());
+        to->consume_boardnet(buffer);
+        return true;
+    } else {
+        LOCAL_LOG << "[Error] command injection failed for " << name_;
+        return false;
+    }
+}
+
 void app_connection::clear_command_record() const {
     auto [from, to] = promoted();
     if (from) {

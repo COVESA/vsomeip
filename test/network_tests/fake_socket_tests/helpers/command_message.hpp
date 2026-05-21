@@ -8,6 +8,7 @@
 #include <vsomeip/vsomeip.hpp>
 #include "../../../../implementation/protocol/include/protocol.hpp"
 #include "to_string.hpp"
+#include "message_common.hpp"
 
 namespace vsomeip_v3::testing {
 
@@ -59,14 +60,6 @@ struct command_message {
 [[nodiscard]] size_t parse(unsigned char const* _data, size_t _size, command_message& _out_message);
 
 std::ostream& operator<<(std::ostream& _out, command_message const& _m);
-
-/** Default type, not a vector. */
-template<typename Type>
-struct is_std_vector : std::false_type { };
-
-/** vector type.*/
-template<typename Type, typename Alloc>
-struct is_std_vector<std::vector<Type, Alloc>> : std::true_type { };
 
 /**
  * @brief Constructs basic vsomeip commands, example:

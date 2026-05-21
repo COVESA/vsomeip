@@ -352,7 +352,7 @@ void fake_tcp_socket_handle::async_receive(boost::asio::mutable_buffer _buffer, 
     update_reception();
 }
 
-size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception) {
+size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> const& _buffer, bool _force_reception) {
     size_t const incoming_size =
             std::accumulate(_buffer.begin(), _buffer.end(), size_t{0}, [](size_t last, auto const& bf) { return last + bf.size(); });
     std::unique_lock lock(mtx_);
@@ -368,12 +368,13 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
 
     size_t current_size{0};
     std::vector<unsigned char> raw_message;
+
     while (input.size() > 0) {
         command_message message;
         if (auto parsed_bytes = parse(input, message)) {
             TEST_LOG << "[fake-socket] " << socket_id_ << " received command_message: " << message;
             bool block_message{false};
-            if (!force_reception && command_handler_) {
+            if (!_force_reception && command_handler_) {
                 auto copy_handler = command_handler_;
                 lock.unlock();
                 block_message = copy_handler(message);
