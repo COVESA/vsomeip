@@ -231,11 +231,6 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     EXPECT_TRUE(check<std::string>(loglevel_to_string(loglevel), _expected_loglevel, "LOGLEVEL"));
     EXPECT_TRUE(check<uint32_t>(version_logging_interval, _expected_version_logging_interval, "VERSION LOGGING INTERVAL"));
 
-    // watchdog
-    EXPECT_TRUE(its_configuration->is_watchdog_enabled());
-    EXPECT_EQ(1234u, its_configuration->get_watchdog_timeout());
-    EXPECT_EQ(7u, its_configuration->get_allowed_missing_pongs());
-
     // file permissions
     EXPECT_EQ(0222u, its_configuration->get_permissions_uds());
 

@@ -179,11 +179,6 @@ public:
     // Trace configuration
     virtual std::shared_ptr<cfg::trace> get_trace() const = 0;
 
-    // Watchdog
-    virtual bool is_watchdog_enabled() const = 0;
-    virtual uint32_t get_watchdog_timeout() const = 0;
-    virtual uint32_t get_allowed_missing_pongs() const = 0;
-
     // File permissions
     virtual std::uint32_t get_permissions_uds() const = 0;
 

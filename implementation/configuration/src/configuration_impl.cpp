@@ -60,18 +60,17 @@ configuration_impl::configuration_impl(const std::string& _path) :
     sd_wait_route_netlink_notification_{VSOMEIP_SD_WAIT_ROUTE_NETLINK_NOTIFICATION},
     sd_stop_offer_watchdog_time_{VSOMEIP_SD_STOP_OFFER_WATCHDOG_TIME}, sd_offers_watchdog_time_{VSOMEIP_SD_OFFERS_WATCHDOG_TIME},
     max_configured_message_size_{0}, max_local_message_size_{0}, max_reliable_message_size_{0}, max_unreliable_message_size_{0},
-    buffer_shrink_threshold_{VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD}, trace_{std::make_shared<trace>()},
-    watchdog_{std::make_shared<watchdog>()}, log_version_{true}, log_version_interval_{VSOMEIP_DEFAULT_LOG_NETWORK_HOST},
-    permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_{"vsomeip"}, e2e_enabled_{false}, log_memory_{false},
-    log_memory_interval_{0}, log_status_interval_{VSOMEIP_DEFAULT_LOG_STATUS}, endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED},
-    endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED}, local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT},
-    local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE}, local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL},
-    local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT}, external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT},
-    external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE}, external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL},
-    external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT}, tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS},
-    tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME}, has_issued_methods_warning_{false}, has_issued_clients_warning_{false},
-    udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE}, npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
-    npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
+    buffer_shrink_threshold_{VSOMEIP_DEFAULT_BUFFER_SHRINK_THRESHOLD}, trace_{std::make_shared<trace>()}, log_version_{true},
+    log_version_interval_{VSOMEIP_DEFAULT_LOG_NETWORK_HOST}, permissions_uds_{VSOMEIP_DEFAULT_UDS_PERMISSIONS}, network_{"vsomeip"},
+    e2e_enabled_{false}, log_memory_{false}, log_memory_interval_{0}, log_status_interval_{VSOMEIP_DEFAULT_LOG_STATUS},
+    endpoint_queue_limit_external_{QUEUE_SIZE_UNLIMITED}, endpoint_queue_limit_local_{QUEUE_SIZE_UNLIMITED},
+    local_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, local_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
+    local_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, local_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
+    external_tcp_user_timeout_{VSOMEIP_DEFAULT_TCP_USER_TIMEOUT}, external_tcp_keepidle_{VSOMEIP_DEFAULT_TCP_KEEPIDLE},
+    external_tcp_keepintvl_{VSOMEIP_DEFAULT_TCP_KEEPINTVL}, external_tcp_keepcnt_{VSOMEIP_DEFAULT_TCP_KEEPCNT},
+    tcp_restart_aborts_max_{VSOMEIP_MAX_TCP_RESTART_ABORTS}, tcp_connect_time_max_{VSOMEIP_MAX_TCP_CONNECT_TIME},
+    has_issued_methods_warning_{false}, has_issued_clients_warning_{false}, udp_receive_buffer_size_{VSOMEIP_DEFAULT_UDP_RCV_BUFFER_SIZE},
+    npdu_default_debounce_requ_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO}, npdu_default_debounce_resp_{VSOMEIP_DEFAULT_NPDU_DEBOUNCING_NANO},
     npdu_default_max_retention_requ_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO},
     npdu_default_max_retention_resp_{VSOMEIP_DEFAULT_NPDU_MAXIMUM_RETENTION_NANO}, log_statistics_{true},
     statistics_interval_{VSOMEIP_DEFAULT_STATISTICS_INTERVAL}, statistics_min_freq_{VSOMEIP_DEFAULT_STATISTICS_MIN_FREQ},
@@ -150,7 +149,6 @@ configuration_impl::configuration_impl(const configuration_impl& _other) :
 
     trace_ = std::make_shared<trace>(*_other.trace_);
     supported_selective_addresses = _other.supported_selective_addresses;
-    watchdog_ = std::make_shared<watchdog>(*_other.watchdog_);
     internal_service_ranges_ = _other.internal_service_ranges_;
     log_version_ = _other.log_version_;
     log_version_interval_ = _other.log_version_interval_;
@@ -544,7 +542,6 @@ bool configuration_impl::load_data(const std::vector<configuration_element>& _el
             load_npdu_default_timings(e);
             load_internal_services(e);
             load_clients(e);
-            load_watchdog(e);
             load_selective_broadcasts_support(e);
             load_e2e(e);
             load_debounce(e);
@@ -2279,44 +2276,6 @@ std::pair<uint16_t, uint16_t> configuration_impl::load_client_port_range(const b
     return its_port_range;
 }
 
-void configuration_impl::load_watchdog(const configuration_element& _element) {
-    try {
-        auto its_service_discovery = _element.tree_.get_child("watchdog");
-        for (auto i = its_service_discovery.begin(); i != its_service_discovery.end(); ++i) {
-            std::string its_key(i->first);
-            std::string its_value(i->second.data());
-            std::stringstream its_converter;
-            if (its_key == "enable") {
-                if (is_configured_[ET_WATCHDOG_ENABLE]) {
-                    VSOMEIP_WARNING << "Multiple definitions of watchdog.enable. Ignoring definition from " << _element.name_;
-                } else {
-                    watchdog_->is_enabeled_ = (its_value == "true");
-                    is_configured_[ET_WATCHDOG_ENABLE] = true;
-                }
-            } else if (its_key == "timeout") {
-                if (is_configured_[ET_WATCHDOG_TIMEOUT]) {
-                    VSOMEIP_WARNING << "Multiple definitions of watchdog.timeout. Ignoring definition from " << _element.name_;
-                } else {
-                    its_converter << std::dec << its_value;
-                    its_converter >> watchdog_->timeout_in_ms_;
-                    is_configured_[ET_WATCHDOG_TIMEOUT] = true;
-                }
-            } else if (its_key == "allowed_missing_pongs") {
-                if (is_configured_[ET_WATCHDOG_ALLOWED_MISSING_PONGS]) {
-                    VSOMEIP_WARNING << "Multiple definitions of watchdog.allowed_missing_pongs. Ignoring definition from "
-                                    << _element.name_;
-                } else {
-                    its_converter << std::dec << its_value;
-                    its_converter >> watchdog_->missing_pongs_allowed_;
-                    is_configured_[ET_WATCHDOG_ALLOWED_MISSING_PONGS] = true;
-                }
-            }
-        }
-    } catch (...) {
-        // intentionally left empty
-    }
-}
-
 void configuration_impl::load_dispatch_defaults(const configuration_element& _element) {
     const std::string its_dispatching_key{"dispatching"};
     const std::string its_default_max_dispatch_time_key{"max_dispatch_time"};
@@ -3451,19 +3410,6 @@ uint32_t configuration_impl::get_sd_offers_watchdog_time() const {
 // Trace configuration
 std::shared_ptr<cfg::trace> configuration_impl::get_trace() const {
     return trace_;
-}
-
-// Watchdog config
-bool configuration_impl::is_watchdog_enabled() const {
-    return watchdog_->is_enabeled_;
-}
-
-uint32_t configuration_impl::get_watchdog_timeout() const {
-    return watchdog_->timeout_in_ms_;
-}
-
-uint32_t configuration_impl::get_allowed_missing_pongs() const {
-    return watchdog_->missing_pongs_allowed_;
 }
 
 std::uint32_t configuration_impl::get_permissions_uds() const {

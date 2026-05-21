@@ -54,6 +54,9 @@ public:
 
     std::shared_ptr<configuration> get_configuration() const;
 
+    void ping_host();
+    void on_pong(client_t _client);
+
     bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
