@@ -609,15 +609,13 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
         }
     }
 
-    its_lock.unlock();
-
     host_->remove_pending_requests(pending_request_removal_type_e::BOTH, _client);
 
-    for (const auto& s : services_to_report) {
-        host_->on_stop_offer_service(_client, std::get<0>(s), std::get<1>(s), std::get<2>(s), std::get<3>(s));
+    for (const auto& [_service, _instance, _major, _minor] : services_to_report) {
+        host_->on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor, false);
+        on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
     }
 
-    its_lock.lock();
     routing_info_.erase(_client);
 }
 
@@ -737,11 +735,17 @@ void routing_manager_stub::on_offer_service(client_t _client, service_t _service
 
 void routing_manager_stub::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
+    {
+        std::scoped_lock its_lock{routing_info_mutex_};
+        on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
+    }
+}
+
+void routing_manager_stub::on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance,
+                                                          major_version_t _major, minor_version_t _minor) {
 
     VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                  << static_cast<int>(_major) << "." << _minor << "]";
-
-    std::scoped_lock its_guard{routing_info_mutex_};
 
     if (auto found_client = routing_info_.find(_client); found_client != routing_info_.end()) {
         if (auto found_si = found_client->second.find({_service, _instance}); found_si != found_client->second.end()) {

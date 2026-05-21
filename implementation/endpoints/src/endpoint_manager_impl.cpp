@@ -856,13 +856,6 @@ bool endpoint_manager_impl::remove_instance_multicast(service_t _service, instan
 
 void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpoint) {
     // Is called when endpoint->connect succeeded!
-    struct service_info {
-        service_t service_id_;
-        instance_t instance_id_;
-        major_version_t major_;
-        minor_version_t minor_;
-        std::shared_ptr<boardnet_endpoint> endpoint_;
-    };
 
     // Set to state CONNECTED as connection is not yet fully established in remote side POV
     // but endpoint is ready to send / receive. Set to ESTABLISHED after timer expires
@@ -870,7 +863,7 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
     // is finished with TCP 3 way handshake
     _endpoint->set_connected(true);
 
-    std::forward_list<struct service_info> services_to_report_;
+    std::vector<serviceinfo> services_to_report_;
     {
         const bool endpoint_is_reliable = _endpoint->is_reliable();
         std::scoped_lock its_lock(endpoint_mutex_);
@@ -887,15 +880,17 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
                     const auto its_other_endpoint = its_info->get_endpoint(!endpoint_is_reliable);
 
                     if (!its_other_endpoint || (its_other_endpoint && its_other_endpoint->is_established_or_connected())) {
-                        services_to_report_.push_front(
-                                {its_si.service(), its_si.instance(), its_info->get_major(), its_info->get_minor(), _endpoint});
+                        services_to_report_.push_back({its_si.service(), its_si.instance(), its_info->get_major(), its_info->get_minor(), 0,
+                                                       true}); // the last 2 parameters will not be used
+                        services_to_report_.back().set_endpoint(_endpoint,
+                                                                true); // In this case, we don't care if the endpoint is reliable or not
                     }
                 }
             }
         }
     }
     for (const auto& s : services_to_report_) {
-        router_->service_endpoint_connected(s.service_id_, s.instance_id_, s.major_, s.minor_, s.endpoint_);
+        router_->service_endpoint_connected(s.get_service(), s.get_instance(), s.get_major(), s.get_minor(), s.get_endpoint(true));
     }
     if (services_to_report_.empty()) {
         _endpoint->set_established(true);
@@ -904,18 +899,26 @@ void endpoint_manager_impl::on_connect(std::shared_ptr<boardnet_endpoint> _endpo
 
 void endpoint_manager_impl::on_disconnect(std::shared_ptr<boardnet_endpoint> _endpoint) {
     // Is called when endpoint->connect fails!
-    std::scoped_lock its_lock(endpoint_mutex_);
-    for (auto& [its_si, its_reliability_map] : remote_services_) {
-        const bool is_reliable = _endpoint->is_reliable();
-        if (auto found_endpoint = its_reliability_map.find(is_reliable); found_endpoint != its_reliability_map.end()) {
-            if (found_endpoint->second == _endpoint) {
-                std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service(), its_si.instance()));
-                if (!its_info) {
-                    return;
+    std::vector<serviceinfo> services_to_report_;
+
+    {
+        std::scoped_lock its_lock(endpoint_mutex_);
+        for (auto& [its_si, its_reliability_map] : remote_services_) {
+            const bool is_reliable = _endpoint->is_reliable();
+            if (auto found_endpoint = its_reliability_map.find(is_reliable); found_endpoint != its_reliability_map.end()) {
+                if (found_endpoint->second == _endpoint) {
+                    std::shared_ptr<serviceinfo> its_info(router_->find_service(its_si.service(), its_si.instance()));
+                    if (!its_info) {
+                        return;
+                    }
+                    services_to_report_.push_back({its_si.service(), its_si.instance(), its_info->get_major(), its_info->get_minor(), 0,
+                                                   true}); // the last 2 parameters will not be used
                 }
-                router_->service_endpoint_disconnected(its_si.service(), its_si.instance(), its_info->get_major(), its_info->get_minor());
             }
         }
+    }
+    for (const auto& s : services_to_report_) {
+        router_->service_endpoint_disconnected(s.get_service(), s.get_instance(), s.get_major(), s.get_minor());
     }
 }
 

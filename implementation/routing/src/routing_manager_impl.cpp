@@ -368,8 +368,8 @@ bool routing_manager_impl::offer_service(client_t _client, service_t _service, i
         }
     }
 
-    stub_->on_offer_service(_client, _service, _instance, _major, _minor);
     erase_offer_command(_service, _instance);
+    stub_->on_offer_service(_client, _service, _instance, _major, _minor);
 
     VSOMEIP_INFO << "OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "." << _minor
                  << "] (" << std::boolalpha << _must_queue << ")";
@@ -414,7 +414,7 @@ void routing_manager_impl::stop_offer_service(client_t _client, service_t _servi
             }
         }
 
-        on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
+        on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor, true);
         VSOMEIP_INFO << "STOP OFFER(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":" << int(_major) << "."
                      << _minor << "] (" << std::boolalpha << _must_queue << ")";
     } else {
@@ -1231,11 +1231,11 @@ void routing_manager_impl::on_notification(client_t _client, service_t _service,
 void routing_manager_impl::on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
                                                  minor_version_t _minor) {
     std::scoped_lock its_lock{offer_serialization_mutex_};
-    on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor);
+    on_stop_offer_service_unlocked(_client, _service, _instance, _major, _minor, true);
 }
 
 void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance,
-                                                          major_version_t _major, minor_version_t _minor) {
+                                                          major_version_t _major, minor_version_t _minor, bool _call_stub) {
 
     VSOMEIP_INFO << "ON_STOP_OFFER_SERVICE(" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
                  << static_cast<int>(_major) << "." << _minor << "]";
@@ -1319,8 +1319,10 @@ void routing_manager_impl::on_stop_offer_service_unlocked(client_t _client, serv
         }
     }
 
-    stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
     erase_offer_command(_service, _instance);
+    if (_call_stub) {
+        stub_->on_stop_offer_service(_client, _service, _instance, _major, _minor);
+    }
 }
 
 bool routing_manager_impl::has_subscribed_eventgroup(service_t _service, instance_t _instance) const {
@@ -2621,7 +2623,13 @@ void routing_manager_impl::register_client_error_handler(client_t _client, const
 void routing_manager_impl::cleanup_client(client_t _client) {
     VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of client 0x" << hex4(_client);
 
-    stub_->deregister_client(_client);
+    // Since the client could be offering services that need to be removed
+    // lock the offer serialization mutex. This is needed here to prevent
+    // a lock inversion with rms routing_info_mutex_
+    {
+        std::scoped_lock its_lock{offer_serialization_mutex_};
+        stub_->deregister_client(_client);
+    }
 
     std::forward_list<std::tuple<client_t, service_t, instance_t, major_version_t, minor_version_t>> its_offers;
     {

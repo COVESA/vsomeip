@@ -58,6 +58,9 @@ public:
     void on_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
     void on_stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
+    void on_stop_offer_service_unlocked(client_t _client, service_t _service, instance_t _instance, major_version_t _major,
+                                        minor_version_t _minor);
+
     bool send_subscribe(const std::shared_ptr<local_endpoint>& _target, client_t _client, service_t _service, instance_t _instance,
                         eventgroup_t _eventgroup, major_version_t _major, event_t _event,
                         const std::shared_ptr<debounce_filter_impl_t>& _filter, remote_subscription_id_t _id);
