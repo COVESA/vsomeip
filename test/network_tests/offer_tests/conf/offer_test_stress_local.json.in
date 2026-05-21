@@ -44,6 +44,6 @@
         "port":"30490",
         "protocol":"udp",
         "cyclic_offer_delay" : "500",
-        "max_remote_subscribers" : "100"
+        "max_remote_subscribers" : "300"
     }
 }

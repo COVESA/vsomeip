@@ -3,22 +3,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#include <array>
+#include <atomic>
+#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "common/test_main.hpp"
 
 // This application connects to a specific TCP server, sends a subscription
 // and then verifies that it has received a notification from the server. It
@@ -34,6 +34,9 @@
 
 static std::string server_ip_addr;
 static std::string client_ip_addr;
+static size_t initial_port = 10000;
+static size_t threads_count = 10;
+static size_t iterations_count = 100;
 
 static bool send_subscribe(uint16_t port) {
     static std::mutex sync;
@@ -76,8 +79,8 @@ static bool send_subscribe(uint16_t port) {
                               0x06, 0x00, 0x00, 0x10,
                               // Service / Instance
                               (SERVICE_ID >> 8) & 0xFF, SERVICE_ID & 0xFF, (INSTANCE_ID >> 8) & 0xFF, INSTANCE_ID & 0xFF,
-                              // Major version (any) / TTL (3 seconds)
-                              0x00, 0x00, 0x00, 0x03,
+                              // Major version / TTL (255)
+                              0x00, 0x00, 0x00, 0xff,
                               // Reserved / Counter / EventGroup ID
                               0x00, 0x00, (EVENTGROUP_ID >> 8) & 0xFF, EVENTGROUP_ID & 0xFF,
                               // Length of options in bytes
@@ -95,14 +98,14 @@ static bool send_subscribe(uint16_t port) {
     if (udp_client_socket <= 0) {
         udp_client_socket = ::socket(AF_INET, SOCK_DGRAM, 0);
         if (udp_client_socket <= 0) {
-            std::cout << "[STRESS] Failed to created UDP socket (errno=" << errno << ")" << std::endl;
+            std::cerr << "[STRESS] Failed to created UDP socket: " << errno << std::endl;
             return false;
         }
 
         int reuse = 1;
         int result = ::setsockopt(udp_client_socket, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse, sizeof(reuse));
         if (result < 0) {
-            std::cout << "[STRESS] Failed to set SO_REUSEADDR for UPD socket (errno=" << errno << ")" << std::endl;
+            std::cerr << "[STRESS] Failed to set SO_REUSEADDR for UPD socket: " << errno << std::endl;
             ::close(udp_client_socket);
             udp_client_socket = -1;
             return false;
@@ -111,7 +114,7 @@ static bool send_subscribe(uint16_t port) {
         result = ::bind(udp_client_socket, reinterpret_cast<const struct sockaddr*>(&client_addr), sizeof(client_addr));
 
         if (result < 0) {
-            std::cout << "[STRESS] Failed to bind UDP socket (errno=" << errno << ")" << std::endl;
+            std::cerr << "[STRESS] Failed to bind UDP socket: " << errno << std::endl;
             ::close(udp_client_socket);
             udp_client_socket = -1;
             return false;
@@ -123,7 +126,7 @@ static bool send_subscribe(uint16_t port) {
                                    reinterpret_cast<const struct sockaddr*>(&server_addr), sizeof(server_addr));
 
     if (send_result != sizeof(message)) {
-        std::cout << "[STRESS] Failed to send subscription (errno=" << errno << ")" << std::endl;
+        std::cerr << "[STRESS] Failed to send subscription: " << errno << std::endl;
         return false;
     }
 
@@ -132,42 +135,37 @@ static bool send_subscribe(uint16_t port) {
 
 static bool test_tcp_connect(uint16_t port) {
     int tcp_socket = ::socket(AF_INET, SOCK_STREAM, 0);
-    if (tcp_socket <= 0) {
-        std::cout << "[STRESS] Failed to created TCP socket #" << port << " (errno=" << errno << ")" << std::endl;
+    if (tcp_socket < 0) {
+        std::cerr << "[STRESS] socket() failed for port " << port << ": " << errno << std::endl;
         return false;
     }
 
     int reuse = 1;
-    int result = ::setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse, sizeof(reuse));
-    if (result < 0) {
-        std::cout << "[STRESS] Failed to set SO_REUSEADDR for TCP socket #" << port << " (errno=" << errno << ")" << std::endl;
+    if (::setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse, sizeof(reuse))) {
+        std::cerr << "[STRESS] setsockopt(SO_REUSEADDR) failed for port " << port << ": " << errno << std::endl;
         ::close(tcp_socket);
-        tcp_socket = -1;
         return false;
     }
 
     struct sockaddr_in client_addr { };
-
     client_addr.sin_family = AF_INET;
     client_addr.sin_port = htons(port);
     inet_pton(AF_INET, client_ip_addr.c_str(), &client_addr.sin_addr);
 
-    result = ::bind(tcp_socket, reinterpret_cast<const struct sockaddr*>(&client_addr), sizeof(client_addr));
-    if (result < 0) {
-        std::cout << "[STRESS] Failed to bind TCP socket #" << port << " (errno=" << errno << ")" << std::endl;
+    if (::bind(tcp_socket, reinterpret_cast<const struct sockaddr*>(&client_addr), sizeof(client_addr)) < 0) {
+        std::cerr << "[STRESS] bind() failed for port " << port << ": " << errno << std::endl;
         ::close(tcp_socket);
         return false;
     }
 
     struct sockaddr_in server_addr { };
-
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(TCP_SERVER_PORT);
     inet_pton(AF_INET, server_ip_addr.c_str(), &server_addr.sin_addr);
 
-    result = ::connect(tcp_socket, reinterpret_cast<const struct sockaddr*>(&server_addr), sizeof(server_addr));
-    if (result < 0) {
-        std::cout << "[STRESS] Failed to connect TCP socket #" << port << " (errno=" << errno << ")" << std::endl;
+    if (::connect(tcp_socket, reinterpret_cast<const struct sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
+        std::cerr << "[STRESS] connect() to " << server_ip_addr << ":" << TCP_SERVER_PORT << " failed for port " << port << ": " << errno
+                  << std::endl;
         ::close(tcp_socket);
         return false;
     }
@@ -177,33 +175,44 @@ static bool test_tcp_connect(uint16_t port) {
         return false;
     }
 
-    struct timeval timeout_value = {.tv_sec = 2, .tv_usec = 0};
-
-    result = ::setsockopt(tcp_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout_value, sizeof(timeout_value));
-    if (result < 0) {
-        std::cout << "[STRESS] Failed to set option TCP socket #" << port << " (errno=" << errno << ")" << std::endl;
-        ::close(tcp_socket);
-        return false;
-    }
-
     std::byte buffer[256];
-
     ssize_t recv_result = ::recv(tcp_socket, buffer, sizeof(buffer), 0);
+    auto stored_errno = errno;
+    ::close(tcp_socket);
+
     if (recv_result <= 0) {
-        std::cout << "[STRESS] Failed to receive TCP socket #" << port << " (errno=" << errno << ")" << std::endl;
-        ::close(tcp_socket);
+        std::cerr << "[STRESS] recv() failed for port " << port << ": " << stored_errno << std::endl;
         return false;
     }
 
-    ::close(tcp_socket);
     return true;
 }
 
-int main(int argc, char** argv) {
-    size_t initial_port = 10000;
-    size_t threads_count = 10;
-    size_t iterations_count = 100;
+TEST(stress_tcp_subscriptions_test, stress_tcp_subscriptions) {
+    std::atomic<int> errors_count{};
+    std::vector<std::thread> threads;
 
+    for (size_t i = 0; i < threads_count; ++i) {
+        threads.push_back(std::thread([&errors_count, start_port = initial_port + i * iterations_count] {
+            for (size_t j = 0; j < iterations_count; ++j) {
+                if (!test_tcp_connect(static_cast<uint16_t>(start_port + j))) {
+                    errors_count += 1;
+                }
+            }
+        }));
+    }
+
+    for (size_t i = 0; i < threads_count; ++i) {
+        threads[i].join();
+    }
+
+    std::cout << "[STRESS] " << errors_count.load() << " failures for " << (threads_count * iterations_count) << " attempts." << std::endl;
+    EXPECT_EQ(errors_count.load(), 0);
+    // close udp socket
+    send_subscribe(0);
+}
+
+int main(int argc, char** argv) {
     try {
         size_t str_index;
 
@@ -244,27 +253,5 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    std::atomic<int> errors_count{};
-    std::vector<std::thread> threads;
-
-    for (size_t i = 0; i < threads_count; ++i) {
-        threads.push_back(std::thread([&errors_count, start_port = initial_port + i * iterations_count, iterations_count] {
-            for (size_t j = 0; j < iterations_count; ++j) {
-                if (!test_tcp_connect(static_cast<uint16_t>(start_port + j))) {
-                    errors_count += 1;
-                }
-            }
-        }));
-    }
-
-    for (size_t i = 0; i < threads_count; ++i) {
-        threads[i].join();
-    }
-
-    std::cout << "[STRESS] " << errors_count.load() << " failures for " << (threads_count * iterations_count) << " attempts." << std::endl;
-
-    // close udp socket
-    send_subscribe(0);
-
-    return errors_count.load();
+    return test_main(argc, argv);
 }
