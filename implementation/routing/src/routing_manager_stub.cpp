@@ -64,11 +64,11 @@ namespace vsomeip_v3 {
 #define VSOMEIP_LOG_PREFIX "rms"
 
 routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, const std::shared_ptr<configuration>& _configuration) :
-    host_(_host), io_(_host->get_io()), watchdog_timer_(_host->get_io()), configuration_(_configuration), is_socket_activated_(false),
+    host_(_host), io_(_host->get_io()), configuration_(_configuration), is_socket_activated_(false),
     routing_mode_(configuration_->is_local_routing()           ? routing_mode_e::UDS_ONLY
                           : configuration_->is_uds_preferred() ? routing_mode_e::UDS_AND_TCP
                                                                : routing_mode_e::TCP_ONLY),
-    configured_watchdog_timeout_(configuration_->get_watchdog_timeout()), pinged_clients_timer_(io_), pending_security_update_id_(0) { }
+    pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
 
@@ -97,14 +97,6 @@ void routing_manager_stub::start() {
 
     start_root(uds_root_);
     start_root(tcp_root_);
-
-    if (configuration_->is_watchdog_enabled()) {
-        VSOMEIP_INFO << "Watchdog is enabled : Timeout in ms = " << configuration_->get_watchdog_timeout()
-                     << " : Allowed missing pongs = " << configuration_->get_allowed_missing_pongs() << ".";
-        start_watchdog();
-    } else {
-        VSOMEIP_INFO << "Watchdog is disabled!";
-    }
 }
 
 void routing_manager_stub::stop() {
@@ -114,11 +106,6 @@ void routing_manager_stub::stop() {
             local_server = nullptr;
         }
     };
-
-    {
-        std::scoped_lock its_lock{watchdog_timer_mutex_};
-        watchdog_timer_.cancel();
-    }
 
     // Stop routing roots
     if (!is_socket_activated_) {
@@ -632,7 +619,6 @@ void routing_manager_stub::on_deregister_application(client_t _client) {
 
     its_lock.lock();
     routing_info_.erase(_client);
-    watchdog_ping_counts_.erase(_client);
 }
 
 void routing_manager_stub::on_offered_service_request(client_t _client, offer_type_e _offer_type) {
@@ -682,7 +668,6 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
     {
         std::scoped_lock its_lock{routing_info_mutex_};
         routing_info_[_client]; // ensure entry exists
-        watchdog_ping_counts_[_client] = 0;
     }
 #ifndef VSOMEIP_DISABLE_SECURITY
     // distribute updated security config to new clients
@@ -1016,17 +1001,6 @@ bool routing_manager_stub::contained_in_routing_info(client_t _client, service_t
     return false;
 }
 
-// Watchdog
-void routing_manager_stub::broadcast_ping() const {
-
-    protocol::ping_command its_command;
-
-    std::vector<byte_t> its_buffer;
-    its_command.serialize(its_buffer);
-
-    broadcast(its_buffer);
-}
-
 void routing_manager_stub::on_ping(client_t _client) {
 
     if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
@@ -1042,67 +1016,8 @@ void routing_manager_stub::on_ping(client_t _client) {
 }
 
 void routing_manager_stub::on_pong(client_t _client) {
-    {
-        std::scoped_lock its_lock{routing_info_mutex_};
-        if (auto found_info = watchdog_ping_counts_.find(_client); found_info != watchdog_ping_counts_.end()) {
-            found_info->second = 0;
-        } else {
-            VSOMEIP_ERROR_P << "Received PONG from unregistered application: " << hex4(_client);
-        }
-    }
-
     remove_from_pinged_clients(_client);
     host_->on_pong(_client);
-}
-
-void routing_manager_stub::start_watchdog() {
-
-    auto its_callback = [this](boost::system::error_code const& _error) {
-        if (!_error)
-            check_watchdog();
-    };
-    {
-        std::scoped_lock its_lock{watchdog_timer_mutex_};
-        // Divide / 2 as start and check sleep each
-        watchdog_timer_.expires_after(std::chrono::milliseconds(configuration_->get_watchdog_timeout() / 2));
-
-        watchdog_timer_.async_wait(its_callback);
-    }
-}
-
-void routing_manager_stub::check_watchdog() {
-    {
-        std::scoped_lock its_guard{routing_info_mutex_};
-        for (auto& [id, count] : watchdog_ping_counts_) {
-            ++count;
-        }
-    }
-    broadcast_ping();
-
-    auto its_callback = [this](boost::system::error_code const& _error) {
-        (void)_error;
-        {
-            std::scoped_lock its_lock{routing_info_mutex_};
-            for (const auto& [id, count] : watchdog_ping_counts_) {
-                if (id > 0) {
-                    if (count > configuration_->get_allowed_missing_pongs()) {
-                        VSOMEIP_WARNING << "Lost contact to application " << hex4(id);
-                        // Trigger the error under the routing_info_mutex_, to ensure that a concurrent clean-up
-                        // of the client is not racing with this watchdog.
-                        if (auto ep = host_->get_endpoint_manager()->find_routing_endpoint(id); ep) {
-                            ep->trigger_error();
-                        }
-                    }
-                }
-            }
-        }
-        start_watchdog();
-    };
-    {
-        std::scoped_lock its_lock{watchdog_timer_mutex_};
-        watchdog_timer_.expires_after(std::chrono::milliseconds(configuration_->get_watchdog_timeout() / 2));
-        watchdog_timer_.async_wait(its_callback);
-    }
 }
 
 bool routing_manager_stub::send_ping(client_t _client) {
@@ -1120,7 +1035,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
             pinged_clients_timer_.cancel();
             const std::chrono::steady_clock::time_point now(std::chrono::steady_clock::now());
 
-            std::chrono::milliseconds next_timeout(configured_watchdog_timeout_);
+            std::chrono::milliseconds next_timeout(VSOMEIP_DEFAULT_PING_TIMEOUT);
             for (const auto& tp : pinged_clients_) {
                 const std::chrono::milliseconds its_clients_timeout =
                         std::chrono::duration_cast<std::chrono::milliseconds>(now - tp.second);
@@ -1151,7 +1066,7 @@ void routing_manager_stub::on_ping_timer_expired(boost::system::error_code const
         return;
     }
     std::forward_list<client_t> timed_out_clients;
-    std::chrono::milliseconds next_timeout(configured_watchdog_timeout_);
+    std::chrono::milliseconds next_timeout(VSOMEIP_DEFAULT_PING_TIMEOUT);
     bool pinged_clients_remaining(false);
 
     {
@@ -1160,7 +1075,7 @@ void routing_manager_stub::on_ping_timer_expired(boost::system::error_code const
         const std::chrono::steady_clock::time_point now(std::chrono::steady_clock::now());
 
         for (auto client_iter = pinged_clients_.begin(); client_iter != pinged_clients_.end();) {
-            if ((now - client_iter->second) >= configured_watchdog_timeout_) {
+            if ((now - client_iter->second) >= std::chrono::milliseconds(VSOMEIP_DEFAULT_PING_TIMEOUT)) {
                 // Trigger the error under the pinged_clients_mutex_, to ensure that a concurrent clean-up
                 // of the client is not racing with this timer.
                 if (auto ep = host_->get_endpoint_manager()->find_routing_endpoint(client_iter->first); ep) {
@@ -1203,7 +1118,7 @@ void routing_manager_stub::remove_from_pinged_clients(client_t _client) {
         return;
     }
     const std::chrono::steady_clock::time_point now(std::chrono::steady_clock::now());
-    std::chrono::milliseconds next_timeout(configured_watchdog_timeout_);
+    std::chrono::milliseconds next_timeout(VSOMEIP_DEFAULT_PING_TIMEOUT);
     // find out next timeout
     for (const auto& tp : pinged_clients_) {
         const std::chrono::milliseconds its_clients_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(now - tp.second);

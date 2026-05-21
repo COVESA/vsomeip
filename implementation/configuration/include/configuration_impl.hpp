@@ -20,7 +20,6 @@
 #include "configuration_element.hpp"
 #include "e2e.hpp"
 #include "routing.hpp"
-#include "watchdog.hpp"
 #include "service_instance_range.hpp"
 #include "trace.hpp"
 #include "../../e2e_protection/include/e2exf/config.hpp"
@@ -36,7 +35,6 @@ struct service;
 struct servicegroup;
 struct event;
 struct eventgroup;
-struct watchdog;
 
 struct suppress_t {
     service_t service;
@@ -187,10 +185,6 @@ public:
     VSOMEIP_EXPORT uint32_t get_sd_offers_watchdog_time() const override;
     // Trace configuration
     VSOMEIP_EXPORT std::shared_ptr<cfg::trace> get_trace() const;
-
-    VSOMEIP_EXPORT bool is_watchdog_enabled() const;
-    VSOMEIP_EXPORT uint32_t get_watchdog_timeout() const;
-    VSOMEIP_EXPORT uint32_t get_allowed_missing_pongs() const;
 
     VSOMEIP_EXPORT std::uint32_t get_permissions_uds() const;
 
@@ -352,8 +346,6 @@ private:
     std::set<uint16_t> load_client_ports(const boost::property_tree::ptree& _tree);
     std::pair<uint16_t, uint16_t> load_client_port_range(const boost::property_tree::ptree& _tree);
 
-    void load_watchdog(const configuration_element& _element);
-
     void load_request_debounce_time(const configuration_element& _element);
 
     void load_dispatch_defaults(const configuration_element& _element);
@@ -498,8 +490,6 @@ protected:
 
     std::unordered_set<std::string> supported_selective_addresses;
 
-    std::shared_ptr<watchdog> watchdog_;
-
     std::vector<service_instance_range> internal_service_ranges_;
 
     bool log_version_;
@@ -527,9 +517,6 @@ protected:
         ET_SERVICE_DISCOVERY_TTL,
         ET_SERVICE_DISCOVERY_CYCLIC_OFFER_DELAY,
         ET_SERVICE_DISCOVERY_REQUEST_RESPONSE_DELAY,
-        ET_WATCHDOG_ENABLE,
-        ET_WATCHDOG_TIMEOUT,
-        ET_WATCHDOG_ALLOWED_MISSING_PONGS,
         ET_TRACING_ENABLE,
         ET_TRACING_SD_ENABLE,
         ET_SERVICE_DISCOVERY_FIND_INITIAL_DEBOUNCE_REPS,

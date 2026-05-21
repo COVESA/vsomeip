@@ -13,12 +13,6 @@
         }
     },
     "request_debounce_time" : "33",
-    "watchdog" :
-    {
-        "enable" : "true",
-        "timeout" : "1234",
-        "allowed_missing_pongs" : "7"
-    },
     "file-permissions" :
     {
         "permissions-shm" : "0444",

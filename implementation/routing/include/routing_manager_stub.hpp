@@ -123,11 +123,8 @@ private:
     void inform_requesters(client_t _hoster, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                            protocol::routing_info_entry_type_e _entry);
 
-    void broadcast_ping() const;
     void on_ping(client_t _client);
     void on_pong(client_t _client);
-    void start_watchdog();
-    void check_watchdog();
 
     void init_routing_endpoint();
     void on_ping_timer_expired(boost::system::error_code const& _error);
@@ -167,8 +164,6 @@ private:
 private:
     routing_manager_stub_host* host_;
     boost::asio::io_context& io_;
-    std::mutex watchdog_timer_mutex_;
-    boost::asio::steady_timer watchdog_timer_;
 
     std::shared_ptr<local_server> uds_root_; // Routing manager endpoint for UDS
     std::shared_ptr<local_server> tcp_root_; // Routing manager endpoint for TCP
@@ -176,14 +171,12 @@ private:
     std::mutex lazy_load_mtx_;
 
     std::map<client_t, service_instance_map<std::pair<major_version_t, minor_version_t>>> routing_info_;
-    std::map<client_t, uint8_t> watchdog_ping_counts_; // protected by routing_info_mutex_
     mutable std::mutex routing_info_mutex_;
     std::shared_ptr<configuration> configuration_;
 
     bool is_socket_activated_;
     routing_mode_e const routing_mode_;
 
-    const std::chrono::milliseconds configured_watchdog_timeout_;
     boost::asio::steady_timer pinged_clients_timer_;
     std::mutex pinged_clients_mutex_;
     std::map<client_t, boost::asio::steady_timer::time_point> pinged_clients_;
