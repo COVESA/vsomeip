@@ -82,6 +82,11 @@ void base_fake_socket_fixture::stop_client(std::string const _name) {
     return socket_manager_->await_connectable(_name, _timeout);
 }
 
+[[nodiscard]] bool base_fake_socket_fixture::await_multicast_join(boost::asio::ip::address const& _multicast,
+                                                                  std::chrono::milliseconds _timeout) {
+    return socket_manager_->await_multicast_join(_multicast, _timeout);
+}
+
 [[nodiscard]] bool base_fake_socket_fixture::await_connection(std::string const& _client, std::string const& _server,
                                                               std::chrono::milliseconds _timeout) {
     return socket_manager_->await_connection(_client, _server, _timeout);
@@ -187,9 +192,24 @@ void base_fake_socket_fixture::set_custom_command_handler(std::string const& _cl
     socket_manager_->set_custom_command_handler(_client, _server, _handler, _sender);
 }
 
-void base_fake_socket_fixture::inject_command(std::string const& _client, std::string const& _server,
-                                              std::vector<unsigned char>& _payload) {
-    socket_manager_->inject_command(_client, _server, _payload);
+bool base_fake_socket_fixture::inject_command_tcp(std::string const& _client, std::string const& _server,
+                                                  std::vector<unsigned char>& _payload) {
+    return socket_manager_->inject_command_tcp(_client, _server, _payload);
+}
+
+bool base_fake_socket_fixture::inject_message_tcp(std::string const& _client, std::string const& _server,
+                                                  std::vector<unsigned char>& _payload) {
+    return socket_manager_->inject_message_tcp(_client, _server, _payload);
+}
+
+bool base_fake_socket_fixture::inject_message_udp(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst,
+                                                  std::vector<unsigned char>& _payload) {
+    return socket_manager_->inject_message_udp(_src, _dst, _payload);
+}
+
+bool base_fake_socket_fixture::inject_message_udp_multicast(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst,
+                                                            std::vector<unsigned char>& _payload) {
+    return socket_manager_->inject_message_udp_multicast(_src, _dst, _payload);
 }
 
 bool base_fake_socket_fixture::insert_udp_recv_error(const boost::asio::ip::udp::endpoint& _endpoint, boost::system::error_code _ec) {

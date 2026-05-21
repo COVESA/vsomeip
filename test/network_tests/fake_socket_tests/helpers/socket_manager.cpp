@@ -679,9 +679,61 @@ std::future<protocol::id_e> socket_manager::drop_command_once(std::string const&
     return fut;
 }
 
-bool socket_manager::inject_command(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload) {
+bool socket_manager::inject_command_tcp(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload) {
     auto connection = get_or_create_connection(_client, _server);
     return connection->inject_command(_payload);
+}
+
+bool socket_manager::inject_message_tcp(std::string const& _client, std::string const& _server, std::vector<unsigned char>& _payload) {
+    auto connection = get_or_create_connection(_client, _server);
+    return connection->inject_message(_payload);
+}
+
+bool socket_manager::inject_message_udp(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst,
+                                        std::vector<unsigned char>& _payload) {
+    auto const lock = std::scoped_lock(mtx_);
+
+    for (auto const& ep_fd : endpoint_udp_to_fd_) {
+        auto const& [endpoint, fd] = ep_fd;
+        if (endpoint.address() == _dst.address() && endpoint.port() == _dst.port()) {
+            if (auto const h_it = fd_to_handle_.find(fd); h_it != fd_to_handle_.end()) {
+                if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(h_it->second.lock()); udp_handle) {
+                    udp_handle->consume(_payload, _src, _dst);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool socket_manager::inject_message_udp_multicast(boost::asio::ip::udp::endpoint _src, boost::asio::ip::udp::endpoint _dst,
+                                                  std::vector<unsigned char>& _payload) {
+    std::vector<std::shared_ptr<fake_socket_handle>> multicast_group;
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        if (auto it_multicast = multicast_to_fds_.find(_dst.address()); it_multicast != multicast_to_fds_.end()) {
+            for (auto const& fd : it_multicast->second) {
+                if (auto handle_it = fd_to_handle_.find(fd); handle_it != fd_to_handle_.end()) {
+                    if (auto shared_handle = handle_it->second.lock(); shared_handle) {
+                        multicast_group.push_back(shared_handle);
+                    }
+                }
+            }
+        }
+
+        if (multicast_group.empty()) {
+            LOCAL_LOG << "No receivers found for multicast address: " << _dst.address();
+            return false;
+        }
+    }
+
+    for (auto const& handle : multicast_group) {
+        if (auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(handle); udp_handle) {
+            udp_handle->consume(_payload, _src, _dst);
+        }
+    }
+    return true;
 }
 
 void socket_manager::set_custom_command_handler(std::string const& _client, std::string const& _server,
@@ -707,6 +759,13 @@ void socket_manager::join_multicast_group(boost::asio::ip::address _multicast, f
     } else {
         multicast_to_fds_[_multicast].insert(_fd);
     }
+
+    multicast_join_cv_.notify_all();
+}
+
+[[nodiscard]] bool socket_manager::await_multicast_join(boost::asio::ip::address const& _multicast, std::chrono::milliseconds _timeout) {
+    auto lock = std::unique_lock(mtx_);
+    return multicast_join_cv_.wait_for(lock, _timeout, [&] { return multicast_to_fds_.find(_multicast) != multicast_to_fds_.end(); });
 }
 
 void socket_manager::leave_multicast_group(boost::asio::ip::address _multicast, fd_t _fd) {

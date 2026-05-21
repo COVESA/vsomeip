@@ -29,7 +29,7 @@ namespace vsomeip_v3::testing {
 
 [[nodiscard]] size_t parse(std::vector<unsigned char>& _message, someip_message& _out_message) {
     if (_message.size() < VSOMEIP_FULL_HEADER_SIZE) {
-        TEST_LOG << "Message not long enough to contain someip header";
+        TEST_LOG << "[Warning] Message not long enough to contain someip header";
         return 0;
     }
 

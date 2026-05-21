@@ -207,7 +207,7 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
      **/
     void set_ignore_nothing_to_read_from(bool _ignore);
 
-    size_t consume(std::vector<boost::asio::const_buffer> const& _buffer, bool force_reception = false);
+    size_t consume(std::vector<boost::asio::const_buffer> const& _buffer, bool _force_reception = false);
 
     size_t consume_boardnet(boost::asio::const_buffer const& _buffer);
 
