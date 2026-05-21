@@ -142,16 +142,21 @@ void local_endpoint::escalate_internal(std::unique_lock<std::mutex>& _lock) {
     // In the future "2." should be rethought allowing to call "post"
     // here. This would greatly ease reasoning about locking the class mutex, across
     // functions.
-    error_handler_t h = error_handler_;
+    cleanup_handler_t h = std::move(cleanup_handler_); // allowed to be invoked only once anyhow
     if (h) {
         _lock.unlock();
-        h();
+        h(true);
         _lock.lock();
     }
 }
 
 bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     std::scoped_lock const lock{mutex_};
+    if (is_flushing_) {
+        VSOMEIP_WARNING_P << "Dropping message type: " << protocol::read_command_id(_data, _size) << " and size: " << _size
+                          << ", due to the current state: " << status_unlock();
+        return false;
+    }
     if (std::numeric_limits<size_t>::max() - _size < send_queue_.size()) {
         VSOMEIP_ERROR_P << "Dropping message type: " << protocol::read_command_id(_data, _size) << " and size: " << _size
                         << ", to avoid buffer overflow, " << status_unlock();
@@ -286,6 +291,17 @@ void local_endpoint::send_unlock() {
 void local_endpoint::send_buffer_unlock() {
     if (send_queue_.empty()) {
         is_sending_ = false;
+        if (is_flushing_) {
+            if (cleanup_handler_) {
+                // Note that even though we "post" the no-error case here,
+                // it "only" means that we receive a "stop" due to no error (and do not attempt to restart the routing connection)
+                // If we would internally encounter some error this would still be captured in our internal state,
+                // so that we will then close the socket due to our internal error anyhow
+                // -> there should be no error-handling race by moving the cleanup_handler out
+                // (and thereby guaranteeing that the cleanup code of this endpoint is executed exactly once)
+                boost::asio::post(io_, [handler = std::move(cleanup_handler_)] { handler(false); });
+            }
+        }
         return;
     }
     is_sending_ = true;
@@ -363,8 +379,8 @@ std::string local_endpoint::status() const {
 std::string local_endpoint::status_unlock() const {
     std::stringstream s;
     s << "Client: " << hex4(peer_data_.id_) << " (" << peer_data_.lc_token_ << "), connection : " << socket_->to_string()
-      << ", send_queue: " << send_queue_.size() << ", receive_buffer: " << *receive_buffer_
-      << ", is_sending: " << (is_sending_ ? "true" : "false") << ", state: " << state_;
+      << ", send_queue: " << send_queue_.size() << ", receive_buffer: " << *receive_buffer_ << ", is_sending: " << std::boolalpha
+      << is_sending_ << ", is_flushing: " << is_flushing_ << ", state: " << state_;
     return s.str();
 }
 
@@ -505,37 +521,18 @@ bool local_endpoint::is_allowed() {
     return true;
 }
 
-void local_endpoint::flush_queue() {
+void local_endpoint::start_flushing() {
 
-    std::unique_lock lock{mutex_};
-
-    boost::system::error_code its_error;
-    uint32_t retry_count(0);
-    while (true) {
-        size_t send_buffer_size = socket_->get_send_buffer_size(its_error);
-        if (its_error) {
-            VSOMEIP_WARNING_P << "Fail to read send_buffer_size (" << its_error.value() << "): " << its_error.message() << ", "
-                              << status_unlock();
-            break;
-        }
-
-        if (is_sending_ || !send_queue_.empty() || send_buffer_size > 0) {
-            VSOMEIP_WARNING_P << "Waiting[" << retry_count << "] on close to send remaining data, " << status_unlock()
-                              << " and send_buffer_size: " << send_buffer_size;
-            lock.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_CHECK_PERIOD));
-            lock.lock();
-            ++retry_count;
-        } else {
-            break;
-        }
-        if (retry_count > VSOMEIP_LOCAL_CLOSE_SEND_BUFFER_RETRIES) {
-            VSOMEIP_WARNING_P << "Max retries reached to send! Will drop remaining data on close, " << status_unlock()
-                              << " and send_buffer_size: " << send_buffer_size;
-            ;
-            break;
-        }
+    std::scoped_lock const lock{mutex_};
+    if (!is_started_) {
+        VSOMEIP_ERROR_P << "Trying to flush a non-started endpoint: " << status_unlock();
+        return;
     }
+    if (is_value(state_).any_of(state_e::FAILED, state_e::STOPPED)) {
+        return;
+    }
+    is_flushing_ = true;
+    send_unlock();
 }
 
 void local_endpoint::trigger_error() {
@@ -548,9 +545,9 @@ void local_endpoint::trigger_error() {
     });
 }
 
-void local_endpoint::register_error_handler(const error_handler_t& _error) {
+void local_endpoint::register_cleanup_handler(const cleanup_handler_t& _handler) {
     std::scoped_lock const lock{mutex_};
-    error_handler_ = _error;
+    cleanup_handler_ = _handler;
 }
 
 void local_endpoint::print_status() {

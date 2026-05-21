@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <memory>
 #include <optional>
+#include <condition_variable>
 
 #include <boost/asio/io_context.hpp>
 #include <vsomeip/primitive_types.hpp>
@@ -35,11 +36,30 @@ public:
     virtual ~endpoint_manager_base() = default;
 
     void init(std::shared_ptr<routing_host> const& _local_message_handler);
+    /**
+     * Re-enables the creation of endpoints as well as accepting provider endpoints
+     * (from re-created local_server)
+     **/
+    void start();
+
+    /**
+     * Stops accepting or creating endpoints (except the sender for locking reasons),
+     * clears all pending provider endpoints,
+     * starts flushing all managed endpoints
+     **/
+    void stop();
+
+    /**
+     * Blocks the current thread for max _timeout or until all managed endpoints have been removed.
+     * Note:
+     * It is mandatory to have called ::stop() before and do not call ::start() inbetween to avoid
+     * expiring the _timeout.
+     **/
+    [[nodiscard]] bool await_stopped(std::chrono::milliseconds _timeout);
 
     std::shared_ptr<local_server> create_local_server(transport_protocol_e _transport_protocol);
 
     std::shared_ptr<local_endpoint> create_routing_client();
-    std::shared_ptr<local_endpoint> create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_or_create_local_client(client_t _client);
     std::shared_ptr<local_endpoint> find_local_client(client_t _client);
 
@@ -48,11 +68,9 @@ public:
 
     void remove_provider_endpoint(client_t _client, bool _remove_due_to_error);
     void remove_consumer_endpoint(client_t _client, bool _remove_due_to_error);
-    void clear_provider_endpoints(bool _remove_due_to_error);
-    void clear_consumer_endpoints(bool _remove_due_to_error);
+    void clear_provider_endpoints();
+    void clear_consumer_endpoints();
     void stop_all_endpoints();
-
-    void flush_local_endpoint_queues() const;
 
     // Statistics
     void log_client_states() const;
@@ -64,7 +82,7 @@ private:
     client_t get_client_id() const;
     std::string get_client_env() const;
 
-    void add_local_server_endpoint(std::shared_ptr<local_endpoint> _connection);
+    void add_local_server_endpoint(std::shared_ptr<local_endpoint> _connection, uint32_t _token);
     void add_local_server_endpoint_unlocked(client_t _client, const std::shared_ptr<local_endpoint>& _connection);
 
     std::shared_ptr<local_endpoint> create_local_client_endpoint(client_t _client, client_t _own_id,
@@ -94,7 +112,11 @@ private:
     port_t local_port_; // local (client) port when connecting to other
                         // vsomeip application via TCP
 
+    bool is_started_{false};
+    uint32_t lc_token_{0};
+
     mutable std::mutex mtx_;
+    std::condition_variable cv_; // required for stopping
     std::weak_ptr<routing_host> local_message_handler_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_client_endpoints_;
     std::map<client_t, std::shared_ptr<local_endpoint>> local_server_endpoints_;

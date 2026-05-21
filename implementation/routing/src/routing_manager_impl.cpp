@@ -258,8 +258,6 @@ void routing_manager_impl::stop() {
     if (discovery_)
         discovery_->stop();
 
-    try_to_send_before_stop();
-
     stub_->stop();
 
     ep_mgr_impl_->stop();
@@ -2632,7 +2630,11 @@ void routing_manager_impl::on_pong(client_t _client) {
 }
 
 void routing_manager_impl::register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint) {
-    _endpoint->register_error_handler(std::bind(&routing_manager_impl::cleanup_client, this, _client));
+    _endpoint->register_cleanup_handler([weak_self = weak_from_this(), _client](bool) {
+        if (auto self = weak_self.lock(); self) {
+            self->cleanup_client(_client);
+        }
+    });
 }
 
 void routing_manager_impl::cleanup_client(client_t _client) {
@@ -3705,10 +3707,6 @@ void routing_manager_impl::remove_subscriptions(port_t _local_port, const boost:
 
 std::shared_ptr<local_endpoint> routing_manager_impl::find_routing_endpoint(client_t _client) const {
     return ep_mgr_impl_->find_routing_endpoint(_client);
-}
-
-void routing_manager_impl::try_to_send_before_stop() {
-    ep_mgr_impl_->flush_routing_endpoint_queues();
 }
 
 const char* routing_manager_impl::routing_state_tostring(routing_state_e _state) {

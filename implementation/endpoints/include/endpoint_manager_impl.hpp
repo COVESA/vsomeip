@@ -96,7 +96,6 @@ public:
     std::shared_ptr<local_endpoint> find_routing_endpoint(client_t _client) const;
     void remove_routing_endpoint(client_t _client);
     void clear_routing_endpoints();
-    void flush_routing_endpoint_queues();
 
     /**
      * drops all routing_endpoints having a peer address equal to @param _address

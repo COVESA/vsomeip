@@ -9,6 +9,7 @@
 #include <mutex>
 #include <atomic>
 #include <tuple>
+#include <condition_variable>
 
 #include <boost/asio/steady_timer.hpp>
 
@@ -89,7 +90,7 @@ public:
     void on_routing_info(const byte_t* _data, uint32_t _size);
 
     void register_client_error_handler(client_t _client, const std::shared_ptr<local_endpoint>& _endpoint);
-    void cleanup_client(client_t _client);
+    void cleanup_client(client_t _client, bool _due_to_error);
 
     // local_endpoint_manager_host
     client_t get_client_id() override;
@@ -214,16 +215,17 @@ private:
      */
     void clear_remote_subscriptions(std::scoped_lock<std::mutex> const& _provider_lock);
 
-    void restart_sender(std::unique_lock<std::recursive_mutex> const& _sender_mutex);
+    void restart_sender(std::unique_lock<std::mutex> const& _sender_mutex);
     void debounce_restart_sender_done();
 
     /// @brief Remove local client
     ///
     /// This will remove all information about local client, its' offered services, and also close the client endpoint to it
     ///
+    /// @param _due_to_error, true in case of error
     /// @param _client what client
     /// @param _requested_services what services were requested by us and offered by client;
-    void remove_local(client_t _client, std::set<protocol::service>& _requested_services);
+    void remove_local(bool _due_to_error, client_t _client, std::set<protocol::service>& _requested_services);
 
     void cleanup_routing_data();
     void cleanup_subscriber(std::scoped_lock<std::mutex> const& _provider_lock);
@@ -287,9 +289,10 @@ private:
     boost::asio::steady_timer status_log_timer_;
     boost::asio::steady_timer version_log_timer_;
 
-    mutable std::recursive_mutex sender_mutex_;
+    mutable std::mutex sender_mutex_;
     bool sender_debounce_active_{false};
     bool start_sender_after_debounce_{false};
+    std::condition_variable sender_cv_;
     std::shared_ptr<local_endpoint> sender_; // --> stub
 
     mutable std::mutex receiver_mutex_;

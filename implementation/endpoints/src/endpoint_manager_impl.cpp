@@ -1343,16 +1343,6 @@ void endpoint_manager_impl::add_local_routing_endpoint_unlocked(client_t _client
     VSOMEIP_INFO_P << "self 0x" << hex4(router_->get_client()) << ", client 0x" << hex4(_client) << ", connection > " << _ep->name();
 }
 
-void endpoint_manager_impl::flush_routing_endpoint_queues() {
-    auto const eps = [this] {
-        std::scoped_lock lock{routing_endpoint_mtx_};
-        return routing_endpoints_;
-    }();
-    for (auto const& [_, ep] : eps) {
-        ep->flush_queue();
-    }
-}
-
 std::shared_ptr<local_endpoint> endpoint_manager_impl::find_routing_endpoint(client_t _client) const {
     std::scoped_lock const lock{routing_endpoint_mtx_};
     if (auto const it = routing_endpoints_.find(_client); it != routing_endpoints_.end()) {
@@ -1382,7 +1372,6 @@ void endpoint_manager_impl::clear_routing_endpoints() {
     VSOMEIP_INFO_P << " ";
     std::scoped_lock const lock{routing_endpoint_mtx_};
     for (auto const& [id, ep] : routing_endpoints_) {
-        ep->register_error_handler(nullptr);
         ep->stop(false);
     }
     for (auto const& [id, ep] : pending_routing_endpoints_) {
