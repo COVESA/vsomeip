@@ -1277,7 +1277,22 @@ void service_discovery_impl::process_serviceentry(std::shared_ptr<serviceentry_i
         default:
             VSOMEIP_ERROR_P << "Unsupported service entry type";
         }
-    } else if (its_type != entry_type_e::FIND_SERVICE && (_sd_ac_state.sd_acceptance_required_ || _sd_ac_state.accept_entries_)) {
+    }
+    // There is a possibility that a stop offer is not processed because no SA is present for the service/instance, but this should only
+    // happen on a reboot, afterwards a offer will be processed and a reboot is detected, so it should not cause any issues.
+    else if (its_type != entry_type_e::FIND_SERVICE && (!_sd_ac_state.sd_acceptance_required_ || _sd_ac_state.accept_entries_)) {
+
+        // Ignore StopOffer for secure services received on non-secure ports
+        bool is_secure = configuration_->is_secure_service(its_service, its_instance);
+        if (is_secure
+            && ((its_reliable_port != ILLEGAL_PORT && !configuration_->is_secure_port(its_reliable_address, its_reliable_port, true))
+                || (its_unreliable_port != ILLEGAL_PORT
+                    && !configuration_->is_secure_port(its_unreliable_address, its_unreliable_port, false)))) {
+            VSOMEIP_WARNING_P << "Ignoring StopOffer of [" << hex4(its_service) << "." << hex4(its_instance)
+                              << "] port: reliable=" << its_reliable_port << " unreliable=" << its_unreliable_port;
+            return;
+        }
+
         // stop sending find service in repetition phase
         update_request(its_service, its_instance);
 
