@@ -98,9 +98,9 @@ struct base_fake_socket_fixture : ::testing::Test {
     [[nodiscard]] bool await_connectable(std::string const& _name, std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
-     * Waits until @param _multicast group has at least one socket joined, or @param _timeout elapses.
+     * Waits until @param _multicast group has at least @param _min_count sockets joined, or @param _timeout elapses.
      */
-    [[nodiscard]] bool await_multicast_join(boost::asio::ip::address const& _multicast,
+    [[nodiscard]] bool await_multicast_join(boost::asio::ip::address const& _multicast, size_t _min_count = 1,
                                             std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**
