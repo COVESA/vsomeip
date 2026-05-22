@@ -86,6 +86,18 @@ void socket_manager::add_socket(std::weak_ptr<fake_socket_handle> _state, boost:
     }
 }
 
+void socket_manager::add_netlink_connector(std::weak_ptr<fake_netlink_connector> _connector, boost::asio::io_context* _io) {
+    if (auto const connector = _connector.lock(); connector) {
+        auto fd = next_fd_++;
+        if (next_fd_.load() < fd) {
+            throw std::runtime_error("Exhausted fake file descriptors");
+        }
+        std::scoped_lock lck(mtx_);
+        try_add(_io, fd, "netconn");
+        context_to_netlink_conn_[_io] = _connector;
+    }
+}
+
 void socket_manager::remove(fd_t fd) {
     auto const lock = std::scoped_lock(mtx_);
     fd_to_handle_.erase(fd);
@@ -356,6 +368,8 @@ void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _c
     auto c_name = _connecting.get_app_name();
     auto s_name = accepting->get_app_name();
     if (!c_name.empty() && !s_name.empty()) {
+        accepting->set_local_endpoint(acceptor->endpoint_);
+        _connecting.set_remote_endpoint(acceptor->endpoint_);
         auto cn = connection_name(c_name, s_name);
         auto connection = get_or_create_connection(c_name, s_name);
         connection->set_sockets(std::dynamic_pointer_cast<fake_tcp_socket_handle>(_connecting.shared_from_this()), accepting);
@@ -363,8 +377,7 @@ void socket_manager::connect(uds_endpoint const& _ep, fake_tcp_socket_handle& _c
         auto const lock = std::scoped_lock(mtx_);
         LOCAL_LOG << "added: " << cn << " to the known connections";
     } else {
-        LOCAL_LOG << "Error: socket encountered without set app name! "
-                  << "c_name: " << c_name << ", s_name: " << s_name;
+        LOCAL_LOG << "Error: socket encountered without set app name! " << "c_name: " << c_name << ", s_name: " << s_name;
     }
 }
 
@@ -402,6 +415,17 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
         if (connections_to_ignore_.count(acc_name) > 0) {
             return;
         }
+
+        // is external connection
+        if (_ep.address() != _connecting.local_endpoint().address()) {
+            if (ignored_networks_.count(_ep.address()) > 0) {
+                return;
+            }
+            if (ignored_networks_.count(_connecting.local_endpoint().address()) > 0) {
+                return;
+            }
+        }
+
         acceptor = scoped_ac;
     }();
     if (!acceptor) {
@@ -416,13 +440,14 @@ void socket_manager::connect(boost::asio::ip::tcp::endpoint const& _ep, fake_tcp
     auto c_name = _connecting.get_app_name();
     auto s_name = accepting->get_app_name();
     if (!c_name.empty() && !s_name.empty()) {
+        accepting->set_local_endpoint(acceptor->endpoint_);
+        _connecting.set_remote_endpoint(acceptor->endpoint_);
         auto cn = connection_name(c_name, s_name);
         auto connection = get_or_create_connection(c_name, s_name);
         connection->set_sockets(std::dynamic_pointer_cast<fake_tcp_socket_handle>(_connecting.shared_from_this()), accepting);
         LOCAL_LOG << "added: " << cn << " to the known connections";
     } else {
-        LOCAL_LOG << "Error: socket encountered without set app name! "
-                  << "c_name: " << c_name << ", s_name: " << s_name;
+        LOCAL_LOG << "Error: socket encountered without set app name! " << "c_name: " << c_name << ", s_name: " << s_name;
     }
 }
 
@@ -517,6 +542,16 @@ void socket_manager::set_ignore_connections(std::string const& _app_name, bool _
         connections_to_ignore_.erase(_app_name);
     }
 }
+
+void socket_manager::set_ignore_ip(boost::asio::ip::address _ip, bool _ignore_connections) {
+    std::scoped_lock lock(mtx_);
+    if (_ignore_connections) {
+        ignored_networks_.insert(_ip);
+    } else {
+        ignored_networks_.erase(_ip);
+    }
+}
+
 [[nodiscard]] bool socket_manager::delay_message_processing(std::string const& _client, std::string const& _server, bool _delay,
                                                             socket_role _role) {
     auto connection = get_or_create_connection(_client, _server);
@@ -906,5 +941,60 @@ void socket_manager::clear_sd_message_record(boost::asio::ip::udp::endpoint cons
     }
 
     udp_handle->received_sd_record_.clear();
+}
+
+void socket_manager::set_netlink_connector_state(std::string const& _client, fake_netlink_connector::state_e _state) {
+    std::scoped_lock lock(mtx_);
+    auto const it_context = name_to_context_.find(_client);
+    if (it_context == name_to_context_.end()) {
+        LOCAL_LOG << "[Warning] No context for application: " << _client << " yet, stashing state";
+        stashed_netconn_states_[_client] = _state;
+        return;
+    }
+    auto netlink_connector = context_to_netlink_conn_.find(it_context->second);
+    if (netlink_connector == context_to_netlink_conn_.end()) {
+        LOCAL_LOG << "[Warning] application " << _client << " does not (yet) have a netlink connector associated. Stashing state";
+        stashed_netconn_states_[_client] = _state;
+        return;
+    }
+    if (auto netconn_lock = netlink_connector->second.lock(); netconn_lock) {
+        netconn_lock->set_state(_state);
+    }
+}
+
+void socket_manager::allow_ip_address_to_external(boost::asio::ip::address _ip, bool _allow) {
+    {
+        std::scoped_lock lock(mtx_);
+        for (auto [app_name, conn] : connections_) {
+            conn->block_reconnect_to_ip(_ip, !_allow);
+            if (!_allow) {
+                conn->disconnect_from(_ip);
+            }
+        }
+        for (auto [ep, fd] : endpoint_udp_to_fd_) {
+            if (ep.address() == _ip) {
+                if (auto it = fd_to_handle_.find(fd); it != fd_to_handle_.end()) {
+                    if (auto handle = it->second.lock(); handle) {
+                        auto udp_handle = std::dynamic_pointer_cast<fake_udp_socket_handle>(handle);
+                        if (udp_handle) {
+                            udp_handle->set_block_communication(!_allow);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::optional<fake_netlink_connector::state_e> socket_manager::extract_state(boost::asio::io_context* _io) {
+    std::scoped_lock lck(mtx_);
+    if (auto client = context_to_name_.find(_io); client != context_to_name_.end()) {
+        if (auto state = stashed_netconn_states_.find(client->second); state != stashed_netconn_states_.end()) {
+            auto owned_state = std::move(state->second);
+            stashed_netconn_states_.erase(client->second);
+            return owned_state;
+        }
+    }
+    return std::nullopt;
 }
 }

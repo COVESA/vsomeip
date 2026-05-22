@@ -215,16 +215,20 @@ void ecu_setup::setup_offer_hook(app* a) {
         return;
     }
     a->set_offer_service_hook([this](std::function<void()> do_offer, service_instance si) {
-        if (!offered_tcp_ && is_tcp_service(si)) {
+        if (!offered_tcp_ && netlink_state_ != fake_netlink_connector::state_e::DOWN) {
             sm_.add(router_name_ + "_auxiliary_context_");
-            do_offer();
+        }
+        do_offer();
+        if (netlink_state_ == fake_netlink_connector::state_e::DOWN) {
+            expect_auxiliary_context_ = !offered_tcp_;
+            return;
+        }
+        if (!offered_tcp_ && is_tcp_service(si)) {
             if (!sm_.await_assignment(router_name_ + "_auxiliary_context_")) {
                 TEST_LOG << router_name_ << " could not be assigned to an auxiliary_context";
                 return;
             }
             offered_tcp_ = true;
-        } else {
-            do_offer();
         }
     });
 }
@@ -266,4 +270,29 @@ bool ecu_setup::await_connectable(std::string const& name, std::chrono::millisec
 boost::asio::ip::udp::endpoint ecu_setup::sd_endpoint() {
     return {config_.unicast_ip_, 30490};
 }
+
+bool ecu_setup::set_routing(fake_netlink_connector::state_e _state) {
+    netlink_state_ = _state;
+    auto allow_comm = _state == fake_netlink_connector::state_e::UP;
+
+    if (!offered_tcp_ && expect_auxiliary_context_ && allow_comm) {
+        sm_.add(router_name_ + "_auxiliary_context_");
+    }
+
+    sm_.set_ignore_ip(config_.unicast_ip_, !allow_comm);
+    sm_.allow_ip_address_to_external(config_.unicast_ip_, allow_comm);
+    sm_.set_netlink_connector_state(router_name_, _state);
+
+    if (!offered_tcp_ && expect_auxiliary_context_ && allow_comm) {
+        if (!sm_.await_assignment(router_name_ + "_auxiliary_context_")) {
+            LOCAL_LOG << router_name_ << " could not be assigned to an auxiliary_context";
+            return false;
+        }
+        LOCAL_LOG << router_name_ << " is assigned to an auxiliary_context";
+        offered_tcp_ = true;
+        expect_auxiliary_context_ = false;
+    }
+    return true;
+}
+
 } // namespace vsomeip_v3::testing

@@ -104,6 +104,9 @@ public:
     /// input_data_ and fires the open_reaction_ callback.
     void set_state(data_pipe_state _input);
 
+    /// Empties both queues.
+    void clear();
+
 private:
     void push_data(std::scoped_lock<std::mutex> const&);
     void push_checked_data(std::scoped_lock<std::mutex> const&);

@@ -8,8 +8,6 @@
 #if defined(__linux__)
 #include "../../../implementation/endpoints/include/abstract_netlink_connector.hpp"
 
-#include "socket_manager.hpp"
-
 namespace vsomeip_v3::testing {
 
 /**
@@ -17,8 +15,21 @@ namespace vsomeip_v3::testing {
  **/
 class fake_netlink_connector : public abstract_netlink_connector, public std::enable_shared_from_this<fake_netlink_connector> {
 public:
+    enum class state_e { INIT, RESET, DOWN, UP, UP_MULTICAST };
     fake_netlink_connector(boost::asio::io_context& _io) : io_(_io) { }
     ~fake_netlink_connector() { stop(); }
+
+    void set_state(state_e _state) {
+        std::scoped_lock lock(mutex_);
+        state_ = _state;
+        if (!handler_) {
+            return;
+        }
+        boost::asio::post(io_, [handler = handler_, is_available = state_ == state_e::UP] {
+            handler(true /*interface*/, "fake-interface", is_available);
+            handler(false /*route*/, "fake-interface", is_available);
+        });
+    }
 
 private:
     virtual void register_net_if_changes_handler(const net_if_changed_handler_t& _handler) {
@@ -31,10 +42,10 @@ private:
     }
     virtual void start() {
         std::scoped_lock lock(mutex_);
-        boost::asio::post(io_, [handler = handler_] {
+        boost::asio::post(io_, [handler = handler_, is_available = state_ == state_e::UP] {
             if (handler) {
-                handler(true /*interface*/, "fake-interface", true /*is avail*/);
-                handler(false /*route*/, "fake-interface", true /*is avail*/);
+                handler(true /*interface*/, "fake-interface", is_available);
+                handler(false /*route*/, "fake-interface", is_available);
             }
         });
     }
@@ -46,6 +57,7 @@ private:
     std::mutex mutex_;
     boost::asio::io_context& io_;
     net_if_changed_handler_t handler_;
+    state_e state_ = state_e::UP;
 };
 }
 

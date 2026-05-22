@@ -343,6 +343,10 @@ void fake_udp_socket_handle::update_reception_unlocked() {
         // Update the source endpoint.
         receptor_->endpoint_ = input.addresses_->src_;
 
+        if (block_comm_) {
+            return;
+        }
+
         // Post the handler to the event loop.
         boost::asio::post(io_, [handler = std::move(receptor_->rw_handler_), written = writable_length] {
             handler(boost::system::error_code(), written);
@@ -359,8 +363,12 @@ void fake_udp_socket_handle::update_sending() {
         return std::make_pair(socket_manager_.lock(), sender_pipe_);
     }();
 
-    if (!sm_pipe.first || !sm_pipe.second) {
-        return;
+    {
+        auto const lock = std::scoped_lock(mtx_);
+        if (!sm_pipe.first || !sm_pipe.second || block_comm_) {
+            sm_pipe.second->clear();
+            return;
+        }
     }
 
     control_data_t input;
@@ -466,5 +474,15 @@ control_data_t fake_udp_socket_handle::prepare_control_data(boost::asio::const_b
     }
 
     return {.buffer_ = input, .addresses_ = std::optional<addresses>{{.src_ = _src, .dst_ = _dst}}};
+}
+
+void fake_udp_socket_handle::set_block_communication(bool _block_comm) {
+    auto const lock = std::scoped_lock(mtx_);
+    block_comm_ = _block_comm;
+    if (block_comm_) {
+        // Clear any data not yet received/sent
+        receiver_pipe_->clear();
+        sender_pipe_->clear();
+    }
 }
 }

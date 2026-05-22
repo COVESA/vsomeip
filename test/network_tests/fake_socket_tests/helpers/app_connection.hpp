@@ -128,6 +128,17 @@ public:
      **/
     [[nodiscard]] std::optional<socket_type> get_socket_type() const;
 
+    /**
+     * Disconnects if either the local or remote address is equal to the provided one,
+     * but not if they both are (as they are an "internal" connection)
+     */
+    bool disconnect_from(boost::asio::ip::address _address);
+
+    /**
+     * Blocks/Unblocks (re)connections to provided address
+     */
+    void block_reconnect_to_ip(boost::asio::ip::address _address, bool _block_reconnect);
+
 private:
     struct connection_options {
         bool delay_message_processing_{false};

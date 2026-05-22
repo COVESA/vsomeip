@@ -7,6 +7,7 @@
 
 #include "sockets/fake_tcp_socket_handle.hpp"
 #include "sockets/fake_udp_socket_handle.hpp"
+#include "fake_netlink_connector.hpp"
 
 #include <boost/asio/ip/address.hpp>
 #include <cstdint>
@@ -125,6 +126,13 @@ public:
     void set_ignore_connections(std::string const& _app_name, bool _ignore_connections);
 
     /**
+     * Adds the provided ip address to the group of ips that should not be able to connect
+     * to outside networks.
+     * Used to simulate a loss of network interface.
+     */
+    void set_ignore_ip(boost::asio::ip::address _ip, bool _ignore_connections);
+
+    /**
      * Ensures that write calls from _client are reported to be successful, but if _delay == true,
      * the callback of _server is not invoked, but remains waiting until _delay turns true again.
      *
@@ -228,6 +236,11 @@ public:
      * associates a fake_tcp_socket_handle to a io_context and therefore to an app_name.
      **/
     void add_socket(std::weak_ptr<fake_socket_handle> _state, boost::asio::io_context* _io, socket_type _type);
+
+    /**
+     * associates a fake_netlink_connector to an io_context and therefore to an app_name.
+     */
+    void add_netlink_connector(std::weak_ptr<fake_netlink_connector> _connector, boost::asio::io_context* _io);
 
     /**
      * removes the fd from the internal map of fds.
@@ -385,6 +398,23 @@ public:
      **/
     void clear_sd_message_record(boost::asio::ip::udp::endpoint const& _ep);
 
+    /**
+     * Set the netlink connector state to the provided one by calling its handler.
+     */
+    void set_netlink_connector_state(std::string const& _client, fake_netlink_connector::state_e _state);
+
+    /**
+     * Allows connections to be re-established and communication unlocked to the provided ip address.
+     * Only used for external connections
+     */
+    void allow_ip_address_to_external(boost::asio::ip::address _ip, bool _allow);
+
+    /**
+     * Returns and removes from stashed_netconn_states_ the state for the netlink connector
+     * saved for the provided io context
+     */
+    std::optional<fake_netlink_connector::state_e> extract_state(boost::asio::io_context* _io);
+
 private:
     void try_add(boost::asio::io_context* _io, fd_t _fd, char const* _type);
     std::shared_ptr<app_connection> get_or_create_connection(std::string const& _client, std::string const& _server);
@@ -408,6 +438,8 @@ private:
     std::map<boost::asio::io_context*, std::vector<fd_t>> context_to_fd_;
     std::map<std::string, size_t> connection_name_to_connection_count_;
     std::map<std::string, std::shared_ptr<app_connection>> connections_;
+    std::map<boost::asio::io_context*, std::weak_ptr<fake_netlink_connector>> context_to_netlink_conn_;
+    std::map<std::string, fake_netlink_connector::state_e> stashed_netconn_states_;
     // these timers are not supposed to ever expire.
     // Instead the callback lifetime of these timers ensures that
     // the socket_manager will be notified once the io_context is destroyed,
@@ -425,6 +457,7 @@ private:
     std::map<boost::asio::ip::udp::endpoint, bool> udp_sending_delay_;
     std::map<std::string, std::map<boost::asio::ip::udp::endpoint, pending_someip_pipe>> pending_someip_pipe_;
     std::set<std::string> connections_to_ignore_;
+    std::set<boost::asio::ip::address> ignored_networks_;
     std::set<std::string> fail_on_bind_;
     std::set<std::string> fail_on_uds_bind_;
     std::set<std::string> ignore_broken_pipe_;
