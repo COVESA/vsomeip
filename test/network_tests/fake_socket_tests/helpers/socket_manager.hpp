@@ -330,9 +330,9 @@ public:
     void check_connection(std::string const& _one, std::string const& _two, socket_role _closing);
 
     /**
-     * @brief Waits until @param _multicast group has at least one socket joined, or @param _timeout elapses.
+     * @brief Waits until @param _multicast group has at least @param _min_count sockets joined, or @param _timeout elapses.
      */
-    [[nodiscard]] bool await_multicast_join(boost::asio::ip::address const& _multicast,
+    [[nodiscard]] bool await_multicast_join(boost::asio::ip::address const& _multicast, size_t _min_count = 1,
                                             std::chrono::milliseconds _timeout = std::chrono::seconds(3));
 
     /**

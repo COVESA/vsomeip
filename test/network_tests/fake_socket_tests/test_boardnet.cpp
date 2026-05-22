@@ -1994,7 +1994,7 @@ TEST_F(length_field_too_big, direct_consume_multicast) {
 
     router_one_->request_service(interface_udp_.instance_);
 
-    ASSERT_TRUE(await_multicast_join(multicast_ep_.address()));
+    ASSERT_TRUE(await_multicast_join(multicast_ep_.address(), 2 /*ecu_one + ecu_two*/));
     auto valid_offer = construct_offer(interface_udp_.events_[0], ecu_two_.config().unicast_ip_, 30501);
     inject_message_udp_multicast(ecu_two_.sd_endpoint(), multicast_ep_, valid_offer);
     ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_udp_.instance_)));
