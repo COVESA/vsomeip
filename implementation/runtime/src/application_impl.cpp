@@ -335,7 +335,7 @@ void application_impl::start() {
         std::scoped_lock its_lock{start_stop_mutex_};
 
         {
-            std::scoped_lock its_lock_inner{dispatcher_mutex_};
+            std::scoped_lock its_lock_inner{handlers_mutex_};
             if (!dispatchers_.empty() || !io_threads_.empty()) {
                 VSOMEIP_ERROR << "Trying to start an already started application (" << hex4(client_) << ")  ";
                 return;
@@ -353,7 +353,7 @@ void application_impl::start() {
                 ;
 
         {
-            std::scoped_lock its_lock_inner{dispatcher_mutex_};
+            std::scoped_lock its_lock_inner{handlers_mutex_};
             is_dispatching_ = true;
             elapse_unactive_dispatchers_ = false;
             std::packaged_task<void()> dispatcher_task_(std::bind(&application_impl::main_dispatch, shared_from_this()));
@@ -463,7 +463,7 @@ void application_impl::start() {
                    << "; Join Dispatcher threads for app(" << name_ << ", " << hex4(client_) << ")";
 
     try {
-        std::unique_lock its_lock_start_stop{dispatcher_mutex_};
+        std::unique_lock its_lock_start_stop{handlers_mutex_};
         auto its_dispatchers = dispatchers_;
         running_dispatchers_.clear();
         elapsed_dispatchers_.clear();
@@ -1301,7 +1301,7 @@ void application_impl::set_client(const client_t& _client) {
     }
     // dispatch thread(s)
     {
-        std::scoped_lock its_lock{dispatcher_mutex_};
+        std::scoped_lock its_lock{handlers_mutex_};
 
         // cannot distinguish main vs secondary dispatchers, so name them all equally
         // they are not numbered anyhow, and secondary dispatchers are temporary - there is likely
@@ -1613,17 +1613,14 @@ void application_impl::main_dispatch() {
         } else {
             std::shared_ptr<sync_handler> its_handler;
             while (is_dispatching_ && is_active_dispatcher(its_id) && (its_handler = get_next_handler())) {
-                its_lock.unlock();
-                invoke_handler(its_handler);
+                invoke_handler(its_lock, its_handler);
 
                 if (!is_dispatching_)
                     break;
 
-                its_lock.lock();
-
                 reschedule_availability_handler(its_handler);
                 reschedule_subscription_handler(its_handler);
-                remove_elapsed_dispatchers();
+                remove_elapsed_dispatchers(its_lock);
             }
         }
     }
@@ -1661,29 +1658,24 @@ void application_impl::dispatch() {
                 if (!is_dispatching_) {
                     return;
                 }
-                std::scoped_lock its_lock_inner{dispatcher_mutex_};
                 elapsed_dispatchers_.insert(its_id);
                 return;
             }
         } else {
             std::shared_ptr<sync_handler> its_handler;
             while (is_dispatching_ && is_active_dispatcher(its_id) && (its_handler = get_next_handler())) {
-                its_lock.unlock();
-                invoke_handler(its_handler);
+                invoke_handler(its_lock, its_handler);
 
                 if (!is_dispatching_)
                     return;
 
-                its_lock.lock();
-
                 reschedule_availability_handler(its_handler);
                 reschedule_subscription_handler(its_handler);
-                remove_elapsed_dispatchers();
+                remove_elapsed_dispatchers(its_lock);
             }
         }
     }
     if (is_dispatching_) {
-        std::scoped_lock its_lock_inner{dispatcher_mutex_};
         elapsed_dispatchers_.insert(its_id);
     }
     dispatcher_condition_.notify_all();
@@ -1781,7 +1773,7 @@ void application_impl::reschedule_subscription_handler(const std::shared_ptr<syn
     }
 }
 
-void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
+void application_impl::invoke_handler(std::unique_lock<std::mutex>& _lock, std::shared_ptr<sync_handler>& _handler) {
     const std::thread::id its_id = std::this_thread::get_id();
 
     auto its_sync_handler =
@@ -1793,11 +1785,10 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
     its_dispatcher_timer.async_wait([this, its_sync_handler](const boost::system::error_code& _error) {
         if (!_error) {
             print_blocking_call(its_sync_handler);
+            std::scoped_lock its_lock{handlers_mutex_};
             if (has_active_dispatcher()) {
-                std::scoped_lock its_lock{handlers_mutex_};
                 dispatcher_condition_.notify_all();
             } else {
-                std::scoped_lock its_lock{dispatcher_mutex_};
                 // If possible, create a new dispatcher thread to unblock.
                 // If this is _not_ possible, dispatching is blocked until
                 // at least one of the active handler calls returns.
@@ -1825,29 +1816,24 @@ void application_impl::invoke_handler(std::shared_ptr<sync_handler>& _handler) {
                      << "type=" << static_cast<std::uint32_t>(its_sync_handler->handler_type_) << " thread=" << std::hex << its_id;
     }
 
-    {
-        std::scoped_lock its_lock{dispatcher_mutex_};
-        running_dispatchers_.insert(its_id);
-    }
+    running_dispatchers_.insert(its_id);
 
     if (is_dispatching_) {
+        _lock.unlock();
         try {
             _handler->handler_();
         } catch (const std::exception& e) {
             VSOMEIP_ERROR_P << "Caught exception: " << e.what();
             print_blocking_call(its_sync_handler);
         }
+        _lock.lock();
     }
 
     its_dispatcher_timer.cancel();
-    {
-        std::scoped_lock its_lock{dispatcher_mutex_};
-        running_dispatchers_.erase(its_id);
-    }
+    running_dispatchers_.erase(its_id);
 }
 
-bool application_impl::has_active_dispatcher() {
-    std::scoped_lock its_lock{dispatcher_mutex_};
+bool application_impl::has_active_dispatcher() const {
     if (!is_dispatching_) {
         return false;
     }
@@ -1857,7 +1843,6 @@ bool application_impl::has_active_dispatcher() {
 }
 
 bool application_impl::is_active_dispatcher(const std::thread::id& _id) const {
-    std::scoped_lock its_lock{dispatcher_mutex_};
     if (!is_dispatching_) {
         return false;
     }
@@ -1869,28 +1854,28 @@ bool application_impl::is_active_dispatcher(const std::thread::id& _id) const {
     });
 }
 
-void application_impl::remove_elapsed_dispatchers() {
+void application_impl::remove_elapsed_dispatchers(std::unique_lock<std::mutex>& _lock) {
     std::vector<std::shared_ptr<std::thread>> elapsed;
-    {
-        std::scoped_lock its_lock{dispatcher_mutex_};
-        if (!is_dispatching_) {
-            return;
-        }
-        for (auto id : elapsed_dispatchers_) {
-            auto it = dispatchers_.find(id);
-            if (it != dispatchers_.end()) {
-                elapsed.push_back(it->second);
-                dispatchers_.erase(it);
-            }
-        }
-        elapsed_dispatchers_.clear();
+    if (!is_dispatching_) {
+        return;
     }
+    for (auto id : elapsed_dispatchers_) {
+        auto it = dispatchers_.find(id);
+        if (it != dispatchers_.end()) {
+            elapsed.push_back(it->second);
+            dispatchers_.erase(it);
+        }
+    }
+    elapsed_dispatchers_.clear();
+
     for (auto& dispatcher : elapsed) {
         const auto id = dispatcher->get_id();
         VSOMEIP_INFO << "Joining dispatcher thread. client=" << hex4(client_) << " id=" << std::hex << id;
+        _lock.unlock();
         if (dispatcher->joinable()) {
             dispatcher->join();
         }
+        _lock.lock();
         VSOMEIP_INFO << "Joined dispatcher thread. client=" << hex4(client_) << " id=" << std::hex << id;
     }
 }

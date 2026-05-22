@@ -239,13 +239,13 @@ private:
 
     void main_dispatch();
     void dispatch();
-    void invoke_handler(std::shared_ptr<sync_handler>& _handler);
+    void invoke_handler(std::unique_lock<std::mutex>& _lock, std::shared_ptr<sync_handler>& _handler);
     std::shared_ptr<sync_handler> get_next_handler();
     void reschedule_availability_handler(const std::shared_ptr<sync_handler>& _handler);
     void reschedule_subscription_handler(const std::shared_ptr<sync_handler>& _handler);
-    bool has_active_dispatcher();
+    bool has_active_dispatcher() const;
     bool is_active_dispatcher(const std::thread::id& _id) const;
-    void remove_elapsed_dispatchers();
+    void remove_elapsed_dispatchers(std::unique_lock<std::mutex>& _lock);
 
     void send_back_cached_event(service_t _service, instance_t _instance, event_t _event);
     void send_back_cached_eventgroup(service_t _service, instance_t _instance, eventgroup_t _eventgroup);
@@ -352,15 +352,13 @@ private:
     mutable std::mutex handlers_mutex_;
 
     // Dispatching
-    std::atomic<bool> is_dispatching_;
+    bool is_dispatching_;
     // Dispatcher threads
     std::map<std::thread::id, std::shared_ptr<std::thread>> dispatchers_;
     // Dispatcher threads that elapsed and can be removed
     std::set<std::thread::id> elapsed_dispatchers_;
     // Dispatcher threads that are running
     std::set<std::thread::id> running_dispatchers_;
-    // Mutex to protect access to dispatchers_ & elapsed_dispatchers_
-    mutable std::mutex dispatcher_mutex_;
 
     // Condition to wakeup the dispatcher thread
     bool elapse_unactive_dispatchers_;
