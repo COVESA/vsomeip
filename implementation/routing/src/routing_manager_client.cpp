@@ -2086,17 +2086,20 @@ void routing_manager_client::cleanup_client(client_t _client, bool _due_to_error
         }
 
     } else {
-        if (_due_to_error) {
-            VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of host 0x" << hex4(_client) << ", will reconnect";
-            reconnect();
-        } else {
+        {
             std::scoped_lock its_lock{sender_mutex_};
             if (sender_) {
-                sender_->stop(false);
+                sender_->stop(_due_to_error);
                 sender_ = nullptr;
+                sender_cv_.notify_one();
             }
-            sender_cv_.notify_one();
+            if (!_due_to_error) {
+                VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles shutdown. Not reconnecting to host 0x" << hex4(_client);
+                return;
+            }
         }
+        VSOMEIP_INFO_P << "self 0x" << hex4(get_client()) << " handles cleanup of host 0x" << hex4(_client) << ", will reconnect";
+        reconnect();
     }
 }
 
