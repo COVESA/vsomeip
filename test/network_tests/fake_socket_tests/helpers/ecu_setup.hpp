@@ -93,6 +93,8 @@ struct ecu_setup {
 
     [[nodiscard]] boost::asio::ip::udp::endpoint sd_endpoint();
 
+    [[nodiscard]] bool set_routing(fake_netlink_connector::state_e _state);
+
     std::string router_name_;
 
 private:
@@ -105,6 +107,9 @@ private:
     std::map<std::string, std::unique_ptr<app>> owned_apps_;
     bool offered_tcp_{false};
 
+    bool expect_auxiliary_context_ = false;
+    fake_netlink_connector::state_e netlink_state_ = fake_netlink_connector::state_e::UP;
+
     /// Returns true if the given service_instance is configured with a reliable (TCP) port.
     [[nodiscard]] bool is_tcp_service(service_instance const& si) const;
 
@@ -112,6 +117,7 @@ private:
     /// io_context is registered transparently on the first TCP service offer.
     void setup_offer_hook(app* a);
 
+    fake_netlink_connector::state_e routing_state_ = fake_netlink_connector::state_e::UP;
     std::optional<ecu_config> guest_config_;
     std::string guest_config_name_;
     std::filesystem::path guest_config_file_;

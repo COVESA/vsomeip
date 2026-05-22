@@ -132,6 +132,11 @@ struct fake_udp_socket_handle : public fake_socket_handle {
      */
     void replace_pipe(std::shared_ptr<data_pipe> _pipe, socket_role _applied_on);
 
+    /**
+     * Set if communication should be blocked.
+     */
+    void set_block_communication(bool _block_comm);
+
     attribute_recorder<someip_sd_record_message> received_sd_record_;
 
 private:
@@ -160,6 +165,7 @@ private:
     socket_id socket_id_;
     std::atomic<bool> delay_messages_{false};
     std::vector<control_data_t> delayed_messages_;
+    bool block_comm_{false};
     /*
      *  Error code to be delivered during the next receive operation.
      */
@@ -173,5 +179,4 @@ private:
     std::shared_ptr<data_pipe> receiver_pipe_ = std::make_shared<data_pipe>();
     std::shared_ptr<data_pipe> sender_pipe_ = std::make_shared<data_pipe>();
 };
-
 }

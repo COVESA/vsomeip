@@ -189,4 +189,10 @@ void data_pipe::push_through(std::scoped_lock<std::mutex> const&) {
     std::copy(input_data_.begin(), input_data_.end(), std::back_inserter(data_to_forward_));
     input_data_.clear();
 }
+
+void data_pipe::clear() {
+    std::scoped_lock lock{mtx_};
+    input_data_.clear();
+    data_to_forward_.clear();
+}
 }

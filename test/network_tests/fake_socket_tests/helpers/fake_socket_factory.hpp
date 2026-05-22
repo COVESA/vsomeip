@@ -32,7 +32,15 @@ public:
 private:
     std::shared_ptr<abstract_netlink_connector> create_netlink_connector(boost::asio::io_context& _io, const boost::asio::ip::address&,
                                                                          const boost::asio::ip::address&, bool) override {
-        return std::make_shared<fake_netlink_connector>(_io);
+        if (auto sm = socket_manager_.lock(); sm) {
+            auto netconn = std::make_shared<fake_netlink_connector>(_io);
+            sm->add_netlink_connector(netconn, &_io);
+            if (auto state = sm->extract_state(&_io); state.has_value()) {
+                netconn->set_state(state.value());
+            }
+            return netconn;
+        }
+        return nullptr;
     }
 
     std::unique_ptr<tcp_socket> create_tcp_socket(boost::asio::io_context& _io) override {

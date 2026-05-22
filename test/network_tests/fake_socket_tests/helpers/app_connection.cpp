@@ -266,4 +266,24 @@ std::pair<std::shared_ptr<fake_tcp_socket_handle>, std::shared_ptr<fake_tcp_sock
     return {client_.lock(), server_.lock()};
 }
 
+bool app_connection::disconnect_from(boost::asio::ip::address _address) {
+    if (auto [client, _] = promoted(); client) {
+        if (client->local_endpoint().address() == _address || client->remote_endpoint().address() == _address) {
+            if (client->local_endpoint().address() != client->remote_endpoint().address()) {
+                return disconnect(boost::asio::error::timed_out, std::nullopt, socket_role::client);
+            }
+        }
+    }
+    return true;
+}
+
+void app_connection::block_reconnect_to_ip(boost::asio::ip::address _address, bool _block_reconnect) {
+    if (auto [client, _] = promoted(); client) {
+        if (client->local_endpoint().address() == _address || client->remote_endpoint().address() == _address) {
+            if (client->local_endpoint().address() != client->remote_endpoint().address()) {
+                client->set_block_connection(_block_reconnect);
+            }
+        }
+    }
+}
 }

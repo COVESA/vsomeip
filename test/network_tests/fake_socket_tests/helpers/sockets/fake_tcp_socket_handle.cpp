@@ -214,8 +214,11 @@ void fake_tcp_socket_handle::connect(boost::asio::ip::tcp::endpoint const& _ep, 
         auto const lock = std::scoped_lock(mtx_);
         return socket_manager_.lock();
     }();
-
-    if (sm) {
+    auto conn_blocked = [&]() {
+        auto const lock = std::scoped_lock(mtx_);
+        return block_connection_;
+    }();
+    if (sm && !conn_blocked) {
         sm->connect(_ep, *this,
                     [this, h = std::move(_handler)](auto ec) { boost::asio::post(io_, [handler = std::move(h), ec] { handler(ec); }); });
         return;
@@ -472,6 +475,21 @@ void fake_tcp_socket_handle::replace_pipe(std::shared_ptr<data_pipe> _pipe) {
 
 void fake_tcp_socket_handle::delayed_consume(std::vector<boost::asio::const_buffer> const& _buffer) {
     boost::asio::post(io_, [this, _buffer] { consume(_buffer, true); });
+}
+
+void fake_tcp_socket_handle::set_block_connection(bool _block_connection) {
+    auto const lock = std::scoped_lock(mtx_);
+    block_connection_ = _block_connection;
+}
+
+void fake_tcp_socket_handle::set_local_endpoint(boost::asio::ip::tcp::endpoint const& _ep) {
+    auto const lock = std::scoped_lock(mtx_);
+    local_ep_ = _ep;
+}
+
+void fake_tcp_socket_handle::set_remote_endpoint(boost::asio::ip::tcp::endpoint const& _ep) {
+    auto const lock = std::scoped_lock(mtx_);
+    remote_ep_ = _ep;
 }
 
 fake_tcp_acceptor_handle::fake_tcp_acceptor_handle(boost::asio::io_context& _io) : io_(_io) { }

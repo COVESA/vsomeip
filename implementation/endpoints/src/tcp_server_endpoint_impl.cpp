@@ -235,7 +235,10 @@ bool tcp_server_endpoint_impl::is_established_to(const std::shared_ptr<endpoint_
 #else
         pollfd pfds;
 #endif
-        pfds.fd = acceptor_->native_handle();
+        {
+            std::scoped_lock lck(acceptor_mutex_);
+            pfds.fd = acceptor_->native_handle();
+        }
         pfds.events = POLLIN;
         pfds.revents = 0;
 

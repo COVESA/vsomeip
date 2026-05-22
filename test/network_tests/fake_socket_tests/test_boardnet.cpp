@@ -1999,4 +1999,417 @@ TEST_F(length_field_too_big, direct_consume_multicast) {
     inject_message_udp_multicast(ecu_two_.sd_endpoint(), multicast_ep_, valid_offer);
     ASSERT_TRUE(router_one_->availability_record_.wait_for_last(service_availability::available(interface_udp_.instance_)));
 }
+
+struct interface_manipulation : public base_fake_socket_fixture {
+
+    std::vector<interface::event_spec> const event_specs_both_{{0x8001, 0x1, vsomeip::reliability_type_e::RT_RELIABLE},
+                                                               {0x8002, 0x2, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+
+    std::vector<interface::event_spec> events = {interface::event_spec{0x8003, 0x3, vsomeip::reliability_type_e::RT_UNRELIABLE}};
+
+    interface interface_{0x3345, events, event_specs_both_};
+
+    ecu_config ecu_one_cfg{boardnet::ecu_one_config};
+    ecu_config ecu_two_cfg{boardnet::ecu_two_config};
+
+    ecu_setup ecu_one_{"ecu_one", ecu_one_cfg.add_interface({interface_}), *socket_manager_};
+    ecu_setup ecu_two_{"ecu_two", ecu_two_cfg, *socket_manager_};
+
+    event_ids tcp_field{interface_.fields_[0]};
+    event_ids udp_field{interface_.fields_[1]};
+};
+
+TEST_F(interface_manipulation, pending_sd_offers_are_sent) {
+    /*
+     * Check that all offers added to pending_sd_offers_ map
+     * are sent, received and subscribed successfully
+     * For this, set the routing interface as DOWN before
+     * offering the services to guarantee that they end up
+     * on the map
+     *
+     * ECU one - server: offers service
+     *
+     * ECU two - router: subscribes event via tcp
+     *         - client: subscribes event via udp
+     *
+     * Also check that both tcp and udp boardnet communication
+     * is interrupted when routing interface is down
+     */
+
+    // prepare ECUs
+    ecu_one_.add_app("server");
+    ecu_two_.add_app("client");
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // set network interface as down
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::DOWN));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::DOWN));
+
+    ecu_one_.start_router();
+    ecu_two_.start_router();
+
+    // start apps and offer/subscribe services
+    ecu_one_.start_one("server");
+    ecu_two_.start_one("client");
+
+    auto* client = ecu_two_.apps_["client"];
+    auto* router_two = ecu_two_.router_;
+
+    auto* server = ecu_one_.apps_["server"];
+
+    server->offer(interface_);
+    std::vector<unsigned char> event_payload = {0x5, 0x3};
+    server->send_event(tcp_field, event_payload);
+    server->send_event(udp_field, event_payload);
+
+    // ecu_two client and router subscribes to them
+    client->request_service(interface_.instance_);
+    router_two->request_service(interface_.instance_);
+    client->subscribe_event({udp_field});
+    router_two->subscribe_event({tcp_field});
+
+    // there should be no availability reported nor subscription/events on ecu_two_
+    EXPECT_FALSE(client->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                           std::chrono::milliseconds(100)));
+    EXPECT_FALSE(router_two->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                               std::chrono::milliseconds(100)));
+    EXPECT_FALSE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_field),
+                                                           std::chrono::milliseconds(100)));
+    EXPECT_FALSE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_field),
+                                                               std::chrono::milliseconds(100)));
+
+    message_checker udp_checker{std::nullopt, interface_.instance_, udp_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                event_payload};
+
+    message_checker tcp_checker{std::nullopt, interface_.instance_, tcp_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                event_payload};
+
+    EXPECT_FALSE(router_two->message_record_.wait_for(tcp_checker, std::chrono::milliseconds(100)))
+            << "Received tcp field while link is down" << "\nRecord: " << router_two->message_record_;
+    EXPECT_FALSE(client->message_record_.wait_for(udp_checker, std::chrono::milliseconds(100)))
+            << "Received udp field while link is down" << "\nRecord: " << client->message_record_;
+
+    // set network interface as up
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::UP));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
+
+    // expect everything
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_field)));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_field)));
+
+    EXPECT_TRUE(router_two->message_record_.wait_for(tcp_checker))
+            << "Failed to receive tcp field" << "\nRecord: " << router_two->message_record_;
+    EXPECT_TRUE(client->message_record_.wait_for(udp_checker)) << "Failed to receive udp field" << "\nRecord: " << client->message_record_;
+}
+
+TEST_F(interface_manipulation, interface_down_offering_side) {
+    /*
+     * Check that all offers added to pending_sd_offers_ map
+     * are sent, received and subscribed successfully
+     * For this, set the routing interface as DOWN (only on
+     * offering side) before offering the services to guarantee
+     * that they end up on the map
+     *
+     * ECU one - server: offers service
+     *
+     * ECU two - router: subscribes event via tcp
+     *         - client: subscribes event via udp
+     *
+     * Also check that both tcp and udp boardnet communication
+     * is interrupted when routing interface is down
+     */
+
+    // prepare ECUs
+    ecu_one_.add_app("server");
+    ecu_two_.add_app("client");
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // set network interface as down
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::DOWN));
+
+    ecu_one_.start_router();
+    ecu_two_.start_router();
+
+    // start apps and offer/subscribe services
+    ecu_one_.start_one("server");
+    ecu_two_.start_one("client");
+
+    auto* client = ecu_two_.apps_["client"];
+    auto* router_two = ecu_two_.router_;
+
+    auto* server = ecu_one_.apps_["server"];
+
+    server->offer(interface_);
+    std::vector<unsigned char> event_payload = {0x5, 0x3};
+    server->send_event(tcp_field, event_payload);
+    server->send_event(udp_field, event_payload);
+
+    // ecu_two client and router subscribes to them
+    client->request_service(interface_.instance_);
+    router_two->request_service(interface_.instance_);
+    client->subscribe_event({udp_field});
+    router_two->subscribe_event({tcp_field});
+
+    // there should be no availability reported nor subscription/events on ecu_two_
+    EXPECT_FALSE(client->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                           std::chrono::milliseconds(100)));
+    EXPECT_FALSE(router_two->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                               std::chrono::milliseconds(100)));
+    EXPECT_FALSE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_field),
+                                                           std::chrono::milliseconds(100)));
+    EXPECT_FALSE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_field),
+                                                               std::chrono::milliseconds(100)));
+
+    message_checker udp_checker{std::nullopt, interface_.instance_, udp_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                event_payload};
+
+    message_checker tcp_checker{std::nullopt, interface_.instance_, tcp_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                event_payload};
+
+    EXPECT_FALSE(router_two->message_record_.wait_for(tcp_checker, std::chrono::milliseconds(100)))
+            << "Received tcp field while link is down" << "\nRecord: " << router_two->message_record_;
+    EXPECT_FALSE(client->message_record_.wait_for(udp_checker, std::chrono::milliseconds(100)))
+            << "Received udp field while link is down" << "\nRecord: " << client->message_record_;
+
+    // set network interface as up
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::UP));
+
+    // expect everything
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_field)));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_field)));
+
+    EXPECT_TRUE(router_two->message_record_.wait_for(tcp_checker))
+            << "Failed to receive tcp field" << "\nRecord: " << router_two->message_record_;
+    EXPECT_TRUE(client->message_record_.wait_for(udp_checker)) << "Failed to receive udp field" << "\nRecord: " << client->message_record_;
+}
+
+TEST_F(interface_manipulation, interface_down_consuming_side) {
+    /*
+     * Check that all offers are sent, received and subscribed
+     * successfully. For this, set the routing interface as
+     * DOWN (only on consuming side).
+     *
+     * ECU one - server: offers service
+     *
+     * ECU two - router: subscribes event via tcp
+     *         - client: subscribes event via udp
+     *
+     * Also check that both tcp and udp boardnet communication
+     * is interrupted when routing interface is down
+     */
+
+    // prepare ECUs
+    ecu_one_.add_app("server");
+    ecu_two_.add_app("client");
+
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // set network interface as down
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::DOWN));
+
+    ecu_one_.start_router();
+    ecu_two_.start_router();
+
+    // start apps and offer/subscribe services
+    ecu_one_.start_one("server");
+    ecu_two_.start_one("client");
+
+    auto* client = ecu_two_.apps_["client"];
+    auto* router_two = ecu_two_.router_;
+
+    auto* server = ecu_one_.apps_["server"];
+
+    server->offer(interface_);
+    std::vector<unsigned char> event_payload = {0x5, 0x3};
+    server->send_event(tcp_field, event_payload);
+    server->send_event(udp_field, event_payload);
+
+    // ecu_two client and router subscribes to them
+    client->request_service(interface_.instance_);
+    router_two->request_service(interface_.instance_);
+    client->subscribe_event({udp_field});
+    router_two->subscribe_event({tcp_field});
+
+    // there should be no availability reported nor subscription/events on ecu_two_
+    EXPECT_FALSE(client->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                           std::chrono::milliseconds(100)));
+    EXPECT_FALSE(router_two->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                               std::chrono::milliseconds(100)));
+    EXPECT_FALSE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_field),
+                                                           std::chrono::milliseconds(100)));
+    EXPECT_FALSE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_field),
+                                                               std::chrono::milliseconds(100)));
+
+    message_checker udp_checker{std::nullopt, interface_.instance_, udp_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                event_payload};
+
+    message_checker tcp_checker{std::nullopt, interface_.instance_, tcp_field.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                                event_payload};
+
+    EXPECT_FALSE(router_two->message_record_.wait_for(tcp_checker, std::chrono::milliseconds(100)))
+            << "Received tcp field while link is down" << "\nRecord: " << router_two->message_record_;
+    EXPECT_FALSE(client->message_record_.wait_for(udp_checker, std::chrono::milliseconds(100)))
+            << "Received udp field while link is down" << "\nRecord: " << client->message_record_;
+
+    // set network interface as up
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
+
+    // expect everything
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(udp_field)));
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(tcp_field)));
+
+    EXPECT_TRUE(router_two->message_record_.wait_for(tcp_checker))
+            << "Failed to receive tcp field" << "\nRecord: " << router_two->message_record_;
+    EXPECT_TRUE(client->message_record_.wait_for(udp_checker)) << "Failed to receive udp field" << "\nRecord: " << client->message_record_;
+}
+
+TEST_F(interface_manipulation, routing_apps_offer_and_subscribe) {
+    /*
+     * Check that if the routing apps are who offer or subscribe
+     * to the services, they too have the same behaviour when routing
+     * interface goes down. Same steps as previous test
+     *
+     * ECU one - router_one: offers service
+     *
+     * ECU two - router_two: subscribes service
+     */
+
+    // prepare ECUs
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    // set network interface as down before offering
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::DOWN));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::DOWN));
+
+    ecu_one_.start_router();
+    ecu_two_.start_router();
+
+    auto* router_two = ecu_two_.router_;
+    auto* router_one = ecu_one_.router_;
+
+    // offer/subscribe services
+    router_one->offer(interface_);
+    router_two->subscribe(interface_);
+
+    // there should be no availability reported
+    EXPECT_FALSE(router_two->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                               std::chrono::milliseconds(100)));
+
+    // set network interface as up
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::UP));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
+
+    // check for successful subscription
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+}
+
+TEST_F(interface_manipulation, interface_down_after_successful_subscription) {
+    /*
+     * Check that if the network interface goes down after successful
+     * subscriptions, everything recovers once it goes up again
+     *
+     * ECU one - router_one: offers service
+     *
+     * ECU two - router_two: subscribes service
+     */
+
+    // prepare ECUs
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_router();
+    ecu_two_.start_router();
+
+    auto* router_two = ecu_two_.router_;
+    auto* router_one = ecu_one_.router_;
+
+    // offer/subscribe services
+    router_one->offer(interface_);
+    router_two->subscribe(interface_);
+
+    // check for successful subscription
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+
+    // set network interface as down
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::DOWN));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::DOWN));
+
+    // clear record as to not check for previous available services
+    router_two->availability_record_.clear();
+
+    // there should be no new availability reported
+    EXPECT_FALSE(router_two->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                               std::chrono::milliseconds(100)));
+
+    // set network interface as up
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::UP));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
+
+    // check for successful subscription
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+}
+
+TEST_F(interface_manipulation, interface_down_internal_comm_still_up) {
+    /*
+     * Check that even if interface goes down, internal communication
+     * is unaffected
+     *
+     * ECU one - router_one: offers service
+     *         - client: subscribes service
+     *
+     * ECU two - router_two : subscribes service
+     */
+
+    ecu_one_.add_guest({"client", std::nullopt});
+
+    // prepare ECUs
+    ecu_one_.prepare();
+    ecu_two_.prepare();
+
+    ecu_one_.start_router();
+    ecu_two_.start_router();
+
+    ecu_one_.start_one("client");
+
+    auto* router_one = ecu_one_.router_;
+    auto* router_two = ecu_two_.router_;
+    auto* client = ecu_one_.apps_["client"];
+
+    // offer/subscribe services
+    router_one->offer(interface_);
+    router_two->subscribe(interface_);
+    client->subscribe(interface_);
+
+    // check for successful subscription
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+    EXPECT_TRUE(client->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+
+    // set network interface as down
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::DOWN));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::DOWN));
+
+    // clear record as to not check for previous available services
+    router_two->availability_record_.clear();
+
+    // there should be no new availability reported
+    EXPECT_FALSE(router_two->availability_record_.wait_for_any(service_availability::available(interface_.instance_),
+                                                               std::chrono::milliseconds(100)))
+            << router_two->availability_record_.to_string();
+    EXPECT_FALSE(client->availability_record_.wait_for_any(service_availability::unavailable(interface_.instance_),
+                                                           std::chrono::milliseconds(100)))
+            << client->availability_record_.to_string();
+
+    // set network interface as up
+    ASSERT_TRUE(ecu_one_.set_routing(fake_netlink_connector::state_e::UP));
+    ASSERT_TRUE(ecu_two_.set_routing(fake_netlink_connector::state_e::UP));
+
+    // check for successful subscription
+    EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+}
 }

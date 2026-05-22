@@ -231,6 +231,14 @@ struct fake_tcp_socket_handle : public fake_socket_handle {
      */
     void replace_pipe(std::shared_ptr<data_pipe> _pipe);
 
+    /**
+     * Set if following connections should be blocked
+     */
+    void set_block_connection(bool _block_connection);
+
+    void set_local_endpoint(boost::asio::ip::tcp::endpoint const& _ep);
+    void set_remote_endpoint(boost::asio::ip::tcp::endpoint const& _ep);
+
     attribute_recorder<protocol::id_e> received_command_record_;
 
 public:
@@ -260,6 +268,7 @@ private:
     std::optional<std::chrono::milliseconds> block_on_close_time_;
     mutable std::mutex mtx_;
     vsomeip_command_handler command_handler_;
+    bool block_connection_{false};
 
     std::shared_ptr<data_pipe> pipe_ = std::make_shared<data_pipe>();
 };
@@ -359,6 +368,8 @@ struct fake_tcp_acceptor_handle : std::enable_shared_from_this<fake_tcp_acceptor
     void set_app_name(std::string const& _name);
     std::string get_app_name() const;
 
+    boost::asio::ip::tcp::endpoint endpoint_;
+
 private:
     void accept(std::shared_ptr<fake_tcp_socket_handle> _accepting, connect_handler _handler);
 
@@ -374,7 +385,6 @@ private:
     boost::asio::io_context& io_;
     std::weak_ptr<socket_manager> socket_manager_;
     std::string app_name_;
-    boost::asio::ip::tcp::endpoint endpoint_;
     uds_endpoint uds_ep_;
 };
 }
