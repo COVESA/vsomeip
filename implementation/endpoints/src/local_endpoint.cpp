@@ -352,6 +352,11 @@ void local_endpoint::connect_cbk(boost::system::error_code const& _ec) {
         return;
     }
     VSOMEIP_WARNING_P << "Error: " << _ec.message() << ", " << status_unlock();
+    if (is_flushing_) {
+        VSOMEIP_WARNING_P << "Interrupting connection attempts, state: " << status_unlock();
+        escalate_internal(lock);
+        return;
+    }
     socket_->stop(true);
     if (max_connection_attempts_ == MAX_RECONNECTS_UNLIMITED || max_connection_attempts_ >= ++reconnect_counter_) {
         set_state_unlocked(state_e::INIT);
@@ -532,6 +537,11 @@ void local_endpoint::start_flushing() {
         return;
     }
     is_flushing_ = true;
+    if (state_ == state_e::INIT && cleanup_handler_) {
+        // we are currently waiting for another connection attempt
+        boost::asio::post(io_, [f = std::move(cleanup_handler_)] { f(true); });
+        return;
+    }
     send_unlock();
 }
 
