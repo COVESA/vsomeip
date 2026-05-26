@@ -1,6 +1,7 @@
 {
     "unicast" : "@TEST_IP_SLAVE@",
     "netmask" : "255.255.255.0",
+    "diagnosis":"0x02",
     "logging" :
     {
         "level" : "trace",
@@ -10,17 +11,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-            "name" : "service-sample",
-            "id" : "0x1277"
-        },
-        {
-            "name" : "routingmanagerd",
-            "id" : "0x1111"
-        }
-    ],
     "services" :
     [
        {

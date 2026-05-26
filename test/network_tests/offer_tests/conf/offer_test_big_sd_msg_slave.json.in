@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_SLAVE@",
+    "diagnosis":"0x02",
     "logging":
     {
         "level":"trace",
@@ -9,13 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-             "name" : "offer_test_big_sd_msg_service",
-             "id" : "0x7777"
-        }
-    ],
     "services":
     [
         {"service":"0x1","instance":"0x1","unreliable":"30001","reliable":{"port":"30001","enable-magic-cookies":"false"}},

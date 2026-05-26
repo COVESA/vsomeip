@@ -1,6 +1,7 @@
 {
     "unicast":"@TEST_IP_MASTER@",
     "netmask":"255.255.255.0",
+    "diagnosis":"0x01",
     "logging":
     {
         "level":"trace",
@@ -10,13 +11,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"big_payload_test_client",
-            "id":"0x1343"
-        }
-    ],
     "endpoint-queue-limits" :
     [
         {

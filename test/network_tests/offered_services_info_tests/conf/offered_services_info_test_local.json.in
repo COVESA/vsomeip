@@ -10,13 +10,6 @@
    {
       "enable" : "true"
    },
-   "applications" :
-   [
-      {
-         "name" : "offered_services_info_test_service",
-         "id" : "0x1277"
-      }
-   ],
    "services" :
    [
       {

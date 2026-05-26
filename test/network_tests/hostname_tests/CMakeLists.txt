@@ -5,8 +5,7 @@
 
 # Configure necessary files into the build folder.
 set(configuration_files
-    hostname_test_service.json
-    hostname_test_client.json
+    hostname_test.json
     hostname_test_starter.sh
 )
 configure_files("${configuration_files}")

@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_MASTER@",
+    "diagnosis":"0x01",
     "logging":
     {
         "level":"trace",
@@ -9,13 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-             "name" : "offer_test_big_sd_msg_client",
-             "id" : "0x6666"
-        }
-    ],
     "routing":"routingmanagerd",
     "service-discovery":
     {

@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_SLAVE@",
+    "diagnosis":"0x01",
     "logging":
     {
         "level":"trace",
@@ -9,29 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"npdu_test_routing_manager_daemon_client_side",
-            "id":"0x6666"
-        },
-        {
-            "name":"npdu_test_client_one",
-            "id":"0x1111"
-        },
-        {
-            "name":"npdu_test_client_two",
-            "id":"0x2222"
-        },
-        {
-            "name":"npdu_test_client_three",
-            "id":"0x3333"
-        },
-        {
-            "name":"npdu_test_client_four",
-            "id":"0x4444"
-        }
-    ],
     "services":
     [
         {

@@ -9,14 +9,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-            "name" : "malicious_data_test_service",
-            "id" : "0x4289",
-            "max_dispatch_time" : "1000"
-        }
-    ],
     "services":
     [
         {

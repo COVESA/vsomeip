@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_MASTER@",
+    "diagnosis":"0x01",
     "logging":
     {
         "level":"trace",
@@ -9,14 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-            "name" : "event_test_client",
-            "id" : "0x3489",
-            "max_dispatch_time" : "1000"
-        }
-    ],
     "routing":"routingmanagerd",
     "service-discovery":
     {

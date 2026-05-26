@@ -9,13 +9,6 @@
    {
       "enable" : "true"
    },
-   "applications" :
-   [
-      {
-         "name" : "local_payload_test_service",
-         "id" : "0x1277"
-      }
-   ],
    "services" :
    [
       {

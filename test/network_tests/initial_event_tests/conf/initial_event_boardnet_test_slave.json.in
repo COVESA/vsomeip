@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_SLAVE@",
+    "diagnosis":"0x02",
     "logging":
     {
         "level":"trace",
@@ -9,13 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"initial_event_test_client",
-            "id":"0x1005"
-        }
-    ],
     "routing" : "initial_event_test_client",
     "service-discovery" :
     {

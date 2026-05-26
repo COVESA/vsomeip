@@ -7,7 +7,6 @@ project(restart_routing_tests LANGUAGES CXX)
 
 # Configure necessary files into the build folder.
 set(configuration_files
-    restart_routing_test_autoconfig.json
     restart_routing_test_autoconfig_service_host.json
     restart_routing_test_client.json
     restart_routing_test_service.json

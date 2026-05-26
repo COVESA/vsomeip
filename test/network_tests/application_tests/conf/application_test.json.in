@@ -9,14 +9,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"application_test",
-            "id":"0x7788",
-            "num_dispatchers":"5"
-        }
-    ],
     "services":
     [
         {

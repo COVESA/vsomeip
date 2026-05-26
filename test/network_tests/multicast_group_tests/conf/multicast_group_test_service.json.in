@@ -1,5 +1,6 @@
 {
     "unicast": "@TEST_IP_MASTER@",
+    "diagnosis":"0x02",
     "logging": {
         "level": "trace",
         "console": "true"
@@ -8,12 +9,6 @@
     {
         "enable" : "true"
     },
-    "applications": [
-        {
-            "name": "service-sample",
-            "id": "0xaaaa"
-        }
-    ],
     "services": [
         {
             "service": "0x1111",

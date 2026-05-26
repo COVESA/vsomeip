@@ -9,21 +9,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-            "name" : "service-sample",
-            "id" : "0x1277"
-        },
-        {
-            "name" : "client-sample",
-            "id" : "0x1255"
-        },
-        {
-            "name" : "routingmanagerd",
-            "id" : "0x1111"
-        }
-    ],
     "security" :
     {
         "check_credentials" : "true",

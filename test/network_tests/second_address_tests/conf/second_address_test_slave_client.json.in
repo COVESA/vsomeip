@@ -1,18 +1,11 @@
 {
     "unicast":"@TEST_IP_SLAVE_SECOND@",
+    "diagnosis":"0x02",
     "logging":
     {
         "level":"trace",
         "console":"true"
     },
-    "applications" :
-    [
-        {
-            "name" : "second_address_test_client",
-            "id" : "0x1210",
-            "max_dispatch_time" : "1000"
-        }
-    ],
     "routing":"routingmanagerd",
     "service-discovery":
     {

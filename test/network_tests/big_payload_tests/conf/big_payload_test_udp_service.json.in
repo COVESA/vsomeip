@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_SLAVE@",
+    "diagnosis":"0x02",
     "logging":
     {
         "level":"trace",
@@ -9,14 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"big_payload_test_service",
-            "id":"0x1277",
-            "max_dispatchers" : "0"
-        }
-    ],
     "services":
     [
         {

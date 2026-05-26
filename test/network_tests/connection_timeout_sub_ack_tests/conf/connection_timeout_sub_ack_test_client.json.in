@@ -1,5 +1,6 @@
 {
     "unicast": "@TEST_IP_MASTER@",
+    "diagnosis":"0x01",
     "logging": {
         "level": "debug",
         "console": "true"
@@ -7,12 +8,6 @@
     "tracing" : {
         "enable" : "true"
     },
-    "applications": [
-        {
-            "name": "client-app",
-            "id": "0xbbbb"
-        }
-    ],
     "routing" : "client-app",
     "service-discovery": {
         "enable": "true",
