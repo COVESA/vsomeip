@@ -1,5 +1,6 @@
 {
     "unicast": "@TEST_IP_MASTER@",
+    "diagnosis":"0x01",
     "logging": {
         "level": "trace",
         "console": "true"
@@ -7,12 +8,6 @@
     "tracing": {
         "enable": "true"
     },
-    "applications": [
-        {
-            "name": "client-sample",
-            "id": "0x1344"
-        }
-    ],
     "service-discovery": {
         "enable": "true",
         "multicast": "224.251.192.252"

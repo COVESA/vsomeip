@@ -5,14 +5,6 @@
         "level":"trace",
         "console":"true"
     },
-    "applications" :
-    [
-        {
-            "name" : "pending_subscription_test_service",
-            "id" : "0xCAFE",
-            "max_dispatch_time" : "1000"
-        }
-    ],
     "services":
     [
         {

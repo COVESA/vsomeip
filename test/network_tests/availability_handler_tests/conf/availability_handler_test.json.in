@@ -15,10 +15,6 @@
             "name":"availability_handler_test_service",
             "id":"0x1234",
             "threads":"4"
-        },
-        {
-            "name":"availability_handler_test_client",
-            "id":"0x1235"
         }
     ],
     "services":

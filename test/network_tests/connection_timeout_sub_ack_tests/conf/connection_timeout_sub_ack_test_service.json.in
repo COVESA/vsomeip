@@ -1,5 +1,6 @@
 {
     "unicast": "@TEST_IP_SLAVE@",
+    "diagnosis":"0x02",
     "logging": {
         "level": "debug",
         "console": "true"
@@ -7,12 +8,6 @@
     "tracing" : {
         "enable" : "true"
     },
-    "applications": [
-        {
-            "name": "service-app",
-            "id": "0xaaaa"
-        }
-    ],
     "services": [
         {
             "service": "0x1111",

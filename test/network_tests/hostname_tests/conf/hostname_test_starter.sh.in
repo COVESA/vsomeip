@@ -10,7 +10,7 @@ if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
 fi
 
 # Configuration to be used by daemon and service.
-export VSOMEIP_CONFIGURATION=hostname_test_service.json
+export VSOMEIP_CONFIGURATION=hostname_test.json
 
 # Start the routing manager.
 export VSOMEIP_APPLICATION_NAME="routingmanagerd"
@@ -23,7 +23,7 @@ export VSOMEIP_APPLICATION_NAME="service-sample"
 SERVICE_PID=$!
 
 # Configuration to be used by client
-export VSOMEIP_CONFIGURATION=hostname_test_client.json
+export VSOMEIP_CONFIGURATION=hostname_test.json
 
 # Start the test client.
 export VSOMEIP_APPLICATION_NAME="client-sample"

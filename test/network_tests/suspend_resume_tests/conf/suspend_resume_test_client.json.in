@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_SLAVE@",
+    "diagnosis":"0x02",
     "netmask" : "255.255.255.0",
     "logging" :
     {

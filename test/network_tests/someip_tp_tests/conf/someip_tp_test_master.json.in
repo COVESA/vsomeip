@@ -5,13 +5,6 @@
         "level":"trace",
         "console":"true"
     },
-    "applications" :
-    [
-        {
-            "name" : "someip_tp_test_service",
-            "id" : "0xCAFE"
-        }
-    ],
     "services":
     [
         {

@@ -8,11 +8,5 @@
     "tracing": {
         "enable": "true"
     },
-    "applications": [
-        {
-            "name": "dispatch_app",
-            "id": "0x1234"
-        }
-    ],
     "routing": "dispatch_app"
 }

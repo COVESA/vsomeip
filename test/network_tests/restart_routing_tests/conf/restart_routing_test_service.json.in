@@ -9,17 +9,6 @@
    {
       "enable" : "true"
    },
-   "applications" :
-   [
-      {
-         "name" : "routingmanagerd",
-         "id" : "0x0815"
-      },
-      {
-         "name" : "restart_routing_test_service",
-         "id" : "0x1277"
-      }
-   ],
    "services" :
    [
       {

@@ -1,5 +1,6 @@
 {
     "unicast": "@TEST_IP_SLAVE@",
+    "diagnosis":"0x01",
     "logging": {
         "level": "debug",
         "console": "true"
@@ -8,12 +9,6 @@
     {
         "enable" : "true"
     },
-    "applications": [
-        {
-            "name": "client-sample",
-            "id": "0xbbbb"
-        }
-    ],
     "clients": [
         {
             "service": "0x1111",

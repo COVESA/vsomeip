@@ -77,16 +77,16 @@ TEST_F(restart_routing_test_manager, restart_routing_test_manager_restart_host) 
     shared_memory_data shm_data;
     init(shm_data);
 
-    process_manager host{host_executor, custom_env("restart_routing_test_autoconfig.json", "routingmanagerd")};
+    process_manager host{host_executor, custom_env("restart_routing_test_without_id.json", "routingmanagerd")};
     host.run();
 
-    process_manager service{service_executor, custom_env("restart_routing_test_autoconfig.json", "restart_routing_test_service")};
+    process_manager service{service_executor, custom_env("restart_routing_test_without_id.json", "restart_routing_test_service")};
     service.run();
 
     std::unordered_set<std::unique_ptr<process_manager>> clients;
     for (uint32_t app_counter = 0; app_counter < NUM_SERVICE_CONSUMERS; ++app_counter) {
         clients.emplace(std::make_unique<process_manager>(client_executor,
-                                                          custom_env("restart_routing_test_autoconfig.json",
+                                                          custom_env("restart_routing_test_without_id.json",
                                                                      "restart_routing_test_client" + std::to_string(app_counter + 1),
                                                                      std::to_string(app_counter))));
     }

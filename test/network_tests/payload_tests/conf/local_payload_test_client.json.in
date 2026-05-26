@@ -10,13 +10,6 @@
    {
       "enable" : "true"
    },
-   "applications" :
-   [
-      {
-         "name" : "local_payload_test_client",
-         "id" : "0x1343"
-      }
-   ],
    "services" :
    [
    ],

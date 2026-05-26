@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_MASTER@",
+    "diagnosis":"0x02",
     "logging":
     {
         "level":"trace",
@@ -9,29 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"npdu_test_routing_manager_daemon_service_side",
-            "id":"0x6667"
-        },
-        {
-            "name":"npdu_test_service_one",
-            "id":"0x1000"
-        },
-        {
-            "name":"npdu_test_service_two",
-            "id":"0x2000"
-        },
-        {
-            "name":"npdu_test_service_three",
-            "id":"0x3000"
-        },
-        {
-            "name":"npdu_test_service_four",
-            "id":"0x4000"
-        }
-    ],
     "services":
     [
         {

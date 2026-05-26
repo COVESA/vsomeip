@@ -8,7 +8,6 @@ project(magic_cookies_tests LANGUAGES CXX)
 # Configure necessary files into the build folder.
 set(configuration_files
     magic_cookies_test_client.json
-    magic_cookies_test_client_start.sh
     magic_cookies_test_service.json
     magic_cookies_test_service_start.sh
     magic_cookies_test_starter.sh

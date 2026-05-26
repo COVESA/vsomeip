@@ -9,21 +9,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"start_stop_start_test_app1",
-            "id":"0x1234"
-        },
-        {
-            "name":"start_stop_start_test_app2",
-            "id":"0x1235"
-        },
-        {
-            "name" : "routingmanagerd",
-            "id" : "0x0100"
-        }
-    ],
     "routing":
     {
         "host":

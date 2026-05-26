@@ -1,5 +1,6 @@
 {
     "unicast":"@TEST_IP_MASTER@",
+    "diagnosis":"0x01",
     "logging":
     {
         "level":"trace",
@@ -9,13 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications":
-    [
-        {
-            "name":"initial_event_test_service",
-            "id":"0x1001"
-        }
-    ],
     "services":
     [
         {

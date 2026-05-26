@@ -1,6 +1,7 @@
 {
    "unicast" : "@TEST_IP_SLAVE@",
    "netmask" : "255.255.255.0",
+   "diagnosis":"0x01",
    "logging" :
    {
       "level" : "trace",
@@ -10,13 +11,6 @@
    {
       "enable" : "true"
    },
-   "applications" :
-   [
-      {
-         "name" : "external_local_payload_test_client_external",
-         "id" : "0x1343"
-      }
-   ],
     "services" :
     [
        {

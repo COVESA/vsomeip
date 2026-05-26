@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_MASTER@",
+    "diagnosis":"0x01",
     "logging" :
     {
         "level" : "trace",
@@ -9,13 +10,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-            "name" : "client-sample",
-            "id" : "0x1343"
-        }
-    ],
     "clients" :
     [
         {

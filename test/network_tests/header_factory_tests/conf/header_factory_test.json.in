@@ -8,16 +8,6 @@
     "tracing": {
         "enable": "true"
     },
-    "applications": [
-        {
-            "name": "header_factory_test_service",
-            "id": "0x1277"
-        },
-        {
-            "name": "header_factory_test_client",
-            "id": "0x1343"
-        }
-    ],
     "services": [
         {
             "service": "0x1234",

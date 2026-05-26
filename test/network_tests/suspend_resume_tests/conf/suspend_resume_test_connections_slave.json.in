@@ -1,5 +1,6 @@
 {
     "unicast" : "@TEST_IP_SLAVE@",
+    "diagnosis":"0x02",
     "netmask" : "255.255.255.0",
     "logging" :
     {
@@ -10,13 +11,6 @@
     {
         "enable" : "true"
     },
-    "applications" :
-    [
-        {
-            "name" : "suspend_resume_test_slave",
-            "id" : "0x4567"
-        }
-    ],
     "services" :
     [
         {
