@@ -10,6 +10,7 @@
 #include "helpers/base_fake_socket_fixture.hpp"
 #include "helpers/ecu_setup.hpp"
 #include "helpers/message_checker.hpp"
+#include "helpers/command_gate.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/service_state.hpp"
@@ -2411,5 +2412,59 @@ TEST_F(interface_manipulation, interface_down_internal_comm_still_up) {
 
     // check for successful subscription
     EXPECT_TRUE(router_two->subscription_record_.wait_for_any(event_subscription::successfully_subscribed_to(interface_.events_[0])));
+}
+
+struct test_offer_stop_offer_subscription : base_fake_socket_fixture {
+    void start_apps() {
+        consumer_ecu_.add_app(client_name_);
+        provider_ecu_.add_app(server_name_);
+
+        consumer_ecu_.prepare();
+        provider_ecu_.prepare();
+
+        ASSERT_TRUE(setup_data_pipe(client_name_, consumer_ecu_.router_name_, socket_role::server, c2r_gate_->get_data_pipe()));
+
+        consumer_ecu_.start_apps();
+        provider_ecu_.start_apps();
+
+        server_ = provider_ecu_.apps_[server_name_];
+        client_ = consumer_ecu_.apps_[client_name_];
+    }
+
+    std::string const client_name_{"client"};
+    std::string const server_name_{"server"};
+
+    interface interface_{0x1000, {}, {interface::event_spec{0x8001, 0x8001, vsomeip::reliability_type_e::RT_UNRELIABLE}}};
+    ecu_setup provider_ecu_{"provider", ecu_config{boardnet::ecu_one_config}.add_interface({interface_}), *socket_manager_};
+    ecu_setup consumer_ecu_{"consumer", boardnet::ecu_three_config, *socket_manager_};
+
+    event_ids field_ = interface_.fields_[0];
+
+    app* server_;
+    app* client_;
+
+    std::shared_ptr<command_gate> c2r_gate_ = command_gate::create();
+};
+
+TEST_F(test_offer_stop_offer_subscription, subscriptions_are_acknowledged_after_a_stop_offer_offer_cycle) {
+    /**
+     * Regression test for NTWALL-1145
+     * When a router receives a subscription for a boardnet service, after having
+     * dealt with a stop_offer, the subscription was never forwarded to the boardnet.
+     **/
+    start_apps();
+    server_->offer(interface_);
+    c2r_gate_->block_at(vsomeip_v3::protocol::id_e::SUBSCRIBE_ID);
+    client_->subscribe(interface_);
+
+    ASSERT_TRUE(c2r_gate_->wait_for_blocked());
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(interface_.instance_)));
+    server_->stop_offer(interface_.instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(interface_.instance_)));
+
+    c2r_gate_->block(false);
+    server_->offer(interface_);
+
+    EXPECT_TRUE(client_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(field_)));
 }
 }
