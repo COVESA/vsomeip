@@ -31,7 +31,7 @@ constexpr vsomeip_v3::instance_t TEST_INSTANCE_ID = 0x0001;
 
 TEST(dispatch, blocking_handler_spawns_secondary_dispatcher) {
     /**
-     * Validates that a handler blocking beyond max_dispatch_time (50ms) causes
+     * Validates that a handler blocking beyond max_dispatch_time (300ms) causes
      * the timer callback to fire and spawn a secondary dispatcher thread, which
      * then picks up the next queued handler.
      */
@@ -255,7 +255,7 @@ TEST(dispatch, max_dispatchers_limit_enforced) {
     // The third callback should remain blocked.
     {
         auto lock = std::unique_lock(mutex);
-        condvar.wait_for(lock, std::chrono::milliseconds(300));
+        condvar.wait_for(lock, std::chrono::milliseconds(1500)); // 5x max dispatch timer
 
         // Should still be blocked.
         EXPECT_EQ(active_callbacks, 2);
