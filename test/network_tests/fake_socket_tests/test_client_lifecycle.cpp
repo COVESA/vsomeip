@@ -761,6 +761,23 @@ TEST_F(test_client_lifecycle, late_self_subscribe) {
     EXPECT_TRUE(server_->message_record_.wait_for(field_checker_)) << server_->message_record_;
 }
 
+TEST_F(test_client_lifecycle, empty_field_is_received) {
+    start_apps();
+
+    ASSERT_TRUE(subscribe_to_field());
+
+    message_checker checker{std::nullopt, service_instance_, offered_field_.event_id_, vsomeip::message_type_e::MT_NOTIFICATION,
+                            std::vector<unsigned char>{}};
+    ASSERT_FALSE(client_->message_record_.wait_for(checker, std::chrono::milliseconds(200))) << client_->message_record_;
+    // Send empty field, should be received even if the value is the same as before (default payload) as event is still not set.
+    server_->send_event(offered_field_, {});
+    EXPECT_TRUE(client_->message_record_.wait_for(checker)) << client_->message_record_;
+    client_->message_record_.clear();
+    // Try to resend empty field, should fail due to caching, as the value is the same as before and event is already set.
+    server_->send_event(offered_field_, {});
+    EXPECT_FALSE(client_->message_record_.wait_for(checker, std::chrono::milliseconds(200))) << client_->message_record_;
+}
+
 TEST_F(test_restart_clients, test_assignment_timeout_recover) {
     start_router();
 

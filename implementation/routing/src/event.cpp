@@ -381,7 +381,7 @@ bool event::prepare_update_payload(const std::shared_ptr<payload>& _payload, boo
 bool event::prepare_update_payload_unlocked(const std::shared_ptr<payload>& _payload, bool _force) {
 
     if (!_force && type_ == event_type_e::ET_FIELD && cycle_ == std::chrono::milliseconds::zero()
-        && !has_changed(current_->get_payload(), _payload) && !is_shadow_) {
+        && !has_changed(current_->get_payload(), _payload) && !is_shadow_ && is_set_) {
         return false;
     }
 
@@ -591,9 +591,7 @@ std::set<client_t> event::get_filtered_subscribers(bool _force) {
     }
 
     if (is_filters_empty) {
-
-        bool must_forward = ((type_ != event_type_e::ET_FIELD && has_default_epsilon_change_func_) || _force
-                             || epsilon_change_func_(its_payload, its_payload_update));
+        bool must_forward = (has_default_epsilon_change_func_ || _force || epsilon_change_func_(its_payload, its_payload_update));
 
         if (must_forward)
             return its_subscribers;
@@ -610,10 +608,9 @@ std::set<client_t> event::get_filtered_subscribers(bool _force) {
                     its_filtered_subscribers.insert(s);
             } else {
                 if (is_allowed == 0xff) {
-                    is_allowed = ((type_ != event_type_e::ET_FIELD && has_default_epsilon_change_func_) || _force
-                                                  || epsilon_change_func_(its_payload, its_payload_update)
-                                          ? 0x01
-                                          : 0x00);
+                    is_allowed =
+                            (has_default_epsilon_change_func_ || _force || epsilon_change_func_(its_payload, its_payload_update) ? 0x01
+                                                                                                                                 : 0x00);
                 }
 
                 if (is_allowed == 0x01)
