@@ -44,6 +44,7 @@ public:
 
     void register_reboot_notification_handler(const reboot_notification_handler_t& _handler) const;
     void set_sd_acceptance_required(const remote_info_t& _remote, const std::string& _path, bool _enable) const;
+    void set_sd_acceptance_required(const remote_info_t& _remote);
 
     void register_routing_ready_handler(const routing_ready_handler_t& _handler) const;
     void register_routing_state_handler(const routing_state_handler_t& _handler) const;

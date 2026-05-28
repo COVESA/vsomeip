@@ -778,6 +778,13 @@ public:
     virtual void set_sd_acceptance_required(const sd_acceptance_map_type_t& _remotes, bool _enable) = 0;
 
     /**
+     * @brief Forces expiration of all services offered or subscribed by @param on secure and semi-secure ports.
+     *
+     * @param _remote Remote partner.
+     */
+    virtual void set_sd_acceptance_required(const remote_info_t& _remote) = 0;
+
+    /**
      * \brief Returns all configured remote info which require calling of
      * registered service discovery (SD) acceptance handler
      *

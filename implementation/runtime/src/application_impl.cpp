@@ -2258,6 +2258,13 @@ void application_impl::set_sd_acceptance_required(const sd_acceptance_map_type_t
     (void)_enable;
 }
 
+void application_impl::set_sd_acceptance_required(const remote_info_t& _remote) {
+    if (!routing_app_) {
+        return;
+    }
+    routing_app_->set_sd_acceptance_required(_remote);
+}
+
 application::sd_acceptance_map_type_t application_impl::get_sd_acceptance_required() {
 
     sd_acceptance_map_type_t its_ret;
