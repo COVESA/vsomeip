@@ -112,6 +112,35 @@ void routing_application::set_sd_acceptance_required(const remote_info_t& _remot
         routing_->sd_acceptance_enabled(its_address, its_range, _remote.is_reliable_);
     }
 }
+
+void routing_application::set_sd_acceptance_required(const remote_info_t& _remote) {
+    const boost::asio::ip::address its_address(
+            _remote.ip_.is_v4_ ? static_cast<boost::asio::ip::address>(boost::asio::ip::address_v4(_remote.ip_.address_.v4_))
+                               : static_cast<boost::asio::ip::address>(boost::asio::ip::address_v6(_remote.ip_.address_.v6_)));
+
+    if (_remote.first_ == std::numeric_limits<std::uint16_t>::max() && _remote.last_ == std::numeric_limits<std::uint16_t>::max()) {
+        auto rules = configuration_->get_sd_acceptance_rules();
+        auto it = rules.find(its_address);
+        if (it != rules.end()) {
+            const auto& transport_map = it->second.second;
+
+            // Invoke sd_acceptance_enabled for every semi-secure and secure port range.
+            for (const auto& [is_tcp, port_ranges] : transport_map) {
+                if (is_tcp != _remote.is_reliable_) {
+                    continue;
+                }
+                const auto& [semi_secure, secure] = port_ranges;
+                for (const auto& interval : semi_secure) {
+                    routing_->sd_acceptance_enabled(its_address, port_range_t{interval.lower(), interval.upper()}, is_tcp);
+                }
+                for (const auto& interval : secure) {
+                    routing_->sd_acceptance_enabled(its_address, port_range_t{interval.lower(), interval.upper()}, is_tcp);
+                }
+            }
+        }
+    }
+}
+
 void routing_application::register_routing_ready_handler(const routing_ready_handler_t& _handler) const {
     routing_->register_routing_ready_handler(_handler);
 }

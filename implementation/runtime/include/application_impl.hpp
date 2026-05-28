@@ -161,6 +161,7 @@ public:
 
     VSOMEIP_EXPORT void set_sd_acceptance_required(const remote_info_t& _remote, const std::string& _path, bool _enable);
     VSOMEIP_EXPORT void set_sd_acceptance_required(const sd_acceptance_map_type_t& _remotes, bool _enable);
+    VSOMEIP_EXPORT void set_sd_acceptance_required(const remote_info_t& _remote);
 
     VSOMEIP_EXPORT sd_acceptance_map_type_t get_sd_acceptance_required();
 
