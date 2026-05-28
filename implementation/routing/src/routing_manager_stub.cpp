@@ -26,14 +26,12 @@
 #include "../../endpoints/include/local_endpoint.hpp"
 #include "../../endpoints/include/local_server.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
-#include "../../protocol/include/dummy_command.hpp"
 #include "../../protocol/include/expire_command.hpp"
 #include "../../protocol/include/logging.hpp"
 #include "../../protocol/include/offer_service_command.hpp"
 #include "../../protocol/include/offered_services_request_command.hpp"
 #include "../../protocol/include/offered_services_response_command.hpp"
-#include "../../protocol/include/ping_command.hpp"
-#include "../../protocol/include/pong_command.hpp"
+#include "../../protocol/include/deserialize.hpp"
 #include "../../protocol/include/register_events_command.hpp"
 #include "../../protocol/include/release_service_command.hpp"
 #include "../../protocol/include/remove_security_policy_command.hpp"
@@ -46,7 +44,6 @@
 #include "../../protocol/include/subscribe_ack_command.hpp"
 #include "../../protocol/include/subscribe_command.hpp"
 #include "../../protocol/include/subscribe_nack_command.hpp"
-#include "../../protocol/include/suspend_command.hpp"
 #include "../../protocol/include/unregister_event_command.hpp"
 #include "../../protocol/include/unsubscribe_ack_command.hpp"
 #include "../../protocol/include/unsubscribe_command.hpp"
@@ -164,17 +161,15 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     std::vector<byte_t> its_buffer(_data, _data + _size);
     protocol::error_e its_error;
 
-    // Use dummy command to deserialize id and client.
-    protocol::dummy_command its_base_command;
-    its_base_command.deserialize(its_buffer, its_error);
-    if (its_error != protocol::error_e::ERROR_OK) {
+    protocol::command_header its_header{};
+    if (!protocol::deserialize(_data, _size, its_header)) {
 
-        VSOMEIP_ERROR_P << "Deserialization of command and client identifier failed (" << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR_P << "Deserialization of command and client identifier failed";
         return;
     }
 
-    its_client = its_base_command.get_client();
-    its_id = its_base_command.get_id();
+    its_client = its_header.client_;
+    its_id = its_header.id_;
 
     if (configuration_->is_security_enabled() && configuration_->is_local_routing() && _peer_data.id_ != its_client) {
         VSOMEIP_WARNING << "vSomeIP Security: routing_manager_stub::on_message: "
@@ -186,26 +181,14 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     switch (its_id) {
 
     case protocol::id_e::PING_ID: {
-        protocol::ping_command its_command;
-        its_command.deserialize(its_buffer, its_error);
-        if (its_error == protocol::error_e::ERROR_OK) {
-            on_ping(its_client);
-            VSOMEIP_INFO << "PING(" << hex4(its_client) << ")";
-        } else {
-            VSOMEIP_ERROR_P << "Deserializing ping failed (" << static_cast<int>(its_error) << ")";
-        }
+        on_ping(its_client);
+        VSOMEIP_INFO << "PING(" << hex4(its_client) << ")";
         break;
     }
 
     case protocol::id_e::PONG_ID: {
-        protocol::pong_command its_command;
-        its_command.deserialize(its_buffer, its_error);
-        if (its_error == protocol::error_e::ERROR_OK) {
-            on_pong(its_client);
-            VSOMEIP_INFO << "PONG(" << hex4(its_client) << ")";
-        } else {
-            VSOMEIP_ERROR_P << "Deserializing pong failed (" << static_cast<int>(its_error) << ")";
-        }
+        on_pong(its_client);
+        VSOMEIP_INFO << "PONG(" << hex4(its_client) << ")";
         break;
     }
 
@@ -860,7 +843,7 @@ bool routing_manager_stub::has_client_requested(client_t _client, service_t _ser
     return false;
 }
 
-void routing_manager_stub::broadcast(const std::vector<byte_t>& _command) const {
+void routing_manager_stub::broadcast(protocol::command_header const& _command) const {
     if (auto epm = host_->get_endpoint_manager(); epm) {
         epm->broadcast_locally(_command);
     }
@@ -1008,12 +991,7 @@ bool routing_manager_stub::contained_in_routing_info(client_t _client, service_t
 void routing_manager_stub::on_ping(client_t _client) {
 
     if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
-        protocol::pong_command its_command;
-
-        std::vector<byte_t> its_buffer;
-        its_command.serialize(its_buffer);
-
-        send_local(its_endpoint, its_buffer);
+        its_endpoint->send(protocol::create_pong_cmd(VSOMEIP_ROUTING_CLIENT));
     } else {
         VSOMEIP_WARNING_P << "Couldn't find endpoint for client " << hex4(_client);
     }
@@ -1053,12 +1031,7 @@ bool routing_manager_stub::send_ping(client_t _client) {
             pinged_clients_timer_.expires_after(next_timeout);
             pinged_clients_timer_.async_wait(std::bind(&routing_manager_stub::on_ping_timer_expired, this, std::placeholders::_1));
 
-            protocol::ping_command its_command;
-
-            std::vector<byte_t> its_buffer;
-            its_command.serialize(its_buffer);
-
-            has_sent = send_local(its_endpoint, its_buffer);
+            has_sent = its_endpoint->send(protocol::create_ping_cmd(VSOMEIP_ROUTING_CLIENT));
         }
     }
 
@@ -1743,12 +1716,7 @@ void routing_manager_stub::on_security_update_response(pending_security_update_i
 
 void routing_manager_stub::send_suspend() const {
 
-    protocol::suspend_command its_command;
-
-    std::vector<byte_t> its_buffer;
-    its_command.serialize(its_buffer);
-
-    broadcast(its_buffer);
+    broadcast(protocol::create_suspend_cmd(VSOMEIP_ROUTING_CLIENT));
 }
 
 std::shared_ptr<local_endpoint> routing_manager_stub::find_local_routing_endpoint(client_t _client) const {

@@ -28,6 +28,7 @@
 #include "types.hpp"
 #include "../include/routing_host.hpp"
 #include "../../protocol/include/protocol.hpp"
+#include "../../protocol/include/command_types.hpp"
 #include "../../utility/include/service_instance_map.hpp"
 #include "../../protocol/include/routing_info_entry.hpp"
 
@@ -115,7 +116,7 @@ public:
     void send_suspend() const;
 
 private:
-    void broadcast(const std::vector<byte_t>& _command) const;
+    void broadcast(protocol::command_header const& _command) const;
 
     void on_deregister_application(client_t _client);
 

@@ -12,6 +12,8 @@
 #include "../../utility/include/is_value.hpp"
 #include "../../utility/include/utility.hpp"
 #include "../../protocol/include/assign_client_ack_command.hpp"
+#include "../../protocol/include/command_types.hpp"
+#include "../../protocol/include/serialize.hpp"
 #include "../../protocol/include/logging.hpp"
 #include "logger_ext.hpp"
 
@@ -183,6 +185,41 @@ bool local_endpoint::send(byte_t const* _data, uint32_t _size) {
     send_unlock();
     return true;
 }
+
+template<typename T>
+bool local_endpoint::send(T const& _in) {
+    std::scoped_lock const lock{mutex_};
+    auto const wire_size = protocol::wire_size(_in);
+    auto const id = protocol::get_id(_in);
+    if (is_flushing_) {
+        VSOMEIP_WARNING_P << "Dropping message type: " << id << " and size: " << wire_size
+                          << ", due to the current state: " << status_unlock();
+        return false;
+    }
+    if (std::numeric_limits<size_t>::max() - wire_size < send_queue_.size()) {
+        VSOMEIP_ERROR_P << "Dropping message type: " << id << " and size: " << wire_size
+                        << ", to avoid buffer overflow, state: " << status_unlock();
+        return false;
+    }
+    if (queue_limit_ != QUEUE_SIZE_UNLIMITED && queue_limit_ - send_queue_.size() < wire_size) {
+        VSOMEIP_ERROR_P << "Dropping message of type: " << id << ", because the queue limit (" << queue_limit_
+                        << ") would be exceeded with the message size: " << wire_size << ", state: " << status_unlock();
+        return false;
+    }
+    if (max_message_size_ < wire_size) {
+        VSOMEIP_ERROR_P << "Dropping message of type: " << id << " because the message size (" << wire_size << ") exceeded the limit ("
+                        << max_message_size_ << "), state: " << status_unlock();
+        return false;
+    }
+    auto former_size = send_queue_.size();
+    send_queue_.resize(former_size + wire_size);
+
+    protocol::serialize(_in, send_queue_.data() + former_size);
+    send_unlock();
+    return true;
+}
+
+template bool local_endpoint::send<protocol::command_header>(protocol::command_header const&);
 
 void local_endpoint::connect_unlock() {
     if (state_ != state_e::INIT) {

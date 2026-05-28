@@ -40,13 +40,11 @@
 #include "../../protocol/include/assign_client_ack_command.hpp"
 #include "../../protocol/include/config_command.hpp"
 #include "../../protocol/include/distribute_security_policies_command.hpp"
-#include "../../protocol/include/dummy_command.hpp"
 #include "../../protocol/include/expire_command.hpp"
 #include "../../protocol/include/offer_service_command.hpp"
 #include "../../protocol/include/offered_services_request_command.hpp"
 #include "../../protocol/include/offered_services_response_command.hpp"
-#include "../../protocol/include/ping_command.hpp"
-#include "../../protocol/include/pong_command.hpp"
+#include "../../protocol/include/deserialize.hpp"
 #include "../../protocol/include/register_events_command.hpp"
 #include "../../protocol/include/release_service_command.hpp"
 #include "../../protocol/include/remove_security_policy_command.hpp"
@@ -841,12 +839,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
     std::vector<byte_t> its_buffer(_data, _data + _size);
     protocol::error_e its_error;
 
-    protocol::dummy_command its_dummy_command;
-    its_dummy_command.deserialize(its_buffer, its_error);
-
-    if (its_error == protocol::error_e::ERROR_OK) {
-        its_id = its_dummy_command.get_id();
-        its_client = its_dummy_command.get_client();
+    protocol::command_header its_header{};
+    if (protocol::deserialize(_data, _size, its_header)) {
+        its_id = its_header.id_;
+        its_client = its_header.client_;
 
         bool is_from_routing = (_peer_data.id_ == VSOMEIP_ROUTING_CLIENT);
 
@@ -1052,14 +1048,8 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             break;
 
         case protocol::id_e::PING_ID: {
-            protocol::ping_command its_command;
-            its_command.deserialize(its_buffer, its_error);
-            if (its_error == protocol::error_e::ERROR_OK) {
-                send_pong();
-                VSOMEIP_INFO << "PING(" << hex4(get_client()) << ")";
-            } else {
-                VSOMEIP_ERROR_P << "Ping command deserialization failed (" << static_cast<int>(its_error) << ")";
-            }
+            VSOMEIP_INFO << "PING(" << hex4(get_client()) << ")";
+            send_pong();
             break;
         }
 
@@ -1489,7 +1479,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             break;
         }
     } else
-        VSOMEIP_ERROR_P << "Dummy command deserialization failed (" << static_cast<int>(its_error) << ")";
+        VSOMEIP_ERROR_P << "Command header deserialization failed";
 }
 
 void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size) {
@@ -1681,17 +1671,11 @@ void routing_manager_client::register_application(client_t _client) {
 
 void routing_manager_client::send_pong() const {
 
-    protocol::pong_command its_command;
-    its_command.set_client(get_client());
-
-    std::vector<byte_t> its_buffer;
-    its_command.serialize(its_buffer);
-
     if (auto state = state_machine_->state();
         is_value(state).any_of(routing_client_state_e::ST_REGISTERED, routing_client_state_e::ST_REGISTERING)) {
         std::scoped_lock its_sender_lock{sender_mutex_};
         if (sender_) {
-            sender_->send(&its_buffer[0], uint32_t(its_buffer.size()));
+            sender_->send(protocol::create_pong_cmd(get_client()));
         } else {
             VSOMEIP_ERROR_P << "Failed due to a missing sender";
         }
