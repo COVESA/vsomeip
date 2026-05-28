@@ -91,11 +91,12 @@ TEST_F(availability_handler_test_manager, availability_handler_double_registrati
                         void (*)(availability_handler::availability_handler_test_steps*)>
                 availability_handler_shared_ = {new (addr) availability_handler::availability_handler_test_steps, &remove};
 
-        std::string exec_cmd_service = "./availability_handler_test_service_starter.sh";
-        std::string exec_cmd_client = "./availability_handler_test_client_starter.sh";
-
-        process_manager service_provider{exec_cmd_service, custom_env("availaibility_handler_test.json", "AVAILABILITY_HANDLER_SERVICE")};
-        process_manager service_consumer{exec_cmd_client, custom_env("availaibility_handler_test.json", "AVAILABILITY_HANDLER_CLIENT")};
+        process_manager service_provider{"./availability_handler_test_service",
+                                         {{"VSOMEIP_CONFIGURATION", "availaibility_handler_test.json"},
+                                          {"VSOMEIP_APPLICATION_NAME", "AVAILABILITY_HANDLER_SERVICE"}}};
+        process_manager service_consumer{"./availability_handler_test_client",
+                                         {{"VSOMEIP_CONFIGURATION", "availaibility_handler_test.json"},
+                                          {"VSOMEIP_APPLICATION_NAME", "AVAILABILITY_HANDLER_CLIENT"}}};
 
         {
             boost::interprocess::scoped_lock<boost::interprocess::interprocess_mutex> service_lock(

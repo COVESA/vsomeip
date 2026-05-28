@@ -8,8 +8,6 @@ project(availability_handler_tests LANGUAGES CXX)
 # Configure necessary files into the build folder.
 set(configuration_files
     availability_handler_test.json
-    availability_handler_test_service_starter.sh
-    availability_handler_test_client_starter.sh
 )
 configure_files("${configuration_files}")
 
