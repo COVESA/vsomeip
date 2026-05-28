@@ -10,7 +10,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class suspend_command : public simple_command {
+class [[deprecated("Use create_suspend_cmd() from command_types.hpp")]] suspend_command : public simple_command {
 
 public:
     suspend_command();

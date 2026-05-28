@@ -10,7 +10,7 @@
 namespace vsomeip_v3 {
 namespace protocol {
 
-class pong_command : public simple_command {
+class [[deprecated("Use create_pong_cmd() from command_types.hpp")]] pong_command : public simple_command {
 
 public:
     pong_command();

@@ -11,12 +11,18 @@
 
 #include "internal.hpp"
 
+#include "../../protocol/include/command_types.hpp"
+#include "../../protocol/include/serialize.hpp"
+#include "../../protocol/include/logging.hpp"
+
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/constants.hpp>
 #include <vsomeip/vsomeip_sec.h>
+#include <vsomeip/internal/logger.hpp>
 
 #include <boost/asio.hpp>
 
+#include <limits>
 #include <vector>
 #include <cstdint>
 #include <memory>
@@ -171,6 +177,20 @@ public:
      * Note that the messages are only send out after start() has been called.
      */
     bool send(byte_t const* _data, uint32_t _size);
+
+    /**
+     * @brief Sends a typed message to the connected peer.
+     * @tparam T Type of the message.
+     * @param _in Message to send.
+     * @return true if queued successfully, false if queue or message limit exceeded.
+     *
+     * Messages are queued and sent asynchronously.
+     * Queue size is determined from configuration.
+     *
+     * Note that the messages are only send out after start() has been called.
+     */
+    template<typename T>
+    bool send(T const& _in);
 
     /**
      * @brief Retrieves the client ID of the connected peer.
