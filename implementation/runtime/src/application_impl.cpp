@@ -100,36 +100,31 @@ bool application_impl::init() {
     std::string configuration_path;
 
     // load configuration from module
-    std::string config_module = "";
-    const char* its_config_module = getenv(VSOMEIP_ENV_CONFIGURATION_MODULE);
-    if (nullptr != its_config_module) {
-        // TODO: Add loading of custom configuration module
-    } else { // load default module
+
+    // load default module
 #ifndef VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
-        auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
-        if (its_plugin) {
-            auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
-            if (its_configuration_plugin) {
-                configuration_ = its_configuration_plugin->get_configuration(name_, path_);
-                VSOMEIP_INFO << "Configuration module loaded.";
-            } else {
-                std::cerr << "Invalid configuration module!" << std::endl;
-                std::exit(EXIT_FAILURE);
-            }
+    auto its_plugin = plugin_manager_->get_plugin(plugin_type_e::CONFIGURATION_PLUGIN, VSOMEIP_CFG_LIBRARY);
+    if (its_plugin) {
+        auto its_configuration_plugin = std::dynamic_pointer_cast<configuration_plugin>(its_plugin);
+        if (its_configuration_plugin) {
+            configuration_ = its_configuration_plugin->get_configuration(name_, path_);
+            VSOMEIP_INFO << "Configuration module loaded.";
         } else {
-            std::cerr << "1 Configuration module could not be loaded!" << std::endl;
+            std::cerr << "Invalid configuration module!" << std::endl;
             std::exit(EXIT_FAILURE);
         }
-#else
-        configuration_ =
-                std::dynamic_pointer_cast<configuration>(std::make_shared<vsomeip_v3::cfg::configuration_impl>(configuration_path));
-        if (configuration_path.length()) {
-            configuration_->set_configuration_path(configuration_path);
-        }
-        configuration_->load(name_);
-        VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
-#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
+    } else {
+        std::cerr << "Configuration module could not be loaded!" << std::endl;
+        std::exit(EXIT_FAILURE);
     }
+#else
+    configuration_ = std::dynamic_pointer_cast<configuration>(std::make_shared<vsomeip_v3::cfg::configuration_impl>(configuration_path));
+    if (configuration_path.length()) {
+        configuration_->set_configuration_path(configuration_path);
+    }
+    configuration_->load(name_);
+    VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
+#endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 
     if (configuration_->is_local_routing()) {
         sec_client_.port = VSOMEIP_SEC_PORT_UNUSED;
@@ -167,7 +162,7 @@ bool application_impl::init() {
         VSOMEIP_INFO << "Security disabled!";
     }
 
-    const char* client_side_logging = getenv(VSOMEIP_ENV_CLIENTSIDELOGGING);
+    const char* client_side_logging = VSOMEIP_GETENV(VSOMEIP_ENV_CLIENTSIDELOGGING);
     if (client_side_logging != nullptr) {
         client_side_logging_ = true;
         VSOMEIP_INFO << "Client side logging for application: " << name_ << " is enabled";

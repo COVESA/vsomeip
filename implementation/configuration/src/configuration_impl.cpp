@@ -231,9 +231,9 @@ bool configuration_impl::load(const std::string& _name) {
     std::string its_named_configuration(VSOMEIP_ENV_CONFIGURATION);
     its_named_configuration += "_" + _name;
 
-    its_env = getenv(its_named_configuration.c_str());
+    its_env = VSOMEIP_GETENV(its_named_configuration.c_str());
     if (nullptr == its_env)
-        its_env = getenv(VSOMEIP_ENV_CONFIGURATION);
+        its_env = VSOMEIP_GETENV(VSOMEIP_ENV_CONFIGURATION);
     if (nullptr != its_env) {
         if (utility::is_file(its_env)) {
             its_file = its_env;
@@ -261,7 +261,7 @@ bool configuration_impl::load(const std::string& _name) {
     }
 
     // Determine standard configuration file
-    its_env = getenv(VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES);
+    its_env = VSOMEIP_GETENV(VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES);
     if (nullptr != its_env) {
         std::string its_temp(its_env);
         set_mandatory(its_temp);

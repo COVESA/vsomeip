@@ -151,7 +151,7 @@ void routing_manager_impl::init() {
     if (configuration_->is_e2e_enabled()) {
         VSOMEIP_INFO << "E2E protection enabled.";
 
-        const char* its_e2e_module = getenv(VSOMEIP_ENV_E2E_PROTECTION_MODULE);
+        const char* its_e2e_module = VSOMEIP_GETENV(VSOMEIP_ENV_E2E_PROTECTION_MODULE);
         std::string plugin_name = its_e2e_module != nullptr ? its_e2e_module : VSOMEIP_E2E_LIBRARY;
 
         auto its_plugin = plugin_manager::get()->get_plugin(plugin_type_e::APPLICATION_PLUGIN, plugin_name);

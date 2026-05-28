@@ -148,6 +148,15 @@ To compile vsomeip with a user defined message signal the IP routing to be ready
 cmake -DROUTING_READY_MESSAGE=<YOUR MESSAGE> ..
 ```
 
+### Compilation with hardening of environment variables.
+
+When VSOMEIP_DISABLE_ENV_VARS is defined, VSOMEIP_MANDATORY_CONFIGURATION_FILES, VSOMEIP_CONFIGURATION and VSOMEIP_BASE_PATH
+environment variable reads are suppressed.
+
+```bash
+cmake -DVSOMEIP_DISABLE_ENV_VARS=ON ..
+```
+
 ### Compilation of examples
 
 For compilation of the examples call:
