@@ -1792,11 +1792,7 @@ To enable service-specific logs, provide a space- or colon-separated list of Ser
         Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001 f013.000a 1001 1002"
         Environment=VSOMEIP_CLIENTSIDELOGGING="b003.0001:f013.000a:1001:1002"
 
-- **VSOMEIP_CONFIGURATION_MODULE** - Used to load external configuration modules. Not implemented yet!
-
 - **VSOMEIP_E2E_PROTECTION_MODULE** - Used to load external E2E modules. Defaults to `libvsomeip3-e2e.so.@VSOMEIP_MAJOR_VERSION@`, `vsomeip3-e2e.dll`(WIN), and `libvsomeip_e2e.so` (Android).
-
-- **VSOMEIP_LOAD_PLUGINS** - Used to load external plugins.
 
 <details><summary>Using environment variables</summary>
 

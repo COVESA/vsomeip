@@ -14,12 +14,21 @@
 
 #define VSOMEIP_ENV_APPLICATION_NAME            "VSOMEIP_APPLICATION_NAME"
 #define VSOMEIP_ENV_CONFIGURATION               "VSOMEIP_CONFIGURATION"
-#define VSOMEIP_ENV_CONFIGURATION_MODULE        "VSOMEIP_CONFIGURATION_MODULE"
 #define VSOMEIP_ENV_E2E_PROTECTION_MODULE       "VSOMEIP_E2E_PROTECTION_MODULE"
 #define VSOMEIP_ENV_MANDATORY_CONFIGURATION_FILES "VSOMEIP_MANDATORY_CONFIGURATION_FILES"
-#define VSOMEIP_ENV_LOAD_PLUGINS                "VSOMEIP_LOAD_PLUGINS"
 #define VSOMEIP_ENV_CLIENTSIDELOGGING           "VSOMEIP_CLIENTSIDELOGGING"
 #define VSOMEIP_ENV_BASE_PATH                   "VSOMEIP_BASE_PATH"
+
+// When VSOMEIP_DISABLE_ENV_VARS is defined (set via CMake option VSOMEIP_DISABLE_ENV_VARS),
+// a specific subset of environment variable reads are suppressed and always return nullptr.
+// This hardens deployments where environment-based configuration overrides are undesirable.
+#ifdef VSOMEIP_DISABLE_ENV_VARS
+#include <vsomeip/internal/logger.hpp>
+#define VSOMEIP_GETENV(name) nullptr
+#else
+#include <cstdlib>
+#define VSOMEIP_GETENV(name) std::getenv(name)
+#endif
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "@DEFAULT_CONFIGURATION_FILE@"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"

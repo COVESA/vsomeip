@@ -35,7 +35,7 @@
 static std::string base_path() {
     static std::string* path = []() {
         std::string* p;
-        if (const char* e = std::getenv(VSOMEIP_ENV_BASE_PATH); e != nullptr && e[0] != '\0') {
+        if (const char* e = VSOMEIP_GETENV(VSOMEIP_ENV_BASE_PATH); e != nullptr && e[0] != '\0') {
             p = new std::string(e);
         } else {
             p = new std::string(VSOMEIP_BASE_PATH);

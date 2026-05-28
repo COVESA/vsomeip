@@ -185,6 +185,12 @@ if (DISABLE_SECURITY)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVSOMEIP_DISABLE_SECURITY")
 endif ()
 
+option(VSOMEIP_DISABLE_ENV_VARS "Disable vulnerable environment variables loading for security hardening" OFF)
+if (VSOMEIP_DISABLE_ENV_VARS)
+    add_definitions(-DVSOMEIP_DISABLE_ENV_VARS)
+    message(STATUS "  vsomeip: vulnerable environment variables loading is DISABLED (VSOMEIP_DISABLE_ENV_VARS)")
+endif ()
+
 # Suppress deprecation warnings for vSomeIP interfaces
 add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 
