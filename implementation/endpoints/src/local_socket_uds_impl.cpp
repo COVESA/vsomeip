@@ -93,11 +93,12 @@ void local_socket_uds_impl::async_send(std::vector<uint8_t> _data, write_handler
     if (socket_->is_open()) {
         // ensure the memory is kept alive as long as the callback hasn't been invoked
         auto buffer = boost::asio::buffer(_data);
-        socket_->async_write(buffer, [d = std::move(_data), handler = std::move(_w_handle)](auto const& _ec, size_t _bytes) {
+        socket_->async_write(buffer, [d = std::move(_data), handler = std::move(_w_handle)](auto const& _ec, size_t _bytes) mutable {
             handler(_ec, _bytes, std::move(d));
         });
     } else {
-        boost::asio::post(io_context_, [h = std::move(_w_handle), d = std::move(_data)] { h(boost::asio::error::fault, 0, std::move(d)); });
+        boost::asio::post(io_context_,
+                          [h = std::move(_w_handle), d = std::move(_data)]() mutable { h(boost::asio::error::fault, 0, std::move(d)); });
     }
 }
 
