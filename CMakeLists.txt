@@ -97,7 +97,7 @@ endif()
 
     # force all use of std::mutex and std::recursive_mutex to use runtime init
     # instead of static initialization so mutexes can be hooked to enable PI as needed
-    add_definitions(-D_GTHREAD_USE_MUTEX_INIT_FUNC -D_GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC)
+    add_compile_definitions(_GTHREAD_USE_MUTEX_INIT_FUNC _GTHREAD_USE_RECURSIVE_MUTEX_INIT_FUNC)
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
@@ -155,7 +155,7 @@ if (NOT MSVC)
             # The --fair-sched option controls the locking mechanism used by Valgrind to serialise thread execution.
             # The locking mechanism controls the way the threads are scheduled, and different settings give different trade-offs between fairness and performance.
             set(TEST_ENTRYPOINT ${VALGRIND} --tool=${VALGRIND_TYPE} --trace-children=yes --fair-sched=yes)
-            add_definitions(-DBOOST_USE_VALGRIND)
+            add_compile_definitions(BOOST_USE_VALGRIND)
         endif ()
 
         if (VALGRIND_TYPE STREQUAL "massif")
@@ -187,12 +187,12 @@ endif ()
 
 option(VSOMEIP_DISABLE_ENV_VARS "Disable vulnerable environment variables loading for security hardening" OFF)
 if (VSOMEIP_DISABLE_ENV_VARS)
-    add_definitions(-DVSOMEIP_DISABLE_ENV_VARS)
+    add_compile_definitions(VSOMEIP_DISABLE_ENV_VARS)
     message(STATUS "  vsomeip: vulnerable environment variables loading is DISABLED (VSOMEIP_DISABLE_ENV_VARS)")
 endif ()
 
 # Suppress deprecation warnings for vSomeIP interfaces
-add_definitions(-DVSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
+add_compile_definitions(VSOMEIP_INTERNAL_SUPPRESS_DEPRECATED)
 
 ################################################################################
 # Dependencies
@@ -277,9 +277,9 @@ link_directories(
 )
 
 if (${VSOMEIP_HOTFIX_VERSION} EQUAL 0)
-add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}")
+add_compile_definitions(VSOMEIP_VERSION="${VSOMEIP_VERSION}")
 else()
-add_definitions(-DVSOMEIP_VERSION="${VSOMEIP_VERSION}.${VSOMEIP_HOTFIX_VERSION}")
+add_compile_definitions(VSOMEIP_VERSION="${VSOMEIP_VERSION}.${VSOMEIP_HOTFIX_VERSION}")
 endif()
 
 execute_process(
@@ -304,7 +304,7 @@ execute_process(
 if (NOT GIT_BRANCH_RESULT EQUAL 0)
     set(VSOMEIP_GIT_BRANCH "vsomeip")
 endif()
-add_definitions(-DVSOMEIP_GIT_COMMIT="${VSOMEIP_GIT_COMMIT}@${VSOMEIP_GIT_BRANCH}")
+add_compile_definitions(VSOMEIP_GIT_COMMIT="${VSOMEIP_GIT_COMMIT}@${VSOMEIP_GIT_BRANCH}")
 
 
 
