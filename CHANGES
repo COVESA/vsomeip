@@ -1,5 +1,75 @@
 Changes
 =======
+v3.7.4
+- global
+  - Refactor: simplify nested map structures
+  - Deprecate `verification_ntf_integration
+  - Docs: Documents WITH_TEST_DISCOVERY
+  - Run verification tests as voting
+  - Removed dbus dependency
+  - Fix FORTIFY_SOURCE behind non-Debug builds
+  - Nuke vsomeip.xml
+  - Valgrind Upload (Periodic)
+  - Environment loading hardening
+  - Remove deprecated cmake command
+
+- configuration
+ - Prevent free ports to be skipped
+ - misc: reduce default request-debounce-time
+
+- application
+  - app: minor dispatch cleanup
+
+- service discovery
+  - Drop SD Messages when client id is invalid
+  - fix SD stop offer acceptance for correct behaviour
+
+- routing
+  - protect requests/debounced requests with consumer_mutex
+  - reset events on unavailable
+  - no need to wait registration on stop
+  - conf: drop "local-clients-keepalive"
+  - Add graceful stop offer on routing manager
+  - Execute on_subscription async
+  - routing: drop rms watchdog
+  - Fix and test atomic stop offers
+  - Fix subscribe triggered by stale ON_AVAILABLE
+  - Send empty field when event payload is not set
+  - Refactor: Struct based IPC for simple commands
+  - Add case to expire all services on semi and secured ports
+
+- endpoints
+  - Side findings of tcp fake socket
+  - restrict max message size
+  - use peer_data instead of sender
+  - fix 'Target replaced' warnings after STR
+  - fix availability loop on `send_cbk`
+  - add test for too big length field + fix
+  - le no longer block on flush
+  - Do not wait for broken endpoints on flush
+  - Avoid redundant copy of buffer
+
+- tests
+  - Fix availability test
+  - add sync mechanism for subscribe_notify_tests
+  - Adjusts memory_test throughput for valgrind exec
+  - Always apply pipe to multicast endpoints
+  - Fake sockets - simplify tcp boardnet service offer
+  - use message checker everywhere
+  - Enable gating of someip messages
+  - fix debounce_frequency_test on DEBUG build
+  - fix stress_tcp_subscriptions test
+  - Fix initial_event_boardnet_test with debug build
+  - fix direct_consume_multicast test
+  - add network interface simulation
+  - remove static client ids
+  - One more test for offer stop offer subscription race
+  - fix flaky dispatcher test
+  - fix reuse_client_id_test in DEBUG build
+  - new fix to the availability test
+  - Introduce test replicating VHAL behavior
+  - Valgrind logs deduplication
+
 v3.7.3
 - global
   - Upgrade to C++20
