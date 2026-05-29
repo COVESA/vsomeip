@@ -101,7 +101,7 @@ LOCAL_CFLAGS :=  \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.7.3\" \
+    -DVSOMEIP_VERSION=\"3.7.4\" \
     -DVSOMEIP_GIT_COMMIT=\"unknown\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
@@ -161,7 +161,7 @@ LOCAL_CFLAGS := \
     -frtti \
     -fexceptions \
     -DWITHOUT_SYSTEMD \
-    -DVSOMEIP_VERSION=\"3.7.3\" \
+    -DVSOMEIP_VERSION=\"3.7.4\" \
     -DVSOMEIP_GIT_COMMIT=\"unknown\" \
     -DVSOMEIP_BASE_PATH=\"/vendor/run/someip/\" \
     -Wno-unused-parameter \
