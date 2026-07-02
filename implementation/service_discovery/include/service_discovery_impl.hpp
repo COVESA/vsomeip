@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <boost/version.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <map>
 #include <memory>
@@ -30,7 +31,7 @@
 #include "deserializer.hpp"
 #include "message_impl.hpp"
 
-#if VSOMEIP_BOOST_VERSION < 107600
+#if BOOST_VERSION < 107600
 #include <boost/container_hash/hash.hpp>
 
 // Custom hash function for boost::asio::ip::address.
@@ -42,7 +43,7 @@ struct address_hash {
                             : boost::hash<boost::asio::ip::address_v6::bytes_type>()(addr.to_v6().to_bytes());
     }
 };
-#endif // VSOMEIP_BOOST_VERSION < 107600
+#endif // BOOST_VERSION < 107600
 
 namespace vsomeip_v3 {
 
@@ -453,7 +454,7 @@ private:
     std::atomic<uint32_t> offers_received_;
 
 // List of hosts from which we have received unicast and multicast messages.
-#if VSOMEIP_BOOST_VERSION < 107600
+#if BOOST_VERSION < 107600
     std::unordered_map<boost::asio::ip::address, std::tuple<bool, bool>, address_hash> observed_hosts;
 #else
     std::unordered_map<boost::asio::ip::address, std::tuple<bool, bool>> observed_hosts;
