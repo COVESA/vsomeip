@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <boost/version.hpp>
 #include <common/utility.hpp>
 
 void utility::load_policy_data(std::string _input, std::vector<vsomeip_v3::configuration_element>& _elements,
