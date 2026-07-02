@@ -11,6 +11,11 @@
 #define SO_BINDTODEVICE 0x0800 /* restrict traffic to an interface */
 #define IP_PKTINFO		25 /* int; send interface and src addr */
 
+/* QNX has no privileged SO_RCVBUFFORCE; fall back to the normal set. */
+#ifndef SO_RCVBUFFORCE
+#define SO_RCVBUFFORCE SO_RCVBUF
+#endif
+
 /* Structure used for IP_PKTINFO.  */
 #ifndef _STRUCT_IN_PKTINFO
 struct in_pktinfo {
@@ -20,3 +25,5 @@ struct in_pktinfo {
 };
 #define _STRUCT_IN_PKTINFO
 #endif
+
+#endif // __QNX__  (close the guard opened at the top; HEAD was missing this)

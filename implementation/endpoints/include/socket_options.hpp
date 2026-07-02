@@ -13,6 +13,10 @@
 
 #include <sys/time.h>
 
+#if defined(__QNX__)
+#include "../../utility/include/qnx_helper.hpp"   // IP_PKTINFO / in_pktinfo on QNX
+#endif
+
 namespace vsomeip_v3 {
 
 template<typename Protocol>
