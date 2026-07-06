@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <boost/version.hpp>
 #include <common/utility.hpp>
 
 void utility::load_policy_data(std::string _input, std::vector<vsomeip_v3::configuration_element>& _elements,
@@ -57,7 +58,7 @@ std::set<std::string> utility::get_all_files_in_dir(const std::string& _dir_path
                 if (boost::filesystem::is_directory(iter->path())
                     && (std::find(_dir_skip_list.begin(), _dir_skip_list.end(), iter->path().filename()) != _dir_skip_list.end())) {
                     // Boost Filesystem  API to skip current directory iteration
-#if VSOMEIP_BOOST_VERSION < 108100
+#if BOOST_VERSION < 108100
                     iter.no_push();
 #else
                     iter.disable_recursion_pending();
