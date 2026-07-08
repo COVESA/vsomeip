@@ -26,6 +26,23 @@ private:
 
     [[nodiscard]] bool get_peer_credentials(vsomeip_sec_client_t& _client) override {
         int handle = socket_.native_handle();
+#if defined(__QNX__)
+        // QNX io-sock exposes no SO_PEERCRED/ucred, so the peer UID/GID cannot be
+        // read from the socket here. Report default credentials and SUCCEED rather
+        // than fail: returning false makes the local endpoint's sec_client update
+        // fail, after which vsomeip rejects the application's own routing-manager
+        // connection and never registers/offers.
+        //
+        // NOTE: this disables peer-credential based policy on QNX. It can be
+        // upgraded to a real credential source when one is available -- e.g. the
+        // QNX message-passing side channel (ConnectServerInfo/_client_info) to
+        // obtain the peer pid/uid/gid -- and gated behind vsomeip's security config.
+        (void)handle;
+        _client.user = 0;
+        _client.group = 0;
+        _client.port = VSOMEIP_SEC_PORT_UNUSED;
+        return true;
+#else
         ucred out;
         if (socklen_t len = sizeof(ucred); -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &out, &len)) {
             return false;
@@ -34,6 +51,7 @@ private:
         _client.group = out.gid;
         _client.port = VSOMEIP_SEC_PORT_UNUSED;
         return true;
+#endif
     }
     void set_reuse_address(boost::system::error_code& _ec) { socket_.set_option(boost::asio::socket_base::reuse_address(true), _ec); }
     void async_connect(endpoint const& _ep, connect_handler _handler) override { socket_.async_connect(_ep, std::move(_handler)); }
