@@ -2514,9 +2514,24 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
         if (offer_service_base(_client, _service, _instance, _major, _minor)) {
             local_services_table_.add(_service, _instance, _major, _minor, _client);
         } else {
+            std::string its_remote{"unknown"};
+            if (auto its_remote_info = find_service(_service, _instance, _major); its_remote_info) {
+                boost::asio::ip::address its_address;
+                std::uint16_t its_port{0};
+                if (auto its_tcp = std::dynamic_pointer_cast<tcp_client_endpoint_impl>(its_remote_info->get_endpoint(true));
+                    its_tcp && its_tcp->get_remote_address(its_address)) {
+                    its_port = its_tcp->get_remote_port();
+                } else if (auto its_udp = std::dynamic_pointer_cast<udp_client_endpoint_impl>(its_remote_info->get_endpoint(false));
+                           its_udp && its_udp->get_remote_address(its_address)) {
+                    its_port = its_udp->get_remote_port();
+                }
+                if (!its_address.is_unspecified()) {
+                    its_remote = its_address.to_string() + ":" + std::to_string(its_port);
+                }
+            }
             VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer [" << hex4(_service)
                             << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor << "]"
-                            << "] already offered remotely";
+                            << "] already offered remotely by " << its_remote;
             return false;
         }
     }

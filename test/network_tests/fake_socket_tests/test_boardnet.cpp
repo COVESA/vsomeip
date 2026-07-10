@@ -311,6 +311,27 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
     EXPECT_TRUE(ecu_one_client_two->message_record_.wait_for_last(expected_message)) << ecu_one_client_two->message_record_;
 }
 
+TEST_F(test_boardnet_helper, local_offer_rejected_when_already_offered_remotely) {
+    // A local app offering a service instance already offered remotely must be rejected.
+
+    start_all_apps();
+    auto* ecu_one_server = start_application(ecu_one_server_name_, "ecu_one.json");
+    ASSERT_TRUE(successfully_registered(ecu_one_server));
+
+    // ECU two offers first, so router_one learns the instance as remote.
+    ecu_two_server_->offer(boardnet_interface_);
+    ecu_one_client_->request_service(service_instance_);
+    ASSERT_TRUE(await_service(ecu_one_client_));
+
+    // Local app on ECU one tries to offer the same instance; must be rejected.
+    ecu_one_server->offer(boardnet_interface_);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // Only the remote provider owns it: stopping it makes the client unavailable.
+    ecu_two_server_->stop_offer(service_instance_);
+    ASSERT_TRUE(await_service(ecu_one_client_, service_availability::unavailable(service_instance_)));
+}
+
 TEST_F(test_boardnet_helper, subscription_without_own_offer) {
     // Regression test for race condition where a subscription nack is sent due to service info not being ready to accept remote
     // subscriptioins. This occured with previous implementation that controlled if remote subscriptions were able to be accecpted if the
