@@ -122,18 +122,19 @@ inline uint32_t deserialize(std::vector<std::pair<std::string, std::string>>& _o
 inline uint32_t deserialize(assign_client_data& _out, unsigned char const* _mem, uint32_t _size) {
     uint32_t pos = 0;
 
-    if (pos + sizeof(uint32_t) > _size)
+    if (sizeof(uint32_t) > _size)
         return 0;
     uint32_t name_len = 0;
     std::memcpy(&name_len, _mem + pos, sizeof(uint32_t));
     pos += sizeof(uint32_t);
 
-    if (pos + name_len > _size)
+    // _size >= pos here, so the subtraction cannot underflow and the check cannot overflow.
+    if (name_len > _size - pos)
         return 0;
     _out.name_ = std::string_view(reinterpret_cast<const char*>(_mem + pos), name_len);
     pos += name_len;
 
-    if (pos + sizeof(uint8_t) > _size)
+    if (sizeof(uint8_t) > _size - pos)
         return 0;
     uint8_t has_addr = 0;
     std::memcpy(&has_addr, _mem + pos, sizeof(uint8_t));
@@ -141,7 +142,7 @@ inline uint32_t deserialize(assign_client_data& _out, unsigned char const* _mem,
     _out.has_address_ = (has_addr != 0);
 
     if (_out.has_address_) {
-        if (pos + _out.address_bytes_.size() + sizeof(port_t) > _size)
+        if (_out.address_bytes_.size() + sizeof(port_t) > _size - pos)
             return 0;
         std::memcpy(_out.address_bytes_.data(), _mem + pos, _out.address_bytes_.size());
         pos += static_cast<uint32_t>(_out.address_bytes_.size());

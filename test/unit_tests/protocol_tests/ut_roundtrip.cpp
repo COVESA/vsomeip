@@ -632,6 +632,34 @@ TEST(ut_commands_roundtrip, deserialize_rejects_truncated_payload) {
     EXPECT_FALSE(deserialize(payload, buf.data() + hdr_size, static_cast<uint32_t>(buf.size()) - hdr_size - 1));
 }
 
+// Regression: an ASSIGN_CLIENT payload carrying name_length = 0xFFFFFFFF used to bypass the
+// bounds check because 'pos + name_len' wrapped around uint32_t (4 + 0xFFFFFFFF == 3 <= size).
+// The overflow-safe form ('name_len > _size - pos') must reject it instead of producing a
+// 4 GB string_view over a 4-byte buffer (heap over-read / DoS).
+TEST(ut_commands_roundtrip, deserialize_rejects_assign_client_name_length_overflow) {
+    // 4-byte payload: name_length = 0xFFFFFFFF, no bytes following.
+    const std::vector<uint8_t> buf = {0xFF, 0xFF, 0xFF, 0xFF};
+
+    assign_client_data out{};
+    EXPECT_EQ(deserialize(out, buf.data(), static_cast<uint32_t>(buf.size())), 0u);
+    EXPECT_TRUE(out.name_.empty());
+}
+
+// Regression: the has_address branch performed the same overflow-prone 'pos + size + port > _size'
+// check. A name that consumes the whole buffer but claims an address must be rejected without any
+// out-of-bounds read of the address/port bytes.
+TEST(ut_commands_roundtrip, deserialize_rejects_assign_client_address_overflow) {
+    // name_length = 2, name = "ab", has_address = 1, but no address/port bytes follow.
+    const std::vector<uint8_t> buf = {
+            0x02, 0x00, 0x00, 0x00, // name_length = 2
+            0x61, 0x62, // "ab"
+            0x01, // has_address = true, then truncated
+    };
+
+    assign_client_data out{};
+    EXPECT_EQ(deserialize(out, buf.data(), static_cast<uint32_t>(buf.size())), 0u);
+}
+
 // --- Routing info (owning vector payload) ---
 
 TEST(ut_commands_roundtrip, routing_info_empty) {
