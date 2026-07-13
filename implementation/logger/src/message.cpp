@@ -24,7 +24,7 @@
 #undef ALOGE
 #endif
 
-#define ALOGE(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
+#define ALOGE(LOG_TAG, LOG_STR) ((void)__android_log_write(ANDROID_LOG_ERROR, LOG_TAG, LOG_STR))
 #ifndef LOGE
 #define LOGE ALOGE
 #endif
@@ -33,7 +33,7 @@
 #undef ALOGW
 #endif
 
-#define ALOGW(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__))
+#define ALOGW(LOG_TAG, LOG_STR) ((void)__android_log_write(ANDROID_LOG_WARN, LOG_TAG, LOG_STR))
 #ifndef LOGW
 #define LOGW ALOGW
 #endif
@@ -42,7 +42,7 @@
 #undef ALOGI
 #endif
 
-#define ALOGI(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
+#define ALOGI(LOG_TAG, LOG_STR) ((void)__android_log_write(ANDROID_LOG_INFO, LOG_TAG, LOG_STR))
 #ifndef LOGI
 #define LOGI ALOGI
 #endif
@@ -51,7 +51,7 @@
 #undef ALOGD
 #endif
 
-#define ALOGD(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__))
+#define ALOGD(LOG_TAG, LOG_STR) ((void)__android_log_write(ANDROID_LOG_DEBUG, LOG_TAG, LOG_STR))
 #ifndef LOGD
 #define LOGD ALOGD
 #endif
@@ -60,7 +60,7 @@
 #undef ALOGV
 #endif
 
-#define ALOGV(LOG_TAG, ...) ((void)__android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__))
+#define ALOGV(LOG_TAG, LOG_STR) ((void)__android_log_write(ANDROID_LOG_VERBOSE, LOG_TAG, LOG_STR))
 #ifndef LOGV
 #define LOGV ALOGV
 #endif
