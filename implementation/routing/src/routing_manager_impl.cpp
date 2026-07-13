@@ -119,6 +119,18 @@ std::string const& routing_manager_impl::get_name() const {
     return host_->get_name();
 }
 
+std::string routing_manager_impl::get_client_info(client_t _client) const {
+    std::stringstream its_info;
+    its_info << "[" << hex4(_client) << ", '" << utility::get_client_name(configuration_, _client) << "'";
+    vsomeip_sec_client_t its_sec_client;
+    if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client)
+        && its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+        its_info << ", uid " << its_sec_client.user;
+    }
+    its_info << "]";
+    return its_info.str();
+}
+
 std::set<client_t> routing_manager_impl::find_local_clients(service_t _service, instance_t _instance, major_version_t _major) {
     std::scoped_lock its_lock(services_state_mutex_);
     return local_services_table_.find_clients(_service, _instance, _major);
@@ -525,7 +537,7 @@ void routing_manager_impl::subscribe(client_t _client, [[maybe_unused]] const vs
                 // This branch should be unreachable: the routing manager only receives
                 // SUBSCRIBE for remote (boardnet) services, so its_local_client is
                 // always VSOMEIP_ROUTING_CLIENT.
-                VSOMEIP_ERROR_P << "Router received subscription for local service from client: 0x" << hex4(_client) << ": ["
+                VSOMEIP_ERROR_P << "Router received subscription for local service from client " << get_client_info(_client) << ": ["
                                 << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << ":" << hex4(_event) << ":"
                                 << static_cast<int>(_major) << "]";
             }
@@ -808,8 +820,8 @@ bool routing_manager_impl::send(client_t _client, const byte_t* _data, length_t 
             } else {
                 if (!is_notification) {
                     const session_t its_session = bithelper::read_uint16_be(&_data[VSOMEIP_SESSION_POS_MIN]);
-                    VSOMEIP_ERROR_P << "Routing error. Not hosting service (" << hex4(its_client) << "): [" << hex4(its_service) << "."
-                                    << hex4(_instance) << "." << hex4(its_method) << "] " << hex4(its_session);
+                    VSOMEIP_ERROR_P << "Routing error. Not hosting service, client " << get_client_info(its_client) << ": ["
+                                    << hex4(its_service) << "." << hex4(_instance) << "." << hex4(its_method) << "] " << hex4(its_session);
                 }
             }
         }
@@ -974,7 +986,7 @@ bool routing_manager_impl::offer_service_remotely(service_t _service, instance_t
                 ret = false;
             } else {
                 if (!stub_->send_provided_event_resend_request(its_offering_client, pending_remote_offer_add(_service, _instance))) {
-                    VSOMEIP_ERROR_P << "Couldn't send event resend request to client 0x" << hex4(its_offering_client)
+                    VSOMEIP_ERROR_P << "Couldn't send event resend request to client " << get_client_info(its_offering_client)
                                     << " providing service [" << hex4(_service) << "." << hex4(_instance) << "]";
 
                     ret = false;
@@ -1398,8 +1410,8 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
                                           << hex4(its_event_id) << "] to local client 0x" << hex4(its_local_client);
                     }
                 } else {
-                    VSOMEIP_ERROR_P << "Failed to find local endpoint for client 0x" << hex4(its_local_client) << " to send event ["
-                                    << hex4(_service) << "." << hex4(_instance) << "." << hex4(its_event_id) << "]";
+                    VSOMEIP_ERROR_P << "Failed to find local endpoint for client " << get_client_info(its_local_client)
+                                    << " to send event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(its_event_id) << "]";
                 }
             }
         } else {
@@ -1411,8 +1423,9 @@ void routing_manager_impl::deliver_notification(service_t _service, instance_t _
                                           << hex4(its_event_id) << "] to local client 0x" << hex4(its_client_id);
                     }
                 } else {
-                    VSOMEIP_ERROR_P << "Failed to find local endpoint for client 0x" << hex4(its_client_id) << " to send selective event ["
-                                    << hex4(_service) << "." << hex4(_instance) << "." << hex4(its_event_id) << "]";
+                    VSOMEIP_ERROR_P << "Failed to find local endpoint for client " << get_client_info(its_client_id)
+                                    << " to send selective event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(its_event_id)
+                                    << "]";
                 }
             }
         }
@@ -2465,8 +2478,9 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
             auto const& [its_service, its_instance, its_stored_major, its_stored_minor, its_stored_client] = *prior_entry;
 
             if (its_stored_minor == _minor && its_stored_client == _client) {
-                VSOMEIP_ERROR_P << "Application: " << hex4(_client) << " is offering: [" << hex4(_service) << "." << hex4(_instance) << "."
-                                << static_cast<std::uint32_t>(_major) << "." << _minor << "] offered previously by itself.";
+                VSOMEIP_ERROR_P << "Application " << get_client_info(_client) << " is offering: [" << hex4(_service) << "."
+                                << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor
+                                << "] offered previously by itself.";
                 return false;
             } else if (its_stored_minor == _minor && its_stored_client != _client) {
                 // check if previous offering application is still alive
@@ -2476,9 +2490,10 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                         if (std::get<1>(found_pending->second) == _client) {
                             already_pinged = true;
                         } else {
-                            VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
-                                            << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "."
-                                            << _minor << "] current pending offer by application: " << hex4(its_stored_client) << ": ["
+                            VSOMEIP_ERROR_P << "Rejecting service registration. Application " << get_client_info(_client)
+                                            << " is trying to offer [" << hex4(_service) << "." << hex4(_instance) << "."
+                                            << static_cast<std::uint32_t>(_major) << "." << _minor
+                                            << "] current pending offer by application " << get_client_info(its_stored_client) << ": ["
                                             << hex4(_service) << "." << hex4(_instance) << "."
                                             << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor << "]";
                             return false;
@@ -2502,10 +2517,11 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     return false;
                 }
             } else {
-                VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer ["
+                VSOMEIP_ERROR_P << "Rejecting service registration. Application " << get_client_info(_client) << " is trying to offer ["
                                 << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor
-                                << "] offered previously by application: " << hex4(its_stored_client) << ": [" << hex4(_service) << "."
-                                << hex4(_instance) << "." << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor << "]";
+                                << "] offered previously by application " << get_client_info(its_stored_client) << ": [" << hex4(_service)
+                                << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(its_stored_major) << "." << its_stored_minor
+                                << "]";
                 return false;
             }
         }
@@ -2529,8 +2545,8 @@ bool routing_manager_impl::handle_local_offer_service(client_t _client, service_
                     its_remote = its_address.to_string() + ":" + std::to_string(its_port);
                 }
             }
-            VSOMEIP_ERROR_P << "Rejecting service registration. Application: " << hex4(_client) << " is trying to offer [" << hex4(_service)
-                            << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor << "]"
+            VSOMEIP_ERROR_P << "Rejecting service registration. Application " << get_client_info(_client) << " is trying to offer ["
+                            << hex4(_service) << "." << hex4(_instance) << "." << static_cast<std::uint32_t>(_major) << "." << _minor
                             << "] already offered remotely by " << its_remote;
             return false;
         }
@@ -2590,14 +2606,14 @@ void routing_manager_impl::on_pong(client_t _client) {
     std::vector<std::pair<versioned_service_instance_t, std::set<client_t>>> requests_to_process;
     {
         std::scoped_lock its_lock{services_state_mutex_};
-        std::erase_if(pending_offers_, [_client](const auto& service_iter) {
+        std::erase_if(pending_offers_, [this, _client](const auto& service_iter) {
             auto [minor, new_client, old_client] = service_iter.second;
             if (old_client == _client) {
                 // received pong from an application were another application wants
                 // to offer its service, delete the other applications offer as
                 // the current offering application is still alive
-                VSOMEIP_ERROR << "OFFER(" << hex4(new_client) << "): [" << service_iter.first << "." << minor
-                              << "] was rejected as application: " << hex4(_client) << " is still alive";
+                VSOMEIP_ERROR << "OFFER(client " << get_client_info(new_client) << "): [" << service_iter.first << "." << minor
+                              << "] was rejected as application " << get_client_info(_client) << " is still alive";
                 return true;
             }
             return false;
@@ -3457,8 +3473,8 @@ void routing_manager_impl::on_unsubscribe_ack(client_t _client, service_t _servi
                             << hex4(_eventgroup) << "] id=" << hex4(_id);
         }
     } else {
-        VSOMEIP_ERROR_P << "Received StopSubscribe for unknown eventgroup: (" << hex4(_client) << "): [" << hex4(_service) << "."
-                        << hex4(_instance) << "." << hex4(_eventgroup) << "] id=" << hex4(_id);
+        VSOMEIP_ERROR_P << "Received StopSubscribe for unknown eventgroup from client " << get_client_info(_client) << ": ["
+                        << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "] id=" << hex4(_id);
     }
 }
 
@@ -3946,8 +3962,8 @@ bool routing_manager_impl::offer_service_base(client_t _client, service_t _servi
         } else if (its_info->get_major() == _major && its_info->get_minor() == _minor) {
             its_info->set_ttl(DEFAULT_TTL);
         } else {
-            VSOMEIP_ERROR_P << "Service property mismatch (" << hex4(_client) << "): [" << hex4(_service) << "." << hex4(_instance) << ":"
-                            << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
+            VSOMEIP_ERROR_P << "Service property mismatch for client " << get_client_info(_client) << ": [" << hex4(_service) << "."
+                            << hex4(_instance) << ":" << static_cast<std::uint32_t>(its_info->get_major()) << "." << its_info->get_minor()
                             << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
             return false;
         }
@@ -3958,9 +3974,10 @@ bool routing_manager_impl::offer_service_base(client_t _client, service_t _servi
             uint16_t its_unreliable_port = configuration_->get_unreliable_port(_service, _instance);
             bool const is_forwarded = ILLEGAL_PORT != its_reliable_port || ILLEGAL_PORT != its_unreliable_port;
             if (is_forwarded) {
-                VSOMEIP_ERROR_P << "Service for boardnet not supporting multiple major offerings. Rejecting (" << hex4(_client) << "): ["
-                                << hex4(_service) << "." << hex4(_instance) << ":" << static_cast<std::uint32_t>(_major) << "." << _minor
-                                << "] passed: " << static_cast<std::uint32_t>(_major) << ":" << _minor;
+                VSOMEIP_ERROR_P << "Service for boardnet not supporting multiple major offerings. Rejecting client "
+                                << get_client_info(_client) << ": [" << hex4(_service) << "." << hex4(_instance) << ":"
+                                << static_cast<std::uint32_t>(_major) << "." << _minor << "] passed: " << static_cast<std::uint32_t>(_major)
+                                << ":" << _minor;
                 return false;
             }
         }

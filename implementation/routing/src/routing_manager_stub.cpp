@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <forward_list>
 #include <set>
+#include <sstream>
 
 #include <boost/system/error_code.hpp>
 
@@ -49,6 +50,18 @@ routing_manager_stub::routing_manager_stub(routing_manager_stub_host* _host, con
     pinged_clients_timer_(io_), pending_security_update_id_(0) { }
 
 routing_manager_stub::~routing_manager_stub() { }
+
+std::string routing_manager_stub::get_client_info(client_t _client) const {
+    std::stringstream its_info;
+    its_info << "[" << hex4(_client) << ", '" << utility::get_client_name(configuration_, _client) << "'";
+    vsomeip_sec_client_t its_sec_client;
+    if (configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client)
+        && its_sec_client.port == VSOMEIP_SEC_PORT_UNUSED) {
+        its_info << ", uid " << its_sec_client.user;
+    }
+    its_info << "]";
+    return its_info.str();
+}
 
 void routing_manager_stub::init() {
     init_routing_endpoint();
@@ -524,7 +537,7 @@ void routing_manager_stub::on_offered_service_request(client_t _client, offer_ty
     if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
         its_endpoint->send(protocol::create_offered_services_response_cmd(_client, table.view()));
     } else {
-        VSOMEIP_ERROR_P << "Failed for client 0x" << hex4(_client) << ", as no routing connection was given";
+        VSOMEIP_ERROR_P << "Failed for client " << get_client_info(_client) << ", as no routing connection was given";
     }
 }
 
@@ -655,7 +668,7 @@ void routing_manager_stub::send_client_credentials(const client_t _target, std::
     if (auto its_endpoint = find_local_routing_endpoint(_target); its_endpoint) {
         its_endpoint->send(protocol::create_update_security_credentials_cmd(_target, _credentials));
     } else {
-        VSOMEIP_ERROR_P << "Sending credentials to client [" << hex4(_target) << "] failed";
+        VSOMEIP_ERROR_P << "Sending credentials to client " << get_client_info(_target) << " failed";
     }
 }
 
@@ -671,7 +684,7 @@ void routing_manager_stub::send_client_routing_info(const client_t _target, std:
     if (auto its_target_endpoint = find_local_routing_endpoint(_target); its_target_endpoint) {
         its_target_endpoint->send(protocol::create_routing_info_cmd(VSOMEIP_ROUTING_CLIENT, std::move(_entries)));
     } else
-        VSOMEIP_ERROR_P << "Sending routing info to client [" << hex4(_target) << "] failed";
+        VSOMEIP_ERROR_P << "Sending routing info to client " << get_client_info(_target) << " failed";
 }
 
 void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _service, instance_t _instance) {
@@ -1098,7 +1111,7 @@ bool routing_manager_stub::send_remove_security_policy_request(client_t _client,
     if (auto its_endpoint = find_local_routing_endpoint(_client); its_endpoint) {
         return its_endpoint->send(protocol::create_remove_security_policy_cmd(_client, _update_id, _uid, _gid));
     } else {
-        VSOMEIP_ERROR_P << "Cannot find local client endpoint for client 0x" << hex4(_client);
+        VSOMEIP_ERROR_P << "Cannot find local client endpoint for client " << get_client_info(_client);
     }
 
     return false;

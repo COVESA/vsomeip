@@ -256,6 +256,8 @@ private:
 
     [[nodiscard]] bool is_local_client(client_t _client) const;
 
+    [[nodiscard]] std::string get_client_info(client_t _client) const;
+
     void deliver_notification(service_t _service, instance_t _instance, const byte_t* _data, length_t _length, bool _reliable,
                               client_t _bound_client, const vsomeip_sec_client_t* _sec_client, uint8_t _status_check = 0,
                               bool _is_from_remote = false);
