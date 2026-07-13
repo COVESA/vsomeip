@@ -97,7 +97,7 @@ bool policy::deserialize(const byte_t*& _data, uint32_t& _size) {
             return false;
 
         if (its_service == 0x0000 || its_service == 0xffff) {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x" << hex4(its_service) << " is not allowed!";
+            VSOMEIP_ERROR << "vSomeIP Security: Policy with service ID: 0x" << hex4(its_service) << " is not allowed!";
             return false;
         }
 
@@ -129,7 +129,7 @@ bool policy::deserialize(const byte_t*& _data, uint32_t& _size) {
             return false;
 
         if (its_service == 0x0000 || its_service == 0xFFFF) {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy with service ID: 0x" << hex4(its_service) << " is not allowed!";
+            VSOMEIP_ERROR << "vSomeIP Security: Policy with service ID: 0x" << hex4(its_service) << " is not allowed!";
             return false;
         }
 

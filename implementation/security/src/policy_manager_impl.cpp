@@ -166,7 +166,7 @@ bool policy_manager_impl::check_routing_credentials(const vsomeip_sec_client_t* 
 void policy_manager_impl::set_routing_credentials(uid_t _uid, gid_t _gid, const std::string& _name) {
 
     if (is_configured_) {
-        VSOMEIP_WARNING << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _name;
+        VSOMEIP_ERROR << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _name;
     } else {
         routing_credentials_ = std::make_pair(_uid, _gid);
         is_configured_ = true;
@@ -517,8 +517,8 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
                     VSOMEIP_INFO << "vSomeIP Security: Policy update requesting service ID: " << hex4(its_service)
                                  << " is not allowed, but will be allowed due to whitelist audit mode is active!";
                 } else {
-                    VSOMEIP_WARNING << "vSomeIP Security: Policy update requesting service ID: " << hex4(its_service)
-                                    << " is not allowed! -> ignore update";
+                    VSOMEIP_ERROR << "vSomeIP Security: Policy update requesting service ID: " << hex4(its_service)
+                                  << " is not allowed! -> ignore update";
                 }
                 return !check_whitelist_;
             }
@@ -529,7 +529,7 @@ bool policy_manager_impl::is_policy_update_allowed(uid_t _uid, std::shared_ptr<p
             VSOMEIP_INFO << "vSomeIP Security: Policy update for UID: " << _uid
                          << " is not allowed, but will be allowed due to whitelist audit mode is active!";
         } else {
-            VSOMEIP_WARNING << "vSomeIP Security: Policy update for UID: " << _uid << " is not allowed! -> ignore update";
+            VSOMEIP_ERROR << "vSomeIP Security: Policy update for UID: " << _uid << " is not allowed! -> ignore update";
         }
         return !check_whitelist_;
     }
@@ -547,7 +547,7 @@ bool policy_manager_impl::is_policy_removal_allowed(uid_t _uid) const {
         VSOMEIP_INFO << "vSomeIP Security: Policy removal for UID: " << _uid
                      << " is not allowed, but will be allowed due to whitelist audit mode is active!";
     } else {
-        VSOMEIP_WARNING << "vSomeIP Security: Policy removal for UID: " << _uid << " is not allowed! -> ignore removal";
+        VSOMEIP_ERROR << "vSomeIP Security: Policy removal for UID: " << _uid << " is not allowed! -> ignore removal";
     }
     return !check_whitelist_;
 }
@@ -674,16 +674,16 @@ void policy_manager_impl::load_policy(const boost::property_tree::ptree& _tree) 
             }
         } else if (i->first == "allow") {
             if (allow_deny_set) {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"allow\" tag overrides "
-                                << "already set \"deny\" tag. Either \"deny\" or \"allow\" is allowed.";
+                VSOMEIP_ERROR << "vSomeIP Security: Security configuration: \"allow\" tag overrides "
+                              << "already set \"deny\" tag. Either \"deny\" or \"allow\" is allowed.";
             }
             allow_deny_set = true;
             policy->allow_what_ = true;
             load_policy_body(policy, i);
         } else if (i->first == "deny") {
             if (allow_deny_set) {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: \"deny\" tag overrides "
-                                << "already set \"allow\" tag. Either \"deny\" or \"allow\" is allowed.";
+                VSOMEIP_ERROR << "vSomeIP Security: Security configuration: \"deny\" tag overrides "
+                              << "already set \"allow\" tag. Either \"deny\" or \"allow\" is allowed.";
             }
             allow_deny_set = true;
             policy->allow_what_ = false;
@@ -811,8 +811,8 @@ void policy_manager_impl::load_credential(const boost::property_tree::ptree& _tr
             } else if (its_key == "gid") {
                 load_interval_set(j->second, its_gid_interval_set);
             } else {
-                VSOMEIP_WARNING << "vSomeIP Security: Security configuration: Malformed credential (contains illegal key \"" << its_key
-                                << "\")";
+                VSOMEIP_ERROR << "vSomeIP Security: Security configuration: Malformed credential (contains illegal key \"" << its_key
+                              << "\")";
             }
         }
 
@@ -826,7 +826,7 @@ bool policy_manager_impl::load_routing_credentials(const configuration_element& 
     try {
         auto its_routing_cred = _element.tree_.get_child("routing-credentials");
         if (is_configured_) {
-            VSOMEIP_WARNING << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _element.name_;
+            VSOMEIP_ERROR << "vSomeIP Security: Multiple definitions of routing-credentials. Ignoring definition from " << _element.name_;
         } else {
             for (auto i = its_routing_cred.begin(); i != its_routing_cred.end(); ++i) {
                 std::string its_key(i->first);
@@ -986,8 +986,8 @@ void policy_manager_impl::load_interval_set(const boost::property_tree::ptree& _
                         }
                         has_last = true;
                     } else {
-                        VSOMEIP_WARNING << "vSomeIP Security: Security configuration: Malformed range. Contains illegal key (" << its_key
-                                        << ")";
+                        VSOMEIP_ERROR << "vSomeIP Security: Security configuration: Malformed range. Contains illegal key (" << its_key
+                                      << ")";
                     }
                 }
                 if (has_first && has_last && its_first <= its_last) {
@@ -1186,8 +1186,8 @@ bool policy_manager_impl::store_client_to_sec_client_mapping(client_t _client, c
                 uid_t its_new_uid = _sec_client->user;
                 gid_t its_new_gid = _sec_client->group;
 
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_new_uid << "/" << its_new_gid
-                                << " : Overwriting existing credentials UID/GID=" << its_old_uid << "/" << its_old_gid;
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " with UID/GID=" << its_new_uid << "/" << its_new_gid
+                              << " : Overwriting existing credentials UID/GID=" << its_old_uid << "/" << its_old_gid;
 
                 found_client->second = *_sec_client;
                 return true;

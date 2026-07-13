@@ -524,18 +524,18 @@ void routing_manager_client::send_subscribe(client_t _client, service_t _service
     if (_event == ANY_EVENT) {
         auto const sec_client = get_sec_client();
         if (!is_subscribe_to_any_event_allowed(&sec_client, _client, _service, _instance, _eventgroup, false)) {
-            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client) << " : routing_manager_proxy::subscribe: "
-                            << " isn't allowed to subscribe to service/instance/event " << hex4(_service) << "/" << hex4(_instance)
-                            << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
+            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " : routing_manager_proxy::subscribe: "
+                          << " isn't allowed to subscribe to service/instance/event " << hex4(_service) << "/" << hex4(_instance)
+                          << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
             return;
         }
     } else {
         auto const sec_client = get_sec_client();
         if (VSOMEIP_SEC_OK
             != configuration_->get_security()->is_client_allowed_to_access_member(&sec_client, _service, _instance, _event)) {
-            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client) << " : routing_manager_proxy::subscribe: "
-                            << " isn't allowed to subscribe to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
-                            << hex4(_event);
+            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client) << " : routing_manager_proxy::subscribe: "
+                          << " isn't allowed to subscribe to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
+                          << hex4(_event);
             return;
         }
     }
@@ -714,11 +714,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     if (utility::is_request(its_message->get_message_type())) {
                         // NOTE: its_header.client_ and message::get_client are different fields, the extra check is needed
                         if (its_message->get_client() != _peer_data.id_) {
-                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " received a request from client 0x"
-                                            << hex4(its_message->get_client()) << " to service/instance/method "
-                                            << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                            << hex4(its_message->get_method()) << " which doesn't match the bound client 0x"
-                                            << hex4(_peer_data.id_) << " ~> skip message!";
+                            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " received a request from client 0x"
+                                          << hex4(its_message->get_client()) << " to service/instance/method "
+                                          << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
+                                          << hex4(its_message->get_method()) << " which doesn't match the bound client 0x"
+                                          << hex4(_peer_data.id_) << " ~> skip message!";
                             return;
                         }
 
@@ -726,11 +726,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                             != configuration_->get_security()->is_client_allowed_to_access_member(
                                     &_peer_data.sec_client_, its_message->get_service(), its_message->get_instance(),
                                     its_message->get_method())) {
-                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_message->get_client())
-                                            << " : routing_manager_client::on_message: " << hex4(its_message->get_client())
-                                            << " isn't allowed to send a request to service/instance/method "
-                                            << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                            << hex4(its_message->get_method()) << " ~> Skip message!";
+                            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_message->get_client())
+                                          << " : routing_manager_client::on_message: " << hex4(its_message->get_client())
+                                          << " isn't allowed to send a request to service/instance/method "
+                                          << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
+                                          << hex4(its_message->get_method()) << " ~> Skip message!";
                             return;
                         }
                     } else { // Notification or Response
@@ -755,12 +755,12 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                                                                    &sec_client, its_message->get_service(), its_message->get_instance()));
 
                         if (!is_offer_access_ok) {
-                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                            << " : routing_manager_client::on_message: received a "
-                                            << (utility::is_notification(its_message->get_message_type()) ? "notification" : "response")
-                                            << " from client 0x" << hex4(_peer_data.id_) << " which does not offer service/instance/method "
-                                            << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                            << hex4(its_message->get_method()) << " ~> Skip message!";
+                            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
+                                          << " : routing_manager_client::on_message: received a "
+                                          << (utility::is_notification(its_message->get_message_type()) ? "notification" : "response")
+                                          << " from client 0x" << hex4(_peer_data.id_) << " which does not offer service/instance/method "
+                                          << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
+                                          << hex4(its_message->get_method()) << " ~> Skip message!";
                             return;
                         }
 
@@ -774,12 +774,12 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                                                                       its_message->get_instance(), its_message->get_method()));
 
                             if (!is_access_member_ok) {
-                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_message->get_client())
-                                                << " : routing_manager_client::on_message: " << hex4(get_client())
-                                                << " : routing_manager_client::on_message: isn't allowed to receive a "
-                                                << " notification from service/instance/method " << hex4(its_message->get_service()) << "/"
-                                                << hex4(its_message->get_instance()) << "/" << hex4(its_message->get_method())
-                                                << " respectively from client 0x" << hex4(_peer_data.id_) << " ~> Skip message!";
+                                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_message->get_client())
+                                              << " : routing_manager_client::on_message: " << hex4(get_client())
+                                              << " : routing_manager_client::on_message: isn't allowed to receive a "
+                                              << " notification from service/instance/method " << hex4(its_message->get_service()) << "/"
+                                              << hex4(its_message->get_instance()) << "/" << hex4(its_message->get_method())
+                                              << " respectively from client 0x" << hex4(_peer_data.id_) << " ~> Skip message!";
                                 return;
                             }
                             has_active_subscription = cache_event_payload(its_message);
@@ -789,13 +789,12 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     if (!configuration_->is_remote_access_allowed()) {
                         // if the message is from routing manager, check if
                         // policy allows remote requests.
-                        VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                        << " : routing_manager_client::on_message: Security: Remote clients via routing manager with "
-                                        << "client ID 0x" << hex4(its_client)
-                                        << " are not allowed to communicate with service/instance/method "
-                                        << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                        << hex4(its_message->get_method()) << " respectively with client 0x" << hex4(get_client())
-                                        << " ~> Skip message!";
+                        VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
+                                      << " : routing_manager_client::on_message: Security: Remote clients via routing manager with "
+                                      << "client ID 0x" << hex4(its_client)
+                                      << " are not allowed to communicate with service/instance/method " << hex4(its_message->get_service())
+                                      << "/" << hex4(its_message->get_instance()) << "/" << hex4(its_message->get_method())
+                                      << " respectively with client 0x" << hex4(get_client()) << " ~> Skip message!";
                         return;
                     } else if (utility::is_notification(its_message->get_message_type())) {
                         // As subscription is sent on eventgroup level, incoming remote event
@@ -807,11 +806,11 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                         if (VSOMEIP_SEC_OK
                             != configuration_->get_security()->is_client_allowed_to_access_member(
                                     &my_sec_client, its_message->get_service(), its_message->get_instance(), its_message->get_method())) {
-                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client())
-                                            << " : routing_manager_client::on_message: "
-                                            << " isn't allowed to receive a notification from service/instance/event "
-                                            << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
-                                            << hex4(its_message->get_method()) << " ~> Skip message!";
+                            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())
+                                          << " : routing_manager_client::on_message: "
+                                          << " isn't allowed to receive a notification from service/instance/event "
+                                          << hex4(its_message->get_service()) << "/" << hex4(its_message->get_instance()) << "/"
+                                          << hex4(its_message->get_method()) << " ~> Skip message!";
                             return;
                         }
                         has_active_subscription = cache_event_payload(its_message);
@@ -931,31 +930,31 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                         if (its_event == ANY_EVENT) {
                             if (!is_subscribe_to_any_event_allowed(&_peer_data.sec_client_, its_client, its_service, its_instance,
                                                                    its_eventgroup, true)) {
-                                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_client)
-                                                << " : routing_manager_client::on_message: isn't allowed to subscribe to"
-                                                << " service/instance/event " << hex4(its_service) << "/" << hex4(its_instance)
-                                                << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
+                                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client)
+                                              << " : routing_manager_client::on_message: isn't allowed to subscribe to"
+                                              << " service/instance/event " << hex4(its_service) << "/" << hex4(its_instance)
+                                              << "/ANY_EVENT which violates the security policy ~> Skip subscribe!";
                                 return;
                             }
                         } else {
                             if (VSOMEIP_SEC_OK
                                 != configuration_->get_security()->is_client_allowed_to_access_member(&_peer_data.sec_client_, its_service,
                                                                                                       its_instance, its_event)) {
-                                VSOMEIP_WARNING
-                                        << "vSomeIP Security: Client 0x" << hex4(its_client) << " : routing_manager_client::on_message: "
-                                        << " subscribes to service/instance/event " << hex4(its_service) << "/" << hex4(its_instance) << "/"
-                                        << its_event << " which violates the security policy ~> Skip subscribe!";
+                                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client)
+                                              << " : routing_manager_client::on_message: "
+                                              << " subscribes to service/instance/event " << hex4(its_service) << "/" << hex4(its_instance)
+                                              << "/" << its_event << " which violates the security policy ~> Skip subscribe!";
                                 return;
                             }
                         }
                     } else {
                         if (!configuration_->is_remote_access_allowed()) {
-                            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(its_client)
-                                            << " : routing_manager_client::on_message: " << hex4(its_client)
-                                            << "Routing manager with client ID 0x" << hex4(its_client)
-                                            << " isn't allowed to subscribe to service/instance/event " << hex4(its_service) << "/"
-                                            << hex4(its_instance) << "/" << its_event << " respectively to client 0x" << hex4(get_client())
-                                            << " ~> Skip Subscribe!";
+                            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(its_client)
+                                          << " : routing_manager_client::on_message: " << hex4(its_client)
+                                          << "Routing manager with client ID 0x" << hex4(its_client)
+                                          << " isn't allowed to subscribe to service/instance/event " << hex4(its_service) << "/"
+                                          << hex4(its_instance) << "/" << its_event << " respectively to client 0x" << hex4(get_client())
+                                          << " ~> Skip Subscribe!";
                             return;
                         }
                     }
@@ -1212,9 +1211,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     VSOMEIP_ERROR << "vSomeIP Security: Policy deserialization failed: " << utility::dump(_data, _size);
                 }
             } else {
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                                << " received a security policy update from a client which isn't the routing manager"
-                                << " : Skip message!";
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
+                              << " received a security policy update from a client which isn't the routing manager"
+                              << " : Skip message!";
             }
             break;
         }
@@ -1239,9 +1238,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                 } else
                     VSOMEIP_ERROR_P << "Remove security policy command deserialization failed, memory: " << utility::dump(_data, _size);
             } else
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                                << "received a security policy removal from a client which isn't the routing manager"
-                                << " : Skip message!";
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
+                              << "received a security policy removal from a client which isn't the routing manager"
+                              << " : Skip message!";
             break;
         }
 
@@ -1261,9 +1260,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     VSOMEIP_ERROR_P << "Distribute security policies command deserialization failed: " << utility::dump(_data, _size);
                 }
             } else {
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                                << " received a security policy distribution command from a client which isn't the routing manager"
-                                << " : Skip message!";
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
+                              << " received a security policy distribution command from a client which isn't the routing manager"
+                              << " : Skip message!";
             }
             break;
         }
@@ -1276,9 +1275,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                 } else
                     VSOMEIP_ERROR_P << "Update security credentials command deserialization failed: " << utility::dump(_data, _size);
             } else
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                                << "received a security credential update from a client which isn't the routing manager"
-                                << " : Skip message!";
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
+                              << "received a security credential update from a client which isn't the routing manager"
+                              << " : Skip message!";
 
             break;
         }
@@ -2804,10 +2803,10 @@ bool routing_manager_client::is_subscribe_to_any_event_allowed(const vsomeip_sec
         bool const val = VSOMEIP_SEC_OK
                 == configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, event->get_event());
         if (!val) {
-            VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client)
-                            << " : routing_manager_client::is_subscribe_to_any_event_allowed: "
-                            << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
-                            << hex4(event->get_event()) << " which violates the security policy!";
+            VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
+                          << " : routing_manager_client::is_subscribe_to_any_event_allowed: "
+                          << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
+                          << hex4(event->get_event()) << " which violates the security policy!";
         }
         return val;
     };

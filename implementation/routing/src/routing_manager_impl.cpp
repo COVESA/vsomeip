@@ -4485,10 +4485,10 @@ bool routing_manager_impl::is_subscribe_to_any_event_allowed(const vsomeip_sec_c
         for (const auto& e : its_eventgroup->get_events()) {
             if (VSOMEIP_SEC_OK
                 != configuration_->get_security()->is_client_allowed_to_access_member(_sec_client, _service, _instance, e->get_event())) {
-                VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << hex4(_client)
-                                << " : routing_manager_impl::is_subscribe_to_any_event_allowed: "
-                                << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
-                                << hex4(e->get_event()) << " which violates the security policy!";
+                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(_client)
+                              << " : routing_manager_impl::is_subscribe_to_any_event_allowed: "
+                              << "subscribes to service/instance/event " << hex4(_service) << "/" << hex4(_instance) << "/"
+                              << hex4(e->get_event()) << " which violates the security policy!";
                 is_allowed = false;
                 break;
             }
