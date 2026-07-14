@@ -25,15 +25,16 @@ routing_application::routing_application(boost::asio::io_context& _io, std::shar
     io_(_io), name_(std::move(_name)), configuration_(std::move(_configuration)), routing_(std::make_shared<routing_manager_impl>(this)),
     has_session_handling_(configuration_->has_session_handling(name_)) {
 
+#ifdef __unix__
+    sec_client_.user = getuid();
+    sec_client_.group = getgid();
+#else
+    sec_client_.user = ANY_UID;
+    sec_client_.group = ANY_GID;
+#endif
+
     if (configuration_->is_local_routing()) {
         sec_client_.port = VSOMEIP_SEC_PORT_UNUSED;
-#ifdef __unix__
-        sec_client_.user = getuid();
-        sec_client_.group = getgid();
-#else
-        sec_client_.user = ANY_UID;
-        sec_client_.group = ANY_GID;
-#endif
     } else {
         if (auto its_guest_address = configuration_->get_routing_guest_address(); its_guest_address.is_v4()) {
             sec_client_.host = htonl(its_guest_address.to_v4().to_uint());

@@ -126,15 +126,16 @@ bool application_impl::init() {
     VSOMEIP_INFO << "Configuration loaded with Multiple Routing Managers ENABLED.";
 #endif // VSOMEIP_ENABLE_MULTIPLE_ROUTING_MANAGERS
 
+#ifdef __unix__
+    sec_client_.user = getuid();
+    sec_client_.group = getgid();
+#else
+    sec_client_.user = ANY_UID;
+    sec_client_.group = ANY_GID;
+#endif
+
     if (configuration_->is_local_routing()) {
         sec_client_.port = VSOMEIP_SEC_PORT_UNUSED;
-#ifdef __unix__
-        sec_client_.user = getuid();
-        sec_client_.group = getgid();
-#else
-        sec_client_.user = ANY_UID;
-        sec_client_.group = ANY_GID;
-#endif
     } else {
         auto its_guest_address = configuration_->get_routing_guest_address();
         if (its_guest_address.is_v4()) {
