@@ -51,7 +51,7 @@ FIXED_MASTER_IP="${SANDBOX_MASTER_IP:-${SANDBOX_NET}.254}"
 SUBNET_MASK="${ISOLATED_SUBNET:-24}"
 NET_IF="${ISOLATED_NET_IF:-eth0}"
 SSH_KEY="${SSH_KEY:-/commonapi_main/lxc-config/.ssh/mgc_lxc/rsa_key_file.pub}"
-SSH_OPTS=(-o StrictHostKeyChecking=no -o BatchMode=yes -i "${SSH_KEY}" -o "ProxyCommand=socat - TCP4:%h:%p,bind=:22,reuseaddr")
+SSH_OPTS=(-o StrictHostKeyChecking=no -o BatchMode=yes -i "${SSH_KEY}")
 
 # Shared directory paths (tmpfs-backed volume shared between master and slave containers).
 SHARED_BASE="/home/test-shared"
