@@ -180,6 +180,10 @@ vsomeip_sec_client_t routing_application::get_sec_client() const {
     return sec_client_;
 }
 
+uid_t routing_application::get_sec_client_uid() const {
+    return sec_client_.user;
+}
+
 void routing_application::set_sec_client_port(port_t _port) {
     sec_client_.port = htons(_port);
 }

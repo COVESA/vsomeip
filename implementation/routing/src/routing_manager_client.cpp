@@ -2472,7 +2472,9 @@ void routing_manager_client::register_provider_event(client_t _client, service_t
                                                      std::scoped_lock<std::mutex> const& _lock) {
 
     if (auto const* service = offered_services_.find({_service, _instance, ANY_MAJOR, ANY_MINOR}); service) {
-        VSOMEIP_ERROR_P << "Registering events, after already offering the service is wrong behavior! Potentially missing major version on "
+        VSOMEIP_ERROR_P << "Application [" << hex4(get_client()) << ", '" << host_->get_name() << "', uid " << host_->get_sec_client_uid()
+                        << "] registering events for [" << hex4(_service) << "." << hex4(_instance)
+                        << "], after already offering the service is wrong behavior! Potentially missing major version on "
                            "following event messages";
     }
 

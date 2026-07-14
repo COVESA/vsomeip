@@ -58,6 +58,7 @@ private:
     session_t get_session(bool _is_request) override;
 
     vsomeip_sec_client_t get_sec_client() const override;
+    uid_t get_sec_client_uid() const override;
     void set_sec_client_port(port_t _port) override;
 
     const std::string& get_name() const override;

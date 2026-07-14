@@ -1090,6 +1090,10 @@ vsomeip_sec_client_t application_impl::get_sec_client() const {
     return sec_client_;
 }
 
+uid_t application_impl::get_sec_client_uid() const {
+    return sec_client_.user;
+}
+
 void application_impl::set_sec_client_port(port_t _port) {
 
     sec_client_.port = htons(_port);
