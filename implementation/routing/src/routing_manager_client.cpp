@@ -851,17 +851,16 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                 on_client_assign_ack(new_id, !_peer_data.routing_address_.is_unspecified());
             } else {
                 VSOMEIP_ERROR_P << "Assign client ack command deserialization failed memory: " << utility::dump(_data, _size);
-                return;
             }
             break;
         }
 
         case protocol::id_e::ROUTING_INFO_ID:
-            if (!configuration_->is_security_enabled() || is_from_routing) {
+            if (is_from_routing) {
                 on_routing_info(_data + parsed_hdr_bytes, _size - parsed_hdr_bytes);
             } else {
-                VSOMEIP_WARNING_P << "Security: Client 0x" << hex4(get_client())
-                                  << " received an routing info from a client which isn't the routing manager: Skip message!";
+                VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received routing_info from client 0x" << hex4(its_client)
+                                << " which is not the router!";
             }
             break;
 
@@ -1063,8 +1062,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                              << hex4(its_eventgroup) << "." << hex4(its_event) << "] " << std::boolalpha
                              << (its_pending_id != PENDING_SUBSCRIPTION_ID);
 
-            } else
+            } else {
                 VSOMEIP_ERROR_P << "Unsubscribe command deserialization failed: " << utility::dump(_data, _size);
+            }
             break;
         }
 
@@ -1111,8 +1111,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                 VSOMEIP_INFO << "EXPIRED SUBSCRIPTION(" << hex4(its_client) << "): [" << hex4(its_service) << "." << hex4(its_instance)
                              << "." << hex4(its_eventgroup) << "." << hex4(its_event) << "] " << std::boolalpha
                              << (its_pending_id != PENDING_SUBSCRIPTION_ID);
-            } else
+            } else {
                 VSOMEIP_ERROR_P << "Expire deserialization failed: " << utility::dump(_data, _size);
+            }
             break;
         }
 
@@ -1123,8 +1124,9 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                 on_subscribe_nack(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_);
                 VSOMEIP_INFO << "SUBSCRIBE NACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "."
                              << hex4(its_data.instance_) << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "]";
-            } else
+            } else {
                 VSOMEIP_ERROR_P << "Subscribe nack command deserialization failed: " << utility::dump(_data, _size);
+            }
             break;
         }
 
@@ -1135,23 +1137,24 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                 on_subscribe_ack(its_data.subscriber_, its_data.service_, its_data.instance_, its_data.eventgroup_, its_data.event_);
                 VSOMEIP_INFO << "SUBSCRIBE ACK(" << hex4(its_client) << "): [" << hex4(its_data.service_) << "." << hex4(its_data.instance_)
                              << "." << hex4(its_data.eventgroup_) << "." << hex4(its_data.event_) << "]";
-            } else
+            } else {
                 VSOMEIP_ERROR_P << "Subscribe ack command deserialization failed: " << utility::dump(_data, _size);
+            }
             break;
         }
 
         case protocol::id_e::OFFERED_SERVICES_RESPONSE_ID: {
             if (std::vector<protocol::service_data> its_services;
                 protocol::deserialize(its_services, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
-                if (!configuration_->is_security_enabled() || is_from_routing) {
+                if (is_from_routing) {
                     on_offered_services_info(its_services);
                 } else {
-                    VSOMEIP_WARNING << std::hex << "Security: Client 0x" << get_client()
-                                    << " received an offered services info from a client which isn't the routing manager"
-                                    << " : Skip message!";
+                    VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received a offered_services message from client 0x"
+                                    << hex4(its_client) << " which is not the router!";
                 }
-            } else
+            } else {
                 VSOMEIP_ERROR_P << "Offered services response command deserialization failed, memory: " << utility::dump(_data, _size);
+            }
             break;
         }
         case protocol::id_e::RESEND_PROVIDED_EVENTS_ID: {
@@ -1180,7 +1183,7 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
             is_internal_policy_update = true;
             [[fallthrough]];
         case protocol::id_e::UPDATE_SECURITY_POLICY_ID: {
-            if (!configuration_->is_security_enabled() || is_from_routing) {
+            if (is_from_routing) {
                 if (protocol::update_security_policy_data its_data;
                     protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
                     auto its_policy = std::make_shared<policy>();
@@ -1211,15 +1214,14 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     VSOMEIP_ERROR << "vSomeIP Security: Policy deserialization failed: " << utility::dump(_data, _size);
                 }
             } else {
-                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                              << " received a security policy update from a client which isn't the routing manager"
-                              << " : Skip message!";
+                VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received a policy update from client 0x" << hex4(its_client)
+                                << " which is not the router!";
             }
             break;
         }
 
         case protocol::id_e::REMOVE_SECURITY_POLICY_ID: {
-            if (!configuration_->is_security_enabled() || is_from_routing) {
+            if (is_from_routing) {
                 if (protocol::remove_security_policy_data its_data;
                     protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
 
@@ -1237,15 +1239,15 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     }
                 } else
                     VSOMEIP_ERROR_P << "Remove security policy command deserialization failed, memory: " << utility::dump(_data, _size);
-            } else
-                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                              << "received a security policy removal from a client which isn't the routing manager"
-                              << " : Skip message!";
+            } else {
+                VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received a remove_security_policy message from client 0x"
+                                << hex4(its_client) << " which is not the router!";
+            }
             break;
         }
 
         case protocol::id_e::DISTRIBUTE_SECURITY_POLICIES_ID: {
-            if (!configuration_->is_security_enabled() || is_from_routing) {
+            if (is_from_routing) {
                 if (std::vector<std::shared_ptr<policy>> its_data;
                     protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
                     for (auto p : its_data) {
@@ -1260,25 +1262,24 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                     VSOMEIP_ERROR_P << "Distribute security policies command deserialization failed: " << utility::dump(_data, _size);
                 }
             } else {
-                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                              << " received a security policy distribution command from a client which isn't the routing manager"
-                              << " : Skip message!";
+                VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received a distribute_security_policies message from client 0x"
+                                << hex4(its_client) << " which is not the router!";
             }
             break;
         }
 
         case protocol::id_e::UPDATE_SECURITY_CREDENTIALS_ID: {
-            if (!configuration_->is_security_enabled() || is_from_routing) {
+            if (is_from_routing) {
                 if (std::vector<std::pair<uid_t, gid_t>> its_data;
                     protocol::deserialize(its_data, _data + parsed_hdr_bytes, _size - parsed_hdr_bytes)) {
                     on_update_security_credentials(its_data);
-                } else
+                } else {
                     VSOMEIP_ERROR_P << "Update security credentials command deserialization failed: " << utility::dump(_data, _size);
-            } else
-                VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client()) << " : routing_manager_client::on_message: "
-                              << "received a security credential update from a client which isn't the routing manager"
-                              << " : Skip message!";
-
+                }
+            } else {
+                VSOMEIP_ERROR_P << "Client 0x" << hex4(get_client()) << " received an update_security_credentials message from client 0x"
+                                << hex4(its_client) << " which is not the router!";
+            }
             break;
         }
 #endif // !VSOMEIP_DISABLE_SECURITY
