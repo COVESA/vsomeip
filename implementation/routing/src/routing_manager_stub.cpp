@@ -141,7 +141,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
     client_t its_client = its_header.client_;
     protocol::id_e its_id = its_header.id_;
 
-    if (configuration_->is_security_enabled() && configuration_->is_local_routing() && _peer_data.id_ != its_client) {
+    if (_peer_data.id_ != its_client) {
         VSOMEIP_ERROR << "vSomeIP Security: routing_manager_stub::on_message: "
                       << "Routing Manager received a message from client " << hex4(its_client) << " with command " << its_id
                       << " which doesn't match the bound client " << hex4(_peer_data.id_) << " ~> skip message!";
