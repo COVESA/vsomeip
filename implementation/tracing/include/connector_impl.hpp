@@ -66,6 +66,10 @@ private:
 
     std::shared_ptr<channel_impl> get_channel_impl(const std::string& _id) const;
 
+    // Full-logging size threshold in bytes (see VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD).
+    // Guarded by configure_mutex_.
+    uint32_t full_logging_threshold_;
+
     mutable std::mutex configure_mutex_;
 
 #ifdef USE_DLT

@@ -19,6 +19,14 @@ namespace trace {
 
 typedef std::function<bool(service_t, instance_t, method_t)> filter_func_t;
 
+// A non-negative filter: its predicate plus the filter type that decides both
+// the logging verbosity and whether it restricts the channel to an allow-list
+// (only POSITIVE does; HEADER_ONLY and FULL_PAYLOAD do not).
+struct trace_filter_entry {
+    filter_func_t func;
+    filter_type_e type;
+};
+
 class channel_impl : public channel {
 public:
     channel_impl(const std::string& _id, const std::string& _name);
@@ -40,7 +48,7 @@ public:
 
     void remove_filter(filter_id_t _id);
 
-    std::pair<bool, bool> matches(service_t _service, instance_t _instance, method_t _method);
+    trace_result_e matches(service_t _service, instance_t _instance, method_t _method);
 
 private:
     filter_id_t add_filter_intern(const filter_func_t& _func, filter_type_e _type);
@@ -50,7 +58,7 @@ private:
 
     std::atomic<filter_id_t> current_filter_id_;
 
-    std::map<filter_id_t, std::pair<filter_func_t, bool>> positive_;
+    std::map<filter_id_t, trace_filter_entry> positive_; // POSITIVE, HEADER_ONLY, FULL_PAYLOAD
     std::map<filter_id_t, filter_func_t> negative_;
     std::mutex mutex_; // protects positive_ & negative_
 };

@@ -241,11 +241,12 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
     std::shared_ptr<vsomeip::cfg::trace> its_trace = its_configuration->get_trace();
     EXPECT_TRUE(its_trace->is_enabled_);
     EXPECT_TRUE(its_trace->is_sd_enabled_);
-    EXPECT_EQ(4u, its_trace->channels_.size());
-    EXPECT_TRUE(its_trace->filters_.size() == 2u || its_trace->filters_.size() == 4u);
+    EXPECT_EQ(1024u, its_trace->full_logging_threshold_);
+    EXPECT_EQ(5u, its_trace->channels_.size());
+    EXPECT_EQ(5u, its_trace->filters_.size());
     for (const auto& c : its_trace->channels_) {
         EXPECT_TRUE(c->name_ == std::string("testname") || c->name_ == std::string("testname2") || c->name_ == std::string("testname3")
-                    || c->name_ == std::string("testname4"));
+                    || c->name_ == std::string("testname4") || c->name_ == std::string("testname5"));
         if (c->name_ == std::string("testname")) {
             EXPECT_EQ(std::string("testid"), c->id_);
         } else if (c->name_ == std::string("testname2")) {
@@ -254,13 +255,16 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
             EXPECT_EQ(std::string("testid3"), c->id_);
         } else if (c->name_ == std::string("testname4")) {
             EXPECT_EQ(std::string("testid4"), c->id_);
+        } else if (c->name_ == std::string("testname5")) {
+            EXPECT_EQ(std::string("testid5"), c->id_);
         }
     }
     for (const auto& f : its_trace->filters_) {
         auto its_channel_name = f->channels_.front();
         auto its_matches = f->matches_;
         EXPECT_TRUE(its_channel_name == std::string("testname") || its_channel_name == std::string("testname2")
-                    || its_channel_name == std::string("testname3") || its_channel_name == std::string("testname4"));
+                    || its_channel_name == std::string("testname3") || its_channel_name == std::string("testname4")
+                    || its_channel_name == std::string("testname5"));
         if (its_channel_name == std::string("testname")) {
             EXPECT_EQ(2u, its_matches.size());
 
@@ -300,6 +304,16 @@ void check_file(const std::string& _config_file, const std::string& _expected_un
                 EXPECT_TRUE(std::get<2>(m) == vsomeip::method_t(0xffff) || std::get<2>(m) == vsomeip::method_t(0x8888));
                 EXPECT_NE(f->ftype_, vsomeip_v3::trace::filter_type_e::POSITIVE);
                 EXPECT_TRUE(f->is_range_);
+            }
+        } else if (its_channel_name == std::string("testname5")) {
+            EXPECT_EQ(2u, its_matches.size());
+
+            for (const vsomeip::trace::match_t& m : its_matches) {
+                EXPECT_TRUE(std::get<0>(m) == vsomeip::service_t(0x5555) || std::get<0>(m) == vsomeip::service_t(6666));
+                EXPECT_TRUE(std::get<1>(m) == vsomeip::instance_t(0xffff));
+                EXPECT_TRUE(std::get<2>(m) == vsomeip::method_t(0xffff));
+                EXPECT_EQ(f->ftype_, vsomeip_v3::trace::filter_type_e::FULL_PAYLOAD);
+                EXPECT_FALSE(f->is_range_);
             }
         }
     }
@@ -707,6 +721,10 @@ TEST(configuration_test, default_values) {
     EXPECT_EQ(conf->get_external_tcp_keepidle(), VSOMEIP_DEFAULT_TCP_KEEPIDLE);
     EXPECT_EQ(conf->get_external_tcp_keepintvl(), VSOMEIP_DEFAULT_TCP_KEEPINTVL);
     EXPECT_EQ(conf->get_external_tcp_keepcnt(), VSOMEIP_DEFAULT_TCP_KEEPCNT);
+
+    std::shared_ptr<vsomeip::cfg::trace> its_trace = conf->get_trace();
+    ASSERT_TRUE(its_trace);
+    EXPECT_EQ(VSOMEIP_TC_DEFAULT_FULL_LOGGING_THRESHOLD, its_trace->full_logging_threshold_);
 }
 
 TEST(configuration_test, bad_env) {

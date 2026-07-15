@@ -12,6 +12,7 @@ add_subdirectory(routing_manager_tests)
 add_subdirectory(security_policy_manager_impl_tests)
 add_subdirectory(security_policy_tests)
 add_subdirectory(security_tests)
+add_subdirectory(tracing_tests)
 add_subdirectory(utility_utility_tests)
 
 if (NOT WIN32)

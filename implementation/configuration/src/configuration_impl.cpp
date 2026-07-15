@@ -22,6 +22,7 @@
 #include <boost/property_tree/json_parser.hpp>
 
 #include <vsomeip/constants.hpp>
+#include <vsomeip/defines.hpp>
 #include <vsomeip/plugins/application_plugin.hpp>
 #include <vsomeip/plugins/pre_configuration_plugin.hpp>
 #include <vsomeip/structured_types.hpp>
@@ -1090,6 +1091,43 @@ void configuration_impl::load_tracing(const configuration_element& _element) {
                     trace_->is_sd_enabled_ = (its_value == "true");
                     is_configured_[ET_TRACING_SD_ENABLE] = true;
                 }
+            } else if (its_key == "full_logging_threshold") {
+                if (is_configured_[ET_TRACING_FULL_LOGGING_THRESHOLD]) {
+                    VSOMEIP_WARNING << "Multiple definitions of tracing.full_logging_threshold. Ignoring definition from "
+                                    << _element.name_;
+                } else {
+                    bool its_parsed(false);
+                    try {
+                        std::size_t its_pos(0);
+                        const unsigned long its_threshold = std::stoul(its_value, &its_pos, 10);
+                        // Reject negatives (stoul silently wraps them), trailing
+                        // garbage and values that don't fit in uint32_t - a
+                        // safety knob must not be silently inverted into "no limit".
+                        if (its_value.find('-') == std::string::npos && its_pos == its_value.size()
+                            && its_threshold <= std::numeric_limits<uint32_t>::max()) {
+                            auto its_value_u32 = static_cast<uint32_t>(its_threshold);
+                            // A non-zero threshold below the SOME/IP header size is
+                            // meaningless - header-only logging always emits up to
+                            // VSOMEIP_FULL_HEADER_SIZE bytes - so clamp it up. 0 keeps
+                            // its special "disabled" (always full) meaning.
+                            if (its_value_u32 != 0 && its_value_u32 < VSOMEIP_FULL_HEADER_SIZE) {
+                                VSOMEIP_WARNING << "tracing.full_logging_threshold (" << its_value_u32 << ") is below the minimum of "
+                                                << VSOMEIP_FULL_HEADER_SIZE << ", using " << VSOMEIP_FULL_HEADER_SIZE << ".";
+                                its_value_u32 = VSOMEIP_FULL_HEADER_SIZE;
+                            }
+                            trace_->full_logging_threshold_ = its_value_u32;
+                            its_parsed = true;
+                        }
+                    } catch (const std::exception&) {
+                        // reported below
+                    }
+                    if (its_parsed) {
+                        is_configured_[ET_TRACING_FULL_LOGGING_THRESHOLD] = true;
+                    } else {
+                        VSOMEIP_ERROR_P << "Invalid value for tracing.full_logging_threshold (\"" << its_value << "\"), using "
+                                        << trace_->full_logging_threshold_ << ".";
+                    }
+                }
             } else if (its_key == "channels") {
                 load_trace_channels(i->second);
             } else if (its_key == "filters") {
@@ -1159,6 +1197,8 @@ void configuration_impl::load_trace_filter(const boost::property_tree::ptree& _t
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::NEGATIVE;
             else if (its_value == "header-only")
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::HEADER_ONLY;
+            else if (its_value == "full-payload")
+                its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::FULL_PAYLOAD;
             else
                 its_filter->ftype_ = vsomeip_v3::trace::filter_type_e::POSITIVE;
         } else {
