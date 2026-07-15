@@ -354,9 +354,6 @@ private:
     std::shared_ptr<local_server> tcp_receiver_; // --> from everybody
     std::shared_ptr<local_server> uds_receiver_; // --> from everybody
 
-    std::mutex pending_event_registrations_mutex_;
-    std::vector<protocol::register_event_data> pending_event_registrations_;
-
     const bool client_side_logging_;
     const std::set<std::tuple<service_t, instance_t>> client_side_logging_filter_;
 
@@ -378,6 +375,8 @@ private:
     service_instance_map<std::unordered_map<event_t, std::shared_ptr<event>>> provided_events_;
     service_instance_map<std::map<eventgroup_t, uint32_t>> remote_subscriber_count_;
     local_service_table offered_services_;
+    // Event registrations offered by this client, awaiting (re)send to the routing manager.
+    std::vector<protocol::register_event_data> pending_provided_event_registrations_;
     // lc_count is bumped on every rmc::stop and on any reconnect invocation,
     // protected by the provider_mutex_, but it may be read during a start of the
     // sender at an arbitrary moment in time - although it shouldn't.
@@ -432,6 +431,8 @@ private:
         }
     };
     std::set<subscription_data_t> pending_subscriptions_;
+    // Event registrations consumed (subscribed) by this client, awaiting (re)send to the routing manager.
+    std::vector<protocol::register_event_data> pending_consumed_event_registrations_;
 
     async::trigger on_sender_stopped_;
     async::trigger on_consumer_flushed_;

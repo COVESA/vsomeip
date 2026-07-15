@@ -1503,4 +1503,198 @@ TEST_F(test_provider_consumer_error_isolation, provider_socket_failure_does_not_
                                                        common::scaled_timeout(std::chrono::milliseconds(200))))
             << "A wrongly marked the consumed service S2 unavailable on a provider-socket failure: " << a_->availability_record_;
 }
+
+// Regression tests "Split the event registration set into producer vs. consumer sets"
+// Pending_event_registrations_ was split into a PROVIDER set (provider_mutex_) and a CONSUMER set
+// (consumer_mutex_). Each app is both provider and consumer, so both sets are populated, covering
+// register_event() (push + direct send), unregister_event() (erase), and resend_provided_event_registrations()
+// (resends only the provider set). A offers S1/ev1 + consumes S2/ev2; B offers S2/ev2 + consumes S1/ev1.
+struct test_pending_event_registration_split : public base_fake_socket_fixture {
+    test_pending_event_registration_split() {
+        use_configuration("multiple_client_one_process.json");
+        create_app(routingmanager_name_);
+        create_app(a_name_);
+        create_app(b_name_);
+    }
+
+    std::string const& a_name_{server_name_};
+    std::string const& b_name_{client_name_};
+
+    // S1 is offered by A and consumed by B; S2 is offered by B and consumed by A.
+    service_instance s1_{0x3344, 0x1};
+    event_ids ev1_{s1_, 0x8002, 0x1};
+    service_instance s2_{0x3345, 0x1};
+    event_ids ev2_{s2_, 0x8002, 0x1};
+
+    std::vector<unsigned char> s1_payload_{0x11, 0x22};
+    std::vector<unsigned char> s2_payload_{0x33, 0x44};
+
+    static message_checker notification_checker(service_instance const& _si, vsomeip::event_t _event,
+                                                std::vector<unsigned char> const& _payload) {
+        return message_checker{std::nullopt, _si, _event, vsomeip::message_type_e::MT_NOTIFICATION, _payload};
+    }
+
+    app* rm_{};
+    app* a_{};
+    app* b_{};
+
+    // Builds a raw RESEND_PROVIDED_EVENTS command as the routing manager would send it, so it can be
+    // injected onto A's connection to drive resend_provided_event_registrations().
+    static std::vector<unsigned char> make_resend_provided_events_command(vsomeip::client_t _sender) {
+        return construct_basic_raw_command(protocol::id_e::RESEND_PROVIDED_EVENTS_ID,
+                                           static_cast<uint16_t>(0), // command version
+                                           _sender, // sender (routing manager)
+                                           static_cast<uint32_t>(sizeof(vsomeip::pending_remote_offer_id_t)), // payload size
+                                           static_cast<vsomeip::pending_remote_offer_id_t>(0x0000ABCD)); // pending remote offer id
+    }
+
+    // Brings A into a state where it holds BOTH a provided event registration (ev1) and a
+    // consumed event registration (ev2), each verified to work.
+    void bring_up() {
+        rm_ = start_client(routingmanager_name_);
+        ASSERT_NE(rm_, nullptr);
+        ASSERT_TRUE(await_connectable(routingmanager_name_));
+
+        a_ = start_client(a_name_);
+        ASSERT_NE(a_, nullptr);
+        ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+        b_ = start_client(b_name_);
+        ASSERT_NE(b_, nullptr);
+        ASSERT_TRUE(b_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+        a_->offer(s1_);
+        a_->offer_event(ev1_);
+        b_->offer(s2_);
+        b_->offer_event(ev2_);
+
+        b_->request_service(s1_);
+        ASSERT_TRUE(b_->availability_record_.wait_for_last(service_availability::available(s1_)));
+        b_->subscribe_event(ev1_);
+        ASSERT_TRUE(b_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)));
+
+        a_->request_service(s2_);
+        ASSERT_TRUE(a_->availability_record_.wait_for_last(service_availability::available(s2_)));
+        a_->subscribe_event(ev2_);
+        ASSERT_TRUE(a_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev2_)));
+    }
+
+    // Asserts a fresh notification currently flows in BOTH directions: A -> B for the
+    // provided event (ev1) and B -> A for the consumed event (ev2).
+    void assert_both_directions_deliver(std::vector<unsigned char> const& _s1, std::vector<unsigned char> const& _s2) {
+        a_->send_event(ev1_, _s1);
+        b_->send_event(ev2_, _s2);
+        ASSERT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, _s1)))
+                << "provided event ev1 not delivered to B: " << b_->message_record_;
+        ASSERT_TRUE(a_->message_record_.wait_for(notification_checker(s2_, ev2_.event_id_, _s2)))
+                << "consumed event ev2 not delivered to A: " << a_->message_record_;
+    }
+};
+
+// Test 1 (happy path, both sets populated via register_event):
+// An app that both provides ev1 and consumes ev2 registers each event into its role-matching
+// pending set; both registrations are honored end-to-end.
+TEST_F(test_pending_event_registration_split, provider_and_consumer_registrations_are_both_honored) {
+    bring_up();
+    assert_both_directions_deliver(s1_payload_, s2_payload_);
+}
+
+// Test 2 (edge case, role-scoped unregister_event):
+// Stopping the OFFER of ev1 (is_provided=true) must erase it from the provider set ONLY, leaving
+// the consumed ev2 registration untouched and still delivering.
+TEST_F(test_pending_event_registration_split, stopping_provided_event_does_not_disturb_consumed_registration) {
+    bring_up();
+    assert_both_directions_deliver(s1_payload_, s2_payload_);
+
+    // Provider-side unregister -> erases ev1 from pending_provided_event_registrations_.
+    a_->get_application()->stop_offer_event(s1_.service_, s1_.instance_, ev1_.event_id_);
+
+    // The consumer-side registration (ev2) must be unaffected: A still receives fresh S2.
+    a_->message_record_.clear();
+    std::vector<unsigned char> const next_s2{0x9A, 0xBC};
+    b_->send_event(ev2_, next_s2);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s2_, ev2_.event_id_, next_s2)))
+            << "A stopped receiving consumed S2 after stopping its provided ev1: " << a_->message_record_;
+}
+
+// Test 3 (different code path, the consumer branch of unregister_event):
+// Mirror of Test 2: releasing the CONSUMED event ev2 (is_provided=false) must erase it from the
+// consumer set ONLY, leaving the provided ev1 registration untouched and still delivering to B.
+TEST_F(test_pending_event_registration_split, releasing_consumed_event_does_not_disturb_provided_registration) {
+    bring_up();
+    assert_both_directions_deliver(s1_payload_, s2_payload_);
+
+    // Consumer-side unregister -> erases ev2 from pending_consumed_event_registrations_.
+    a_->get_application()->release_event(s2_.service_, s2_.instance_, ev2_.event_id_);
+
+    // The provider-side registration (ev1) must be unaffected: B still receives fresh S1.
+    b_->message_record_.clear();
+    std::vector<unsigned char> const next_s1{0xDE, 0xF0};
+    a_->send_event(ev1_, next_s1);
+    EXPECT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, next_s1)))
+            << "B stopped receiving provided S1 after A released its consumed ev2: " << b_->message_record_;
+}
+
+// Test 4 (resend path + observable erase):
+// A RESEND_PROVIDED_EVENTS command drives resend_provided_event_registrations(), which resends the
+// provided registration (ev1) as REGISTER_EVENT. After the offer stops the provider set is empty, so a
+// second resend emits nothing — proving both the resend and the provider-side erase read the split set.
+TEST_F(test_pending_event_registration_split, resend_provided_events_resends_only_the_provider_set) {
+    bring_up();
+
+    // Observe only what A sends to the routing manager from here on.
+    clear_command_record(a_name_, routingmanager_name_);
+    auto resend = make_resend_provided_events_command(rm_->get_client());
+    ASSERT_TRUE(inject_command_tcp(a_name_, routingmanager_name_, resend, socket_role::client));
+    EXPECT_TRUE(wait_for_command(a_name_, routingmanager_name_, protocol::id_e::REGISTER_EVENT_ID, socket_role::server))
+            << "A did not resend its provided event registration on RESEND_PROVIDED_EVENTS";
+
+    // Stop offering ev1 -> pending_provided_event_registrations_ becomes empty.
+    a_->get_application()->stop_offer_event(s1_.service_, s1_.instance_, ev1_.event_id_);
+    clear_command_record(a_name_, routingmanager_name_);
+    auto resend_again = make_resend_provided_events_command(rm_->get_client());
+    ASSERT_TRUE(inject_command_tcp(a_name_, routingmanager_name_, resend_again, socket_role::client));
+    EXPECT_FALSE(wait_for_command(a_name_, routingmanager_name_, protocol::id_e::REGISTER_EVENT_ID, socket_role::server,
+                                  common::scaled_timeout(std::chrono::milliseconds(300))))
+            << "A resent a provided registration that had been stopped (provider-set erase failed)";
+}
+
+// Test 5 (same event in BOTH split sets — the CommonAPI "stub + proxy in one process" pattern):
+// A single app A offers ev1 (populating the PROVIDER set) and also subscribes to its OWN ev1
+// (populating the CONSUMER set), so the identical (service, instance, event) lives in both split sets
+// at once. An external consumer B subscribes to the same ev1. A single notification from A must reach
+// BOTH A (self-consumption) and B (regular provider -> consumer delivery).
+TEST_F(test_pending_event_registration_split, same_event_offered_and_consumed_by_one_app) {
+    rm_ = start_client(routingmanager_name_);
+    ASSERT_NE(rm_, nullptr);
+    ASSERT_TRUE(await_connectable(routingmanager_name_));
+
+    a_ = start_client(a_name_);
+    ASSERT_NE(a_, nullptr);
+    ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    b_ = start_client(b_name_);
+    ASSERT_NE(b_, nullptr);
+    ASSERT_TRUE(b_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    // A offers ev1 (provider set) and subscribes to its OWN ev1 (consumer set): same event, both sets.
+    a_->offer(s1_);
+    a_->offer_event(ev1_);
+    a_->request_service(s1_);
+    a_->subscribe_event(ev1_);
+    ASSERT_TRUE(a_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)))
+            << "A failed to subscribe to its own offered ev1";
+
+    // B consumes the same ev1 from A.
+    b_->request_service(s1_);
+    ASSERT_TRUE(b_->availability_record_.wait_for_last(service_availability::available(s1_)));
+    b_->subscribe_event(ev1_);
+    ASSERT_TRUE(b_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)))
+            << "B failed to subscribe to A's ev1";
+
+    // One notification must reach both the self-subscriber (A) and the external subscriber (B).
+    a_->send_event(ev1_, s1_payload_);
+    EXPECT_TRUE(a_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "A did not receive its own offered+consumed ev1: " << a_->message_record_;
+    EXPECT_TRUE(b_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "B did not receive A's ev1: " << b_->message_record_;
+}
 }

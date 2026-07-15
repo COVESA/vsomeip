@@ -67,6 +67,41 @@ struct local_endpoint_params {
 };
 
 /**
+ * @class command_batch
+ * @brief Accumulates several serialized protocol commands so that local_endpoint::send() can enqueue
+ * them with a single lock acquisition and a single flush (one write burst) instead of one syscall per
+ * command.
+ */
+class command_batch {
+public:
+    /// Serialize and append one protocol command to the batch.
+    template<typename T>
+    command_batch& add(T const& _command) {
+        static_assert(!std::is_same_v<T, protocol::send_command_data>,
+                      "command_batch is for untraced control commands; use local_endpoint::send() for payload messages");
+        uint32_t const its_size = protocol::wire_size(_command);
+        if (its_size == 0) {
+            return *this;
+        }
+        std::size_t const its_offset = buffer_.size();
+        buffer_.resize(its_offset + its_size);
+        protocol::serialize(_command, buffer_.data() + its_offset);
+        if (its_size > largest_command_) {
+            largest_command_ = its_size;
+        }
+        return *this;
+    }
+
+    /// Whether no command has been added yet.
+    bool empty() const { return buffer_.empty(); }
+
+private:
+    friend class local_endpoint;
+    std::vector<uint8_t> buffer_;
+    uint32_t largest_command_{0};
+};
+
+/**
  * @class local_endpoint
  * @brief Non-restartable, full-duplex endpoint for intra-host vsomeip communication.
  *
@@ -195,6 +230,14 @@ public:
      */
     template<typename T>
     bool send(T const& _in, std::shared_ptr<trace::connector_impl> const& _tc = nullptr);
+
+    /**
+     * @brief Enqueues a batch of already-serialized commands and flushes the send queue once.
+     * @param _batch The accumulated commands (@see command_batch).
+     * @return true if queued successfully, false if the queue/message limit was exceeded or the
+     * endpoint is currently flushing.
+     */
+    bool send(command_batch const& _batch);
 
     /**
      * @brief Retrieves the client ID of the connected peer.

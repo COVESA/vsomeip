@@ -232,6 +232,35 @@ bool local_endpoint::send(T const& _in, [[maybe_unused]] std::shared_ptr<trace::
     return true;
 }
 
+bool local_endpoint::send(command_batch const& _batch) {
+    if (_batch.buffer_.empty()) {
+        return true;
+    }
+    std::scoped_lock const lock{mutex_};
+    auto const wire_size = _batch.buffer_.size();
+    if (is_flushing_) {
+        VSOMEIP_WARNING_P << "Dropping command batch of size: " << wire_size << ", due to the current state: " << status_unlock();
+        return false;
+    }
+    if (std::numeric_limits<size_t>::max() - wire_size < send_queue_.size()) {
+        VSOMEIP_ERROR_P << "Dropping command batch of size: " << wire_size << ", to avoid buffer overflow, state: " << status_unlock();
+        return false;
+    }
+    if (queue_limit_ != QUEUE_SIZE_UNLIMITED && queue_limit_ - send_queue_.size() < wire_size) {
+        VSOMEIP_ERROR_P << "Dropping command batch of size: " << wire_size << ", because the queue limit (" << queue_limit_
+                        << ") would be exceeded, state: " << status_unlock();
+        return false;
+    }
+    if (max_message_size_ < _batch.largest_command_) {
+        VSOMEIP_ERROR_P << "Dropping command batch because a command size (" << _batch.largest_command_ << ") exceeded the limit ("
+                        << max_message_size_ << "), state: " << status_unlock();
+        return false;
+    }
+    send_queue_.insert(send_queue_.end(), _batch.buffer_.begin(), _batch.buffer_.end());
+    send_unlock();
+    return true;
+}
+
 void local_endpoint::connect_unlock() {
     if (state_ != state_e::INIT) {
         return;
