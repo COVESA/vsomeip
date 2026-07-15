@@ -151,6 +151,8 @@ void data_pipe::push_checked_data(std::scoped_lock<std::mutex> const&) {
                     continue;
                 }
                 state_ = external_checker_(msg);
+                TEST_LOG << "[data_pipe] external checker returned state: " << static_cast<int>(state_) << ", mem: " << this
+                         << ", parsed message: " << msg;
             }
 
             if (state_ == data_pipe_state::CLOSED) {
