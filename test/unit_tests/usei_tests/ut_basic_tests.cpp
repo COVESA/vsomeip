@@ -168,7 +168,7 @@ TEST_F(usei_fixture, corrupted_data) {
         auto bad_data = good_data;
         bad_data[i % bad_data.size()] = static_cast<std::byte>(i);
         send(unicast_parameters_, bad_data);
-        std::this_thread::sleep_for(10us);
+        std::this_thread::sleep_for(20us);
     }
 
     send(unicast_parameters_, end_message);
