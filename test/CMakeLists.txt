@@ -182,5 +182,3 @@ if (NOT DISABLE_SECURITY)
         add_subdirectory(benchmark_tests EXCLUDE_FROM_ALL)
     endif()
 endif()
-
-configure_file(tsan-suppressions.txt tsan-suppressions.txt COPYONLY)

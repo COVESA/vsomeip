@@ -9,8 +9,6 @@
 /.project
 /.cproject
 /doc
-/implementation/configuration/include/internal.hpp
-/test/unit_tests/security_policy_manager_impl_tests/policy_manager_impl_unit_test_macro.hpp
 /tools/CMakeFiles
 /logs
 !build_qnx/*

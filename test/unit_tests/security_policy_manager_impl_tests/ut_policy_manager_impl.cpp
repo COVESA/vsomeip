@@ -17,8 +17,6 @@
 #include "../../../implementation/utility/include/bithelper.hpp"
 #include "../../../implementation/utility/include/utility.hpp"
 
-#include "policy_manager_impl_unit_test_macro.hpp"
-
 namespace {
 // Lazy load.
 bool lazy_load = true;
@@ -1875,7 +1873,7 @@ TEST(security_policy_manager_test, get_security_config_folder) {
     std::stringstream final_path;
 
     // Create a string to the path to the current unit test folder.
-    const std::string folder_path = UNIT_TEST_BUILD_DIR_PATH "/security_policy_manager_impl_tests";
+    const std::string folder_path = UNIT_TEST_BUILD_DIR_PATH;
 
     const std::string fake_path = "fake_path";
 
@@ -1932,7 +1930,7 @@ TEST(security_policy_manager_test, is_policy_extension_loaded) {
 #endif
 
     // Add a way to move out of the /etc folder we will be forced in.
-    final_path2 << "../.." << UNIT_TEST_BUILD_DIR_PATH << "/security_policy_manager_impl_tests";
+    final_path2 << "../.." << UNIT_TEST_BUILD_DIR_PATH;
 
     // Convert stringstream to char*
     const std::string tmp = final_path.str();
