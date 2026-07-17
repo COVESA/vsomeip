@@ -15,6 +15,7 @@
 #include <condition_variable>
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/address.hpp>
 #include <vsomeip/primitive_types.hpp>
 #include <vsomeip/enumeration_types.hpp>
 #include "local_endpoint_manager_host.hpp"
@@ -60,6 +61,10 @@ public:
 
     // server endpoint API (endpoints towards clients of this application)
     std::shared_ptr<local_endpoint> find_local_server_endpoint(client_t _client) const;
+
+    // Finds the accepted provider endpoint whose peer is _peer_address:_peer_port.
+    std::shared_ptr<local_endpoint> find_local_server_endpoint_by_peer(const boost::asio::ip::address& _peer_address,
+                                                                       port_t _peer_port) const;
 
     void remove_provider_endpoint(client_t _client, bool _remove_due_to_error);
     void clear_provider_endpoints();

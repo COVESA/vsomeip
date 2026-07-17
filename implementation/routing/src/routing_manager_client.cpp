@@ -1331,10 +1331,16 @@ void routing_manager_client::on_routing_info(const byte_t* _data, uint32_t _size
                     VSOMEIP_INFO_P << "Old client 0x" << hex4(old_client) << " removed due to new client 0x" << hex4(its_client) << " @ "
                                    << its_address.to_string() + ":" << its_port;
 
-                    // Clean up both of its roles. The consumer cleanup additionally
-                    // ensures the services it offered to us are re-requested.
-                    cleanup_client(old_client, true, connection_role_e::provider);
+                    // Drop old_client's stale consumer entry (this additionally ensures its offered services are re-requested).
                     cleanup_client(old_client, true, connection_role_e::consumer);
+
+                    // Drop old_client's stale provider entry only if that endpoint is still bound to old_client.
+                    if (auto its_provider_ep = ep_mgr_->find_local_server_endpoint_by_peer(its_address, static_cast<port_t>(its_port + 1));
+                        its_provider_ep && its_provider_ep->connected_client() == old_client) {
+                        VSOMEIP_INFO_P << "Dropping stale provider endpoint of old client 0x" << hex4(old_client) << " @ "
+                                       << its_address.to_string() << ":" << static_cast<port_t>(its_port + 1);
+                        its_provider_ep->trigger_error();
+                    }
                 }
             }
 
@@ -1914,7 +1920,6 @@ void routing_manager_client::cleanup_client(client_t _client, bool _due_to_error
                 }
             }
         }
-
     } else {
         {
             std::scoped_lock its_lock{sender_mutex_};
@@ -2114,40 +2119,55 @@ void routing_manager_client::remove_local_provider(client_t _client, bool _due_t
 
     vsomeip_sec_client_t its_sec_client;
     configuration_->get_policy_manager()->get_client_to_sec_client_mapping(_client, its_sec_client);
-    configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
     auto ep = ep_mgr_->find_local_server_endpoint(_client);
     std::string const env = ep ? ep->get_env() : "";
 
-    std::scoped_lock its_lock(provider_mutex_);
-    auto const subscribed_eventgroups = get_subscriptions(_client, its_lock);
-    for (auto its_subscription : subscribed_eventgroups) {
-        auto [its_service, its_instance, its_eventgroup] = its_subscription;
-        // because we are in the remove local function within which the connection token is bumped,
-        // any inflight subscription for this client is going to be dropped, therefore adjust the book-keeping
-        // immediately.
-        unsubscribe_base(_client, its_service, its_instance, its_eventgroup, ANY_EVENT, its_lock);
-        VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
-                     << hex4(its_eventgroup) << "." << hex4(ANY_EVENT) << "]";
-        host_->on_subscription(its_service, its_instance, its_eventgroup, _client, &its_sec_client, env, false, [](bool) {
-            // no need to execute anything, subscribers are updated already
-        });
+    {
+        std::scoped_lock its_lock(provider_mutex_);
+        auto const subscribed_eventgroups = get_subscriptions(_client, its_lock);
+        for (auto its_subscription : subscribed_eventgroups) {
+            auto [its_service, its_instance, its_eventgroup] = its_subscription;
+            // because we are in the remove local function within which the connection token is bumped,
+            // any inflight subscription for this client is going to be dropped, therefore adjust the book-keeping
+            // immediately.
+            unsubscribe_base(_client, its_service, its_instance, its_eventgroup, ANY_EVENT, its_lock);
+            VSOMEIP_INFO << "UNSUBSCRIBE(" << hex4(_client) << "): [" << hex4(its_service) << "." << hex4(its_instance) << "."
+                         << hex4(its_eventgroup) << "." << hex4(ANY_EVENT) << "]";
+            host_->on_subscription(its_service, its_instance, its_eventgroup, _client, &its_sec_client, env, false, [](bool) {
+                // no need to execute anything, subscribers are updated already
+            });
+        }
+        // remove the provider endpoint under the provider_mutex_ to ensure that no subscription callback (dispatcher thread)
+        // can mess up the book-keeping when checking the endpoint token
+        ep_mgr_->remove_provider_endpoint(_client, _due_to_error);
     }
-    // remove the provider endpoint under the provider_mutex_ to ensure that no subscription callback (dispatcher thread)
-    // can mess up the book-keeping when checking the endpoint token
-    ep_mgr_->remove_provider_endpoint(_client, _due_to_error);
+    remove_sec_client_mapping_if_orphaned(_client);
 }
 
 void routing_manager_client::remove_local_consumer(client_t _client, bool _due_to_error, local_service_table& _requested_services) {
 
-    std::scoped_lock its_lock(consumer_mutex_);
-    auto removed = available_services_.remove_all_for_client(_client);
-    for (auto const& [its_service, its_instance, its_major, its_minor, its_client] : removed) {
-        // save the removed available services to re-request them from the router
-        _requested_services.insert(protocol::service_data{
-                .service_ = its_service, .instance_ = its_instance, .major_version_ = its_major, .minor_version_ = its_minor});
-        on_stop_offer_service(its_service, its_instance, its_major, its_minor, true, its_lock);
+    {
+        std::scoped_lock its_lock(consumer_mutex_);
+        auto removed = available_services_.remove_all_for_client(_client);
+        for (auto const& [its_service, its_instance, its_major, its_minor, its_client] : removed) {
+            // save the removed available services to re-request them from the router
+            _requested_services.insert(protocol::service_data{
+                    .service_ = its_service, .instance_ = its_instance, .major_version_ = its_major, .minor_version_ = its_minor});
+            on_stop_offer_service(its_service, its_instance, its_major, its_minor, true, its_lock);
+        }
+        remove_consumer(_client, _due_to_error, its_lock);
     }
-    remove_consumer(_client, _due_to_error, its_lock);
+    remove_sec_client_mapping_if_orphaned(_client);
+}
+
+void routing_manager_client::remove_sec_client_mapping_if_orphaned(client_t _client) {
+    // No role mutex is held here; each lookup takes and releases its own lock (endpoint-manager mtx_ then consumer_mutex_), never
+    // simultaneously.
+    const bool has_any_local_connection = ep_mgr_->find_local_server_endpoint(_client) != nullptr // accepted provider endpoint
+            || find_consumer_ep(_client) != nullptr; // outbound consumer endpoint
+    if (!has_any_local_connection) {
+        configuration_->get_policy_manager()->remove_client_to_sec_client_mapping(_client);
+    }
 }
 
 void routing_manager_client::cleanup_consumer() {

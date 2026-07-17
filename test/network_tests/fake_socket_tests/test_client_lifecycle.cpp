@@ -17,6 +17,8 @@
 #include "common/timeout_scale.hpp" // common::scaled_timeout
 
 #include "../../../implementation/utility/include/utility.hpp"
+#include "../../../implementation/protocol/include/command_types.hpp"
+#include "../../../implementation/protocol/include/serialize.hpp"
 
 #include "sample_interfaces.hpp"
 
@@ -1341,12 +1343,15 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
         create_app(routingmanager_name_);
         create_app(a_name_);
         create_app(b_name_);
+        create_app(c_name_);
     }
 
     // A: offers S1, consumes S2 (bound to the file-scope server/client names).
     std::string const& a_name_{server_name_};
     // B: offers S2, consumes S1.
     std::string const& b_name_{client_name_};
+    // C: a second consumer of S1 that offers nothing (models a new, live provider peer).
+    std::string const& c_name_{client_name_two_};
 
     // S1 is offered by A and consumed by B.
     service_instance s1_{0x3344, 0x1};
@@ -1366,6 +1371,7 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
     app* rm_{};
     app* a_{};
     app* b_{};
+    app* c_{};
 
     // Brings the bidirectional provider/consumer relationship into a verified
     // steady state: both directed local sockets exist and both directions
@@ -1415,6 +1421,22 @@ struct test_provider_consumer_error_isolation : public base_fake_socket_fixture 
                 << "baseline S1 notification not received by B: " << b_->message_record_;
         ASSERT_TRUE(a_->message_record_.wait_for(notification_checker(s2_, ev2_.event_id_, s2_payload_)))
                 << "baseline S2 notification not received by A: " << a_->message_record_;
+    }
+
+    // Injects into @p _target a routing_info RIE_ADD as if the routing manager announced that
+    // @p _client offers @p _si at (@p _address, @p _port).
+    [[nodiscard]] bool inject_routing_info_add(std::string const& _target, client_t _client, service_instance const& _si,
+                                               boost::asio::ip::address_v4 const& _address, port_t _port) {
+        protocol::routing_info_entry_data entry;
+        entry.type_ = protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE;
+        entry.client_ = _client;
+        entry.address_ = _address;
+        entry.port_ = _port;
+        entry.services_.push_back({_si.service_, _si.instance_, major_version_t{0x1}, minor_version_t{0x0}});
+        auto const cmd = protocol::create_routing_info_cmd(client_t{0x0} /* VSOMEIP_ROUTING_CLIENT */, {entry});
+        std::vector<unsigned char> payload(protocol::wire_size(cmd));
+        protocol::serialize(cmd, payload.data());
+        return inject_command_tcp(_target, routingmanager_name_, payload, socket_role::client);
     }
 };
 
@@ -1502,6 +1524,115 @@ TEST_F(test_provider_consumer_error_isolation, provider_socket_failure_does_not_
     EXPECT_FALSE(a_->availability_record_.wait_for_any(service_availability::unavailable(s2_),
                                                        common::scaled_timeout(std::chrono::milliseconds(200))))
             << "A wrongly marked the consumed service S2 unavailable on a provider-socket failure: " << a_->availability_record_;
+}
+
+// Test 4 (routing-info path, live provider of a NEW client survives):
+// The old client is stale on the CONSUMER side only; its provider slot at address:(port + 1) has
+// been taken over by a new, live client (here C, which only consumes our S1, so A keeps no consumer
+// entry for it). A new routing_info at address:port must drop ONLY the stale consumer entry and
+// MUST NOT tear down the live provider connection of the new client.
+TEST_F(test_provider_consumer_error_isolation, stale_consumer_does_not_tear_down_live_provider_of_new_client) {
+
+    rm_ = start_client(routingmanager_name_);
+    ASSERT_NE(rm_, nullptr);
+    ASSERT_TRUE(await_connectable(routingmanager_name_));
+    a_ = start_client(a_name_);
+    ASSERT_NE(a_, nullptr);
+    ASSERT_TRUE(a_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    a_->offer(s1_);
+    a_->offer_event(ev1_);
+
+    // C is the new, live client: it only CONSUMES S1 (offers nothing), so A holds no consumer_
+    // entry for C — only its accepted provider endpoint C -> A at (127.0.0.1, C_port + 1).
+    c_ = start_client(c_name_);
+    ASSERT_NE(c_, nullptr);
+    ASSERT_TRUE(c_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+    c_->request_service(s1_);
+    ASSERT_TRUE(c_->availability_record_.wait_for_last(service_availability::available(s1_)));
+    c_->subscribe_event(ev1_);
+    ASSERT_TRUE(c_->subscription_record_.wait_for_last(event_subscription::successfully_subscribed_to(ev1_)));
+    ASSERT_TRUE(await_connection(c_name_, a_name_)); // provider connection C -> A
+
+    a_->send_event(ev1_, s1_payload_);
+    ASSERT_TRUE(c_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, s1_payload_)))
+            << "baseline S1 notification not received by C: " << c_->message_record_;
+
+    auto const c_port = server_port(c_name_);
+    ASSERT_TRUE(c_port.has_value()) << "could not resolve C's server port";
+    auto const localhost = boost::asio::ip::make_address_v4("127.0.0.1");
+
+    // Fabricated stale old client and the new client; keep both distinct from C's real id.
+    client_t const old_client = 0x6001;
+    client_t const new_client = 0x7777;
+    ASSERT_NE(c_->get_client_id(), old_client);
+    ASSERT_NE(c_->get_client_id(), new_client);
+    service_instance const stale_service{0x7A01, 0x1};
+    service_instance const new_service{0x7A02, 0x1};
+
+    // 1. Plant a STALE consumer mapping on A: the old client "offers" S_STALE at (127.0.0.1, C_port).
+    //    C offers nothing, so this is the only consumer_ entry at that address:port -> unambiguous.
+    ASSERT_TRUE(inject_routing_info_add(a_name_, old_client, stale_service, localhost, *c_port));
+    ASSERT_TRUE(a_->availability_record_.wait_for_any(service_availability::available(stale_service)))
+            << "stale consumer mapping was not installed on A: " << a_->availability_record_;
+
+    // Only observe post-trigger effects.
+    c_->availability_record_.clear();
+    c_->message_record_.clear();
+    a_->availability_record_.clear();
+
+    // 2. A new client id shows up at that same address:port. get_client_by_address resolves the OLD
+    //    stale client => its consumer entry is dropped; but the provider endpoint at C_port + 1 is
+    //    bound to C (a different, live client) => it must survive.
+    ASSERT_TRUE(inject_routing_info_add(a_name_, new_client, new_service, localhost, *c_port));
+
+    // Barrier: the stale consumer mapping is gone => the old-client cleanup ran.
+    ASSERT_TRUE(a_->availability_record_.wait_for_any(service_availability::unavailable(stale_service)))
+            << "old-client consumer cleanup barrier not reached on A: " << a_->availability_record_;
+
+    // The live provider connection C -> A must be untouched: C must NOT see S1 go unavailable.
+    EXPECT_FALSE(c_->availability_record_.wait_for_any(service_availability::unavailable(s1_),
+                                                       common::scaled_timeout(std::chrono::milliseconds(300))))
+            << "C's live provider connection was wrongly torn down (S1 went unavailable): " << c_->availability_record_;
+
+    // And the untouched provider connection still delivers fresh S1 to C.
+    std::vector<unsigned char> const fresh{0xAB, 0xCD};
+    a_->send_event(ev1_, fresh);
+    EXPECT_TRUE(c_->message_record_.wait_for(notification_checker(s1_, ev1_.event_id_, fresh)))
+            << "C stopped receiving S1 after an unrelated new-client routing_info: " << c_->message_record_;
+}
+
+// Test 5 (routing-info path, stale provider of the OLD client is torn down):
+// The old client (B) is stale on BOTH roles as A sees it: A still has a consumer entry for it (A
+// consumes S2 from B) AND its accepted provider endpoint B -> A at address:(port + 1) is still
+// bound to B. A new routing_info at address:port must drop the consumer entry AND tear down that
+// stale provider endpoint.
+TEST_F(test_provider_consumer_error_isolation, stale_consumer_and_provider_of_old_client_are_both_dropped) {
+    bring_up_bidirectional();
+
+    auto const b_port = server_port(b_name_);
+    ASSERT_TRUE(b_port.has_value()) << "could not resolve B's server port";
+    auto const localhost = boost::asio::ip::make_address_v4("127.0.0.1");
+
+    client_t const new_client = 0x7777;
+    ASSERT_NE(b_->get_client_id(), new_client);
+    service_instance const new_service{0x7A02, 0x1};
+
+    // Only observe post-trigger effects.
+    a_->availability_record_.clear();
+    b_->availability_record_.clear();
+
+    // A new client id shows up at B's exact address:port (B gone, a new app took its slot, while B's
+    // stale routing state on A has not been cleaned yet).
+    ASSERT_TRUE(inject_routing_info_add(a_name_, new_client, new_service, localhost, *b_port));
+
+    // Consumer cleanup barrier: A drops the service B offered (S2) => the old-client block ran.
+    ASSERT_TRUE(a_->availability_record_.wait_for_any(service_availability::unavailable(s2_)))
+            << "old-client consumer cleanup barrier not reached on A: " << a_->availability_record_;
+
+    // The stale provider endpoint B -> A was torn down by the guard's trigger_error(): B's consumer
+    // connection to A breaks, so B sees the service it consumes there (S1) go unavailable.
+    EXPECT_TRUE(b_->availability_record_.wait_for_any(service_availability::unavailable(s1_)))
+            << "stale provider endpoint of old client B was not torn down (B kept S1): " << b_->availability_record_;
 }
 
 // Regression tests "Split the event registration set into producer vs. consumer sets"

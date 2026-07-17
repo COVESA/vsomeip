@@ -112,6 +112,14 @@ public:
     size_t count_established_connections(std::string const& _client, std::string const& _server);
 
     /**
+     * Returns the bound TCP server (acceptor) port of guest application @p _app — the port the
+     * routing manager advertises for it and that peers connect to. A peer's accepted endpoint sees
+     * @p _app at (its address, server_port + 1).
+     * @return the port if @p _app has a bound TCP acceptor, empty optional otherwise.
+     */
+    [[nodiscard]] std::optional<port_t> server_port(std::string const& _app);
+
+    /**
      * Retrieves the socket type used by the connection between _client and _server.
      * @return socket_type if the connection exists, empty optional otherwise.
      */

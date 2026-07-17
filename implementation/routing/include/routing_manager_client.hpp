@@ -240,6 +240,8 @@ private:
     /// Drops the remote subscribers of the services WE offer to @p _client and
     /// removes the accepted provider endpoint. Leaves all consumer-side state
     /// (available services, outbound consumer endpoint, re-request) untouched.
+    /// Additionally drops the shared client -> sec_client mapping, but only if the
+    /// consumer role also has no live endpoint (see remove_sec_client_mapping_if_orphaned).
     ///
     /// @param _client what client
     /// @param _due_to_error, true in case of error
@@ -249,13 +251,19 @@ private:
     ///
     /// Marks the services @p _client offered to us as unavailable and closes our
     /// outbound consumer endpoint to it. Leaves all provider-side state (the
-    /// peer's subscriptions to our services, our accepted server endpoint)
-    /// untouched.
+    /// peer's subscriptions to our services, our accepted server endpoint) untouched.
+    /// Additionally drops the shared client -> sec_client mapping, but only if the
+    /// provider role also has no live endpoint (see remove_sec_client_mapping_if_orphaned).
     ///
     /// @param _client what client
     /// @param _due_to_error, true in case of error
     /// @param _requested_services what services were requested by us and offered by client;
     void remove_local_consumer(client_t _client, bool _due_to_error, local_service_table& _requested_services);
+
+    /// @brief Drops the shared client -> sec_client mapping for @p _client, but only once it has no
+    /// local endpoint left in either role (provider or consumer). Safe to call with no role mutex
+    /// held: it takes the endpoint-manager and consumer locks itself.
+    void remove_sec_client_mapping_if_orphaned(client_t _client);
 
     void cleanup_consumer();
     void cleanup_subscriber(std::scoped_lock<std::mutex> const& _provider_lock);

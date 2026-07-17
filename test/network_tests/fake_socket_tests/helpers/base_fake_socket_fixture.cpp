@@ -118,6 +118,10 @@ size_t base_fake_socket_fixture::connection_count(std::string const& _client, st
     return socket_manager_->count_established_connections(_client, _server);
 }
 
+std::optional<port_t> base_fake_socket_fixture::server_port(std::string const& _app) {
+    return socket_manager_->server_port(_app);
+}
+
 void base_fake_socket_fixture::report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors) {
     socket_manager_->report_on_connect(_app_name, std::move(_next_errors));
 }

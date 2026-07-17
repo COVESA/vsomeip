@@ -138,6 +138,20 @@ std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_server_endpoin
     return nullptr;
 }
 
+std::shared_ptr<local_endpoint> endpoint_manager_base::find_local_server_endpoint_by_peer(const boost::asio::ip::address& _peer_address,
+                                                                                          port_t _peer_port) const {
+    std::scoped_lock lock{mtx_};
+    for (auto const& [its_client, its_endpoint] : local_server_endpoints_) {
+        if (its_endpoint) {
+            auto const its_peer = its_endpoint->peer_endpoint();
+            if (its_peer.port() == _peer_port && its_peer.address() == _peer_address) {
+                return its_endpoint;
+            }
+        }
+    }
+    return nullptr;
+}
+
 void endpoint_manager_base::add_local_server_endpoint(std::shared_ptr<local_endpoint> _connection, uint32_t _token) {
     auto const its_client = _connection->connected_client();
     std::scoped_lock const its_endpoint_lock{mtx_};

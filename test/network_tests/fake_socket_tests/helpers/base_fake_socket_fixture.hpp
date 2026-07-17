@@ -140,6 +140,11 @@ struct base_fake_socket_fixture : ::testing::Test {
     size_t connection_count(std::string const& _client, std::string const& _server);
 
     /**
+     * @see socket_manager::server_port()
+     **/
+    [[nodiscard]] std::optional<port_t> server_port(std::string const& _app);
+
+    /**
      * @see socket_manager::report_on_connect()
      **/
     void report_on_connect(std::string const& _app_name, std::vector<boost::system::error_code> _next_errors);

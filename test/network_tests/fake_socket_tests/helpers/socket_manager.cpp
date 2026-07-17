@@ -222,6 +222,16 @@ std::shared_ptr<app_connection> socket_manager::get_or_create_connection(std::st
     return it->second;
 }
 
+std::optional<port_t> socket_manager::server_port(std::string const& _app) {
+    auto const lock = std::scoped_lock(mtx_);
+    for (auto const& [ep, weak_acceptor] : ep_to_acceptor_states_) {
+        if (auto const acceptor = weak_acceptor.lock(); acceptor && acceptor->get_app_name() == _app) {
+            return ep.port();
+        }
+    }
+    return std::nullopt;
+}
+
 void socket_manager::remove_acceptor(fd_t _fd, boost::asio::ip::tcp::endpoint _ep) {
     auto const lock = std::scoped_lock(mtx_);
     fd_to_acceptor_states_.erase(_fd);
