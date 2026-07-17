@@ -79,9 +79,6 @@ public:
 
     std::shared_ptr<configuration> get_configuration() const;
 
-    void ping_host();
-    void on_pong(client_t _client);
-
     bool offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
 
     void stop_offer_service(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor);
@@ -96,10 +93,6 @@ public:
     void unsubscribe(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event);
     void unsubscribe_base(client_t _client, service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
                           std::scoped_lock<std::mutex> const& _lock);
-
-    bool send_to(const client_t _client, const std::shared_ptr<endpoint_definition>& _target, std::shared_ptr<message> _message);
-
-    bool send_to(const std::shared_ptr<endpoint_definition>& _target, const byte_t* _data, uint32_t _size, instance_t _instance);
 
     void register_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                         const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
@@ -228,11 +221,7 @@ private:
 #endif
     void on_client_assign_ack(const client_t& _client, bool _is_tcp);
 
-    port_t get_routing_port();
-
     void on_suspend();
-
-    void try_to_send_before_stop();
 
     /**
      * @brief Remove all remote subscriptions.
