@@ -131,6 +131,12 @@ void security_test_service::on_message(const std::shared_ptr<vsomeip::message>& 
 
 void security_test_service::on_message_shutdown(const std::shared_ptr<vsomeip::message>& _request) {
     (void)_request;
+    // The client always sends all data requests before the shutdown request, and
+    // both travel the same ordered connection. Requests are permitted by every
+    // security policy under test (allow, deny and offer-deny), so the service must
+    // have received them all. This proves the request path worked end-to-end and
+    // isolates any missing responses on the client to the receive-side offer check.
+    EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, number_of_received_messages_);
     VSOMEIP_INFO << "Shutdown method was called, going down now.";
     stop();
 }

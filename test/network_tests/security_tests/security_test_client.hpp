@@ -19,7 +19,7 @@
 
 class security_test_client {
 public:
-    security_test_client(bool _test_external_communication, bool _is_remote_client_allowed);
+    security_test_client(bool _test_external_communication, bool _is_remote_client_allowed, bool _is_offer_test, bool _offer_allowed);
     bool init();
     void start();
     void stop();
@@ -47,4 +47,6 @@ private:
 
     bool test_external_communication_;
     bool is_remote_client_allowed_;
+    bool is_offer_test_;
+    bool offer_allowed_;
 };

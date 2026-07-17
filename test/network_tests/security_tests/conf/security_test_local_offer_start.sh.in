@@ -1,0 +1,59 @@
+#!/bin/bash -x
+# Copyright (C) 2014-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+if ! source $SCRIPT_DIRECTORY/../setup_test.sh; then
+    exit 1
+fi
+
+# Select the consumer policy based on the requested offer scenario:
+#   --offer-allow : consumer authorizes the provider's offer  -> messages received
+#   --offer-deny  : consumer omits the offer authorization    -> messages dropped
+case "${1:-}" in
+    --offer-allow)
+        CLIENT_CONFIGURATION=security_test_config_client_offer_allow.json
+        ;;
+    --offer-deny)
+        CLIENT_CONFIGURATION=security_test_config_client_offer_deny.json
+        ;;
+    *)
+        echo "Usage: $0 --offer-allow|--offer-deny" >&2
+        exit 1
+        ;;
+esac
+
+# Initialize error tracking
+FAIL=0
+
+# Daemon and service use the full policy so the offer is authorized at the
+# provider side and the service becomes available to the consumer.
+export VSOMEIP_CONFIGURATION=security_test_local_config.json
+
+export VSOMEIP_APPLICATION_NAME=routingmanagerd
+# start daemon
+routingmanagerd &
+PID_VSOMEIPD=$!
+
+export VSOMEIP_APPLICATION_NAME=service-sample
+./security_test_service --local &
+PID_SERVICE=$!
+
+# The consumer runs with its own policy, which either authorizes (allow) or
+# omits (deny) the provider's offer, exercising the receive-side offer check.
+export VSOMEIP_CONFIGURATION=$CLIENT_CONFIGURATION
+
+export VSOMEIP_APPLICATION_NAME=client-sample
+./security_test_client "$1" &
+PID_CLIENT=$!
+
+wait $PID_CLIENT || FAIL=$(($FAIL+1))
+
+wait $PID_SERVICE || FAIL=$(($FAIL+1))
+
+kill $PID_VSOMEIPD
+wait $PID_VSOMEIPD || FAIL=$(($FAIL+1))
+
+exit $FAIL

@@ -756,11 +756,10 @@ void routing_manager_client::on_message(const byte_t* _data, length_t _size, con
                         }
 
                         // Verifies security offer rule for messages (notifications and
-                        // responses)
-                        bool is_offer_access_ok = (!configuration_->is_security_external()
-                                                   || VSOMEIP_SEC_OK
-                                                           == configuration_->get_security()->is_client_allowed_to_offer(
-                                                                   &sec_client, its_message->get_service(), its_message->get_instance()));
+                        // responses).
+                        bool is_offer_access_ok = (VSOMEIP_SEC_OK
+                                                   == configuration_->get_security()->is_client_allowed_to_offer(
+                                                           &sec_client, its_message->get_service(), its_message->get_instance()));
 
                         if (!is_offer_access_ok) {
                             VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << hex4(get_client())

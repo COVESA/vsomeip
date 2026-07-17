@@ -9,6 +9,9 @@ Depending on security policies configuration:
 - Assure that remote_clients are allowed
 - Assure that remote_clients are not allowed
 - Assure that only allowed methodIDs notifications are received
+- Assure that the receive-side offer check is enforced: a consumer only accepts
+  responses/notifications from a provider it is authorized to see offering the
+  service.
 
 ## Test Logic
 

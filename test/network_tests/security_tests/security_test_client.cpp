@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include <chrono>
 #include <iomanip>
 #include "common/test_main.hpp"
 
@@ -10,11 +11,14 @@
 
 static bool is_remote_test = false;
 static bool remote_client_allowed = true;
+static bool is_offer_test = false;
+static bool offer_allowed = false;
 
-security_test_client::security_test_client(bool _test_external_communication, bool _is_remote_client_allowed) :
+security_test_client::security_test_client(bool _test_external_communication, bool _is_remote_client_allowed, bool _is_offer_test,
+                                           bool _offer_allowed) :
     app_(vsomeip::runtime::get()->create_application()), is_available_(false), sender_(std::bind(&security_test_client::run, this)),
     received_responses_(0), received_allowed_events_(0), test_external_communication_(_test_external_communication),
-    is_remote_client_allowed_(_is_remote_client_allowed) { }
+    is_remote_client_allowed_(_is_remote_client_allowed), is_offer_test_(_is_offer_test), offer_allowed_(_offer_allowed) { }
 
 bool security_test_client::init() {
     if (!app_->init()) {
@@ -50,7 +54,7 @@ void security_test_client::start() {
 void security_test_client::stop() {
     VSOMEIP_INFO << "Stopping...";
 
-    if (is_remote_client_allowed_) {
+    if (is_remote_client_allowed_ || is_offer_test_) {
         shutdown_service();
 
         // Wait for the service to become unavailable, confirming the shutdown
@@ -146,7 +150,9 @@ void security_test_client::on_message(const std::shared_ptr<vsomeip::message>& _
 void security_test_client::run() {
     {
         std::unique_lock its_lock(mutex_);
-        condition_.wait(its_lock, [this] { return is_available_; });
+        if (!condition_.wait_for(its_lock, std::chrono::seconds(10), [this] { return is_available_; })) {
+            ADD_FAILURE() << "Service did not become available";
+        }
     }
     for (uint32_t i = 0; i < vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS; ++i) {
         auto request = vsomeip::runtime::get()->create_request(false);
@@ -166,7 +172,18 @@ void security_test_client::run() {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
-    if (!test_external_communication_) {
+    if (is_offer_test_) {
+        // The consumer authorizes (allow) or omits (deny) the provider's offer.
+        // When missing, every response/notification is dropped by the receive-side
+        // offer check.
+        if (offer_allowed_) {
+            EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, received_responses_);
+            EXPECT_EQ(received_allowed_events_, (uint32_t)0x01);
+        } else {
+            EXPECT_EQ((uint32_t)0, received_responses_);
+            EXPECT_EQ((uint32_t)0, received_allowed_events_);
+        }
+    } else if (!test_external_communication_) {
         EXPECT_EQ(vsomeip_test::NUMBER_OF_MESSAGES_TO_SEND_SECURITY_TESTS, received_responses_);
         EXPECT_EQ(received_allowed_events_, (uint32_t)0x01);
     } else if (test_external_communication_ && !is_remote_client_allowed_) {
@@ -194,7 +211,7 @@ void security_test_client::shutdown_service() {
 }
 
 TEST(someip_security_test, basic_subscribe_request_response) {
-    security_test_client test_client(is_remote_test, remote_client_allowed);
+    security_test_client test_client(is_remote_test, remote_client_allowed, is_offer_test, offer_allowed);
     if (test_client.init()) {
         test_client.start();
         test_client.join_sender_thread();
@@ -206,6 +223,8 @@ int main(int argc, char** argv) {
     std::string test_local("--local");
     std::string test_allow_remote_client("--allow");
     std::string test_deny_remote_client("--deny");
+    std::string test_offer_allow("--offer-allow");
+    std::string test_offer_deny("--offer-deny");
     std::string help("--help");
 
     int i = 1;
@@ -218,6 +237,12 @@ int main(int argc, char** argv) {
             remote_client_allowed = true;
         } else if (test_deny_remote_client == argv[i]) {
             remote_client_allowed = false;
+        } else if (test_offer_allow == argv[i]) {
+            is_offer_test = true;
+            offer_allowed = true;
+        } else if (test_offer_deny == argv[i]) {
+            is_offer_test = true;
+            offer_allowed = false;
         } else if (help == argv[i]) {
             VSOMEIP_INFO << "Parameters:\n"
                          << "--remote: Run test between two hosts\n"
@@ -226,6 +251,10 @@ int main(int argc, char** argv) {
                             "sent by this test client to the service\n"
                          << "--deny: test is started with a policy that denies remote messages "
                             "sent by this test client to the service\n"
+                         << "--offer-allow: consumer policy authorizes the provider's offer "
+                            "-> responses/notifications are received\n"
+                         << "--offer-deny: consumer policy omits the offer authorization "
+                            "-> responses/notifications are dropped\n"
                          << "--help: print this help";
         }
         i++;

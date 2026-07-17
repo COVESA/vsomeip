@@ -11,11 +11,14 @@ if(TEST_SECURITY)
     set(configuration_files
         security_test_config_client_external_allow.json
         security_test_config_client_external_deny.json
+        security_test_config_client_offer_allow.json
+        security_test_config_client_offer_deny.json
         security_test_config_service_external_allow.json
         security_test_config_service_external_deny.json
         security_test_external_master_start.sh
         security_test_external_slave_start.sh
         security_test_local_config.json
+        security_test_local_offer_start.sh
         security_test_local_start.sh
     )
     configure_files("${configuration_files}")
@@ -39,6 +42,16 @@ if(TEST_SECURITY)
     add_custom_test(
         NAME security_test
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_local_start.sh
+    )
+
+    add_custom_test(
+        NAME security_test_offer_allow
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_local_offer_start.sh --offer-allow
+    )
+
+    add_custom_test(
+        NAME security_test_offer_deny
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/security_test_local_offer_start.sh --offer-deny
     )
 
     add_custom_test(
