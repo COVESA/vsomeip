@@ -115,6 +115,11 @@ public:
     void stop_offer(service_instance const& _si);
 
     /**
+     * Forwards the request to the vsomeip::application::stop_offer_event()
+     */
+    void stop_offer_event(event_ids const& _ei);
+
+    /**
      * Forwards the request to the vsomeip::application::request_service
      */
     void request_service(service_instance _si);

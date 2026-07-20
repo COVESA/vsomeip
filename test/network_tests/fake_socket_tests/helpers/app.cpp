@@ -197,6 +197,11 @@ void app::stop_offer(service_instance const& _si) {
     app_->stop_offer_service(_si.service_, _si.instance_, _si.major_, _si.minor_);
 }
 
+void app::stop_offer_event(event_ids const& _ei) {
+    TEST_LOG << "[app] \"" << app_->get_name() << "\" is no longer offering event: " << _ei;
+    app_->stop_offer_event(_ei.si_.service_, _ei.si_.instance_, _ei.event_id_);
+}
+
 void app::update_security_policy_configuration(uid_t _uid, gid_t _gid) {
     auto policy_ = std::make_shared<vsomeip::policy>();
     auto its_payload = vsomeip::runtime::get()->create_payload();

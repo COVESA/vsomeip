@@ -6,6 +6,7 @@
 #include "helpers/app.hpp"
 #include "helpers/attribute_recorder.hpp"
 #include "helpers/base_fake_socket_fixture.hpp"
+#include "helpers/command_gate.hpp"
 #include "helpers/command_record.hpp"
 #include "helpers/fake_socket_factory.hpp"
 #include "helpers/message_checker.hpp"
@@ -226,6 +227,139 @@ TEST_F(test_protocol_messages, ensure_sequence_of_field_registration) {
     };
     bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
     EXPECT_TRUE(is_any) << *record_;
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_service_offer_after_event_registration) {
+    // collect all message over both connection between a client and the router
+    track_server_router();
+
+    start_router();
+    start_client_app();
+    server_ = start_client(server_name_);
+    ASSERT_NE(server_, nullptr);
+    ASSERT_TRUE(server_->app_state_record_.wait_for_last(vsomeip::state_type_e::ST_REGISTERED));
+
+    request_service();
+    server_->offer_event(offered_event_);
+    server_->offer_field(offered_field_);
+    server_->offer(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {server_to_router_, id_e::CONFIG_ID},         {server_to_router_, id_e::ASSIGN_CLIENT_ID},
+            {router_to_server_, id_e::CONFIG_ID},         {router_to_server_, id_e::ASSIGN_CLIENT_ACK_ID},
+            {server_to_router_, id_e::REGISTER_EVENT_ID}, {server_to_router_, id_e::REGISTER_EVENT_ID},
+            {server_to_router_, id_e::OFFER_SERVICE_ID}};
+
+    EXPECT_EQ(expected_sequence, *record_);
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_service_offer) {
+    // collect all message over both connection between a client and the router
+    track_server_router();
+
+    start_apps();
+    ASSERT_TRUE(subscribe_to_field());
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, vsomeip_v3::protocol::id_e>>{
+            {server_to_router_, id_e::CONFIG_ID},        {server_to_router_, id_e::ASSIGN_CLIENT_ID},
+            {router_to_server_, id_e::CONFIG_ID},        {router_to_server_, id_e::ASSIGN_CLIENT_ACK_ID},
+            {server_to_router_, id_e::OFFER_SERVICE_ID}, {server_to_router_, id_e::REGISTER_EVENT_ID},
+            {server_to_router_, id_e::REGISTER_EVENT_ID}};
+
+    EXPECT_EQ(expected_sequence, *record_);
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_of_release_service) {
+    // collect all message over both connection between a client and the router
+    std::shared_ptr<command_gate> client_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(client_name_, routingmanager_name_, socket_role::server, client_to_router_gate->get_data_pipe()));
+    track_client_router();
+    track_client_server();
+
+    start_apps();
+
+    using namespace vsomeip_v3::protocol;
+    client_to_router_gate->block_at(vsomeip_v3::protocol::id_e::RELEASE_SERVICE_ID);
+    request_service();
+    ASSERT_TRUE(await_service());
+
+    client_->release_service(service_instance_);
+    EXPECT_TRUE(client_to_router_gate->wait_for_blocked());
+    client_to_router_gate->block(false);
+    auto const expected_sequence = std::vector<std::pair<std::string, id_e>>{
+            {client_to_router_, id_e::CONFIG_ID},          {client_to_router_, id_e::ASSIGN_CLIENT_ID},
+            {router_to_client_, id_e::CONFIG_ID},          {router_to_client_, id_e::ASSIGN_CLIENT_ACK_ID},
+            {client_to_router_, id_e::REQUEST_SERVICE_ID}, {router_to_client_, id_e::ROUTING_INFO_ID},
+            {client_to_router_, id_e::RELEASE_SERVICE_ID}};
+    EXPECT_EQ(expected_sequence, *record_);
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_of_unsubscribe_event) {
+    std::shared_ptr<command_gate> client_to_router_gate = command_gate::create();
+    ASSERT_TRUE(setup_data_pipe(client_name_, server_name_, socket_role::server, client_to_router_gate->get_data_pipe()));
+    track_client_server();
+
+    start_apps();
+    ASSERT_TRUE(subscribe_to_event());
+
+    using namespace vsomeip_v3::protocol;
+    client_to_router_gate->block_at(vsomeip_v3::protocol::id_e::UNSUBSCRIBE_ID);
+    client_->unsubscribe_from_group(offered_event_);
+    EXPECT_TRUE(client_to_router_gate->wait_for_blocked());
+    client_to_router_gate->block(false);
+
+    auto const expected_sequence1 = std::vector<std::pair<std::string, id_e>>{{client_to_server_, id_e::CONFIG_ID},
+                                                                              {client_to_server_, id_e::SUBSCRIBE_ID},
+                                                                              {server_to_client_, id_e::CONFIG_ID},
+                                                                              {server_to_client_, id_e::SUBSCRIBE_ACK_ID},
+                                                                              {client_to_server_, id_e::UNSUBSCRIBE_ID}};
+    auto const expected_sequence2 = std::vector<std::pair<std::string, id_e>>{{client_to_server_, id_e::CONFIG_ID},
+                                                                              {server_to_client_, id_e::CONFIG_ID},
+                                                                              {client_to_server_, id_e::SUBSCRIBE_ID},
+                                                                              {server_to_client_, id_e::SUBSCRIBE_ACK_ID},
+                                                                              {client_to_server_, id_e::UNSUBSCRIBE_ID}};
+
+    bool const is_any = expected_sequence1 == *record_ || expected_sequence2 == *record_;
+    EXPECT_TRUE(is_any) << *record_;
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_failover_service_reoffer) {
+    start_apps();
+    ASSERT_TRUE(subscribe_to_field());
+
+    track_server_router();
+    track_client_router();
+
+    // Stop offering
+    stop_offer();
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::unavailable(service_instance_)));
+
+    // Re-offer the service
+    server_->offer(service_instance_);
+    ASSERT_TRUE(client_->availability_record_.wait_for_last(service_availability::available(service_instance_)));
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, id_e>>{{server_to_router_, id_e::STOP_OFFER_SERVICE_ID},
+                                                                             {router_to_client_, id_e::ROUTING_INFO_ID},
+                                                                             {server_to_router_, id_e::OFFER_SERVICE_ID},
+                                                                             {router_to_client_, id_e::ROUTING_INFO_ID}};
+    EXPECT_EQ(expected_sequence, *record_);
+}
+
+TEST_F(test_protocol_messages, ensure_sequence_of_stop_offer_event) {
+    // Server stops offering an event but keeps the service active
+    start_apps();
+    ASSERT_TRUE(subscribe_to_event());
+    track_server_router();
+
+    server_->stop_offer_event(offered_event_);
+
+    using namespace vsomeip_v3::protocol;
+    auto const expected_sequence = std::vector<std::pair<std::string, id_e>>{{server_to_router_, id_e::UNREGISTER_EVENT_ID}};
+    EXPECT_EQ(expected_sequence, *record_);
 }
 
 TEST_F(test_protocol_messages, ensure_sequence_of_request_reply) {
