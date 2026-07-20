@@ -219,6 +219,10 @@ public:
 
     std::vector<protocol::service> get_requested_services(client_t _client) const;
 
+    bool has_client_requested(client_t _client, service_t _service, instance_t _instance);
+
+    std::set<client_t> collect_requesters(service_t _service, instance_t _instance, major_version_t _major);
+
     bool is_external_routing_ready() const;
 
     bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance, major_version_t _major);

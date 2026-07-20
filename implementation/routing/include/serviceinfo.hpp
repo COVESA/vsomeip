@@ -41,10 +41,6 @@ public:
     VSOMEIP_EXPORT std::shared_ptr<boardnet_endpoint> get_endpoint(bool _reliable) const;
     VSOMEIP_EXPORT void set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoint, bool _reliable);
 
-    VSOMEIP_EXPORT void add_client(client_t _client);
-    VSOMEIP_EXPORT void remove_client(client_t _client);
-    VSOMEIP_EXPORT uint32_t get_requesters_size();
-
     VSOMEIP_EXPORT bool is_local() const;
 
     VSOMEIP_EXPORT bool is_ready_to_offer() const;
@@ -68,8 +64,6 @@ private:
 
     std::shared_ptr<boardnet_endpoint> reliable_;
     std::shared_ptr<boardnet_endpoint> unreliable_;
-
-    std::set<client_t> requesters_;
 
     std::atomic_bool needs_reliable_;
     std::atomic_bool needs_unreliable_;

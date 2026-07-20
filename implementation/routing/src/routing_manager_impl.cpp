@@ -390,7 +390,6 @@ void routing_manager_impl::request_service(client_t _client, service_t _service,
         }
     } else {
         if (_major == its_info->get_major() || DEFAULT_MAJOR == its_info->get_major() || ANY_MAJOR == _major) {
-            its_info->add_client(_client);
             // Record the request in requested_services_ unconditionally, even for a service that
             // is currently offered locally. Otherwise, if the local provider later stops offering
             // and a remote provider takes over (local->remote migration), the fresh remote
@@ -418,14 +417,11 @@ void routing_manager_impl::release_service(client_t _client, service_t _service,
 
     // TODO major version
     std::shared_ptr<serviceinfo> its_info(find_service(_service, _instance, ANY_MAJOR));
-    if (its_info) {
-        its_info->remove_client(_client);
-    }
     remove_requested_service(_client, _service, _instance, ANY_MAJOR, ANY_MINOR);
     remove_pending_requests(pending_request_removal_type_e::REQUESTING_ONLY, _client, _service, _instance);
 
     if (its_info && !its_info->is_local()) {
-        if (0 == its_info->get_requesters_size()) {
+        if (!has_requester(_service, _instance, ANY_MAJOR, ANY_MINOR)) {
             auto its_eventgroups = find_eventgroups(_service, _instance);
             for (const auto& eg : its_eventgroups) {
                 auto its_events = eg->get_events();
@@ -1689,26 +1685,22 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
 
         // check if service was requested and establish TCP connection if necessary
         {
-            bool connected(false);
             std::scoped_lock its_lock_inner{requested_services_mutex_};
-            for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
+            if (!get_requesters_unlocked(_service, _instance, _major).empty()) {
                 // SWS_SD_00376 establish TCP connection to service
                 // service is marked as available later in on_connect()
-                if (!connected) {
-                    if (udp_inserted) {
-                        // atomically create reliable and unreliable endpoint
-                        ep_mgr_impl_->find_or_create_remote_client(_service, _instance);
-                    } else {
-                        ep_mgr_impl_->find_or_create_remote_client(_service, _instance, true);
-                    }
-                    connected = true;
+                if (udp_inserted) {
+                    // atomically create reliable and unreliable endpoint
+                    ep_mgr_impl_->find_or_create_remote_client(_service, _instance);
+                } else {
+                    ep_mgr_impl_->find_or_create_remote_client(_service, _instance, true);
                 }
-                its_info->add_client(its_client);
             }
         }
     } else if (_reliable_port != ILLEGAL_PORT && is_reliable_known) {
-        std::scoped_lock its_lock_inner{requested_services_mutex_};
-        if (has_requester_unlocked(_service, _instance, _major, _minor)) {
+        // has_requester() locks requested_services_mutex_ internally and releases it before returning; the
+        // stub calls below re-enter the host under that same mutex, so it must not be held across them.
+        if (has_requester(_service, _instance, _major, _minor)) {
             auto ep = its_info->get_endpoint(true);
             if (ep) {
                 // Check establishment and offer atomically to avoid a spurious re-offer racing a concurrent disconnect.
@@ -1723,9 +1715,9 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
 
                 // SWS_SD_00376 establish TCP connection to service
                 // service is marked as available later in on_connect()
-                ep_mgr_impl_->find_or_create_remote_client(_service, _instance, true);
-                for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
-                    its_info->add_client(its_client);
+                std::scoped_lock its_lock_inner{requested_services_mutex_};
+                if (!get_requesters_unlocked(_service, _instance, _major).empty()) {
+                    ep_mgr_impl_->find_or_create_remote_client(_service, _instance, true);
                 }
             }
         }
@@ -1736,22 +1728,18 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
             std::shared_ptr<endpoint_definition> endpoint_def =
                     endpoint_definition::get(_unreliable_address, _unreliable_port, false, _service, _instance);
             ep_mgr_impl_->add_remote_service_info(_service, _instance, endpoint_def);
-            // check if service was requested and increase requester count if necessary
+            // check if service was requested and create the endpoint if necessary
             {
-                bool connected(false);
                 std::scoped_lock its_lock_inner{requested_services_mutex_};
-                for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
-                    if (!connected) {
-                        ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
-                        connected = true;
-                    }
-                    its_info->add_client(its_client);
+                if (!get_requesters_unlocked(_service, _instance, _major).empty()) {
+                    ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
                 }
             }
         }
     } else if (_unreliable_port != ILLEGAL_PORT && is_unreliable_known) {
-        std::scoped_lock its_lock_inner{requested_services_mutex_};
-        if (has_requester_unlocked(_service, _instance, _major, _minor)) {
+        // has_requester() locks requested_services_mutex_ internally and releases it before returning; the
+        // stub calls below re-enter the host under that same mutex, so it must not be held across them.
+        if (has_requester(_service, _instance, _major, _minor)) {
             if (_reliable_port == ILLEGAL_PORT && !is_reliable_known
                 && !stub_->contained_in_routing_info(VSOMEIP_ROUTING_CLIENT, _service, _instance, its_info->get_major(),
                                                      its_info->get_minor())) {
@@ -1767,9 +1755,9 @@ void routing_manager_impl::add_routing_info(service_t _service, instance_t _inst
                         ep->start_if_closed();
                     }
                 } else {
-                    ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
-                    for (const client_t its_client : get_requesters_unlocked(_service, _instance, _major)) {
-                        its_info->add_client(its_client);
+                    std::scoped_lock its_lock_inner{requested_services_mutex_};
+                    if (!get_requesters_unlocked(_service, _instance, _major).empty()) {
+                        ep_mgr_impl_->find_or_create_remote_client(_service, _instance, false);
                     }
                 }
             }
@@ -3184,6 +3172,55 @@ bool routing_manager_impl::is_requester(client_t _client, service_t _service, in
         }
     }
     return false;
+}
+
+bool routing_manager_impl::has_client_requested(client_t _client, service_t _service, instance_t _instance) {
+    std::scoped_lock its_lock{requested_services_mutex_};
+
+    // Concrete-only lookup (no ANY_SERVICE / ANY_INSTANCE widening)
+    const auto found_service = requested_services_.find(_service);
+    if (found_service == requested_services_.end()) {
+        return false;
+    }
+    const auto found_instance = found_service->second.find(_instance);
+    if (found_instance == found_service->second.end()) {
+        return false;
+    }
+    for (const auto& [major, minors_map] : found_instance->second) {
+        for (const auto& [minor, clients] : minors_map) {
+            if (clients.find(_client) != clients.end()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+std::set<client_t> routing_manager_impl::collect_requesters(service_t _service, instance_t _instance, major_version_t _major) {
+    std::scoped_lock its_lock{requested_services_mutex_};
+    std::set<client_t> its_requesters;
+
+    const auto found_service = requested_services_.find(_service);
+    if (found_service == requested_services_.end()) {
+        return its_requesters;
+    }
+    // Union the concrete instance with the ANY_INSTANCE wildcard.
+    for (const instance_t its_instance_key : {_instance, ANY_INSTANCE}) {
+        const auto found_instance = found_service->second.find(its_instance_key);
+        if (found_instance != found_service->second.end()) {
+            for (const auto& [major, minors_map] : found_instance->second) {
+                if (major == _major || major == ANY_MAJOR || _major == ANY_MAJOR) {
+                    for (const auto& [minor, clients] : minors_map) {
+                        its_requesters.insert(clients.cbegin(), clients.cend());
+                    }
+                }
+            }
+        }
+        if (_instance == ANY_INSTANCE) {
+            break; // both keys are ANY_INSTANCE; don't scan the same node twice
+        }
+    }
+    return its_requesters;
 }
 
 bool routing_manager_impl::has_requester(service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor) {

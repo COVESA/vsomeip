@@ -92,6 +92,15 @@ public:
 
     virtual std::vector<protocol::service> get_requested_services(client_t _client) const = 0;
 
+    /// @brief Has _client requested the concrete instance [_service._instance]?
+    ///
+    /// Concrete-only lookup in the host's requested_services_ (no ANY_SERVICE / ANY_INSTANCE widening).
+    virtual bool has_client_requested(client_t _client, service_t _service, instance_t _instance) = 0;
+
+    /// @brief Collect all clients requesting [_service._instance], unioned with the
+    /// [_service.ANY_INSTANCE] wildcard, filtered by _major (ANY_MAJOR = every major).
+    virtual std::set<client_t> collect_requesters(service_t _service, instance_t _instance, major_version_t _major) = 0;
+
     virtual bool handle_service_rerequest(client_t _client, service_t _service, instance_t _instance, major_version_t _major) = 0;
 
     virtual void remove_pending_requests(pending_request_removal_type_e _removal_type, client_t _client, service_t _service = ANY_SERVICE,

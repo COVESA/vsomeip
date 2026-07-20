@@ -365,7 +365,7 @@ void routing_manager_stub::on_message(const byte_t* _data, length_t _size, const
             for (const auto& r : its_services) {
                 if (VSOMEIP_SEC_OK
                     == configuration_->get_security()->is_client_allowed_to_request(&_peer_data.sec_client_, r.service_, r.instance_)) {
-                    if (has_client_requested(its_client, r.service_, r.instance_)) {
+                    if (host_->has_client_requested(its_client, r.service_, r.instance_)) {
                         VSOMEIP_WARNING_P << " Client 0x" << hex4(its_client) << " has already requested service [" << hex4(r.service_)
                                           << "." << hex4(r.instance_) << "]";
                         if (!host_->handle_service_rerequest(its_client, r.service_, r.instance_, r.major_version_)) {
@@ -577,10 +577,6 @@ void routing_manager_stub::on_register_application(client_t _client, const boost
 }
 
 void routing_manager_stub::remove_client_connections(client_t client_id) {
-    {
-        std::scoped_lock its_guard{routing_info_mutex_};
-        service_requests_.erase(client_id);
-    }
     host_->remove_local(client_id);
 }
 
@@ -689,14 +685,7 @@ void routing_manager_stub::send_client_routing_info(const client_t _target, std:
 
 void routing_manager_stub::distribute_credentials(client_t _hoster, service_t _service, instance_t _instance) {
     std::set<std::pair<uid_t, gid_t>> its_credentials;
-    std::set<client_t> its_requesting_clients;
-    // search for clients which shall receive the credentials
-    for (auto its_requesting_client : service_requests_) {
-        if (its_requesting_client.second.count({_service, _instance}) > 0
-            || its_requesting_client.second.count({_service, ANY_INSTANCE}) > 0) {
-            its_requesting_clients.insert(its_requesting_client.first);
-        }
-    }
+    std::set<client_t> its_requesting_clients = host_->collect_requesters(_service, _instance, ANY_MAJOR);
 
     // search for UID / GID linked with the client ID that offers the requested services
     vsomeip_sec_client_t its_sec_client;
@@ -721,41 +710,21 @@ void routing_manager_stub::inform_requesters(client_t _hoster, service_t _servic
     boost::asio::ip::address its_address;
     port_t its_port;
 
-    for (auto its_client : service_requests_) {
-        auto const& service_map = its_client.second;
-        auto it = service_map.find({_service, _instance});
-        if (it == service_map.end()) {
-            it = service_map.find({_service, ANY_INSTANCE});
-            if (it == service_map.end()) {
-                continue;
-            }
+    for (const client_t its_requester : host_->collect_requesters(_service, _instance, _major)) {
+        if (its_requester == VSOMEIP_ROUTING_CLIENT) {
+            continue;
         }
-        if (_major == it->second.first || ANY_MAJOR == it->second.first) {
-            if (its_client.first != VSOMEIP_ROUTING_CLIENT) {
-                protocol::routing_info_entry_data its_entry;
-                its_entry.type_ = _type;
-                its_entry.client_ = _hoster;
-                if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
-                    && host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port)) {
-                    its_entry.address_ = its_address.to_v4();
-                    its_entry.port_ = its_port;
-                }
-                its_entry.services_.push_back({_service, _instance, _major, _minor});
-                send_client_routing_info(its_client.first, std::move(its_entry));
-            }
+        protocol::routing_info_entry_data its_entry;
+        its_entry.type_ = _type;
+        its_entry.client_ = _hoster;
+        if (_type == protocol::routing_info_entry_type_e::RIE_ADD_SERVICE_INSTANCE
+            && host_->get_endpoint_manager()->get_guest(_hoster, its_address, its_port)) {
+            its_entry.address_ = its_address.to_v4();
+            its_entry.port_ = its_port;
         }
+        its_entry.services_.push_back({_service, _instance, _major, _minor});
+        send_client_routing_info(its_requester, std::move(its_entry));
     }
-}
-
-bool routing_manager_stub::has_client_requested(client_t _client, service_t _service, instance_t _instance) const {
-    std::scoped_lock its_lock(routing_info_mutex_);
-    if (auto found_client = service_requests_.find(_client); found_client != service_requests_.end()) {
-        if (found_client->second.count({_service, _instance}) > 0) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 void routing_manager_stub::broadcast(protocol::simple_command_data const& _command) const {
@@ -984,7 +953,6 @@ void routing_manager_stub::handle_requests(const client_t _client, std::set<prot
     std::scoped_lock its_guard{routing_info_mutex_};
 
     for (auto const& request : _requests) {
-        service_requests_[_client][{request.service_, request.instance_}] = std::make_pair(request.major_, request.minor_);
         if (_client == VSOMEIP_ROUTING_CLIENT) {
             continue;
         }

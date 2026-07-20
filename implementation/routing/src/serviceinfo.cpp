@@ -18,9 +18,8 @@ serviceinfo::serviceinfo(service_t _service, instance_t _instance, major_version
 
 serviceinfo::serviceinfo(const serviceinfo& _other) :
     service_(_other.service_), instance_(_other.instance_), major_(_other.major_), minor_(_other.minor_), is_local_(_other.is_local_),
-    ttl_(_other.ttl_), reliable_(_other.reliable_), unreliable_(_other.unreliable_), requesters_(_other.requesters_),
-    needs_reliable_(_other.needs_reliable_.load()), needs_unreliable_(_other.needs_unreliable_.load()),
-    is_in_mainphase_(_other.is_in_mainphase_.load()) { }
+    ttl_(_other.ttl_), reliable_(_other.reliable_), unreliable_(_other.unreliable_), needs_reliable_(_other.needs_reliable_.load()),
+    needs_unreliable_(_other.needs_unreliable_.load()), is_in_mainphase_(_other.is_in_mainphase_.load()) { }
 
 serviceinfo::~serviceinfo() { }
 
@@ -81,21 +80,6 @@ void serviceinfo::set_endpoint(const std::shared_ptr<boardnet_endpoint>& _endpoi
             unreliable_ = _endpoint;
         }
     }
-}
-
-void serviceinfo::add_client(client_t _client) {
-    std::scoped_lock its_lock(mutex_);
-    requesters_.insert(_client);
-}
-
-void serviceinfo::remove_client(client_t _client) {
-    std::scoped_lock its_lock(mutex_);
-    requesters_.erase(_client);
-}
-
-uint32_t serviceinfo::get_requesters_size() {
-    std::scoped_lock its_lock(mutex_);
-    return static_cast<std::uint32_t>(requesters_.size());
 }
 
 bool serviceinfo::is_local() const {
