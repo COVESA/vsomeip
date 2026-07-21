@@ -35,8 +35,9 @@ client_endpoint_impl<Protocol>::client_endpoint_impl(const std::shared_ptr<board
                                                      boost::asio::io_context& _io, const std::shared_ptr<configuration>& _configuration) :
     endpoint_impl<Protocol>(_boardnet_endpoint_host, _routing_host, _io, _configuration), remote_{_remote}, flush_timer_{_io},
     connect_timer_{_io}, connect_timeout_{VSOMEIP_DEFAULT_CONNECT_TIMEOUT}, state_{cei_state_e::CLOSED}, reconnect_counter_{0},
-    connecting_timer_{_io}, connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT}, train_{std::make_shared<train>()},
-    dispatch_timer_{_io}, has_last_departure_{false}, queue_size_{0}, was_not_connected_{false}, is_sending_{false}, strand_(_io) {
+    reconnect_start_time_{}, connecting_timer_{_io}, connecting_timeout_{VSOMEIP_DEFAULT_CONNECTING_TIMEOUT},
+    train_{std::make_shared<train>()}, dispatch_timer_{_io}, has_last_departure_{false}, queue_size_{0}, was_not_connected_{false},
+    is_sending_{false}, strand_(_io) {
     this->local_ = _local;
     recreate_socket();
 }
@@ -399,16 +400,34 @@ void client_endpoint_impl<Protocol>::connect_cbk(boost::system::error_code const
     }
     std::shared_ptr<boardnet_endpoint_host> its_host = this->endpoint_host_.lock();
     if (its_host) {
+        if (reconnect_counter_ == 0) {
+            reconnect_start_time_ = std::chrono::steady_clock::now();
+        }
+
         if (_error && _error != boost::asio::error::already_connected) {
-            VSOMEIP_WARNING_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
-                              << "), remote: " << get_remote_information() << ", endpoint > " << this << " socket state > "
-                              << to_string(state_.load());
+
+            if (bool reconnect_timeout_exceeded =
+                        std::chrono::steady_clock::now() - reconnect_start_time_ >= std::chrono::milliseconds(VSOMEIP_RECONNECT_TIMEOUT);
+                reconnect_timeout_exceeded) {
+                VSOMEIP_ERROR_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
+                                << "), remote: " << get_remote_information() << ", local: " << this->local_.address().to_string() << ":"
+                                << get_local_port() << ", protocol: " << (is_reliable() ? "TCP" : "UDP") << ", endpoint > " << this
+                                << " socket state > " << to_string(state_.load()) << " - unreachable for more than "
+                                << (VSOMEIP_RECONNECT_TIMEOUT / 1000) << "s (" << reconnect_counter_.load() << " attempts, retry interval "
+                                << connect_timeout_.load() << "ms)";
+            } else {
+                VSOMEIP_WARNING_P << "Restarting socket due to " << _error.message() << " (" << _error.value()
+                                  << "), remote: " << get_remote_information() << ", local: " << this->local_.address().to_string() << ":"
+                                  << get_local_port() << ", protocol: " << (is_reliable() ? "TCP" : "UDP") << ", endpoint > " << this
+                                  << " socket state > " << to_string(state_.load());
+            }
 
             close_socket(true, true);
 
             notify_disconnect();
 
-            if (get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED || get_max_allowed_reconnects() >= ++reconnect_counter_) {
+            if (get_max_allowed_reconnects() >= ++reconnect_counter_ || get_max_allowed_reconnects() == MAX_RECONNECTS_UNLIMITED) {
+                VSOMEIP_INFO_P << "Reconnect attempt: " << reconnect_counter_.load();
                 is_sending_ = false;
                 was_not_connected_ = true;
                 start_connect_timer();

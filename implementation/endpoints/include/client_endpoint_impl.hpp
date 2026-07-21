@@ -121,6 +121,7 @@ protected:
     std::atomic<uint32_t> connect_timeout_;
     std::atomic<cei_state_e> state_;
     std::atomic<std::uint32_t> reconnect_counter_;
+    std::chrono::steady_clock::time_point reconnect_start_time_;
 
     std::mutex connecting_timer_mutex_;
     boost::asio::steady_timer connecting_timer_;
