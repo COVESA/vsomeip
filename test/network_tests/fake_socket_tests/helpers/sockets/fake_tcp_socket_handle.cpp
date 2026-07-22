@@ -458,9 +458,9 @@ size_t fake_tcp_socket_handle::consume(std::vector<boost::asio::const_buffer> co
                 received_command_record_.record(message.id_);
                 current_size += parsed_bytes;
                 raw_message.reserve(current_size);
-                std::copy(input.begin(), input.begin() + parsed_bytes, std::back_inserter(raw_message));
+                std::copy(input.begin(), input.begin() + static_cast<long>(parsed_bytes), std::back_inserter(raw_message));
             }
-            input.erase(input.begin(), input.begin() + parsed_bytes);
+            input.erase(input.begin(), input.begin() + static_cast<long>(parsed_bytes));
             input.shrink_to_fit();
         } else {
             TEST_LOG << "[fake-socket] Error: unable to parse input. Size of the input: " << input.size();

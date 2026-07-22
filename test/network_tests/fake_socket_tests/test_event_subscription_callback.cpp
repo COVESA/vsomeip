@@ -183,7 +183,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                     }
                     // handlers had been deregistered, ensure before offering anything that we would count any new subscription
                     server_->register_group_subscription_handler(
-                            field_one_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+                            field_one_, [&](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
                                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription for field_one_ in new lc: "
                                              << _is_subscribed;
                                 if (_is_subscribed) {
@@ -192,7 +192,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                                 return true;
                             });
                     server_->register_group_subscription_handler(
-                            field_two_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+                            field_two_, [&](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
                                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription for field_two_ in new lc: "
                                              << _is_subscribed;
                                 if (_is_subscribed) {
@@ -201,7 +201,7 @@ TEST_F(test_event_subscription_callback_local, subscriptions_callbacks_do_no_lea
                                 return true;
                             });
                     server_->register_group_subscription_handler(
-                            field_three_, [&, this](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
+                            field_three_, [&](client_t, uid_t, gid_t, const std::string&, bool _is_subscribed) {
                                 VSOMEIP_INFO << "[DISPATCHER_TAG] server received a subscription for field_three_ in new lc: "
                                              << _is_subscribed;
                                 if (_is_subscribed) {

@@ -149,7 +149,7 @@ std::string hex_bytes_to_string(std::string_view bytes) {
 
     os << std::hex << std::setfill('0');
 
-    for (unsigned char ch : bytes) {
+    for (char ch : bytes) {
         os << std::setw(2) << static_cast<uint16_t>(ch);
     }
 

@@ -166,7 +166,8 @@ void data_pipe::push_checked_data(std::scoped_lock<std::mutex> const&) {
         if (local_offset > 0) {
             // Copy what has been parsed from the current segment to the forward queue and erase it from the input queue.
             control_data_t data{.buffer_ = std::vector<unsigned char>(input_data_[segment_offset].buffer_.begin(),
-                                                                      input_data_[segment_offset].buffer_.begin() + local_offset),
+                                                                      input_data_[segment_offset].buffer_.begin()
+                                                                              + static_cast<std::ptrdiff_t>(local_offset)),
                                 .addresses_ = input_data_[segment_offset].addresses_};
             data_to_forward_.emplace_back(data);
 

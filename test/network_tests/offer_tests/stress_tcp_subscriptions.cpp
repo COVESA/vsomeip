@@ -217,21 +217,21 @@ int main(int argc, char** argv) {
         size_t str_index;
 
         if (argc > 2) {
-            threads_count = std::stol(argv[2], &str_index);
+            threads_count = std::stoul(argv[2], &str_index);
             if (argv[2][str_index] != 0 || threads_count < 1 || threads_count > 1000) {
                 throw std::invalid_argument("invalid threads count");
             }
         }
 
         if (argc > 3) {
-            iterations_count = std::stol(argv[3], &str_index);
+            iterations_count = std::stoul(argv[3], &str_index);
             if (argv[3][str_index] != 0 || iterations_count < 1 || iterations_count > 10000) {
                 throw std::invalid_argument("invalid iterations count");
             }
         }
 
         if (argc > 1) {
-            initial_port = std::stol(argv[1], &str_index);
+            initial_port = std::stoul(argv[1], &str_index);
 
             if (argv[1][str_index] != 0 || initial_port < 1000 || (initial_port + threads_count * iterations_count) > 65536) {
                 throw std::invalid_argument("invalid port range");

@@ -28,7 +28,7 @@ private:
     std::mutex availability_mutex;
     std::mutex event_counter_mutex;
     bool availability{false};
-    int received_messages_counter{0};
+    uint64_t received_messages_counter{0};
     std::map<vsomeip::event_t, int> map_events;
     std::chrono::time_point<std::chrono::system_clock> sec;
     void on_availability(vsomeip::service_t service_, vsomeip::instance_t instance_, bool is_available_);

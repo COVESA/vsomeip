@@ -68,7 +68,7 @@ protected:
             bpi::scoped_lock<bpi::interprocess_mutex> its_lock(_shm_data.sync_ptr->client_mutex_);
             result = vt::interprocess_utils::wait_and_check_unlocked(
                     _shm_data.sync_ptr->client_cv_, its_lock, _timeout * common::get_timeout_scale(),
-                    _shm_data.sync_ptr->client_status_[_app_id],
+                    _shm_data.sync_ptr->client_status_[static_cast<size_t>(_app_id)],
                     reuse_client_id::reuse_client_id_test_interprocess_sync::registration_status::STATE_REGISTERED);
         }
         return result;

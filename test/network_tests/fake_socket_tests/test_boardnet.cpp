@@ -281,8 +281,8 @@ TEST_F(test_boardnet_helper, property_mismatch_regression) {
 
     service_instance si_right_minor{service_instance_.service_, service_instance_.instance_, 1, 1};
     service_instance si_wrong_minor{service_instance_.service_, service_instance_.instance_, 1, 2};
-    event_ids event_right_minor{si_right_minor, 0x8002, 0x1, {vsomeip::reliability_type_e::RT_UNRELIABLE}};
-    event_ids event_wrong_minor{si_wrong_minor, 0x8002, 0x1, {vsomeip::reliability_type_e::RT_UNRELIABLE}};
+    event_ids event_right_minor{si_right_minor, 0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE};
+    event_ids event_wrong_minor{si_wrong_minor, 0x8002, 0x1, vsomeip::reliability_type_e::RT_UNRELIABLE};
 
     // Server offers the service.
     ecu_two_server_->offer(si_right_minor);

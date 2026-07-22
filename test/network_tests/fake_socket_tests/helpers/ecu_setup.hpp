@@ -117,7 +117,6 @@ private:
     /// io_context is registered transparently on the first TCP service offer.
     void setup_offer_hook(app* a);
 
-    fake_netlink_connector::state_e routing_state_ = fake_netlink_connector::state_e::UP;
     std::optional<ecu_config> guest_config_;
     std::string guest_config_name_;
     std::filesystem::path guest_config_file_;

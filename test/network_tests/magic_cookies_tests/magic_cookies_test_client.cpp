@@ -18,6 +18,10 @@
 #include "common/test_main.hpp"
 #include "common/timeout_scale.hpp"
 
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wkeyword-macro"
+#endif
+
 #define private public
 #define protected public
 

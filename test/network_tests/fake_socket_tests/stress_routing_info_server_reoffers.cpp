@@ -24,9 +24,7 @@
 namespace vsomeip_v3::testing {
 static std::string const routingmanager_name_{"routingmanagerd"};
 static std::string const server_name_{"server"};
-static std::string const server_name_two_{"server_two"}; // without a fixed-id in config
 static std::string const client_name_{"client"};
-static std::string const client_name_two_{"client_two"}; // without a fixed-id in config
 
 struct stress_service_reoffered : public base_fake_socket_fixture {
     stress_service_reoffered() {

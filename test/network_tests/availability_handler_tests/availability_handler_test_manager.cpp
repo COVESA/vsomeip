@@ -47,11 +47,6 @@ protected:
     static void remove(availability_handler::availability_handler_test_steps* ptr) { ptr->~availability_handler_test_steps(); };
 };
 
-auto custom_env = [](const std::string config, const std::string app_name) {
-    std::map<std::string, std::string> app_env{{"VSOMEIP_CONFIGURATION", config}, {"VSOMEIP_APPLICATION_NAME", app_name}};
-    return app_env;
-};
-
 /**
  * @test Re-register the availability handler. Check if the handler, after re-registering,
  * becomes available again after the service stops and then resumes offering the service.
