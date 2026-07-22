@@ -271,6 +271,28 @@ private:
     void register_availability_handler_unlocked(service_t _service, instance_t _instance, const availability_state_handler_t& _handler,
                                                 major_version_t _major, minor_version_t _minor, bool _is_available);
 
+    // Emit an error log that "_what" (e.g. "Subscription handler") is being registered too late, i.e.
+    // after the related service was already offered/requested or the eventgroup subscribed to.
+    // Registering before the offer/request/subscribe avoids missing early callbacks. "_context" is the
+    // operation that already happened (e.g. "offer", "request", "subscribe"); the second overload also
+    // prints "_sub_id" (a method or eventgroup) in the id.
+    //
+    // These checks are best-effort and intentionally NOT atomic with the registration: the routing
+    // manager is queried outside the application's handler mutexes to avoid lock-ordering issues, so
+    // a concurrent offer/request/subscribe on another thread can be missed. The goal is to catch
+    // sequential API-ordering mistakes (typically at startup), not to detect races.
+    void warn_late_registration(const char* _what, service_t _service, instance_t _instance, const char* _context) const;
+    void warn_late_registration(const char* _what, service_t _service, instance_t _instance, std::uint16_t _sub_id,
+                                const char* _context) const;
+
+    // Emit a warning log that "_what" is being registered while a handler is already registered for the
+    // same key, i.e. a duplicate registration that silently replaces the previous handler. Like the
+    // late-registration checks above this is best-effort and API-level only; it is not emitted for
+    // handlers where keeping several handlers is intentional (e.g. message handlers registered
+    // with HRT_APPEND/HRT_PREPEND).
+    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance) const;
+    void warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance, std::uint16_t _sub_id) const;
+
     void main_dispatch();
     void dispatch();
     void invoke_handler(std::unique_lock<std::mutex>& _lock, std::shared_ptr<sync_handler>& _handler);

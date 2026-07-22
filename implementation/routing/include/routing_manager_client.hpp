@@ -117,6 +117,15 @@ public:
     bool send(client_t _client, std::shared_ptr<message> _message, bool _force);
     bool is_available(service_t _service, instance_t _instance, major_version_t _major) const;
 
+    // Whether the given service/instance is currently offered by this client (provider side).
+    bool is_offered(service_t _service, instance_t _instance) const;
+    // Whether this client has already requested the given service (consumer side).
+    bool is_requested(service_t _service, instance_t _instance) const;
+    // Whether this client has subscribed to the given event of an eventgroup of the given service.
+    // A whole-eventgroup subscription (subscribe() with ANY_EVENT) matches any _event.
+    // This reflects subscription intent only, so it does not imply an acknowledged or established
+    // subscription.
+    bool is_subscribed(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) const;
     std::set<std::shared_ptr<event>> find_consumed_events(service_t _service, instance_t _instance, eventgroup_t _eventgroup) const;
     void notify_one(service_t _service, instance_t _instance, event_t _event, std::shared_ptr<payload> _payload, client_t _client,
                     bool _force);
@@ -287,6 +296,12 @@ private:
     void stop_offer_service_base(client_t _client, service_t _service, instance_t _instance, major_version_t _major, minor_version_t _minor,
                                  std::scoped_lock<std::mutex> const& _lock);
 
+    bool is_offered(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
+    // Lock-token overloads of the queries above: the caller must already hold the matching mutex
+    // (provider_mutex_ for is_offered, consumer_mutex_ for is_requested/is_subscribed).
+    bool is_requested(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const;
+    bool is_subscribed(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                       std::scoped_lock<std::mutex> const&) const;
     void register_provider_event(client_t _client, service_t _service, instance_t _instance, event_t _notifier,
                                  const std::set<eventgroup_t>& _eventgroups, const event_type_e _type, reliability_type_e _reliability,
                                  std::chrono::milliseconds _cycle, bool _change_resets_cycle, bool _update_on_change,

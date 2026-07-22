@@ -713,9 +713,41 @@ void application_impl::unregister_state_handler() {
     handler_ = nullptr;
 }
 
+void application_impl::warn_late_registration(const char* _what, service_t _service, instance_t _instance, const char* _context) const {
+    VSOMEIP_ERROR_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "] registered after " << _context
+                    << "; register handlers first.";
+}
+
+void application_impl::warn_late_registration(const char* _what, service_t _service, instance_t _instance, std::uint16_t _sub_id,
+                                              const char* _context) const {
+    VSOMEIP_ERROR_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_sub_id) << "] registered after "
+                    << _context << "; register handlers first.";
+}
+
+void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance) const {
+    VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance)
+                      << "] registered more than once; the previous handler is replaced.";
+}
+
+void application_impl::warn_duplicate_registration(const char* _what, service_t _service, instance_t _instance,
+                                                   std::uint16_t _sub_id) const {
+    VSOMEIP_WARNING_P << _what << " [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_sub_id)
+                      << "] registered more than once; the previous handler is replaced.";
+}
+
 void application_impl::register_availability_handler(service_t _service, instance_t _instance, const availability_handler_t& _handler,
                                                      major_version_t _major, minor_version_t _minor) {
 
+    {
+        std::scoped_lock availability_lock{availability_mutex_};
+        // A pre-existing handler for this service/instance is silently replaced, so warn users.
+        if (availability_.find({_service, _instance}) != availability_.end()) {
+            warn_duplicate_registration("Availability handler", _service, _instance);
+        }
+    }
+    if (routing_ && routing_->is_requested(_service, _instance)) {
+        warn_late_registration("Availability handler", _service, _instance, "request");
+    }
     auto its_handler_ext = [_handler](service_t _service_inner, instance_t _instance_inner, availability_state_e _state) {
         _handler(_service_inner, _instance_inner, (_state == availability_state_e::AS_AVAILABLE));
     };
@@ -725,7 +757,15 @@ void application_impl::register_availability_handler(service_t _service, instanc
 
 void application_impl::register_availability_handler(service_t _service, instance_t _instance, const availability_state_handler_t& _handler,
                                                      major_version_t _major, minor_version_t _minor) {
-
+    {
+        std::scoped_lock availability_lock{availability_mutex_};
+        if (availability_.find({_service, _instance}) != availability_.end()) {
+            warn_duplicate_registration("Availability handler", _service, _instance);
+        }
+    }
+    if (routing_ && routing_->is_requested(_service, _instance)) {
+        warn_late_registration("Availability handler", _service, _instance, "request");
+    }
     register_availability_handler_internal(_service, _instance, _handler, _major, _minor);
 }
 
@@ -864,7 +904,16 @@ void application_impl::register_subscription_handler(service_t _service, instanc
 
     VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
+    const bool offered = routing_ && routing_->is_offered(_service, _instance);
+
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
+    if (auto found = subscription_.find({_service, _instance});
+        found != subscription_.end() && found->second.find(_eventgroup) != found->second.end()) {
+        warn_duplicate_registration("Subscription handler", _service, _instance, _eventgroup);
+    }
+    if (offered) {
+        warn_late_registration("Subscription handler", _service, _instance, "offer");
+    }
     subscription_[{_service, _instance}][_eventgroup] = std::make_pair(_handler, nullptr);
 }
 
@@ -947,8 +996,18 @@ void application_impl::deliver_subscription_state(service_t _service, instance_t
 
 void application_impl::register_subscription_status_handler(service_t _service, instance_t _instance, eventgroup_t _eventgroup,
                                                             event_t _event, subscription_status_handler_t _handler, bool _is_selective) {
+    const bool subscribed = routing_ && routing_->is_subscribed(_service, _instance, _eventgroup, _event);
+
     std::scoped_lock its_lock{subscription_status_handlers_mutex_};
     if (_handler) {
+        if (auto found_si = subscription_status_handlers_.find({_service, _instance}); found_si != subscription_status_handlers_.end()
+            && found_si->second.find(_eventgroup) != found_si->second.end()
+            && found_si->second.at(_eventgroup).find(_event) != found_si->second.at(_eventgroup).end()) {
+            warn_duplicate_registration("Subscription status handler", _service, _instance, _eventgroup);
+        }
+        if (subscribed) {
+            warn_late_registration("Subscription status handler", _service, _instance, _eventgroup, "subscribe");
+        }
         subscription_status_handlers_[{_service, _instance}][_eventgroup][_event] = std::make_pair(_handler, _is_selective);
     } else {
         VSOMEIP_WARNING_P << "_handler is null, for unregistration please use application_impl::unregister_subscription_status_handler ["
@@ -1758,7 +1817,16 @@ void application_impl::register_async_subscription_handler(service_t _service, i
 
     VSOMEIP_INFO_P << "(" << hex4(get_client()) << "): [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_eventgroup) << "]";
 
+    const bool offered = routing_ && routing_->is_offered(_service, _instance);
+
     std::scoped_lock<std::mutex> its_lock(subscription_mutex_);
+    if (auto found = subscription_.find({_service, _instance});
+        found != subscription_.end() && found->second.find(_eventgroup) != found->second.end()) {
+        warn_duplicate_registration("Async subscription handler", _service, _instance, _eventgroup);
+    }
+    if (offered) {
+        warn_late_registration("Async subscription handler", _service, _instance, "offer");
+    }
     subscription_[{_service, _instance}][_eventgroup] = std::make_pair(nullptr, _handler);
 }
 
@@ -1941,9 +2009,22 @@ std::map<std::string, std::string> application_impl::get_additional_data(const s
 void application_impl::register_message_handler_ext(service_t _service, instance_t _instance, method_t _method,
                                                     const message_handler_t& _handler, handler_registration_type_e _type) {
 
+    // A message handler may serve a provided service (incoming requests) or a consumed
+    // service (incoming responses/notifications), so warn for either ordering mistake.
+    const bool late = routing_ && (routing_->is_offered(_service, _instance) || routing_->is_requested(_service, _instance));
+
     const auto key = to_members_key(_service, _instance, _method);
 
     std::scoped_lock its_lock{members_mutex_};
+    // If the handler is already registered and type is HRT_REPLACE, warn about duplicate registration.
+    if (members_.find(key) != members_.end() && _type == handler_registration_type_e::HRT_REPLACE) {
+        warn_duplicate_registration("Message handler", _service, _instance, _method);
+    }
+    // If the handler is being registered after the service has been offered or requested, warn about late registration.
+    if (late) {
+        warn_late_registration("Message handler", _service, _instance, _method, "offer/request");
+    }
+
     switch (_type) {
     case handler_registration_type_e::HRT_REPLACE:
         members_[key].clear();

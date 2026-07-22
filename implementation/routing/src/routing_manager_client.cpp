@@ -406,6 +406,15 @@ void routing_manager_client::register_event(client_t _client, service_t _service
     if (_is_provided) {
         std::scoped_lock its_lock{provider_mutex_};
         new_registration = is_new(pending_provided_event_registrations_);
+        // A provider event should be registered before its service is offered, otherwise the service can be
+        // advertised before the event exists. Flag only the genuine late case: the offer has already been
+        // sent on the wire (we are ST_REGISTERED and the service is offered). A replay/re-registration
+        // (`new_registration == false`) is not an ordering mistake.
+        if (new_registration && is_offered(_service, _instance, its_lock)
+            && state_machine_->state() == routing_client_state_e::ST_REGISTERED) {
+            VSOMEIP_ERROR_P << "Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
+                            << "] offered after its service; offer events first.";
+        }
         if (new_registration) {
             pending_provided_event_registrations_.push_back(reg_event_data);
             register_provider_event(_client, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle,
@@ -414,6 +423,18 @@ void routing_manager_client::register_event(client_t _client, service_t _service
     } else {
         std::scoped_lock its_lock{consumer_mutex_};
         new_registration = is_new(pending_consumed_event_registrations_);
+        // A consumer event should be registered before subscribing to its eventgroup, otherwise the
+        // subscription can be sent before the event exists. Requesting the service before its events is the
+        // expected consumer order (the opposite of the offer path), so registering an event after
+        // request_service() is NOT flagged.
+        if (new_registration
+            && std::any_of(_eventgroups.begin(), _eventgroups.end(),
+                           [this, _service, _instance, _notifier, &its_lock](eventgroup_t _eventgroup) {
+                               return is_subscribed(_service, _instance, _eventgroup, _notifier, its_lock);
+                           })) {
+            VSOMEIP_ERROR_P << "Event [" << hex4(_service) << "." << hex4(_instance) << "." << hex4(_notifier)
+                            << "] registered after subscribing to its eventgroup; register events before subscribing.";
+        }
         if (new_registration) {
             pending_consumed_event_registrations_.push_back(reg_event_data);
             register_consumer_event(_client, _service, _instance, _notifier, _eventgroups, _type, _reliability, _cycle,
@@ -2951,6 +2972,45 @@ void routing_manager_client::stop_offer_service_base(client_t _client, service_t
             event_ptr->clear_subscribers();
         }
     }
+}
+
+bool routing_manager_client::is_offered(service_t _service, instance_t _instance) const {
+    std::scoped_lock its_lock(provider_mutex_);
+    return is_offered(_service, _instance, its_lock);
+}
+
+bool routing_manager_client::is_offered(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const {
+    // ANY_MAJOR/ANY_MINOR are inert in this lookup: local_service_table keys only on
+    // (service, instance) and ignores the version fields. See local_service_table.hpp.
+    return offered_services_.find({_service, _instance, ANY_MAJOR, ANY_MINOR}) != nullptr;
+}
+
+bool routing_manager_client::is_requested(service_t _service, instance_t _instance) const {
+    std::scoped_lock its_lock{consumer_mutex_};
+    return is_requested(_service, _instance, its_lock);
+}
+
+bool routing_manager_client::is_requested(service_t _service, instance_t _instance, std::scoped_lock<std::mutex> const&) const {
+    // ANY_MAJOR/ANY_MINOR are inert in this lookup: local_service_table keys only on
+    // (service, instance), so contains() ignores the version fields. See local_service_table.hpp.
+    const protocol::service_data its_request{
+            .service_ = _service, .instance_ = _instance, .major_version_ = ANY_MAJOR, .minor_version_ = ANY_MINOR};
+    return requests_.contains(its_request) || requests_to_debounce_.contains(its_request);
+}
+
+bool routing_manager_client::is_subscribed(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event) const {
+    std::scoped_lock its_lock{consumer_mutex_};
+    return is_subscribed(_service, _instance, _eventgroup, _event, its_lock);
+}
+
+bool routing_manager_client::is_subscribed(service_t _service, instance_t _instance, eventgroup_t _eventgroup, event_t _event,
+                                           std::scoped_lock<std::mutex> const&) const {
+    return std::any_of(pending_subscriptions_.begin(), pending_subscriptions_.end(),
+                       [_service, _instance, _eventgroup, _event](const subscription_data_t& _subscription) {
+                           return _subscription.service_instance_ == service_instance_t{_service, _instance}
+                           && (_eventgroup == ANY_EVENTGROUP || _subscription.eventgroup_ == _eventgroup)
+                                   && (_event == ANY_EVENT || _subscription.event_ == ANY_EVENT || _subscription.event_ == _event);
+                       });
 }
 
 session_t routing_manager_client::get_event_session() {

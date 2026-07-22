@@ -393,6 +393,7 @@ TEST(ut_commands_roundtrip, register_events_command) {
         EXPECT_EQ(out_payload, payload);
     }
 }
+
 // --- Variable-sized commands with non-owning payloads (string_view / span) ---
 // Their payloads view directly into the wire buffer, so the buffer must outlive the
 // deserialized result; they therefore cannot use the owning roundtrip() helper.
